@@ -9,8 +9,8 @@
     </div>
     <form onsubmit="importCharPage(event)">
       <label class="btn btn-primary" style="cursor:pointer">
-        Import PNG
-        <input type="file" name="file" accept="image/png" class="hidden" onchange="this.closest('form').requestSubmit()">
+        Import PNGs
+        <input type="file" name="files" accept="image/png" class="hidden" multiple onchange="this.closest('form').requestSubmit()">
       </label>
     </form>
     <span id="import-indicator" class="hidden text-sm text-muted">Importing…</span>
@@ -321,11 +321,18 @@ function importCharPage(e) {
   fetch('/api/characters/import', {
     method: 'POST',
     body: formData
-  }).then(r => {
-    if(r.ok) window.location.reload();
-    else {
-      r.text().then(t => alert('Import failed: ' + t));
-      document.getElementById('import-indicator').classList.add('hidden');
+  }).then(async r => {
+    if(r.ok) {
+      const data = await r.json();
+      if(data.errors && data.errors.length) {
+        alert('Imported ' + data.imported.length + ' of ' + data.total + ' cards.\n\nErrors:\n' + data.errors.map(function(e){ return '• ' + e.filename + ': ' + e.error; }).join('\n'));
+      }
+      window.location.reload();
+    } else {
+      r.text().then(t => {
+        alert('Import failed: ' + t);
+        document.getElementById('import-indicator').classList.add('hidden');
+      });
     }
   });
 }

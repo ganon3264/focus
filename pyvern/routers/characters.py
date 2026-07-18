@@ -21,32 +21,47 @@ def _now() -> str:
 
 @router.post("/import", status_code=201)
 async def import_character(
-    file: UploadFile = File(...),
+    files: list[UploadFile] = File(...),
     db: aiosqlite.Connection = Depends(get_db),
 ):
-    data = await file.read()
+    imported = []
+    errors = []
 
-    try:
-        raw_json = extract_card_json(data)
-    except ValueError as e:
-        raise HTTPException(400, str(e))
+    for file in files:
+        data = await file.read()
 
-    card = normalise_card(raw_json)
-    char_id = str(uuid.uuid4())
-    now = _now()
+        try:
+            raw_json = extract_card_json(data)
+        except ValueError as e:
+            errors.append({"filename": file.filename, "error": str(e)})
+            continue
 
-    char_dir = Path(f"assets/characters/{char_id}")
-    char_dir.mkdir(parents=True, exist_ok=True)
-    avatar_path = str(char_dir / "avatar.png")
-    Path(avatar_path).write_bytes(data)
+        try:
+            card = normalise_card(raw_json)
+        except Exception as e:
+            errors.append({"filename": file.filename, "error": f"Invalid card format: {e}"})
+            continue
 
-    await db.execute(
-        "INSERT INTO characters (id, name, image_path, card_json, created_at) VALUES (?, ?, ?, ?, ?)",
-        (char_id, card["name"], avatar_path, json.dumps(raw_json), now),
-    )
+        char_id = str(uuid.uuid4())
+        now = _now()
+
+        char_dir = Path(f"assets/characters/{char_id}")
+        char_dir.mkdir(parents=True, exist_ok=True)
+        avatar_path = str(char_dir / "avatar.png")
+        Path(avatar_path).write_bytes(data)
+
+        await db.execute(
+            "INSERT INTO characters (id, name, image_path, card_json, created_at) VALUES (?, ?, ?, ?, ?)",
+            (char_id, card["name"], avatar_path, json.dumps(raw_json), now),
+        )
+        imported.append({"id": char_id, "name": card["name"]})
+
     await db.commit()
 
-    return {"id": char_id, "name": card["name"]}
+    result = {"imported": imported, "total": len(imported) + len(errors)}
+    if errors:
+        result["errors"] = errors
+    return result
 
 
 async def _attach_images(blocks: list[dict], db: aiosqlite.Connection) -> list[dict]:

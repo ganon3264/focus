@@ -4,8 +4,8 @@
   <div class="flex gap-2 h-10">
     <form onsubmit="importCharModal(event)" class="flex-1 h-full">
       <label class="btn btn-secondary btn-sm w-full h-full flex items-center justify-center cursor-pointer m-0">
-        Import PNG Card
-        <input type="file" name="file" accept="image/png" class="hidden" onchange="this.closest('form').requestSubmit()">
+        Import PNG Cards
+        <input type="file" name="files" accept="image/png" class="hidden" multiple onchange="this.closest('form').requestSubmit()">
       </label>
     </form>
     <a href="/characters" class="btn btn-secondary btn-sm flex-1 flex items-center justify-center h-full text-decoration-none">Advanced Editor</a>
@@ -196,9 +196,16 @@ function importCharModal(e){
   fetch('/api/characters/import', {
     method: 'POST',
     body: formData
-  }).then(function(r){
-    if(r.ok) htmx.ajax('GET','/partials/characters-modal',{target:'#characters-modal-body',swap:'innerHTML'});
-    else r.text().then(t => alert('Import failed: ' + t));
+  }).then(async function(r){
+    if(r.ok) {
+      const data = await r.json();
+      if(data.errors && data.errors.length) {
+        alert('Imported ' + data.imported.length + ' of ' + data.total + ' cards.\n\nErrors:\n' + data.errors.map(function(e){ return '• ' + e.filename + ': ' + e.error; }).join('\n'));
+      }
+      htmx.ajax('GET','/partials/characters-modal',{target:'#characters-modal-body',swap:'innerHTML'});
+    } else {
+      r.text().then(t => alert('Import failed: ' + t));
+    }
   });
 }
 
