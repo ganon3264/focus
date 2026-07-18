@@ -339,7 +339,7 @@
       var asstDiv = window.buildAssistantSkeleton(charName, charImagePath);
       messageList.insertBefore(asstDiv, window.scrollSentinel);
       asstDiv.scrollIntoView({ behavior: 'smooth' });
-      window.triggerGeneration(chatId, asstDiv, true);
+      window.triggerGeneration(chatId, asstDiv, false);
       return;
     }
 
