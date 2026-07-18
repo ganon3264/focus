@@ -59,6 +59,7 @@ def _merge_consecutive(messages: list[dict]) -> list[dict]:
     Merge adjacent messages that share the same role into one.
     Text parts are joined with \\n\\n.
     If either part has images the result is normalized to a content array.
+    Extra metadata keys (non-role, non-content) are preserved from both sides.
     """
     if not messages:
         return []
@@ -82,9 +83,17 @@ def _merge_consecutive(messages: list[dict]) -> list[dict]:
     for msg in messages[1:]:
         last = result[-1]
         if msg["role"] == last["role"]:
+            merged_extra = {}
+            for k, v in last.items():
+                if k not in ("role", "content"):
+                    merged_extra[k] = v
+            for k, v in msg.items():
+                if k not in ("role", "content"):
+                    merged_extra[k] = v
             result[-1] = {
                 "role": last["role"],
                 "content": merge_content(last["content"], msg["content"]),
+                **merged_extra,
             }
         else:
             result.append(dict(msg))

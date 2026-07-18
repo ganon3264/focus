@@ -175,7 +175,8 @@ async def fetch_models(body: FetchModelsRequest, db: aiosqlite.Connection = Depe
                     "id": m["id"],
                     "name": m.get("name", m["id"]),
                     "context_length": m.get("context_length", None),
-                    "pricing": m.get("pricing", None)
+                    "pricing": m.get("pricing", None),
+                    "architecture": m.get("architecture", None),
                 })
         
         # Sort alphabetically by name or ID
@@ -256,5 +257,45 @@ async def delete_secret(name: str, db: aiosqlite.Connection = Depends(get_db)):
     await db.execute("DELETE FROM secrets WHERE name = ?", (name,))
     await db.commit()
     return {"ok": True}
+
+
+async def get_openrouter_model_modalities(model_id: str) -> list[str] | None:
+    """Look up input_modalities for an OpenRouter model from the in-memory cache.
+
+    Fetches the full model list if the cache is cold or stale.
+    Returns None if the model is not found or an error occurs.
+    """
+    global _OPENROUTER_CACHE, _OPENROUTER_CACHE_TIME
+    import time
+    now = time.time()
+
+    async with _openrouter_cache_lock:
+        if not _OPENROUTER_CACHE or now - _OPENROUTER_CACHE_TIME >= MODEL_CACHE_TTL:
+            try:
+                async with httpx.AsyncClient() as client:
+                    resp = await client.get(
+                        "https://openrouter.ai/api/v1/models",
+                        headers={},
+                        timeout=MODEL_FETCH_HTTP_TIMEOUT,
+                    )
+                    resp.raise_for_status()
+                    data = resp.json()
+                    if "data" in data and isinstance(data["data"], list):
+                        _OPENROUTER_CACHE = data["data"]
+                        _OPENROUTER_CACHE_TIME = now
+            except Exception:
+                logger.exception("Failed to refresh OpenRouter model cache for modality lookup")
+                return None
+
+    if not _OPENROUTER_CACHE:
+        return None
+
+    for m in _OPENROUTER_CACHE:
+        if isinstance(m, dict) and m.get("id") == model_id:
+            arch = m.get("architecture")
+            if isinstance(arch, dict):
+                return arch.get("input_modalities")
+
+    return None
 
 

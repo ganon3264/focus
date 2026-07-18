@@ -233,6 +233,9 @@ async def get_prompt_context(
                 block_images.setdefault(r["block_id"], []).append(r)
 
     # ── Assemble final prompt ─────────────────────────────────────────────────
+    if history and history[0].get("role") == "assistant":
+        history[0]["_greeting"] = True
+
     messages = assemble_prompt(preset_blocks, history, char_data, char_own_blocks, macros, block_images)
 
     return {
@@ -241,3 +244,103 @@ async def get_prompt_context(
         "next_variant_index": next_variant_index,
         "user_msg_id": user_msg_id,
     }
+
+
+def filter_unsupported_modalities(messages: list[dict], supported_modalities: list[str] | None) -> list[dict]:
+    """Strip media blocks (image_url, input_audio) for models that don't support them.
+
+    If a model only accepts text, all image/audio/file parts are removed and
+    single-text content arrays are collapsed back to plain strings.
+    """
+    if not supported_modalities:
+        return messages
+
+    can_image = "image" in supported_modalities
+    can_audio = "audio" in supported_modalities
+    can_file = "file" in supported_modalities
+
+    if can_image and can_audio:
+        return messages
+
+    filtered: list[dict] = []
+    for msg in messages:
+        content = msg.get("content")
+        if not isinstance(content, list):
+            filtered.append(msg)
+            continue
+
+        new_parts = []
+        for part in content:
+            pt = part.get("type")
+            if pt == "text":
+                new_parts.append(part)
+            elif pt == "image_url" and can_image:
+                new_parts.append(part)
+            elif pt == "input_audio" and can_audio:
+                new_parts.append(part)
+            elif pt == "file" and can_file:
+                new_parts.append(part)
+
+        if not new_parts:
+            continue
+        if len(new_parts) == 1 and new_parts[0].get("type") == "text":
+            filtered.append({"role": msg["role"], "content": new_parts[0].get("text", "")})
+        else:
+            filtered.append({"role": msg["role"], "content": new_parts})
+
+    return filtered
+
+
+def apply_claude_caching(messages: list[dict], cache_enabled: bool, cache_ttl: str = "ephemeral", cache_depth: int = 5) -> list[dict]:
+    """Inject cache_control breakpoints for Claude prompt caching on OpenRouter.
+
+    Static breakpoint covers all preset blocks + the character greeting (if present).
+    Sliding breakpoint sits on a user message *cache_depth* turns before the latest,
+    counting only turns that occur *after* the static cut-off.
+    """
+    if not cache_enabled or not messages:
+        return messages
+
+    cc: dict = {"type": "1h"} if cache_ttl == "1h" else {"type": "ephemeral"}
+
+    def _inject_cache(msg: dict) -> bool:
+        content = msg.get("content")
+        if isinstance(content, str):
+            msg["content"] = [{"type": "text", "text": content, "cache_control": cc}]
+            return True
+        if isinstance(content, list):
+            for part in reversed(content):
+                if part.get("type") == "text" and "cache_control" not in part:
+                    part["cache_control"] = cc
+                    return True
+            content.append({"type": "text", "text": "", "cache_control": cc})
+            return True
+        return False
+
+    # ── Static breakpoint ──────────────────────────────────────────────────
+    static_idx = 0
+
+    # Preferred: explicit greeting tag placed by get_prompt_context()
+    for i, msg in enumerate(messages):
+        if msg.get("_greeting"):
+            static_idx = i
+            break
+    else:
+        # Fallback: last message before the first user message
+        for i, msg in enumerate(messages):
+            if msg.get("role") == "user":
+                static_idx = max(0, i - 1)
+                break
+
+    _inject_cache(messages[static_idx])
+
+    # ── Sliding breakpoint ─────────────────────────────────────────────────
+    bp_idx = len(messages) - cache_depth
+    if bp_idx > static_idx:
+        _inject_cache(messages[bp_idx])
+
+    # ── Clean up metadata tags ─────────────────────────────────────────────
+    for msg in messages:
+        msg.pop("_greeting", None)
+
+    return messages

@@ -202,6 +202,8 @@
 
     sendBtn.classList.add('hidden');
     stopBtn.classList.remove('hidden');
+    input.disabled = true;
+    fileUpload.disabled = true;
 
     const contentDiv = asstDiv.querySelector('.message-content');
     if (contentDiv) {
@@ -244,6 +246,8 @@
     
     window._tempUserMessage = ""; // clear
 
+    const useStream = body.samplers.stream_enabled !== false;
+
     try {
       const res = await fetch(api.stream, {
         method: 'POST',
@@ -257,6 +261,26 @@
         throw new Error(errText || 'Stream request failed');
       }
 
+      // ── Non-streaming path ──────────────────────────────────────────────────
+      if (!useStream) {
+        const json = await res.json();
+        const fullText = json.full_text || '';
+        const messageId = json.message_id;
+        const userMessageId = json.user_message_id;
+
+        const contentDiv = asstDiv.querySelector('.message-content');
+        if (contentDiv) {
+          contentDiv.innerHTML = renderMessage(fullText);
+        }
+        if (messageId) {
+          asstDiv.id = 'message-' + messageId;
+          asstDiv.dataset.messageId = messageId;
+        }
+        await refreshMessagesAfterStream(chatId, userMessageId, messageId);
+        return;
+      }
+
+      // ── Streaming path ──────────────────────────────────────────────────────
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
@@ -360,6 +384,8 @@
       currentController = null;
       sendBtn.classList.remove('hidden');
       stopBtn.classList.add('hidden');
+      input.disabled = false;
+      fileUpload.disabled = false;
     }
   };
 

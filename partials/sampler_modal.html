@@ -39,7 +39,7 @@
   </div>
 
   <!-- Standard Tab -->
-  <div x-show="tab === 'standard'" class="flex flex-col gap-4 overflow-y-auto pr-2 pb-2">
+  <div x-show="tab === 'standard'" class="flex flex-col gap-3 overflow-y-auto pr-2 pb-2">
     <!-- Always visible -->
     <div class="form-group mb-0">
       <label class="flex justify-between text-xs mb-1"><span>Temperature</span> <span x-text="samplers.temperature"></span></label>
@@ -58,7 +58,7 @@
 
     <!-- OpenRouter Specific -->
     <template x-if="providerType === 'openrouter'">
-      <div class="flex flex-col gap-4 mt-2">
+      <div class="flex flex-col gap-3">
         <div class="form-group mb-0">
           <label class="flex justify-between text-xs mb-1"><span>Top K</span> <span x-text="samplers.top_k"></span></label>
           <input type="range" min="0" max="100" step="1" x-model.number="samplers.top_k" @change="saveStandard()" class="styled-slider">
@@ -72,16 +72,48 @@
           <input type="range" min="0" max="2" step="0.01" x-model.number="samplers.repetition_penalty" @change="saveStandard()" class="styled-slider">
         </div>
         <div class="form-group mb-0 flex items-center justify-between mt-2">
-          <label class="text-xs mb-0 cursor-pointer" @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()">Include Reasoning</label>
-          <div class="arranger-toggle" role="switch" tabindex="0" :class="{ 'active': samplers.include_reasoning }" @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()"></div>
+          <label class="text-xs mb-0 cursor-pointer" @click="samplers.stream_enabled = !samplers.stream_enabled; saveStandard()">Streaming</label>
+          <div class="arranger-toggle" role="switch" tabindex="0" :class="{ 'active': samplers.stream_enabled }" @click="samplers.stream_enabled = !samplers.stream_enabled; saveStandard()"></div>
         </div>
-        <div class="form-group mb-0" x-show="samplers.include_reasoning">
-          <label class="flex justify-between text-xs mb-2"><span>Reasoning Effort</span></label>
-          <div class="flex gap-2 flex-wrap">
-            <button class="btn-tag" :class="!samplers.reasoning_effort ? 'active' : ''" @click="samplers.reasoning_effort = ''; saveStandard()">Default</button>
-            <button class="btn-tag" :class="samplers.reasoning_effort === 'low' ? 'active' : ''" @click="samplers.reasoning_effort = 'low'; saveStandard()">Low</button>
-            <button class="btn-tag" :class="samplers.reasoning_effort === 'medium' ? 'active' : ''" @click="samplers.reasoning_effort = 'medium'; saveStandard()">Medium</button>
-            <button class="btn-tag" :class="samplers.reasoning_effort === 'high' ? 'active' : ''" @click="samplers.reasoning_effort = 'high'; saveStandard()">High</button>
+        <div class="flex items-center justify-between mt-2 cursor-pointer select-none" @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()">
+          <div class="flex items-center gap-2">
+            <span class="transform transition-transform duration-200 inline-block w-4 text-center text-xs text-muted" :class="samplers.include_reasoning ? 'rotate-90' : ''">▶</span>
+            <span class="text-xs">Include Reasoning</span>
+          </div>
+          <div class="arranger-toggle" role="switch" :aria-checked="samplers.include_reasoning" :class="{ 'active': samplers.include_reasoning }"></div>
+        </div>
+        <div x-show="samplers.include_reasoning" x-transition.opacity.duration.200ms class="flex flex-col gap-2 mt-1 p-2 rounded-md" style="background: var(--surface-2); border: 1px solid var(--border); display: none;">
+          <div class="form-group mb-0">
+            <label class="flex justify-between text-xs mb-2"><span>Reasoning Effort</span></label>
+            <div class="flex gap-2 flex-wrap">
+              <button class="btn-tag" :class="!samplers.reasoning_effort ? 'active' : ''" @click.stop="samplers.reasoning_effort = ''; saveStandard()">Default</button>
+              <button class="btn-tag" :class="samplers.reasoning_effort === 'low' ? 'active' : ''" @click.stop="samplers.reasoning_effort = 'low'; saveStandard()">Low</button>
+              <button class="btn-tag" :class="samplers.reasoning_effort === 'medium' ? 'active' : ''" @click.stop="samplers.reasoning_effort = 'medium'; saveStandard()">Medium</button>
+              <button class="btn-tag" :class="samplers.reasoning_effort === 'high' ? 'active' : ''" @click.stop="samplers.reasoning_effort = 'high'; saveStandard()">High</button>
+            </div>
+          </div>
+          <div class="form-group mb-0">
+            <label class="flex justify-between text-xs mb-1"><span>Thinking Budget</span> <span x-text="samplers.thinking_budget || 'auto'"></span></label>
+            <input type="number" min="0" max="128000" step="1" x-model.number="samplers.thinking_budget" @change="saveStandard()" class="form-control text-sm w-full" placeholder="0 = use effort or default 2048">
+          </div>
+        </div>
+
+        <!-- Claude Caching -->
+        <div class="flex items-center justify-between mt-2 cursor-pointer select-none" @click="samplers.cache_enabled = !samplers.cache_enabled; saveStandard()">
+          <div class="flex items-center gap-2">
+            <span class="transform transition-transform duration-200 inline-block w-4 text-center text-xs text-muted" :class="samplers.cache_enabled ? 'rotate-90' : ''">▶</span>
+            <span class="text-xs">Prompt Caching</span>
+          </div>
+          <div class="arranger-toggle" role="switch" :aria-checked="samplers.cache_enabled" :class="{ 'active': samplers.cache_enabled }"></div>
+        </div>
+        <div x-show="samplers.cache_enabled" x-transition.opacity.duration.200ms class="flex flex-col gap-2 mt-1 p-2 rounded-md" style="background: var(--surface-2); border: 1px solid var(--border); display: none;">
+          <div class="form-group mb-0">
+            <label class="flex justify-between text-xs mb-1"><span>Depth of Turns</span> <span x-text="samplers.cache_depth"></span></label>
+            <input type="number" min="1" max="50" step="1" x-model.number="samplers.cache_depth" @change="saveStandard()" class="form-control text-sm w-full">
+          </div>
+          <div class="form-group mb-0 flex items-center justify-between">
+            <label class="text-xs mb-0 cursor-pointer" @click="samplers.cache_ttl = samplers.cache_ttl === '1h' ? 'ephemeral' : '1h'; saveStandard()">Extra TTL (1 hour)</label>
+            <div class="arranger-toggle" role="switch" tabindex="0" :class="{ 'active': samplers.cache_ttl === '1h' }" @click="samplers.cache_ttl = samplers.cache_ttl === '1h' ? 'ephemeral' : '1h'; saveStandard()"></div>
           </div>
         </div>
       </div>
@@ -89,7 +121,7 @@
 
     <!-- OpenAI Compat Specific -->
     <template x-if="providerType === 'openai_compat' || providerType === 'deepseek' || providerType === 'moonshot'">
-      <div class="flex flex-col gap-4 mt-2">
+      <div class="flex flex-col gap-3">
         <div class="form-group mb-0">
           <label class="flex justify-between text-xs mb-1"><span>Frequency Penalty</span> <span x-text="samplers.frequency_penalty"></span></label>
           <input type="range" min="-2" max="2" step="0.01" x-model.number="samplers.frequency_penalty" @change="saveStandard()" class="styled-slider">
@@ -99,16 +131,24 @@
           <input type="range" min="-2" max="2" step="0.01" x-model.number="samplers.presence_penalty" @change="saveStandard()" class="styled-slider">
         </div>
         <div class="form-group mb-0 flex items-center justify-between mt-2">
-          <label class="text-xs mb-0 cursor-pointer" @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()">Enable Thinking / Reasoning</label>
-          <div class="arranger-toggle" role="switch" tabindex="0" :class="{ 'active': samplers.include_reasoning }" @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()"></div>
+          <label class="text-xs mb-0 cursor-pointer" @click="samplers.stream_enabled = !samplers.stream_enabled; saveStandard()">Streaming</label>
+          <div class="arranger-toggle" role="switch" tabindex="0" :class="{ 'active': samplers.stream_enabled }" @click="samplers.stream_enabled = !samplers.stream_enabled; saveStandard()"></div>
         </div>
-        <div class="form-group mb-0" x-show="samplers.include_reasoning">
+        <div class="flex items-center justify-between mt-2 cursor-pointer select-none" @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()">
+          <div class="flex items-center gap-2">
+            <span class="transform transition-transform duration-200 inline-block w-4 text-center text-xs text-muted" :class="samplers.include_reasoning ? 'rotate-90' : ''">▶</span>
+            <span class="text-xs">Enable Thinking / Reasoning</span>
+          </div>
+          <div class="arranger-toggle" role="switch" :aria-checked="samplers.include_reasoning" :class="{ 'active': samplers.include_reasoning }"></div>
+        </div>
+        <div class="form-group mb-0" x-show="samplers.include_reasoning" x-transition.opacity.duration.200ms style="display: none;">
           <label class="flex justify-between text-xs mb-2"><span>Reasoning Effort</span></label>
-          <div class="flex gap-2 flex-wrap">
-            <button class="btn-tag" :class="!samplers.reasoning_effort ? 'active' : ''" @click="samplers.reasoning_effort = ''; saveStandard()">Default</button>
-            <button class="btn-tag" :class="samplers.reasoning_effort === 'low' ? 'active' : ''" @click="samplers.reasoning_effort = 'low'; saveStandard()">Low</button>
-            <button class="btn-tag" :class="samplers.reasoning_effort === 'medium' ? 'active' : ''" @click="samplers.reasoning_effort = 'medium'; saveStandard()">Medium</button>
-            <button class="btn-tag" :class="samplers.reasoning_effort === 'high' ? 'active' : ''" @click="samplers.reasoning_effort = 'high'; saveStandard()">High</button>
+            <div class="flex gap-2 flex-wrap">
+              <button class="btn-tag" :class="!samplers.reasoning_effort ? 'active' : ''" @click.stop="samplers.reasoning_effort = ''; saveStandard()">Default</button>
+              <button class="btn-tag" :class="samplers.reasoning_effort === 'low' ? 'active' : ''" @click.stop="samplers.reasoning_effort = 'low'; saveStandard()">Low</button>
+              <button class="btn-tag" :class="samplers.reasoning_effort === 'medium' ? 'active' : ''" @click.stop="samplers.reasoning_effort = 'medium'; saveStandard()">Medium</button>
+              <button class="btn-tag" :class="samplers.reasoning_effort === 'high' ? 'active' : ''" @click.stop="samplers.reasoning_effort = 'high'; saveStandard()">High</button>
+            </div>
           </div>
         </div>
       </div>
@@ -116,28 +156,35 @@
 
     <!-- Google Specific -->
     <template x-if="providerType === 'google_vertex' || providerType === 'google_aistudio'">
-      <div class="flex flex-col gap-4 mt-2">
+      <div class="flex flex-col gap-3">
         <div class="form-group mb-0">
           <label class="flex justify-between text-xs mb-1"><span>Top K</span> <span x-text="samplers.top_k"></span></label>
           <input type="range" min="0" max="100" step="1" x-model.number="samplers.top_k" @change="saveStandard()" class="styled-slider">
         </div>
         <div class="form-group mb-0 flex items-center justify-between mt-2">
-          <label class="text-xs mb-0 cursor-pointer" @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()">Enable Thinking</label>
-          <div class="arranger-toggle" role="switch" tabindex="0" :class="{ 'active': samplers.include_reasoning }" @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()"></div>
+          <label class="text-xs mb-0 cursor-pointer" @click="samplers.stream_enabled = !samplers.stream_enabled; saveStandard()">Streaming</label>
+          <div class="arranger-toggle" role="switch" tabindex="0" :class="{ 'active': samplers.stream_enabled }" @click="samplers.stream_enabled = !samplers.stream_enabled; saveStandard()"></div>
+        </div>
+        <div class="flex items-center justify-between mt-2 cursor-pointer select-none" @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()">
+          <div class="flex items-center gap-2">
+            <span class="transform transition-transform duration-200 inline-block w-4 text-center text-xs text-muted" :class="samplers.include_reasoning ? 'rotate-90' : ''">▶</span>
+            <span class="text-xs">Enable Thinking</span>
+          </div>
+          <div class="arranger-toggle" role="switch" :aria-checked="samplers.include_reasoning" :class="{ 'active': samplers.include_reasoning }"></div>
         </div>
         <div class="form-group mb-0 flex items-center justify-between mt-2">
           <label class="text-xs mb-0 cursor-pointer" @click="samplers.send_reasoning_history = !samplers.send_reasoning_history; saveStandard()">Send Reasoning History</label>
           <div class="arranger-toggle" role="switch" tabindex="0" :class="{ 'active': samplers.send_reasoning_history }" @click="samplers.send_reasoning_history = !samplers.send_reasoning_history; saveStandard()"></div>
         </div>
-        <div class="form-group mb-0" x-show="samplers.include_reasoning">
+        <div class="form-group mb-0" x-show="samplers.include_reasoning" x-transition.opacity.duration.200ms style="display: none;">
           <label class="flex justify-between text-xs mb-2"><span>Thinking Level</span></label>
-          <div class="flex gap-2 flex-wrap">
-            <button class="btn-tag" :class="!samplers.reasoning_effort ? 'active' : ''" @click="samplers.reasoning_effort = ''; saveStandard()">Default</button>
-            <button class="btn-tag" :class="samplers.reasoning_effort === 'MINIMAL' ? 'active' : ''" @click="samplers.reasoning_effort = 'MINIMAL'; saveStandard()">Min</button>
-            <button class="btn-tag" :class="samplers.reasoning_effort === 'LOW' ? 'active' : ''" @click="samplers.reasoning_effort = 'LOW'; saveStandard()">Low</button>
-            <button class="btn-tag" :class="samplers.reasoning_effort === 'MEDIUM' ? 'active' : ''" @click="samplers.reasoning_effort = 'MEDIUM'; saveStandard()">Med</button>
-            <button class="btn-tag" :class="samplers.reasoning_effort === 'HIGH' ? 'active' : ''" @click="samplers.reasoning_effort = 'HIGH'; saveStandard()">High</button>
-          </div>
+            <div class="flex gap-2 flex-wrap">
+              <button class="btn-tag" :class="!samplers.reasoning_effort ? 'active' : ''" @click.stop="samplers.reasoning_effort = ''; saveStandard()">Default</button>
+              <button class="btn-tag" :class="samplers.reasoning_effort === 'MINIMAL' ? 'active' : ''" @click.stop="samplers.reasoning_effort = 'MINIMAL'; saveStandard()">Min</button>
+              <button class="btn-tag" :class="samplers.reasoning_effort === 'LOW' ? 'active' : ''" @click.stop="samplers.reasoning_effort = 'LOW'; saveStandard()">Low</button>
+              <button class="btn-tag" :class="samplers.reasoning_effort === 'MEDIUM' ? 'active' : ''" @click.stop="samplers.reasoning_effort = 'MEDIUM'; saveStandard()">Med</button>
+              <button class="btn-tag" :class="samplers.reasoning_effort === 'HIGH' ? 'active' : ''" @click.stop="samplers.reasoning_effort = 'HIGH'; saveStandard()">High</button>
+            </div>
         </div>
       </div>
     </template>
@@ -176,19 +223,24 @@ document.addEventListener('alpine:init', () => {
     tab: 'standard',
     providerType: localStorage.getItem('pyvern-provider-type') || 'openai_compat',
     
-    samplers: {
-      temperature: 1.0,
-      max_tokens: 1024,
-      top_p: 0.95,
-      top_k: 40,
-      min_p: 0.05,
-      repetition_penalty: 1.0,
-      frequency_penalty: 0.0,
-      presence_penalty: 0.0,
-      include_reasoning: false,
-      send_reasoning_history: true,
-      reasoning_effort: ''
-    },
+     samplers: {
+       temperature: 1.0,
+       max_tokens: 1024,
+       top_p: 0.95,
+       top_k: 40,
+       min_p: 0.05,
+       repetition_penalty: 1.0,
+       frequency_penalty: 0.0,
+       presence_penalty: 0.0,
+        include_reasoning: false,
+        send_reasoning_history: true,
+        reasoning_effort: '',
+        thinking_budget: 0,
+        stream_enabled: true,
+       cache_enabled: false,
+       cache_ttl: 'ephemeral',
+       cache_depth: 5
+     },
     
     customFields: [],
 
@@ -222,7 +274,8 @@ document.addEventListener('alpine:init', () => {
         let payload = {
           temperature: this.samplers.temperature,
           max_tokens: this.samplers.max_tokens,
-          top_p: this.samplers.top_p
+          top_p: this.samplers.top_p,
+          stream_enabled: this.samplers.stream_enabled
         };
         
         if (this.providerType === 'openrouter') {
@@ -231,7 +284,12 @@ document.addEventListener('alpine:init', () => {
           payload.repetition_penalty = this.samplers.repetition_penalty;
           if (this.samplers.include_reasoning) {
             payload.include_reasoning = true;
+            payload.reasoning_effort = this.samplers.reasoning_effort;
+            payload.thinking_budget = this.samplers.thinking_budget;
           }
+          payload.cache_enabled = this.samplers.cache_enabled;
+          payload.cache_ttl = this.samplers.cache_ttl;
+          payload.cache_depth = this.samplers.cache_depth;
         } else if (this.providerType === 'openai_compat' || this.providerType === 'deepseek' || this.providerType === 'moonshot') {
           payload.frequency_penalty = this.samplers.frequency_penalty;
           payload.presence_penalty = this.samplers.presence_penalty;

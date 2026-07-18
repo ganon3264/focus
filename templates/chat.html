@@ -71,7 +71,7 @@
          <button class="btn btn-secondary !px-2" style="border: none; background: transparent; color: var(--text-muted);" onclick="document.getElementById('file-upload').click()" title="Attach files" aria-label="Attach files">
           {{ icon_paperclip(20) }}
         </button>
-        <textarea id="chat-input" placeholder="Type a message…" onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();document.getElementById('send-btn').click()}"></textarea>
+        <textarea id="chat-input" placeholder="Type a message…" onkeydown="if(event.key==='Enter' && !event.shiftKey && !document.getElementById('send-btn').classList.contains('hidden')){event.preventDefault();document.getElementById('send-btn').click()}"></textarea>
          <button id="send-btn" class="send-btn" aria-label="Send message" data-chat-id="{{ chat_id }}" data-provider-id="{{ providers[0].id if providers else '' }}">
           {{ icon_send() }}
         </button>
@@ -155,7 +155,7 @@
 <div id="modal-sampler" class="modal-overlay" role="dialog" aria-modal="true" style="display:none;" onclick="if(event.target===this)closeModal('modal-sampler')">
   <div class="modal-content" style="max-width:550px; min-height: 400px; display: flex; flex-direction: column;">
     <div class="modal-header" style="margin-bottom: 0.5rem;"><div class="modal-title">Generation Parameters</div><button class="btn btn-secondary" aria-label="Close" onclick="closeModal('modal-sampler')">×</button></div>
-    <div class="flex-1 overflow-hidden">
+    <div class="flex-1 overflow-y-auto">
       {% include "sampler_modal.html" %}
     </div>
   </div>

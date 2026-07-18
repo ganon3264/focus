@@ -1,4 +1,5 @@
 import base64
+import logging
 from google.genai import types
 
 from .base import BaseProvider
@@ -82,6 +83,24 @@ class GoogleProviderBase(BaseProvider):
         return system_instruction, contents
 
     async def _do_stream(self, contents, config):
+        if logger.isEnabledFor(logging.DEBUG):
+            import json as _json
+            contents_dump = [c.model_dump(exclude_none=True) for c in contents]
+            config_dump = config.model_dump(exclude_none=True) if config else {}
+            # Truncate base64 blobs
+            for c in contents_dump:
+                for p in c.get("parts", []):
+                    if "inline_data" in p:
+                        inl = p["inline_data"]
+                        if "data" in inl:
+                            inl["data"] = "<truncated>"
+            logger.debug(
+                "GOOGLE RAW PAYLOAD:\nmodel=%s\ncontents=\n%s\nconfig=\n%s",
+                self.model,
+                _json.dumps(contents_dump, indent=2, ensure_ascii=False),
+                _json.dumps(config_dump, indent=2, ensure_ascii=False),
+            )
+
         stream = await self.client.aio.models.generate_content_stream(
             model=self.model,
             contents=contents,

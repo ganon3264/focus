@@ -1,10 +1,14 @@
 from typing import AsyncIterator
+import logging
 
 from openai import AsyncOpenAI
 
 from .base import BaseProvider
 from ..logger import get_logger
 from ..utils import THINK_OPEN, THINK_CLOSE, DEFAULT_OPENAI_COMPAT_BASE_URL, DEFAULT_MAX_TOKENS, DEFAULT_TEMPERATURE, OPENAI_HTTP_TIMEOUT
+
+import json as _json
+import copy
 
 logger = get_logger("providers.openai")
 
@@ -78,7 +82,20 @@ class OpenAICompatProvider(BaseProvider):
 
         in_reasoning = False
 
-        logger.debug(f"OpenAI compat request: model={self.model}, base_url={self.base_url}, is_o_model={is_o_model}, temperature={temperature}")
+        if logger.isEnabledFor(logging.DEBUG):
+            dump = copy.deepcopy(request_params)
+            for m in dump.get("messages", []):
+                c = m.get("content")
+                if isinstance(c, list):
+                    for p in c:
+                        if p.get("type") == "image_url":
+                            url = p["image_url"].get("url", "")
+                            if ";" in url and "base64," in url:
+                                mime, _ = url.split(";base64,", 1)
+                                p["image_url"]["url"] = f"{mime};base64,<truncated>"
+                        elif p.get("type") == "input_audio":
+                            p["input_audio"]["data"] = "<truncated>"
+            logger.debug("RAW PAYLOAD:\n%s", _json.dumps(dump, indent=2, ensure_ascii=False))
 
         async with self._get_client() as client:
             stream = await client.chat.completions.create(**request_params)
@@ -88,7 +105,7 @@ class OpenAICompatProvider(BaseProvider):
                 
                 delta_obj = chunk.choices[0].delta
                 delta = getattr(delta_obj, "content", None)
-                reasoning = getattr(delta_obj, "reasoning_content", None)
+                reasoning = getattr(delta_obj, "reasoning_content", None) or getattr(delta_obj, "reasoning", None)
                 
                 # Fallback to check model_extra for non-standard reasoning fields
                 if not reasoning and hasattr(delta_obj, "model_extra") and delta_obj.model_extra:

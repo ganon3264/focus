@@ -42,10 +42,25 @@ class OpenRouterProvider(OpenAICompatProvider):
         prefs = self._get_provider_preferences()
         extra_body = kwargs.get("extra_body", {})
         
-        # Check if user enabled reasoning
+        # Build reasoning object (OpenRouter unified API)
         include_reasoning = kwargs.pop("include_reasoning", False)
+        reasoning_effort = kwargs.pop("reasoning_effort", "")
+        thinking_budget = kwargs.pop("thinking_budget", 0)
+
         if include_reasoning:
-            extra_body["include_reasoning"] = True
+            reasoning = {}
+            if reasoning_effort and reasoning_effort.lower() != "default":
+                reasoning["effort"] = reasoning_effort
+            elif thinking_budget > 0:
+                reasoning["max_tokens"] = thinking_budget
+            else:
+                reasoning["max_tokens"] = 2048
+            extra_body["reasoning"] = reasoning
+
+            if self.model.startswith("anthropic/claude"):
+                kwargs.pop("temperature", None)
+                kwargs.pop("top_p", None)
+                kwargs.pop("top_k", None)
         
         if prefs:
             extra_body.update(prefs)

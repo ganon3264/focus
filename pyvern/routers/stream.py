@@ -12,7 +12,7 @@ from pyvern.models import StreamRequest, ItemizerRequest
 from pyvern.providers import create_provider
 from pyvern.logger import get_logger
 from pyvern.utils import now_iso, resolve_secret_key, IMAGE_TOKEN_ESTIMATE, AUDIO_TOKEN_ESTIMATE
-from pyvern.routers.stream_utils import get_prompt_context
+from pyvern.routers.stream_utils import get_prompt_context, filter_unsupported_modalities, apply_claude_caching
 
 router = APIRouter()
 logger = get_logger("routers.stream")
@@ -45,10 +45,99 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
     next_variant_index = ctx["next_variant_index"]
     user_msg_id = ctx["user_msg_id"]
 
+    # ── OpenRouter modality filter ─────────────────────────────────────────────
+    if prov_dict.get("type") == "openrouter":
+        from pyvern.routers.providers import get_openrouter_model_modalities
+
+        modalities = await get_openrouter_model_modalities(prov_dict.get("model", ""))
+        if modalities:
+            messages = filter_unsupported_modalities(messages, modalities)
+
+        # Claude prompt caching
+        s = dict(body.samplers) if body.samplers else {}
+        if s.pop("cache_enabled", False) and prov_dict.get("model", "").startswith("anthropic/claude"):
+            messages = apply_claude_caching(
+                messages,
+                True,
+                s.pop("cache_ttl", "ephemeral"),
+                s.pop("cache_depth", 5),
+            )
+
     # ── Gen params ────────────────────────────────────────────────────────────
     gen_kwargs: dict = {}
+    use_stream = True
     if body.samplers:
-        gen_kwargs.update(body.samplers)
+        s = dict(body.samplers)
+        use_stream = s.pop("stream_enabled", True)
+        s.pop("cache_enabled", None)
+        s.pop("cache_ttl", None)
+        s.pop("cache_depth", None)
+        gen_kwargs.update(s)
+
+    # ── Non-streaming path ─────────────────────────────────────────────────────
+    if not use_stream:
+        collected: list[str] = []
+        final_asst_msg_id = asst_msg_id
+
+        try:
+            logger.debug(f"Starting non-stream completion for chat_id={body.chat_id} provider={prov_dict['name']}")
+            async for token in provider.stream_complete(messages, **gen_kwargs):
+                collected.append(token)
+        except Exception as e:
+            logger.exception(f"Non-stream completion failed for chat_id={body.chat_id}")
+            raise HTTPException(500, str(e) or repr(e))
+
+        full = "".join(collected)
+        save_now = now_iso()
+        new_variant_id = str(uuid.uuid4())
+
+        try:
+            async with aiosqlite.connect(DB_PATH) as save_db:
+                await save_db.execute("PRAGMA foreign_keys=ON")
+                await save_db.execute(
+                    "INSERT INTO message_variants (id, message_id, variant_index, content, created_at) VALUES (?, ?, ?, ?, ?)",
+                    (new_variant_id, final_asst_msg_id, next_variant_index, full, save_now),
+                )
+
+                if body.regenerate and next_variant_index > 0:
+                    async with save_db.execute(
+                        "SELECT active_index FROM messages WHERE id = ?", (final_asst_msg_id,)
+                    ) as cur:
+                        row = await cur.fetchone()
+                        if row:
+                            async with save_db.execute(
+                                "SELECT * FROM message_attachments WHERE variant_id = (SELECT id FROM message_variants WHERE message_id = ? AND variant_index = ?) ORDER BY created_at",
+                                (final_asst_msg_id, row[0])
+                            ) as att_cur:
+                                old_attachments = [dict(r) for r in await att_cur.fetchall()]
+
+                            for att in old_attachments:
+                                await save_db.execute(
+                                    "INSERT INTO message_attachments (id, chat_id, message_id, variant_id, file_path, mime_type, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                                    (str(uuid.uuid4()), body.chat_id, final_asst_msg_id, new_variant_id, att["file_path"], att["mime_type"], save_now),
+                                )
+
+                await save_db.execute(
+                    "UPDATE messages SET active_index = ? WHERE id = ?",
+                    (next_variant_index, final_asst_msg_id),
+                )
+                await save_db.execute(
+                    "UPDATE chats SET updated_at = ? WHERE id = ?", (save_now, body.chat_id)
+                )
+                await save_db.commit()
+        except Exception as e:
+            logger.exception(f"Failed to save non-stream result for chat_id={body.chat_id}")
+            raise HTTPException(500, f"Generation succeeded but save failed: {str(e) or repr(e)}")
+
+        return JSONResponse({
+            "done": True,
+            "message_id": final_asst_msg_id,
+            "variant_index": next_variant_index,
+            "user_message_id": user_msg_id if not body.regenerate else None,
+            "full_text": full,
+        })
+
+    # ── Streaming path ──────────────────────────────────────────────────────────
 
     # ── Stream ────────────────────────────────────────────────────────────────
     collected: list[str] = []
