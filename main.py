@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 
 import aiosqlite
 from fastapi import Depends, FastAPI, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from focus.database import get_db, init_db, init_directories
@@ -88,7 +88,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/", include_in_schema=False)
 async def root():
-    return FileResponse("static/index.html")
+    return RedirectResponse(url="/chat")
 
 
 @app.get("/favicon.ico", include_in_schema=False)
