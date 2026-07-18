@@ -75,7 +75,7 @@ focus/
 
 templates/                  # Full-page Jinja2 templates
   base.html                 # Root layout: head (theme+CSS+vendor JS), SVG sprite, inline utilities (expandGet, reloadPromptArranger, buildMediaThumbnail, setupDropZone, createEditModalHandlers), global overlays (confirm/lightbox/crop modals), script includes
-  chat.html                 # Main chat page: 3-panel layout, all modal definitions (~12), StateManager init + callbacks, variable management scripts (_varScriptsLoaded)
+  chat.html                 # Main chat page shell: extends base.html, includes 3 pane partials, all modal definitions (~12), StateManager init + callbacks, variable management scripts (_varScriptsLoaded)
   characters.html           # Character card editor: Alpine charEditor component, block CRUD, greeting management, PNG import, media grid
   personas.html             # Persona CRUD page: card grid, avatar upload, delete confirmation
   presets.html              # Preset management page: sidebar list, HTMX-loaded preset editor
@@ -85,11 +85,14 @@ templates/                  # Full-page Jinja2 templates
 partials/                   # HTMX partial templates
   modal_shell.html          # Shared modal macro: modal_shell() + modal_footer() — defines overlay/content/header/footer structure
   chat/
-    message_list.html        # Message list wrapper with hidden data div, iteration over messages, #scroll-sentinel
-    message.html             # Single message: avatar, name, model, toolbar (swipe/regen/branch/edit/delete), attachments, segment-based content (text/reasoning/tool-calls with inline rendering), delete checkbox
-    char_selector.html       # Character list for left sidebar — HTMX click filters chat list
-    persona_selector.html    # Persona list for sidebar — click calls StateManager.setPersona()
-    chat_list.html           # Chat list for right sidebar — links to /chat/{id}, delete with customConfirm
+    left_pane.html            # Left sidebar: preset selector, preset variables, tools grid, status panel, collapsed tab
+    center_pane.html          # Center pane: message list or greeter, input bar (staging/textarea/send-stop), delete toolbar
+    right_pane.html           # Right sidebar: new chat button, chat list, trash bin, collapsed tab
+    message_list.html         # Message list wrapper with hidden data div, iteration over messages, #scroll-sentinel
+    message.html              # Single message: avatar, name, model, toolbar (swipe/regen/branch/edit/delete), attachments, segment-based content (text/reasoning/tool-calls with inline rendering), delete checkbox
+    char_selector.html        # Character list for left sidebar — HTMX click filters chat list
+    persona_selector.html     # Persona list for sidebar — click calls StateManager.setPersona()
+    chat_list.html            # Chat list for right sidebar — links to /chat/{id}, delete with customConfirm
   personas/
     persona_card.html        # Persona card component: avatar, name, description, avatar upload, delete
   modals/
