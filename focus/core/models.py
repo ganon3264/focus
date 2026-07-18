@@ -149,12 +149,6 @@ class SettingsUpdate(BaseModel):
     value: str
 
 
-class SamplerConfigUpdate(BaseModel):
-    provider_id: str
-    samplers: dict[str, Any] = Field(default_factory=dict)
-    custom_fields: list[dict[str, Any]] = Field(default_factory=list)
-
-
 class ActiveProviderUpdate(BaseModel):
     provider_id: str | None = None
     provider_type: str | None = None

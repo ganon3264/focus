@@ -87,6 +87,7 @@ async def delete_provider(provider_id: str, db: aiosqlite.Connection = Depends(g
 
 _model_cache = TTLCache()
 _or_cache = TTLCache()
+_balance_cache = TTLCache(ttl=60)
 
 
 class FetchModelsRequest(BaseModel):
@@ -256,16 +257,21 @@ async def get_provider_balance(provider_id: str, db: aiosqlite.Connection = Depe
         raise HTTPException(400, f"Balance not supported for provider type: {d['type']}")
 
     api_key = await resolve_secret_key(db, d.get("api_key") or "")
-    async with httpx.AsyncClient() as client:
-        resp = await client.get(
-            cfg["url"],
-            headers={"Authorization": f"Bearer {api_key}"},
-            timeout=10,
-        )
-        if resp.status_code == 401:
-            return {"balances": []}
-        resp.raise_for_status()
-        return cfg["parse"](resp.json())
+    cache_key = f"{d['type']}_{hash(api_key)}"
+
+    async def _fetch():
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                cfg["url"],
+                headers={"Authorization": f"Bearer {api_key}"},
+                timeout=10,
+            )
+            if resp.status_code == 401:
+                return {"balances": []}
+            resp.raise_for_status()
+            return cfg["parse"](resp.json())
+
+    return await _balance_cache.get_or_refresh(cache_key, _fetch)
 
 
 async def get_openrouter_model_modalities(model_id: str) -> list[str] | None:
