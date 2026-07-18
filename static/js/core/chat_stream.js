@@ -166,12 +166,16 @@
   }
 
   window.triggerGeneration = async function (chatId, asstDiv, isRegen = false, continueText = null, continueReasoning = null) {
+    if (window._generating) return;
+    window._generating = true;
+
     let textSegments = [];
     let currentTextDiv = null;
 
     const providerId = sendBtn.dataset.providerId;
     if (!providerId) {
       alert('No provider configured. Add one in Providers.');
+      window._generating = false;
       return;
     }
 
@@ -472,6 +476,7 @@
         }
       }
     } finally {
+      window._generating = false;
       window._streamingMessageId = null;
       currentController = null;
       sendBtn.classList.remove('hidden');
