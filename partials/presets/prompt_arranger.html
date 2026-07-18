@@ -81,6 +81,16 @@ overlay_close=true) %}
   style="resize: vertical; line-height: 1.6"
   placeholder="Enter block content…"
 ></textarea>
+<div id="block-modal-reasoning-section" style="display: none; margin-top: 0.5rem;">
+  <label class="text-xs text-muted mb-1 block">Reasoning prefill (assistant only)</label>
+  <textarea
+    id="block-modal-reasoning"
+    rows="6"
+    class="form-control h-full"
+    style="resize: vertical; line-height: 1.6"
+    placeholder="Enter reasoning content that will be prefilled before the model response…"
+  ></textarea>
+</div>
 <div class="flex justify-end gap-2 mt-3">
   <button type="button" class="btn btn-secondary" onclick="closeBlockModal()">Cancel</button>
   <button type="button" class="btn btn-primary" id="block-modal-save" onclick="saveBlockModal()">
@@ -176,33 +186,58 @@ overlay_close=true) %}
 
     var _currentBlockId = null;
     var _currentPresetId = null;
+    var _currentEditPart = 'content';
 
-    window.openBlockModal = function (el) {
+    window.openBlockModal = function (el, part) {
+      part = part || 'content';
       const item = el.classList.contains('arranger-item') ? el : el.closest('.arranger-item');
       const blockId = item ? item.dataset.blockId : '';
       const presetId = item ? item.dataset.presetId : '';
       _currentBlockId = blockId;
       _currentPresetId = presetId;
+      _currentEditPart = part;
+
       const content = item ? item.dataset.blockContent || '' : '';
+      const reasoning = item ? item.dataset.blockReasoning || '' : '';
+
       document.getElementById('block-modal-textarea').value = content;
+      document.getElementById('block-modal-textarea').placeholder = 'Enter block content…';
+
+      var reasoningSection = document.getElementById('block-modal-reasoning-section');
+      if (part === 'reasoning') {
+        reasoningSection.style.display = 'block';
+        document.getElementById('block-modal-reasoning').value = reasoning;
+        document.getElementById('block-modal-textarea').style.display = 'none';
+        document.getElementById('block-modal-reasoning').style.display = 'block';
+      } else {
+        reasoningSection.style.display = 'none';
+        document.getElementById('block-modal-textarea').style.display = '';
+      }
+
       document.getElementById('block-edit-modal').classList.remove('hidden');
     };
 
     window.closeBlockModal = function () {
       document.getElementById('block-edit-modal').classList.add('hidden');
+      document.getElementById('block-modal-textarea').style.display = '';
       _currentBlockId = null;
       _currentPresetId = null;
     };
 
     window.saveBlockModal = function () {
       if (!_currentBlockId || !_currentPresetId) return;
-      var text = document.getElementById('block-modal-textarea').value;
       var presetId = _currentPresetId;
       var blockId = _currentBlockId;
+      var payload = {};
+      if (_currentEditPart === 'reasoning') {
+        payload.reasoning = document.getElementById('block-modal-reasoning').value;
+      } else {
+        payload.content = document.getElementById('block-modal-textarea').value;
+      }
       fetch('/api/presets/' + presetId + '/blocks/' + blockId, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: text }),
+        body: JSON.stringify(payload),
       }).then(function () {
         closeBlockModal();
         refreshSingleBlock(presetId, blockId);

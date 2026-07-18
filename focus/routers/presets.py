@@ -142,6 +142,7 @@ async def import_preset(file: UploadFile = File(...), db: aiosqlite.Connection =
             "preset_id": preset_id,
             "name": prompt.get("name") or identifier,
             "content": prompt.get("content", ""),
+            "reasoning": prompt.get("reasoning", ""),
             "role": prompt.get("role", "system"),
             "enabled": int(enabled),
             "position": 0.0,
@@ -168,13 +169,14 @@ async def import_preset(file: UploadFile = File(...), db: aiosqlite.Connection =
         b["position"] = pos
         await db.execute(
             """INSERT INTO preset_blocks
-               (id, preset_id, name, content, role, enabled, position, block_type, injection_depth, injection_order)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               (id, preset_id, name, content, reasoning, role, enabled, position, block_type, injection_depth, injection_order)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 b["id"],
                 b["preset_id"],
                 b["name"],
                 b["content"],
+                b["reasoning"],
                 b["role"],
                 b["enabled"],
                 b["position"],
@@ -210,13 +212,14 @@ async def add_block(
 
     await db.execute(
         """INSERT INTO preset_blocks
-           (id, preset_id, name, content, role, enabled, position, block_type, injection_depth, injection_order)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+           (id, preset_id, name, content, reasoning, role, enabled, position, block_type, injection_depth, injection_order)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (
             block_id,
             preset_id,
             body.name,
             body.content,
+            body.reasoning,
             body.role,
             enabled,
             next_pos,
@@ -288,6 +291,7 @@ async def patch_block(
     allowed = {
         "name",
         "content",
+        "reasoning",
         "role",
         "enabled",
         "position",

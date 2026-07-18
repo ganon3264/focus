@@ -101,6 +101,12 @@ async def _prepare_generation_messages(
         if prov_dict.get("type") not in ("moonshot", "deepseek"):
             for msg in messages:
                 msg.pop("reasoning", None)
+        elif prov_dict.get("type") == "deepseek":
+            preserve = body.samplers.get("preserve_thinking", False) if body.samplers else False
+            if not preserve:
+                for msg in messages:
+                    if msg.get("role") == "assistant" and msg.get("reasoning") and not msg.get("tool_calls"):
+                        msg.pop("reasoning")
 
     if (body.continue_text is not None or body.continue_reasoning) and body.regenerate and provider.supports_prefill:
         prefill_msg = {"role": "assistant", "content": body.continue_text or ""}
@@ -804,6 +810,11 @@ async def itemize_prompt(body: ItemizerRequest, db: aiosqlite.Connection = Depen
                             "tokens": AUDIO_TOKEN_ESTIMATE,
                         }
                     )
+
+        if msg.get("reasoning"):
+            r_tokens = len(enc.encode(msg["reasoning"]))
+            tokens += r_tokens
+            clean_parts.append({"type": "reasoning", "text": msg["reasoning"], "tokens": r_tokens})
 
         total_tokens += tokens
         clean_messages.append({"role": role, "parts": clean_parts, "tokens": tokens})

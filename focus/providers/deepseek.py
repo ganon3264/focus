@@ -14,6 +14,7 @@ class DeepseekProvider(OpenAICompatProvider):
     async def stream_complete(self, messages: list[dict], **kwargs):
         include_reasoning = kwargs.pop("include_reasoning", None)
         kwargs.pop("reasoning_effort", None)
+        kwargs.pop("preserve_thinking", None)
 
         extra_body = kwargs.get("extra_body", {})
         if include_reasoning is False:

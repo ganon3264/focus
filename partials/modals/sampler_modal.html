@@ -625,9 +625,12 @@ const PROVIDER_SAMPLERS = {
     },
   },
   deepseek: {
-    defaults: {},
+    defaults: { preserve_thinking: false },
     build(s) {
-      return { include_reasoning: s.include_reasoning };
+      return {
+        include_reasoning: s.include_reasoning,
+        ...(s.include_reasoning ? { preserve_thinking: s.preserve_thinking } : {}),
+      };
     },
   },
   moonshot: {
@@ -804,7 +807,7 @@ const PROVIDER_SAMPLERS = {
       },
       get showReasoningToggle() { return ['openai_compat', 'deepseek', 'moonshot'].includes(this.providerType); },
       get showReasoningEffort() { return this.samplers.include_reasoning && ['openai_compat', 'deepseek'].includes(this.providerType); },
-      get showPreserveThinking() { return this.providerType === 'moonshot' && this.samplers.include_reasoning; },
+      get showPreserveThinking() { return this.samplers.include_reasoning && ['moonshot', 'deepseek'].includes(this.providerType); },
       get showGoogleReasoning() { return ['google_vertex', 'google_aistudio'].includes(this.providerType); },
       get showSendReasoningHistory() { return ['google_vertex', 'google_aistudio'].includes(this.providerType); },
       get showTopA() { return this.providerType === 'openrouter'; },

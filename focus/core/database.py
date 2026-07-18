@@ -66,6 +66,7 @@ CREATE TABLE IF NOT EXISTS preset_blocks (
     preset_id    TEXT NOT NULL REFERENCES presets(id) ON DELETE CASCADE,
     name         TEXT NOT NULL,
     content      TEXT NOT NULL DEFAULT '',
+    reasoning    TEXT NOT NULL DEFAULT '',
     role         TEXT NOT NULL DEFAULT 'system',
     enabled      INTEGER NOT NULL DEFAULT 1,
     position     REAL NOT NULL DEFAULT 0,
@@ -206,6 +207,8 @@ async def init_db():
             await db.execute("ALTER TABLE preset_blocks ADD COLUMN injection_order INTEGER DEFAULT 0")
         if "cache_control" in col_names:
             await db.execute("ALTER TABLE preset_blocks DROP COLUMN cache_control")
+        if "reasoning" not in col_names:
+            await db.execute("ALTER TABLE preset_blocks ADD COLUMN reasoning TEXT NOT NULL DEFAULT ''")
 
         cols = await db.execute("PRAGMA table_info(message_variants)")
         col_names = {row[1] for row in await cols.fetchall()}

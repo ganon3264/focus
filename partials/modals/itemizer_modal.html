@@ -53,10 +53,24 @@
           >
             <template x-for="(part, j) in msg.parts" :key="j">
               <div
+                x-show="part.type !== 'reasoning'"
                 :class="part.type !== 'text' ? 'text-(--accent) font-mono text-xs p-2 rounded bg-surface-2 border inline-block w-max' : 'whitespace-pre-wrap'"
                 :style="part.type !== 'text' ? 'background: var(--surface-2); border-color: var(--border);' : ''"
                 x-text="part.type !== 'text' ? part.text + ' (' + part.tokens + ' tk)' : part.text"
               ></div>
+            </template>
+            <template x-for="(part, j) in msg.parts" :key="'r'+j">
+              <div x-show="part.type === 'reasoning'" x-data="{ rOpen: false }"
+                class="reasoning-itemizer border-l-2 rounded p-2 mt-1"
+                style="border-color: var(--accent); background: var(--surface-2);">
+                <div class="flex items-center justify-between cursor-pointer select-none text-xs text-muted"
+                  @click="rOpen = !rOpen">
+                  <span class="font-mono" x-text="'reasoning (' + part.tokens + ' tk)'"></span>
+                  <span x-text="rOpen ? '▲' : '▼'" class="text-xs"></span>
+                </div>
+                <div x-show="rOpen" x-collapse class="text-xs mt-1 whitespace-pre-wrap text-muted"
+                  x-text="part.text"></div>
+              </div>
             </template>
           </div>
         </div>

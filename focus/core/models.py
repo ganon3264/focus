@@ -101,6 +101,7 @@ class PresetUpdate(BaseModel):
 class PresetBlockCreate(BaseModel):
     name: str
     content: str = ""
+    reasoning: str = ""
     role: Role = Role.system
     enabled: bool = True
     block_type: BlockType = BlockType.text

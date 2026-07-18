@@ -327,7 +327,10 @@ async def assemble_prompt(
             text = apply_macros(block["content"], macros).strip()
             content = await _build_content(text, images)
             if content:
-                target.append({"role": block["role"], "content": content})
+                msg = {"role": block["role"], "content": content}
+                if block["role"] == "assistant" and block.get("reasoning"):
+                    msg["reasoning"] = block["reasoning"]
+                target.append(msg)
 
         elif btype == "char_description":
             char_images = block_images.get(char_data.get("id"), [])
