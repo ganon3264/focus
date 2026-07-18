@@ -1,10 +1,33 @@
 <div class="mb-5 flex flex-col gap-3">
-  {% from "macros.html" import icon_edit, icon_trash %}
-  <h3 class="sidebar-title mb-1 mt-3">New Persona</h3>
-  <form onsubmit="submitPersonaModal(event)" class="flex gap-2">
-    <input type="text" name="name" placeholder="Name" required class="text-sm flex-1" style="background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-md);padding:0.5rem 0.75rem;">
-    <button class="btn btn-primary btn-sm">Create Empty</button>
-  </form>
+  {% from "macros.html" import icon_edit, icon_trash, icon_search, icon_plus, icon_grid %}
+  <h3 class="sidebar-title mb-1">Tools</h3>
+  <div class="flex gap-2 h-10">
+    <button onclick="openNewPersonaPopup()" class="btn btn-secondary btn-sm flex-1 h-full flex items-center justify-center gap-1.5 cursor-pointer m-0">
+      {{ icon_plus(size=14) }} New
+    </button>
+    <a href="/personas" class="btn btn-secondary btn-sm flex-1 flex items-center justify-center h-full text-decoration-none gap-1.5">{{ icon_edit(size=14) }} Editor</a>
+  </div>
+  <div class="flex gap-2 items-center">
+    <div class="flex-1 relative">
+      <span class="absolute left-2.5 top-1/2 -translate-y-1/2 flex" style="color:var(--text-muted); pointer-events:none;">{{ icon_search(size=14) }}</span>
+      <input type="text" placeholder="Search personas..."
+             oninput="filterPersonas(this.value)"
+             class="text-sm w-full"
+             style="padding-left:2rem; padding-right:0.5rem; padding-top:0.35rem; padding-bottom:0.35rem; background:var(--surface-2); border:1px solid var(--border); color:var(--text); border-radius:var(--radius-md);">
+    </div>
+    <select id="persona-sort-select" onchange="sortPersonas(this.value)"
+            class="text-sm flex-shrink-0"
+            style="background:var(--surface-2); border:1px solid var(--border); color:var(--text); border-radius:var(--radius-md); padding:0.35rem 0.4rem;">
+      <option value="newest">Newest</option>
+      <option value="oldest">Oldest</option>
+      <option value="az">A → Z</option>
+      <option value="za">Z → A</option>
+    </select>
+    <button onclick="togglePersonaCompactView()"
+            class="btn btn-secondary btn-sm flex-shrink-0"
+            id="persona-view-toggle-btn"
+            title="Toggle compact view">{{ icon_grid(size=14) }}</button>
+  </div>
 </div>
 
 <h3 class="sidebar-title mb-3">Select Persona</h3>
@@ -15,10 +38,10 @@
   </div>
 {% endif %}
 
-<div class="grid" style="grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 1rem;">
+<div class="grid" id="persona-modal-grid" data-view="full" style="grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 1rem;">
   {% for p in personas %}
-  <div class="card" id="persona-card-{{ p.id }}" style="position:relative;">
-    <div id="persona-display-{{ p.id }}" class="h-full flex flex-col">
+  <div class="card" id="persona-card-{{ p.id }}" data-persona-name="{{ p.name | lower }}" data-persona-created="{{ p.created_at }}">
+    <div class="persona-view-full h-full flex flex-col" style="display:flex;">
       <div class="card-image" style="aspect-ratio: 1/1; border-radius: 12px 12px 0 0; cursor:pointer;" onclick="selectPersonaModal('{{ p.id }}')">
         {% if p.avatar_path %}
           <img src="/{{ p.avatar_path }}" alt="" style="border-radius: 12px 12px 0 0;">
@@ -39,6 +62,32 @@
                   onclick="event.stopPropagation(); openEditPersonaModal(this)">{{ icon_edit() }}</button>
           {% if p.name != 'User' %}
           <button class="btn btn-danger btn-sm" onclick="event.stopPropagation(); promptDeletePersona('{{ p.id }}', '{{ p.name | escape }}')">{{ icon_trash() }}</button>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    <div class="persona-view-compact" style="display:none;">
+      <div class="flex items-center gap-2.5 p-2.5 cursor-pointer" onclick="selectPersonaModal('{{ p.id }}')">
+        <div class="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 border border-[var(--border)] flex items-center justify-center" style="background:var(--surface-3);">
+          {% if p.avatar_path %}
+            <img src="/{{ p.avatar_path }}" alt="" class="w-full h-full object-cover">
+          {% else %}
+            <span class="text-sm font-bold text-muted">{{ p.name[:1] }}</span>
+          {% endif %}
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="font-bold text-sm truncate">{{ p.name }}</div>
+        </div>
+        <div class="flex flex-col gap-1 flex-shrink-0" onclick="event.stopPropagation()">
+          <button class="btn btn-secondary btn-sm" style="padding:0.2rem 0.4rem; min-width:0;"
+                  data-persona-id="{{ p.id }}" 
+                  data-persona-name="{{ p.name }}" 
+                  data-persona-desc="{{ p.description or '' }}" 
+                  data-persona-image="{{ p.avatar_path or '' }}"
+                  data-persona-media="{{ p.images | tojson | forceescape }}"
+                  onclick="event.stopPropagation(); openEditPersonaModal(this)">{{ icon_edit(size=12) }}</button>
+          {% if p.name != 'User' %}
+          <button class="btn btn-danger btn-sm" style="padding:0.2rem 0.4rem; min-width:0;" onclick="event.stopPropagation(); promptDeletePersona('{{ p.id }}', '{{ p.name | escape }}')">{{ icon_trash(size=12) }}</button>
           {% endif %}
         </div>
       </div>
@@ -66,7 +115,6 @@ function selectPersonaModal(pid){
   const chatId = sendBtn ? sendBtn.dataset.chatId : null;
   
   if (chatId) {
-    // If we are in an active chat, patch it and reload
     fetch('/api/chats/' + chatId, {
       method: 'PATCH',
       headers: {'Content-Type':'application/json'},
@@ -76,20 +124,105 @@ function selectPersonaModal(pid){
       window.location.reload();
     });
   } else {
-    // If we are in the greeter state (no chat), just close the modal.
-    // The next chat created will automatically pick up the updated window.CURRENT_CHAT_STATE
     closeModal('modal-personas');
   }
 }
-function submitPersonaModal(e){
-  e.preventDefault();
-  const data = Object.fromEntries(new FormData(e.target));
-  fetch('/api/personas', {
-    method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify(data)
-  }).then(function(r){
-    if(r.ok) htmx.ajax('GET','/partials/personas-modal',{target:'#personas-modal-body',swap:'innerHTML'});
+
+function filterPersonas(query) {
+  const q = query.toLowerCase();
+  document.querySelectorAll('#persona-modal-grid .card').forEach(function(card) {
+    var name = card.getAttribute('data-persona-name') || '';
+    card.style.display = name.indexOf(q) !== -1 ? '' : 'none';
   });
 }
+
+function sortPersonas(mode) {
+  localStorage.setItem('pyvern_persona_sort', mode);
+  var grid = document.getElementById('persona-modal-grid');
+  if (!grid) return;
+  var cards = Array.from(grid.querySelectorAll('.card'));
+  cards.sort(function(a, b) {
+    var aName = a.getAttribute('data-persona-name') || '';
+    var bName = b.getAttribute('data-persona-name') || '';
+    var aCreated = a.getAttribute('data-persona-created') || '';
+    var bCreated = b.getAttribute('data-persona-created') || '';
+    if (mode === 'az') return aName.localeCompare(bName);
+    if (mode === 'za') return bName.localeCompare(aName);
+    if (mode === 'oldest') return aCreated.localeCompare(bCreated);
+    return bCreated.localeCompare(aCreated);
+  });
+  cards.forEach(function(card) { grid.appendChild(card); });
+  document.getElementById('persona-sort-select').value = mode;
+}
+
+function applyPersonaCompactView(compact) {
+  var grid = document.getElementById('persona-modal-grid');
+  if (!grid) return;
+  grid.dataset.view = compact ? 'compact' : 'full';
+  grid.style.gridTemplateColumns = compact
+    ? 'repeat(auto-fill, minmax(200px, 1fr))'
+    : 'repeat(auto-fill, minmax(160px, 1fr))';
+  grid.querySelectorAll('.card').forEach(function(card) {
+    var fullEl = card.querySelector('.persona-view-full');
+    var compactEl = card.querySelector('.persona-view-compact');
+    if (compact) {
+      fullEl.style.display = 'none';
+      compactEl.style.display = 'block';
+    } else {
+      fullEl.style.display = 'flex';
+      compactEl.style.display = 'none';
+    }
+  });
+}
+
+function togglePersonaCompactView() {
+  var grid = document.getElementById('persona-modal-grid');
+  if (!grid) return;
+  var compact = grid.dataset.view !== 'compact';
+  applyPersonaCompactView(compact);
+  localStorage.setItem('pyvern_persona_view', compact ? 'compact' : 'full');
+}
+
+function openNewPersonaPopup() {
+  var html = `
+    <div class="mb-4">
+      <label class="text-xs font-bold text-muted block mb-2 uppercase tracking-wider">Persona Name</label>
+      <input type="text" id="new-persona-name-input" class="form-control" placeholder="Enter name..." required>
+    </div>
+  `;
+  window.customConfirm(html, function() {
+    var name = document.getElementById('new-persona-name-input').value.trim();
+    if (!name) return;
+    fetch('/api/personas', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({name: name})
+    }).then(function(r){
+      if(r.ok) htmx.ajax('GET','/partials/personas-modal',{target:'#personas-modal-body',swap:'innerHTML'});
+      else r.text().then(function(t){ alert('Create failed: ' + t); });
+    });
+  });
+  setTimeout(function() {
+    var input = document.getElementById('new-persona-name-input');
+    if (input) {
+      input.focus();
+      input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') document.getElementById('global-confirm-btn').click();
+      });
+    }
+  }, 100);
+}
+
+(function restorePersonaState() {
+  var view = localStorage.getItem('pyvern_persona_view');
+  var sort = localStorage.getItem('pyvern_persona_sort');
+
+  if (view === 'compact') {
+    applyPersonaCompactView(true);
+  }
+
+  if (sort) {
+    sortPersonas(sort);
+  }
+})();
 </script>

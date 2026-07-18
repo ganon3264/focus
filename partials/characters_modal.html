@@ -1,20 +1,39 @@
 <div class="mb-5 flex flex-col gap-3">
-  {% from "macros.html" import icon_edit, icon_trash %}
+  {% from "macros.html" import icon_edit, icon_trash, icon_search, icon_plus, icon_upload, icon_grid %}
   <h3 class="sidebar-title mb-1">Tools</h3>
   <div class="flex gap-2 h-10">
     <form onsubmit="importCharModal(event)" class="flex-1 h-full">
-      <label class="btn btn-secondary btn-sm w-full h-full flex items-center justify-center cursor-pointer m-0">
-        Import PNG Cards
+      <label class="btn btn-secondary btn-sm w-full h-full flex items-center justify-center cursor-pointer m-0 gap-1.5">
+        {{ icon_upload(size=14) }} Import
         <input type="file" name="files" accept="image/png" class="hidden" multiple onchange="this.closest('form').requestSubmit()">
       </label>
     </form>
-    <a href="/characters" class="btn btn-secondary btn-sm flex-1 flex items-center justify-center h-full text-decoration-none">Advanced Editor</a>
+    <button onclick="openNewCharPopup()" class="btn btn-secondary btn-sm flex-1 h-full flex items-center justify-center gap-1.5 cursor-pointer m-0">
+      {{ icon_plus(size=14) }} New
+    </button>
+    <a href="/characters" class="btn btn-secondary btn-sm flex-1 flex items-center justify-center h-full text-decoration-none gap-1.5">{{ icon_edit(size=14) }} Editor</a>
   </div>
-  <h3 class="sidebar-title mb-1 mt-3">New Character</h3>
-  <form onsubmit="createCharModal(event)" class="flex gap-2">
-    <input type="text" name="name" placeholder="Name" required class="text-sm flex-1" style="background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-md);padding:0.5rem 0.75rem;">
-    <button class="btn btn-primary btn-sm">Create Empty</button>
-  </form>
+  <div class="flex gap-2 items-center">
+    <div class="flex-1 relative">
+      <span class="absolute left-2.5 top-1/2 -translate-y-1/2 flex" style="color:var(--text-muted); pointer-events:none;">{{ icon_search(size=14) }}</span>
+      <input type="text" placeholder="Search characters..."
+             oninput="filterCharacters(this.value)"
+             class="text-sm w-full"
+             style="padding-left:2rem; padding-right:0.5rem; padding-top:0.35rem; padding-bottom:0.35rem; background:var(--surface-2); border:1px solid var(--border); color:var(--text); border-radius:var(--radius-md);">
+    </div>
+    <select id="char-sort-select" onchange="sortCharacters(this.value)"
+            class="text-sm flex-shrink-0"
+            style="background:var(--surface-2); border:1px solid var(--border); color:var(--text); border-radius:var(--radius-md); padding:0.35rem 0.4rem;">
+      <option value="newest">Newest</option>
+      <option value="oldest">Oldest</option>
+      <option value="az">A → Z</option>
+      <option value="za">Z → A</option>
+    </select>
+    <button onclick="toggleCompactView()"
+            class="btn btn-secondary btn-sm flex-shrink-0"
+            id="view-toggle-btn"
+            title="Toggle compact view">{{ icon_grid(size=14) }}</button>
+  </div>
 </div>
 
 <h3 class="sidebar-title mb-3">Select Character</h3>
@@ -25,10 +44,10 @@
   </div>
 {% endif %}
 
-<div class="grid" id="char-modal-grid" style="grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 1rem;">
+<div class="grid" id="char-modal-grid" data-view="full" style="grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 1rem;">
   {% for char in characters %}
-  <div class="card" id="char-card-{{ char.id }}" style="position:relative;">
-    <div id="char-display-{{ char.id }}" class="h-full flex flex-col">
+  <div class="card" id="char-card-{{ char.id }}" data-char-name="{{ char.name | lower }}" data-char-created="{{ char.created_at }}">
+    <div class="card-view-full h-full flex flex-col" style="display:flex;">
       <div class="card-image" style="aspect-ratio: 1/1; border-radius: 12px 12px 0 0; cursor:pointer;" onclick="selectCharModal('{{ char.id }}', '{{ char.name }}')">
         {% if char.image_path %}
           <img src="/{{ char.image_path }}" alt="" style="border-radius: 12px 12px 0 0;">
@@ -48,6 +67,30 @@
                   data-char-media="{{ char.images | tojson | forceescape }}"
                   onclick="event.stopPropagation(); openEditCharacterModal(this)">{{ icon_edit() }}</button>
           <button class="btn btn-danger btn-sm" onclick="event.stopPropagation(); promptDeleteChar('{{ char.id }}', '{{ char.name | escape }}')">{{ icon_trash() }}</button>
+        </div>
+      </div>
+    </div>
+    <div class="card-view-compact" style="display:none;">
+      <div class="flex items-center gap-2.5 p-2.5 cursor-pointer" onclick="selectCharModal('{{ char.id }}', '{{ char.name }}')">
+        <div class="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 border border-[var(--border)] flex items-center justify-center" style="background:var(--surface-3);">
+          {% if char.image_path %}
+            <img src="/{{ char.image_path }}" alt="" class="w-full h-full object-cover">
+          {% else %}
+            <span class="text-sm font-bold text-muted">{{ char.name[:1] }}</span>
+          {% endif %}
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="font-bold text-sm truncate">{{ char.name }}</div>
+        </div>
+        <div class="flex flex-col gap-1 flex-shrink-0" onclick="event.stopPropagation()">
+          <button class="btn btn-secondary btn-sm" style="padding:0.2rem 0.4rem; min-width:0;"
+                  data-char-id="{{ char.id }}" 
+                  data-char-name="{{ char.name }}" 
+                  data-char-desc="{{ char.card.get('description','') }}" 
+                  data-char-image="{{ char.image_path or '' }}"
+                  data-char-media="{{ char.images | tojson | forceescape }}"
+                  onclick="event.stopPropagation(); openEditCharacterModal(this)">{{ icon_edit(size=12) }}</button>
+          <button class="btn btn-danger btn-sm" style="padding:0.2rem 0.4rem; min-width:0;" onclick="event.stopPropagation(); promptDeleteChar('{{ char.id }}', '{{ char.name | escape }}')">{{ icon_trash(size=12) }}</button>
         </div>
       </div>
     </div>
@@ -174,7 +217,7 @@ window.hardDeleteChar = function(charId, charName) {
     }).then(r => {
       if(r.ok) {
         document.getElementById('trash-modal').remove();
-        openTrashModal(); // Refresh
+        openTrashModal();
       }
     });
   });
@@ -185,8 +228,6 @@ function selectCharModal(charId, charName){
   if (window.CURRENT_CHAT_STATE) {
     window.CURRENT_CHAT_STATE.character_id = charId;
   }
-  // Instead of explicitly creating a new chat, redirect to /chat?character_id=...
-  // The backend will either load the most recent chat for this char, or the greeter state with this char pre-selected.
   window.location.href = '/chat?character_id=' + charId;
 }
 
@@ -209,15 +250,101 @@ function importCharModal(e){
   });
 }
 
-function createCharModal(e){
-  e.preventDefault();
-  const data = Object.fromEntries(new FormData(e.target));
-  fetch('/api/characters', {
-    method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify(data)
-  }).then(function(r){
-    if(r.ok) htmx.ajax('GET','/partials/characters-modal',{target:'#characters-modal-body',swap:'innerHTML'});
+function filterCharacters(query) {
+  const q = query.toLowerCase();
+  document.querySelectorAll('#char-modal-grid .card').forEach(function(card) {
+    var name = card.getAttribute('data-char-name') || '';
+    card.style.display = name.indexOf(q) !== -1 ? '' : 'none';
   });
 }
+
+function sortCharacters(mode) {
+  localStorage.setItem('pyvern_char_sort', mode);
+  var grid = document.getElementById('char-modal-grid');
+  if (!grid) return;
+  var cards = Array.from(grid.querySelectorAll('.card'));
+  cards.sort(function(a, b) {
+    var aName = a.getAttribute('data-char-name') || '';
+    var bName = b.getAttribute('data-char-name') || '';
+    var aCreated = a.getAttribute('data-char-created') || '';
+    var bCreated = b.getAttribute('data-char-created') || '';
+    if (mode === 'az') return aName.localeCompare(bName);
+    if (mode === 'za') return bName.localeCompare(aName);
+    if (mode === 'oldest') return aCreated.localeCompare(bCreated);
+    return bCreated.localeCompare(aCreated);
+  });
+  cards.forEach(function(card) { grid.appendChild(card); });
+  document.getElementById('char-sort-select').value = mode;
+}
+
+function applyCompactView(compact) {
+  var grid = document.getElementById('char-modal-grid');
+  if (!grid) return;
+  grid.dataset.view = compact ? 'compact' : 'full';
+  grid.style.gridTemplateColumns = compact
+    ? 'repeat(auto-fill, minmax(200px, 1fr))'
+    : 'repeat(auto-fill, minmax(160px, 1fr))';
+  grid.querySelectorAll('.card').forEach(function(card) {
+    var fullEl = card.querySelector('.card-view-full');
+    var compactEl = card.querySelector('.card-view-compact');
+    if (compact) {
+      fullEl.style.display = 'none';
+      compactEl.style.display = 'block';
+    } else {
+      fullEl.style.display = 'flex';
+      compactEl.style.display = 'none';
+    }
+  });
+}
+
+function toggleCompactView() {
+  var grid = document.getElementById('char-modal-grid');
+  if (!grid) return;
+  var compact = grid.dataset.view !== 'compact';
+  applyCompactView(compact);
+  localStorage.setItem('pyvern_char_view', compact ? 'compact' : 'full');
+}
+
+function openNewCharPopup() {
+  var html = `
+    <div class="mb-4">
+      <label class="text-xs font-bold text-muted block mb-2 uppercase tracking-wider">Character Name</label>
+      <input type="text" id="new-char-name-input" class="form-control" placeholder="Enter name..." required>
+    </div>
+  `;
+  window.customConfirm(html, function() {
+    var name = document.getElementById('new-char-name-input').value.trim();
+    if (!name) return;
+    fetch('/api/characters', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({name: name})
+    }).then(function(r){
+      if(r.ok) htmx.ajax('GET','/partials/characters-modal',{target:'#characters-modal-body',swap:'innerHTML'});
+      else r.text().then(function(t){ alert('Create failed: ' + t); });
+    });
+  });
+  setTimeout(function() {
+    var input = document.getElementById('new-char-name-input');
+    if (input) {
+      input.focus();
+      input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') document.getElementById('global-confirm-btn').click();
+      });
+    }
+  }, 100);
+}
+
+(function restoreState() {
+  var view = localStorage.getItem('pyvern_char_view');
+  var sort = localStorage.getItem('pyvern_char_sort');
+
+  if (view === 'compact') {
+    applyCompactView(true);
+  }
+
+  if (sort) {
+    sortCharacters(sort);
+  }
+})();
 </script>
