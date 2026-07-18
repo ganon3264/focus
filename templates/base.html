@@ -363,6 +363,58 @@
           files.forEach(window[cfg.uploadFileFn]);
         });
       };
+
+      /* ── Scroll Fade for .scroll-fade containers ─────────────── */
+      window.initScrollFade = function (el) {
+        if (el._scrollFadeDone) return;
+        el._scrollFadeDone = true;
+
+        function update() {
+          var overscroll = el.scrollHeight - el.clientHeight;
+          if (overscroll <= 0) {
+            el.style.webkitMaskImage = 'none';
+            el.style.maskImage = 'none';
+            return;
+          }
+          var atTop = el.scrollTop <= 2;
+          var atBottom =
+            el.scrollTop + el.clientHeight >= el.scrollHeight - 2;
+          var topPx = atTop ? 0 : 24;
+          var bottomPx = atBottom ? 0 : 24;
+          var g =
+            'linear-gradient(to bottom, transparent 0%, black ' +
+            topPx +
+            'px, black calc(100% - ' +
+            bottomPx +
+            'px), transparent 100%)';
+          el.style.webkitMaskImage = g;
+          el.style.maskImage = g;
+        }
+
+        update();
+
+        var ticking = false;
+        el.addEventListener('scroll', function () {
+          if (!ticking) {
+            requestAnimationFrame(function () {
+              update();
+              ticking = false;
+            });
+            ticking = true;
+          }
+        });
+
+        if (window.ResizeObserver) {
+          new ResizeObserver(update).observe(el);
+        }
+      };
+
+      document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.scroll-fade').forEach(window.initScrollFade);
+      });
+      document.addEventListener('htmx:load', function (e) {
+        e.detail.elt.querySelectorAll('.scroll-fade').forEach(window.initScrollFade);
+      });
     </script>
     <!-- / inline scripts ───────────────────────────────────────────────── -->
     {% block content %}{% endblock %} {% include "modals/confirm_modal.html" %}

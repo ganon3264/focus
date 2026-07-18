@@ -1,7 +1,7 @@
 <div class="flex flex-col h-full">
   {% from "macros.html" import icon_edit, icon_trash, icon_search, icon_plus, icon_upload,
   icon_grid, icon_close %}
-  <div class="flex flex-col gap-3 pb-4 border-b" style="border-color: var(--border)">
+  <div class="flex flex-col gap-3 pb-4">
     <h3 class="sidebar-title mb-1">Tools</h3>
     <div class="flex gap-2 h-10">
       <form onsubmit="importCharModal(event)" class="flex-1 h-full">
@@ -84,7 +84,7 @@
     </div>
   </div>
 
-  <div class="flex-1 overflow-y-auto min-h-0 py-3">
+  <div class="flex-1 overflow-y-auto min-h-0 py-3 pr-2 scroll-fade">
     {% if not characters %}
     <div
       class="text-muted text-center text-sm py-6 border border-dashed border-(--border) rounded-lg"
@@ -105,7 +105,7 @@
     </div>
   </div>
 
-  <div class="flex justify-end pt-3 border-t" style="border-color: var(--border)">
+  <div class="flex justify-end pt-3">
     <button class="btn btn-secondary btn-sm flex items-center gap-2" onclick="openTrashModal()">
       <span>{{ icon_trash() }}</span> Trash Bin
     </button>

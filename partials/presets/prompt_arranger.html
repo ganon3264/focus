@@ -1,12 +1,11 @@
 {% from "macros.html" import icon_plus %}
-<div
-  class="arranger-list"
-  id="arranger-list-{{ preset_id }}"
->
-  {% for block in blocks %} {% include "presets/prompt_block.html" %} {% endfor %}
+<div style="flex: 1; min-height: 0; overflow-y: auto;" class="pr-2 scroll-fade">
+  <div class="arranger-list" id="arranger-list-{{ preset_id }}">
+    {% for block in blocks %} {% include "presets/prompt_block.html" %} {% endfor %}
+  </div>
 </div>
 
-<div x-data="{ open: false }" style="position: relative; margin-top: 0.5rem">
+<div x-data="{ open: false }" style="position: relative; margin-top: 0.5rem; flex-shrink: 0;">
   <button type="button" class="btn btn-secondary w-full" @click="open = !open">
     {{ icon_plus(14) }} Add Block
   </button>

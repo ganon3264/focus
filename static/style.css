@@ -778,6 +778,8 @@
     border-radius: var(--radius-sm);
   }
 
+  /* Scroll Fade — marker class; mask-image applied dynamically by initScrollFade() */
+
   /* Arranger Toggle Switch */
   .arranger-toggle {
     position: relative;

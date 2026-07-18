@@ -9,14 +9,12 @@
 
   <div class="flex gap-4 items-center">
     <label
-      class="cursor-pointer relative rounded-full overflow-hidden"
+      class="cursor-pointer relative rounded-full overflow-hidden flex items-center justify-center"
       style="
         width: 64px;
         height: 64px;
         background: var(--surface-3);
         border: 1px solid var(--border);
-        display: grid;
-        place-items: center;
         flex-shrink: 0;
       "
       title="Change Avatar"
@@ -24,7 +22,8 @@
       <img
         id="edit-{{ prefix }}-image-preview"
         src=""
-        style="width: 100%; height: 100%; object-fit: cover; display: none"
+        class="absolute inset-0 w-full h-full"
+        style="object-fit: cover; display: none"
       />
       <span
         id="edit-{{ prefix }}-image-placeholder"
