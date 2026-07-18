@@ -1,6 +1,9 @@
+import asyncio
+import copy
 import json
 import logging
 import uuid
+from collections.abc import AsyncIterator
 
 import aiosqlite
 import tiktoken
@@ -40,50 +43,37 @@ router = APIRouter()
 logger = get_logger("routers.stream")
 
 
-@router.post("/stream")
-async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)):
-    """Generate a streaming completion from the selected provider.
+# ── Provider loading ─────────────────────────────────────────────────────
 
-    Loads the provider config, resolves secrets, builds the prompt context,
-    streams tokens via SSE, and persists the result as a message variant.
-    Supports an iterative tool-calling loop when tools_enabled=True.
-    """
-    # ── Provider ─────────────────────────────────────────────────────────────
-    async with db.execute("SELECT * FROM providers WHERE id = ?", (body.provider_id,)) as cur:
+
+async def _load_provider(
+    db: aiosqlite.Connection, provider_id: str
+) -> tuple:
+    """Fetch provider row, resolve secrets, create provider instance.
+    Returns (provider, prov_dict)."""
+    async with db.execute("SELECT * FROM providers WHERE id = ?", (provider_id,)) as cur:
         prov_row = await cur.fetchone()
     if not prov_row:
         raise HTTPException(404, "Provider not found")
-
     prov_dict = dict(prov_row)
     prov_dict["api_key"] = await resolve_secret_key(db, prov_dict.get("api_key") or "")
-
     provider = create_provider(prov_dict)
+    return provider, prov_dict
 
-    logger.debug(
-        "stream: chat_id=%s provider=%s model=%s regenerate=%s user_message=%r attachment_ids=%s",
-        body.chat_id, prov_dict["name"], prov_dict.get("model", "?"),
-        body.regenerate, body.user_message, body.attachment_ids,
-    )
 
-    ctx = await get_prompt_context(
-        db, body.chat_id, body.regenerate, body.user_message, body.attachment_ids, persist=True
-    )
-    messages = ctx["messages"]
-    asst_msg_id = ctx["asst_msg_id"]
-    next_variant_index = ctx["next_variant_index"]
-    user_msg_id = ctx["user_msg_id"]
+# ── Message preparation ──────────────────────────────────────────────────
 
-    logger.debug(
-        "stream: ctx returned asst_msg_id=%s user_msg_id=%s next_variant_index=%d messages=%d",
-        asst_msg_id, user_msg_id, next_variant_index, len(messages),
-    )
 
-    # Continue: update the current variant in-place instead of creating a new swipe
-    if body.continue_text and body.regenerate and asst_msg_id:
-        async with db.execute("SELECT active_index FROM messages WHERE id = ?", (asst_msg_id,)) as cur:
-            row = await cur.fetchone()
-        if row is not None:
-            next_variant_index = row[0]
+async def _prepare_generation_messages(
+    prov_dict: dict,
+    body: StreamRequest,
+    messages: list[dict],
+    provider,
+    chat_id: str,
+) -> tuple[list[dict], dict]:
+    """Apply modality filtering, caching, field stripping, prefill,
+    sampler processing, and OpenRouter sticky routing.
+    Returns (filtered_messages, gen_kwargs)."""
 
     s = dict(body.samplers) if body.samplers else {}
     if s.pop("disable_multimodal", False):
@@ -94,7 +84,6 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
         if modalities:
             messages = filter_unsupported_modalities(messages, modalities)
 
-        # Claude prompt caching
         s = dict(body.samplers) if body.samplers else {}
         if s.pop("cache_enabled", False) and prov_dict.get("model", "").startswith("anthropic/claude"):
             messages = apply_claude_caching(
@@ -120,29 +109,438 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
         messages.append(prefill_msg)
 
     gen_kwargs: dict = {}
-    use_stream = True
     if body.samplers:
         s = dict(body.samplers)
-        use_stream = s.pop("stream_enabled", True)
         s.pop("disable_multimodal", None)
         s.pop("cache_enabled", None)
         s.pop("cache_ttl", None)
         s.pop("cache_depth", None)
         gen_kwargs.update(s)
 
-    # OpenRouter sticky routing: pin requests to the same endpoint for cache warmth
     if prov_dict.get("type") == "openrouter":
-        gen_kwargs["session_id"] = body.chat_id
+        gen_kwargs["session_id"] = chat_id
 
-    # ── Tool calling setup ─────────────────────────────────────────────────
+    return messages, gen_kwargs
+
+
+# ── Debug logging helper ─────────────────────────────────────────────────
+
+
+def _log_outbound_payload(
+    messages: list[dict],
+    gen_kwargs: dict,
+    prov_dict: dict,
+) -> None:
+    """Log the full outbound payload with base64 data truncated."""
+    def _truncate_b64(msgs):
+        dump_msgs = copy.deepcopy(msgs)
+        for m in dump_msgs:
+            content = m.get("content")
+            if isinstance(content, list):
+                for part in content:
+                    if part.get("type") == "image_url":
+                        url = part["image_url"].get("url", "")
+                        if url.startswith("data:") and ";base64," in url:
+                            mime, _ = url.split(";base64,", 1)
+                            part["image_url"]["url"] = f"{mime};base64,<data truncated>"
+                    elif part.get("type") == "input_audio":
+                        part["input_audio"]["data"] = "<data truncated>"
+        return dump_msgs
+
+    logger.debug("OUTBOUND PAYLOAD =========================")
+    logger.debug("Provider: %s (%s)", prov_dict.get("name"), prov_dict.get("model"))
+    logger.debug("Samplers:\n%s", json.dumps(gen_kwargs, indent=2))
+    logger.debug("Messages:\n%s", json.dumps(_truncate_b64(messages), indent=2, ensure_ascii=False))
+    logger.debug("==========================================")
+
+
+# ── Core generation loop (shared by stream and non-stream paths) ────────
+
+
+async def _run_generation(
+    provider,
+    messages: list[dict],
+    gen_kwargs: dict,
+    tools_enabled: bool,
+    tools_by_name: dict,
+    tool_read_only: bool,
+    chat_id: str,
+    asst_msg_id: str,
+    variant_id: str,
+) -> AsyncIterator[dict]:
+    """Run the tool-calling iteration loop.
+
+    Yields structured event dicts:
+      {"type": "token",       "text": str}
+      {"type": "reasoning",   "text": str}
+      {"type": "tool_calls",  "calls": [ToolCall, ...]}
+      {"type": "tool_result", "call_id": str, "name": str,
+                               "result": str, "is_error": bool}
+      {"type": "done"}
+      {"type": "error",       "error": str}
+
+    GeneratorExit and CancelledError are deliberately not caught here;
+    the caller (``_stream_generate`` or ``_non_stream_generate``) is
+    responsible for cancellation cleanup since ``GeneratorExit`` is
+    thrown at the outer generator's yield points.
+    """
+    loop_messages: list = list(messages)
+
+    for _iteration in range(MAX_TOOL_ITERATIONS if tools_enabled else 1):
+        iter_collected: list[str] = []
+        iter_reasoning: list[str] = []
+        tool_calls_list: list | None = None
+
+        try:
+            async for event in provider.stream_complete(loop_messages, **gen_kwargs):
+                if event["type"] == "token":
+                    iter_collected.append(event["text"])
+                    yield {"type": "token", "text": event["text"]}
+                elif event["type"] == "reasoning":
+                    iter_reasoning.append(event["text"])
+                    yield {"type": "reasoning", "text": event["text"]}
+                elif event["type"] == "tool_calls":
+                    tool_calls_list = event["calls"]
+                    break
+                elif event["type"] == "done":
+                    break
+        except Exception as e:
+            logger.exception("Completion failed for chat_id=%s", chat_id)
+            err_msg = str(e)
+            if not err_msg or err_msg == "()":
+                err_msg = repr(e)
+            yield {"type": "error", "error": err_msg}
+            return
+
+        if not tool_calls_list:
+            yield {"type": "done"}
+            return
+
+        tool_calls_list = list(tool_calls_list)
+        yield {"type": "tool_calls", "calls": tool_calls_list}
+
+        logger.debug("Tool round (%d calls) for chat_id=%s", len(tool_calls_list), chat_id)
+
+        results = await _apply_tool_round(
+            loop_messages, tool_calls_list, tools_by_name, tool_read_only,
+            chat_id, asst_msg_id, variant_id, iter_collected, iter_reasoning,
+        )
+        for r in results:
+            yield {
+                "type": "tool_result",
+                "call_id": r.call_id,
+                "name": next((tc.name for tc in tool_calls_list if tc.id == r.call_id), ""),
+                "result": r.content,
+                "is_error": r.is_error,
+            }
+
+
+# ── SSE streaming generator (module-level, replaces nested generate()) ──
+
+
+async def _stream_generate(
+    body: StreamRequest,
+    provider,
+    prov_dict: dict,
+    messages: list[dict],
+    gen_kwargs: dict,
+    asst_msg_id: str,
+    next_variant_index: int,
+    user_msg_id: str | None,
+    tools_enabled: bool,
+    tools_by_name: dict,
+    tool_read_only: bool,
+) -> AsyncIterator[str]:
+    """Async generator that yields SSE-encoded lines for a streaming response."""
+    variant_id = str(uuid.uuid4())
+    variant_saved = False
+    final_text: list[str] = []
+    final_reasoning: list[str] = []
+
+    # ── start SSE ───────────────────────────────────────────────────────
+    yield (
+        f"data: {json.dumps({
+            'type': 'start',
+            'message_id': asst_msg_id,
+            'user_message_id': user_msg_id if not body.regenerate else None,
+            'prefill_mode': not provider.echoes_prefill,
+        })}\n\n"
+    )
+
+    # ── core loop ───────────────────────────────────────────────────────
+    # GeneratorExit/CancelledError are caught here because aclose()
+    # throws them at the SSE ``yield`` points below.
+    try:
+        async for event in _run_generation(
+            provider, messages, gen_kwargs, tools_enabled,
+            tools_by_name, tool_read_only,
+            body.chat_id, asst_msg_id, variant_id,
+        ):
+            if event["type"] == "token":
+                final_text.append(event["text"])
+                if len(final_text) % 5 == 0:
+                    await _upsert_variant(
+                        body.chat_id, asst_msg_id, next_variant_index,
+                        "".join(final_text), body.regenerate, prov_dict.get("model", ""),
+                        variant_id=variant_id,
+                        reasoning="".join(final_reasoning).strip() or None,
+                    )
+                yield f"data: {json.dumps({'token': event['text']})}\n\n"
+
+            elif event["type"] == "reasoning":
+                final_reasoning.append(event["text"])
+                # Save before yield — if aclose() throws GeneratorExit at
+                # the yield below the reasoning is already committed.
+                await _upsert_variant(
+                    body.chat_id, asst_msg_id, next_variant_index,
+                    "".join(final_text), body.regenerate, prov_dict.get("model", ""),
+                    variant_id=variant_id,
+                    reasoning="".join(final_reasoning).strip() or None,
+                )
+                yield f"data: {json.dumps({'type': 'reasoning', 'text': event['text']})}\n\n"
+
+            elif event["type"] == "tool_calls":
+                yield (
+                    f"data: {json.dumps({
+                        'type': 'tool_calls',
+                        'calls': [
+                            {'id': tc.id, 'name': tc.name, 'arguments': tc.arguments}
+                            for tc in event['calls']
+                        ],
+                    })}\n\n"
+                )
+
+            elif event["type"] == "tool_result":
+                yield (
+                    f"data: {json.dumps({
+                        'type': 'tool_result',
+                        'call_id': event['call_id'],
+                        'name': event['name'],
+                        'result': event['result'],
+                        'is_error': event['is_error'],
+                    })}\n\n"
+                )
+
+            elif event["type"] == "done":
+                # ── save final variant ──────────────────────────────────
+                full = "".join(final_text)
+                full_reasoning = "".join(final_reasoning).strip() or None
+                if body.continue_text and not full.startswith(body.continue_text):
+                    full = body.continue_text + full
+
+                logger.debug(
+                    "stream: saving variant asst_msg_id=%s variant_index=%d full_length=%d reasoning=%s",
+                    asst_msg_id, next_variant_index, len(full), "yes" if full_reasoning else "no",
+                )
+                try:
+                    await _upsert_variant(
+                        body.chat_id, asst_msg_id, next_variant_index,
+                        full, body.regenerate, prov_dict.get("model", ""),
+                        variant_id=variant_id, reasoning=full_reasoning,
+                    )
+                    variant_saved = True
+                    logger.debug("stream: variant saved successfully")
+                except Exception as e:
+                    logger.exception("Failed to save stream result for chat_id=%s", body.chat_id)
+                    if not body.regenerate:
+                        await _rollback_assistant(asst_msg_id)
+                    err_msg = str(e) or repr(e)
+                    yield f"data: {json.dumps({'error': f'Generation succeeded but save failed: {err_msg}'})}\n\n"
+                    return
+
+                yield (
+                    f"data: {json.dumps({
+                        'done': True,
+                        'message_id': asst_msg_id,
+                        'variant_index': next_variant_index,
+                    })}\n\n"
+                )
+                logger.info("Stream completed for chat_id=%s variant_saved=%s", body.chat_id, variant_saved)
+                return
+
+            elif event["type"] == "error":
+                logger.debug(
+                    "stream: error state: final_text=%d regenerate=%s asst_msg_id=%s",
+                    len(final_text), body.regenerate, asst_msg_id,
+                )
+                await _save_or_rollback(
+                    body, asst_msg_id, next_variant_index, variant_id,
+                    final_text, final_reasoning, prov_dict,
+                )
+                yield f"data: {json.dumps({'error': event['error']})}\n\n"
+                logger.info("Stream terminated (error) for chat_id=%s", body.chat_id)
+                return
+    except GeneratorExit:
+        await _save_or_rollback(
+            body, asst_msg_id, next_variant_index, variant_id,
+            final_text, final_reasoning, prov_dict,
+        )
+        logger.info("Stream cancelled for chat_id=%s", body.chat_id)
+        return
+    except asyncio.CancelledError:
+        await _save_or_rollback(
+            body, asst_msg_id, next_variant_index, variant_id,
+            final_text, final_reasoning, prov_dict,
+        )
+        raise
+
+
+# ── Non-stream generation ────────────────────────────────────────────────
+
+
+async def _non_stream_generate(
+    body: StreamRequest,
+    provider,
+    prov_dict: dict,
+    messages: list[dict],
+    gen_kwargs: dict,
+    asst_msg_id: str,
+    next_variant_index: int,
+    user_msg_id: str | None,
+    tools_enabled: bool,
+    tools_by_name: dict,
+    tool_read_only: bool,
+) -> JSONResponse:
+    """Run generation in non-streaming mode and return a JSON response."""
+    collected: list[str] = []
+    collected_reasoning: list[str] = []
+    variant_id = str(uuid.uuid4())
+
+    try:
+        async for event in _run_generation(
+            provider, messages, gen_kwargs, tools_enabled,
+            tools_by_name, tool_read_only,
+            body.chat_id, asst_msg_id, variant_id,
+        ):
+            if event["type"] == "token":
+                collected.append(event["text"])
+            elif event["type"] == "reasoning":
+                collected_reasoning.append(event["text"])
+            elif event["type"] == "error":
+                if not body.regenerate and not collected:
+                    await _rollback_assistant(asst_msg_id)
+                raise HTTPException(500, event["error"])
+    except asyncio.CancelledError:
+        if collected or collected_reasoning:
+            await _upsert_variant(
+                body.chat_id, asst_msg_id, next_variant_index,
+                "".join(collected), body.regenerate, prov_dict.get("model", ""),
+                variant_id=variant_id,
+                reasoning="".join(collected_reasoning).strip() or None,
+            )
+        elif not body.regenerate:
+            await _rollback_assistant(asst_msg_id)
+        raise HTTPException(499, "Request cancelled")
+
+    full = "".join(collected)
+    full_reasoning = "".join(collected_reasoning).strip() or None
+    if body.continue_text and not full.startswith(body.continue_text):
+        full = body.continue_text + full
+
+    try:
+        await _upsert_variant(
+            body.chat_id, asst_msg_id, next_variant_index,
+            full, body.regenerate, prov_dict.get("model", ""),
+            variant_id=variant_id, reasoning=full_reasoning,
+        )
+    except Exception as e:
+        logger.exception("Failed to save non-stream result for chat_id=%s", body.chat_id)
+        if not body.regenerate:
+            await _rollback_assistant(asst_msg_id)
+        raise HTTPException(500, f"Generation succeeded but save failed: {str(e) or repr(e)}")
+
+    return JSONResponse({
+        "done": True,
+        "message_id": asst_msg_id,
+        "variant_index": next_variant_index,
+        "user_message_id": user_msg_id if not body.regenerate else None,
+        "full_text": full,
+        "full_reasoning": full_reasoning,
+    })
+
+
+# ── Partial save / rollback helper ───────────────────────────────────────
+
+
+async def _save_or_rollback(
+    body: StreamRequest,
+    asst_msg_id: str,
+    variant_index: int,
+    variant_id: str,
+    final_text: list[str],
+    final_reasoning: list[str],
+    prov_dict: dict,
+) -> None:
+    """On error or cancellation, save any partial text/reasoning or
+    rollback the empty assistant slot so the DB stays consistent."""
+    if final_text or final_reasoning:
+        await _upsert_variant(
+            body.chat_id, asst_msg_id, variant_index,
+            "".join(final_text), body.regenerate, prov_dict.get("model", ""),
+            variant_id=variant_id,
+            reasoning="".join(final_reasoning).strip() or None,
+        )
+    elif not body.regenerate:
+        await _rollback_assistant(asst_msg_id)
+
+
+# ── Stream endpoint ──────────────────────────────────────────────────────
+
+
+@router.post("/stream")
+async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)):
+    """Generate a streaming completion from the selected provider.
+
+    Loads the provider config, resolves secrets, builds the prompt context,
+    streams tokens via SSE, and persists the result as a message variant.
+    Supports an iterative tool-calling loop when tools_enabled=True.
+    """
+    # ── Provider ──────────────────────────────────────────────────────────
+    provider, prov_dict = await _load_provider(db, body.provider_id)
+
+    logger.debug(
+        "stream: chat_id=%s provider=%s model=%s regenerate=%s user_message=%r attachment_ids=%s",
+        body.chat_id, prov_dict["name"], prov_dict.get("model", "?"),
+        body.regenerate, body.user_message, body.attachment_ids,
+    )
+
+    # ── Prompt context ────────────────────────────────────────────────────
+    ctx = await get_prompt_context(
+        db, body.chat_id, body.regenerate, body.user_message, body.attachment_ids, persist=True
+    )
+    messages = ctx["messages"]
+    asst_msg_id = ctx["asst_msg_id"]
+    next_variant_index = ctx["next_variant_index"]
+    user_msg_id = ctx["user_msg_id"]
+
+    logger.debug(
+        "stream: ctx returned asst_msg_id=%s user_msg_id=%s next_variant_index=%d messages=%d",
+        asst_msg_id, user_msg_id, next_variant_index, len(messages),
+    )
+
+    # Continue: update the current variant in-place instead of creating a new swipe
+    if body.continue_text and body.regenerate and asst_msg_id:
+        async with db.execute("SELECT active_index FROM messages WHERE id = ?", (asst_msg_id,)) as cur:
+            row = await cur.fetchone()
+        if row is not None:
+            next_variant_index = row[0]
+
+    # ── Message preparation ───────────────────────────────────────────────
+    messages, gen_kwargs = await _prepare_generation_messages(
+        prov_dict, body, messages, provider, body.chat_id,
+    )
+
+    use_stream = gen_kwargs.pop("stream_enabled", True)
+
+    # ── Tool calling setup ────────────────────────────────────────────────
     tools_enabled = body.tools_enabled
     tool_read_only = body.tool_read_only
 
-    # Disable tools for providers that don't support them
     if tools_enabled and not provider.supports_tools:
         tools_enabled = False
         logger.debug("Tools disabled: provider %s does not support tool calling", prov_dict.get("type"))
 
+    tools_by_name: dict = {}
     if tools_enabled:
         cur_tools = active_tools(ALL_TOOLS, tool_read_only)
         tools_payload = to_provider_tools(cur_tools)
@@ -150,239 +548,31 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
         if tools_payload:
             gen_kwargs["tools"] = tools_payload
             gen_kwargs["tool_choice"] = "auto"
-    else:
-        cur_tools = []
-        tools_payload = []
-        tools_by_name = {}
 
-    if not use_stream:
-        collected: list[str] = []
-        collected_reasoning: list[str] = []
-        final_asst_msg_id = asst_msg_id
-        loop_messages = list(messages)
-        variant_id = str(uuid.uuid4())
-
-        for _iteration in range(MAX_TOOL_ITERATIONS if tools_enabled else 1):
-            iter_collected: list[str] = []
-            iter_reasoning: list[str] = []
-            tool_calls_list: list | None = None
-
-            try:
-                logger.debug(
-                    "Non-stream iteration for chat_id=%s provider=%s",
-                    body.chat_id, prov_dict["name"],
-                )
-                async for event in provider.stream_complete(loop_messages, **gen_kwargs):
-                    if event["type"] == "token":
-                        iter_collected.append(event["text"])
-                    elif event["type"] == "reasoning":
-                        iter_reasoning.append(event["text"])
-                    elif event["type"] == "tool_calls":
-                        tool_calls_list = event["calls"]
-                        break
-                    elif event["type"] == "done":
-                        tool_calls_list = None
-                        break
-            except Exception as e:
-                logger.exception("Non-stream completion failed for chat_id=%s", body.chat_id)
-                if not body.regenerate:
-                    await _rollback_assistant(final_asst_msg_id)
-                raise HTTPException(500, str(e) or repr(e))
-
-            if not tool_calls_list:
-                collected.extend(iter_collected)
-                collected_reasoning.extend(iter_reasoning)
-                break
-
-            collected.extend(iter_collected)
-            collected_reasoning.extend(iter_reasoning)
-            collected.append("%%%TOOL_BOUNDARY%%%")
-            tool_calls_list = list(tool_calls_list)
-            logger.debug(
-                "Tool round (%d calls) for chat_id=%s",
-                len(tool_calls_list), body.chat_id,
-            )
-
-            await _apply_tool_round(
-                loop_messages, tool_calls_list, tools_by_name, tool_read_only,
-                body.chat_id, final_asst_msg_id, variant_id, iter_collected, iter_reasoning,
-            )
-
-        full = "".join(collected)
-        full_reasoning = "".join(collected_reasoning).strip() or None
-        if body.continue_text and not full.startswith(body.continue_text):
-            full = body.continue_text + full
-
-        try:
-            await _upsert_variant(
-                body.chat_id,
-                final_asst_msg_id,
-                next_variant_index,
-                full,
-                body.regenerate,
-                prov_dict.get("model", ""),
-                variant_id=variant_id,
-                reasoning=full_reasoning,
-            )
-        except Exception as e:
-            logger.exception("Failed to save non-stream result for chat_id=%s", body.chat_id)
-            if not body.regenerate:
-                await _rollback_assistant(final_asst_msg_id)
-            raise HTTPException(500, f"Generation succeeded but save failed: {str(e) or repr(e)}")
-
-        return JSONResponse(
-            {
-                "done": True,
-                "message_id": final_asst_msg_id,
-                "variant_index": next_variant_index,
-                "user_message_id": user_msg_id if not body.regenerate else None,
-                "full_text": full,
-                "full_reasoning": full_reasoning,
-            }
-        )
-
-    collected: list[str] = []
-    final_asst_msg_id = asst_msg_id
-
+    # ── Debug log ─────────────────────────────────────────────────────────
     if logger.isEnabledFor(logging.DEBUG):
-        import copy
+        _log_outbound_payload(messages, gen_kwargs, prov_dict)
 
-        def _truncate_b64(msgs):
-            dump_msgs = copy.deepcopy(msgs)
-            for m in dump_msgs:
-                content = m.get("content")
-                if isinstance(content, list):
-                    for part in content:
-                        if part.get("type") == "image_url":
-                            url = part["image_url"].get("url", "")
-                            if url.startswith("data:") and ";base64," in url:
-                                mime, _ = url.split(";base64,", 1)
-                                part["image_url"]["url"] = f"{mime};base64,<data truncated>"
-                        elif part.get("type") == "input_audio":
-                            part["input_audio"]["data"] = "<data truncated>"
-            return dump_msgs
-
-        logger.debug("OUTBOUND PAYLOAD =========================")
-        logger.debug("Provider: %s (%s)", prov_dict.get("name"), prov_dict.get("model"))
-        logger.debug("Samplers:\n%s", json.dumps(gen_kwargs, indent=2))
-        logger.debug("Messages:\n%s", json.dumps(_truncate_b64(messages), indent=2, ensure_ascii=False))
-        logger.debug("==========================================")
-
-    async def generate():
-        yield f"data: {json.dumps({'type': 'start', 'message_id': final_asst_msg_id, 'user_message_id': user_msg_id if not body.regenerate else None, 'prefill_mode': not provider.echoes_prefill})}\n\n"
-
-        loop_messages = list(messages)
-        variant_saved = False
-        final_text: list[str] = []
-        final_reasoning: list[str] = []
-        stream_variant_id = str(uuid.uuid4())
-
-        for _iteration in range(MAX_TOOL_ITERATIONS if tools_enabled else 1):
-            iter_collected: list[str] = []
-            iter_reasoning: list[str] = []
-            tool_calls_list: list | None = None
-
-            try:
-                logger.debug(
-                    "Stream iteration %d for chat_id=%s provider=%s",
-                    _iteration + 1, body.chat_id, prov_dict["name"],
-                )
-                async for event in provider.stream_complete(loop_messages, **gen_kwargs):
-                    if event["type"] == "token":
-                        iter_collected.append(event["text"])
-                        yield f"data: {json.dumps({'token': event['text']})}\n\n"
-                        if len(iter_collected) % 5 == 0:
-                            await _upsert_variant(
-                                body.chat_id, final_asst_msg_id, next_variant_index,
-                                "".join(iter_collected), body.regenerate, prov_dict.get("model", ""),
-                                variant_id=stream_variant_id,
-                                reasoning="".join(iter_reasoning).strip() or None,
-                            )
-                    elif event["type"] == "reasoning":
-                        iter_reasoning.append(event["text"])
-                        yield f"data: {json.dumps({'type': 'reasoning', 'text': event['text']})}\n\n"
-                    elif event["type"] == "tool_calls":
-                        tool_calls_list = event["calls"]
-                        yield f"data: {json.dumps({'type': 'tool_calls', 'calls': [{'id': tc.id, 'name': tc.name, 'arguments': tc.arguments} for tc in event['calls']]})}\n\n"
-                        break
-                    elif event["type"] == "done":
-                        tool_calls_list = None
-                        break
-            except Exception as e:
-                logger.exception("Stream exception for chat_id=%s", body.chat_id)
-                logger.debug(
-                    "stream: error state: iter_collected=%d final_text=%d regenerate=%s asst_msg_id=%s",
-                    len(iter_collected), len(final_text), body.regenerate, final_asst_msg_id,
-                )
-                if iter_collected:
-                    await _upsert_variant(
-                        body.chat_id, final_asst_msg_id, next_variant_index,
-                        "".join(iter_collected), body.regenerate, prov_dict.get("model", ""),
-                        variant_id=stream_variant_id,
-                        reasoning="".join(iter_reasoning).strip() or None,
-                    )
-                elif not body.regenerate and not final_text:
-                    await _rollback_assistant(final_asst_msg_id)
-                err_msg = str(e)
-                if not err_msg or err_msg == "()":
-                    err_msg = repr(e)
-                logger.info("Stream terminated (error) for chat_id=%s", body.chat_id)
-                yield f"data: {json.dumps({'error': err_msg})}\n\n"
-                return
-
-            if not tool_calls_list:
-                final_text.extend(iter_collected)
-                final_reasoning.extend(iter_reasoning)
-                break
-
-            final_text.extend(iter_collected)
-            final_reasoning.extend(iter_reasoning)
-            final_text.append("%%%TOOL_BOUNDARY%%%")
-
-            tool_calls_list = list(tool_calls_list)
-
-            results = await _apply_tool_round(
-                loop_messages, tool_calls_list, tools_by_name, tool_read_only,
-                body.chat_id, final_asst_msg_id, stream_variant_id, iter_collected, iter_reasoning,
-            )
-
-            for r in results:
-                yield f"data: {json.dumps({'type': 'tool_result', 'call_id': r.call_id, 'name': next((tc.name for tc in tool_calls_list if tc.id == r.call_id), ''), 'result': r.content, 'is_error': r.is_error})}\n\n"
-
-        full = "".join(final_text)
-        full_reasoning = "".join(final_reasoning).strip() or None
-        if body.continue_text and not full.startswith(body.continue_text):
-            full = body.continue_text + full
-
-        logger.debug(
-            "stream: saving variant asst_msg_id=%s variant_index=%d full_length=%d reasoning=%s",
-            final_asst_msg_id, next_variant_index, len(full), "yes" if full_reasoning else "no",
+    # ── Dispatch ──────────────────────────────────────────────────────────
+    if not use_stream:
+        return await _non_stream_generate(
+            body, provider, prov_dict, messages, gen_kwargs,
+            asst_msg_id, next_variant_index, user_msg_id,
+            tools_enabled, tools_by_name, tool_read_only,
         )
-        try:
-            await _upsert_variant(
-                body.chat_id, final_asst_msg_id, next_variant_index,
-                full, body.regenerate, prov_dict.get("model", ""),
-                variant_id=stream_variant_id,
-                reasoning=full_reasoning,
-            )
-            variant_saved = True
-            logger.debug("stream: variant saved successfully")
-        except Exception as e:
-            logger.exception("Failed to save stream result for chat_id=%s", body.chat_id)
-            if not body.regenerate:
-                await _rollback_assistant(final_asst_msg_id)
-            err_msg = str(e) or repr(e)
-            yield f"data: {json.dumps({'error': f'Generation succeeded but save failed: {err_msg}'})}\n\n"
-            return
-
-        yield f"data: {json.dumps({'done': True, 'message_id': final_asst_msg_id, 'variant_index': next_variant_index})}\n\n"
-        logger.info("Stream completed for chat_id=%s variant_saved=%s", body.chat_id, variant_saved)
 
     return StreamingResponse(
-        generate(),
+        _stream_generate(
+            body, provider, prov_dict, messages, gen_kwargs,
+            asst_msg_id, next_variant_index, user_msg_id,
+            tools_enabled, tools_by_name, tool_read_only,
+        ),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+# ── Tool round helpers (unchanged) ───────────────────────────────────────
 
 
 async def _apply_tool_round(
@@ -483,6 +673,9 @@ async def _execute_tool_round(
     return results
 
 
+# ── Variant persistence (unchanged) ──────────────────────────────────────
+
+
 async def _upsert_variant(
     chat_id: str,
     asst_msg_id: str,
@@ -554,6 +747,9 @@ async def _rollback_assistant(asst_msg_id: str | None):
         await rollback_db.execute("PRAGMA foreign_keys=ON")
         await rollback_db.execute("DELETE FROM messages WHERE id = ?", (asst_msg_id,))
         await rollback_db.commit()
+
+
+# ── Itemize endpoint (unchanged) ─────────────────────────────────────────
 
 
 @router.post("/itemize")

@@ -262,6 +262,8 @@
 
     let fullText = '';
     let fullReasoning = '';
+    let messageId = null;
+    let userMessageId = null;
 
     try {
       const res = await fetch(window.api.stream, {
@@ -279,9 +281,9 @@
       if (!useStream) {
         const json = await res.json();
         fullText = json.full_text || '';
-        const fullReasoning = json.full_reasoning || '';
-        const messageId = json.message_id;
-        const userMessageId = json.user_message_id;
+        fullReasoning = json.full_reasoning || '';
+        messageId = json.message_id;
+        userMessageId = json.user_message_id;
 
         if (userMessageId && !isRegen) {
           const tempUserMsg = document.getElementById('temp-user-msg');
@@ -319,8 +321,6 @@
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
-      let messageId = null;
-      let userMessageId = null;
       let prefillMode = false;
       fullText = '';
 
