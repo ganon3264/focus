@@ -17,7 +17,7 @@ close_fn='closeModal', overlay_close=true, overlay_class='') %}
   if
   overlay_close
   %}
-  onclick="if(event.target===this){{ close_fn }}('{{ id }}')"
+  data-action="actionCloseModal" data-modal-id="{{ id }}"
   {%
   endif
   %}
@@ -28,7 +28,7 @@ close_fn='closeModal', overlay_close=true, overlay_class='') %}
   >
     <div class="modal-header">
       <div class="modal-title">{{ title }}</div>
-      <button class="btn btn-secondary" aria-label="Close" onclick="{{ close_fn }}('{{ id }}')">
+      <button class="btn btn-secondary" aria-label="Close" data-action="actionCloseModal" data-modal-id="{{ id }}">
         {{ icon_close(16) }}
       </button>
     </div>

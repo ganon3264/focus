@@ -3,7 +3,7 @@
 <form
   id="edit-{{ prefix }}-form"
   class="flex flex-col gap-4 flex-1"
-  onsubmit="{{ submit_fn }}(event)"
+  data-action="{{ submit_fn }}"
 >
   <input type="hidden" name="id" id="edit-{{ prefix }}-id" />
 
@@ -35,7 +35,7 @@
       >
         Upload
       </div>
-      <input type="file" accept="image/*" class="hidden" onchange="{{ avatar_fn }}(this)" />
+      <input type="file" accept="image/*" class="hidden" data-action="{{ avatar_fn }}" />
     </label>
 
     <div class="form-group mb-0 flex-1">
@@ -64,7 +64,7 @@
         type="button"
         class="expand-btn"
         aria-label="Expand text area"
-        onclick="openTextExpander(document.getElementById('edit-{{ prefix }}-desc'), 'Edit {{ entity_name }} Description')"
+        data-action="actionOpenTextExpander" data-target-id="edit-{{ prefix }}-desc" data-expander-title="Edit {{ entity_name }} Description"
       >
         {{ icon_expand(18) }}
       </button>
@@ -99,7 +99,7 @@
           type="file"
           accept="image/*,audio/*"
           class="hidden block-media-input"
-          onchange="{{ upload_fn }}(this)"
+          data-action="{{ upload_fn }}"
         />
       </label>
       <span class="text-xs text-muted block-media-placeholder">Add reference image or audio</span>
@@ -111,7 +111,7 @@
       class="btn btn-secondary"
       style="width: 100px"
       type="button"
-      onclick="closeModal('{{ modal_id }}')"
+      data-action="actionCloseModal" data-modal-id="{{ modal_id }}"
     >
       Cancel
     </button>

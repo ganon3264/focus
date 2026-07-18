@@ -111,7 +111,7 @@
               </div>
               <div class="char-block-media-section" id="media-section-char-{{ char.id }}" style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
                 {% for img in char.images %}
-                {{ media_thumbnail(img, "deleteCharMedia(this.closest('[data-media-id]'))", ' data-media-id="' + img.id + '"') }}
+                {{ media_thumbnail(img, "deleteCharMedia", ' id="char-media-' + img.id + '"') }}
                 {% endfor %}
                 <label class="btn btn-secondary btn-sm block-media-btn" style="height: 48px; padding: 0 0.5rem; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 4px; border-style: dashed; flex-shrink: 0; margin: 0;" title="Add Image or Audio">
                   {{ icon_plus(20) }}
@@ -218,7 +218,7 @@
                 
                 <div class="char-block-media-section" id="media-section-{{ block.id }}" style="margin-top: 0.5rem; display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
                   {% for img in block.images %}
-                  {{ media_thumbnail(img, "deleteCharBlockMedia(this.closest('[data-media-id]'))", ' data-media-id="' + img.id + '"') }}
+                  {{ media_thumbnail(img, "deleteCharBlockMedia", '') }}
                   {% endfor %}
                   <label class="btn btn-secondary btn-sm" style="height: 48px; padding: 0 0.5rem; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 4px; border-style: dashed; flex-shrink: 0; margin: 0;" title="Add Image or Audio">
                     {{ icon_plus(20) }}

@@ -5,7 +5,7 @@ media_thumbnail, hint_tooltip %}
   data-block-id="{{ block.id }}"
   data-block-content="{{ block.content }}"
   data-preset-id="{{ preset_id }}"
-  x-data="{ expanded: expandGet('arrangerBlocks', '{{ block.id }}') }"
+  x-data="{ expanded: expandGet('arrangerBlocks', $el.dataset.blockId) }"
 >
   <div class="arranger-header">
     <div class="arranger-handle" title="Drag to reorder"></div>
@@ -238,7 +238,7 @@ media_thumbnail, hint_tooltip %}
       class="arranger-media-section"
       style="margin-top: 0.5rem; display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center"
     >
-      {% for img in block.images %} {{ media_thumbnail(img, "deleteBlockMedia(this.closest('[data-image-id]'))", ' data-image-id="' + img.id + '"') }} {% endfor %}
+      {% for img in block.images %} {{ media_thumbnail(img, "deleteBlockMedia", '') }} {% endfor %}
 
       <label
         class="btn btn-secondary btn-sm"

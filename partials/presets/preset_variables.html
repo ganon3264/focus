@@ -4,10 +4,10 @@
     <div class="flex flex-col gap-2 overflow-y-auto pr-2 scroll-fade" id="preset-variables-sortable-{{ preset_id }}" style="flex: 1; min-height: 0;">
     {% for vname, vblocks in var_groups.items() %}
       {% set selected = vblocks | selectattr("enabled", "equalto", 1) | first %}
-      <div class="arranger-item bg-role-system var-group-container" data-group-name="{{ vname }}" x-data="{ expanded: expandGet('varGroups', '{{ vname }}') }">
+      <div class="arranger-item bg-role-system var-group-container" data-group-name="{{ vname }}" x-data="{ expanded: expandGet('varGroups', $el.dataset.groupName) }">
         <div class="hidden var-group-ids" data-ids="{{ vblocks | map(attribute='id') | join(',') }}"></div>
         <div class="arranger-header">
-          <div class="arranger-title-group" @click="expanded = expandToggle('varGroups', '{{ vname }}')" role="button" tabindex="0" aria-expanded="false" style="cursor: pointer;">
+          <div class="arranger-title-group" @click="expanded = expandToggle('varGroups', $el.closest('.var-group-container').dataset.groupName)" role="button" tabindex="0" aria-expanded="false" style="cursor: pointer;">
             <span style="font-size: 0.8rem; color: var(--text-muted); width: 16px; text-align: center; display: inline-flex; align-items: center; justify-content: center; transition: rotate var(--transition);" :class="expanded ? 'rotate-90' : ''">{{ icon_chevron_right(12) }}</span>
             <span class="arranger-input" style="cursor: pointer; font-weight: bold;">{{ vname }}</span>
           </div>

@@ -186,14 +186,14 @@
 <div id="characters-modal-body" class="flex-1 overflow-hidden" style="min-height:0;">Loading…</div>
 {% endcall %}
 
-{% set prefix = 'char' %}{% set modal_id = 'modal-edit-character' %}{% set entity_name = 'Character' %}{% set upload_fn = 'uploadCharModalMedia' %}{% set avatar_fn = 'uploadCharacterAvatar' %}{% set submit_fn = 'submitEditCharacter' %}
+{% set prefix = 'char' %}{% set modal_id = 'modal-edit-character' %}{% set entity_name = 'Character' %}{% set upload_fn = 'actionUploadCharMedia' %}{% set avatar_fn = 'actionUploadCharAvatar' %}{% set submit_fn = 'actionSubmitEditCharacter' %}
 {% include "modals/edit_entity_modal.html" %}
 
 {% call modal_shell('modal-personas', 'Personas', max_width='800px', content_style='display:flex;flex-direction:column;height:80vh;') %}
 <div id="personas-modal-body" class="flex-1 overflow-hidden" style="min-height:0;">Loading…</div>
 {% endcall %}
 
-{% set prefix = 'persona' %}{% set modal_id = 'modal-edit-persona' %}{% set entity_name = 'Persona' %}{% set upload_fn = 'uploadPersonaMedia' %}{% set avatar_fn = 'uploadPersonaAvatar' %}{% set submit_fn = 'submitEditPersona' %}
+{% set prefix = 'persona' %}{% set modal_id = 'modal-edit-persona' %}{% set entity_name = 'Persona' %}{% set upload_fn = 'actionUploadPersonaMedia' %}{% set avatar_fn = 'actionUploadPersonaAvatar' %}{% set submit_fn = 'actionSubmitEditPersona' %}
 {% include "modals/edit_entity_modal.html" %}
 
 {% call modal_shell('modal-providers', 'Providers', max_width='1000px', content_style='display:flex;flex-direction:column;max-height:85vh;') %}

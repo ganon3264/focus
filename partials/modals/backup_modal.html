@@ -9,21 +9,21 @@ max_width='520px', width='90vw') %}
       type="button"
       id="btn-create-backup"
       class="btn btn-primary flex-1 text-sm flex items-center justify-center gap-1.5"
-      onclick="BackupManager.create()"
+      data-action="BackupManager.create"
     >
       {{ icon_plus(size=14) }} Create Backup
     </button>
     <button
       type="button"
       class="btn btn-secondary flex-1 text-sm flex items-center justify-center gap-1.5"
-      onclick="BackupManager.openExportModal()"
+      data-action="BackupManager.openExportModal"
     >
       {{ icon_folder(size=14) }} Export
     </button>
     <button
       type="button"
       class="btn btn-secondary flex-1 text-sm flex items-center justify-center gap-1.5"
-      onclick="document.getElementById('import-file').click()"
+      data-action="actionTriggerFileUpload" data-target="import-file"
     >
       {{ icon_upload(size=14) }} Import
     </button>
@@ -34,7 +34,7 @@ max_width='520px', width='90vw') %}
     id="import-file"
     class="hidden"
     accept=".focus"
-    onchange="BackupManager.importFile(this)"
+    data-action="actionImportBackupFile"
   />
 
   <span id="backup-status" class="text-xs"></span>
@@ -43,7 +43,7 @@ max_width='520px', width='90vw') %}
     <button
       type="button"
       class="btn btn-danger flex-1 text-sm flex items-center justify-center gap-1.5"
-      onclick="BackupManager.cleanDatabase()"
+      data-action="BackupManager.cleanDatabase"
     >
       Clean DB
     </button>
@@ -68,7 +68,7 @@ modal_shell('modal-export', 'Export Data', max_width='440px', width='90vw', z_in
         data-export-btn="{{ etype }}"
         data-export-val="all"
         class="btn-tag"
-        onclick="BackupManager.setExportType('{{ etype }}','all')"
+        data-action="actionSetExportType" data-etype="{{ etype }}" data-export-val="all"
       >
         All
       </button>
@@ -77,7 +77,7 @@ modal_shell('modal-export', 'Export Data', max_width='440px', width='90vw', z_in
         data-export-btn="{{ etype }}"
         data-export-val="none"
         class="btn-tag"
-        onclick="BackupManager.setExportType('{{ etype }}','none')"
+        data-action="actionSetExportType" data-etype="{{ etype }}" data-export-val="none"
       >
         None
       </button>
@@ -86,7 +86,7 @@ modal_shell('modal-export', 'Export Data', max_width='440px', width='90vw', z_in
         data-export-btn="{{ etype }}"
         data-export-val="some"
         class="btn-tag"
-        onclick="BackupManager.setExportType('{{ etype }}','some')"
+        data-action="actionSetExportType" data-etype="{{ etype }}" data-export-val="some"
       >
         Select
       </button>
@@ -104,7 +104,7 @@ modal_shell('modal-export', 'Export Data', max_width='440px', width='90vw', z_in
         role="switch"
         tabindex="0"
         id="export-toggle-chats"
-        onclick="BackupManager.toggleExportFlag('chats')"
+        data-action="actionToggleExportFlag" data-export-flag="chats"
       ></div>
     </div>
     <div class="flex items-center justify-between">
@@ -114,7 +114,7 @@ modal_shell('modal-export', 'Export Data', max_width='440px', width='90vw', z_in
         role="switch"
         tabindex="0"
         id="export-toggle-providers"
-        onclick="BackupManager.toggleExportFlag('providers')"
+        data-action="actionToggleExportFlag" data-export-flag="providers"
       ></div>
     </div>
     <div class="flex items-center justify-between">
@@ -124,20 +124,20 @@ modal_shell('modal-export', 'Export Data', max_width='440px', width='90vw', z_in
         role="switch"
         tabindex="0"
         id="export-toggle-secrets"
-        onclick="BackupManager.toggleExportFlag('secrets')"
+        data-action="actionToggleExportFlag" data-export-flag="secrets"
       ></div>
     </div>
   </div>
 
   <div class="flex justify-end gap-2 mt-1">
-    <button type="button" class="btn btn-secondary" onclick="closeModal('modal-export')">
+    <button type="button" class="btn btn-secondary" data-action="actionCloseExportModal">
       Cancel
     </button>
     <button
       type="button"
       class="btn btn-primary"
       id="export-download-btn"
-      onclick="BackupManager.doExport()"
+      data-action="BackupManager.doExport"
     >
       Export
     </button>
@@ -155,7 +155,7 @@ modal_shell('modal-entity-select', 'Select', max_width='420px', width='90vw', z_
     <input
       type="text"
       placeholder="Filter..."
-      oninput="BackupManager.filterExportEntities(BackupManager._entitySelectType, this.value)"
+      data-action="actionFilterEntityList"
       class="text-sm w-full"
       style="
         padding-left: 2rem;
@@ -173,7 +173,7 @@ modal_shell('modal-entity-select', 'Select', max_width='420px', width='90vw', z_
     <div class="text-muted text-xs text-center py-4">Loading...</div>
   </div>
   <div class="flex justify-end">
-    <button type="button" class="btn btn-primary" onclick="closeModal('modal-entity-select')">
+    <button type="button" class="btn btn-primary" data-action="actionCloseEntitySelect">
       Done
     </button>
   </div>

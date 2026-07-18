@@ -56,13 +56,19 @@
   };
 
   window.buildMediaThumbnail = function (img, onDelete, idPrefix) {
-    return window.createMediaThumbnail({
+    var el = window.createMediaThumbnail({
       src: img.image_path || '',
       mimeType: img.mime_type,
       size: 48,
       id: idPrefix ? idPrefix + '-' + img.id : undefined,
-      onDelete: onDelete,
+      onDelete: function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        onDelete(e.target);
+      },
     });
+    el.dataset.imageId = img.id;
+    return el;
   };
 
   window.setupDropZone = function (el, onDrop) {

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Presets - Focus{% endblock %}
 {% block content %}
-<div class="p-3" id="presets-page" x-data="{ activePreset: '{{ presets[0].id if presets else '' }}' }">
+<div class="p-3" id="presets-page" data-initial-preset="{{ presets[0].id if presets else '' }}" x-data="{ activePreset: $el.dataset.initialPreset }">
   <div class="flex justify-between items-center mb-3">
     <h1 class="text-xl font-bold">Presets</h1>
     <div class="flex gap-3">

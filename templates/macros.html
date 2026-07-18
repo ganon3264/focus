@@ -207,14 +207,14 @@
 </svg>
 {% endmacro %}
 
-{% macro media_thumbnail(img, delete_onclick, id_attr='') %}
-<div class="relative group" style="width:48px;height:48px;border-radius:4px;overflow:hidden;border:1px solid var(--border);flex-shrink:0"{{ id_attr | safe }}>
+{% macro media_thumbnail(img, action_name, extra_attrs='') %}
+<div class="relative group" style="width:48px;height:48px;border-radius:4px;overflow:hidden;border:1px solid var(--border);flex-shrink:0" data-image-id="{{ img.id }}"{{ extra_attrs | safe }}>
   {% if img.mime_type and img.mime_type.startswith('audio/') %}
   <div style="width:100%;height:100%;background:var(--surface-3);display:grid;place-items:center;" title="Audio Attachment">{{ icon_music(24) }}</div>
   {% else %}
   <img src="/{{ img.image_path }}" alt="" style="width:100%;height:100%;object-fit:cover;">
   {% endif %}
-  <button type="button" aria-label="Delete media" class="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" onclick="{{ delete_onclick | safe }}">{{ icon_close(10) }}</button>
+  <button type="button" aria-label="Delete media" class="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" data-action="{{ action_name }}">{{ icon_close(10) }}</button>
 </div>
 {% endmacro %}
 

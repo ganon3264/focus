@@ -230,7 +230,7 @@ function uploadCharMedia(input) {
       const mediaSection = document.getElementById(`media-section-char-${charId}`);
       if (!mediaSection) return;
 
-      const div = window.buildMediaThumbnail(data, (e) => deleteCharMedia(charId, data.id), 'char-media');
+      const div = window.buildMediaThumbnail(data, (el) => deleteCharMedia(el), 'char-media');
 
       mediaSection.insertBefore(div, mediaSection.lastElementChild.previousElementSibling);
 
@@ -242,8 +242,8 @@ function uploadCharMedia(input) {
 }
 
 function deleteCharMedia(el) {
-  const container = el.closest ? el.closest('[data-media-id]') : el;
-  const imageId = container ? container.dataset.mediaId : '';
+  const container = el.closest ? el.closest('[data-image-id]') : el;
+  const imageId = container ? container.dataset.imageId : '';
   const mediaSection = container ? container.closest('.char-block-media-section') : null;
   const charId = mediaSection ? mediaSection.id.replace('media-section-char-', '') : '';
   fetch(window.api.charImage(charId, imageId), {
@@ -272,7 +272,7 @@ function uploadCharBlockMedia(input) {
 
       const div = window.buildMediaThumbnail(
         data,
-        (e) => deleteCharBlockMedia(charId, blockId, data.id),
+        (el) => deleteCharBlockMedia(el),
         'media',
       );
 
@@ -286,8 +286,8 @@ function uploadCharBlockMedia(input) {
 }
 
 function deleteCharBlockMedia(el) {
-  const container = el.closest ? el.closest('[data-media-id]') : el;
-  const imageId = container ? container.dataset.mediaId : '';
+  const container = el.closest ? el.closest('[data-image-id]') : el;
+  const imageId = container ? container.dataset.imageId : '';
   const blockItem = container ? container.closest('.block-item') : null;
   const blockId = blockItem ? blockItem.id.replace('block-', '') : '';
   const charId = container ? container.closest('[data-char-id]')?.dataset.charId || '' : '';

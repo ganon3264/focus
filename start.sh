@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# export FOCUS_DEBUG=1  # set this env var to enable debug logging
+export FOCUS_DEBUG=1  # set this env var to enable debug logging
 
 command -v python >/dev/null 2>&1 || { echo >&2 "Error: python is not installed or not on PATH."; exit 1; }
 ./vendor-sync.py --check || ./vendor-sync.py
