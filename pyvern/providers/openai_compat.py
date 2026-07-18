@@ -4,6 +4,7 @@ from openai import AsyncOpenAI
 
 from .base import BaseProvider
 from ..logger import get_logger
+from ..utils import THINK_OPEN, THINK_CLOSE, DEFAULT_OPENAI_COMPAT_BASE_URL, DEFAULT_MAX_TOKENS, DEFAULT_TEMPERATURE, OPENAI_HTTP_TIMEOUT
 
 logger = get_logger("providers.openai")
 
@@ -12,9 +13,9 @@ class OpenAICompatProvider(BaseProvider):
 
     def _get_client(self) -> AsyncOpenAI:
         return AsyncOpenAI(
-            base_url=self.base_url or "http://localhost:8080/v1",
+            base_url=self.base_url or DEFAULT_OPENAI_COMPAT_BASE_URL,
             api_key=self.api_key or "no-key",
-            timeout=120.0,
+            timeout=OPENAI_HTTP_TIMEOUT,
             default_headers=self._extra_headers(),
         )
 
@@ -26,11 +27,16 @@ class OpenAICompatProvider(BaseProvider):
         messages: list[dict],
         **kwargs,
     ) -> AsyncIterator[str]:
+        """Stream tokens from an OpenAI-compatible provider.
+
+        Handles reasoning models (o1/o3), extra body passthrough,
+        and wraps reasoning content in <think> tags.
+        """
         merged = {**self.params, **kwargs}  # stored defaults, per-request wins
 
         # Extract max_tokens and temperature if they exist in kwargs or params, otherwise provide defaults
-        max_tokens = merged.pop("max_tokens", 1024)
-        temperature = merged.pop("temperature", 1.0)
+        max_tokens = merged.pop("max_tokens", DEFAULT_MAX_TOKENS)
+        temperature = merged.pop("temperature", DEFAULT_TEMPERATURE)
 
         # Handle o1/o3 reasoning model quirks
         is_o_model = self.model.startswith("o1") or self.model.startswith("o3")
@@ -91,11 +97,11 @@ class OpenAICompatProvider(BaseProvider):
                 if reasoning:
                     if not in_reasoning:
                         in_reasoning = True
-                        yield "<think>\n"
+                        yield THINK_OPEN
                     yield reasoning
                 
                 if delta:
                     if in_reasoning:
                         in_reasoning = False
-                        yield "\n</think>\n\n"
+                        yield THINK_CLOSE
                     yield delta

@@ -3,6 +3,7 @@ from google.genai import types
 
 from .base import BaseProvider
 from ..logger import get_logger
+from ..utils import THINK_OPEN, THINK_CLOSE, THOUGHT_SIGNATURE_OPEN, THOUGHT_SIGNATURE_CLOSE
 
 logger = get_logger("providers.google_base")
 
@@ -104,7 +105,7 @@ class GoogleProviderBase(BaseProvider):
                 if is_thought:
                     if not in_reasoning:
                         in_reasoning = True
-                        yield "<think>\n"
+                        yield THINK_OPEN
 
                     clean_text = part.text.replace("THOUGHT:", "") if part.text else ""
 
@@ -113,19 +114,24 @@ class GoogleProviderBase(BaseProvider):
                 else:
                     if in_reasoning:
                         in_reasoning = False
-                        yield "\n</think>\n\n"
+                        yield THINK_CLOSE
 
                     if part.text:
                         yield part.text
 
         if in_reasoning:
             in_reasoning = False
-            yield "\n</think>\n\n"
+            yield THINK_CLOSE
 
         if thought_signature_b64:
-            yield f"\n<thought_signature>{thought_signature_b64}</thought_signature>"
+            yield f"\n{THOUGHT_SIGNATURE_OPEN}{thought_signature_b64}{THOUGHT_SIGNATURE_CLOSE}"
 
     async def stream_complete(self, messages: list[dict], **kwargs):
+        """Stream tokens from a Google Gemini model.
+
+        Builds contents with thought signatures, streams via _do_stream,
+        and retries once without thought_signature on failure.
+        """
         merged = {**self.params, **kwargs}
         last_assistant_idx = self._find_last_assistant_with_signature(messages)
         system_instruction, contents = self._build_contents(messages, merged, last_assistant_idx, True)
@@ -146,3 +152,12 @@ class GoogleProviderBase(BaseProvider):
 
     def _build_config(self, merged: dict, system_instruction: str | None) -> types.GenerateContentConfig:
         raise NotImplementedError
+
+    @staticmethod
+    def _apply_thinking_config(config: dict, model: str, include_reasoning: bool, reasoning_effort: str | None):
+        if include_reasoning or "gemini-3.1" in model or "gemini-2.0-flash-thinking" in model:
+            config.pop("temperature", None)
+            thinking_kwargs = {"include_thoughts": True}
+            if reasoning_effort:
+                thinking_kwargs["thinking_level"] = reasoning_effort
+            config["thinking_config"] = types.ThinkingConfig(**thinking_kwargs)

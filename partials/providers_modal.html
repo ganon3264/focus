@@ -48,7 +48,7 @@
           <label>Model</label>
           <div class="flex gap-2">
             <input type="text" name="model" id="model-text-new-prov" required placeholder="gpt-4" class="text-sm form-control w-full">
-            <button type="button" class="btn btn-secondary" onclick="openFetchModelModal('new-prov')" title="Fetch Models from Provider" style="width: 44px; display: grid; place-items: center;">{{ icon_search(18) }}</button>
+            <button type="button" class="btn btn-secondary" onclick="openFetchModelModal('new-prov')" aria-label="Fetch models" title="Fetch Models from Provider" style="width: 44px; display: grid; place-items: center;">{{ icon_search(18) }}</button>
           </div>
         </div>
         
@@ -134,12 +134,12 @@
       {% set params = prov.params_json|default('{}')|from_json %}
       <div class="provider-card card" id="prov-card-{{ prov.id }}" style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);">
         <!-- Display State -->
-        <div id="prov-display-{{ prov.id }}" class="p-3 h-full flex flex-col justify-between cursor-pointer" onclick="setActiveProvider('{{ prov.id }}', '{{ prov.name|replace("'", "\\'") }}', '{{ prov.type }}')">
+        <div id="prov-display-{{ prov.id }}" class="p-3 h-full flex flex-col justify-between cursor-pointer" role="button" tabindex="0" onclick="setActiveProvider('{{ prov.id }}', '{{ prov.name|replace("'", "\\'") }}', '{{ prov.type }}')">
           <div class="flex justify-between items-center mb-1">
             <strong class="text-sm">{{ prov.name }}</strong>
             <div class="flex gap-1" onclick="event.stopPropagation()">
-              <button class="btn btn-secondary btn-sm" onclick="toggleProviderEdit('{{ prov.id }}')">{{ icon_edit() }}</button>
-              <button class="btn btn-danger btn-sm" hx-delete="/api/providers/{{ prov.id }}" hx-confirm="Delete?" hx-on:htmx:after-request="htmx.ajax('GET','/partials/providers-modal',{target:'#providers-modal-body',swap:'innerHTML'})">×</button>
+              <button class="btn btn-secondary btn-sm" onclick="toggleProviderEdit('{{ prov.id }}')" aria-label="Edit provider">{{ icon_edit() }}</button>
+              <button class="btn btn-danger btn-sm" hx-delete="/api/providers/{{ prov.id }}" hx-confirm="Delete?" hx-on:htmx:after-request="htmx.ajax('GET','/partials/providers-modal',{target:'#providers-modal-body',swap:'innerHTML'})" aria-label="Delete provider">×</button>
             </div>
           </div>
           <div class="text-xs text-muted">{{ prov.type }} • <span class="truncate" style="display:inline-block; max-width: 150px; vertical-align:bottom;">{{ prov.model }}</span></div>
@@ -167,7 +167,7 @@
             <label class="text-xs">Model</label>
             <div class="flex gap-2">
               <input type="text" name="model" id="model-text-{{ prov.id }}" value="{{ prov.model }}" class="text-sm form-control w-full" required>
-              <button type="button" class="btn btn-secondary" onclick="openFetchModelModal('{{ prov.id }}')" title="Fetch Models from Provider" style="width: 44px; display: grid; place-items: center;">{{ icon_search(18) }}</button>
+              <button type="button" class="btn btn-secondary" onclick="openFetchModelModal('{{ prov.id }}')" aria-label="Fetch models" title="Fetch Models from Provider" style="width: 44px; display: grid; place-items: center;">{{ icon_search(18) }}</button>
             </div>
           </div>
           {% endif %}
@@ -256,7 +256,7 @@
 
 <!-- OpenRouter Model Selection Modal -->
 <!-- Universal Model Selection Modal -->
-<div id="modal-fetch-models" class="modal-overlay" style="display:none; z-index: 100;"
+<div id="modal-fetch-models" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Fetch models" style="display:none; z-index: 100;"
      x-data="{ search: '', models: [], loading: false, error: '' }"
      @models-loaded.window="models = $event.detail; loading = false; error = ''"
      @models-loading.window="loading = true; error = ''"
@@ -265,13 +265,13 @@
   <div class="modal-content flex flex-col p-0" style="max-width: 800px; width: 95vw; height: 80vh; overflow: hidden; background: var(--surface);">
     <div class="modal-header p-4 mb-0" style="border-bottom: 1px solid var(--border);">
       <div class="modal-title">Select Model</div>
-      <button class="btn btn-secondary" onclick="document.getElementById('modal-fetch-models').style.display='none'">×</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('modal-fetch-models').style.display='none'" aria-label="Close">×</button>
     </div>
     
     <div class="p-4" style="background: var(--surface-2); border-bottom: 1px solid var(--border);">
        <div class="flex gap-2">
          <input type="text" x-model="search" placeholder="Search models by name or ID..." class="form-control" autocomplete="off" autofocus>
-         <button type="button" class="btn btn-secondary" onclick="forceFetchModels()" title="Refresh Models" style="width: 44px; display: grid; place-items: center;" :disabled="loading">{{ icon_refresh(18) }}</button>
+         <button type="button" class="btn btn-secondary" onclick="forceFetchModels()" aria-label="Refresh model list" title="Refresh Models" style="width: 44px; display: grid; place-items: center;" :disabled="loading">{{ icon_refresh(18) }}</button>
        </div>
     </div>
     
@@ -311,14 +311,14 @@
 
 
 <!-- Secrets Selection Modal -->
-<div id="modal-secrets" class="modal-overlay" style="display:none; z-index: 100;"
+<div id="modal-secrets" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Secrets" style="display:none; z-index: 100;"
      x-data="{ secrets: [], rawKey: '', newName: '', newValue: '' }"
      @secrets-loaded.window="secrets = $event.detail"
      onclick="if(event.target===this) document.getElementById('modal-secrets').style.display='none'">
   <div class="modal-content flex flex-col p-0" style="max-width: 800px; width: 95vw; height: 75vh; overflow: hidden; background: var(--surface);">
     <div class="modal-header p-4 mb-0" style="border-bottom: 1px solid var(--border);">
       <div class="modal-title">Select API Key</div>
-      <button class="btn btn-secondary" onclick="document.getElementById('modal-secrets').style.display='none'">×</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('modal-secrets').style.display='none'" aria-label="Close">×</button>
     </div>
     
     <div class="p-4" style="background: var(--surface-2); border-bottom: 1px solid var(--border);">
@@ -336,7 +336,7 @@
              </div>
              <div class="flex gap-2">
                <button type="button" class="btn btn-primary btn-sm" @click.stop="selectSecret(sec.name)">Select</button>
-               <button type="button" class="btn btn-danger btn-sm" @click.stop="deleteSecret(sec.name)">×</button>
+               <button type="button" class="btn btn-danger btn-sm" @click.stop="deleteSecret(sec.name)" aria-label="Delete secret">×</button>
              </div>
            </div>
          </template>
@@ -347,7 +347,7 @@
        <div class="flex gap-2">
          <input type="text" x-model="newName" placeholder="Key Name (e.g. My OR Key)" class="form-control text-sm w-1/3">
          <input type="password" x-model="newValue" placeholder="sk-... or JSON" class="form-control text-sm flex-1">
-         <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('sa-file-upload').click()" title="Upload JSON">{{ icon_folder() }}</button>
+         <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('sa-file-upload').click()" aria-label="Upload service account JSON" title="Upload JSON">{{ icon_folder() }}</button>
          <button type="button" class="btn btn-secondary btn-sm" @click="saveNewSecret(newName, newValue); newName=''; newValue=''">Save</button>
        </div>
        <input type="file" id="sa-file-upload" accept=".json" class="hidden" @change="
@@ -366,7 +366,7 @@
        <h4 class="text-sm font-bold mb-2">Or Use a One-Time Raw Key</h4>
        <div class="flex gap-2">
          <input type="password" x-model="rawKey" placeholder="sk-... or JSON" class="form-control text-sm flex-1">
-         <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('sa-file-upload-raw').click()" title="Upload JSON">{{ icon_folder() }}</button>
+         <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('sa-file-upload-raw').click()" aria-label="Upload raw service account JSON" title="Upload JSON">{{ icon_folder() }}</button>
          <button type="button" class="btn btn-secondary btn-sm" @click="selectRawKey(rawKey); rawKey=''">Use Raw Key</button>
        </div>
        <input type="file" id="sa-file-upload-raw" accept=".json" class="hidden" @change="

@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 import pyvern.crud as crud
 from pyvern.database import get_db
 from pyvern.models import PresetCreate, PresetUpdate, PresetBlockCreate, PresetBlockBulkUpdate
-from pyvern.utils import now_iso
+from pyvern.utils import now_iso, variable_group_name
 
 router = APIRouter()
 
@@ -84,6 +84,7 @@ async def delete_preset(preset_id: str, db: aiosqlite.Connection = Depends(get_d
 
 @router.post("/import", status_code=201)
 async def import_preset(file: UploadFile = File(...), db: aiosqlite.Connection = Depends(get_db)):
+    """Import a preset from an uploaded JSON file."""
     content = await file.read()
     try:
         data = json.loads(content)
@@ -181,11 +182,7 @@ async def add_block(
     db: aiosqlite.Connection = Depends(get_db),
 ):
     block_id = str(uuid.uuid4())
-    async with db.execute(
-        "SELECT COALESCE(MAX(position), -1) FROM preset_blocks WHERE preset_id = ?", (preset_id,)
-    ) as cur:
-        row = await cur.fetchone()
-    next_pos = row[0] + 1
+    next_pos = await crud.next_position(db, "preset_blocks", "preset_id", preset_id)
 
     await db.execute(
         """INSERT INTO preset_blocks
@@ -250,7 +247,7 @@ async def patch_block(
             block_row = await cur.fetchone()
         
         if block_row and block_row["block_type"] == "variable":
-            group_name = block_row["name"].split(":")[0] if ":" in block_row["name"] else block_row["name"]
+            group_name = variable_group_name(block_row["name"])
             await db.execute(
                 "UPDATE preset_blocks SET enabled = 0 WHERE preset_id = ? AND block_type = 'variable' AND id != ? AND (name = ? OR name LIKE ?)",
                 (preset_id, block_id, group_name, f"{group_name}:%")

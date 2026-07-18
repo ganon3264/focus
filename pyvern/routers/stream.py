@@ -11,7 +11,7 @@ from pyvern.database import get_db, DB_PATH
 from pyvern.models import StreamRequest, ItemizerRequest
 from pyvern.providers import create_provider
 from pyvern.logger import get_logger
-from pyvern.utils import now_iso, resolve_secret_key
+from pyvern.utils import now_iso, resolve_secret_key, IMAGE_TOKEN_ESTIMATE, AUDIO_TOKEN_ESTIMATE
 from pyvern.routers.stream_utils import get_prompt_context
 
 router = APIRouter()
@@ -20,6 +20,11 @@ logger = get_logger("routers.stream")
 
 @router.post("/stream")
 async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)):
+    """Generate a streaming completion from the selected provider.
+
+    Loads the provider config, resolves secrets, builds the prompt context,
+    streams tokens via SSE, and persists the result as a message variant.
+    """
     # ── Provider ─────────────────────────────────────────────────────────────
     async with db.execute("SELECT * FROM providers WHERE id = ?", (body.provider_id,)) as cur:
         prov_row = await cur.fetchone()
@@ -170,11 +175,11 @@ async def itemize_prompt(body: ItemizerRequest, db: aiosqlite.Connection = Depen
                     tokens += t_count
                     clean_parts.append({"type": "text", "text": part["text"], "tokens": t_count})
                 elif part["type"] == "image_url":
-                    tokens += 85
-                    clean_parts.append({"type": "image", "text": "[IMAGE ATTACHMENT]", "tokens": 85})
+                    tokens += IMAGE_TOKEN_ESTIMATE
+                    clean_parts.append({"type": "image", "text": "[IMAGE ATTACHMENT]", "tokens": IMAGE_TOKEN_ESTIMATE})
                 elif part["type"] == "input_audio":
-                    tokens += 100
-                    clean_parts.append({"type": "audio", "text": "[AUDIO ATTACHMENT]", "tokens": 100})
+                    tokens += AUDIO_TOKEN_ESTIMATE
+                    clean_parts.append({"type": "audio", "text": "[AUDIO ATTACHMENT]", "tokens": AUDIO_TOKEN_ESTIMATE})
 
         total_tokens += tokens
         clean_messages.append({

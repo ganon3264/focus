@@ -6,6 +6,7 @@ from google.genai import types
 
 from .google_base import GoogleProviderBase
 from ..logger import get_logger
+from ..utils import DEFAULT_MAX_TOKENS, DEFAULT_TEMPERATURE, GOOGLE_VERTEX_HTTP_TIMEOUT, GOOGLE_VERTEX_HTTP_RETRIES
 
 logger = get_logger("providers.google_vertex")
 
@@ -49,15 +50,15 @@ class GoogleVertexProvider(GoogleProviderBase):
             credentials=self.credentials,
             http_options=types.HttpOptions(
                 async_client_args={
-                    "timeout": 300.0,
-                    "retries": 3,
+                    "timeout": GOOGLE_VERTEX_HTTP_TIMEOUT,
+                    "retries": GOOGLE_VERTEX_HTTP_RETRIES,
                 }
             )
         )
 
     def _build_config(self, merged: dict, system_instruction: str | None) -> types.GenerateContentConfig:
-        max_tokens = merged.pop("max_tokens", 1024)
-        temperature = merged.pop("temperature", 1.0)
+        max_tokens = merged.pop("max_tokens", DEFAULT_MAX_TOKENS)
+        temperature = merged.pop("temperature", DEFAULT_TEMPERATURE)
         top_p = merged.pop("top_p", None)
         top_k = merged.pop("top_k", None)
         stop = merged.pop("stop", None)
@@ -81,12 +82,7 @@ class GoogleVertexProvider(GoogleProviderBase):
             ],
         }
 
-        if include_reasoning or "gemini-3.1" in self.model or "gemini-2.0-flash-thinking" in self.model:
-            config_args.pop("temperature", None)
-            thinking_kwargs = {"include_thoughts": True}
-            if reasoning_effort:
-                thinking_kwargs["thinking_level"] = reasoning_effort
-            config_args["thinking_config"] = types.ThinkingConfig(**thinking_kwargs)
+        self._apply_thinking_config(config_args, self.model, include_reasoning, reasoning_effort)
 
         if top_p is not None:
             config_args["top_p"] = top_p

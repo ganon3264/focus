@@ -6,7 +6,7 @@
 >
   <div class="avatar-thumb">
     {% if char.image_path %}
-      <img src="/{{ char.image_path }}" alt="">
+      <img src="/{{ char.image_path }}" alt="{{ char.name }} avatar">
     {% else %}
       {{ char.name[:1] }}
     {% endif %}

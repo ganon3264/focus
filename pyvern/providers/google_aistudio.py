@@ -4,6 +4,7 @@ from google.genai import types
 
 from .google_base import GoogleProviderBase
 from ..logger import get_logger
+from ..utils import DEFAULT_TEMPERATURE
 
 logger = get_logger("providers.google_aistudio")
 
@@ -18,8 +19,8 @@ class GoogleAIStudioProvider(GoogleProviderBase):
         reasoning_effort = merged.get("reasoning_effort", None)
 
         config_kwargs = {
-            "temperature": merged.get("temperature", 1.0),
-            "top_p": merged.get("top_p", 1.0),
+            "temperature": merged.get("temperature", DEFAULT_TEMPERATURE),
+            "top_p": merged.get("top_p", DEFAULT_TEMPERATURE),
             "top_k": merged.get("top_k", 0),
             "system_instruction": system_instruction,
             "safety_settings": [
@@ -52,12 +53,7 @@ class GoogleAIStudioProvider(GoogleProviderBase):
                 stop = [stop]
             config_kwargs["stop_sequences"] = stop
 
-        if include_reasoning or "gemini-3.1" in self.model or "gemini-2.0-flash-thinking" in self.model:
-            config_kwargs.pop("temperature", None)
-            thinking_kwargs = {"include_thoughts": True}
-            if reasoning_effort:
-                thinking_kwargs["thinking_level"] = reasoning_effort
-            config_kwargs["thinking_config"] = types.ThinkingConfig(**thinking_kwargs)
+        self._apply_thinking_config(config_kwargs, self.model, include_reasoning, reasoning_effort)
 
         logger.debug(f"AI Studio request: model={self.model}")
         return types.GenerateContentConfig(**config_kwargs)

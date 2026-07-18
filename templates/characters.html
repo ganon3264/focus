@@ -25,7 +25,7 @@
           <div class="flex items-center gap-3">
             <div class="w-8 h-8 rounded-full bg-[var(--surface-3)] overflow-hidden flex items-center justify-center border border-[var(--border)]">
               <template x-if="activeChar.image_path">
-                <img :src="'/' + activeChar.image_path" class="w-full h-full object-cover">
+                <img :src="'/' + activeChar.image_path" class="w-full h-full object-cover" :alt="charData.name + ' avatar'">
               </template>
               <template x-if="!activeChar.image_path">
                 <span class="text-sm font-bold text-muted" x-text="activeChar.name.charAt(0)"></span>
@@ -47,7 +47,7 @@
         <button @click="selectChar(char.id); dropdownOpen = false" class="flex items-center gap-3 p-3 w-full text-left hover:bg-[var(--surface-3)] transition-colors border-b border-[var(--border)] last:border-b-0">
           <div class="w-10 h-10 rounded-full bg-[var(--surface-3)] overflow-hidden flex items-center justify-center flex-shrink-0">
             <template x-if="char.image_path">
-              <img :src="'/' + char.image_path" class="w-full h-full object-cover">
+              <img :src="'/' + char.image_path" class="w-full h-full object-cover" alt="Block media">
             </template>
             <template x-if="!char.image_path">
               <span class="text-sm font-bold text-muted" x-text="char.name.charAt(0)"></span>
@@ -99,7 +99,7 @@
               <label class="text-sm font-semibold text-muted block mb-1">Description</label>
               <div class="textarea-wrapper">
                 <textarea class="form-control w-full" id="char-desc-{{ char.id }}" rows="5">{{ char.card.get('description','') }}</textarea>
-                <button type="button" class="expand-btn" onclick="openTextExpander(document.getElementById('char-desc-{{ char.id }}'), 'Edit Description')">{{ icon_expand(18) }}</button>
+                <button type="button" class="expand-btn" onclick="openTextExpander(document.getElementById('char-desc-{{ char.id }}'), 'Edit Description')" aria-label="Expand text area">{{ icon_expand(18) }}</button>
               </div>
             </div>
             
@@ -124,7 +124,7 @@
               <label class="text-sm font-semibold text-muted block mb-1">First Message</label>
               <div class="textarea-wrapper">
                 <textarea class="form-control w-full" id="char-first-{{ char.id }}" rows="4">{{ char.card.get('first_mes','') }}</textarea>
-                <button type="button" class="expand-btn" onclick="openTextExpander(document.getElementById('char-first-{{ char.id }}'), 'Edit First Message')">{{ icon_expand(18) }}</button>
+                <button type="button" class="expand-btn" onclick="openTextExpander(document.getElementById('char-first-{{ char.id }}'), 'Edit First Message')" aria-label="Expand text area">{{ icon_expand(18) }}</button>
               </div>
             </div>
 
@@ -139,7 +139,7 @@
                 {% for greeting in char.card.get('alternate_greetings', []) %}
                 <div class="relative group greeting-item textarea-wrapper">
                   <textarea class="form-control w-full text-sm" rows="3" placeholder="Greeting content">{{ greeting }}</textarea>
-                  <button type="button" class="expand-btn" onclick="openTextExpander(this.previousElementSibling, 'Edit Alternate Greeting')">{{ icon_expand(18) }}</button>
+                  <button type="button" class="expand-btn" onclick="openTextExpander(this.previousElementSibling, 'Edit Alternate Greeting')" aria-label="Expand text area">{{ icon_expand(18) }}</button>
                   <button class="absolute bottom-2 right-2 btn btn-danger btn-sm opacity-0 group-hover:opacity-100 transition-opacity" style="z-index: 10;" onclick="this.closest('.greeting-item').remove()">Delete</button>
                 </div>
                 {% endfor %}
@@ -158,21 +158,21 @@
                   <label class="text-sm font-semibold text-muted block mb-1">Personality</label>
                   <div class="textarea-wrapper">
                     <textarea class="form-control w-full" id="char-personality-{{ char.id }}" rows="4">{{ char.card.get('personality','') }}</textarea>
-                    <button type="button" class="expand-btn" onclick="openTextExpander(document.getElementById('char-personality-{{ char.id }}'), 'Edit Personality')">{{ icon_expand(18) }}</button>
+                    <button type="button" class="expand-btn" onclick="openTextExpander(document.getElementById('char-personality-{{ char.id }}'), 'Edit Personality')" aria-label="Expand text area">{{ icon_expand(18) }}</button>
                   </div>
                 </div>
                 <div class="form-group">
                   <label class="text-sm font-semibold text-muted block mb-1">Scenario</label>
                   <div class="textarea-wrapper">
                     <textarea class="form-control w-full" id="char-scenario-{{ char.id }}" rows="4">{{ char.card.get('scenario','') }}</textarea>
-                    <button type="button" class="expand-btn" onclick="openTextExpander(document.getElementById('char-scenario-{{ char.id }}'), 'Edit Scenario')">{{ icon_expand(18) }}</button>
+                    <button type="button" class="expand-btn" onclick="openTextExpander(document.getElementById('char-scenario-{{ char.id }}'), 'Edit Scenario')" aria-label="Expand text area">{{ icon_expand(18) }}</button>
                   </div>
                 </div>
                 <div class="form-group">
                   <label class="text-sm font-semibold text-muted block mb-1">Mes Example</label>
                   <div class="textarea-wrapper">
                     <textarea class="form-control w-full" id="char-example-{{ char.id }}" rows="6">{{ char.card.get('mes_example','') }}</textarea>
-                    <button type="button" class="expand-btn" onclick="openTextExpander(document.getElementById('char-example-{{ char.id }}'), 'Edit Mes Example')">{{ icon_expand(18) }}</button>
+                    <button type="button" class="expand-btn" onclick="openTextExpander(document.getElementById('char-example-{{ char.id }}'), 'Edit Mes Example')" aria-label="Expand text area">{{ icon_expand(18) }}</button>
                   </div>
                 </div>
               </div>
@@ -199,13 +199,13 @@
                     <option value="user" {% if block.role == 'user' %}selected{% endif %}>User</option>
                     <option value="assistant" {% if block.role == 'assistant' %}selected{% endif %}>Assistant</option>
                   </select>
-                  <button class="btn btn-danger btn-sm" title="Delete Block" onclick="deleteBlock('{{ char.id }}', '{{ block.id }}')">×</button>
+                  <button class="btn btn-danger btn-sm" title="Delete Block" onclick="deleteBlock('{{ char.id }}', '{{ block.id }}')" aria-label="Delete block">×</button>
                 </div>
                 <div class="textarea-wrapper">
                   <textarea class="form-control text-sm w-full" rows="4" placeholder="Block Content"
                     onchange="updateBlock('{{ char.id }}', '{{ block.id }}', {content: this.value})"
                   >{{ block.content }}</textarea>
-                  <button type="button" class="expand-btn" onclick="openTextExpander(this.previousElementSibling, 'Edit Custom Block')">{{ icon_expand(18) }}</button>
+                  <button type="button" class="expand-btn" onclick="openTextExpander(this.previousElementSibling, 'Edit Custom Block')" aria-label="Expand text area">{{ icon_expand(18) }}</button>
                 </div>
                 
                 <div class="char-block-media-section" id="media-section-{{ block.id }}" style="margin-top: 0.5rem; display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
@@ -257,11 +257,11 @@
         <option value="user">User</option>
         <option value="assistant">Assistant</option>
       </select>
-      <button class="btn btn-danger btn-sm block-delete" title="Delete Block">×</button>
+      <button class="btn btn-danger btn-sm block-delete" title="Delete Block" aria-label="Delete block">×</button>
     </div>
     <div class="textarea-wrapper">
       <textarea class="form-control text-sm w-full block-content" rows="4" placeholder="Block Content"></textarea>
-      <button type="button" class="expand-btn" onclick="openTextExpander(this.previousElementSibling, 'Edit Custom Block')">{{ icon_expand(18) }}</button>
+      <button type="button" class="expand-btn" onclick="openTextExpander(this.previousElementSibling, 'Edit Custom Block')" aria-label="Expand text area">{{ icon_expand(18) }}</button>
     </div>
     
     <div class="char-block-media-section" style="margin-top: 0.5rem; display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
@@ -278,7 +278,7 @@
 <template id="greeting-template">
   <div class="relative group greeting-item textarea-wrapper">
     <textarea class="form-control w-full text-sm" rows="3" placeholder="Greeting content"></textarea>
-    <button type="button" class="expand-btn" onclick="openTextExpander(this.previousElementSibling, 'Edit Alternate Greeting')">{{ icon_expand(18) }}</button>
+    <button type="button" class="expand-btn" onclick="openTextExpander(this.previousElementSibling, 'Edit Alternate Greeting')" aria-label="Expand text area">{{ icon_expand(18) }}</button>
     <button class="absolute bottom-2 right-2 btn btn-danger btn-sm opacity-0 group-hover:opacity-100 transition-opacity" style="z-index: 10;" onclick="this.closest('.greeting-item').remove()">Delete</button>
   </div>
 </template>

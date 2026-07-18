@@ -32,7 +32,7 @@
     <button onclick="toggleCompactView()"
             class="btn btn-secondary btn-sm flex-shrink-0"
             id="view-toggle-btn"
-            title="Toggle compact view">{{ icon_grid(size=14) }}</button>
+            title="Toggle compact view" aria-label="Toggle compact view">{{ icon_grid(size=14) }}</button>
   </div>
 </div>
 
@@ -48,9 +48,9 @@
   {% for char in characters %}
   <div class="card" id="char-card-{{ char.id }}" data-char-name="{{ char.name | lower }}" data-char-created="{{ char.created_at }}">
     <div class="card-view-full h-full flex flex-col" style="display:flex;">
-      <div class="card-image" style="aspect-ratio: 1/1; border-radius: 12px 12px 0 0; cursor:pointer;" onclick="selectCharModal('{{ char.id }}', '{{ char.name }}')">
+      <div class="card-image" style="aspect-ratio: 1/1; border-radius: 12px 12px 0 0; cursor:pointer;" role="button" tabindex="0" onclick="selectCharModal('{{ char.id }}', '{{ char.name }}')">
         {% if char.image_path %}
-          <img src="/{{ char.image_path }}" alt="" style="border-radius: 12px 12px 0 0;">
+          <img src="/{{ char.image_path }}" alt="{{ char.name }} avatar" style="border-radius: 12px 12px 0 0;">
         {% else %}
           <span class="text-3xl">{{ char.name[:1] }}</span>
         {% endif %}
@@ -65,16 +65,16 @@
                   data-char-desc="{{ char.card.get('description','') }}" 
                   data-char-image="{{ char.image_path or '' }}"
                   data-char-media="{{ char.images | tojson | forceescape }}"
-                  onclick="event.stopPropagation(); openEditCharacterModal(this)">{{ icon_edit() }}</button>
-          <button class="btn btn-danger btn-sm" onclick="event.stopPropagation(); promptDeleteChar('{{ char.id }}', '{{ char.name | escape }}')">{{ icon_trash() }}</button>
+                  onclick="event.stopPropagation(); openEditCharacterModal(this)" aria-label="Edit character">{{ icon_edit() }}</button>
+          <button class="btn btn-danger btn-sm" onclick="event.stopPropagation(); promptDeleteChar('{{ char.id }}', '{{ char.name | escape }}')" aria-label="Delete character">{{ icon_trash() }}</button>
         </div>
       </div>
     </div>
     <div class="card-view-compact" style="display:none;">
-      <div class="flex items-center gap-2.5 p-2.5 cursor-pointer" onclick="selectCharModal('{{ char.id }}', '{{ char.name }}')">
+      <div class="flex items-center gap-2.5 p-2.5 cursor-pointer" role="button" tabindex="0" onclick="selectCharModal('{{ char.id }}', '{{ char.name }}')">
         <div class="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 border border-[var(--border)] flex items-center justify-center" style="background:var(--surface-3);">
           {% if char.image_path %}
-            <img src="/{{ char.image_path }}" alt="" class="w-full h-full object-cover">
+            <img src="/{{ char.image_path }}" alt="{{ char.name }} avatar" class="w-full h-full object-cover">
           {% else %}
             <span class="text-sm font-bold text-muted">{{ char.name[:1] }}</span>
           {% endif %}
@@ -89,8 +89,8 @@
                   data-char-desc="{{ char.card.get('description','') }}" 
                   data-char-image="{{ char.image_path or '' }}"
                   data-char-media="{{ char.images | tojson | forceescape }}"
-                  onclick="event.stopPropagation(); openEditCharacterModal(this)">{{ icon_edit(size=12) }}</button>
-          <button class="btn btn-danger btn-sm" style="padding:0.2rem 0.4rem; min-width:0;" onclick="event.stopPropagation(); promptDeleteChar('{{ char.id }}', '{{ char.name | escape }}')">{{ icon_trash(size=12) }}</button>
+                  onclick="event.stopPropagation(); openEditCharacterModal(this)" aria-label="Edit character">{{ icon_edit(size=12) }}</button>
+          <button class="btn btn-danger btn-sm" style="padding:0.2rem 0.4rem; min-width:0;" onclick="event.stopPropagation(); promptDeleteChar('{{ char.id }}', '{{ char.name | escape }}')" aria-label="Delete character">{{ icon_trash(size=12) }}</button>
         </div>
       </div>
     </div>
@@ -168,11 +168,11 @@ function openTrashModal() {
       html += `</div>`;
       
       const modalHtml = `
-        <div id="trash-modal" class="modal-overlay" style="display:grid; z-index:9999;" onclick="if(event.target===this) this.remove()">
+        <div id="trash-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Trash" style="display:grid; z-index:9999;" onclick="if(event.target===this) this.remove()">
           <div class="modal-content" style="max-width: 500px; width: 90vw;">
             <div class="modal-header mb-4">
               <div class="modal-title text-xl font-bold">Trash Bin</div>
-              <button class="btn btn-secondary btn-sm" onclick="document.getElementById('trash-modal').remove()">×</button>
+              <button class="btn btn-secondary btn-sm" onclick="document.getElementById('trash-modal').remove()" aria-label="Close">×</button>
             </div>
             <div id="trash-modal-body">
               ${html}

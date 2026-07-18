@@ -1,7 +1,7 @@
 {% from "macros.html" import custom_select, icon_music, media_thumbnail %}
 <div class="arranger-item {% if not block.enabled %}disabled{% endif %} {% if block.block_type != 'chat_history' and block.block_type != 'char_blocks' %}bg-role-{{ block.role }}{% endif %}" data-block-id="{{ block.id }}" data-block-content="{{ block.content | replace('"', '&quot;') }}" x-data="{ expanded: (window._expandedArrangerBlocks || new Set()).has('{{ block.id }}') }">
   <div class="arranger-header">
-      <div class="arranger-title-group" @click="expanded = !expanded; expanded ? (window._expandedArrangerBlocks = window._expandedArrangerBlocks || new Set()).add('{{ block.id }}') : (window._expandedArrangerBlocks || new Set()).delete('{{ block.id }}')" style="cursor: pointer;">
+      <div class="arranger-title-group" @click="expanded = !expanded; expanded ? (window._expandedArrangerBlocks = window._expandedArrangerBlocks || new Set()).add('{{ block.id }}') : (window._expandedArrangerBlocks || new Set()).delete('{{ block.id }}')" role="button" tabindex="0" aria-expanded="false" style="cursor: pointer;">
       <span style="font-size: 0.8rem; color: var(--text-muted); width: 16px; text-align: center;" x-text="expanded ? '▼' : '▶'"></span>
       {% if block.block_type == 'text' %}
         <span class="arranger-badge badge-{{ block.block_type }}">{{ block.block_type | replace('_', ' ') }}</span>
@@ -13,11 +13,11 @@
       {% endif %}
     </div>
     <div class="arranger-actions">
-      <div class="arranger-toggle {% if block.enabled %}active{% endif %}" title="Toggle Block"
+      <div class="arranger-toggle {% if block.enabled %}active{% endif %}" role="switch" tabindex="0" title="Toggle Block"
         onclick="handleArrangerBlockUpdate('{{ preset_id }}', '{{ block.id }}', {enabled:{{ 0 if block.enabled else 1 }}})"
       ></div>
       {% if block.block_type != 'chat_history' %}
-      <button type="button" class="action-icon danger" title="Delete"
+      <button type="button" class="action-icon danger" title="Delete" aria-label="Delete block"
         onclick="window.customConfirm('Delete block?', function(){ handleArrangerBlockDelete('{{ preset_id }}', '{{ block.id }}'); })"
       >×</button>
       {% else %}
@@ -44,7 +44,7 @@
            )
         }}
       </div>
-      <div class="block-preview" onclick="openBlockModal('{{ block.id }}', '{{ preset_id }}')">
+      <div class="block-preview" role="button" tabindex="0" onclick="openBlockModal('{{ block.id }}', '{{ preset_id }}')">
         {% if block.content %}{{ block.content[:80] }}{% if block.content | length > 80 %}…{% endif %}{% else %}<em class="empty-text">Empty — click to edit</em>{% endif %}
       </div>
     </div>
@@ -53,7 +53,7 @@
     <div class="flex items-center gap-3 mt-3 pt-2" style="border-top: 1px solid var(--border);">
       <div class="flex items-center gap-2">
         <span class="text-xs text-muted select-none">In-Chat</span>
-        <div class="arranger-toggle {% if block.injection_depth is not none %}active{% endif %}" title="Toggle In-Chat Mode"
+        <div class="arranger-toggle {% if block.injection_depth is not none %}active{% endif %}" role="switch" tabindex="0" title="Toggle In-Chat Mode"
           onclick="handleArrangerBlockUpdate('{{ preset_id }}', '{{ block.id }}', {injection_depth: {{ 'null' if block.injection_depth is not none else '0' }}})"
         ></div>
       </div>
@@ -128,7 +128,7 @@
     <div class="flex items-center gap-3 mt-3 pt-2" style="border-top: 1px solid var(--border);">
       <div class="flex items-center gap-2">
         <span class="text-xs text-muted select-none">In-Chat</span>
-        <div class="arranger-toggle {% if block.injection_depth is not none %}active{% endif %}" title="Toggle In-Chat Mode"
+        <div class="arranger-toggle {% if block.injection_depth is not none %}active{% endif %}" role="switch" tabindex="0" title="Toggle In-Chat Mode"
           onclick="handleArrangerBlockUpdate('{{ preset_id }}', '{{ block.id }}', {injection_depth: {{ 'null' if block.injection_depth is not none else '0' }}})"
         ></div>
       </div>

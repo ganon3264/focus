@@ -9,7 +9,7 @@
       <div class="flex gap-3 items-center mb-2">
         <div class="avatar-thumb" style="width:48px;height:48px;font-size:1.2rem;">
           {% if p.avatar_path %}
-            <img src="/{{ p.avatar_path }}" alt="">
+            <img src="/{{ p.avatar_path }}" alt="{{ p.name }} avatar">
           {% else %}
             {{ p.name[:1] }}
           {% endif %}

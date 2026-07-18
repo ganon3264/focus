@@ -29,7 +29,7 @@
         
         preview = `
           <div class="relative h-8 w-8 flex-shrink-0">
-            <img src="${url}" class="h-full w-full object-cover rounded" onload="URL.revokeObjectURL(this.src)">
+            <img src="${url}" class="h-full w-full object-cover rounded" onload="try{URL.revokeObjectURL(this.src)}catch(e){}">
             ${cropBtn}
           </div>
         `;

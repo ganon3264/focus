@@ -8,8 +8,15 @@ from .deepseek import DeepseekProvider
 from .moonshot import MoonshotProvider
 
 from ..logger import get_logger
+from ..utils import DEFAULT_OPENAI_COMPAT_BASE_URL
 
 logger = get_logger("providers")
+
+__all__ = [
+    "BaseProvider", "OpenAICompatProvider", "OpenRouterProvider",
+    "GoogleAIStudioProvider", "GoogleVertexProvider", "DeepseekProvider",
+    "MoonshotProvider", "create_provider",
+]
 
 def create_provider(row: dict) -> BaseProvider:
     try:
@@ -21,7 +28,7 @@ def create_provider(row: dict) -> BaseProvider:
 
     if ptype == "openai_compat":
         return OpenAICompatProvider(
-            base_url=row["base_url"] or "http://localhost:8080/v1",
+            base_url=row["base_url"] or DEFAULT_OPENAI_COMPAT_BASE_URL,
             api_key=row["api_key"] or "",
             model=row["model"],
             params=params,

@@ -56,11 +56,11 @@
       </div>
     </div>
     <div class="input-bar flex-col gap-2 items-center relative">
-      <div id="error-toast" class="hidden absolute bottom-[100%] mb-2 w-full max-w-[820px] p-3 rounded-md shadow-lg flex items-start justify-between gap-3 text-sm z-50 pointer-events-auto" style="background: var(--danger-dim); border: 1px solid var(--danger); color: var(--danger); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);">
+       <div id="error-toast" class="hidden absolute bottom-[100%] mb-2 w-full max-w-[820px] p-3 rounded-md shadow-lg flex items-start justify-between gap-3 text-sm z-50 pointer-events-auto" role="alert" aria-live="polite" style="background: var(--danger-dim); border: 1px solid var(--danger); color: var(--danger); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);">
         <div id="error-toast-text" class="flex-1 font-mono break-all whitespace-pre-wrap max-h-[200px] overflow-y-auto"></div>
         <div class="flex gap-2 flex-shrink-0">
           <button class="btn btn-secondary btn-sm" onclick="navigator.clipboard.writeText(document.getElementById('error-toast-text').innerText); this.textContent='Copied!'; setTimeout(()=>this.textContent='Copy', 2000);">Copy</button>
-          <button class="btn btn-secondary btn-sm" onclick="document.getElementById('error-toast').classList.add('hidden')">×</button>
+           <button class="btn btn-secondary btn-sm" aria-label="Close error" onclick="document.getElementById('error-toast').classList.add('hidden')">×</button>
         </div>
       </div>
       <div id="staging-area" class="w-full max-w-[820px] flex gap-2 overflow-x-auto empty:hidden pointer-events-auto" style="min-height: 0;"></div>
@@ -68,14 +68,14 @@
       <!-- Standard Input -->
       <div id="standard-input-container" class="input-wrapper relative w-full">
         <input type="file" id="file-upload" class="hidden" multiple accept="image/*,audio/*">
-        <button class="btn btn-secondary !px-2" style="border: none; background: transparent; color: var(--text-muted);" onclick="document.getElementById('file-upload').click()" title="Attach files">
+         <button class="btn btn-secondary !px-2" style="border: none; background: transparent; color: var(--text-muted);" onclick="document.getElementById('file-upload').click()" title="Attach files" aria-label="Attach files">
           {{ icon_paperclip(20) }}
         </button>
         <textarea id="chat-input" placeholder="Type a message…" onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();document.getElementById('send-btn').click()}"></textarea>
-        <button id="send-btn" class="send-btn" data-chat-id="{{ chat_id }}" data-provider-id="{{ providers[0].id if providers else '' }}">
+         <button id="send-btn" class="send-btn" aria-label="Send message" data-chat-id="{{ chat_id }}" data-provider-id="{{ providers[0].id if providers else '' }}">
           {{ icon_send() }}
         </button>
-        <button id="stop-btn" class="send-btn stop-btn hidden">
+         <button id="stop-btn" class="send-btn stop-btn hidden" aria-label="Stop generating">
           {{ icon_stop() }}
         </button>
       </div>
@@ -130,7 +130,7 @@
     <div class="sidebar-section flex-1 overflow-auto">
       <div class="sidebar-title flex justify-between items-center">
         <span>Chats</span>
-        <button class="action-icon" onclick="toggleRightBar()" title="Collapse" style="margin-top: -0.3rem;">→</button>
+         <button class="action-icon" onclick="toggleRightBar()" title="Collapse" style="margin-top: -0.3rem;" aria-label="Toggle sidebar">→</button>
       </div>
       
       {% if has_characters %}
@@ -146,43 +146,43 @@
   </aside>
 
   <!-- Collapsed right tab -->
-  <div id="right-tab" class="right-tab hidden" onclick="toggleRightBar()">
+   <div id="right-tab" class="right-tab hidden" onclick="toggleRightBar()" role="button" tabindex="0">
     <div class="sidebar-title" style="writing-mode: vertical-rl; padding: 0.5rem 0; cursor: pointer; color: var(--text);">Chats →</div>
   </div>
 </div>
 
 <!-- MAIN MODALS -->
-<div id="modal-sampler" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeModal('modal-sampler')">
+<div id="modal-sampler" class="modal-overlay" role="dialog" aria-modal="true" style="display:none;" onclick="if(event.target===this)closeModal('modal-sampler')">
   <div class="modal-content" style="max-width:550px; min-height: 400px; display: flex; flex-direction: column;">
-    <div class="modal-header" style="margin-bottom: 0.5rem;"><div class="modal-title">Generation Parameters</div><button class="btn btn-secondary" onclick="closeModal('modal-sampler')">×</button></div>
+    <div class="modal-header" style="margin-bottom: 0.5rem;"><div class="modal-title">Generation Parameters</div><button class="btn btn-secondary" aria-label="Close" onclick="closeModal('modal-sampler')">×</button></div>
     <div class="flex-1 overflow-hidden">
       {% include "sampler_modal.html" %}
     </div>
   </div>
 </div>
 
-<div id="modal-itemizer" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeModal('modal-itemizer')">
+<div id="modal-itemizer" class="modal-overlay" role="dialog" aria-modal="true" style="display:none;" onclick="if(event.target===this)closeModal('modal-itemizer')">
   <div class="modal-content" style="max-width:700px; height: 80vh; display: flex; flex-direction: column;">
-    <button class="btn btn-secondary btn-sm absolute top-4 right-4 z-50" onclick="closeModal('modal-itemizer')">{{ icon_close() }}</button>
+    <button class="btn btn-secondary btn-sm absolute top-4 right-4 z-50" aria-label="Close" onclick="closeModal('modal-itemizer')">{{ icon_close() }}</button>
     <div class="flex-1 overflow-hidden" style="min-height: 0;">
       {% include "itemizer_modal.html" %}
     </div>
   </div>
 </div>
 
-<div id="modal-characters" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeModal('modal-characters')">
+<div id="modal-characters" class="modal-overlay" role="dialog" aria-modal="true" style="display:none;" onclick="if(event.target===this)closeModal('modal-characters')">
   <div class="modal-content" style="max-width:800px; width: 95vw;">
-    <div class="modal-header"><div class="modal-title">Characters</div><button class="btn btn-secondary" onclick="closeModal('modal-characters')">×</button></div>
+    <div class="modal-header"><div class="modal-title">Characters</div><button class="btn btn-secondary" aria-label="Close" onclick="closeModal('modal-characters')">×</button></div>
     <div id="characters-modal-body">Loading…</div>
   </div>
 </div>
 
 <!-- EDIT CHARACTER MODAL -->
-<div id="modal-edit-character" class="modal-overlay" style="display:none; z-index: 100;" onclick="if(event.target===this)closeModal('modal-edit-character')">
+<div id="modal-edit-character" class="modal-overlay" role="dialog" aria-modal="true" style="display:none; z-index: 100;" onclick="if(event.target===this)closeModal('modal-edit-character')">
   <div class="modal-content" style="max-width: 600px; width: 95vw; display: flex; flex-direction: column;">
     <div class="modal-header" style="margin-bottom: 1rem;">
       <div class="modal-title">Edit Character</div>
-      <button class="btn btn-secondary" onclick="closeModal('modal-edit-character')">×</button>
+      <button class="btn btn-secondary" aria-label="Close" onclick="closeModal('modal-edit-character')">×</button>
     </div>
     <form id="edit-character-form" class="flex flex-col gap-4 flex-1" onsubmit="submitEditCharacter(event)">
       <input type="hidden" name="id" id="edit-char-id">
@@ -209,7 +209,7 @@
         <label>Description</label>
         <div class="textarea-wrapper h-full">
           <textarea name="description" id="edit-char-desc" rows="10" class="form-control w-full h-full" style="resize:none;"></textarea>
-          <button type="button" class="expand-btn" onclick="openTextExpander(document.getElementById('edit-char-desc'), 'Edit Character Description')">{{ icon_expand(18) }}</button>
+           <button type="button" class="expand-btn" aria-label="Expand text area" onclick="openTextExpander(document.getElementById('edit-char-desc'), 'Edit Character Description')">{{ icon_expand(18) }}</button>
         </div>
       </div>
       
@@ -234,19 +234,19 @@
   </div>
 </div>
 
-<div id="modal-personas" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeModal('modal-personas')">
+<div id="modal-personas" class="modal-overlay" role="dialog" aria-modal="true" style="display:none;" onclick="if(event.target===this)closeModal('modal-personas')">
   <div class="modal-content" style="max-width:800px; width: 95vw;">
-    <div class="modal-header"><div class="modal-title">Personas</div><button class="btn btn-secondary" onclick="closeModal('modal-personas')">×</button></div>
+    <div class="modal-header"><div class="modal-title">Personas</div><button class="btn btn-secondary" aria-label="Close" onclick="closeModal('modal-personas')">×</button></div>
     <div id="personas-modal-body">Loading…</div>
   </div>
 </div>
 
 <!-- EDIT PERSONA MODAL -->
-<div id="modal-edit-persona" class="modal-overlay" style="display:none; z-index: 100;" onclick="if(event.target===this)closeModal('modal-edit-persona')">
+<div id="modal-edit-persona" class="modal-overlay" role="dialog" aria-modal="true" style="display:none; z-index: 100;" onclick="if(event.target===this)closeModal('modal-edit-persona')">
   <div class="modal-content" style="max-width: 600px; width: 95vw; display: flex; flex-direction: column;">
     <div class="modal-header" style="margin-bottom: 1rem;">
       <div class="modal-title">Edit Persona</div>
-      <button class="btn btn-secondary" onclick="closeModal('modal-edit-persona')">×</button>
+      <button class="btn btn-secondary" aria-label="Close" onclick="closeModal('modal-edit-persona')">×</button>
     </div>
     <form id="edit-persona-form" class="flex flex-col gap-4 flex-1" onsubmit="submitEditPersona(event)">
       <input type="hidden" name="id" id="edit-persona-id">
@@ -273,7 +273,7 @@
         <label>Description</label>
         <div class="textarea-wrapper h-full">
           <textarea name="description" id="edit-persona-desc" rows="10" class="form-control w-full h-full" style="resize:none;"></textarea>
-          <button type="button" class="expand-btn" onclick="openTextExpander(document.getElementById('edit-persona-desc'), 'Edit Persona Description')">{{ icon_expand(18) }}</button>
+           <button type="button" class="expand-btn" aria-label="Expand text area" onclick="openTextExpander(document.getElementById('edit-persona-desc'), 'Edit Persona Description')">{{ icon_expand(18) }}</button>
         </div>
       </div>
       
@@ -298,19 +298,19 @@
   </div>
 </div>
 
-<div id="modal-providers" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeModal('modal-providers')">
+<div id="modal-providers" class="modal-overlay" role="dialog" aria-modal="true" style="display:none;" onclick="if(event.target===this)closeModal('modal-providers')">
   <div class="modal-content" style="max-width:1000px; width: 95vw; max-height:85vh; display: flex; flex-direction: column;">
-    <div class="modal-header"><div class="modal-title">Providers</div><button class="btn btn-secondary" onclick="closeModal('modal-providers')">×</button></div>
+    <div class="modal-header"><div class="modal-title">Providers</div><button class="btn btn-secondary" aria-label="Close" onclick="closeModal('modal-providers')">×</button></div>
     <div id="providers-modal-body" style="flex: 1; overflow: hidden;">Loading…</div>
   </div>
 </div>
 
 <!-- EDIT MESSAGE MODAL -->
-<div id="modal-edit-message" class="modal-overlay" style="display:none; z-index: 100;" onclick="if(event.target===this)closeModal('modal-edit-message')">
+<div id="modal-edit-message" class="modal-overlay" role="dialog" aria-modal="true" style="display:none; z-index: 100;" onclick="if(event.target===this)closeModal('modal-edit-message')">
   <div class="modal-content" style="max-width: 800px; width: 95vw; max-height: 85vh; display: flex; flex-direction: column;">
     <div class="modal-header" style="margin-bottom: 1rem;">
       <div class="modal-title">Edit Message</div>
-      <button class="btn btn-secondary" onclick="closeModal('modal-edit-message')">×</button>
+      <button class="btn btn-secondary" aria-label="Close" onclick="closeModal('modal-edit-message')">×</button>
     </div>
     <div style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 1rem; padding-right: 0.5rem;">
       <input type="hidden" id="edit-msg-id">
@@ -347,11 +347,11 @@
 {% include 'text_expander.html' %}
 
 <!-- PROMPT ARRANGER MODAL -->
-<div id="modal-arranger" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeModal('modal-arranger')">
+<div id="modal-arranger" class="modal-overlay" role="dialog" aria-modal="true" style="display:none;" onclick="if(event.target===this)closeModal('modal-arranger')">
   <div class="modal-content" style="max-width:800px;width:90vw;height:85vh;display:flex;flex-direction:column;padding:0;">
     <div class="modal-header" style="padding: 1rem 1rem 0.5rem 1rem;">
       <div class="modal-title">Prompt Arranger</div>
-      <button class="btn btn-secondary" onclick="closeModal('modal-arranger')">×</button>
+      <button class="btn btn-secondary" aria-label="Close" onclick="closeModal('modal-arranger')">×</button>
     </div>
     <div id="arranger-modal-body" class="flex-1 overflow-auto" style="padding: 0.5rem 1rem 1rem 1rem;">
       {% if preset %}
@@ -366,11 +366,11 @@
 </div>
 
 <!-- THEMES MODAL -->
-<div id="modal-themes" class="modal-overlay" style="display:none; z-index: 100;" onclick="if(event.target===this)closeModal('modal-themes')">
+<div id="modal-themes" class="modal-overlay" role="dialog" aria-modal="true" style="display:none; z-index: 100;" onclick="if(event.target===this)closeModal('modal-themes')">
   <div class="modal-content" style="max-width:400px;width:90vw;">
     <div class="modal-header">
       <div class="modal-title">Theme Customizer</div>
-      <button class="btn btn-secondary" onclick="closeModal('modal-themes')">×</button>
+      <button class="btn btn-secondary" aria-label="Close" onclick="closeModal('modal-themes')">×</button>
     </div>
     <div class="flex flex-col gap-4 mt-2">
       <div class="flex gap-2">
@@ -422,6 +422,7 @@
   </div>
 </div>
 
+<script src="/static/js/theme_manager.js"></script>
 <script>
 // Expose current chat state globally for modals to inherit
 window.CURRENT_CHAT_STATE = {
@@ -440,440 +441,21 @@ function openModal(id){
     if(id === 'modal-providers') htmx.ajax('GET','/partials/providers-modal',{target:'#providers-modal-body',swap:'innerHTML'});
   }
 }
-/* Theme Engine Logic */
-const PRESET_THEMES = {
-  default: {
-    '--bg': '#0b0d10', '--surface': '#13151a', '--surface-2': '#1c1f26', '--surface-3': '#2b303b',
-    '--border': '#232730', '--accent': '#6366f1', '--text': '#f1f3f5', '--text-muted': '#8b949e'
-  },
-  midnight: {
-    '--bg': '#000000', '--surface': '#090909', '--surface-2': '#111111', '--surface-3': '#1a1a1a',
-    '--border': '#222222', '--accent': '#3b82f6', '--text': '#ffffff', '--text-muted': '#9ca3af'
-  },
-  light: {
-    '--bg': '#f8fafc', '--surface': '#ffffff', '--surface-2': '#f1f5f9', '--surface-3': '#e2e8f0',
-    '--border': '#e2e8f0', '--accent': '#4f46e5', '--text': '#0f172a', '--text-muted': '#64748b'
-  }
-};
-
-let _savedThemeBackup = {};
-
-// When opening the themes modal, read current active variables
-document.querySelector('[onclick="openModal(\'modal-themes\')"]').addEventListener('click', function() {
-  _savedThemeBackup = {};
-  const rootStyle = getComputedStyle(document.documentElement);
-  document.querySelectorAll('#theme-color-pickers input[type="color"]').forEach(input => {
-    const varName = input.getAttribute('data-var');
-    // Get actual color, default to a safe hex if undefined
-    let color = rootStyle.getPropertyValue(varName).trim();
-    if (color.startsWith('rgba')) { color = '#000000'; } // fallback for complex colors
-    if (color.length === 4) { color = '#' + color[1]+color[1]+color[2]+color[2]+color[3]+color[3]; } // expand #fff
-    input.value = color || '#000000';
-    _savedThemeBackup[varName] = color;
-  });
-});
-
-function previewThemeColor(input) {
-  document.documentElement.style.setProperty(input.getAttribute('data-var'), input.value);
-}
-
-function applyPresetTheme(presetName) {
-  const theme = PRESET_THEMES[presetName];
-  if (!theme) return;
-  localStorage.setItem('pyvern-custom-theme', JSON.stringify(theme));
-  for (const [key, value] of Object.entries(theme)) {
-    document.documentElement.style.setProperty(key, value);
-    const input = document.querySelector(`input[data-var="${key}"]`);
-    if (input) input.value = value;
-  }
-}
-
-function resetThemePreview() {
-  const stored = localStorage.getItem('pyvern-custom-theme');
-  if (stored) {
-    const theme = JSON.parse(stored);
-    for (const key in theme) document.documentElement.style.setProperty(key, theme[key]);
-  } else {
-    // Revert to defaults by removing inline styles
-    document.querySelectorAll('#theme-color-pickers input[type="color"]').forEach(input => {
-      document.documentElement.style.removeProperty(input.getAttribute('data-var'));
-    });
-  }
-}
-
-function saveCustomTheme() {
-  const newTheme = {};
-  document.querySelectorAll('#theme-color-pickers input[type="color"]').forEach(input => {
-    newTheme[input.getAttribute('data-var')] = input.value;
-  });
-  localStorage.setItem('pyvern-custom-theme', JSON.stringify(newTheme));
-  closeModal('modal-themes');
-}
-
 function closeModal(id){ document.getElementById(id).style.display = 'none'; }
 function toggleRightBar(){
   document.getElementById('right-sidebar').classList.toggle('hidden');
   document.getElementById('right-tab').classList.toggle('hidden');
 }
+</script>
 
-function openEditCharacterModal(btnElement) {
-  document.getElementById('edit-char-id').value = btnElement.dataset.charId || '';
-  const name = btnElement.dataset.charName || '';
-  document.getElementById('edit-char-name').value = name;
-  document.getElementById('edit-char-desc').value = btnElement.dataset.charDesc || '';
-  
-  const imgPath = btnElement.dataset.charImage;
-  const preview = document.getElementById('edit-char-image-preview');
-  const placeholder = document.getElementById('edit-char-image-placeholder');
-  
-  if (imgPath) {
-    preview.src = '/' + imgPath + '?t=' + new Date().getTime(); // cache bust
-    preview.style.display = 'block';
-    placeholder.style.display = 'none';
-  } else {
-    preview.style.display = 'none';
-    placeholder.innerText = name ? name.charAt(0).toUpperCase() : '?';
-    placeholder.style.display = 'block';
-  }
-  
-  // Populate reference media
-  const mediaSection = document.getElementById('edit-char-media-section');
-  Array.from(mediaSection.children).forEach(el => {
-      if (!el.classList.contains('block-media-btn') && !el.classList.contains('block-media-placeholder')) {
-          el.remove();
-      }
-  });
-  
-  const placeholderText = mediaSection.querySelector('.block-media-placeholder');
-  let mediaList = [];
-  try {
-      mediaList = JSON.parse(btnElement.dataset.charMedia || '[]');
-  } catch (e) {
-      console.error(e);
-  }
-  
-  if (mediaList.length > 0 && placeholderText) {
-      placeholderText.style.display = 'none';
-  } else if (mediaList.length === 0 && placeholderText) {
-      placeholderText.style.display = 'block';
-  }
-  
-  mediaList.forEach(img => {
-      const div = buildMediaThumbnail(img, (e) => deleteCharModalMedia(img.id), 'char-modal-media');
-      mediaSection.insertBefore(div, mediaSection.lastElementChild.previousElementSibling);
-  });
+<script src="/static/js/modal_char_edit.js"></script>
 
-  document.getElementById('modal-edit-character').style.display = 'grid';
-}
+<script src="/static/js/modal_persona_edit.js"></script>
 
-function uploadCharModalMedia(input) {
-  if (!input.files || !input.files[0]) return;
-  const id = document.getElementById('edit-char-id').value;
-  const formData = new FormData();
-  formData.append('file', input.files[0]);
-  
-  fetch('/api/characters/' + id + '/images', {
-    method: 'POST',
-    body: formData
-  }).then(r => r.json()).then(data => {
-    const mediaSection = document.getElementById('edit-char-media-section');
-    if(!mediaSection) return;
-    
-    const div = buildMediaThumbnail(data, (e) => deleteCharModalMedia(data.id), 'char-modal-media');
-    
-    mediaSection.insertBefore(div, mediaSection.lastElementChild.previousElementSibling);
-    
-    const placeholder = mediaSection.querySelector('.block-media-placeholder');
-    if (placeholder) placeholder.style.display = 'none';
-    
-    input.value = '';
-    htmx.ajax('GET','/partials/characters-modal',{target:'#characters-modal-body',swap:'innerHTML'});
-    if (window.CURRENT_CHAT_STATE && window.CURRENT_CHAT_STATE.character_id === id && window.reloadPromptArranger) {
-      const presetId = window.CURRENT_CHAT_STATE.preset_id || (document.getElementById('prompt-arranger') && document.querySelector('#prompt-arranger .arranger-list') ? document.querySelector('#prompt-arranger .arranger-list').id.replace('arranger-list-', '') : null);
-      if (presetId) reloadPromptArranger(presetId, 'prompt-arranger');
-    }
-  });
-}
-
-function deleteCharModalMedia(imageId) {
-  const charId = document.getElementById('edit-char-id').value;
-  fetch(`/api/characters/${charId}/images/${imageId}`, {
-    method: 'DELETE'
-  }).then(r => {
-    if(r.ok) {
-      const el = document.getElementById(`char-modal-media-${imageId}`);
-      if(el) el.remove();
-      htmx.ajax('GET','/partials/characters-modal',{target:'#characters-modal-body',swap:'innerHTML'});
-      if (window.CURRENT_CHAT_STATE && window.CURRENT_CHAT_STATE.character_id === charId && window.reloadPromptArranger) {
-        const presetId = window.CURRENT_CHAT_STATE.preset_id || (document.getElementById('prompt-arranger') && document.querySelector('#prompt-arranger .arranger-list') ? document.querySelector('#prompt-arranger .arranger-list').id.replace('arranger-list-', '') : null);
-        if (presetId) reloadPromptArranger(presetId, 'prompt-arranger');
-      }
-    }
-  });
-}
-
-function uploadCharacterAvatar(input) {
-  if (!input.files || !input.files[0]) return;
-  const id = document.getElementById('edit-char-id').value;
-  
-  openCropModal(input.files[0], (croppedBlob) => {
-    const formData = new FormData();
-    formData.append('file', croppedBlob, 'avatar.png');
-    
-    fetch('/api/characters/' + id + '/avatar', {
-      method: 'POST',
-      body: formData
-    }).then(r => r.json()).then(data => {
-      // Update preview immediately
-      const preview = document.getElementById('edit-char-image-preview');
-      const placeholder = document.getElementById('edit-char-image-placeholder');
-      preview.src = '/' + data.avatar_path + '?t=' + new Date().getTime();
-      preview.style.display = 'block';
-      placeholder.style.display = 'none';
-      
-      // Update modal list
-      htmx.ajax('GET','/partials/characters-modal',{target:'#characters-modal-body',swap:'innerHTML'});
-    });
-  });
-  input.value = '';
-}
-
-function submitEditCharacter(e) {
-  e.preventDefault();
-  const id = document.getElementById('edit-char-id').value;
-  const data = Object.fromEntries(new FormData(e.target));
-  fetch('/api/characters/' + id, {
-    method: 'PATCH',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify(data)
-  }).then(function(r){
-    if(r.ok) {
-      closeModal('modal-edit-character');
-      htmx.ajax('GET','/partials/characters-modal',{target:'#characters-modal-body',swap:'innerHTML'});
-    }
-  });
-}
-
-function openEditPersonaModal(btnElement) {
-  document.getElementById('edit-persona-id').value = btnElement.dataset.personaId || '';
-  const name = btnElement.dataset.personaName || '';
-  document.getElementById('edit-persona-name').value = name;
-  document.getElementById('edit-persona-desc').value = btnElement.dataset.personaDesc || '';
-
-  const imgPath = btnElement.dataset.personaImage;
-  const preview = document.getElementById('edit-persona-image-preview');
-  const placeholder = document.getElementById('edit-persona-image-placeholder');
-  
-  if (imgPath) {
-    preview.src = '/' + imgPath + '?t=' + new Date().getTime(); // cache bust
-    preview.style.display = 'block';
-    placeholder.style.display = 'none';
-  } else {
-    preview.style.display = 'none';
-    placeholder.innerText = name ? name.charAt(0).toUpperCase() : '?';
-    placeholder.style.display = 'block';
-  }
-  
-  // Populate reference media
-  const mediaSection = document.getElementById('edit-persona-media-section');
-  // Clear existing non-upload button elements
-  Array.from(mediaSection.children).forEach(el => {
-      if (!el.classList.contains('block-media-btn') && !el.classList.contains('block-media-placeholder')) {
-          el.remove();
-      }
-  });
-  
-  const placeholderText = mediaSection.querySelector('.block-media-placeholder');
-  let mediaList = [];
-  try {
-      mediaList = JSON.parse(btnElement.dataset.personaMedia || '[]');
-  } catch (e) {
-      console.error(e);
-  }
-  
-  if (mediaList.length > 0 && placeholderText) {
-      placeholderText.style.display = 'none';
-  } else if (mediaList.length === 0 && placeholderText) {
-      placeholderText.style.display = 'block';
-  }
-  
-  mediaList.forEach(img => {
-      const div = buildMediaThumbnail(img, (e) => deletePersonaMedia(img.id), 'persona-media');
-      mediaSection.insertBefore(div, mediaSection.lastElementChild.previousElementSibling);
-  });
-
-  document.getElementById('modal-edit-persona').style.display = 'grid';
-}
-
-function uploadPersonaMedia(input) {
-  if (!input.files || !input.files[0]) return;
-  const id = document.getElementById('edit-persona-id').value;
-  const formData = new FormData();
-  formData.append('file', input.files[0]);
-  
-  fetch('/api/personas/' + id + '/images', {
-    method: 'POST',
-    body: formData
-  }).then(r => r.json()).then(data => {
-    const mediaSection = document.getElementById('edit-persona-media-section');
-    if(!mediaSection) return;
-    
-    const div = buildMediaThumbnail(data, (e) => deletePersonaMedia(data.id), 'persona-media');
-    
-    mediaSection.insertBefore(div, mediaSection.lastElementChild.previousElementSibling);
-    
-    const placeholder = mediaSection.querySelector('.block-media-placeholder');
-    if (placeholder) placeholder.style.display = 'none';
-    
-    input.value = '';
-    htmx.ajax('GET','/partials/personas-modal',{target:'#personas-modal-body',swap:'innerHTML'});
-    if (window.CURRENT_CHAT_STATE && window.CURRENT_CHAT_STATE.persona_id === id && window.reloadPromptArranger) {
-      const presetId = window.CURRENT_CHAT_STATE.preset_id || (document.getElementById('prompt-arranger') && document.querySelector('#prompt-arranger .arranger-list') ? document.querySelector('#prompt-arranger .arranger-list').id.replace('arranger-list-', '') : null);
-      if (presetId) reloadPromptArranger(presetId, 'prompt-arranger');
-    }
-  });
-}
-
-function deletePersonaMedia(imageId) {
-  const personaId = document.getElementById('edit-persona-id').value;
-  fetch(`/api/personas/${personaId}/images/${imageId}`, {
-    method: 'DELETE'
-  }).then(r => {
-    if(r.ok) {
-      const el = document.getElementById(`persona-media-${imageId}`);
-      if(el) el.remove();
-      htmx.ajax('GET','/partials/personas-modal',{target:'#personas-modal-body',swap:'innerHTML'});
-      if (window.CURRENT_CHAT_STATE && window.CURRENT_CHAT_STATE.persona_id === personaId && window.reloadPromptArranger) {
-        const presetId = window.CURRENT_CHAT_STATE.preset_id || (document.getElementById('prompt-arranger') && document.querySelector('#prompt-arranger .arranger-list') ? document.querySelector('#prompt-arranger .arranger-list').id.replace('arranger-list-', '') : null);
-        if (presetId) reloadPromptArranger(presetId, 'prompt-arranger');
-      }
-    }
-  });
-}
-
-function uploadPersonaAvatar(input) {
-  if (!input.files || !input.files[0]) return;
-  const id = document.getElementById('edit-persona-id').value;
-  
-  openCropModal(input.files[0], (croppedBlob) => {
-    const formData = new FormData();
-    formData.append('file', croppedBlob, 'avatar.png');
-    
-    fetch('/api/personas/' + id + '/avatar', {
-      method: 'POST',
-      body: formData
-    }).then(r => r.json()).then(data => {
-      const preview = document.getElementById('edit-persona-image-preview');
-      const placeholder = document.getElementById('edit-persona-image-placeholder');
-      preview.src = '/' + data.avatar_path + '?t=' + new Date().getTime();
-      preview.style.display = 'block';
-      placeholder.style.display = 'none';
-      
-      htmx.ajax('GET','/partials/personas-modal',{target:'#personas-modal-body',swap:'innerHTML'});
-    });
-  });
-  input.value = '';
-}
-
-function submitEditPersona(e) {
-  e.preventDefault();
-  const id = document.getElementById('edit-persona-id').value;
-  const data = Object.fromEntries(new FormData(e.target));
-  fetch('/api/personas/' + id, {
-    method: 'PATCH',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify(data)
-  }).then(function(r){
-    if(r.ok) {
-      closeModal('modal-edit-persona');
-      htmx.ajax('GET','/partials/personas-modal',{target:'#personas-modal-body',swap:'innerHTML'});
-    }
-  });
-}
-
+<script>
 // App Providers for Status Panel
 window.APP_PROVIDERS = {{ providers | tojson | safe }};
-
-function updateStatusPanel() {
-  const activeId = localStorage.getItem('pyvern-provider-id');
-  const providerEl = document.getElementById('status-provider');
-  const presetEl = document.getElementById('status-preset');
-  const modelEl = document.getElementById('status-model');
-  
-  if (!activeId) {
-    providerEl.textContent = 'None';
-    modelEl.textContent = 'None';
-  } else {
-    // Check if we have the provider in our initial payload
-    let provider = window.APP_PROVIDERS.find(p => p.id === activeId);
-    
-    // If we couldn't find it, it might have been created this session. 
-    // Let's see if we can scrape it from the DOM (from the providers modal if it's loaded)
-    if (!provider) {
-      const cardDisplay = document.getElementById('prov-display-' + activeId);
-      if (cardDisplay) {
-        const nameEl = cardDisplay.querySelector('strong');
-        const typeModelEl = cardDisplay.querySelector('.text-muted');
-        if (nameEl && typeModelEl) {
-          const text = typeModelEl.textContent; // e.g. "openai • gpt-4"
-          const parts = text.split('•').map(s => s.trim());
-          provider = {
-            name: nameEl.textContent,
-            type: parts.length > 0 ? parts[0] : 'Unknown',
-            model: parts.length > 1 ? parts[1] : 'Unknown'
-          };
-        }
-      }
-    }
-
-    if (provider) {
-      providerEl.textContent = provider.type;
-      presetEl.textContent = provider.name;
-      modelEl.textContent = provider.model || 'Unknown';
-      providerEl.title = provider.type;
-      presetEl.title = provider.name;
-      modelEl.title = provider.model || 'Unknown';
-    } else {
-      providerEl.textContent = 'Unknown';
-      presetEl.textContent = 'Unknown';
-      modelEl.textContent = 'Unknown';
-      providerEl.title = 'Unknown';
-      presetEl.title = 'Unknown';
-      modelEl.title = 'Unknown';
-    }
-  }
-}
-
-// Hook into provider changes
-window.addEventListener('provider-changed', updateStatusPanel);
-// Run initially
-updateStatusPanel();
-
-// Also update when HTMX swaps content (in case providers were deleted/added)
-document.body.addEventListener('htmx:afterSwap', function(evt){
-  if(evt.detail.target.id === 'providers-modal-body'){
-    // A slight delay to ensure the DOM is parsed and APP_PROVIDERS is stale
-    setTimeout(updateStatusPanel, 50);
-  }
-});
-
-document.addEventListener('DOMContentLoaded', function(){
-  const presetSelect = document.querySelector('#preset-selector select');
-  if(presetSelect && presetSelect.value){
-    htmx.ajax('GET', '/partials/prompt-arranger/' + presetSelect.value, {target:'#prompt-arranger', swap:'innerHTML'});
-  }
-});
-function newChat(){
-  fetch('/api/chats', {
-    method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify(window.CURRENT_CHAT_STATE)
-  }).then(r => {
-    if(!r.ok) throw new Error('Failed to create chat');
-    return r.json();
-  }).then(data => {
-    window.location.href = '/chat/' + data.id;
-  }).catch(e => alert(e.message));
-}
 </script>
+
+<script src="/static/js/status_panel.js"></script>
 {% endblock %}

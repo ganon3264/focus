@@ -36,6 +36,21 @@ async def attach_images(blocks: list[dict], db: aiosqlite.Connection) -> list[di
     return blocks
 
 
+async def next_position(db: aiosqlite.Connection, table: str, where_col: str, where_val: str) -> int:
+    async with db.execute(
+        f"SELECT COALESCE(MAX(position), -1) FROM {table} WHERE {where_col} = ?", (where_val,)
+    ) as cur:
+        row = await cur.fetchone()
+    return row[0] + 1
+
+
+async def dynamic_update(db: aiosqlite.Connection, table: str, updates: dict, where_clause: str, where_params: list):
+    cols = ", ".join(f"{k} = ?" for k in updates)
+    vals = list(updates.values()) + where_params
+    await db.execute(f"UPDATE {table} SET {cols} WHERE {where_clause}", vals)
+    await db.commit()
+
+
 async def upload_block_image(
     db: aiosqlite.Connection,
     block_id: str,
@@ -46,11 +61,7 @@ async def upload_block_image(
     storage_dir: str,
     images_only: bool = False,
 ) -> dict:
-    async with db.execute(
-        "SELECT COALESCE(MAX(position), -1) FROM block_images WHERE block_id = ?", (block_id,)
-    ) as cur:
-        row = await cur.fetchone()
-    next_pos = row[0] + 1
+    next_pos = await next_position(db, "block_images", "block_id", block_id)
 
     image_id = str(uuid.uuid4())
     suffix = Path(filename).suffix.lower() if filename else ".png"

@@ -7,6 +7,7 @@ from typing import Any
 
 
 from pyvern.macros import apply_macros
+from pyvern.utils import variable_group_name, MACRO_MAX_PASSES
 
 logger = logging.getLogger("pyvern.prompt_chain")
 
@@ -125,10 +126,10 @@ def assemble_prompt(
     if variables:
         var_map: dict[str, str] = {}
         for v in variables:
-            var_key = v["name"].split(":")[0] if ":" in v["name"] else v["name"]
+            var_key = variable_group_name(v["name"])
             var_map[var_key] = v["content"]
 
-        for _ in range(10):
+        for _ in range(MACRO_MAX_PASSES):
             changed = False
             for key, content in var_map.items():
                 resolved = apply_macros(content, macros).strip()

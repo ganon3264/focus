@@ -8,9 +8,22 @@ import aiosqlite
 
 from pyvern.database import get_db
 from pyvern.card_parser import normalise_card
+from pyvern.utils import variable_group_name
 import pyvern.crud as crud
 
 router = APIRouter()
+
+def _partition_preset_blocks(blocks: list[dict]) -> tuple[list[dict], list[dict], dict[str, list[dict]]]:
+    var_blocks: list[dict] = []
+    regular_blocks: list[dict] = []
+    var_groups: dict[str, list[dict]] = {}
+    for b in blocks:
+        if b["block_type"] == "variable":
+            var_blocks.append(b)
+            var_groups.setdefault(variable_group_name(b["name"]), []).append(b)
+        else:
+            regular_blocks.append(b)
+    return var_blocks, regular_blocks, var_groups
 
 # Create templates with both directories in search path
 templates = Jinja2Templates(directory="templates")
@@ -42,17 +55,7 @@ async def chat_redirect(request: Request, character_id: str = Query(None), db: a
     preset = presets[0] if presets else None
     preset_blocks = preset["blocks"] if preset else []
 
-    var_blocks = []
-    regular_blocks = []
-    var_groups = {}
-    
-    for b in preset_blocks:
-        if b["block_type"] == "variable":
-            var_blocks.append(b)
-            group_name = b["name"].split(":")[0] if ":" in b["name"] else b["name"]
-            var_groups.setdefault(group_name, []).append(b)
-        else:
-            regular_blocks.append(b)
+    var_blocks, regular_blocks, var_groups = _partition_preset_blocks(preset_blocks)
 
     has_chars = await crud.has_characters(db)
 
@@ -91,17 +94,7 @@ async def chat_page(request: Request, chat_id: str, db: aiosqlite.Connection = D
     preset = await crud.get_preset(db, chat.get("preset_id"))
     preset_blocks = preset["blocks"] if preset else []
     
-    var_blocks = []
-    regular_blocks = []
-    var_groups = {}
-    
-    for b in preset_blocks:
-        if b["block_type"] == "variable":
-            var_blocks.append(b)
-            group_name = b["name"].split(":")[0] if ":" in b["name"] else b["name"]
-            var_groups.setdefault(group_name, []).append(b)
-        else:
-            regular_blocks.append(b)
+    var_blocks, regular_blocks, var_groups = _partition_preset_blocks(preset_blocks)
             
     counts = await crud.get_counts(db, chat.get("character_id"), chat.get("persona_id") or (persona["id"] if persona else None))
 
@@ -149,12 +142,7 @@ async def presets_page(request: Request, db: aiosqlite.Connection = Depends(get_
     var_groups = {}
     regular_blocks = []
     if presets:
-        for b in presets[0]["blocks"]:
-            if b["block_type"] == "variable":
-                group_name = b["name"].split(":")[0] if ":" in b["name"] else b["name"]
-                var_groups.setdefault(group_name, []).append(b)
-            else:
-                regular_blocks.append(b)
+        _, regular_blocks, var_groups = _partition_preset_blocks(presets[0]["blocks"])
         
         # Override the blocks of the first preset to only be regular blocks
         # so the prompt_arranger partial include doesn't duplicate them
@@ -273,7 +261,7 @@ async def preset_variables_partial(request: Request, preset_id: str, db: aiosqli
     var_groups = {}
     for b in blocks:
         if b["block_type"] == "variable":
-            group_name = b["name"].split(":")[0] if ":" in b["name"] else b["name"]
+            group_name = variable_group_name(b["name"])
             var_groups.setdefault(group_name, []).append(b)
 
     return templates.TemplateResponse(request, "preset_variables.html", {
@@ -293,17 +281,7 @@ async def preset_editor_partial(
     blocks = preset["blocks"] if preset else []
 
     counts = await crud.get_counts(db, character_id or None, persona_id or None)
-    var_blocks = []
-    regular_blocks = []
-    var_groups = {}
-    
-    for b in blocks:
-        if b["block_type"] == "variable":
-            var_blocks.append(b)
-            group_name = b["name"].split(":")[0] if ":" in b["name"] else b["name"]
-            var_groups.setdefault(group_name, []).append(b)
-        else:
-            regular_blocks.append(b)
+    _, regular_blocks, var_groups = _partition_preset_blocks(blocks)
 
     return templates.TemplateResponse(request, "preset_editor.html", {
         "blocks": regular_blocks,

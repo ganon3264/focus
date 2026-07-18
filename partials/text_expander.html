@@ -1,9 +1,9 @@
 <!-- TEXT EXPANDER MODAL -->
-<div id="modal-text-expander" class="modal-overlay" style="display:none; z-index: 999;" onclick="if(event.target===this)closeTextExpander()">
+<div id="modal-text-expander" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Text expander" style="display:none; z-index: 999;" onclick="if(event.target===this)closeTextExpander()">
   <div class="modal-content flex flex-col h-[85vh] max-w-4xl" style="padding: 1.25rem;">
     <div class="modal-header shrink-0 mb-4 flex justify-between items-center w-full">
       <div class="modal-title text-xl font-bold" id="text-expander-title">Edit Text</div>
-      <button class="btn btn-secondary w-8 h-8 rounded-full p-0 flex items-center justify-center" onclick="closeTextExpander()">{{ icon_close() }}</button>
+      <button class="btn btn-secondary w-8 h-8 rounded-full p-0 flex items-center justify-center" onclick="closeTextExpander()" aria-label="Close text expander">{{ icon_close() }}</button>
     </div>
     <textarea id="text-expander-input" class="form-control w-full flex-1 mb-4" style="resize:none; font-family: ui-monospace, monospace; font-size: 0.9rem; line-height: 1.6;"></textarea>
     <div class="flex justify-end gap-3 shrink-0">

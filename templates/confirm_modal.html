@@ -1,8 +1,8 @@
-<div id="global-confirm-modal" class="modal-overlay" style="display: none; z-index: 10005;">
+<div id="global-confirm-modal" class="modal-overlay" role="alertdialog" aria-modal="true" style="display: none; z-index: 10005;">
   <div class="modal-content" style="max-width: 400px;">
     <div class="modal-header" style="margin-bottom: 1rem;">
       <div class="modal-title text-xl font-bold">Confirm Action</div>
-      <button class="btn btn-secondary btn-sm" onclick="closeConfirmModal()">×</button>
+      <button class="btn btn-secondary btn-sm" onclick="closeConfirmModal()" aria-label="Close">×</button>
     </div>
     <div id="global-confirm-message" class="text-sm mb-4" style="color: var(--text);">
       Are you sure?

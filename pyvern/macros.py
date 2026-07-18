@@ -1,6 +1,8 @@
 import re
 from datetime import datetime
 
+from pyvern.utils import MACRO_MAX_PASSES
+
 def build_base_macros(card: dict, persona: dict | None = None) -> dict[str, str]:
     now = datetime.now()
     
@@ -44,7 +46,7 @@ def extract_setvars(text: str, macros: dict[str, str]) -> str:
         
     return re.sub(pattern, repl, text, flags=re.IGNORECASE)
 
-def apply_macros(text: str, macros: dict[str, str], max_passes: int = 10) -> str:
+def apply_macros(text: str, macros: dict[str, str], max_passes: int = MACRO_MAX_PASSES) -> str:
     """
     Applies {{key}} or {{getvar::key}} using the macros dict.
     Iterates until text stabilises (handles chains like A→B→C).

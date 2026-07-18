@@ -7,9 +7,9 @@
       </div>
     {% endif %}
     {% for p in presets %}
-    <div class="sidebar-item" onclick="loadPresetModal('{{ p.id }}')">
+    <div class="sidebar-item" role="button" tabindex="0" onclick="loadPresetModal('{{ p.id }}')">
       <div class="text-sm truncate flex-1">{{ p.name }}</div>
-      <button class="btn btn-danger btn-sm" style="margin-left:auto;" onclick="event.stopPropagation(); promptDeletePresetModal('{{ p.id }}', '{{ p.name | escape }}')">{{ icon_trash() }}</button>
+      <button class="btn btn-danger btn-sm" style="margin-left:auto;" onclick="event.stopPropagation(); promptDeletePresetModal('{{ p.id }}', '{{ p.name | escape }}')" aria-label="Delete preset">{{ icon_trash() }}</button>
     </div>
     {% endfor %}
     <button class="btn btn-secondary btn-sm w-full mt-1" onclick="fetch('/api/presets',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:'New Preset'})}).then(()=>htmx.ajax('GET','/partials/presets-modal',{target:'#presets-modal-body',swap:'innerHTML'}))">+ New</button>

@@ -76,6 +76,15 @@ async def get_prompt_context(
     attachment_ids: list[str],
     persist: bool = False,
 ) -> dict:
+    """Load chat state and assemble the full prompt context for generation.
+
+    Validates the chat, loads character/persona/preset data, builds macros,
+    fetches message history, persists the user message (when persist=True),
+    loads block images for all relevant blocks, and assembles the final
+    message list via assemble_prompt().
+
+    Returns dict with keys: messages, asst_msg_id, next_variant_index, user_msg_id.
+    """
     # ── Validate chat ────────────────────────────────────────────────────────
     async with db.execute("SELECT * FROM chats WHERE id = ?", (chat_id,)) as cur:
         chat = await cur.fetchone()

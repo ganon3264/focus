@@ -134,6 +134,7 @@ async def get_db():
         yield db
 
 def init_directories():
+    """Ensure asset directories exist on startup."""
     os.makedirs("data", exist_ok=True)
     os.makedirs("assets/characters", exist_ok=True)
     os.makedirs("assets/personas", exist_ok=True)
@@ -141,6 +142,7 @@ def init_directories():
     os.makedirs("assets/attachments", exist_ok=True)
 
 async def init_db():
+    """Create database tables, seed defaults, and apply migrations on startup."""
     init_directories()
     async with aiosqlite.connect(DB_PATH) as db:
         await db.executescript(SCHEMA)

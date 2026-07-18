@@ -122,20 +122,20 @@
     {% include "confirm_modal.html" %}
     
     <!-- Global Lightbox for Images -->
-    <div id="lightbox" class="fixed inset-0 z-[9999] bg-black/90 hidden flex-col items-center justify-center backdrop-blur-sm" onclick="closeLightbox(event)">
-      <button id="lightbox-close" class="absolute top-4 right-4 text-white/50 hover:text-white bg-black/50 hover:bg-black/75 rounded-full w-10 h-10 flex items-center justify-center transition-colors text-xl font-bold cursor-pointer focus:outline-none z-50" onclick="closeLightbox(event)" title="Close">×</button>
-      <img id="lightbox-img" src="" class="max-w-[95vw] max-h-[95vh] object-contain rounded shadow-2xl" onclick="event.stopPropagation()">
+     <div id="lightbox" class="fixed inset-0 z-[9999] bg-black/90 hidden flex-col items-center justify-center backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Image lightbox" onclick="closeLightbox(event)">
+       <button id="lightbox-close" class="absolute top-4 right-4 text-white/50 hover:text-white bg-black/50 hover:bg-black/75 rounded-full w-10 h-10 flex items-center justify-center transition-colors text-xl font-bold cursor-pointer focus:outline-none z-50" onclick="closeLightbox(event)" title="Close" aria-label="Close lightbox">×</button>
+       <img id="lightbox-img" src="" alt="Enlarged image" class="max-w-[95vw] max-h-[95vh] object-contain rounded shadow-2xl" onclick="event.stopPropagation()">
     </div>
 
     <!-- Global Crop Modal -->
-    <div id="crop-modal" class="fixed inset-0 z-[9999] bg-black/80 hidden flex-col items-center justify-center backdrop-blur-sm">
+     <div id="crop-modal" class="fixed inset-0 z-[9999] bg-black/80 hidden flex-col items-center justify-center backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Image crop tool">
       <div class="bg-[var(--surface)] border border-[var(--border)] rounded-xl w-full max-w-2xl flex flex-col overflow-hidden">
         <div class="flex justify-between items-center p-4 border-b border-[var(--border)]">
           <h3 class="text-lg font-bold">Crop Image</h3>
-          <button class="btn btn-secondary w-8 h-8 rounded-full p-0 flex items-center justify-center" onclick="closeCropModal()">{{ icon_close() }}</button>
+          <button class="btn btn-secondary w-8 h-8 rounded-full p-0 flex items-center justify-center" onclick="closeCropModal()" aria-label="Close crop tool">{{ icon_close() }}</button>
         </div>
         <div class="p-4 bg-[var(--surface-2)]" style="height: 60vh;">
-          <img id="crop-image" src="" class="max-w-full max-h-full block">
+          <img id="crop-image" src="" alt="Image to crop" class="max-w-full max-h-full block">
         </div>
         <div class="flex justify-end gap-3 p-4 border-t border-[var(--border)] bg-[var(--surface)]">
           <button class="btn btn-secondary" onclick="closeCropModal()">Cancel</button>
@@ -144,121 +144,8 @@
       </div>
     </div>
 
-    <script>
-      function openLightbox(src) {
-        const lb = document.getElementById('lightbox');
-        const img = document.getElementById('lightbox-img');
-        img.src = src;
-        lb.classList.remove('hidden');
-        lb.classList.add('flex');
-      }
-      function closeLightbox(e) {
-        const lb = document.getElementById('lightbox');
-        lb.classList.remove('flex');
-        lb.classList.add('hidden');
-        document.getElementById('lightbox-img').src = '';
-      }
+    <script src="/static/js/lightbox.js"></script>
 
-      // Crop functionality
-      let cropper = null;
-      let currentCropCallback = null;
-      let currentCropOptions = null;
-
-      function openCropModal(file, callback, options = {}) {
-        const modal = document.getElementById('crop-modal');
-        const img = document.getElementById('crop-image');
-        
-        currentCropCallback = callback;
-        currentCropOptions = options;
-        
-        const url = URL.createObjectURL(file);
-        img.src = url;
-        
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
-        
-        if (cropper) {
-          cropper.destroy();
-        }
-        
-        // Initialize cropper after a short delay to ensure modal is visible
-        setTimeout(() => {
-          cropper = new Cropper(img, {
-            aspectRatio: options.aspectRatio !== undefined ? options.aspectRatio : 1,
-            viewMode: 1,
-            dragMode: 'move',
-            background: false,
-            autoCropArea: 0.8,
-            guides: true,
-            center: true,
-            highlight: false,
-            cropBoxMovable: true,
-            cropBoxResizable: true,
-            toggleDragModeOnDblclick: false,
-          });
-        }, 50);
-      }
-
-      function closeCropModal() {
-        const modal = document.getElementById('crop-modal');
-        modal.classList.remove('flex');
-        modal.classList.add('hidden');
-        if (cropper) {
-          cropper.destroy();
-          cropper = null;
-        }
-        document.getElementById('crop-image').src = '';
-        currentCropCallback = null;
-        currentCropOptions = null;
-      }
-
-      document.getElementById('crop-save-btn').addEventListener('click', () => {
-        if (!cropper || !currentCropCallback) return;
-        
-        let getOpts = {
-          imageSmoothingEnabled: true,
-          imageSmoothingQuality: 'high',
-        };
-        
-        // If we forced an aspect ratio, we can force output dimensions, else just export natural cropped dimensions
-        if (currentCropOptions && currentCropOptions.aspectRatio === 1) {
-          getOpts.width = 512;
-          getOpts.height = 512;
-        }
-
-        const cb = currentCropCallback;
-        cropper.getCroppedCanvas(getOpts).toBlob((blob) => {
-          cb(blob);
-          closeCropModal();
-        }, 'image/png');
-      });
-
-      function handleAvatarUpload(fileInput, endpoint, successCallback) {
-        if (!fileInput.files || !fileInput.files[0]) return;
-        
-        const file = fileInput.files[0];
-        
-        openCropModal(file, (croppedBlob) => {
-          const formData = new FormData();
-          formData.append('file', croppedBlob, 'avatar.png');
-          
-          fetch(endpoint, {
-            method: 'POST',
-            body: formData
-          }).then(r => r.json()).then(data => {
-            if (successCallback) {
-              successCallback(data);
-            } else {
-              window.location.reload();
-            }
-          });
-        });
-        
-        // Reset file input so the same file can be selected again if needed
-        fileInput.value = '';
-      }
-    </script>
-    
     <script src="/static/js/list_manager.js"></script>
     <script src="/static/chat_stream.js"></script>
 </body>

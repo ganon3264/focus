@@ -7,10 +7,11 @@ import aiosqlite
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
 
+import pyvern.crud as crud
 from pyvern.database import get_db
 from pyvern.models import ProviderCreate
 from pyvern.logger import get_logger
-from pyvern.utils import now_iso, resolve_secret_key
+from pyvern.utils import now_iso, resolve_secret_key, MODEL_CACHE_TTL, MODEL_FETCH_HTTP_TIMEOUT
 
 router = APIRouter()
 logger = get_logger("routers.providers")
@@ -96,6 +97,7 @@ class FetchModelsRequest(BaseModel):
 
 @router.post("/fetch_models")
 async def fetch_models(body: FetchModelsRequest, db: aiosqlite.Connection = Depends(get_db)):
+    """Fetch available models from a provider and cache the result for 5 minutes."""
     global _MODELS_CACHE, _MODELS_CACHE_TIME
     import time
     now = time.time()
@@ -105,7 +107,7 @@ async def fetch_models(body: FetchModelsRequest, db: aiosqlite.Connection = Depe
     # Cache key based on provider type and api key hash (to avoid caching across different keys)
     cache_key = f"{body.type}_{hash(api_key)}"
     async with _models_cache_lock:
-        if cache_key in _MODELS_CACHE and now - _MODELS_CACHE_TIME.get(cache_key, 0) < 300:
+        if cache_key in _MODELS_CACHE and now - _MODELS_CACHE_TIME.get(cache_key, 0) < MODEL_CACHE_TTL:
             return {"data": _MODELS_CACHE[cache_key]}
 
     try:
@@ -127,7 +129,7 @@ async def fetch_models(body: FetchModelsRequest, db: aiosqlite.Connection = Depe
             url = "https://openrouter.ai/api/v1/models"
             headers = {}
             async with httpx.AsyncClient() as client:
-                resp = await client.get(url, headers=headers, timeout=10.0)
+                resp = await client.get(url, headers=headers, timeout=MODEL_FETCH_HTTP_TIMEOUT)
                 resp.raise_for_status()
                 data = resp.json()
                 
@@ -155,7 +157,7 @@ async def fetch_models(body: FetchModelsRequest, db: aiosqlite.Connection = Depe
                 headers["Authorization"] = f"Bearer {api_key}"
                 
             async with httpx.AsyncClient() as client:
-                resp = await client.get(url, headers=headers, timeout=10.0)
+                resp = await client.get(url, headers=headers, timeout=MODEL_FETCH_HTTP_TIMEOUT)
                 resp.raise_for_status()
                 data = resp.json()
                 
@@ -194,7 +196,7 @@ async def get_openrouter_models():
     import time
     now = time.time()
     async with _openrouter_cache_lock:
-        if _OPENROUTER_CACHE and now - _OPENROUTER_CACHE_TIME < 300:
+        if _OPENROUTER_CACHE and now - _OPENROUTER_CACHE_TIME < MODEL_CACHE_TTL:
             return _OPENROUTER_CACHE
 
     try:
