@@ -53,33 +53,18 @@ function updateCacheTimer() {
 
   const provider =
     activeId && window.APP_PROVIDERS && window.APP_PROVIDERS.find((p) => p.id === activeId);
-  const isClaude =
-    provider &&
-    provider.type === 'openrouter' &&
-    provider.model &&
-    provider.model.startsWith('anthropic/claude');
 
-  if (!isClaude) {
+  if (!window.isClaudeProvider || !window.isClaudeProvider(provider)) {
     cacheRow.classList.add('hidden');
     return;
   }
 
   cacheRow.classList.remove('hidden');
 
-  const cacheTime = parseInt(localStorage.getItem('focus-cache-time-' + activeId), 10);
-  const cacheTtl = localStorage.getItem('focus-cache-ttl-' + activeId) || 'ephemeral';
+  const remaining = window.getClaudeCacheTimer ? window.getClaudeCacheTimer(activeId) : null;
 
-  if (!cacheTime) {
+  if (!remaining) {
     cacheEl.textContent = '—';
-    cacheEl.style.color = 'var(--text-muted)';
-    return;
-  }
-
-  const ttlMs = cacheTtl === '1h' ? 3600000 : 300000;
-  const remaining = cacheTime + ttlMs - Date.now();
-
-  if (remaining <= 0) {
-    cacheEl.textContent = 'expired';
     cacheEl.style.color = 'var(--text-muted)';
     return;
   }
@@ -108,7 +93,7 @@ document.body.addEventListener('htmx:afterSwap', function (evt) {
 document.addEventListener('DOMContentLoaded', function () {
   const presetSelect = document.querySelector('#preset-selector select');
   if (presetSelect && presetSelect.value) {
-    htmx.ajax('GET', api.partials.promptArranger(presetSelect.value), {
+    htmx.ajax('GET', window.api.partials.promptArranger(presetSelect.value), {
       target: '#prompt-arranger',
       swap: 'innerHTML',
     });
@@ -116,7 +101,7 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 function newChat() {
-  fetch(api.chats, {
+  fetch(window.api.chats, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(StateManager.getAll()),

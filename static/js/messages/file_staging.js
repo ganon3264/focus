@@ -13,26 +13,58 @@
       el.className =
         'flex items-center gap-1 bg-surface-2 p-1 rounded border border-border text-xs relative group';
 
-      let preview = '';
-      if (f.type.startsWith('image/')) {
-        const url = URL.createObjectURL(f);
-        const cropBtn = `<button class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black/70 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:bg-black/90" onclick="window.cropStagedImage(${idx})" title="Crop">${window.getSvgSprite('crop', 12)}</button>`;
+      const url = f.type.startsWith('image/') ? URL.createObjectURL(f) : '';
 
-        preview = `
-          <div class="relative h-8 w-8 shrink-0">
-            <img src="${url}" class="h-full w-full object-cover rounded" onload="try{URL.revokeObjectURL(this.src)}catch(e){}">
-            ${cropBtn}
-          </div>
-        `;
+      if (f.type.startsWith('image/')) {
+        const thumbnail = window.createMediaThumbnail({
+          src: url ? url.replace(/^\/+/, '') : '',
+          mimeType: f.type,
+          size: 32,
+          name: f.name,
+          showName: false,
+          onClick: null,
+          onDelete: function (e) {
+            window.removeStagedFile(idx);
+          },
+        });
+        thumbnail.querySelector('img').src = url;
+        URL.revokeObjectURL(url);
+
+        var cropBtn = document.createElement('button');
+        cropBtn.className =
+          'absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black/70 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:bg-black/90';
+        cropBtn.innerHTML = window.getSvgSprite('crop', 12);
+        cropBtn.title = 'Crop';
+        cropBtn.addEventListener('click', function (e) {
+          e.stopPropagation();
+          window.cropStagedImage(idx);
+        });
+        thumbnail.querySelector('div') ? thumbnail.querySelector('div').appendChild(cropBtn) : thumbnail.appendChild(cropBtn);
+
+        el.appendChild(thumbnail);
       } else {
-        preview = `<div class="h-8 w-8 bg-surface-3 flex items-center justify-center rounded shrink-0">${window.getSvgSprite('music', 24)}</div>`;
+        el.innerHTML =
+          '<div class="h-8 w-8 bg-surface-3 flex items-center justify-center rounded shrink-0">' +
+          window.getSvgSprite('music', 24) +
+          '</div>';
       }
 
-      el.innerHTML = `
-        ${preview}
-        <span class="max-w-[100px] truncate" title="${f.name}">${f.name}</span>
-        <button class="text-danger hover:text-white hover:bg-danger rounded w-5 h-5 flex items-center justify-center ml-1 transition-colors z-20" onclick="window.removeStagedFile(${idx})" title="Remove">${window.getSvgSprite('close', 16)}</button>
-      `;
+      var nameSpan = document.createElement('span');
+      nameSpan.className = 'max-w-[100px] truncate';
+      nameSpan.title = f.name;
+      nameSpan.textContent = f.name;
+      el.appendChild(nameSpan);
+
+      var removeBtn = document.createElement('button');
+      removeBtn.className =
+        'text-danger hover:text-white hover:bg-danger rounded w-5 h-5 flex items-center justify-center ml-1 transition-colors z-20';
+      removeBtn.innerHTML = window.getSvgSprite('close', 16);
+      removeBtn.title = 'Remove';
+      removeBtn.addEventListener('click', function () {
+        window.removeStagedFile(idx);
+      });
+      el.appendChild(removeBtn);
+
       stagingArea.appendChild(el);
     });
 

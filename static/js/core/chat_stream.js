@@ -7,47 +7,6 @@
 
   if (!sendBtn || !input || !messageList) return;
 
-  function resizeTextarea(el) {
-    el.style.height = '44px';
-    if (el.value === '') {
-      el.style.overflowY = 'hidden';
-      return;
-    }
-    const scrollHeight = el.scrollHeight;
-    if (scrollHeight > 44) {
-      el.style.height = Math.min(250, scrollHeight) + 'px';
-    }
-    el.style.overflowY = scrollHeight > 250 ? 'auto' : 'hidden';
-  }
-
-  function updateSendButtonState() {
-    const text = input.value.trim();
-    const dataList = document.getElementById('message-list-data');
-    const lastRole = dataList ? dataList.getAttribute('data-last-role') : '';
-    const isRegenMode = !text && window.stagedFiles.length === 0 && lastRole === 'user';
-
-    if (isRegenMode) {
-      sendBtn.innerHTML = window.getSvgSprite('regen', 18);
-      sendBtn.title = 'Regenerate';
-      sendBtn.dataset.mode = 'regen';
-    } else {
-      sendBtn.innerHTML = window.getSvgSprite('send', 18);
-      sendBtn.title = 'Send message';
-      sendBtn.dataset.mode = 'send';
-    }
-  }
-
-  window.updateSendButtonState = updateSendButtonState;
-
-  input.addEventListener('input', function () {
-    resizeTextarea(this);
-    updateSendButtonState();
-  });
-
-  if (sendBtn) {
-    updateSendButtonState();
-  }
-
   window.triggerGeneration = async function (chatId, asstDiv, isRegen = false, continueText = null) {
     const providerId = sendBtn.dataset.providerId;
     if (!providerId) {
@@ -55,8 +14,7 @@
       return;
     }
 
-    const errorToast = document.getElementById('error-toast');
-    if (errorToast) errorToast.classList.add('hidden');
+    window.hideErrorToast();
 
     if (currentController) {
       currentController.abort();
@@ -88,7 +46,7 @@
     const signal = currentController.signal;
 
     let attachmentIds = [];
-    if (!isRegen && window.stagedFiles.length > 0) {
+    if (!isRegen && window.stagedFiles && window.stagedFiles.length > 0) {
       const filesToUpload = [...window.stagedFiles];
       const formData = new FormData();
       filesToUpload.forEach((f) => formData.append('files', f));
@@ -104,7 +62,7 @@
       } catch (e) {
         console.error('Upload failed', e);
       }
-      window.clearUploadedFiles(filesToUpload);
+      if (window.clearUploadedFiles) window.clearUploadedFiles(filesToUpload);
     }
 
     const body = {
@@ -138,14 +96,14 @@
 
       if (!useStream) {
         const json = await res.json();
-        const fullText = json.full_text || '';
+        fullText = json.full_text || '';
         const messageId = json.message_id;
         const userMessageId = json.user_message_id;
 
         const contentDiv = asstDiv.querySelector('.message-content');
         if (contentDiv) {
           contentDiv.innerHTML = window.renderMessage(fullText);
-          window._updateReasoningButton(contentDiv);
+          if (window._updateReasoningButton) window._updateReasoningButton(contentDiv);
         }
         if (messageId) {
           asstDiv.id = 'message-' + messageId;
@@ -195,7 +153,7 @@
             const contentDiv = asstDiv.querySelector('.message-content');
             if (contentDiv) {
               window.preserveOpenStates(contentDiv, () => window.renderMessage(fullText));
-              window._updateReasoningButton(contentDiv);
+              if (window._updateReasoningButton) window._updateReasoningButton(contentDiv);
 
               if (window.autoScroll && window.scrollSentinel) {
                 window.scrollSentinel.scrollIntoView({ behavior: 'instant' });
@@ -212,7 +170,7 @@
       const contentDiv = asstDiv.querySelector('.message-content');
       if (contentDiv) {
         window.preserveOpenStates(contentDiv, () => window.renderMessage(fullText));
-        window._updateReasoningButton(contentDiv);
+        if (window._updateReasoningButton) window._updateReasoningButton(contentDiv);
       }
       if (messageId) {
         asstDiv.id = 'message-' + messageId;
@@ -221,31 +179,15 @@
 
       await window.refreshMessagesAfterStream(chatId, userMessageId, messageId);
 
-      const doneProvider =
-        window.APP_PROVIDERS && window.APP_PROVIDERS.find((p) => p.id === providerId);
-      if (
-        doneProvider &&
-        doneProvider.type === 'openrouter' &&
-        doneProvider.model &&
-        doneProvider.model.startsWith('anthropic/claude')
-      ) {
-        const doneSamplers = body.samplers || {};
-        if (doneSamplers.cache_enabled) {
-          localStorage.setItem('focus-cache-time-' + providerId, Date.now().toString());
-          localStorage.setItem(
-            'focus-cache-ttl-' + providerId,
-            doneSamplers.cache_ttl || 'ephemeral',
-          );
+      if (window.updateClaudeCache && window.APP_PROVIDERS) {
+        const doneProvider = window.APP_PROVIDERS.find(function (p) { return p.id === providerId; });
+        if (window.isClaudeProvider(doneProvider)) {
+          window.updateClaudeCache(providerId, body.samplers);
         }
       }
     } catch (err) {
       if (err.name !== 'AbortError') {
-        const errorToast = document.getElementById('error-toast');
-        const errorToastText = document.getElementById('error-toast-text');
-        if (errorToast && errorToastText) {
-          errorToastText.innerText = err.message;
-          errorToast.classList.remove('hidden');
-        }
+        window.showErrorToast(err.message);
 
         if (asstDiv && asstDiv.parentNode) {
           asstDiv.remove();
@@ -274,7 +216,7 @@
             const restoredContent = restoredDiv.querySelector('.message-content');
             if (restoredContent) {
               restoredContent.innerHTML = window.renderMessage(partialText);
-              window._updateReasoningButton(restoredContent);
+              if (window._updateReasoningButton) window._updateReasoningButton(restoredContent);
             }
           }
         }
@@ -307,12 +249,12 @@
       messageList.insertBefore(asstDiv, window.scrollSentinel);
       asstDiv.scrollIntoView({ behavior: 'smooth' });
 
-      window.triggerGeneration(chatId, asstDiv, false);
+      window.triggerGeneration(chatId, asstDiv, true);
       return;
     }
 
     const text = input.value.trim();
-    if (!text && window.stagedFiles.length === 0) return;
+    if (!text && (!window.stagedFiles || window.stagedFiles.length === 0)) return;
     if (!providerId) {
       alert('No provider configured. Add one in Providers.');
       return;
@@ -328,7 +270,7 @@
     window._tempUserMessage = text;
 
     input.value = '';
-    resizeTextarea(input);
+    if (window.resizeTextarea) window.resizeTextarea(input);
 
     const charName = dataList ? dataList.getAttribute('data-char-name') : 'Assistant';
     const charImagePath = dataList ? dataList.getAttribute('data-char-image') : '';
@@ -364,7 +306,7 @@
       el.innerHTML = window.renderMessage(raw);
       el.classList.add('processed');
     });
-    window.syncReasoningButtons(document);
+    if (window.syncReasoningButtons) window.syncReasoningButtons(document);
 
     document.getElementById('message-list')?.classList.add('ready');
 
@@ -382,7 +324,7 @@
         el.innerHTML = window.renderMessage(raw);
         el.classList.add('processed');
       });
-      window.syncReasoningButtons(evt.detail.target);
+      if (window.syncReasoningButtons) window.syncReasoningButtons(evt.detail.target);
       if (typeof updateSendButtonState === 'function') {
         updateSendButtonState();
       }

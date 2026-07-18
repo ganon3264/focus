@@ -52,21 +52,29 @@
     }
 
     window.currentEditAttachments.forEach((att, idx) => {
-      const el = document.createElement('div');
-      el.className = 'relative group shrink-0';
+      const thumbnail = window.createMediaThumbnail({
+        src: att.file_path || '',
+        mimeType: att.mime_type,
+        size: 64,
+        onDelete: function () {
+          window.deleteModalAttachment(idx);
+        },
+      });
 
-      if (att.mime_type.startsWith('image/')) {
-        el.innerHTML = `
-          <img src="/${att.file_path}" class="h-16 w-16 rounded object-cover border border-border" alt="attachment">
-          <button class="absolute -top-2 -right-2 bg-danger text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] hidden group-hover:flex z-10" onclick="window.deleteModalAttachment(${idx})" title="Delete">${window.getSvgSprite('close', 16)}</button>
-        `;
-      } else {
-        el.innerHTML = `
-          <div class="h-16 w-16 bg-surface-3 rounded border border-border flex items-center justify-center">${window.getSvgSprite('music', 24)}</div>
-          <button class="absolute -top-2 -right-2 bg-danger text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] hidden group-hover:flex z-10" onclick="window.deleteModalAttachment(${idx})" title="Delete">${window.getSvgSprite('close', 16)}</button>
-        `;
+      const wrapper = document.createElement('div');
+      wrapper.className = 'relative group shrink-0';
+      thumbnail.style.width = '64px';
+      thumbnail.style.height = '64px';
+
+      var deleteBtn = thumbnail.querySelector('button');
+      if (deleteBtn) {
+        deleteBtn.className =
+          'absolute -top-2 -right-2 bg-danger text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] hidden group-hover:flex z-10';
+        deleteBtn.innerHTML = window.getSvgSprite('close', 16);
       }
-      container.appendChild(el);
+
+      wrapper.appendChild(thumbnail);
+      container.appendChild(wrapper);
     });
   };
 

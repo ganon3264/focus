@@ -2,7 +2,7 @@ function importCharPage(e) {
   e.preventDefault();
   document.getElementById('import-indicator').classList.remove('hidden');
   const formData = new FormData(e.target);
-  fetch(api.charImport, {
+  fetch(window.api.charImport, {
     method: 'POST',
     body: formData,
   }).then(async (r) => {
@@ -59,7 +59,7 @@ function promptDeleteChar(charId, charName) {
   window.customConfirm(html, function () {
     const selected = document.querySelector('input[name="char_delete_option"]:checked').value;
     const delChats = selected === 'soft_with_chats';
-    fetch(api.charDelete(charId, delChats), {
+    fetch(window.api.charDelete(charId, delChats), {
       method: 'DELETE',
     }).then((r) => {
       if (r.ok) window.location.href = '/characters';
@@ -94,7 +94,7 @@ document.addEventListener('alpine:init', () => {
 });
 
 function uploadAdvancedAvatar(input, charId) {
-  handleAvatarUpload(input, api.charAvatar(charId), (data) => {
+  handleAvatarUpload(input, window.api.charAvatar(charId), (data) => {
     window.location.href = window.location.pathname + '?char=' + charId;
   });
 }
@@ -116,7 +116,7 @@ function saveCharCard(charId, btn) {
     alternate_greetings: alternateGreetings,
   };
 
-  fetch(api.characters(charId), {
+  fetch(window.api.characters(charId), {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -141,7 +141,7 @@ function addGreeting(charId) {
 }
 
 function updateBlock(charId, blockId, data) {
-  fetch(api.charBlock(charId, blockId), {
+  fetch(window.api.charBlock(charId, blockId), {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -149,7 +149,7 @@ function updateBlock(charId, blockId, data) {
 }
 
 function deleteBlock(charId, blockId) {
-  fetch(api.charBlock(charId, blockId), {
+  fetch(window.api.charBlock(charId, blockId), {
     method: 'DELETE',
   }).then((r) => {
     if (r.ok) {
@@ -159,7 +159,7 @@ function deleteBlock(charId, blockId) {
 }
 
 function addBlock(charId) {
-  fetch(api.charBlocks(charId), {
+  fetch(window.api.charBlocks(charId), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name: 'New Block', content: '', role: 'system' }),
@@ -202,7 +202,7 @@ function uploadCharMedia(charId, input) {
   if (!input.files || !input.files[0]) return;
   const formData = new FormData();
   formData.append('file', input.files[0]);
-  fetch(api.charImages(charId), {
+  fetch(window.api.charImages(charId), {
     method: 'POST',
     body: formData,
   })
@@ -211,7 +211,7 @@ function uploadCharMedia(charId, input) {
       const mediaSection = document.getElementById(`media-section-char-${charId}`);
       if (!mediaSection) return;
 
-      const div = buildMediaThumbnail(data, (e) => deleteCharMedia(charId, data.id), 'char-media');
+      const div = window.buildMediaThumbnail(data, (e) => deleteCharMedia(charId, data.id), 'char-media');
 
       mediaSection.insertBefore(div, mediaSection.lastElementChild.previousElementSibling);
 
@@ -223,7 +223,7 @@ function uploadCharMedia(charId, input) {
 }
 
 function deleteCharMedia(charId, imageId) {
-  fetch(api.charImage(charId, imageId), {
+  fetch(window.api.charImage(charId, imageId), {
     method: 'DELETE',
   }).then((r) => {
     if (r.ok) {
@@ -237,7 +237,7 @@ function uploadCharBlockMedia(charId, blockId, input) {
   if (!input.files || !input.files[0]) return;
   const formData = new FormData();
   formData.append('file', input.files[0]);
-  fetch(api.charBlockImages(charId, blockId), {
+  fetch(window.api.charBlockImages(charId, blockId), {
     method: 'POST',
     body: formData,
   })
@@ -246,7 +246,7 @@ function uploadCharBlockMedia(charId, blockId, input) {
       const mediaSection = document.getElementById(`media-section-${blockId}`);
       if (!mediaSection) return;
 
-      const div = buildMediaThumbnail(
+      const div = window.buildMediaThumbnail(
         data,
         (e) => deleteCharBlockMedia(charId, blockId, data.id),
         'media',
@@ -262,7 +262,7 @@ function uploadCharBlockMedia(charId, blockId, input) {
 }
 
 function deleteCharBlockMedia(charId, blockId, imageId) {
-  fetch(api.charBlockImage(charId, blockId, imageId), {
+  fetch(window.api.charBlockImage(charId, blockId, imageId), {
     method: 'DELETE',
   }).then((r) => {
     if (r.ok) {

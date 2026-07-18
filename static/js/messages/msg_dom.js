@@ -12,16 +12,26 @@
 
     let attachPreview = '';
     if (stagedFiles && stagedFiles.length > 0) {
-      attachPreview =
-        '<div class="flex gap-2 flex-wrap mb-2">' +
-        stagedFiles
-          .map((f) => {
-            if (f.type.startsWith('image/'))
-              return `<img src="${URL.createObjectURL(f)}" class="h-24 rounded object-cover border border-border cursor-pointer" onclick="openLightbox(this.src)">`;
-            return `<div class="h-16 bg-surface-3 px-2 rounded flex items-center text-xs">${window.getSvgSprite('music', 24)} ${f.name}</div>`;
-          })
-          .join('') +
-        '</div>';
+      var previews = [];
+      stagedFiles.forEach(function (f) {
+        if (f.type.startsWith('image/')) {
+          var url = URL.createObjectURL(f);
+          previews.push(
+            '<img src="' +
+              url +
+              '" class="h-24 rounded object-cover border border-border cursor-pointer" onclick="openLightbox(this.src)">',
+          );
+        } else {
+          previews.push(
+            '<div class="h-16 bg-surface-3 px-2 rounded flex items-center text-xs">' +
+              window.getSvgSprite('music', 24) +
+              ' ' +
+              window.escapeHtml(f.name) +
+              '</div>',
+          );
+        }
+      });
+      attachPreview = '<div class="flex gap-2 flex-wrap mb-2">' + previews.join('') + '</div>';
     }
 
     const avatarHtml = personaAvatarPath
