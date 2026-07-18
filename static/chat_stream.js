@@ -4,105 +4,8 @@
   const stopBtn = document.getElementById('stop-btn');
   const input = document.getElementById('chat-input');
   const messageList = document.getElementById('message-list');
-  const fileUpload = document.getElementById('file-upload');
-  const stagingArea = document.getElementById('staging-area');
-
-  let stagedFiles = [];
-
-  let autoScroll = true;
-  let scrollSentinel = null;
-  let chatCenterEl = null;
 
   if(!sendBtn || !input || !messageList) return;
-
-  function renderStagingArea() {
-    if (!stagingArea) return;
-    stagingArea.innerHTML = '';
-    stagedFiles.forEach((f, idx) => {
-      const el = document.createElement('div');
-      el.className = 'flex items-center gap-1 bg-surface-2 p-1 rounded border border-border text-xs relative group';
-      
-      let preview = '';
-      if (f.type.startsWith('image/')) {
-        const url = URL.createObjectURL(f);
-        const cropBtn = `<button class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black/70 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:bg-black/90" onclick="cropStagedImage(${idx})" title="Crop">${getSvgSprite('crop', 12)}</button>`;
-        
-        preview = `
-          <div class="relative h-8 w-8 flex-shrink-0">
-            <img src="${url}" class="h-full w-full object-cover rounded" onload="try{URL.revokeObjectURL(this.src)}catch(e){}">
-            ${cropBtn}
-          </div>
-        `;
-      } else {
-        preview = `<div class="h-8 w-8 bg-surface-3 flex items-center justify-center rounded flex-shrink-0">${getSvgSprite('music', 24)}</div>`;
-      }
-
-      el.innerHTML = `
-        ${preview}
-        <span class="max-w-[100px] truncate" title="${f.name}">${f.name}</span>
-        <button class="text-danger hover:text-white hover:bg-danger rounded w-5 h-5 flex items-center justify-center ml-1 transition-colors z-20" onclick="removeStagedFile(${idx})" title="Remove">${getSvgSprite('close', 16)}</button>
-      `;
-      stagingArea.appendChild(el);
-    });
-    
-    // Update button state whenever files are added/removed
-    if (typeof updateSendButtonState === 'function') {
-      updateSendButtonState();
-    }
-  }
-
-  window.removeStagedFile = function(idx) {
-    stagedFiles.splice(idx, 1);
-    renderStagingArea();
-  };
-  
-  window.cropStagedImage = function(idx) {
-    const file = stagedFiles[idx];
-    if (!file || !file.type.startsWith('image/')) return;
-    if (typeof openCropModal !== 'function') return;
-    
-    openCropModal(file, (croppedBlob) => {
-        // Replace the staged file with the new cropped blob
-        const newFile = new File([croppedBlob], file.name, { type: 'image/png' });
-        stagedFiles[idx] = newFile;
-        renderStagingArea();
-    }, { aspectRatio: NaN }); // Freeform crop
-  };
-
-  if (fileUpload) {
-    fileUpload.addEventListener('change', function(e) {
-      if (e.target.files.length) {
-        stagedFiles.push(...Array.from(e.target.files));
-        renderStagingArea();
-        e.target.value = ''; // reset
-      }
-    });
-  }
-
-  // Paste handling
-  window.addEventListener('paste', e => {
-      if (e.clipboardData && e.clipboardData.files && e.clipboardData.files.length > 0) {
-          // If the user pastes an image, grab it
-          const newFiles = Array.from(e.clipboardData.files).filter(f => f.type.startsWith('image/'));
-          if (newFiles.length > 0) {
-              stagedFiles.push(...newFiles);
-              renderStagingArea();
-              e.preventDefault();
-          }
-      }
-  });
-
-  // Drag and Drop
-  input.addEventListener('dragover', e => { e.preventDefault(); input.style.background = 'var(--surface-3)'; });
-  input.addEventListener('dragleave', e => { e.preventDefault(); input.style.background = ''; });
-  input.addEventListener('drop', e => {
-    e.preventDefault();
-    input.style.background = '';
-    if (e.dataTransfer.files && e.dataTransfer.files.length) {
-      stagedFiles.push(...Array.from(e.dataTransfer.files));
-      renderStagingArea();
-    }
-  });
 
   function resizeTextarea(el) {
     el.style.height = '44px';
@@ -121,14 +24,14 @@
     const text = input.value.trim();
     const dataList = document.getElementById('message-list-data');
     const lastRole = dataList ? dataList.getAttribute('data-last-role') : '';
-    const isRegenMode = !text && stagedFiles.length === 0 && lastRole === 'user';
-    
+    const isRegenMode = !text && window.stagedFiles.length === 0 && lastRole === 'user';
+
     if (isRegenMode) {
-      sendBtn.innerHTML = getSvgSprite('regen', 18);
+      sendBtn.innerHTML = window.getSvgSprite('regen', 18);
       sendBtn.title = "Regenerate";
       sendBtn.dataset.mode = "regen";
     } else {
-      sendBtn.innerHTML = getSvgSprite('send', 18);
+      sendBtn.innerHTML = window.getSvgSprite('send', 18);
       sendBtn.title = "Send message";
       sendBtn.dataset.mode = "send";
     }
@@ -139,7 +42,6 @@
     updateSendButtonState();
   });
 
-  // Call on load to set initial state
   if (sendBtn) {
     updateSendButtonState();
   }
@@ -168,7 +70,7 @@
         oldMsg.replaceWith(newMsg);
         htmx.process(newMsg);
         newMsg.querySelectorAll('.markdown-content:not(.processed)').forEach(function(el) {
-          el.innerHTML = renderMessage(el.textContent || '');
+          el.innerHTML = window.renderMessage(el.textContent || '');
           el.classList.add('processed');
         });
         if (inDeleteMode) {
@@ -184,17 +86,16 @@
       updateSendButtonState();
     }
 
-    ensureSentinelAndObserver();
+    window.ensureSentinelAndObserver();
   }
 
   window.triggerGeneration = async function(chatId, asstDiv, isRegen = false) {
     const providerId = sendBtn.dataset.providerId;
     if(!providerId){ alert('No provider configured. Add one in Providers.'); return; }
-    
-    // Hide error toast on new generation
+
     const errorToast = document.getElementById('error-toast');
     if (errorToast) errorToast.classList.add('hidden');
-    
+
     if(currentController){
       currentController.abort();
       currentController = null;
@@ -203,7 +104,8 @@
     sendBtn.classList.add('hidden');
     stopBtn.classList.remove('hidden');
     input.disabled = true;
-    fileUpload.disabled = true;
+    const fileUpload = document.getElementById('file-upload');
+    if (fileUpload) fileUpload.disabled = true;
 
     const contentDiv = asstDiv.querySelector('.message-content');
     if (contentDiv) {
@@ -213,10 +115,9 @@
     currentController = new AbortController();
     const signal = currentController.signal;
 
-    // Handle file upload if any (only on first send, not on regen)
     let attachmentIds = [];
-    if (!isRegen && stagedFiles.length > 0) {
-      const filesToUpload = [...stagedFiles];
+    if (!isRegen && window.stagedFiles.length > 0) {
+      const filesToUpload = [...window.stagedFiles];
       const formData = new FormData();
       filesToUpload.forEach(f => formData.append('files', f));
       try {
@@ -231,20 +132,19 @@
       } catch (e) {
         console.error("Upload failed", e);
       }
-      stagedFiles = stagedFiles.filter(f => !filesToUpload.includes(f));
-      renderStagingArea();
+      window.clearUploadedFiles(filesToUpload);
     }
 
     const body = {
       chat_id: chatId,
       provider_id: providerId,
-      user_message: window._tempUserMessage || "", // passed explicitly
+      user_message: window._tempUserMessage || "",
       samplers: window.getActiveSamplers ? window.getActiveSamplers() : {},
       regenerate: isRegen,
       attachment_ids: attachmentIds
     };
-    
-    window._tempUserMessage = ""; // clear
+
+    window._tempUserMessage = "";
 
     const useStream = body.samplers.stream_enabled !== false;
 
@@ -261,7 +161,6 @@
         throw new Error(errText || 'Stream request failed');
       }
 
-      // ── Non-streaming path ──────────────────────────────────────────────────
       if (!useStream) {
         const json = await res.json();
         const fullText = json.full_text || '';
@@ -270,7 +169,7 @@
 
         const contentDiv = asstDiv.querySelector('.message-content');
         if (contentDiv) {
-          contentDiv.innerHTML = renderMessage(fullText);
+          contentDiv.innerHTML = window.renderMessage(fullText);
         }
         if (messageId) {
           asstDiv.id = 'message-' + messageId;
@@ -280,7 +179,6 @@
         return;
       }
 
-      // ── Streaming path ──────────────────────────────────────────────────────
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
@@ -303,7 +201,6 @@
           if(json.type === 'start'){
             messageId = json.message_id;
             userMessageId = json.user_message_id;
-            // Set user message div ID so the OOB swap can match it
             if(json.user_message_id){
               const userDiv = asstDiv.previousElementSibling;
               if(userDiv && userDiv.classList.contains('message')){
@@ -314,22 +211,20 @@
             fullText += json.token;
             const contentDiv = asstDiv.querySelector('.message-content');
             if(contentDiv) {
-              // Preserve state of any opened reasoning blocks
               const openStates = new Set();
               contentDiv.querySelectorAll('details.reasoning[open]').forEach(d => {
                 if (d.dataset.thinkId) openStates.add(d.dataset.thinkId);
               });
-              
-              contentDiv.innerHTML = renderMessage(fullText);
-              
-               // Restore open states
+
+              contentDiv.innerHTML = window.renderMessage(fullText);
+
               openStates.forEach(id => {
                 const el = contentDiv.querySelector(`details.reasoning[data-think-id="${id}"]`);
                 if (el) el.setAttribute('open', '');
               });
 
-              if (autoScroll && scrollSentinel) {
-                scrollSentinel.scrollIntoView({behavior: 'instant'});
+              if (window.autoScroll && window.scrollSentinel) {
+                window.scrollSentinel.scrollIntoView({behavior: 'instant'});
               }
             }
           } else if(json.error){
@@ -342,14 +237,13 @@
 
       const contentDiv = asstDiv.querySelector('.message-content');
       if(contentDiv){
-        // Preserve state one last time for final render
         const openStates = new Set();
         contentDiv.querySelectorAll('details.reasoning[open]').forEach(d => {
           if (d.dataset.thinkId) openStates.add(d.dataset.thinkId);
         });
-        
-        contentDiv.innerHTML = renderMessage(fullText);
-        
+
+        contentDiv.innerHTML = window.renderMessage(fullText);
+
         openStates.forEach(id => {
           const el = contentDiv.querySelector(`details.reasoning[data-think-id="${id}"]`);
           if (el) el.setAttribute('open', '');
@@ -364,7 +258,6 @@
 
     } catch(err){
       if(err.name !== 'AbortError'){
-        // Show error toast
         const errorToast = document.getElementById('error-toast');
         const errorToastText = document.getElementById('error-toast-text');
         if (errorToast && errorToastText) {
@@ -372,14 +265,10 @@
           errorToast.classList.remove('hidden');
         }
 
-        // Remove the in-progress bubble (server rolled back its DB row)
         if (asstDiv && asstDiv.parentNode) {
           asstDiv.remove();
         }
 
-        // Full refresh so server-rendered message list reflects rolled-back state.
-        // htmx:afterSwap handler will re-run updateSendButtonState(),
-        // which reads data-last-role from the fresh sentinel.
         htmx.ajax('GET', api.partials.messageList(chatId), {target:'#message-list', swap:'innerHTML'});
       }
     } finally {
@@ -387,87 +276,51 @@
       sendBtn.classList.remove('hidden');
       stopBtn.classList.add('hidden');
       input.disabled = false;
-      fileUpload.disabled = false;
+      const fileUpload = document.getElementById('file-upload');
+      if (fileUpload) fileUpload.disabled = false;
     }
   };
 
   sendBtn.addEventListener('click', async function(){
     const chatId = sendBtn.dataset.chatId;
     const providerId = sendBtn.dataset.providerId;
-    
+
     if (sendBtn.dataset.mode === 'regen') {
       if(!providerId){ alert('No provider configured. Add one in Providers.'); return; }
-      
+
       const dataList = document.getElementById('message-list-data');
       const charName = dataList ? dataList.getAttribute('data-char-name') : 'Assistant';
       const charImagePath = dataList ? dataList.getAttribute('data-char-image') : '';
-      const avatarHtml = charImagePath ? `<img src="/${charImagePath}" alt="">` : escapeHtml(charName[0] || 'A');
 
-      const asstDiv = document.createElement('div');
-      asstDiv.className = 'message';
-      asstDiv.id = 'streaming-message';
-      asstDiv.innerHTML = `
-        <div class="message-avatar">${avatarHtml}</div>
-        <div class="message-body">
-          <div class="message-header">${escapeHtml(charName)}</div>
-          <div class="message-content markdown-content processed"></div>
-        </div>
-      `;
-      messageList.insertBefore(asstDiv, scrollSentinel);
+      const asstDiv = window.createAssistantPlaceholderDiv(charName, charImagePath);
+      messageList.insertBefore(asstDiv, window.scrollSentinel);
       asstDiv.scrollIntoView({behavior:'smooth'});
 
-      window.triggerGeneration(chatId, asstDiv, false); // pass false so we create a NEW message, not overwrite last
+      window.triggerGeneration(chatId, asstDiv, false);
       return;
     }
 
     const text = input.value.trim();
-    if(!text && stagedFiles.length === 0) return;
+    if(!text && window.stagedFiles.length === 0) return;
     if(!providerId){ alert('No provider configured. Add one in Providers.'); return; }
 
     const personaNameEl = document.querySelector('#persona-selector .sidebar-item.active');
     const personaInitial = personaNameEl ? personaNameEl.textContent.trim()[0] : 'U';
-    const userDiv = document.createElement('div');
-    userDiv.className = 'message';
-    
-    // Quick preview of attachments
-    let attachPreview = '';
-    if (stagedFiles.length > 0) {
-      attachPreview = '<div class="flex gap-2 flex-wrap mb-2">' + stagedFiles.map(f => {
-        if (f.type.startsWith('image/')) return `<img src="${URL.createObjectURL(f)}" class="h-24 rounded object-cover border border-border cursor-pointer" onclick="openLightbox(this.src)">`;
-        return `<div class="h-16 bg-surface-3 px-2 rounded flex items-center text-xs">${getSvgSprite('music', 24)} ${f.name}</div>`;
-      }).join('') + '</div>';
-    }
 
-    userDiv.innerHTML = `
-      <div class="message-avatar">${escapeHtml(personaInitial)}</div>
-      <div class="message-body">
-        ${attachPreview}
-        <div class="message-content markdown-content processed">${renderMessage(text)}</div>
-      </div>
-    `;
-    messageList.insertBefore(userDiv, scrollSentinel);
-    
+    const userDiv = window.createUserMessageDiv(text, window.stagedFiles, personaInitial);
+    messageList.insertBefore(userDiv, window.scrollSentinel);
+
     window._tempUserMessage = text;
-    
+
     input.value = '';
     resizeTextarea(input);
 
     const dataList = document.getElementById('message-list-data');
     const charName = dataList ? dataList.getAttribute('data-char-name') : 'Assistant';
     const charImagePath = dataList ? dataList.getAttribute('data-char-image') : '';
-    const avatarHtml = charImagePath ? `<img src="/${charImagePath}" alt="">` : escapeHtml(charName[0] || 'A');
 
-    const asstDiv = document.createElement('div');
-    asstDiv.className = 'message';
-    asstDiv.id = 'streaming-message';
-    asstDiv.innerHTML = `
-      <div class="message-avatar">${avatarHtml}</div>
-      <div class="message-body">
-        <div class="message-header">${escapeHtml(charName)}</div>
-        <div class="message-content markdown-content processed"></div>
-      </div>
-    `;
-    messageList.insertBefore(asstDiv, scrollSentinel);
+    const asstDiv = window.createAssistantPlaceholderDiv(charName, charImagePath);
+    messageList.insertBefore(asstDiv, window.scrollSentinel);
     asstDiv.scrollIntoView({behavior:'smooth'});
 
     window.triggerGeneration(chatId, asstDiv, false);
@@ -480,279 +333,24 @@
     }
   });
 
-  function escapeHtml(text){
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-  }
-
-  function extractThoughtsSafely(text) {
-    const codeBlocks = [];
-    let processed = text.replace(/```[\s\S]*?(?:```|$)/g, match => {
-      codeBlocks.push(match);
-      return `%%%PYVERN_CODE_${codeBlocks.length - 1}%%%`;
-    });
-    
-    processed = processed.replace(/`[^`\n]*`/g, match => {
-      codeBlocks.push(match);
-      return `%%%PYVERN_CODE_${codeBlocks.length - 1}%%%`;
-    });
-
-    // Remove thought signature completely from UI
-    processed = processed.replace(/<thought_signature>([\s\S]*?)(?:<\/thought_signature>|$)/g, '');
-    
-    const thoughts = [];
-    processed = processed.replace(/<think>([\s\S]*?)(?:<\/think>|$)/g, function(match, p1) {
-      const isClosed = match.includes('</think>');
-      thoughts.push({ content: p1, isClosed: isClosed });
-      return `\n\n%%%THINK_BLOCK_${thoughts.length - 1}%%%\n\n`;
-    });
-    
-    for (let j = 0; j < codeBlocks.length; j++) {
-      const marker = `%%%PYVERN_CODE_${j}%%%`;
-      processed = processed.split(marker).join(codeBlocks[j]);
-      for (let t of thoughts) {
-          t.content = t.content.split(marker).join(codeBlocks[j]);
-      }
-    }
-    
-    return { thoughts, processed };
-  }
-
-  function renderMessage(text) {
-    if (!text) return "";
-    
-    // 1. Extract and protect thinking blocks avoiding code blocks
-    const extracted = extractThoughtsSafely(text);
-    const thoughts = extracted.thoughts;
-    let processed = extracted.processed;
-    
-    // 2. Parse Markdown and Sanitize the rest
-    marked.use({ breaks: true });
-    let html = DOMPurify.sanitize(marked.parse(processed));
-    
-    // 2b. Wrap double-quoted text in accent spans (protect code blocks first)
-    const codeStash = [];
-    html = html.replace(/<(code|pre)\b[^>]*>[\s\S]*?<\/\1>/g, m => {
-      codeStash.push(m);
-      return `%%%ACCENT_CODE_${codeStash.length - 1}%%%`;
-    });
-    // Walk remaining HTML, wrapping quotes only when not inside a styled tag
-    {
-      let result = '';
-      const tagStack = [];
-      for (let pos = 0; pos < html.length; pos++) {
-        const ch = html[pos];
-        if (ch === '<') {
-          const tagEnd = html.indexOf('>', pos);
-          if (tagEnd === -1) { result += ch; continue; }
-          const tag = html.slice(pos, tagEnd + 1);
-
-          if (tag.startsWith('</')) {
-            const tagName = tag.match(/<\/(\w+)/)?.[1];
-            if (tagName) {
-              for (let j = tagStack.length - 1; j >= 0; j--) {
-                if (tagStack[j].name === tagName) {
-                  tagStack.splice(j);
-                  break;
-                }
-              }
-            }
-          } else if (!tag.endsWith('/>') && !tag.match(/<(area|base|br|col|embed|hr|img|input|link|meta|param|source|track|wbr)\b/i)) {
-            const tagName = tag.match(/<(\w+)/)?.[1];
-            if (tagName) {
-              tagStack.push({ name: tagName, styled: /style\s*=/i.test(tag) });
-            }
-          }
-
-          result += tag;
-          pos = tagEnd;
-        } else if (ch === '"' && !tagStack.some(t => t.styled)) {
-          let end = pos + 1;
-          while (end < html.length && html[end] !== '"' && html[end] !== '<') end++;
-          if (end < html.length && html[end] === '"') {
-            result += '<span class="accent-quote">"' + html.slice(pos + 1, end) + '"</span>';
-            pos = end;
-          } else {
-            result += ch;
-          }
-        } else {
-          result += ch;
-        }
-      }
-      html = result;
-    }
-    html = html.replace(/%%%ACCENT_CODE_(\d+)%%%/g, (_, i) => codeStash[+i]);
-    
-    // 3. Restore thinking blocks with exact line breaks
-    for (let i = 0; i < thoughts.length; i++) {
-      const t = thoughts[i];
-      // Escape HTML entities, then replace \n with <br> to preserve line breaks exactly
-      const safeInner = escapeHtml(t.content).trim().replace(/\n/g, '<br>');
-      // Use a custom attribute to track if the user has manually opened it during streaming
-      const detailsHtml = `<details class="reasoning" data-think-id="${i}"><summary>Thought Process</summary><div class="reasoning-content">${safeInner}</div></details>`;
-      
-      // DOMPurify + marked might wrap the placeholder in <p> tags, so we catch them
-      const regex = new RegExp(`<p>%%%THINK_BLOCK_${i}%%%<\\/p>|%%%THINK_BLOCK_${i}%%%`, 'g');
-      html = html.replace(regex, () => detailsHtml);
-    }
-    
-    return html;
-  }
-
-  window.editMessage = async function(messageId, chatId){
+  window.branchFromMessage = async function(messageId, chatId) {
     try {
-      const res = await fetch(api.chatMessage(chatId, messageId));
-      if (!res.ok) throw new Error("Failed to load message");
-      const data = await res.json();
-      const rawText = data.content;
-
-      // Extract thought process safely
-      const extracted = extractThoughtsSafely(rawText);
-      let thoughtText = extracted.thoughts.map(t => t.content.trim()).join('\n\n');
-      
-      let messageText = extracted.processed;
-      for (let i = 0; i < extracted.thoughts.length; i++) {
-         messageText = messageText.replace(new RegExp(`\\s*%%%THINK_BLOCK_${i}%%%\\s*`), '\n\n');
-      }
-      messageText = messageText.trim();
-
-      document.getElementById('edit-msg-id').value = messageId;
-      document.getElementById('edit-msg-chat-id').value = chatId;
-
-      const thoughtContainer = document.getElementById('edit-msg-thought-container');
-      const thoughtInput = document.getElementById('edit-msg-thought');
-      if (thoughtText) {
-        thoughtInput.value = thoughtText;
-        thoughtContainer.style.display = 'block';
-      } else {
-        thoughtInput.value = "";
-        thoughtContainer.style.display = 'none';
-      }
-
-      document.getElementById('edit-msg-content').value = messageText;
-      
-      window.currentEditAttachments = data.attachments || [];
-      renderEditModalAttachments();
-      
-      // We assume openModal exists globally from base.html/chat.html
-      if(window.openModal) window.openModal('modal-edit-message');
-      else document.getElementById('modal-edit-message').style.display = 'grid';
-
-    } catch (err) {
-      alert("Error editing message: " + err.message);
-    }
+      const r = await fetch(api.chatBranch(chatId, messageId), { method: 'POST' });
+      if (!r.ok) throw new Error('Branch failed');
+      const d = await r.json();
+      window.location.href = '/chat/' + d.id;
+    } catch(e) { alert(e.message); }
   };
-
-  window.renderEditModalAttachments = function() {
-      const container = document.getElementById('edit-msg-attachments');
-      if (!container) return;
-      
-      container.innerHTML = '';
-      if (window.currentEditAttachments.length === 0) {
-          container.innerHTML = '<div class="text-xs text-muted w-full text-center italic py-2">No attachments</div>';
-          return;
-      }
-      
-      window.currentEditAttachments.forEach((att, idx) => {
-          const el = document.createElement('div');
-          el.className = 'relative group flex-shrink-0';
-          
-          if (att.mime_type.startsWith('image/')) {
-              el.innerHTML = `
-                  <img src="/${att.file_path}" class="h-16 w-16 rounded object-cover border border-border" alt="attachment">
-                  <button class="absolute -top-2 -right-2 bg-danger text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] hidden group-hover:flex z-10" onclick="deleteModalAttachment(${idx})" title="Delete">${getSvgSprite('close', 16)}</button>
-              `;
-          } else {
-              el.innerHTML = `
-                  <div class="h-16 w-16 bg-surface-3 rounded border border-border flex items-center justify-center">${getSvgSprite('music', 24)}</div>
-                  <button class="absolute -top-2 -right-2 bg-danger text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] hidden group-hover:flex z-10" onclick="deleteModalAttachment(${idx})" title="Delete">${getSvgSprite('close', 16)}</button>
-              `;
-          }
-          container.appendChild(el);
-      });
-  };
-
-  window.saveMessageEdit = async function(){
-    const messageId = document.getElementById('edit-msg-id').value;
-    const chatId = document.getElementById('edit-msg-chat-id').value;
-    
-    let text = document.getElementById('edit-msg-content').value.trim();
-    
-    const thoughtContainer = document.getElementById('edit-msg-thought-container');
-    if (thoughtContainer.style.display !== 'none') {
-      const thoughtText = document.getElementById('edit-msg-thought').value.trim();
-      if (thoughtText) {
-        text = `<think>\n${thoughtText}\n</think>\n\n${text}`;
-      }
-    }
-
-    try {
-      await fetch(api.chatMessage(chatId, messageId), {
-        method: 'PATCH',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({
-            content: text,
-            attachment_ids: window.currentEditAttachments.map(a => a.id)
-        })
-      });
-      
-      if(window.closeModal) window.closeModal('modal-edit-message');
-      else document.getElementById('modal-edit-message').style.display = 'none';
-      
-      htmx.ajax('GET', api.partials.messageList(chatId), {target:'#message-list', swap:'innerHTML'});
-    } catch(err) {
-      alert("Failed to save edit: " + err.message);
-    }
-  };
-
-  function ensureSentinelAndObserver() {
-    const ml = document.getElementById('message-list');
-    const cc = document.querySelector('.chat-center');
-    if (!ml || !cc) return;
-
-    chatCenterEl = cc;
-
-    let s = document.getElementById('scroll-sentinel');
-    if (!s) {
-      s = document.createElement('div');
-      s.id = 'scroll-sentinel';
-      s.style.height = '1px';
-      ml.appendChild(s);
-    } else if (ml.lastChild !== s) {
-      ml.appendChild(s);
-    }
-    scrollSentinel = s;
-
-    if (window._scrollObserver) window._scrollObserver.disconnect();
-    window._scrollObserver = new IntersectionObserver(function(_ref) {
-      autoScroll = _ref[0].isIntersecting;
-    }, { root: cc, threshold: 0 });
-    window._scrollObserver.observe(s);
-  }
 
   document.addEventListener('DOMContentLoaded', function(){
     document.querySelectorAll('.markdown-content').forEach(function(el){
       const raw = el.textContent || '';
-      el.innerHTML = renderMessage(raw);
+      el.innerHTML = window.renderMessage(raw);
       el.classList.add('processed');
     });
 
-    ensureSentinelAndObserver();
-
-    var navEntries = performance.getEntriesByType('navigation');
-    if (navEntries.length > 0 && navEntries[0].type === 'navigate') {
-      requestAnimationFrame(function() {
-        requestAnimationFrame(function() {
-          var s = document.getElementById('scroll-sentinel');
-          if (s) s.scrollIntoView({block: 'end'});
-        });
-      });
-    }
-
     document.getElementById('message-list')?.classList.add('ready');
-    
-    // Restore provider from localStorage
+
     const savedProvider = localStorage.getItem('pyvern-provider-id');
     if (savedProvider) {
       const sendBtn = document.getElementById('send-btn');
@@ -760,8 +358,6 @@
     }
   });
 
-  // Global event delegation to handle details toggle via mousedown
-  // This bypasses the click event cancellation caused by rapid innerHTML updates during streaming
   document.addEventListener('mousedown', function(e) {
     if (e.target && e.target.tagName === 'SUMMARY') {
       const details = e.target.closest('details.reasoning');
@@ -776,7 +372,6 @@
     }
   });
 
-  // Prevent default click behavior on summary to avoid double-toggling if a click does go through
   document.addEventListener('click', function(e) {
     if (e.target && e.target.tagName === 'SUMMARY' && e.target.closest('details.reasoning')) {
       e.preventDefault();
@@ -787,150 +382,14 @@
     if(evt.detail.target.id === 'message-list'){
       evt.detail.target.querySelectorAll('.markdown-content').forEach(function(el){
         const raw = el.textContent || '';
-        el.innerHTML = renderMessage(raw);
+        el.innerHTML = window.renderMessage(raw);
         el.classList.add('processed');
       });
-      // Ensure the send button correctly updates its mode after DOM changes (like deletions or errors)
-    if (typeof updateSendButtonState === 'function') {
-      updateSendButtonState();
-    }
-
-    ensureSentinelAndObserver();
-  }
-  });
-
-// --- DELETE MODE & BULK DELETE ---
-  let lastDeleteSelection = [];
-  
-  window.enterDeleteMode = function(startMessageId) {
-    document.getElementById('standard-input-container').classList.add('hidden');
-    document.getElementById('delete-toolbar').classList.remove('hidden');
-    document.getElementById('delete-toolbar').classList.add('flex');
-    
-    // Hide normal actions, show checkboxes
-    document.querySelectorAll('.normal-mode-actions').forEach(el => el.classList.add('hidden'));
-    document.querySelectorAll('.delete-mode-checkbox').forEach(el => el.classList.remove('hidden'));
-    
-    if (startMessageId) {
-      // Pre-select the clicked message and all following messages
-      let foundStart = false;
-      document.querySelectorAll('.message').forEach(msgDiv => {
-        if (msgDiv.dataset.messageId === startMessageId) foundStart = true;
-        const cb = msgDiv.querySelector('.msg-select-checkbox');
-        if (cb) cb.checked = foundStart;
-      });
-    } else {
-      // Restore previous selection if re-entering after DOM swap
-      document.querySelectorAll('.msg-select-checkbox').forEach(cb => {
-         if (lastDeleteSelection.includes(cb.value)) cb.checked = true;
-      });
-    }
-    
-    updateDeleteSelection();
-  };
-
-  window.exitDeleteMode = function() {
-    document.getElementById('delete-toolbar').classList.remove('flex');
-    document.getElementById('delete-toolbar').classList.add('hidden');
-    document.getElementById('standard-input-container').classList.remove('hidden');
-    
-    document.querySelectorAll('.normal-mode-actions').forEach(el => el.classList.remove('hidden'));
-    document.querySelectorAll('.delete-mode-checkbox').forEach(el => el.classList.add('hidden'));
-    
-    document.querySelectorAll('.msg-select-checkbox').forEach(cb => cb.checked = false);
-    lastDeleteSelection = [];
-  };
-
-  window.updateDeleteSelection = function() {
-    const selectedCbs = document.querySelectorAll('.msg-select-checkbox:checked');
-    lastDeleteSelection = Array.from(selectedCbs).map(cb => cb.value);
-    const countEl = document.getElementById('delete-selected-count');
-    if (countEl) countEl.textContent = lastDeleteSelection.length;
-  };
-
-  window.bulkDeleteSelected = async function(chatId) {
-    const selected = Array.from(document.querySelectorAll('.msg-select-checkbox:checked')).map(cb => cb.value);
-    if (selected.length === 0) {
-        exitDeleteMode();
-        return;
-    }
-    
-    window.customConfirm(`Delete ${selected.length} message(s)?`, async () => {
-        try {
-            const res = await fetch(api.chatBulkDelete(chatId), {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ message_ids: selected })
-            });
-            if (res.ok) {
-                htmx.ajax('GET', api.partials.messageList(chatId), {target: '#message-list', swap: 'innerHTML'});
-            } else {
-                alert('Failed to delete messages');
-            }
-        } catch (e) {
-            console.error(e);
-        }
-        
-        exitDeleteMode();
-    });
-  };
-
-  // --- EXISTING MESSAGE ATTACHMENTS ---
-  window.uploadMessageAttachment = async function(inputEl) {
-      if (!inputEl.files.length) return;
-      await uploadMessageAttachmentFiles(Array.from(inputEl.files));
-      inputEl.value = '';
-  };
-
-  window.uploadMessageAttachmentFiles = async function(files) {
-      if (!files.length) return;
-      const chatId = document.getElementById('edit-msg-chat-id').value;
-      if (!chatId) return;
-      
-      const formData = new FormData();
-      files.forEach(f => formData.append('files', f));
-      
-      try {
-          const res = await fetch(api.chatAttachments(chatId), {
-              method: 'POST',
-              body: formData
-          });
-          if (res.ok) {
-              const data = await res.json();
-              window.currentEditAttachments.push(...data.attachments);
-              renderEditModalAttachments();
-          } else {
-              alert("Failed to upload attachment");
-          }
-      } catch(err) {
-          console.error(err);
+      if (typeof updateSendButtonState === 'function') {
+        updateSendButtonState();
       }
-  };
 
-  setupDropZone('#edit-msg-attachments', window.uploadMessageAttachmentFiles);
-
-  window.deleteModalAttachment = function(idx) {
-      window.currentEditAttachments.splice(idx, 1);
-      renderEditModalAttachments();
-  };
-
-  window.branchFromMessage = async function(messageId, chatId) {
-    try {
-      const r = await fetch(api.chatBranch(chatId, messageId), { method: 'POST' });
-      if (!r.ok) throw new Error('Branch failed');
-      const d = await r.json();
-      window.location.href = '/chat/' + d.id;
-    } catch(e) { alert(e.message); }
-  };
-
-  // Re-apply delete mode if DOM is swapped while active
-  document.body.addEventListener('htmx:afterSettle', function(e) {
-      if (e.target.id === 'message-list') {
-          const toolbar = document.getElementById('delete-toolbar');
-          if (toolbar && !toolbar.classList.contains('hidden')) {
-              enterDeleteMode();
-          }
-      }
+      window.ensureSentinelAndObserver();
+    }
   });
 })();
-
