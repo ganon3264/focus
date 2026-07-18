@@ -132,6 +132,10 @@
         if (window.ResizeObserver) {
           new ResizeObserver(update).observe(el);
         }
+
+        el.addEventListener('transitionend', function (e) {
+          if (e.propertyName === 'opacity') requestAnimationFrame(update);
+        });
       };
 
       document.addEventListener('DOMContentLoaded', function () {

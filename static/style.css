@@ -799,6 +799,24 @@
     background: var(--surface-3);
   }
 
+  .edit-block-ta {
+    width: 100%;
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    font-size: 0.9rem;
+    resize: vertical;
+    padding: 0.5rem;
+    outline: none;
+    transition: border-color var(--transition), box-shadow var(--transition);
+    line-height: 1.5;
+  }
+  .edit-block-ta:focus {
+    border-color: var(--accent);
+    box-shadow: var(--shadow-glow);
+  }
+
   /* Textarea Expander */
   .textarea-wrapper {
     position: relative;

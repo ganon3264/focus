@@ -46,6 +46,36 @@
     return card;
   }
 
+  function autoResizeTextarea(ta) {
+    var lines = (ta.value || '').split('\n').length;
+    ta.rows = Math.max(3, Math.min(lines, 20));
+  }
+
+  function createEditTextarea(idx, bgVar, content) {
+    var ta = document.createElement('textarea');
+    ta.className = 'edit-block-ta';
+    ta.id = 'edit-msg-ta-' + idx;
+    ta.setAttribute('data-block-idx', idx);
+    ta.style.background = 'var(' + bgVar + ')';
+    ta.rows = 3;
+    ta.value = content || '';
+    autoResizeTextarea(ta);
+
+    var wrapper = document.createElement('div');
+    wrapper.className = 'textarea-wrapper';
+    wrapper.appendChild(ta);
+
+    var tpl = document.getElementById('edit-msg-expand-btn');
+    if (tpl) {
+      var btn = tpl.content.cloneNode(true).firstElementChild;
+      btn.setAttribute('data-target-id', ta.id);
+      btn.setAttribute('data-expander-title', 'Edit Block');
+      wrapper.appendChild(btn);
+    }
+
+    return wrapper;
+  }
+
   function renderEditBlocks(blocks) {
     var container = document.getElementById('edit-msg-blocks');
     if (!container) return;
@@ -57,35 +87,28 @@
       if (blk.type === 'reasoning') {
         var details = document.createElement('details');
         details.className = 'details reasoning-block';
-        details.setAttribute('open', '');
-        details.style.cssText = 'padding-left:3rem';
         details.innerHTML =
           '<summary>' +
           '<svg class="w-3 h-3 chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>' +
           '<span class="text-xs text-muted">Reasoning</span>' +
           '</summary>' +
-          '<div style="margin-top:0.5rem"><textarea class="edit-block-ta" data-block-idx="' + i + '" style="background:var(--surface-3);border:1px solid var(--border);color:var(--text);border-radius:6px;font-family:inherit;resize:vertical;width:100%;padding:0.5rem" rows="4"></textarea></div>';
+          '<div style="margin-top:0.5rem"></div>';
         container.appendChild(details);
-        details.querySelector('textarea').value = blk.content;
+        var wrapper = details.querySelector('div');
+        wrapper.appendChild(createEditTextarea(i, '--surface-3', blk.content));
       } else if (blk.type === 'text') {
-        var div = document.createElement('div');
-        div.style.cssText = 'padding-left:3rem';
-        div.innerHTML =
-          '<textarea class="edit-block-ta" data-block-idx="' + i + '" style="background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:6px;font-family:inherit;resize:vertical;width:100%;padding:0.5rem" rows="4"></textarea>';
-        container.appendChild(div);
-        div.querySelector('textarea').value = blk.content;
+        container.appendChild(createEditTextarea(i, '--surface-2', blk.content));
       } else if (blk.type === 'tool_boundary') {
         if (blk.calls && blk.calls.length > 0) {
           var tcSection = document.createElement('div');
           tcSection.className = 'tool-calls-section';
-          tcSection.style.cssText = 'padding-left:3rem';
           for (var c = 0; c < blk.calls.length; c++) {
             tcSection.appendChild(renderToolCallCard(blk.calls[c]));
           }
           container.appendChild(tcSection);
         } else {
           var sep = document.createElement('div');
-          sep.style.cssText = 'height:0;border-bottom:1px solid var(--border);margin:0.25rem 0 0.25rem 3rem;opacity:0.4';
+          sep.style.cssText = 'height:0;border-bottom:1px solid var(--border);margin:0.25rem 0;opacity:0.4';
           container.appendChild(sep);
         }
       }
