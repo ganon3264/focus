@@ -93,12 +93,19 @@ class FetchModelsRequest(BaseModel):
     base_url: str | None = None
     api_key: str | None = None
     params: dict = {}
+    provider_id: str | None = None
 
 
 @router.post("/fetch_models")
 async def fetch_models(body: FetchModelsRequest, db: aiosqlite.Connection = Depends(get_db)):
     """Fetch available models from a provider and cache the result for 5 minutes."""
     api_key = await resolve_secret_key(db, body.api_key or "")
+
+    if not api_key and body.provider_id:
+        async with db.execute("SELECT api_key FROM providers WHERE id = ?", (body.provider_id,)) as cur:
+            row = await cur.fetchone()
+            if row and row["api_key"]:
+                api_key = await resolve_secret_key(db, row["api_key"])
 
     cache_key = f"{body.type}_{hash(api_key)}"
     cached = await _model_cache.get(cache_key)

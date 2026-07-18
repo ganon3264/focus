@@ -6,7 +6,7 @@ logger = get_logger("providers.deepseek")
 
 class DeepseekProvider(OpenAICompatProvider):
     def __init__(self, api_key: str, model: str, params: dict):
-        base_url = "https://api.deepseek.com/v1"
+        base_url = "https://api.deepseek.com/beta"
         super().__init__(base_url, api_key, model, params)
 
     async def stream_complete(self, messages: list[dict], **kwargs):
@@ -20,6 +20,9 @@ class DeepseekProvider(OpenAICompatProvider):
             extra_body["thinking"] = {"type": "enabled"}
 
         kwargs["extra_body"] = extra_body
+
+        if messages and messages[-1].get("role") == "assistant":
+            messages[-1]["prefix"] = True
 
         logger.debug("DeepSeek extra_body=%s", extra_body)
         async for chunk in super().stream_complete(messages, **kwargs):

@@ -13,6 +13,20 @@ var PROVIDER_FIELD_CONFIG = {
     vertexFields: true,
     modelRequired: true,
   },
+  deepseek: {
+    orFields: false,
+    modelInput: true,
+    baseUrl: false,
+    vertexFields: false,
+    modelRequired: true,
+  },
+  moonshot: {
+    orFields: false,
+    modelInput: true,
+    baseUrl: false,
+    vertexFields: false,
+    modelRequired: true,
+  },
 };
 
 function toggleProviderFields(prefix) {
@@ -102,10 +116,13 @@ async function forceFetchModels() {
   }
 
   try {
+    let body = { type, base_url: baseUrl, api_key: apiKey, params };
+    if (prefix !== 'new-prov') body.provider_id = prefix;
+
     const res = await fetch(api.providerFetchModels, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type, base_url: baseUrl, api_key: apiKey, params }),
+      body: JSON.stringify(body),
     });
 
     if (!res.ok) {
@@ -345,7 +362,7 @@ function extractData(form) {
     } catch (e) {
       data.params = {};
     }
-    data.base_url = '';
+    delete data.base_url;
   } else {
     try {
       data.params = JSON.parse(data.params || '{}');

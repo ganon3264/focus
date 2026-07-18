@@ -141,7 +141,7 @@ eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'modals', 
   });
   var data = extractData(form);
   assertEqual(data.model, 'gemini-2.0-flash', 'aistudio: model preserved');
-  assertEqual(data.base_url, '', 'aistudio: base_url empty');
+  assert(!data.base_url, 'aistudio: base_url omitted');
   assertEqual(data.api_key, 'sk-ai', 'aistudio: api_key preserved');
   assertDeepEqual(data.params, { foo: 'bar' }, 'aistudio: params parsed');
 })();
@@ -151,7 +151,7 @@ eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'modals', 
   var form = createMockForm({ name: 'DS', type: 'deepseek', model: 'deepseek-chat', params: '{}' });
   var data = extractData(form);
   assertEqual(data.model, 'deepseek-chat', 'deepseek: model preserved');
-  assertEqual(data.base_url, '', 'deepseek: base_url empty');
+  assert(!data.base_url, 'deepseek: base_url omitted');
 })();
 
 // ── Result ──
