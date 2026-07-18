@@ -57,6 +57,10 @@ app.mount("/static",  StaticFiles(directory="static"),  name="static")
 async def root():
     return FileResponse("static/index.html")
 
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    return FileResponse("static/favicon.svg")
+
 
 if __name__ == "__main__":
     import argparse
