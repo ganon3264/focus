@@ -145,7 +145,7 @@
   }
 
   async function refreshMessagesAfterStream(chatId, userMsgId, asstMsgId) {
-    const resp = await fetch('/partials/message-list/' + chatId);
+    const resp = await fetch(api.partials.messageList(chatId));
     if (!resp.ok) return;
     const html = await resp.text();
     const doc = new DOMParser().parseFromString(html, 'text/html');
@@ -218,7 +218,7 @@
       const formData = new FormData();
       filesToUpload.forEach(f => formData.append('files', f));
       try {
-        const uploadRes = await fetch(`/api/chats/${chatId}/attachments`, {
+        const uploadRes = await fetch(api.chatAttachments(chatId), {
           method: 'POST',
           body: formData
         });
@@ -245,7 +245,7 @@
     window._tempUserMessage = ""; // clear
 
     try {
-      const res = await fetch('/api/stream', {
+      const res = await fetch(api.stream, {
         method: 'POST',
         headers: {'Content-Type':'application/json'},
         body: JSON.stringify(body),
@@ -521,7 +521,7 @@
 
   window.editMessage = async function(messageId, chatId){
     try {
-      const res = await fetch(`/api/chats/${chatId}/messages/${messageId}`);
+      const res = await fetch(api.chatMessage(chatId, messageId));
       if (!res.ok) throw new Error("Failed to load message");
       const data = await res.json();
       const rawText = data.content;
@@ -607,7 +607,7 @@
     }
 
     try {
-      await fetch(`/api/chats/${chatId}/messages/${messageId}`, {
+      await fetch(api.chatMessage(chatId, messageId), {
         method: 'PATCH',
         headers: {'Content-Type':'application/json'},
         body: JSON.stringify({
@@ -619,7 +619,7 @@
       if(window.closeModal) window.closeModal('modal-edit-message');
       else document.getElementById('modal-edit-message').style.display = 'none';
       
-      htmx.ajax('GET', '/partials/message-list/' + chatId, {target:'#message-list', swap:'innerHTML'});
+      htmx.ajax('GET', api.partials.messageList(chatId), {target:'#message-list', swap:'innerHTML'});
     } catch(err) {
       alert("Failed to save edit: " + err.message);
     }
@@ -780,13 +780,13 @@
     
     window.customConfirm(`Delete ${selected.length} message(s)?`, async () => {
         try {
-            const res = await fetch(`/api/chats/${chatId}/messages/bulk_delete`, {
+            const res = await fetch(api.chatBulkDelete(chatId), {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ message_ids: selected })
             });
             if (res.ok) {
-                htmx.ajax('GET', `/partials/message-list/${chatId}`, {target: '#message-list', swap: 'innerHTML'});
+                htmx.ajax('GET', api.partials.messageList(chatId), {target: '#message-list', swap: 'innerHTML'});
             } else {
                 alert('Failed to delete messages');
             }
@@ -808,7 +808,7 @@
       Array.from(inputEl.files).forEach(f => formData.append('files', f));
       
       try {
-          const res = await fetch(`/api/chats/${chatId}/attachments`, {
+          const res = await fetch(api.chatAttachments(chatId), {
               method: 'POST',
               body: formData
           });

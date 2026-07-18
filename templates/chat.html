@@ -436,9 +436,9 @@ function openModal(id){
   document.getElementById(id).style.display = 'grid';
   const body = document.getElementById(id).querySelector('.modal-content > div:last-child');
   if(body && body.textContent === 'Loading…'){
-    if(id === 'modal-characters') htmx.ajax('GET','/partials/characters-modal',{target:'#characters-modal-body',swap:'innerHTML'});
-    if(id === 'modal-personas') htmx.ajax('GET','/partials/personas-modal',{target:'#personas-modal-body',swap:'innerHTML'});
-    if(id === 'modal-providers') htmx.ajax('GET','/partials/providers-modal',{target:'#providers-modal-body',swap:'innerHTML'});
+    if(id === 'modal-characters') htmx.ajax('GET',api.partials.charactersModal,{target:'#characters-modal-body',swap:'innerHTML'});
+    if(id === 'modal-personas') htmx.ajax('GET',api.partials.personasModal,{target:'#personas-modal-body',swap:'innerHTML'});
+    if(id === 'modal-providers') htmx.ajax('GET',api.partials.providersModal,{target:'#providers-modal-body',swap:'innerHTML'});
   }
 }
 function closeModal(id){ document.getElementById(id).style.display = 'none'; }

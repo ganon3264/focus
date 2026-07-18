@@ -57,12 +57,12 @@ document.body.addEventListener('htmx:afterSwap', function(evt){
 document.addEventListener('DOMContentLoaded', function(){
   const presetSelect = document.querySelector('#preset-selector select');
   if(presetSelect && presetSelect.value){
-    htmx.ajax('GET', '/partials/prompt-arranger/' + presetSelect.value, {target:'#prompt-arranger', swap:'innerHTML'});
+    htmx.ajax('GET', api.partials.promptArranger(presetSelect.value), {target:'#prompt-arranger', swap:'innerHTML'});
   }
 });
 
 function newChat(){
-  fetch('/api/chats', {
+  fetch(api.chats, {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify(window.CURRENT_CHAT_STATE)

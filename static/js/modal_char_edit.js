@@ -53,7 +53,7 @@ function uploadCharModalMedia(input) {
   const formData = new FormData();
   formData.append('file', input.files[0]);
 
-  fetch('/api/characters/' + id + '/images', {
+  fetch(api.charImages(id), {
     method: 'POST',
     body: formData
   }).then(r => r.json()).then(data => {
@@ -68,7 +68,7 @@ function uploadCharModalMedia(input) {
     if (placeholder) placeholder.style.display = 'none';
 
     input.value = '';
-    htmx.ajax('GET','/partials/characters-modal',{target:'#characters-modal-body',swap:'innerHTML'});
+    htmx.ajax('GET',api.partials.charactersModal,{target:'#characters-modal-body',swap:'innerHTML'});
     if (window.CURRENT_CHAT_STATE && window.CURRENT_CHAT_STATE.character_id === id && window.reloadPromptArranger) {
       const presetId = window.CURRENT_CHAT_STATE.preset_id || (document.getElementById('prompt-arranger') && document.querySelector('#prompt-arranger .arranger-list') ? document.querySelector('#prompt-arranger .arranger-list').id.replace('arranger-list-', '') : null);
       if (presetId) reloadPromptArranger(presetId, 'prompt-arranger');
@@ -78,13 +78,13 @@ function uploadCharModalMedia(input) {
 
 function deleteCharModalMedia(imageId) {
   const charId = document.getElementById('edit-char-id').value;
-  fetch(`/api/characters/${charId}/images/${imageId}`, {
+  fetch(api.charImage(charId, imageId), {
     method: 'DELETE'
   }).then(r => {
     if(r.ok) {
       const el = document.getElementById(`char-modal-media-${imageId}`);
       if(el) el.remove();
-      htmx.ajax('GET','/partials/characters-modal',{target:'#characters-modal-body',swap:'innerHTML'});
+      htmx.ajax('GET',api.partials.charactersModal,{target:'#characters-modal-body',swap:'innerHTML'});
       if (window.CURRENT_CHAT_STATE && window.CURRENT_CHAT_STATE.character_id === charId && window.reloadPromptArranger) {
         const presetId = window.CURRENT_CHAT_STATE.preset_id || (document.getElementById('prompt-arranger') && document.querySelector('#prompt-arranger .arranger-list') ? document.querySelector('#prompt-arranger .arranger-list').id.replace('arranger-list-', '') : null);
         if (presetId) reloadPromptArranger(presetId, 'prompt-arranger');
@@ -101,7 +101,7 @@ function uploadCharacterAvatar(input) {
     const formData = new FormData();
     formData.append('file', croppedBlob, 'avatar.png');
 
-    fetch('/api/characters/' + id + '/avatar', {
+    fetch(api.charAvatar(id), {
       method: 'POST',
       body: formData
     }).then(r => r.json()).then(data => {
@@ -111,7 +111,7 @@ function uploadCharacterAvatar(input) {
       preview.style.display = 'block';
       placeholder.style.display = 'none';
 
-      htmx.ajax('GET','/partials/characters-modal',{target:'#characters-modal-body',swap:'innerHTML'});
+      htmx.ajax('GET',api.partials.charactersModal,{target:'#characters-modal-body',swap:'innerHTML'});
     });
   });
   input.value = '';
@@ -121,14 +121,14 @@ function submitEditCharacter(e) {
   e.preventDefault();
   const id = document.getElementById('edit-char-id').value;
   const data = Object.fromEntries(new FormData(e.target));
-  fetch('/api/characters/' + id, {
+  fetch(api.characters(id), {
     method: 'PATCH',
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify(data)
   }).then(function(r){
     if(r.ok) {
       closeModal('modal-edit-character');
-      htmx.ajax('GET','/partials/characters-modal',{target:'#characters-modal-body',swap:'innerHTML'});
+      htmx.ajax('GET',api.partials.charactersModal,{target:'#characters-modal-body',swap:'innerHTML'});
     }
   });
 }

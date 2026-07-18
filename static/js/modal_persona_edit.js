@@ -53,7 +53,7 @@ function uploadPersonaMedia(input) {
   const formData = new FormData();
   formData.append('file', input.files[0]);
 
-  fetch('/api/personas/' + id + '/images', {
+  fetch(api.personaImages(id), {
     method: 'POST',
     body: formData
   }).then(r => r.json()).then(data => {
@@ -68,7 +68,7 @@ function uploadPersonaMedia(input) {
     if (placeholder) placeholder.style.display = 'none';
 
     input.value = '';
-    htmx.ajax('GET','/partials/personas-modal',{target:'#personas-modal-body',swap:'innerHTML'});
+    htmx.ajax('GET',api.partials.personasModal,{target:'#personas-modal-body',swap:'innerHTML'});
     if (window.CURRENT_CHAT_STATE && window.CURRENT_CHAT_STATE.persona_id === id && window.reloadPromptArranger) {
       const presetId = window.CURRENT_CHAT_STATE.preset_id || (document.getElementById('prompt-arranger') && document.querySelector('#prompt-arranger .arranger-list') ? document.querySelector('#prompt-arranger .arranger-list').id.replace('arranger-list-', '') : null);
       if (presetId) reloadPromptArranger(presetId, 'prompt-arranger');
@@ -78,13 +78,13 @@ function uploadPersonaMedia(input) {
 
 function deletePersonaMedia(imageId) {
   const personaId = document.getElementById('edit-persona-id').value;
-  fetch(`/api/personas/${personaId}/images/${imageId}`, {
+  fetch(api.personaImage(personaId, imageId), {
     method: 'DELETE'
   }).then(r => {
     if(r.ok) {
       const el = document.getElementById(`persona-media-${imageId}`);
       if(el) el.remove();
-      htmx.ajax('GET','/partials/personas-modal',{target:'#personas-modal-body',swap:'innerHTML'});
+      htmx.ajax('GET',api.partials.personasModal,{target:'#personas-modal-body',swap:'innerHTML'});
       if (window.CURRENT_CHAT_STATE && window.CURRENT_CHAT_STATE.persona_id === personaId && window.reloadPromptArranger) {
         const presetId = window.CURRENT_CHAT_STATE.preset_id || (document.getElementById('prompt-arranger') && document.querySelector('#prompt-arranger .arranger-list') ? document.querySelector('#prompt-arranger .arranger-list').id.replace('arranger-list-', '') : null);
         if (presetId) reloadPromptArranger(presetId, 'prompt-arranger');
@@ -101,7 +101,7 @@ function uploadPersonaAvatar(input) {
     const formData = new FormData();
     formData.append('file', croppedBlob, 'avatar.png');
 
-    fetch('/api/personas/' + id + '/avatar', {
+    fetch(api.personaAvatar(id), {
       method: 'POST',
       body: formData
     }).then(r => r.json()).then(data => {
@@ -111,7 +111,7 @@ function uploadPersonaAvatar(input) {
       preview.style.display = 'block';
       placeholder.style.display = 'none';
 
-      htmx.ajax('GET','/partials/personas-modal',{target:'#personas-modal-body',swap:'innerHTML'});
+      htmx.ajax('GET',api.partials.personasModal,{target:'#personas-modal-body',swap:'innerHTML'});
     });
   });
   input.value = '';
@@ -121,14 +121,14 @@ function submitEditPersona(e) {
   e.preventDefault();
   const id = document.getElementById('edit-persona-id').value;
   const data = Object.fromEntries(new FormData(e.target));
-  fetch('/api/personas/' + id, {
+  fetch(api.personas(id), {
     method: 'PATCH',
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify(data)
   }).then(function(r){
     if(r.ok) {
       closeModal('modal-edit-persona');
-      htmx.ajax('GET','/partials/personas-modal',{target:'#personas-modal-body',swap:'innerHTML'});
+      htmx.ajax('GET',api.partials.personasModal,{target:'#personas-modal-body',swap:'innerHTML'});
     }
   });
 }
