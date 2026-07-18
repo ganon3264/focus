@@ -19,3 +19,8 @@
 .hidden {
   display: none !important;
 }
+
+/* Prevent Alpine FOUC — hide elements until Alpine initialises */
+[x-cloak] {
+  display: none !important;
+}

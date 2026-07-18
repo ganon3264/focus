@@ -79,7 +79,7 @@ app.include_router(settings.router, prefix="/api/settings", tags=["settings"])
 app.include_router(exchange.router, prefix="/api", tags=["import-export"])
 
 app.mount("/assets", CachedStaticFiles(directory="assets"), name="assets")
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/static", CachedStaticFiles(directory="static"), name="static")
 
 
 @app.get("/", include_in_schema=False)

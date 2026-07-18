@@ -76,7 +76,7 @@
     >{{ icon_trash() }}</button>
   </div>
 
-  <div class="modal-overlay" role="dialog" aria-modal="true" aria-label="Rename preset" style="z-index: var(--z-modal-high);" x-show="renaming" x-transition.opacity @click.self="renaming = false">
+  <div class="modal-overlay hidden" role="dialog" aria-modal="true" aria-label="Rename preset" style="z-index: var(--z-modal-high);" x-show="renaming" x-transition.opacity @click.self="renaming = false">
     <div class="modal-content" style="max-width:420px;width:90vw;">
       <div class="modal-header">
         <div class="modal-title">Rename Preset</div>
