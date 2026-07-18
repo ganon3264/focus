@@ -155,6 +155,7 @@ details.reasoning[open] > summary {
 .markdown-content ul, .markdown-content ol { margin: 0.85rem 0; padding-left: 1.5rem; }
 .markdown-content a { color: var(--accent-hover); text-decoration: none; border-bottom: 1px solid transparent; transition: border-color var(--transition); }
 .markdown-content a:hover { border-color: var(--accent-hover); }
+.accent-quote { color: var(--accent); }
 
 /* Floating Message Actions */
 .message-actions { position: absolute; right: 1rem; top: 1rem; display: flex; gap: 0.25rem; padding: 0.25rem; background: var(--surface); border-radius: var(--radius-md); border: 1px solid var(--border); box-shadow: var(--shadow-md); z-index: 10; opacity: 0; transform: translateY(-5px); transition: all var(--transition); }
@@ -227,8 +228,8 @@ details.reasoning[open] > summary {
 .action-icon.active { color: var(--accent-hover); }
 .action-icon.danger:hover { background: var(--danger-dim); color: var(--danger); }
 
-.arranger-item.bg-role-system { background: rgba(99, 102, 241, 0.08); border-color: rgba(99, 102, 241, 0.25); }
-.arranger-item.bg-role-system:hover { border-color: rgba(99, 102, 241, 0.5); }
+.arranger-item.bg-role-system { background: var(--accent-faint); border-color: color-mix(in srgb, var(--accent) 25%, transparent); }
+.arranger-item.bg-role-system:hover { border-color: color-mix(in srgb, var(--accent) 50%, transparent); }
 .arranger-item.bg-role-user { background: rgba(16, 185, 129, 0.08); border-color: rgba(16, 185, 129, 0.25); }
 .arranger-item.bg-role-user:hover { border-color: rgba(16, 185, 129, 0.5); }
 .arranger-item.bg-role-assistant { background: rgba(245, 158, 11, 0.08); border-color: rgba(245, 158, 11, 0.25); }

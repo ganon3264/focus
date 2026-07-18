@@ -47,7 +47,7 @@
     {% if message.role == 'assistant' %}
       <div class="message-content markdown-content">{{ message.content }}</div>
     {% else %}
-      <div class="message-content">{{ message.content }}</div>
+      <div class="message-content markdown-content">{{ message.content }}</div>
     {% endif %}
   </div>
   <div class="message-actions normal-mode-actions">
@@ -66,7 +66,7 @@
       hx-on:htmx:after-request="let res = JSON.parse(event.detail.xhr.response); if(res.needs_generation) { const asstDiv = document.getElementById('message-{{ message.id }}'); window.triggerGeneration('{{ chat_id }}', asstDiv, true); } else { htmx.ajax('GET', '/partials/message-list/{{ chat_id }}', {target:'#message-list', swap:'innerHTML'}); }"
     >→</button>
     {% endif %}
-    {% if is_latest and message.role == 'assistant' %}
+    {% if is_latest and message.role == 'assistant' and message.position != 0 %}
     <button class="action-btn" title="Regenerate" aria-label="Regenerate"
       onclick="const asstDiv = document.getElementById('message-{{ message.id }}'); window.triggerGeneration('{{ chat_id }}', asstDiv, true);"
     >{{ icon_refresh() }}</button>

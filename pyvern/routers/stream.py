@@ -11,7 +11,7 @@ from pyvern.database import get_db, DB_PATH
 from pyvern.models import StreamRequest, ItemizerRequest
 from pyvern.providers import create_provider
 from pyvern.logger import get_logger
-from pyvern.utils import now_iso, resolve_secret_key, IMAGE_TOKEN_ESTIMATE, AUDIO_TOKEN_ESTIMATE
+from pyvern.utils import now_iso, resolve_secret_key, estimate_image_tokens, _image_dims_from_data_url, AUDIO_TOKEN_ESTIMATE
 from pyvern.routers.stream_utils import get_prompt_context, filter_unsupported_modalities, apply_claude_caching
 
 router = APIRouter()
@@ -264,8 +264,10 @@ async def itemize_prompt(body: ItemizerRequest, db: aiosqlite.Connection = Depen
                     tokens += t_count
                     clean_parts.append({"type": "text", "text": part["text"], "tokens": t_count})
                 elif part["type"] == "image_url":
-                    tokens += IMAGE_TOKEN_ESTIMATE
-                    clean_parts.append({"type": "image", "text": "[IMAGE ATTACHMENT]", "tokens": IMAGE_TOKEN_ESTIMATE})
+                    dims = _image_dims_from_data_url(part["image_url"]["url"])
+                    img_tokens = estimate_image_tokens(*dims) if dims else 258
+                    tokens += img_tokens
+                    clean_parts.append({"type": "image", "text": "[IMAGE ATTACHMENT]", "tokens": img_tokens})
                 elif part["type"] == "input_audio":
                     tokens += AUDIO_TOKEN_ESTIMATE
                     clean_parts.append({"type": "audio", "text": "[AUDIO ATTACHMENT]", "tokens": AUDIO_TOKEN_ESTIMATE})

@@ -12,6 +12,17 @@
           const stored = localStorage.getItem('pyvern-custom-theme');
           if (stored) {
             const theme = JSON.parse(stored);
+            if (theme['--accent'] && !theme['--accent-hover']) {
+              var m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(theme['--accent']);
+              if (m) {
+                var r = parseInt(m[1],16), g = parseInt(m[2],16), b = parseInt(m[3],16);
+                var f = 0.15, l = function(c) { return Math.round(c + (255 - c) * f); };
+                var r2 = l(r), g2 = l(g), b2 = l(b);
+                theme['--accent-hover'] = '#' + [r2,g2,b2].map(function(c) { return c.toString(16).padStart(2,'0'); }).join('');
+                theme['--accent-dim'] = 'rgba(' + r + ',' + g + ',' + b + ',0.15)';
+                theme['--accent-faint'] = 'rgba(' + r + ',' + g + ',' + b + ',0.05)';
+              }
+            }
             for (const key in theme) {
               document.documentElement.style.setProperty(key, theme[key]);
             }

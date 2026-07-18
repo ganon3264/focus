@@ -1,3 +1,38 @@
+function hexToRgb(hex) {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result ? { r: parseInt(result[1], 16), g: parseInt(result[2], 16), b: parseInt(result[3], 16) } : null;
+}
+
+function lightenHex(hex, percent) {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return hex;
+  const f = percent / 100;
+  const l = (c) => Math.round(c + (255 - c) * f);
+  return '#' + [l(rgb.r), l(rgb.g), l(rgb.b)].map(c => c.toString(16).padStart(2, '0')).join('');
+}
+
+function computeAccentDerivatives(hex) {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return {};
+  return {
+    '--accent-hover': lightenHex(hex, 15),
+    '--accent-dim': 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',0.15)',
+    '--accent-faint': 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',0.05)'
+  };
+}
+
+(function fixMissingDerivatives() {
+  const root = document.documentElement;
+  const accent = root.style.getPropertyValue('--accent');
+  if (!accent) return;
+  const hover = root.style.getPropertyValue('--accent-hover');
+  if (hover) return;
+  const derivatives = computeAccentDerivatives(accent);
+  for (const [key, val] of Object.entries(derivatives)) {
+    root.style.setProperty(key, val);
+  }
+})();
+
 const PRESET_THEMES = {
   default: {
     '--bg': '#0b0d10', '--surface': '#13151a', '--surface-2': '#1c1f26', '--surface-3': '#2b303b',
@@ -32,12 +67,24 @@ if (_themeTrigger) {
 }
 
 function previewThemeColor(input) {
-  document.documentElement.style.setProperty(input.getAttribute('data-var'), input.value);
+  const varName = input.getAttribute('data-var');
+  document.documentElement.style.setProperty(varName, input.value);
+  if (varName === '--accent') {
+    const derivatives = computeAccentDerivatives(input.value);
+    for (const [key, val] of Object.entries(derivatives)) {
+      document.documentElement.style.setProperty(key, val);
+    }
+  }
 }
 
 function applyPresetTheme(presetName) {
-  const theme = PRESET_THEMES[presetName];
-  if (!theme) return;
+  const base = PRESET_THEMES[presetName];
+  if (!base) return;
+  const theme = {...base};
+  const accent = theme['--accent'];
+  if (accent) {
+    Object.assign(theme, computeAccentDerivatives(accent));
+  }
   localStorage.setItem('pyvern-custom-theme', JSON.stringify(theme));
   for (const [key, value] of Object.entries(theme)) {
     document.documentElement.style.setProperty(key, value);
@@ -52,9 +99,12 @@ function resetThemePreview() {
     const theme = JSON.parse(stored);
     for (const key in theme) document.documentElement.style.setProperty(key, theme[key]);
   } else {
+    const vars = ['--accent', '--accent-hover', '--accent-dim', '--accent-faint'];
     document.querySelectorAll('#theme-color-pickers input[type="color"]').forEach(input => {
-      document.documentElement.style.removeProperty(input.getAttribute('data-var'));
+      const varName = input.getAttribute('data-var');
+      document.documentElement.style.removeProperty(varName);
     });
+    vars.forEach(v => document.documentElement.style.removeProperty(v));
   }
 }
 
@@ -63,6 +113,13 @@ function saveCustomTheme() {
   document.querySelectorAll('#theme-color-pickers input[type="color"]').forEach(input => {
     newTheme[input.getAttribute('data-var')] = input.value;
   });
+  const accent = newTheme['--accent'];
+  if (accent) {
+    Object.assign(newTheme, computeAccentDerivatives(accent));
+  }
+  for (const [key, value] of Object.entries(newTheme)) {
+    document.documentElement.style.setProperty(key, value);
+  }
   localStorage.setItem('pyvern-custom-theme', JSON.stringify(newTheme));
   closeModal('modal-themes');
 }

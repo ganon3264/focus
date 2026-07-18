@@ -440,7 +440,7 @@
       <div class="message-avatar">${escapeHtml(personaInitial)}</div>
       <div class="message-body">
         ${attachPreview}
-        <div class="message-content">${escapeHtml(text)}</div>
+        <div class="message-content markdown-content processed">${renderMessage(text)}</div>
       </div>
     `;
     messageList.insertBefore(userDiv, scrollSentinel);
@@ -528,6 +528,15 @@
     // 2. Parse Markdown and Sanitize the rest
     marked.use({ breaks: true });
     let html = DOMPurify.sanitize(marked.parse(processed));
+    
+    // 2b. Wrap double-quoted text in accent spans (protect code blocks first)
+    const codeStash = [];
+    html = html.replace(/<(code|pre)\b[^>]*>[\s\S]*?<\/\1>/g, m => {
+      codeStash.push(m);
+      return `%%%ACCENT_CODE_${codeStash.length - 1}%%%`;
+    });
+    html = html.replace(/(?<!=)"([^"<]*?)"/g, '<span class="accent-quote">"$1"</span>');
+    html = html.replace(/%%%ACCENT_CODE_(\d+)%%%/g, (_, i) => codeStash[+i]);
     
     // 3. Restore thinking blocks with exact line breaks
     for (let i = 0; i < thoughts.length; i++) {

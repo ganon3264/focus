@@ -1,7 +1,11 @@
+import base64
 import logging
+import math
 from datetime import datetime, timezone
+from io import BytesIO
 
 import aiosqlite
+from PIL import Image
 
 logger = logging.getLogger("pyvern.utils")
 
@@ -32,8 +36,26 @@ MODEL_FETCH_HTTP_TIMEOUT = 10.0
 MODEL_CACHE_TTL = 300
 
 # ── Token estimation ──────────────────────────────────────────────────────────
-IMAGE_TOKEN_ESTIMATE = 85
 AUDIO_TOKEN_ESTIMATE = 100
+
+def _image_dims_from_data_url(url: str) -> tuple[int, int] | None:
+    """Extract (width, height) from a data: URL using Pillow."""
+    try:
+        _, encoded = url.split(",", 1)
+        data = base64.b64decode(encoded)
+        with Image.open(BytesIO(data)) as img:
+            return img.width, img.height
+    except Exception:
+        return None
+
+def estimate_image_tokens(width: int, height: int) -> int:
+    """Gemini-style image token estimate.
+    Both dimensions ≤384px: 258 tokens flat.
+    Larger: ceil(w/768) × ceil(h/768) × 258.
+    """
+    if width <= 384 and height <= 384:
+        return 258
+    return math.ceil(width / 768) * math.ceil(height / 768) * 258
 
 # ── Macro resolution ──────────────────────────────────────────────────────────
 MACRO_MAX_PASSES = 10

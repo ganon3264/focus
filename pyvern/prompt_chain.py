@@ -74,7 +74,7 @@ def _merge_consecutive(messages: list[dict]) -> list[dict]:
             isinstance(a, str) and isinstance(b, str)
         )
         if all_text:
-            sep = "\n\n" if a and b else ""
+            sep = "\n" if a and b else ""
             return a + sep + b
         # At least one side has images — normalize both to arrays
         return to_parts(a) + to_parts(b)
@@ -204,6 +204,9 @@ def assemble_prompt(
     cleaned_history = []
     for msg in chat_history:
         cleaned_msg = dict(msg)
+        # Apply macros to string content (resolves {{user}}, {{char}}, etc.)
+        if isinstance(cleaned_msg.get("content"), str):
+            cleaned_msg["content"] = apply_macros(cleaned_msg["content"], macros)
         if cleaned_msg.get("role") == "assistant" and isinstance(cleaned_msg.get("content"), str):
             content = cleaned_msg["content"]
             
