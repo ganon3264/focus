@@ -20,12 +20,10 @@
         </div>
       </div>
       <div class="flex gap-2">
-        <form hx-post="/api/personas/{{ p.id }}/avatar" hx-encoding="multipart/form-data" hx-swap="none">
-          <label class="btn btn-secondary btn-sm" style="cursor:pointer">
-            Avatar
-            <input type="file" name="file" class="hidden" onchange="this.closest('form').requestSubmit()">
-          </label>
-        </form>
+        <label class="btn btn-secondary btn-sm" style="cursor:pointer">
+          Avatar
+          <input type="file" accept="image/*" class="hidden" onchange="handleAvatarUpload(this, '/api/personas/{{ p.id }}/avatar')">
+        </label>
         {% if p.name != 'User' %}
         <button class="btn btn-danger btn-sm" hx-delete="/api/personas/{{ p.id }}" hx-confirm="Delete?" hx-target="closest div" hx-swap="delete">Delete</button>
         {% endif %}

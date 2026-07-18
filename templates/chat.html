@@ -353,21 +353,27 @@ function openEditCharacterModal(btnElement) {
 function uploadCharacterAvatar(input) {
   if (!input.files || !input.files[0]) return;
   const id = document.getElementById('edit-char-id').value;
-  const formData = new FormData();
-  formData.append('file', input.files[0]);
   
-  const preview = document.getElementById('edit-char-image-preview');
-  const placeholder = document.getElementById('edit-char-image-placeholder');
-  preview.src = URL.createObjectURL(input.files[0]);
-  preview.style.display = 'block';
-  placeholder.style.display = 'none';
-
-  fetch('/api/characters/' + id + '/avatar', {
-    method: 'POST',
-    body: formData
-  }).then(r => {
-    if (r.ok) htmx.ajax('GET','/partials/characters-modal',{target:'#characters-modal-body',swap:'innerHTML'});
+  openCropModal(input.files[0], (croppedBlob) => {
+    const formData = new FormData();
+    formData.append('file', croppedBlob, 'avatar.png');
+    
+    fetch('/api/characters/' + id + '/avatar', {
+      method: 'POST',
+      body: formData
+    }).then(r => r.json()).then(data => {
+      // Update preview immediately
+      const preview = document.getElementById('edit-char-image-preview');
+      const placeholder = document.getElementById('edit-char-image-placeholder');
+      preview.src = '/' + data.avatar_path + '?t=' + new Date().getTime();
+      preview.style.display = 'block';
+      placeholder.style.display = 'none';
+      
+      // Update modal list
+      htmx.ajax('GET','/partials/characters-modal',{target:'#characters-modal-body',swap:'innerHTML'});
+    });
   });
+  input.value = '';
 }
 
 function submitEditCharacter(e) {
@@ -412,21 +418,25 @@ function openEditPersonaModal(btnElement) {
 function uploadPersonaAvatar(input) {
   if (!input.files || !input.files[0]) return;
   const id = document.getElementById('edit-persona-id').value;
-  const formData = new FormData();
-  formData.append('file', input.files[0]);
   
-  const preview = document.getElementById('edit-persona-image-preview');
-  const placeholder = document.getElementById('edit-persona-image-placeholder');
-  preview.src = URL.createObjectURL(input.files[0]);
-  preview.style.display = 'block';
-  placeholder.style.display = 'none';
-
-  fetch('/api/personas/' + id + '/avatar', {
-    method: 'POST',
-    body: formData
-  }).then(r => {
-    if (r.ok) htmx.ajax('GET','/partials/personas-modal',{target:'#personas-modal-body',swap:'innerHTML'});
+  openCropModal(input.files[0], (croppedBlob) => {
+    const formData = new FormData();
+    formData.append('file', croppedBlob, 'avatar.png');
+    
+    fetch('/api/personas/' + id + '/avatar', {
+      method: 'POST',
+      body: formData
+    }).then(r => r.json()).then(data => {
+      const preview = document.getElementById('edit-persona-image-preview');
+      const placeholder = document.getElementById('edit-persona-image-placeholder');
+      preview.src = '/' + data.avatar_path + '?t=' + new Date().getTime();
+      preview.style.display = 'block';
+      placeholder.style.display = 'none';
+      
+      htmx.ajax('GET','/partials/personas-modal',{target:'#personas-modal-body',swap:'innerHTML'});
+    });
   });
+  input.value = '';
 }
 
 function submitEditPersona(e) {

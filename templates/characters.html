@@ -86,9 +86,7 @@
                   <div class="w-full h-full flex items-center justify-center text-3xl font-bold text-muted">{{ char.name[:1] }}</div>
                 {% endif %}
                 <div class="absolute inset-0 bg-black/60 hidden group-hover:flex items-center justify-center text-white text-xs font-bold transition-opacity">Edit</div>
-                <form hx-post="/api/characters/{{ char.id }}/avatar" hx-encoding="multipart/form-data" hx-target="body" hx-swap="outerHTML" class="absolute inset-0 opacity-0 cursor-pointer">
-                  <input type="file" name="file" class="w-full h-full cursor-pointer" onchange="this.closest('form').requestSubmit()">
-                </form>
+                <input type="file" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="uploadAdvancedAvatar(this, '{{ char.id }}')">
               </div>
               <div class="flex-1 min-w-0">
                 <label class="text-xs font-bold text-muted block mb-1 uppercase tracking-wider">Character Name</label>
@@ -284,8 +282,11 @@ document.addEventListener('alpine:init', () => {
         },
 
         init() {
-            // Auto-select first character if one exists
-            if (this.charsList.length > 0) {
+            const urlParams = new URLSearchParams(window.location.search);
+            const charParam = urlParams.get('char');
+            if (charParam && this.charsList.find(c => c.id === charParam)) {
+                this.detailId = charParam;
+            } else if (this.charsList.length > 0) {
                 this.detailId = this.charsList[0].id;
             }
         }
@@ -314,6 +315,14 @@ function saveTextExpander() {
   closeTextExpander();
 }
 
+
+function uploadAdvancedAvatar(input, charId) {
+  handleAvatarUpload(input, '/api/characters/' + charId + '/avatar', (data) => {
+    // We just reload the page for simplicity so Alpine states reset cleanly,
+    // but to preserve the currently selected character:
+    window.location.href = window.location.pathname + '?char=' + charId;
+  });
+}
 
 function saveCharCard(charId){
   // Collect alternate greetings
