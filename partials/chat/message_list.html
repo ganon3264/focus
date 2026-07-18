@@ -5,6 +5,6 @@
   style="display: none;"></div>
 {% for message in messages %}
   {% set is_latest = loop.last %}
-  {% include "message.html" %}
+  {% include "chat/message.html" %}
 {% endfor %}
 <div id="scroll-sentinel" style="height:1px;"></div>

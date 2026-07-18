@@ -1,5 +1,6 @@
 {% extends "base.html" %}
-{% from "macros.html" import icon_edit, icon_expand, icon_close, icon_trash, icon_refresh, icon_music, icon_key, icon_search, icon_folder, icon_paperclip, icon_stop, icon_send, icon_chat %}
+{% from "macros.html" import icon_edit, icon_expand, icon_trash, icon_refresh, icon_music, icon_key, icon_search, icon_folder, icon_paperclip, icon_stop, icon_send, icon_chat %}
+{% from "modal_shell.html" import modal_shell %}
 {% block title %}Chat - Pyvern{% endblock %}
 {% block content %}
 <div class="app-shell">
@@ -8,7 +9,7 @@
     <div class="sidebar-section">
       <div class="sidebar-title">Preset</div>
       <div id="preset-selector">
-        {% include "preset_selector.html" %}
+        {% include "presets/preset_selector.html" %}
       </div>
     </div>
     <div class="sidebar-section flex-1 overflow-auto">
@@ -16,7 +17,7 @@
       <div id="preset-variables">
         {% if preset %}
           {% with preset_id = preset.id, blocks = preset_blocks %}
-            {% include "preset_variables.html" %}
+            {% include "presets/preset_variables.html" %}
           {% endwith %}
         {% else %}
           <div class="text-muted text-sm mt-2">Select a preset to edit variables.</div>
@@ -52,7 +53,7 @@
     {% if chat_id %}
     <div class="chat-center">
       <div class="message-list" id="message-list" data-last-role="{{ messages[-1].role if messages else '' }}">
-        {% include "message_list.html" %}
+        {% include "chat/message_list.html" %}
       </div>
     </div>
     <div class="input-bar flex-col gap-2 items-center relative">
@@ -140,7 +141,7 @@
       {% endif %}
 
       <div id="chat-list" class="sidebar-list">
-        {% include "chat_list.html" %}
+        {% include "chat/chat_list.html" %}
       </div>
     </div>
   </aside>
@@ -152,77 +153,56 @@
 </div>
 
 <!-- MAIN MODALS -->
-<div id="modal-sampler" class="modal-overlay" role="dialog" aria-modal="true" style="display:none;" onclick="if(event.target===this)closeModal('modal-sampler')">
-  <div class="modal-content" style="max-width:550px; min-height: 400px; display: flex; flex-direction: column;">
-    <div class="modal-header" style="margin-bottom: 0.5rem;"><div class="modal-title">Generation Parameters</div><button class="btn btn-secondary" aria-label="Close" onclick="closeModal('modal-sampler')">×</button></div>
-    <div class="flex-1 overflow-y-auto">
-      {% include "sampler_modal.html" %}
-    </div>
-  </div>
+{% call modal_shell('modal-sampler', 'Generation Parameters', max_width='550px', content_style='display:flex;flex-direction:column;min-height:400px;') %}
+<div class="flex-1 overflow-y-auto">
+  {% include "modals/sampler_modal.html" %}
 </div>
+{% endcall %}
 
-<div id="modal-itemizer" class="modal-overlay" role="dialog" aria-modal="true" style="display:none;" onclick="if(event.target===this)closeModal('modal-itemizer')">
-  <div class="modal-content" style="max-width:700px; height: 80vh; display: flex; flex-direction: column;">
-    <button class="btn btn-secondary btn-sm absolute top-4 right-4 z-50" aria-label="Close" onclick="closeModal('modal-itemizer')">{{ icon_close() }}</button>
-    <div class="flex-1 overflow-hidden" style="min-height: 0;">
-      {% include "itemizer_modal.html" %}
-    </div>
-  </div>
+{% call modal_shell('modal-itemizer', 'Prompt Itemizer', max_width='700px', content_style='display:flex;flex-direction:column;height:80vh;') %}
+<div class="flex-1 overflow-hidden" style="min-height:0;">
+  {% include "modals/itemizer_modal.html" %}
 </div>
+{% endcall %}
 
-<div id="modal-characters" class="modal-overlay" role="dialog" aria-modal="true" style="display:none;" onclick="if(event.target===this)closeModal('modal-characters')">
-  <div class="modal-content" style="max-width:800px; width: 95vw;">
-    <div class="modal-header"><div class="modal-title">Characters</div><button class="btn btn-secondary" aria-label="Close" onclick="closeModal('modal-characters')">×</button></div>
-    <div id="characters-modal-body">Loading…</div>
-  </div>
-</div>
+{% call modal_shell('modal-characters', 'Characters', max_width='800px', content_style='') %}
+<div id="characters-modal-body">Loading…</div>
+{% endcall %}
 
 {% set prefix = 'char' %}{% set modal_id = 'modal-edit-character' %}{% set entity_name = 'Character' %}{% set upload_fn = 'uploadCharModalMedia' %}{% set avatar_fn = 'uploadCharacterAvatar' %}{% set submit_fn = 'submitEditCharacter' %}
-{% include "edit_entity_modal.html" %}
+{% include "modals/edit_entity_modal.html" %}
 
-<div id="modal-personas" class="modal-overlay" role="dialog" aria-modal="true" style="display:none;" onclick="if(event.target===this)closeModal('modal-personas')">
-  <div class="modal-content" style="max-width:800px; width: 95vw;">
-    <div class="modal-header"><div class="modal-title">Personas</div><button class="btn btn-secondary" aria-label="Close" onclick="closeModal('modal-personas')">×</button></div>
-    <div id="personas-modal-body">Loading…</div>
-  </div>
-</div>
+{% call modal_shell('modal-personas', 'Personas', max_width='800px', content_style='') %}
+<div id="personas-modal-body">Loading…</div>
+{% endcall %}
 
 {% set prefix = 'persona' %}{% set modal_id = 'modal-edit-persona' %}{% set entity_name = 'Persona' %}{% set upload_fn = 'uploadPersonaMedia' %}{% set avatar_fn = 'uploadPersonaAvatar' %}{% set submit_fn = 'submitEditPersona' %}
-{% include "edit_entity_modal.html" %}
+{% include "modals/edit_entity_modal.html" %}
 
-<div id="modal-providers" class="modal-overlay" role="dialog" aria-modal="true" style="display:none;" onclick="if(event.target===this)closeModal('modal-providers')">
-  <div class="modal-content" style="max-width:1000px; width: 95vw; max-height:85vh; display: flex; flex-direction: column;">
-    <div class="modal-header"><div class="modal-title">Providers</div><button class="btn btn-secondary" aria-label="Close" onclick="closeModal('modal-providers')">×</button></div>
-    <div id="providers-modal-body" style="flex: 1; overflow: hidden;">Loading…</div>
-  </div>
-</div>
+{% call modal_shell('modal-providers', 'Providers', max_width='1000px', content_style='display:flex;flex-direction:column;max-height:85vh;') %}
+<div id="providers-modal-body" style="flex:1;overflow:hidden;">Loading…</div>
+{% endcall %}
 
 <!-- EDIT MESSAGE MODAL -->
-{% include "edit_message_modal.html" %}
+{% include "modals/edit_message_modal.html" %}
 
-{% include 'text_expander.html' %}
+{% include "modals/text_expander.html" %}
 
 <!-- PROMPT ARRANGER MODAL -->
-<div id="modal-arranger" class="modal-overlay" role="dialog" aria-modal="true" style="display:none;" onclick="if(event.target===this)closeModal('modal-arranger')">
-  <div class="modal-content" style="max-width:800px;width:90vw;height:85vh;display:flex;flex-direction:column;padding:0;">
-    <div class="modal-header" style="padding: 1rem 1rem 0.5rem 1rem;">
-      <div class="modal-title">Prompt Arranger</div>
-      <button class="btn btn-secondary" aria-label="Close" onclick="closeModal('modal-arranger')">×</button>
-    </div>
-    <div id="arranger-modal-body" class="flex-1 overflow-auto" style="padding: 0.5rem 1rem 1rem 1rem;">
-      {% if preset %}
-        {% with preset_id = preset.id, blocks = preset_blocks %}
-          {% include "prompt_arranger.html" %}
-        {% endwith %}
-      {% else %}
-        <div class="text-muted text-center mt-4">Select a preset first.</div>
-      {% endif %}
-    </div>
-  </div>
+{% call modal_shell('modal-arranger', 'Prompt Arranger', max_width='800px', width='90vw', content_style='display:flex;flex-direction:column;height:85vh;padding:0;') %}
+<div id="arranger-modal-body" class="flex-1 overflow-auto" style="padding:0.5rem 1rem 1rem 1rem;">
+  {% if preset %}
+    {% with preset_id = preset.id, blocks = preset_blocks %}
+      {% include "presets/prompt_arranger.html" %}
+    {% endwith %}
+  {% else %}
+    <div class="text-muted text-center mt-4">Select a preset first.</div>
+  {% endif %}
 </div>
+{% endcall %}
 
 <!-- THEMES MODAL -->
-{% include "theme_modal.html" %}
+{% include "modals/theme_modal.html" %}
 
 <script src="/static/js/theme_manager.js"></script>
 <script>

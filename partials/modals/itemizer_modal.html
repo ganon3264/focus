@@ -1,9 +1,6 @@
 <div x-data="itemizerModal()" @itemizer-open.window="load()" class="flex flex-col h-full">
   <div class="flex justify-between items-center mb-4 pb-2 border-b" style="border-color: var(--border);">
-    <div>
-      <h3 class="font-bold">Prompt Itemizer</h3>
-      <div class="text-xs text-muted">Visualize and estimate tokens for the outbound prompt.</div>
-    </div>
+    <div class="text-xs text-muted">Visualize and estimate tokens for the outbound prompt.</div>
     <div class="flex items-center gap-3">
       <span class="text-sm font-mono bg-surface-2 px-2 py-1 rounded" style="background:var(--surface-2); border:1px solid var(--border);" title="Uses cl100k_base estimation">
         Tokens: <span class="font-bold text-[var(--accent)]" x-text="totalTokens">...</span>

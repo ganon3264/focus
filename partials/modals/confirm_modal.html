@@ -1,18 +1,13 @@
-<div id="global-confirm-modal" class="modal-overlay" role="alertdialog" aria-modal="true" style="display: none; z-index: 10005;">
-  <div class="modal-content" style="max-width: 400px;">
-    <div class="modal-header" style="margin-bottom: 1rem;">
-      <div class="modal-title text-xl font-bold">Confirm Action</div>
-      <button class="btn btn-secondary btn-sm" onclick="closeConfirmModal()" aria-label="Close">×</button>
-    </div>
-    <div id="global-confirm-message" class="text-sm mb-4" style="color: var(--text);">
-      Are you sure?
-    </div>
-    <div class="flex justify-end gap-2">
-      <button class="btn btn-secondary" onclick="closeConfirmModal()">Cancel</button>
-      <button id="global-confirm-btn" class="btn btn-danger">Confirm</button>
-    </div>
-  </div>
+{% from "modal_shell.html" import modal_shell %}
+{% call modal_shell('global-confirm-modal', 'Confirm Action', max_width='400px', content_style='', z_index='10005', role='alertdialog', overlay_close=false, close_fn='closeConfirmModal') %}
+<div id="global-confirm-message" class="text-sm mb-4" style="color: var(--text);">
+  Are you sure?
 </div>
+<div class="flex justify-end gap-2">
+  <button class="btn btn-secondary" onclick="closeConfirmModal()">Cancel</button>
+  <button id="global-confirm-btn" class="btn btn-danger">Confirm</button>
+</div>
+{% endcall %}
 
 <script>
   let pendingConfirmCallback = null;
@@ -40,27 +35,18 @@
     closeConfirmModal();
   });
 
-  // Global async confirm wrapper for inline scripts
   window.customConfirm = function(message, callback) {
     openConfirmModal(message, callback);
   };
 
-  // HTMX Event Interceptor
   document.addEventListener("htmx:confirm", function(e) {
-    // Prevent the default browser confirmation immediately
     e.preventDefault();
-    
-    // Check if the element has an hx-confirm attribute
     const message = e.detail.question;
     if (!message) {
-        // If no message, just proceed
         e.detail.issueRequest(true);
         return;
     }
-    
-    // Show our custom modal instead
     openConfirmModal(message, function() {
-        // The user clicked confirm
         e.detail.issueRequest(true);
     });
   });

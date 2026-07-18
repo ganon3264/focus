@@ -194,7 +194,7 @@ async def message_list_partial(request: Request, chat_id: str, db: aiosqlite.Con
 
     _resolve_macros_for_display(messages, char, persona)
 
-    return templates.TemplateResponse(request, "message_list.html", {
+    return templates.TemplateResponse(request, "chat/message_list.html", {
         "messages": messages,
         "chat_id": chat_id,
         "character": char,
@@ -211,7 +211,7 @@ async def chat_list_partial(
 ):
     chats = await crud.get_chats_sidebar(db, character_id)
 
-    return templates.TemplateResponse(request, "chat_list.html", {
+    return templates.TemplateResponse(request, "chat/chat_list.html", {
         "chats": chats,
         "current_chat_id": current_chat_id,
     })
@@ -225,7 +225,7 @@ async def char_selector_partial(request: Request, chat_id: str, db: aiosqlite.Co
         row = await cur.fetchone()
         if row:
             current_character_id = row["character_id"]
-    return templates.TemplateResponse(request, "char_selector.html", {
+    return templates.TemplateResponse(request, "chat/char_selector.html", {
         "characters": characters,
         "chat_id": chat_id,
         "current_character_id": current_character_id,
@@ -240,7 +240,7 @@ async def persona_selector_partial(request: Request, chat_id: str, db: aiosqlite
         row = await cur.fetchone()
         if row:
             current_persona_id = row["persona_id"]
-    return templates.TemplateResponse(request, "persona_selector.html", {
+    return templates.TemplateResponse(request, "chat/persona_selector.html", {
         "personas": personas,
         "chat_id": chat_id,
         "current_persona_id": current_persona_id,
@@ -255,7 +255,7 @@ async def preset_selector_partial(request: Request, chat_id: str, db: aiosqlite.
         row = await cur.fetchone()
         if row:
             current_preset_id = row["preset_id"]
-    return templates.TemplateResponse(request, "preset_selector.html", {
+    return templates.TemplateResponse(request, "presets/preset_selector.html", {
         "presets": presets,
         "chat_id": chat_id,
         "current_preset_id": current_preset_id,
@@ -273,7 +273,7 @@ async def preset_variables_partial(request: Request, preset_id: str, db: aiosqli
             group_name = variable_group_name(b["name"])
             var_groups.setdefault(group_name, []).append(b)
 
-    return templates.TemplateResponse(request, "preset_variables.html", {
+    return templates.TemplateResponse(request, "presets/preset_variables.html", {
         "preset_id": preset_id,
         "var_groups": var_groups
     })
@@ -292,7 +292,7 @@ async def preset_editor_partial(
     counts = await crud.get_counts(db, character_id or None, persona_id or None)
     _, regular_blocks, var_groups = partition_blocks(blocks)
 
-    return templates.TemplateResponse(request, "preset_editor.html", {
+    return templates.TemplateResponse(request, "presets/preset_editor.html", {
         "blocks": regular_blocks,
         "var_groups": var_groups,
         "preset_id": preset_id,
@@ -314,7 +314,7 @@ async def prompt_arranger_partial(
 
     regular_blocks = [b for b in blocks if b["block_type"] != "variable"]
 
-    return templates.TemplateResponse(request, "prompt_arranger.html", {
+    return templates.TemplateResponse(request, "presets/prompt_arranger.html", {
         "blocks": regular_blocks,
         "preset_id": preset_id,
         "counts": counts
@@ -324,7 +324,7 @@ async def prompt_arranger_partial(
 @router.get("/partials/sampler-modal", response_class=HTMLResponse)
 async def sampler_modal_partial(request: Request, db: aiosqlite.Connection = Depends(get_db)):
     providers = await crud.get_providers(db)
-    return templates.TemplateResponse(request, "sampler_modal.html", {
+    return templates.TemplateResponse(request, "modals/sampler_modal.html", {
         "providers": providers,
     })
 
@@ -340,7 +340,7 @@ async def providers_modal_partial(request: Request, db: aiosqlite.Connection = D
         for row in await cur.fetchall():
             secrets_present[row["name"]] = True
 
-    return templates.TemplateResponse(request, "providers_modal.html", {
+    return templates.TemplateResponse(request, "modals/providers_modal.html", {
         "request": request,
         "providers": providers,
         "secrets": secrets_present,
@@ -351,7 +351,7 @@ async def providers_modal_partial(request: Request, db: aiosqlite.Connection = D
 async def characters_modal_partial(request: Request, db: aiosqlite.Connection = Depends(get_db)):
     characters = await crud.get_characters(db)
     compact_view = request.cookies.get("pyvern_view_char") == "compact"
-    return templates.TemplateResponse(request, "characters_modal.html", {
+    return templates.TemplateResponse(request, "modals/characters_modal.html", {
         "request": request,
         "characters": characters,
         "compact_view": compact_view,
@@ -361,7 +361,7 @@ async def characters_modal_partial(request: Request, db: aiosqlite.Connection = 
 @router.get("/partials/presets-modal", response_class=HTMLResponse)
 async def presets_modal_partial(request: Request, db: aiosqlite.Connection = Depends(get_db)):
     presets = await crud.get_presets(db)
-    return templates.TemplateResponse(request, "presets_modal.html", {
+    return templates.TemplateResponse(request, "presets/presets_modal.html", {
         "request": request,
         "presets": presets,
     })
@@ -371,7 +371,7 @@ async def presets_modal_partial(request: Request, db: aiosqlite.Connection = Dep
 async def personas_modal_partial(request: Request, db: aiosqlite.Connection = Depends(get_db)):
     personas = await crud.get_personas(db)
     compact_view = request.cookies.get("pyvern_view_persona") == "compact"
-    return templates.TemplateResponse(request, "personas_modal.html", {
+    return templates.TemplateResponse(request, "modals/personas_modal.html", {
         "request": request,
         "personas": personas,
         "compact_view": compact_view,

@@ -1,0 +1,36 @@
+{% from "modal_shell.html" import modal_shell %}
+{% call modal_shell('modal-text-expander', 'Edit Text', max_width='896px', content_style='display:flex;flex-direction:column;height:85vh;padding:1.25rem;', z_index='999') %}
+<textarea id="text-expander-input" class="form-control w-full flex-1 mb-4" style="resize:none;font-family:ui-monospace,monospace;font-size:0.9rem;line-height:1.6;"></textarea>
+<div class="flex justify-end gap-3 shrink-0">
+  <button class="btn btn-secondary" onclick="closeModal('modal-text-expander')" style="min-width:100px;">Cancel</button>
+  <button class="btn btn-primary" onclick="saveTextExpander()" style="min-width:100px;">Save</button>
+</div>
+{% endcall %}
+
+<script>
+if (!window.__textExpanderLoaded) {
+  window.__textExpanderLoaded = true;
+  let _expanderTarget = null;
+
+  window.openTextExpander = function(targetEl, title) {
+    _expanderTarget = targetEl;
+    document.querySelector('#modal-text-expander .modal-title').innerText = title || 'Edit Text';
+    document.getElementById('text-expander-input').value = targetEl.value;
+    document.getElementById('modal-text-expander').style.display = 'grid';
+    document.getElementById('text-expander-input').focus();
+  };
+
+  window.closeTextExpander = function() {
+    closeModal('modal-text-expander');
+    _expanderTarget = null;
+  };
+
+  window.saveTextExpander = function() {
+    if (_expanderTarget) {
+      _expanderTarget.value = document.getElementById('text-expander-input').value;
+      _expanderTarget.dispatchEvent(new Event('change'));
+    }
+    closeTextExpander();
+  };
+}
+</script>

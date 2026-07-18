@@ -6,7 +6,7 @@
   hx-include="[name='block_order']"
 >
   {% for block in blocks %}
-    {% include "prompt_block.html" %}
+    {% include "presets/prompt_block.html" %}
   {% endfor %}
 </div>
 
@@ -30,21 +30,14 @@
 </div>
 
 <!-- Block Edit Modal -->
-<div id="block-edit-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Edit block" style="display:none; z-index: 1000;" onclick="if(event.target===this)closeBlockModal()">
-  <div class="modal-content" style="max-width:640px;width:90vw;">
-    <div class="modal-header">
-      <div class="modal-title">Edit Block Content</div>
-      <button type="button" class="btn btn-secondary" onclick="closeBlockModal()" aria-label="Close">×</button>
-    </div>
-    <div>
-      <textarea id="block-modal-textarea" rows="12" class="form-control h-full" style="resize:vertical; line-height:1.6;" placeholder="Enter block content…"></textarea>
-      <div class="flex justify-end gap-2 mt-3">
-        <button type="button" class="btn btn-secondary" onclick="closeBlockModal()">Cancel</button>
-        <button type="button" class="btn btn-primary" id="block-modal-save" onclick="saveBlockModal()">Save</button>
-      </div>
-    </div>
-  </div>
+{% from "modal_shell.html" import modal_shell %}
+{% call modal_shell('block-edit-modal', 'Edit Block Content', max_width='640px', width='90vw', z_index='1000', close_fn='closeBlockModal', overlay_close=true) %}
+<textarea id="block-modal-textarea" rows="12" class="form-control h-full" style="resize:vertical; line-height:1.6;" placeholder="Enter block content…"></textarea>
+<div class="flex justify-end gap-2 mt-3">
+  <button type="button" class="btn btn-secondary" onclick="closeBlockModal()">Cancel</button>
+  <button type="button" class="btn btn-primary" id="block-modal-save" onclick="saveBlockModal()">Save</button>
 </div>
+{% endcall %}
 
 <script>
 (function(){

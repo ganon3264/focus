@@ -35,7 +35,7 @@
       <div class="flex-1 overflow-auto" id="preset-editor" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1rem;">
         {% if presets %}
           {% with preset_id = presets[0].id, blocks = presets[0].blocks %}
-            {% include "preset_editor.html" %}
+            {% include "presets/preset_editor.html" %}
           {% endwith %}
         {% else %}
           <div class="text-muted">No presets. Create one to start.</div>

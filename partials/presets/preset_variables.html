@@ -39,35 +39,30 @@
   <button type="button" class="btn btn-secondary w-full text-xs mt-2" onclick="openVarEditModal(null, '{{ preset_id }}', '', '', '')">+ Add Variable</button>
 
   <!-- Variable Edit Modal -->
-  <div id="var-edit-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Edit variable option" style="display:none; z-index: 1000;" onclick="if(event.target===this)closeVarModal()">
-    <div class="modal-content" style="max-width:500px;width:90vw;">
-      <div class="modal-header">
-        <div class="modal-title" id="var-modal-title">Edit Variable Option</div>
-        <button type="button" class="btn btn-secondary" onclick="closeVarModal()" aria-label="Close">×</button>
-      </div>
-      <div class="flex flex-col gap-3">
-        <div>
-          <label class="text-xs font-bold text-muted mb-1 block">Variable Group Name</label>
-          <input type="text" id="var-modal-group" class="form-control" placeholder="e.g. Tense" onkeyup="updateVarHint(this.value)">
-        </div>
-        <div>
-          <label class="text-xs font-bold text-muted mb-1 block">Option Label</label>
-          <input type="text" id="var-modal-label" class="form-control" placeholder="e.g. First Person">
-        </div>
-        <div>
-          <label class="text-xs font-bold text-muted mb-1 block">Value to Inject</label>
-          <textarea id="var-modal-content" rows="6" class="form-control" style="resize:vertical;" placeholder="Enter the text to inject..."></textarea>
-          <div id="var-modal-hint" class="text-xs text-muted mt-2">
-            Use <code class="bg-[var(--surface-3)] px-1 rounded">{% raw %}{{ getvar::{% endraw %}name{% raw %} }}{% endraw %}</code> in your prompt blocks to insert this value.
-          </div>
-        </div>
-        <div class="flex justify-end gap-2 mt-2">
-          <button type="button" class="btn btn-secondary" onclick="closeVarModal()">Cancel</button>
-          <button type="button" class="btn btn-primary" id="var-modal-save" onclick="saveVarModal()">Save</button>
-        </div>
+  {% from "modal_shell.html" import modal_shell %}
+  {% call modal_shell('var-edit-modal', 'Edit Variable Option', max_width='500px', width='90vw', z_index='1000', close_fn='closeVarModal', overlay_close=true) %}
+  <div class="flex flex-col gap-3">
+    <div>
+      <label class="text-xs font-bold text-muted mb-1 block">Variable Group Name</label>
+      <input type="text" id="var-modal-group" class="form-control" placeholder="e.g. Tense" onkeyup="updateVarHint(this.value)">
+    </div>
+    <div>
+      <label class="text-xs font-bold text-muted mb-1 block">Option Label</label>
+      <input type="text" id="var-modal-label" class="form-control" placeholder="e.g. First Person">
+    </div>
+    <div>
+      <label class="text-xs font-bold text-muted mb-1 block">Value to Inject</label>
+      <textarea id="var-modal-content" rows="6" class="form-control" style="resize:vertical;" placeholder="Enter the text to inject..."></textarea>
+      <div id="var-modal-hint" class="text-xs text-muted mt-2">
+        Use <code class="bg-[var(--surface-3)] px-1 rounded">{% raw %}{{ getvar::{% endraw %}name{% raw %} }}{% endraw %}</code> in your prompt blocks to insert this value.
       </div>
     </div>
+    <div class="flex justify-end gap-2 mt-2">
+      <button type="button" class="btn btn-secondary" onclick="closeVarModal()">Cancel</button>
+      <button type="button" class="btn btn-primary" id="var-modal-save" onclick="saveVarModal()">Save</button>
+    </div>
   </div>
+  {% endcall %}
 
   <script>
     if (!window._varScriptsLoaded) {
