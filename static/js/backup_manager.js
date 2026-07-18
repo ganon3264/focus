@@ -17,7 +17,9 @@
 
   function formatTimestamp(ts) {
     try {
-      return new Date(ts.replace(/-/g, ':').replace('T', ' ')).toLocaleString();
+      const [datePart, timePart] = ts.split('T');
+      if (!timePart) return ts;
+      return new Date(datePart + 'T' + timePart.replace(/-/g, ':')).toLocaleString();
     } catch (_) {
       return ts;
     }

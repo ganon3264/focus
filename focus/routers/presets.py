@@ -138,7 +138,7 @@ async def import_preset(file: UploadFile = File(...), db: aiosqlite.Connection =
         if enabled is None:
             enabled = prompt.get("enabled", True)
 
-        is_in_chat = prompt.get("system_prompt") is False
+        is_in_chat = prompt.get("injection_position") == 1
         block = {
             "id": str(uuid.uuid4()),
             "preset_id": preset_id,
