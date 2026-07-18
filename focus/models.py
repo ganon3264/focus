@@ -82,9 +82,6 @@ SENTINEL_TYPES = {
     BlockType.char_blocks,
 }
 
-class PresetCreate(BaseModel):
-    name: str
-
 class PresetUpdate(BaseModel):
     name: str
 
@@ -109,13 +106,6 @@ class ChatCreate(BaseModel):
 class MessageEdit(BaseModel):
     content: str
     attachment_ids: list[str] = Field(default_factory=list)
-
-class SwipeDirection(StrEnum):
-    prev = "prev"
-    next = "next"
-
-class SwipeRequest(BaseModel):
-    direction: SwipeDirection = SwipeDirection.next
 
 class StreamRequest(BaseModel):
     chat_id: str

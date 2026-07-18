@@ -58,7 +58,7 @@ async def create_persona(client, name="Test Persona", **overrides):
     return resp.json()
 
 async def create_preset(client, name="Test Preset"):
-    resp = await client.post("/api/presets/", json={"name": name})
+    resp = await client.post("/api/presets/", data={"name": name})
     assert resp.status_code == 201
     return resp.json()
 

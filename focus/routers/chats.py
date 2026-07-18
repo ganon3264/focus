@@ -2,13 +2,13 @@ import uuid
 from pathlib import Path
 
 import aiosqlite
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 
 import focus.crud as crud
 from focus.card_parser import safe_load_card
 from focus.database import get_db
-from focus.models import ChatCreate, MessageEdit, SwipeRequest
+from focus.models import ChatCreate, MessageEdit
 from focus.paths import ATTACHMENTS_DIR
 from focus.utils import now_iso
 
@@ -230,7 +230,7 @@ async def edit_message(
 async def swipe_message(
     chat_id: str,
     message_id: str,
-    body: SwipeRequest,
+    direction: str = Form("next"),
     db: aiosqlite.Connection = Depends(get_db),
 ):
     """
@@ -255,7 +255,7 @@ async def swipe_message(
         max_row = await cur.fetchone()
     max_index = max_row[0] or 0
 
-    if body.direction == "prev":
+    if direction == "prev":
         new_index = max(0, current - 1)
     else:
         if current >= max_index:

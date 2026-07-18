@@ -64,7 +64,6 @@ CRITICAL_ASSETS = [
     "tailwind.css",
     "vendor/inter.css",
     "vendor/htmx2.min.js",
-    "vendor/json-enc.js",
     "vendor/alpine.min.js",
     "vendor/alpine-collapse.min.js",
     "vendor/sortable.min.js",

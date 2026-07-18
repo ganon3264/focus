@@ -117,12 +117,12 @@ class TestPersonas:
 
 class TestPresets:
     async def test_create(self, client):
-        resp = await client.post("/api/presets/", json={"name": "My Preset"})
+        resp = await client.post("/api/presets/", data={"name": "My Preset"})
         assert resp.status_code == 201
         assert "id" in resp.json()
 
     async def test_create_seeds_default_blocks(self, client):
-        resp = await client.post("/api/presets/", json={"name": "Defaulted"})
+        resp = await client.post("/api/presets/", data={"name": "Defaulted"})
         preset = await client.get(f"/api/presets/{resp.json()['id']}")
         blocks = preset.json()["blocks"]
         types = {b["block_type"] for b in blocks}

@@ -3,24 +3,24 @@ import uuid
 from pathlib import Path
 
 import aiosqlite
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
 import focus.crud as crud
 from focus.database import get_db
-from focus.models import PresetBlockBulkUpdate, PresetBlockCreate, PresetCreate, PresetUpdate
+from focus.models import PresetBlockBulkUpdate, PresetBlockCreate, PresetUpdate
 from focus.paths import PRESETS_DIR
 from focus.utils import now_iso, variable_group_name
 
 router = APIRouter()
 
 @router.post("/", status_code=201)
-async def create_preset(body: PresetCreate, db: aiosqlite.Connection = Depends(get_db)):
+async def create_preset(name: str = Form(...), db: aiosqlite.Connection = Depends(get_db)):
     preset_id = str(uuid.uuid4())
     now = now_iso()
 
     await db.execute(
         "INSERT INTO presets (id, name, created_at) VALUES (?, ?, ?)",
-        (preset_id, body.name, now),
+        (preset_id, name, now),
     )
 
     # Seed with sensible default blocks

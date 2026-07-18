@@ -14,6 +14,13 @@ ROOT = Path(__file__).resolve().parent
 VENDOR_DIR = ROOT / "static" / "vendor"
 BIN_DIR = ROOT / "bin"
 
+# ── Versions ────────────────────────────────────────────────────────────────
+HTMX_VERSION = "2.0.10"
+ALPINE_VERSION = "3.15.12"
+MARKED_VERSION = "18.0.5"
+DOMPURIFY_VERSION = "3.4.11"
+SORTABLEJS_VERSION = "1.15.7"
+CROPPERJS_VERSION = "2.1.1"
 TAILWIND_VERSION = "v4.3.2"
 
 TAILWIND_URL = (
@@ -22,35 +29,39 @@ TAILWIND_URL = (
 )
 TAILWIND_DEST = BIN_DIR / "tailwindcss-linux-x64"
 
-# Files downloaded from CDN
 DOWNLOADS = {
-    "htmx2.min.js": ("https://unpkg.com/htmx.org@2.0.10/dist/htmx.min.js", "htmx.org v2.0.10"),
-    "alpine.min.js": ("https://unpkg.com/alpinejs@3.15.12/dist/cdn.min.js", "Alpine.js v3.15.12"),
-    "alpine-collapse.min.js": (
-        "https://unpkg.com/@alpinejs/collapse@3.15.12/dist/cdn.min.js",
-        "Alpine Collapse v3.15.12",
+    "htmx2.min.js": (
+        f"https://unpkg.com/htmx.org@{HTMX_VERSION}/dist/htmx.min.js",
+        f"htmx.org v{HTMX_VERSION}",
     ),
-    "marked.umd.js": ("https://unpkg.com/marked@18.0.5/lib/marked.umd.js", "marked v18.0.5"),
-    "purify.min.js": ("https://unpkg.com/dompurify@3.4.11/dist/purify.min.js", "DOMPurify v3.4.11"),
-    "sortable.min.js": ("https://unpkg.com/sortablejs@1.15.7/Sortable.min.js", "SortableJS v1.15.7"),
-    "cropper.min.js": ("https://unpkg.com/cropperjs@2.1.1/dist/cropper.min.js", "Cropper.js v2.1.1"),
+    "alpine.min.js": (
+        f"https://unpkg.com/alpinejs@{ALPINE_VERSION}/dist/cdn.min.js",
+        f"Alpine.js v{ALPINE_VERSION}",
+    ),
+    "alpine-collapse.min.js": (
+        f"https://unpkg.com/@alpinejs/collapse@{ALPINE_VERSION}/dist/cdn.min.js",
+        f"Alpine Collapse v{ALPINE_VERSION}",
+    ),
+    "marked.umd.js": (
+        f"https://unpkg.com/marked@{MARKED_VERSION}/lib/marked.umd.js",
+        f"marked v{MARKED_VERSION}",
+    ),
+    "purify.min.js": (
+        f"https://unpkg.com/dompurify@{DOMPURIFY_VERSION}/dist/purify.min.js",
+        f"DOMPurify v{DOMPURIFY_VERSION}",
+    ),
+    "sortable.min.js": (
+        f"https://unpkg.com/sortablejs@{SORTABLEJS_VERSION}/Sortable.min.js",
+        f"SortableJS v{SORTABLEJS_VERSION}",
+    ),
+    "cropper.min.js": (
+        f"https://unpkg.com/cropperjs@{CROPPERJS_VERSION}/dist/cropper.min.js",
+        f"Cropper.js v{CROPPERJS_VERSION}",
+    ),
     "inter.css": (
         "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap",
         "Inter font CSS",
     ),
-}
-
-# Files generated locally (no CDN needed)
-INLINE = {
-    "json-enc.js": """\
-htmx.defineExtension('json-enc', {
-  onEvent: function (name, evt) {
-    if (name === 'htmx:configRequest') {
-      evt.detail.headers['Content-Type'] = 'application/json';
-    }
-  },
-});
-""",
 }
 
 
@@ -64,9 +75,6 @@ def check() -> int:
     """Verify all vendor files exist. Exit 0 if complete, 1 if anything missing."""
     missing = []
     for filename in DOWNLOADS:
-        if not (VENDOR_DIR / filename).is_file():
-            missing.append(f"static/vendor/{filename}")
-    for filename in INLINE:
         if not (VENDOR_DIR / filename).is_file():
             missing.append(f"static/vendor/{filename}")
     if not TAILWIND_DEST.is_file():
@@ -118,16 +126,8 @@ def sync() -> int:
             print(f"  FAILED ({e})")
             fail += 1
 
-    # Inline vendor files
-    for filename, content in INLINE.items():
-        dest = VENDOR_DIR / filename
-        print(f"  {filename} ...", end=" ", flush=True)
-        dest.write_text(content)
-        print(f"  {len(content):>8} bytes  (inline)")
-        ok += 1
-
     print()
-    print(f"Done: {ok} ok, {fail} failed out of {len(DOWNLOADS) + len(INLINE) + 1}")
+    print(f"Done: {ok} ok, {fail} failed out of {len(DOWNLOADS) + 1}")
 
     return 0 if fail == 0 else 1
 

@@ -1,10 +1,6 @@
 {% for p in personas %}
 <div
   class="sidebar-item {% if current_persona_id == p.id %}active{% endif %}"
-  hx-patch="/api/chats/{{ chat_id }}"
-  hx-vals='{"persona_id": "{{ p.id }}"}'
-  hx-trigger="click"
-  hx-swap="none"
   onclick="StateManager.setPersona('{{ p.id }}'); document.querySelectorAll('#persona-selector .sidebar-item').forEach(el => el.classList.remove('active')); this.classList.add('active');"
 >
   <div class="avatar-thumb">
