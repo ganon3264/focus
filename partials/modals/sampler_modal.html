@@ -640,7 +640,7 @@ const PROVIDER_SAMPLERS = {
         frequency_penalty: s.frequency_penalty,
         presence_penalty: s.presence_penalty,
         include_reasoning: s.include_reasoning,
-        ...(s.include_reasoning ? { preserve_thinking: s.preserve_thinking } : {}),
+        ...(s.include_reasoning ? { preserve_thinking: s.preserve_thinking, reasoning_effort: s.reasoning_effort } : {}),
       };
     },
   },
@@ -712,7 +712,7 @@ const PROVIDER_SAMPLERS = {
           repetition_penalty: 1.0,
           include_reasoning: false,
           send_reasoning_history: true,
-          reasoning_effort: '',
+          reasoning_effort: 'max',
           thinking_budget: 0,
           stream_enabled: true,
           enable_multimodal: true,
@@ -779,6 +779,11 @@ const PROVIDER_SAMPLERS = {
             { value: 'high', label: 'High' },
             { value: 'max', label: 'Max' },
           ],
+          moonshot: [
+            { value: 'standard', label: 'Standard' },
+            { value: 'high', label: 'High' },
+            { value: 'max', label: 'Max' },
+          ],
           google_vertex: [
             { value: 'MINIMAL', label: 'Min' },
             { value: 'LOW', label: 'Low' },
@@ -806,7 +811,7 @@ const PROVIDER_SAMPLERS = {
         return p && p.model && p.model.startsWith('anthropic/claude');
       },
       get showReasoningToggle() { return ['openai_compat', 'deepseek', 'moonshot'].includes(this.providerType); },
-      get showReasoningEffort() { return this.samplers.include_reasoning && ['openai_compat', 'deepseek'].includes(this.providerType); },
+      get showReasoningEffort() { return this.samplers.include_reasoning && ['openai_compat', 'deepseek', 'moonshot'].includes(this.providerType); },
       get showPreserveThinking() { return this.samplers.include_reasoning && ['moonshot', 'deepseek'].includes(this.providerType); },
       get showGoogleReasoning() { return ['google_vertex', 'google_aistudio'].includes(this.providerType); },
       get showSendReasoningHistory() { return ['google_vertex', 'google_aistudio'].includes(this.providerType); },

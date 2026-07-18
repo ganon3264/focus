@@ -105,7 +105,7 @@ async def _prepare_generation_messages(
             preserve = body.samplers.get("preserve_thinking", False) if body.samplers else False
             if not preserve:
                 for msg in messages:
-                    if msg.get("role") == "assistant" and msg.get("reasoning") and not msg.get("tool_calls"):
+                    if msg.get("role") == "assistant" and msg.get("reasoning") and not msg.get("tool_calls") and msg.get("content"):
                         msg.pop("reasoning")
 
     if (body.continue_text is not None or body.continue_reasoning) and body.regenerate and provider.supports_prefill:
@@ -125,6 +125,8 @@ async def _prepare_generation_messages(
 
     if prov_dict.get("type") == "openrouter":
         gen_kwargs["session_id"] = chat_id
+    if prov_dict.get("type") == "moonshot":
+        gen_kwargs["prompt_cache_key"] = chat_id
 
     return messages, gen_kwargs
 
@@ -158,6 +160,20 @@ def _log_outbound_payload(
     logger.debug("Samplers:\n%s", json.dumps(gen_kwargs, indent=2))
     logger.debug("Messages:\n%s", json.dumps(_truncate_b64(messages), indent=2, ensure_ascii=False))
     logger.debug("==========================================")
+
+
+def _prefill_reasoning(body: StreamRequest, messages: list[dict]) -> str | None:
+    """Return the prefill reasoning text that the provider won't echo back.
+
+    Checks body.continue_reasoning first (explicit continue/regenerate),
+    then falls back to the last message if it's an assistant thinking-only
+    block (reasoning with empty content).  Returns None if no such text.
+    """
+    if body.continue_reasoning:
+        return body.continue_reasoning
+    if messages and messages[-1].get("role") == "assistant" and messages[-1].get("reasoning"):
+        return messages[-1]["reasoning"]
+    return None
 
 
 # ── Core generation loop (shared by stream and non-stream paths) ────────
@@ -275,9 +291,10 @@ async def _stream_generate(
     # Emit prefill as synthetic events so the frontend always receives the
     # complete message without any special prefill awareness.
     if not provider.echoes_prefill:
-        if body.continue_reasoning:
-            final_reasoning.append(body.continue_reasoning)
-            yield f"data: {json.dumps({'type': 'reasoning', 'text': body.continue_reasoning})}\n\n"
+        pref_reasoning = _prefill_reasoning(body, messages)
+        if pref_reasoning:
+            final_reasoning.append(pref_reasoning)
+            yield f"data: {json.dumps({'type': 'reasoning', 'text': pref_reasoning})}\n\n"
         if body.continue_text:
             final_text.append(body.continue_text)
             yield f"data: {json.dumps({'token': body.continue_text})}\n\n"
@@ -448,8 +465,9 @@ async def _non_stream_generate(
     if not provider.echoes_prefill:
         if body.continue_text:
             collected.insert(0, body.continue_text)
-        if body.continue_reasoning:
-            collected_reasoning.insert(0, body.continue_reasoning)
+        pref_reasoning = _prefill_reasoning(body, messages)
+        if pref_reasoning:
+            collected_reasoning.insert(0, pref_reasoning)
 
     full = "".join(collected)
     full_reasoning = "".join(collected_reasoning).strip() or None

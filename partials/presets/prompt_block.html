@@ -82,7 +82,7 @@ media_thumbnail, hint_tooltip %}
       <div style="width: 120px; flex-shrink: 0">
         {{ custom_select( name="role", id="role-" + block.id, options=[ {"value": "system", "label":
         "system"}, {"value": "user", "label": "user"}, {"value": "assistant", "label": "assistant"}
-        ], selected=block.role, on_change="handleArrangerBlockUpdate(this, {role:this.value})",
+        ], selected=block.role, on_change="handleArrangerBlockUpdate($el.closest('.arranger-item'), {role:$event.target.value})",
         extra_classes="arranger-select" ) }}
       </div>
       <div class="flex flex-col gap-1" style="min-width: 0">
@@ -174,7 +174,7 @@ media_thumbnail, hint_tooltip %}
       <div style="width: 120px; flex-shrink: 0">
         {{ custom_select( name="role", id="role-" + block.id, options=[ {"value": "system", "label":
         "system"}, {"value": "user", "label": "user"}, {"value": "assistant", "label": "assistant"}
-        ], selected=block.role, on_change="handleArrangerBlockUpdate(this, {role:this.value})",
+        ], selected=block.role, on_change="handleArrangerBlockUpdate($el.closest('.arranger-item'), {role:$event.target.value})",
         extra_classes="arranger-select" ) }}
       </div>
       {% endif %}

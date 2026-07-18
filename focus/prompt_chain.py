@@ -326,10 +326,10 @@ async def assemble_prompt(
         if btype == "text":
             text = apply_macros(block["content"], macros).strip()
             content = await _build_content(text, images)
-            if content:
+            if content or block.get("reasoning"):
                 msg = {"role": block["role"], "content": content}
                 if block["role"] == "assistant" and block.get("reasoning"):
-                    msg["reasoning"] = block["reasoning"]
+                    msg["reasoning"] = apply_macros(block["reasoning"], macros)
                 target.append(msg)
 
         elif btype == "char_description":
@@ -414,8 +414,11 @@ async def assemble_prompt(
                 text = apply_macros(block["content"], macros).strip()
                 images = block_images.get(block["id"], [])
                 content = await _build_content(text, images)
-                if content:
-                    injected.append({"role": block["role"], "content": content})
+                if content or (block["role"] == "assistant" and block.get("reasoning")):
+                    msg = {"role": block["role"], "content": content}
+                    if block["role"] == "assistant" and block.get("reasoning"):
+                        msg["reasoning"] = apply_macros(block["reasoning"], macros)
+                    injected.append(msg)
             if not injected:
                 continue
             injected = _merge_consecutive(injected)

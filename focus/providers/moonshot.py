@@ -11,6 +11,7 @@ class MoonshotProvider(OpenAICompatProvider):
     async def stream_complete(self, messages: list[dict], **kwargs):
         include_reasoning = kwargs.pop("include_reasoning", None)
         preserve_thinking = kwargs.pop("preserve_thinking", False)
+        reasoning_effort = kwargs.pop("reasoning_effort", "")
 
         extra_body = kwargs.get("extra_body", {})
 
@@ -21,6 +22,8 @@ class MoonshotProvider(OpenAICompatProvider):
             if preserve_thinking:
                 thinking["keep"] = "all"
             extra_body["thinking"] = thinking
+            if reasoning_effort:
+                extra_body["reasoning_effort"] = reasoning_effort
 
         kwargs["extra_body"] = extra_body
 
