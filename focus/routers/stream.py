@@ -100,7 +100,8 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
         gen_kwargs.update(s)
 
     # OpenRouter sticky routing: pin requests to the same endpoint for cache warmth
-    gen_kwargs["session_id"] = body.chat_id
+    if prov_dict.get("type") == "openrouter":
+        gen_kwargs["session_id"] = body.chat_id
 
     # ── Non-streaming path ─────────────────────────────────────────────────────
     if not use_stream:
@@ -177,41 +178,50 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
 
     async def generate():
         yield f"data: {json.dumps({'type': 'start', 'message_id': final_asst_msg_id, 'user_message_id': user_msg_id if not body.regenerate else None})}\n\n"
+        _completed = False
+        _handled = False
         try:
-            logger.debug(f"Starting generation stream for chat_id={body.chat_id} provider={prov_dict['name']}")
-            async for token in provider.stream_complete(messages, **gen_kwargs):
-                collected.append(token)
-                yield f"data: {json.dumps({'token': token})}\n\n"
-        except Exception as e:
-            logger.exception("Stream exception for chat_id=%s", body.chat_id)
-            if not body.regenerate:
-                await _rollback_assistant(final_asst_msg_id)
-            err_msg = str(e)
-            if not err_msg or err_msg == "()":
-                err_msg = repr(e)
-            yield f"data: {json.dumps({'error': err_msg})}\n\n"
-            return
+            try:
+                logger.debug(f"Starting generation stream for chat_id={body.chat_id} provider={prov_dict['name']}")
+                async for token in provider.stream_complete(messages, **gen_kwargs):
+                    collected.append(token)
+                    yield f"data: {json.dumps({'token': token})}\n\n"
+            except Exception as e:
+                _handled = True
+                logger.exception("Stream exception for chat_id=%s", body.chat_id)
+                if not body.regenerate:
+                    await _rollback_assistant(final_asst_msg_id)
+                err_msg = str(e)
+                if not err_msg or err_msg == "()":
+                    err_msg = repr(e)
+                yield f"data: {json.dumps({'error': err_msg})}\n\n"
+                return
 
-        full = "".join(collected)
+            full = "".join(collected)
 
-        try:
-            await _save_assistant_variant(
-                body.chat_id,
-                final_asst_msg_id,
-                next_variant_index,
-                full,
-                body.regenerate,
-                prov_dict.get("model", ""),
-            )
-        except Exception as e:
-            logger.exception("Failed to save stream result for chat_id=%s", body.chat_id)
-            if not body.regenerate:
-                await _rollback_assistant(final_asst_msg_id)
-            err_msg = str(e) or repr(e)
-            yield f"data: {json.dumps({'error': f'Generation succeeded but save failed: {err_msg}'})}\n\n"
-            return
+            try:
+                await _save_assistant_variant(
+                    body.chat_id,
+                    final_asst_msg_id,
+                    next_variant_index,
+                    full,
+                    body.regenerate,
+                    prov_dict.get("model", ""),
+                )
+            except Exception as e:
+                _handled = True
+                logger.exception("Failed to save stream result for chat_id=%s", body.chat_id)
+                if not body.regenerate:
+                    await _rollback_assistant(final_asst_msg_id)
+                err_msg = str(e) or repr(e)
+                yield f"data: {json.dumps({'error': f'Generation succeeded but save failed: {err_msg}'})}\n\n"
+                return
 
-        yield f"data: {json.dumps({'done': True, 'message_id': final_asst_msg_id, 'variant_index': next_variant_index})}\n\n"
+            yield f"data: {json.dumps({'done': True, 'message_id': final_asst_msg_id, 'variant_index': next_variant_index})}\n\n"
+            _completed = True
+        finally:
+            if not _completed and not _handled:
+                logger.info("Client disconnected, stream terminated for chat_id=%s", body.chat_id)
 
     return StreamingResponse(
         generate(),
