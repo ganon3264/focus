@@ -334,7 +334,10 @@ function submitProviderModal(e){
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify(data)
   }).then(function(r){
-    if(r.ok) htmx.ajax('GET', api.partials.providersModal, {target:'#providers-modal-body',swap:'innerHTML'});
+    if(r.ok) {
+      closeModal('modal-provider-create');
+      htmx.ajax('GET', api.partials.providersModal, {target:'#providers-modal-body',swap:'innerHTML'});
+    }
   });
 }
 
