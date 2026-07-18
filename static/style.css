@@ -446,8 +446,6 @@
   /* Reasoning / Thought Process */
   details.reasoning {
     margin: 0.5rem 0;
-    padding: 0 0 0 0.75rem;
-    border-left: 2px solid var(--border);
     font-size: 0.85rem;
     color: var(--text-faint);
   }
@@ -455,9 +453,25 @@
     cursor: pointer;
     user-select: none;
     font-weight: normal;
-    font-style: italic;
-    color: var(--text-muted);
-    margin-bottom: 0;
+    color: var(--text);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.15rem 0.6rem;
+    background: var(--surface-3);
+    border-radius: var(--radius-sm);
+    margin-bottom: 0.35rem;
+    list-style: none;
+  }
+  details.reasoning > summary::-webkit-details-marker {
+    display: none;
+  }
+  details.reasoning > summary .reasoning-chevron {
+    display: inline-flex;
+    transition: transform var(--transition);
+  }
+  details.reasoning[open] > summary .reasoning-chevron {
+    transform: rotate(90deg);
   }
   details.reasoning > summary:hover {
     color: var(--text);

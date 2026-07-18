@@ -127,7 +127,8 @@ window.renderMessage = function (text) {
   for (let i = 0; i < thoughts.length; i++) {
     const t = thoughts[i];
     const safeInner = window.escapeHtml(t.content).trim().replace(/\n/g, '<br>');
-    const detailsHtml = `<details class="reasoning" data-think-id="${i}"><summary>Thought Process</summary><div class="reasoning-content">${safeInner}</div></details>`;
+    const chevron = window.getSvgSprite('chevron-right', 12) || '>';
+    const detailsHtml = `<details class="reasoning" data-think-id="${i}"><summary><span class="reasoning-chevron">${chevron}</span> Reasoning</summary><div class="reasoning-content">${safeInner}</div></details>`;
 
     const regex = new RegExp(`<p>%%%THINK_BLOCK_${i}%%%<\\/p>|%%%THINK_BLOCK_${i}%%%`, 'g');
     html = html.replace(regex, () => detailsHtml);
