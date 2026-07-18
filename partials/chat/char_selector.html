@@ -4,7 +4,9 @@
   data-char-id="{{ char.id }}"
   hx-trigger="click"
   hx-swap="none"
-  onclick="htmx.ajax('GET', '/partials/chat-list?character_id={{ char.id }}&current_chat_id={{ chat_id }}', {target:'#chat-list', swap:'innerHTML'})"
+  data-char-id="{{ char.id }}"
+  data-current-chat-id="{{ chat_id }}"
+  onclick="loadChatList(this.dataset.charId, this.dataset.currentChatId)"
 >
   <div class="avatar-thumb">
     {% if char.image_path %}

@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from io import BytesIO
 
 import aiosqlite
+from fastapi import HTTPException, UploadFile
 from PIL import Image
 
 logger = logging.getLogger("focus.utils")
@@ -39,6 +40,16 @@ GOOGLE_VERTEX_HTTP_RETRIES = 3
 MODEL_FETCH_HTTP_TIMEOUT = 10.0
 
 MODEL_CACHE_TTL = 300
+
+MAX_UPLOAD_SIZE = 25 * 1024 * 1024  # 25 MB
+
+
+async def read_upload(file: UploadFile) -> bytes:
+    """Read an UploadFile, raising 413 Payload Too Large if it exceeds MAX_UPLOAD_SIZE."""
+    data = await file.read()
+    if len(data) > MAX_UPLOAD_SIZE:
+        raise HTTPException(413, f"File too large ({len(data)} bytes). Maximum is {MAX_UPLOAD_SIZE} bytes.")
+    return data
 
 
 class TTLCache:

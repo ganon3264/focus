@@ -203,7 +203,7 @@ async def list_secrets(db: aiosqlite.Connection = Depends(get_db)):
         out = []
         for r in await cur.fetchall():
             val = r["value"]
-            preview = f"{val[:4]}...{val[-4:]}" if len(val) > 8 else "***"
+            preview = f"{val[:4]}...{val[-4:]}" if len(val) > 16 else "***"
             out.append({"name": r["name"], "preview": preview})
         return {"data": out}
 

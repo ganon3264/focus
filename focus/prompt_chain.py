@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import base64
 import logging
 import re
@@ -20,7 +21,12 @@ MAX_IMAGE_B64 = 5 * 1024 * 1024  # 5 MB provider limit on base64 payload
 MEDIA_PATTERN = re.compile(r"\{\{media::(\d+)\}\}")
 
 
-def _ensure_compressed(orig_path: str, mime: str) -> tuple[Path, str]:
+async def _ensure_compressed(orig_path: str, mime: str) -> tuple[Path, str]:
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, _ensure_compressed_sync, orig_path, mime)
+
+
+def _ensure_compressed_sync(orig_path: str, mime: str) -> tuple[Path, str]:
     """Return (compressed_file_path, output_mime) from a disk cache.
 
     Creates a compressed version on disk if missing or stale.
@@ -88,7 +94,7 @@ def _ensure_compressed(orig_path: str, mime: str) -> tuple[Path, str]:
     return jpg_cache, "image/jpeg"
 
 
-def _load_media(media_row: dict) -> dict | None:
+async def _load_media(media_row: dict) -> dict | None:
     """Read a media file from disk and return an OpenAI-format block."""
     path = media_row.get("image_path") or media_row.get("file_path")
     if not path:
@@ -113,7 +119,7 @@ def _load_media(media_row: dict) -> dict | None:
         }
 
     try:
-        compressed_path, out_mime = _ensure_compressed(path, mime)
+        compressed_path, out_mime = await _ensure_compressed(path, mime)
         data = compressed_path.read_bytes()
     except OSError as e:
         logger.warning("_load_media: compression failed for %s: %s", path, e)
@@ -125,7 +131,7 @@ def _load_media(media_row: dict) -> dict | None:
     }
 
 
-def _build_content(text: str, images: list[dict]) -> str | list:
+async def _build_content(text: str, images: list[dict]) -> str | list:
     """
     Return plain string if no images, or a multimodal content array if images present.
 
@@ -141,7 +147,10 @@ def _build_content(text: str, images: list[dict]) -> str | list:
         parts: list[dict] = []
         if text:
             parts.append({"type": "text", "text": text})
-        parts.extend(m for img in images if (m := _load_media(img)) is not None)
+        for img in images:
+            m = await _load_media(img)
+            if m is not None:
+                parts.append(m)
         return parts
 
     parts: list[dict] = []
@@ -156,7 +165,7 @@ def _build_content(text: str, images: list[dict]) -> str | list:
         index = int(match.group(1))
         if 1 <= index <= len(images):
             img = images[index - 1]
-            media_block = _load_media(img)
+            media_block = await _load_media(img)
             if media_block:
                 parts.append(media_block)
         else:
@@ -260,7 +269,7 @@ def resolve_variable_blocks(variable_blocks: list[dict], macros: dict[str, str])
             break
 
 
-def assemble_prompt(
+async def assemble_prompt(
     preset_blocks: list[dict[str, Any]],
     chat_history: list[dict[str, str]],
     char_data: dict[str, str],
@@ -308,21 +317,21 @@ def assemble_prompt(
 
         if btype == "text":
             text = apply_macros(block["content"], macros).strip()
-            content = _build_content(text, images)
+            content = await _build_content(text, images)
             if content:
                 target.append({"role": block["role"], "content": content})
 
         elif btype == "char_description":
             char_images = block_images.get(char_data.get("id"), [])
             text = apply_macros(char_data.get("description", ""), macros).strip()
-            content = _build_content(text, char_images)
+            content = await _build_content(text, char_images)
             if content:
                 target.append({"role": block["role"], "content": content})
 
         elif btype == "char_personality":
             char_images = block_images.get(char_data.get("id"), [])
             text = apply_macros(char_data.get("personality", ""), macros).strip()
-            content = _build_content(text, char_images)
+            content = await _build_content(text, char_images)
             if content:
                 target.append({"role": block["role"], "content": content})
 
@@ -330,7 +339,7 @@ def assemble_prompt(
             persona_id = macros.get("persona_id", "")
             persona_images = block_images.get(persona_id, []) if persona_id else []
             text = apply_macros(macros.get("persona", ""), macros).strip()
-            content = _build_content(text, persona_images)
+            content = await _build_content(text, persona_images)
             if content:
                 target.append({"role": block["role"], "content": content})
 
@@ -340,7 +349,7 @@ def assemble_prompt(
             for cb in enabled:
                 text = apply_macros(cb["content"], macros).strip()
                 cb_images = block_images.get(cb["id"], [])
-                content = _build_content(text, cb_images)
+                content = await _build_content(text, cb_images)
                 if content:
                     target.append({"role": cb["role"], "content": content})
 
@@ -386,7 +395,7 @@ def assemble_prompt(
             for block in blocks:
                 text = apply_macros(block["content"], macros).strip()
                 images = block_images.get(block["id"], [])
-                content = _build_content(text, images)
+                content = await _build_content(text, images)
                 if content:
                     injected.append({"role": block["role"], "content": content})
             if not injected:

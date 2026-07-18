@@ -76,6 +76,8 @@ async def restore_backup(
 ) -> dict:
     from focus.exchange import import_data
 
+    if not backup_id or "/" in backup_id or "\\" in backup_id or ".." in backup_id:
+        raise ValueError(f"Invalid backup_id: {backup_id!r}")
     backups_dir = get_backups_dir(backups_path)
     backup_file = backups_dir / f"{backup_id}.focus"
     if not backup_file.is_file():
@@ -89,6 +91,8 @@ async def restore_backup(
 
 
 def delete_backup(backup_id: str, backups_path: str | None = None) -> None:
+    if not backup_id or "/" in backup_id or "\\" in backup_id or ".." in backup_id:
+        raise ValueError(f"Invalid backup_id: {backup_id!r}")
     backups_dir = get_backups_dir(backups_path)
     backup_file = backups_dir / f"{backup_id}.focus"
     if not backup_file.is_file():

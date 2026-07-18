@@ -1,4 +1,4 @@
-<div id="preset-variables-container-{{ preset_id }}" style="display: flex; flex-direction: column; flex: 1; min-height: 0;">
+<div id="preset-variables-container-{{ preset_id }}" data-preset-id="{{ preset_id }}" style="display: flex; flex-direction: column; flex: 1; min-height: 0;">
   {% from "macros.html" import icon_edit, icon_plus, icon_close, icon_chevron_right %}
   {% if var_groups %}
     <div class="flex flex-col gap-2 overflow-y-auto pr-2 scroll-fade" id="preset-variables-sortable-{{ preset_id }}" style="flex: 1; min-height: 0;">
@@ -26,15 +26,16 @@
               {% set vlabel = vb.name.split(':', 1)[1] if ':' in vb.name else 'Option' %}
               <div class="flex items-center gap-2 p-2 rounded w-full min-w-0 var-option-item" data-id="{{ vb.id }}" style="background: var(--surface-2); border: 1px solid var(--border);">
                 <div class="radio-switch {% if vb.enabled %}active{% endif %}" role="radio" tabindex="0" title="Select option"
-                     onclick="handleVarUpdate('{{ preset_id }}', '{{ vb.id }}', {enabled: {{ 0 if vb.enabled else 1 }}})">
-                  <div class="radio-inner"></div>
+                     data-var-id="{{ vb.id }}"
+                     onclick="handleVarUpdate(this)">
+                   <div class="radio-inner"></div>
                 </div>
-                <span class="text-sm font-semibold truncate cursor-pointer flex-1" style="min-width: 0;" onclick="openVarEditModal('{{ vb.id }}', '{{ preset_id }}', '{{ vname }}', '{{ vlabel }}', '{{ vb.content | replace('\n', '\\n') | replace('\'', '\\\'') | replace('"', '\\"') }}')" title="Edit: {{ vlabel }}">{{ vlabel }}</span>
-                <button type="button" class="action-icon" style="flex-shrink: 0;" title="Edit Option" aria-label="Edit option" onclick="openVarEditModal('{{ vb.id }}', '{{ preset_id }}', '{{ vname }}', '{{ vlabel }}', '{{ vb.content | replace('\n', '\\n') | replace('\'', '\\\'') | replace('"', '\\"') }}')">{{ icon_edit() }}</button>
-                <button type="button" class="action-icon danger" style="flex-shrink: 0;" title="Delete Option" aria-label="Delete option" onclick="window.customConfirm('Delete variable option?', function(){ handleVarDelete('{{ preset_id }}', '{{ vb.id }}'); })">{{ icon_close(16) }}</button>
+                <span class="text-sm font-semibold truncate cursor-pointer flex-1" style="min-width: 0;" data-var-id="{{ vb.id }}" data-var-name="{{ vname }}" data-var-label="{{ vlabel }}" onclick="openVarEditModal(this)" title="Edit: {{ vlabel }}">{{ vlabel }}</span>
+                <button type="button" class="action-icon" style="flex-shrink: 0;" title="Edit Option" aria-label="Edit option" data-var-id="{{ vb.id }}" data-var-name="{{ vname }}" data-var-label="{{ vlabel }}" onclick="openVarEditModal(this)">{{ icon_edit() }}</button>
+                <button type="button" class="action-icon danger" style="flex-shrink: 0;" title="Delete Option" aria-label="Delete option" data-var-id="{{ vb.id }}" onclick="window.customConfirm('Delete variable option?', function(){ handleVarDelete(this); }.bind(this))">{{ icon_close(16) }}</button>
               </div>
             {% endfor %}
-            <div class="flex items-center gap-2 p-2 rounded w-full min-w-0 radio-add-row" onclick="event.stopPropagation(); openVarEditModal(null, '{{ preset_id }}', '{{ vname }}', '', '')">
+            <div class="flex items-center gap-2 p-2 rounded w-full min-w-0 radio-add-row" data-var-name="{{ vname }}" onclick="event.stopPropagation(); openVarEditModal(this)">
               <span style="color: var(--text-muted); font-size: 0.8rem; display: flex; align-items: center; gap: 0.35rem; padding: 0.1rem 0;">
                 {{ icon_plus(14) }} Add Option
               </span>
@@ -49,7 +50,7 @@
       <div class="text-muted text-sm">No variables configured.</div>
     </div>
   {% endif %}
-  <button type="button" class="btn btn-secondary w-full text-xs mt-2" onclick="openVarEditModal(null, '{{ preset_id }}', '', '', '')">{{ icon_plus(14) }} Add Variable</button>
+  <button type="button" class="btn btn-secondary w-full text-xs mt-2" onclick="openVarEditModal(this)">{{ icon_plus(14) }} Add Variable</button>
 
   <script>
     setTimeout(() => {

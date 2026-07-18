@@ -4,13 +4,14 @@ media_thumbnail, hint_tooltip %}
   class="arranger-item {% if not block.enabled %}disabled{% endif %} {% if block.block_type != 'chat_history' and block.block_type != 'char_blocks' %}bg-role-{{ block.role }}{% endif %}"
   data-block-id="{{ block.id }}"
   data-block-content="{{ block.content }}"
+  data-preset-id="{{ preset_id }}"
   x-data="{ expanded: expandGet('arrangerBlocks', '{{ block.id }}') }"
 >
   <div class="arranger-header">
     <div class="arranger-handle" title="Drag to reorder"></div>
     <div
       class="arranger-title-group"
-      @click="expanded = expandToggle('arrangerBlocks', '{{ block.id }}')"
+      @click="expanded = expandToggle('arrangerBlocks', $el.closest('.arranger-item').dataset.blockId)"
       role="button"
       tabindex="0"
       aria-expanded="false"
@@ -36,7 +37,7 @@ media_thumbnail, hint_tooltip %}
         class="arranger-input"
         value="{{ block.name }}"
         @click.stop
-        onchange="fetch('/api/presets/{{ preset_id }}/blocks/{{ block.id }}', {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name:this.value})})"
+        onchange="handleArrangerBlockUpdate(this, {name:this.value})"
       />
       {% else %}
       <span class="arranger-badge badge-auto">AUTO</span>
@@ -51,7 +52,8 @@ media_thumbnail, hint_tooltip %}
         role="switch"
         tabindex="0"
         title="Toggle Block"
-        onclick="handleArrangerBlockUpdate('{{ preset_id }}', '{{ block.id }}', {enabled:{{ 0 if block.enabled else 1 }}})"
+        data-enabled="{{ 0 if block.enabled else 1 }}"
+        onclick="handleArrangerBlockUpdate(this, {enabled: parseInt(this.dataset.enabled)})"
       ></div>
       {% if block.block_type != 'chat_history' %}
       <button
@@ -59,7 +61,7 @@ media_thumbnail, hint_tooltip %}
         class="action-icon danger"
         title="Delete"
         aria-label="Delete block"
-        onclick="window.customConfirm('Delete block?', function(){ handleArrangerBlockDelete('{{ preset_id }}', '{{ block.id }}'); })"
+        onclick="promptDeleteBlock(this)"
       >
         {{ icon_close(16) }}
       </button>
@@ -79,14 +81,14 @@ media_thumbnail, hint_tooltip %}
       <div style="width: 120px; flex-shrink: 0">
         {{ custom_select( name="role", id="role-" + block.id, options=[ {"value": "system", "label":
         "system"}, {"value": "user", "label": "user"}, {"value": "assistant", "label": "assistant"}
-        ], selected=block.role, on_change="handleArrangerBlockUpdate('" + preset_id + "', '" +
-        block.id + "', {role:$event.target.value})", extra_classes="arranger-select" ) }}
+        ], selected=block.role, on_change="handleArrangerBlockUpdate(this, {role:this.value})",
+        extra_classes="arranger-select" ) }}
       </div>
       <div
         class="block-preview"
         role="button"
         tabindex="0"
-        onclick="openBlockModal('{{ block.id }}', '{{ preset_id }}')"
+        onclick="openBlockModal(this)"
       >
         {% if block.content %}{{ block.content[:80] }}{% if block.content | length > 80 %}…{% endif
         %}{% else %}<em class="empty-text">Empty — click to edit</em>{% endif %}
@@ -105,7 +107,8 @@ media_thumbnail, hint_tooltip %}
           role="switch"
           tabindex="0"
           title="Toggle In-Chat Mode"
-          onclick="handleArrangerBlockUpdate('{{ preset_id }}', '{{ block.id }}', {injection_depth: {{ 'null' if block.injection_depth is not none else '0' }}})"
+          data-curr-depth="{{ block.injection_depth if block.injection_depth is not none else '' }}"
+          onclick="handleArrangerBlockUpdate(this, {injection_depth: this.dataset.currDepth ? null : 0})"
         ></div>
       </div>
       {% if block.injection_depth is not none %}
@@ -119,7 +122,7 @@ media_thumbnail, hint_tooltip %}
             value="{{ block.injection_depth }}"
             class="form-control"
             style="width: 56px; padding: 2px 4px; font-size: 0.8rem"
-            onchange="handleArrangerBlockUpdate('{{ preset_id }}', '{{ block.id }}', {injection_depth: parseInt(this.value) || 0})"
+            onchange="handleArrangerBlockUpdate(this, {injection_depth: parseInt(this.value) || 0})"
           />
         </label>
         <label class="flex items-center gap-1 text-xs text-muted">
@@ -131,7 +134,7 @@ media_thumbnail, hint_tooltip %}
             value="{{ block.injection_order | default(0) }}"
             class="form-control"
             style="width: 56px; padding: 2px 4px; font-size: 0.8rem"
-            onchange="handleArrangerBlockUpdate('{{ preset_id }}', '{{ block.id }}', {injection_order: parseInt(this.value) || 0})"
+            onchange="handleArrangerBlockUpdate(this, {injection_order: parseInt(this.value) || 0})"
           />
         </label>
       </div>
@@ -157,8 +160,8 @@ media_thumbnail, hint_tooltip %}
       <div style="width: 120px; flex-shrink: 0">
         {{ custom_select( name="role", id="role-" + block.id, options=[ {"value": "system", "label":
         "system"}, {"value": "user", "label": "user"}, {"value": "assistant", "label": "assistant"}
-        ], selected=block.role, on_change="handleArrangerBlockUpdate('" + preset_id + "', '" +
-        block.id + "', {role:$event.target.value})", extra_classes="arranger-select" ) }}
+        ], selected=block.role, on_change="handleArrangerBlockUpdate(this, {role:this.value})",
+        extra_classes="arranger-select" ) }}
       </div>
       {% endif %}
       <div class="arranger-note flex flex-col gap-1">
@@ -193,7 +196,8 @@ media_thumbnail, hint_tooltip %}
           role="switch"
           tabindex="0"
           title="Toggle In-Chat Mode"
-          onclick="handleArrangerBlockUpdate('{{ preset_id }}', '{{ block.id }}', {injection_depth: {{ 'null' if block.injection_depth is not none else '0' }}})"
+          data-curr-depth="{{ block.injection_depth if block.injection_depth is not none else '' }}"
+          onclick="handleArrangerBlockUpdate(this, {injection_depth: this.dataset.currDepth ? null : 0})"
         ></div>
       </div>
       {% if block.injection_depth is not none %}
@@ -207,7 +211,7 @@ media_thumbnail, hint_tooltip %}
             value="{{ block.injection_depth }}"
             class="form-control"
             style="width: 56px; padding: 2px 4px; font-size: 0.8rem"
-            onchange="handleArrangerBlockUpdate('{{ preset_id }}', '{{ block.id }}', {injection_depth: parseInt(this.value) || 0})"
+            onchange="handleArrangerBlockUpdate(this, {injection_depth: parseInt(this.value) || 0})"
           />
         </label>
         <label class="flex items-center gap-1 text-xs text-muted">
@@ -219,7 +223,7 @@ media_thumbnail, hint_tooltip %}
             value="{{ block.injection_order | default(0) }}"
             class="form-control"
             style="width: 56px; padding: 2px 4px; font-size: 0.8rem"
-            onchange="handleArrangerBlockUpdate('{{ preset_id }}', '{{ block.id }}', {injection_order: parseInt(this.value) || 0})"
+            onchange="handleArrangerBlockUpdate(this, {injection_order: parseInt(this.value) || 0})"
           />
         </label>
       </div>
@@ -234,8 +238,7 @@ media_thumbnail, hint_tooltip %}
       class="arranger-media-section"
       style="margin-top: 0.5rem; display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center"
     >
-      {% for img in block.images %} {{ media_thumbnail(img, "deleteBlockMedia('" + preset_id + "',
-      '" + block.id + "', '" + img.id + "')", ' data-image-id="' + img.id + '"') }} {% endfor %}
+      {% for img in block.images %} {{ media_thumbnail(img, "deleteBlockMedia(this.closest('[data-image-id]'))", ' data-image-id="' + img.id + '"') }} {% endfor %}
 
       <label
         class="btn btn-secondary btn-sm"
@@ -258,7 +261,7 @@ media_thumbnail, hint_tooltip %}
           type="file"
           accept="image/*,audio/*"
           class="hidden"
-          onchange="uploadBlockMedia('{{ preset_id }}', '{{ block.id }}', this)"
+          onchange="uploadBlockMedia(this)"
         />
       </label>
       {% if not block.images %}

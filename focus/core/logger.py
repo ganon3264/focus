@@ -2,7 +2,7 @@ import logging
 import os
 import sys
 
-DEBUG_MODE = os.environ.get("FOCUS_DEBUG", "0") in ("1", "true", "True", "yes")
+DEBUG_MODE = os.environ.get("FOCUS_DEBUG", "0").lower() in ("1", "true", "yes")
 
 LOG_LEVEL = logging.DEBUG if DEBUG_MODE else logging.INFO
 

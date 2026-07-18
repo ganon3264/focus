@@ -15,6 +15,7 @@ from focus.prompt_chain import _build_content, assemble_prompt
 logger = logging.getLogger("focus.routers.stream_utils")
 
 _chat_locks: dict[str, asyncio.Lock] = {}
+_chat_locks_creation_lock = asyncio.Lock()
 
 
 async def _make_assistant_slot(db: aiosqlite.Connection, chat_id: str) -> str:
@@ -53,32 +54,30 @@ async def _get_history(db: aiosqlite.Connection, chat_id: str, regenerate: bool)
                 last_asst_variant_count = r["variant_count"]
                 break
 
-        history = [
-            {
-                "role": r["role"],
-                "content": _build_content(
+        history = []
+        for r in all_rows:
+            if r["id"] != last_asst_id:
+                content_text = (
                     re.sub(r"<think>.*?</think>", "", r["content"], flags=re.DOTALL).strip()
-                    if r["role"] == "assistant" else r["content"],
-                    msg_attachments.get(r["variant_id"], []),
-                ),
-            }
-            for r in all_rows
-            if r["id"] != last_asst_id
-        ]
+                    if r["role"] == "assistant" else r["content"]
+                )
+                history.append({
+                    "role": r["role"],
+                    "content": await _build_content(content_text, msg_attachments.get(r["variant_id"], [])),
+                })
         return history, last_asst_id, last_asst_variant_count
     else:
         history_rows = await crud.fetch_active_variants(db, chat_id)
-        history = [
-            {
+        history = []
+        for r in history_rows:
+            content_text = (
+                re.sub(r"<think>.*?</think>", "", r["content"], flags=re.DOTALL).strip()
+                if r["role"] == "assistant" else r["content"]
+            )
+            history.append({
                 "role": r["role"],
-                "content": _build_content(
-                    re.sub(r"<think>.*?</think>", "", r["content"], flags=re.DOTALL).strip()
-                    if r["role"] == "assistant" else r["content"],
-                    msg_attachments.get(r["variant_id"], []),
-                ),
-            }
-            for r in history_rows
-        ]
+                "content": await _build_content(content_text, msg_attachments.get(r["variant_id"], [])),
+            })
         return history, None, 0
 
 
@@ -165,7 +164,10 @@ async def get_prompt_context(
     user_msg_id = None
     if not regenerate:
         if persist:
-            lock = _chat_locks.setdefault(chat_id, asyncio.Lock())
+            async with _chat_locks_creation_lock:
+                if chat_id not in _chat_locks:
+                    _chat_locks[chat_id] = asyncio.Lock()
+            lock = _chat_locks[chat_id]
             async with lock:
                 now = now_iso()
                 async with db.execute("SELECT MAX(position) FROM messages WHERE chat_id = ?", (chat_id,)) as cur:
@@ -201,10 +203,10 @@ async def get_prompt_context(
                     else:
                         new_attachments = []
 
-                    history.append({"role": "user", "content": _build_content(user_message, new_attachments)})
-                    next_pos += 1
+                        history.append({"role": "user", "content": await _build_content(user_message, new_attachments)})
+                        next_pos += 1
 
-                # Create assistant message slot
+                    # Create assistant message slot
                 asst_msg_id = await _make_assistant_slot(db, chat_id)
                 next_variant_index = 0
         else:
@@ -218,7 +220,7 @@ async def get_prompt_context(
                         attachment_ids,
                     ) as cur:
                         new_attachments = [dict(r) for r in await cur.fetchall()]
-                history.append({"role": "user", "content": _build_content(user_message, new_attachments)})
+                    history.append({"role": "user", "content": await _build_content(user_message, new_attachments)})
 
     all_block_ids = [b["id"] for b in preset_blocks] + [b["id"] for b in char_own_blocks]
     if chat["character_id"]:
@@ -240,7 +242,7 @@ async def get_prompt_context(
     if history and history[0].get("role") == "assistant":
         history[0]["_greeting"] = True
 
-    messages = assemble_prompt(preset_blocks, history, char_data, char_own_blocks, macros, block_images)
+    messages = await assemble_prompt(preset_blocks, history, char_data, char_own_blocks, macros, block_images)
 
     return {
         "messages": messages,

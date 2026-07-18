@@ -29,6 +29,8 @@ async def api_restore_backup(
         return await restore_backup(backup_id, db)
     except FileNotFoundError as e:
         raise HTTPException(404, str(e))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
 
 
 @router.delete("/{backup_id}", status_code=204)
@@ -37,3 +39,5 @@ async def api_delete_backup(backup_id: str):
         delete_backup(backup_id)
     except FileNotFoundError as e:
         raise HTTPException(404, str(e))
+    except ValueError as e:
+        raise HTTPException(400, str(e))

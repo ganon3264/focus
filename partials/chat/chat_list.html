@@ -20,7 +20,8 @@
   <button
     class="btn btn-danger action-btn shrink-0"
     style="opacity: 0; padding: 0.1rem 0.4rem; font-size: 0.8rem"
-    onclick="event.preventDefault(); deleteChat('{{ chat.id }}', this)"
+    data-chat-id="{{ chat.id }}"
+    onclick="event.preventDefault(); deleteChat(this)"
     onmouseover="this.style.opacity = '1'"
     onmouseout="this.style.opacity = '0'"
     aria-label="Delete chat"
@@ -36,7 +37,8 @@
   }
 </style>
 <script>
-  function deleteChat(chatId, btn) {
+  function deleteChat(btn) {
+    const chatId = btn.dataset.chatId;
     window.customConfirm('Delete this chat?', function () {
       fetch('/api/chats/' + chatId, { method: 'DELETE' })
         .then(function (r) {

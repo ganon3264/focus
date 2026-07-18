@@ -244,8 +244,8 @@
     );
   };
 
-  function selectCharModal(charId, charName) {
-    window.location.href = '/chat?character_id=' + charId;
+  function selectCharModal(el) {
+    window.location.href = '/chat?character_id=' + (el.dataset.charId || '');
   }
 
   function importCharModal(e) {

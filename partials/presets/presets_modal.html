@@ -8,12 +8,14 @@
       No presets.
     </div>
     {% endif %} {% for p in presets %}
-    <div class="sidebar-item" role="button" tabindex="0" onclick="loadPresetModal('{{ p.id }}')">
+    <div class="sidebar-item" role="button" tabindex="0" data-preset-id="{{ p.id }}" onclick="loadPresetModal(this)">
       <div class="text-sm truncate flex-1">{{ p.name }}</div>
       <button
         class="btn btn-danger btn-sm"
         style="margin-left: auto"
-        onclick="event.stopPropagation(); promptDeletePresetModal('{{ p.id }}', '{{ p.name | escape }}')"
+        data-preset-id="{{ p.id }}"
+        data-preset-name="{{ p.name }}"
+        onclick="event.stopPropagation(); promptDeletePresetModal(this)"
         aria-label="Delete preset"
       >
         {{ icon_trash() }}
@@ -52,7 +54,9 @@
   </div>
 </div>
 <script>
-  function promptDeletePresetModal(pid, pName) {
+  function promptDeletePresetModal(btn) {
+    var pid = btn.dataset.presetId || '';
+    var pName = btn.dataset.presetName || 'this preset';
     window.customConfirm(`Delete preset <strong>${pName}</strong>?`, function () {
       fetch(`/api/presets/${pid}`, {
         method: 'DELETE',
@@ -66,7 +70,8 @@
     });
   }
 
-  function loadPresetModal(pid) {
+  function loadPresetModal(el) {
+    var pid = el.dataset.presetId || '';
     htmx.ajax('GET', '/partials/preset-editor/' + pid, {
       target: '#preset-modal-editor',
       swap: 'innerHTML',

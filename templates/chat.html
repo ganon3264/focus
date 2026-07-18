@@ -98,7 +98,7 @@
         <div class="font-bold text-(--danger)"><span id="delete-selected-count">0</span> Selected for deletion</div>
         <div class="flex gap-2">
           <button class="btn btn-secondary btn-sm" onclick="exitDeleteMode()">Cancel</button>
-          <button class="btn btn-danger btn-sm" onclick="bulkDeleteSelected('{{ chat_id }}')">Delete Selected</button>
+          <button class="btn btn-danger btn-sm" data-chat-id="{{ chat_id }}" onclick="bulkDeleteSelected(this.dataset.chatId || document.getElementById('send-btn').dataset.chatId)">Delete Selected</button>
         </div>
       </div>
     </div>
@@ -331,7 +331,10 @@ if (!window._varScriptsLoaded) {
       });
   };
 
-  window.handleVarUpdate = function(presetId, blockId, payload) {
+  window.handleVarUpdate = function(el) {
+    const presetId = el.closest('[data-preset-id]').dataset.presetId;
+    const blockId = el.dataset.varId;
+    const payload = {enabled: el.classList.contains('active') ? 0 : 1};
     fetch(`/api/presets/${presetId}/blocks/${blockId}`, {
       method: 'PATCH',
       headers: {'Content-Type':'application/json'},
@@ -349,7 +352,9 @@ if (!window._varScriptsLoaded) {
     });
   };
 
-  window.handleVarDelete = function(presetId, blockId) {
+  window.handleVarDelete = function(el) {
+    const presetId = el.closest('[data-preset-id]').dataset.presetId;
+    const blockId = el.dataset.varId;
     fetch(`/api/presets/${presetId}/blocks/${blockId}`, {
       method: 'DELETE'
     }).then(function() {
@@ -365,13 +370,24 @@ if (!window._varScriptsLoaded) {
     });
   };
 
-  window.openVarEditModal = function(blockId, presetId, groupName, optionLabel, content) {
+  window.openVarEditModal = function(el) {
+    const presetId = el.closest('[data-preset-id]').dataset.presetId;
+    const blockId = el.dataset.varId || null;
+    const groupName = el.dataset.varName || '';
+    const optionLabel = el.dataset.varLabel || '';
     _currentVarBlockId = blockId;
     _currentPresetId = presetId;
     document.querySelector('#var-edit-modal .modal-title').innerText = blockId ? 'Edit Variable Option' : 'Add New Variable Option';
     document.getElementById('var-modal-group').value = groupName || '';
     document.getElementById('var-modal-label').value = optionLabel || '';
-    document.getElementById('var-modal-content').value = content || '';
+    document.getElementById('var-modal-content').value = '';
+    if (blockId) {
+      fetch('/api/presets/' + presetId + '/blocks/' + blockId)
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          document.getElementById('var-modal-content').value = data.content || '';
+        });
+    }
     document.getElementById('var-edit-modal').classList.remove('hidden');
   };
 
@@ -480,6 +496,40 @@ StateManager.on('persona-changed', function() {
     });
   }
 });
+
+window.loadChatList = function(charId, currentChatId) {
+  var params = '?character_id=' + encodeURIComponent(charId) + '&current_chat_id=' + encodeURIComponent(currentChatId);
+  htmx.ajax('GET', '/partials/chat-list' + params, {target:'#chat-list', swap:'innerHTML'});
+};
+
+window.selectPersona = function(el) {
+  var pid = el.dataset.personaId || '';
+  StateManager.setPersona(pid);
+  document.querySelectorAll('#persona-selector .sidebar-item').forEach(function(item) {
+    item.classList.remove('active');
+  });
+  el.classList.add('active');
+};
+
+window.handleSwipeNext = function(event, msgId) {
+  try {
+    var res = JSON.parse(event.detail.xhr.response);
+    var sb = document.getElementById('message-' + msgId);
+    if (res.needs_generation) {
+      var ct = sb.querySelector('.swipe-counter');
+      if (ct) ct.textContent = (res.next_variant_index + 1) + '/' + (res.next_variant_index + 1);
+      var chatId = sb.closest('[data-chat-id]') ? sb.closest('[data-chat-id]').dataset.chatId : '';
+      window.triggerGeneration(chatId, sb, true);
+    } else {
+      var chatId = sb.closest('[data-chat-id]') ? sb.closest('[data-chat-id]').dataset.chatId : '';
+      window.refreshSingleMessage(chatId, msgId);
+    }
+  } catch(e) {
+    var sb = document.getElementById('message-' + msgId);
+    var chatId = sb && sb.closest('[data-chat-id]') ? sb.closest('[data-chat-id]').dataset.chatId : '';
+    window.refreshSingleMessage(chatId, msgId);
+  }
+};
 
 window.toggleReasoning = function(btn) {
   const msg = btn.closest('.msg') || btn.closest('.message');

@@ -149,12 +149,22 @@ async def load_entity_blocks(
 async def get_characters(db: aiosqlite.Connection) -> list[dict]:
     async with db.execute("SELECT * FROM characters WHERE is_deleted = 0 ORDER BY created_at DESC") as cur:
         rows = await cur.fetchall()
-        characters = []
-        for r in rows:
-            c = dict(r)
-            c["card"] = safe_load_card(r) or {}
-            c["blocks"] = await load_entity_blocks(db, "char_blocks", "character_id", r["id"])
-            characters.append(c)
+        characters = [dict(r) for r in rows]
+    for c in characters:
+        c["card"] = safe_load_card(c) or {}
+    # Batch-load blocks for all characters
+    if characters:
+        ids = [c["id"] for c in characters]
+        placeholders = ",".join("?" * len(ids))
+        async with db.execute(
+            f"SELECT * FROM char_blocks WHERE character_id IN ({placeholders}) ORDER BY position, rowid", ids
+        ) as cur:
+            block_rows = await cur.fetchall()
+        blocks_by_char: dict[str, list[dict]] = {}
+        for br in block_rows:
+            blocks_by_char.setdefault(br["character_id"], []).append(dict(br))
+        for c in characters:
+            c["blocks"] = blocks_by_char.get(c["id"], [])
     await attach_images(characters, db)
     return characters
 
@@ -174,8 +184,19 @@ async def get_character(db: aiosqlite.Connection, character_id: str) -> dict | N
 async def get_presets(db: aiosqlite.Connection) -> list[dict]:
     async with db.execute("SELECT * FROM presets ORDER BY created_at DESC") as cur:
         presets = [dict(r) for r in await cur.fetchall()]
-    for p in presets:
-        p["blocks"] = await load_entity_blocks(db, "preset_blocks", "preset_id", p["id"])
+    # Batch-load blocks for all presets
+    if presets:
+        ids = [p["id"] for p in presets]
+        placeholders = ",".join("?" * len(ids))
+        async with db.execute(
+            f"SELECT * FROM preset_blocks WHERE preset_id IN ({placeholders}) ORDER BY position, rowid", ids
+        ) as cur:
+            block_rows = await cur.fetchall()
+        blocks_by_preset: dict[str, list[dict]] = {}
+        for br in block_rows:
+            blocks_by_preset.setdefault(br["preset_id"], []).append(dict(br))
+        for p in presets:
+            p["blocks"] = blocks_by_preset.get(p["id"], [])
     return presets
 
 

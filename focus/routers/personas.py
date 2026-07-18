@@ -9,7 +9,7 @@ from pydantic import BaseModel
 import focus.crud as crud
 from focus.core.database import get_db
 from focus.core.paths import BLOCKS_DIR, PERSONAS_DIR
-from focus.core.utils import now_iso
+from focus.core.utils import now_iso, read_upload
 
 router = APIRouter()
 
@@ -93,7 +93,7 @@ async def upload_avatar(
     persona_dir.mkdir(parents=True, exist_ok=True)
     avatar_path = str(persona_dir / f"avatar{suffix}")
     try:
-        Path(avatar_path).write_bytes(await file.read())
+        Path(avatar_path).write_bytes(await read_upload(file))
     except OSError as e:
         raise HTTPException(500, f"Failed to save avatar: {e}")
 
@@ -145,9 +145,9 @@ async def add_persona_image(
     try:
         return await crud.upload_block_image(
             db,
-            persona_id,
-            "char",
-            await file.read(),
+            block_id,
+            "persona",
+            await read_upload(file),
             file.filename,
             file.content_type,
             str(BLOCKS_DIR),

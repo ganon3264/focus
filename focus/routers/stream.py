@@ -84,7 +84,7 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
 
     for msg in messages:
         msg.pop("_greeting", None)
-    if prov_dict.get("type") != "google":
+    if prov_dict.get("type", "") not in ("google_aistudio", "google_vertex"):
         for msg in messages:
             msg.pop("thought_signature", None)
             msg.pop("reasoning", None)

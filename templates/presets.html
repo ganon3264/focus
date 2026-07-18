@@ -39,7 +39,8 @@
   </div>
 </div>
 <script>
-function promptDeletePreset(pid) {
+function promptDeletePreset(btn) {
+  var pid = btn.dataset.presetId || '';
   var item = document.getElementById('preset-' + pid);
   var pName = item ? item.getAttribute('data-name') || 'this preset' : 'this preset';
   window.customConfirm('Delete preset <strong>' + window.escapeHtml(pName) + '</strong>?', function() {

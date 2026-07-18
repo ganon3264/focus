@@ -1,7 +1,8 @@
 {% for p in personas %}
 <div
   class="sidebar-item {% if current_persona_id == p.id %}active{% endif %}"
-  onclick="StateManager.setPersona('{{ p.id }}'); document.querySelectorAll('#persona-selector .sidebar-item').forEach(el => el.classList.remove('active')); this.classList.add('active');"
+  data-persona-id="{{ p.id }}"
+  onclick="selectPersona(this)"
 >
   <div class="avatar-thumb">
     {% if p.avatar_path %}

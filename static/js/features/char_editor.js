@@ -32,7 +32,9 @@ function importCharPage(e) {
   });
 }
 
-function promptDeleteChar(charId, charName) {
+function promptDeleteChar(btn) {
+  const charId = btn.dataset.charId;
+  const charName = btn.dataset.charName;
   const html = `
     <div class="mb-4 text-sm" style="color:var(--text);">Delete character <strong>${charName}</strong>?</div>
     <div class="flex flex-col gap-3">
@@ -93,13 +95,15 @@ document.addEventListener('alpine:init', () => {
   }));
 });
 
-function uploadAdvancedAvatar(input, charId) {
+function uploadAdvancedAvatar(input) {
+  const charId = input.dataset.charId;
   handleAvatarUpload(input, window.api.charAvatar(charId), (data) => {
     window.location.href = window.location.pathname + '?char=' + charId;
   });
 }
 
-function saveCharCard(charId, btn) {
+function saveCharCard(btn) {
+  const charId = btn.dataset.charId;
   const greetingsContainer = document.getElementById('greetings-list-' + charId);
   const textareas = greetingsContainer.querySelectorAll('textarea');
   const alternateGreetings = Array.from(textareas)
@@ -140,7 +144,9 @@ function addGreeting(charId) {
   container.insertBefore(clone, container.firstChild);
 }
 
-function updateBlock(charId, blockId, data) {
+function updateBlock(el, data) {
+  const charId = el.dataset.charId;
+  const blockId = el.dataset.blockId;
   fetch(window.api.charBlock(charId, blockId), {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
@@ -148,7 +154,9 @@ function updateBlock(charId, blockId, data) {
   });
 }
 
-function deleteBlock(charId, blockId) {
+function deleteBlock(btn) {
+  const charId = btn.dataset.charId;
+  const blockId = btn.dataset.blockId;
   fetch(window.api.charBlock(charId, blockId), {
     method: 'DELETE',
   }).then((r) => {
@@ -178,27 +186,38 @@ function addBlock(charId) {
       wrapper.id = `block-${blockId}`;
 
       const nameInput = wrapper.querySelector('.block-name');
-      nameInput.onchange = (e) => updateBlock(charId, blockId, { name: e.target.value });
+      nameInput.dataset.charId = charId;
+      nameInput.dataset.blockId = blockId;
+      nameInput.onchange = (e) => updateBlock(e.target, { name: e.target.value });
 
       const roleSelect = wrapper.querySelector('.block-role');
-      roleSelect.onchange = (e) => updateBlock(charId, blockId, { role: e.target.value });
+      roleSelect.dataset.charId = charId;
+      roleSelect.dataset.blockId = blockId;
+      roleSelect.onchange = (e) => updateBlock(e.target, { role: e.target.value });
 
       const contentTextarea = wrapper.querySelector('.block-content');
-      contentTextarea.onchange = (e) => updateBlock(charId, blockId, { content: e.target.value });
+      contentTextarea.dataset.charId = charId;
+      contentTextarea.dataset.blockId = blockId;
+      contentTextarea.onchange = (e) => updateBlock(e.target, { content: e.target.value });
 
       const deleteBtn = wrapper.querySelector('.block-delete');
-      deleteBtn.onclick = () => deleteBlock(charId, blockId);
+      deleteBtn.dataset.charId = charId;
+      deleteBtn.dataset.blockId = blockId;
+      deleteBtn.onclick = () => deleteBlock(deleteBtn);
 
       const mediaSection = wrapper.querySelector('.char-block-media-section');
       mediaSection.id = `media-section-${blockId}`;
       const mediaInput = wrapper.querySelector('.block-media-input');
-      mediaInput.onchange = (e) => uploadCharBlockMedia(charId, blockId, e.target);
+      mediaInput.dataset.charId = charId;
+      mediaInput.dataset.blockId = blockId;
+      mediaInput.onchange = (e) => uploadCharBlockMedia(e.target);
 
       container.insertBefore(clone, container.firstChild);
     });
 }
 
-function uploadCharMedia(charId, input) {
+function uploadCharMedia(input) {
+  const charId = input.dataset.charId;
   if (!input.files || !input.files[0]) return;
   const formData = new FormData();
   formData.append('file', input.files[0]);
@@ -222,18 +241,23 @@ function uploadCharMedia(charId, input) {
     });
 }
 
-function deleteCharMedia(charId, imageId) {
+function deleteCharMedia(el) {
+  const container = el.closest ? el.closest('[data-media-id]') : el;
+  const imageId = container ? container.dataset.mediaId : '';
+  const mediaSection = container ? container.closest('.char-block-media-section') : null;
+  const charId = mediaSection ? mediaSection.id.replace('media-section-char-', '') : '';
   fetch(window.api.charImage(charId, imageId), {
     method: 'DELETE',
   }).then((r) => {
     if (r.ok) {
-      const el = document.getElementById(`char-media-${imageId}`);
-      if (el) el.remove();
+      if (container) container.remove();
     }
   });
 }
 
-function uploadCharBlockMedia(charId, blockId, input) {
+function uploadCharBlockMedia(input) {
+  const charId = input.dataset.charId;
+  const blockId = input.dataset.blockId;
   if (!input.files || !input.files[0]) return;
   const formData = new FormData();
   formData.append('file', input.files[0]);
@@ -261,13 +285,17 @@ function uploadCharBlockMedia(charId, blockId, input) {
     });
 }
 
-function deleteCharBlockMedia(charId, blockId, imageId) {
+function deleteCharBlockMedia(el) {
+  const container = el.closest ? el.closest('[data-media-id]') : el;
+  const imageId = container ? container.dataset.mediaId : '';
+  const blockItem = container ? container.closest('.block-item') : null;
+  const blockId = blockItem ? blockItem.id.replace('block-', '') : '';
+  const charId = container ? container.closest('[data-char-id]')?.dataset.charId || '' : '';
   fetch(window.api.charBlockImage(charId, blockId, imageId), {
     method: 'DELETE',
   }).then((r) => {
     if (r.ok) {
-      const el = document.getElementById(`media-${imageId}`);
-      if (el) el.remove();
+      if (container) container.remove();
     }
   });
 }

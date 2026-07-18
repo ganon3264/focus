@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 
 from focus.core.database import get_db
+from focus.core.utils import read_upload
 from focus.core.models import ExportRequest
 from focus.exchange import export_data, import_data
 
@@ -36,7 +37,7 @@ async def api_import(
     if not file.filename or not file.filename.endswith(".focus"):
         raise HTTPException(400, "Only .focus files are accepted")
 
-    zip_bytes = await file.read()
+    zip_bytes = await read_upload(file)
     try:
         result = await import_data(db, zip_bytes)
     except ValueError as e:

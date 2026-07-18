@@ -11,7 +11,9 @@
       style="aspect-ratio: 1/1; border-radius: 12px 12px 0 0; cursor: pointer"
       role="button"
       tabindex="0"
-      onclick="selectCharModal('{{ char.id }}', '{{ char.name }}')"
+      onclick="selectCharModal(this)"
+      data-char-id="{{ char.id }}"
+      data-char-name="{{ char.name }}"
     >
       {% if char.image_path %}
       <img
@@ -42,7 +44,9 @@
         </button>
         <button
           class="btn btn-danger btn-sm"
-          onclick="event.stopPropagation(); promptDeleteChar('{{ char.id }}', '{{ char.name | escape }}')"
+          data-char-id="{{ char.id }}"
+          data-char-name="{{ char.name }}"
+          onclick="event.stopPropagation(); promptDeleteChar(this)"
           aria-label="Delete character"
         >
           {{ icon_trash() }}
@@ -55,7 +59,9 @@
       class="flex items-center gap-2.5 p-2.5 cursor-pointer"
       role="button"
       tabindex="0"
-      onclick="selectCharModal('{{ char.id }}', '{{ char.name }}')"
+      onclick="selectCharModal(this)"
+      data-char-id="{{ char.id }}"
+      data-char-name="{{ char.name }}"
     >
       <div
         class="w-10 h-10 rounded-full overflow-hidden shrink-0 border border-(--border) flex items-center justify-center"
@@ -92,7 +98,9 @@
         <button
           class="btn btn-danger btn-sm"
           style="padding: 0.2rem 0.4rem; min-width: 0"
-          onclick="event.stopPropagation(); promptDeleteChar('{{ char.id }}', '{{ char.name | escape }}')"
+          data-char-id="{{ char.id }}"
+          data-char-name="{{ char.name }}"
+          onclick="event.stopPropagation(); promptDeleteChar(this)"
           aria-label="Delete character"
         >
           {{ icon_trash(size=12) }}

@@ -62,15 +62,15 @@
   <!-- Editor Area -->
   <div class="flex-1 overflow-y-auto pb-10">
     {% for char in characters %}
-    <div x-show="detailId === '{{ char.id }}'" x-cloak style="display:none;">
+    <div x-show="detailId === $el.dataset.charId" x-cloak style="display:none;" data-char-id="{{ char.id }}">
       <div class="p-6 mb-4 shadow-lg flex flex-col gap-4" style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-xl);">
         
         <!-- Header Actions -->
         <div class="flex justify-between items-center w-full border-b border-(--border) pb-4 mb-2">
            <h2 class="text-xl font-bold">Edit Character</h2>
            <div class="flex gap-2">
-             <button class="btn btn-primary shadow-md" onclick="saveCharCard('{{ char.id }}', this)">Save Changes</button>
-             <button class="btn btn-danger" onclick="promptDeleteChar('{{ char.id }}', '{{ char.name | escape }}')">Delete</button>
+             <button class="btn btn-primary shadow-md" data-char-id="{{ char.id }}" onclick="saveCharCard(this)">Save Changes</button>
+             <button class="btn btn-danger" data-char-id="{{ char.id }}" data-char-name="{{ char.name }}" onclick="promptDeleteChar(this)">Delete</button>
            </div>
         </div>
 
@@ -87,7 +87,7 @@
                   <div class="w-full h-full flex items-center justify-center text-3xl font-bold text-muted">{{ char.name[:1] }}</div>
                 {% endif %}
                 <div class="absolute inset-0 bg-black/60 hidden group-hover:flex items-center justify-center text-white text-xs font-bold transition-opacity">Edit</div>
-                <input type="file" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="uploadAdvancedAvatar(this, '{{ char.id }}')">
+                <input type="file" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" data-char-id="{{ char.id }}" onchange="uploadAdvancedAvatar(this)">
               </div>
               <div class="flex-1 min-w-0">
                 <label class="text-xs font-bold text-muted block mb-1 uppercase tracking-wider">Character Name</label>
@@ -99,7 +99,7 @@
               <label class="text-sm font-semibold text-muted block mb-1">Description</label>
               <div class="textarea-wrapper">
                 <textarea class="form-control w-full" id="char-desc-{{ char.id }}" rows="5">{{ char.card.get('description','') }}</textarea>
-                <button type="button" class="expand-btn" onclick="openTextExpander(document.getElementById('char-desc-{{ char.id }}'), 'Edit Description')" aria-label="Expand text area">{{ icon_expand(18) }}</button>
+                <button type="button" class="expand-btn" data-target-id="char-desc-{{ char.id }}" data-expander-title="Edit Description" onclick="openTextExpander(this.dataset.targetId, this.dataset.expanderTitle)" aria-label="Expand text area">{{ icon_expand(18) }}</button>
               </div>
             </div>
             
@@ -111,11 +111,11 @@
               </div>
               <div class="char-block-media-section" id="media-section-char-{{ char.id }}" style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
                 {% for img in char.images %}
-                {{ media_thumbnail(img, "deleteCharMedia('" + char.id + "', '" + img.id + "')", ' id="char-media-' + img.id + '"') }}
+                {{ media_thumbnail(img, "deleteCharMedia(this.closest('[data-media-id]'))", ' data-media-id="' + img.id + '"') }}
                 {% endfor %}
                 <label class="btn btn-secondary btn-sm block-media-btn" style="height: 48px; padding: 0 0.5rem; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 4px; border-style: dashed; flex-shrink: 0; margin: 0;" title="Add Image or Audio">
                   {{ icon_plus(20) }}
-                  <input type="file" accept="image/*,audio/*" class="hidden block-media-input" onchange="uploadCharMedia('{{ char.id }}', this)">
+                  <input type="file" accept="image/*,audio/*" class="hidden block-media-input" data-char-id="{{ char.id }}" onchange="uploadCharMedia(this)">
                 </label>
                 {% if not char.images %}
                 <span class="text-xs text-muted block-media-placeholder">Add reference image or audio</span>
@@ -127,7 +127,7 @@
               <label class="text-sm font-semibold text-muted block mb-1">First Message</label>
               <div class="textarea-wrapper">
                 <textarea class="form-control w-full" id="char-first-{{ char.id }}" rows="4">{{ char.card.get('first_mes','') }}</textarea>
-                <button type="button" class="expand-btn" onclick="openTextExpander(document.getElementById('char-first-{{ char.id }}'), 'Edit First Message')" aria-label="Expand text area">{{ icon_expand(18) }}</button>
+                <button type="button" class="expand-btn" data-target-id="char-first-{{ char.id }}" data-expander-title="Edit First Message" onclick="openTextExpander(this.dataset.targetId, this.dataset.expanderTitle)" aria-label="Expand text area">{{ icon_expand(18) }}</button>
               </div>
             </div>
 
@@ -135,14 +135,14 @@
             <div class="w-full" id="greetings-container-{{ char.id }}">
               <div class="flex items-center justify-between mb-2">
                 <label class="text-sm font-semibold text-muted">Alternate Greetings</label>
-                <button class="btn btn-secondary btn-sm" onclick="addGreeting('{{ char.id }}')">{{ icon_plus(14) }} Add Greeting</button>
+                <button class="btn btn-secondary btn-sm" data-char-id="{{ char.id }}" onclick="addGreeting(this.dataset.charId)">{{ icon_plus(14) }} Add Greeting</button>
               </div>
               
               <div class="flex flex-col gap-3" id="greetings-list-{{ char.id }}">
                 {% for greeting in char.card.get('alternate_greetings', []) %}
                 <div class="relative group greeting-item textarea-wrapper">
                   <textarea class="form-control w-full text-sm" rows="3" placeholder="Greeting content">{{ greeting }}</textarea>
-                  <button type="button" class="expand-btn" onclick="openTextExpander(this.previousElementSibling, 'Edit Alternate Greeting')" aria-label="Expand text area">{{ icon_expand(18) }}</button>
+                  <button type="button" class="expand-btn" onclick="openTextExpander(this.previousElementSibling.id || this.previousElementSibling, 'Edit Alternate Greeting')" aria-label="Expand text area">{{ icon_expand(18) }}</button>
                   <button class="absolute bottom-2 right-2 btn btn-danger btn-sm opacity-0 group-hover:opacity-100 transition-opacity" style="z-index: 10;" onclick="this.closest('.greeting-item').remove()">Delete</button>
                 </div>
                 {% endfor %}
@@ -161,21 +161,21 @@
                   <label class="text-sm font-semibold text-muted block mb-1">Personality</label>
                   <div class="textarea-wrapper">
                     <textarea class="form-control w-full" id="char-personality-{{ char.id }}" rows="4">{{ char.card.get('personality','') }}</textarea>
-                    <button type="button" class="expand-btn" onclick="openTextExpander(document.getElementById('char-personality-{{ char.id }}'), 'Edit Personality')" aria-label="Expand text area">{{ icon_expand(18) }}</button>
+                    <button type="button" class="expand-btn" data-target-id="char-personality-{{ char.id }}" data-expander-title="Edit Personality" onclick="openTextExpander(this.dataset.targetId, this.dataset.expanderTitle)" aria-label="Expand text area">{{ icon_expand(18) }}</button>
                   </div>
                 </div>
                 <div class="form-group">
                   <label class="text-sm font-semibold text-muted block mb-1">Scenario</label>
                   <div class="textarea-wrapper">
                     <textarea class="form-control w-full" id="char-scenario-{{ char.id }}" rows="4">{{ char.card.get('scenario','') }}</textarea>
-                    <button type="button" class="expand-btn" onclick="openTextExpander(document.getElementById('char-scenario-{{ char.id }}'), 'Edit Scenario')" aria-label="Expand text area">{{ icon_expand(18) }}</button>
+                    <button type="button" class="expand-btn" data-target-id="char-scenario-{{ char.id }}" data-expander-title="Edit Scenario" onclick="openTextExpander(this.dataset.targetId, this.dataset.expanderTitle)" aria-label="Expand text area">{{ icon_expand(18) }}</button>
                   </div>
                 </div>
                 <div class="form-group">
                   <label class="text-sm font-semibold text-muted block mb-1">Mes Example</label>
                   <div class="textarea-wrapper">
                     <textarea class="form-control w-full" id="char-example-{{ char.id }}" rows="6">{{ char.card.get('mes_example','') }}</textarea>
-                    <button type="button" class="expand-btn" onclick="openTextExpander(document.getElementById('char-example-{{ char.id }}'), 'Edit Mes Example')" aria-label="Expand text area">{{ icon_expand(18) }}</button>
+                    <button type="button" class="expand-btn" data-target-id="char-example-{{ char.id }}" data-expander-title="Edit Mes Example" onclick="openTextExpander(this.dataset.targetId, this.dataset.expanderTitle)" aria-label="Expand text area">{{ icon_expand(18) }}</button>
                   </div>
                 </div>
               </div>
@@ -190,7 +190,7 @@
                 <h3 class="sidebar-title m-0">Custom Logic Blocks</h3>
                 {{ hint_tooltip('Extra prompt blocks injected alongside the character card. Each block can have media attachments, referenced via <code>{{ media::1 }}</code>, <code>{{ media::2 }}</code>, etc. in the block content.') }}
               </div>
-              <button class="btn btn-secondary btn-sm" onclick="addBlock('{{ char.id }}')">{{ icon_plus(14) }} Add Block</button>
+              <button class="btn btn-secondary btn-sm" data-char-id="{{ char.id }}" onclick="addBlock(this.dataset.charId)">{{ icon_plus(14) }} Add Block</button>
             </div>
             
             <div class="flex flex-col gap-4 overflow-y-auto pr-2" id="blocks-container-{{ char.id }}" style="max-height: 800px;">
@@ -198,29 +198,31 @@
               <div class="p-3 block-item shadow-xs" id="block-{{ block.id }}" style="background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-md);">
                 <div class="flex justify-between items-center mb-2 gap-2">
                   <input type="text" class="form-control text-sm font-bold flex-1" style="padding:0.3rem 0.5rem;" value="{{ block.name }}" placeholder="Block Name"
-                    onchange="updateBlock('{{ char.id }}', '{{ block.id }}', {name: this.value})"
+                    data-char-id="{{ char.id }}" data-block-id="{{ block.id }}"
+                    onchange="updateBlock(this, {name: this.value})"
                   >
-                  <select class="form-control text-sm w-28" style="padding:0.3rem 0.5rem;" onchange="updateBlock('{{ char.id }}', '{{ block.id }}', {role: this.value})">
+                  <select class="form-control text-sm w-28" style="padding:0.3rem 0.5rem;" data-char-id="{{ char.id }}" data-block-id="{{ block.id }}" onchange="updateBlock(this, {role: this.value})">
                     <option value="system" {% if block.role == 'system' %}selected{% endif %}>System</option>
                     <option value="user" {% if block.role == 'user' %}selected{% endif %}>User</option>
                     <option value="assistant" {% if block.role == 'assistant' %}selected{% endif %}>Assistant</option>
                   </select>
-                  <button class="btn btn-danger btn-sm" title="Delete Block" onclick="deleteBlock('{{ char.id }}', '{{ block.id }}')" aria-label="Delete block">{{ icon_close(16) }}</button>
+                  <button class="btn btn-danger btn-sm" title="Delete Block" data-char-id="{{ char.id }}" data-block-id="{{ block.id }}" onclick="deleteBlock(this)" aria-label="Delete block">{{ icon_close(16) }}</button>
                 </div>
                 <div class="textarea-wrapper">
                   <textarea class="form-control text-sm w-full" rows="4" placeholder="Block Content"
-                    onchange="updateBlock('{{ char.id }}', '{{ block.id }}', {content: this.value})"
+                    data-char-id="{{ char.id }}" data-block-id="{{ block.id }}"
+                    onchange="updateBlock(this, {content: this.value})"
                   >{{ block.content }}</textarea>
-                  <button type="button" class="expand-btn" onclick="openTextExpander(this.previousElementSibling, 'Edit Custom Block')" aria-label="Expand text area">{{ icon_expand(18) }}</button>
+                  <button type="button" class="expand-btn" onclick="openTextExpander(this.previousElementSibling.id || this.previousElementSibling, 'Edit Custom Block')" aria-label="Expand text area">{{ icon_expand(18) }}</button>
                 </div>
                 
                 <div class="char-block-media-section" id="media-section-{{ block.id }}" style="margin-top: 0.5rem; display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
                   {% for img in block.images %}
-                  {{ media_thumbnail(img, "deleteCharBlockMedia('" + char.id + "', '" + block.id + "', '" + img.id + "')", ' id="media-' + img.id + '"') }}
+                  {{ media_thumbnail(img, "deleteCharBlockMedia(this.closest('[data-media-id]'))", ' data-media-id="' + img.id + '"') }}
                   {% endfor %}
                   <label class="btn btn-secondary btn-sm" style="height: 48px; padding: 0 0.5rem; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 4px; border-style: dashed; flex-shrink: 0; margin: 0;" title="Add Image or Audio">
                     {{ icon_plus(20) }}
-                    <input type="file" accept="image/*,audio/*" class="hidden" onchange="uploadCharBlockMedia('{{ char.id }}', '{{ block.id }}', this)">
+                    <input type="file" accept="image/*,audio/*" class="hidden" data-char-id="{{ char.id }}" data-block-id="{{ block.id }}" onchange="uploadCharBlockMedia(this)">
                   </label>
                   {% if not block.images %}
                   <span class="text-xs text-muted block-media-placeholder">Add reference image or audio</span>
@@ -294,7 +296,7 @@
 <script>
 window.ALL_CHARS = [
   {% for char in characters %}
-  { id: '{{ char.id }}', name: '{{ char.name | replace("'", "\\'") }}', image_path: '{{ char.image_path or "" }}' }{{ "," if not loop.last else "" }}
+  { id: {{ char.id | tojson }}, name: {{ char.name | tojson }}, image_path: {{ (char.image_path or '') | tojson }} }{{ "," if not loop.last else "" }}
   {% endfor %}
 ];
 </script>

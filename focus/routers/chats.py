@@ -10,7 +10,7 @@ from focus.core.card_parser import safe_load_card
 from focus.core.database import get_db
 from focus.core.models import ChatCreate, MessageEdit
 from focus.core.paths import ATTACHMENTS_DIR
-from focus.core.utils import now_iso
+from focus.core.utils import now_iso, read_upload
 
 router = APIRouter()
 
@@ -428,7 +428,7 @@ async def upload_attachments(
         mime = file.content_type or "application/octet-stream"
         file_path = str(ATTACHMENTS_DIR / f"{attachment_id}{suffix}")
 
-        content = await file.read()
+        content = await read_upload(file)
         try:
             Path(file_path).write_bytes(content)
         except OSError as e:

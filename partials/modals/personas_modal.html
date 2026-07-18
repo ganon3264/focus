@@ -209,7 +209,9 @@
     );
   };
 
-  function selectPersonaModal(pid, pname) {
+  function selectPersonaModal(el) {
+    var pid = el.dataset.personaId || '';
+    var pname = el.dataset.personaName || '';
     StateManager.setPersona(pid);
     closeModal('modal-personas');
     var statusEl = document.getElementById('status-persona');

@@ -16,13 +16,11 @@ dependencies = [
     "requests==2.34.2",
     "google-genai==2.10.0",
     "tiktoken==0.13.0",
-    "pytest==9.1.1",
-    "pytest-asyncio==1.4.0",
-    "pytest-cov==6.1.1",
-    "cssutils==2.15.0",
+    "anyio==4.9.0",
 ]
 
 [project.optional-dependencies]
+test = ["pytest==9.1.1", "pytest-asyncio==1.4.0", "pytest-cov==6.1.1", "cssutils==2.15.0"]
 dev = ["ruff"]
 
 [build-system]

@@ -5,7 +5,7 @@
   </div>
 </div>
 
-<div x-data="{ open: false }" style="position: relative; margin-top: 0.5rem; flex-shrink: 0;">
+<div x-data="{ open: false }" data-preset-id="{{ preset_id }}" style="position: relative; margin-top: 0.5rem; flex-shrink: 0;">
   <button type="button" class="btn btn-secondary w-full" @click="open = !open">
     {{ icon_plus(14) }} Add Block
   </button>
@@ -34,35 +34,35 @@
       <button
         type="button"
         class="btn-tag w-full text-left"
-        @click="open = false; addBlock('{{ preset_id }}', 'text', $el)"
+        @click="open = false; addBlock($el.closest('[data-preset-id]').dataset.presetId, 'text', $el)"
       >
         Text (Custom Prompt)
       </button>
       <button
         type="button"
         class="btn-tag w-full text-left"
-        @click="open = false; addBlock('{{ preset_id }}', 'char_description', $el)"
+        @click="open = false; addBlock($el.closest('[data-preset-id]').dataset.presetId, 'char_description', $el)"
       >
         Character Description
       </button>
       <button
         type="button"
         class="btn-tag w-full text-left"
-        @click="open = false; addBlock('{{ preset_id }}', 'char_personality', $el)"
+        @click="open = false; addBlock($el.closest('[data-preset-id]').dataset.presetId, 'char_personality', $el)"
       >
         Character Personality
       </button>
       <button
         type="button"
         class="btn-tag w-full text-left"
-        @click="open = false; addBlock('{{ preset_id }}', 'char_blocks', $el)"
+        @click="open = false; addBlock($el.closest('[data-preset-id]').dataset.presetId, 'char_blocks', $el)"
       >
         Character Blocks
       </button>
       <button
         type="button"
         class="btn-tag w-full text-left"
-        @click="open = false; addBlock('{{ preset_id }}', 'user_persona', $el)"
+        @click="open = false; addBlock($el.closest('[data-preset-id]').dataset.presetId, 'user_persona', $el)"
       >
         User Persona
       </button>
@@ -107,14 +107,14 @@ overlay_close=true) %}
         const body = ids.map(function (id, idx) {
           return { id: id, position: idx };
         });
-        fetch('/api/presets/' + '{{ preset_id }}' + '/blocks', {
+        fetch('/api/presets/' + el.dataset.presetId + '/blocks', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ blocks: body }),
         }).then(function () {
           const container = el.parentElement;
           if (container && container.id) {
-            reloadPromptArranger('{{ preset_id }}', container.id);
+            reloadPromptArranger(el.dataset.presetId, container.id);
           }
         });
       },
@@ -177,10 +177,12 @@ overlay_close=true) %}
     var _currentBlockId = null;
     var _currentPresetId = null;
 
-    window.openBlockModal = function (blockId, presetId) {
+    window.openBlockModal = function (el) {
+      const item = el.classList.contains('arranger-item') ? el : el.closest('.arranger-item');
+      const blockId = item ? item.dataset.blockId : '';
+      const presetId = item ? item.dataset.presetId : '';
       _currentBlockId = blockId;
       _currentPresetId = presetId;
-      const item = document.querySelector('.arranger-item[data-block-id="' + blockId + '"]');
       const content = item ? item.dataset.blockContent || '' : '';
       document.getElementById('block-modal-textarea').value = content;
       document.getElementById('block-edit-modal').classList.remove('hidden');
@@ -207,8 +209,11 @@ overlay_close=true) %}
       });
     };
 
-    window.uploadBlockMedia = function (presetId, blockId, input) {
-      if (!input.files || !input.files[0]) return;
+    window.uploadBlockMedia = function (input) {
+      const item = input.closest('.arranger-item');
+      const presetId = item ? item.dataset.presetId : '';
+      const blockId = item ? item.dataset.blockId : '';
+      if (!presetId || !blockId || !input.files || !input.files[0]) return;
       const formData = new FormData();
       formData.append('file', input.files[0]);
       fetch('/api/presets/' + presetId + '/blocks/' + blockId + '/images', {
@@ -219,7 +224,13 @@ overlay_close=true) %}
       });
     };
 
-    window.deleteBlockMedia = function (presetId, blockId, imageId) {
+    window.deleteBlockMedia = function (el) {
+      const container = el.closest ? el.closest('[data-image-id]') : null;
+      const imageId = container ? container.dataset.imageId : '';
+      const item = container ? container.closest('.arranger-item') : null;
+      const presetId = item ? item.dataset.presetId : '';
+      const blockId = item ? item.dataset.blockId : '';
+      if (!presetId || !blockId || !imageId) return;
       fetch('/api/presets/' + presetId + '/blocks/' + blockId + '/images/' + imageId, {
         method: 'DELETE',
       }).then(function () {
@@ -227,7 +238,11 @@ overlay_close=true) %}
       });
     };
 
-    window.handleArrangerBlockUpdate = function (presetId, blockId, payload) {
+    window.handleArrangerBlockUpdate = function (el, payload) {
+      const item = el.classList.contains('arranger-item') ? el : el.closest('.arranger-item');
+      const presetId = item ? item.dataset.presetId : '';
+      const blockId = item ? item.dataset.blockId : '';
+      if (!presetId || !blockId) return;
       fetch(`/api/presets/${presetId}/blocks/${blockId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -235,12 +250,22 @@ overlay_close=true) %}
       }).then(() => refreshSingleBlock(presetId, blockId));
     };
 
-    window.handleArrangerBlockDelete = function (presetId, blockId) {
-      fetch(`/api/presets/${presetId}/blocks/${blockId}`, {
-        method: 'DELETE',
-      }).then((r) => {
-        if (r.ok) reloadPromptArranger(presetId, getArrangerContainerId(presetId));
+    window.handleArrangerBlockDelete = function (el) {
+      const item = el.classList.contains('arranger-item') ? el : el.closest('.arranger-item');
+      const presetId = item ? item.dataset.presetId : '';
+      const blockId = item ? item.dataset.blockId : '';
+      if (!presetId || !blockId) return;
+      window.customConfirm('Delete block?', function () {
+        fetch(`/api/presets/${presetId}/blocks/${blockId}`, {
+          method: 'DELETE',
+        }).then((r) => {
+          if (r.ok) reloadPromptArranger(presetId, getArrangerContainerId(presetId));
+        });
       });
+    };
+
+    window.promptDeleteBlock = function (btn) {
+      window.handleArrangerBlockDelete(btn);
     };
   }
 </script>

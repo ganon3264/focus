@@ -9,7 +9,7 @@ import focus.crud as crud
 from focus.core.database import get_db
 from focus.core.models import PresetBlockBulkUpdate, PresetBlockCreate, PresetUpdate
 from focus.core.paths import PRESETS_DIR
-from focus.core.utils import now_iso, variable_group_name
+from focus.core.utils import now_iso, read_upload, variable_group_name
 
 router = APIRouter()
 
@@ -92,7 +92,7 @@ async def delete_preset(preset_id: str, db: aiosqlite.Connection = Depends(get_d
 @router.post("/import", status_code=201)
 async def import_preset(file: UploadFile = File(...), db: aiosqlite.Connection = Depends(get_db)):
     """Import a preset from an uploaded JSON file."""
-    content = await file.read()
+    content = await read_upload(file)
     try:
         data = json.loads(content)
     except (json.JSONDecodeError, UnicodeDecodeError) as e:
@@ -326,7 +326,7 @@ async def add_block_image(
             db,
             block_id,
             "preset",
-            await file.read(),
+            await read_upload(file),
             file.filename,
             file.content_type,
             str(PRESETS_DIR / preset_id / "blocks"),

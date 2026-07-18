@@ -12,7 +12,7 @@ from focus.core.card_parser import extract_card_json, normalise_card
 from focus.core.database import get_db
 from focus.core.models import CharacterCreate, CharacterUpdate, CharBlockCreate, CharBlockUpdate
 from focus.core.paths import BLOCKS_DIR, CHARACTERS_DIR
-from focus.core.utils import now_iso
+from focus.core.utils import now_iso, read_upload
 
 router = APIRouter()
 logger = logging.getLogger("focus.routers.characters")
@@ -27,7 +27,7 @@ async def import_character(
     errors = []
 
     for file in files:
-        data = await file.read()
+        data = await read_upload(file)
 
         try:
             raw_json = extract_card_json(data)
@@ -147,7 +147,7 @@ async def upload_avatar(
     char_dir.mkdir(parents=True, exist_ok=True)
     avatar_path = str(char_dir / f"avatar{suffix}")
     try:
-        Path(avatar_path).write_bytes(await file.read())
+        Path(avatar_path).write_bytes(await read_upload(file))
     except OSError as e:
         raise HTTPException(500, f"Failed to save avatar: {e}")
 
@@ -236,7 +236,7 @@ async def add_char_image(
             db,
             char_id,
             "char",
-            await file.read(),
+            await read_upload(file),
             file.filename,
             file.content_type,
             str(BLOCKS_DIR),
@@ -318,8 +318,8 @@ async def add_char_block_image(
         return await crud.upload_block_image(
             db,
             block_id,
-            "char",
-            await file.read(),
+            "character",
+            await read_upload(file),
             file.filename,
             file.content_type,
             str(CHARACTERS_DIR / char_id / "blocks"),
