@@ -41,7 +41,7 @@ global.DOMPurify = { sanitize: function(h) { return h; } };
 global.getSvgSprite = function(name, size) { return '<svg>' + name + '</svg>'; };
 
 // Load module
-eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'message_renderer.js'), 'utf8'));
+eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'messages', 'message_renderer.js'), 'utf8'));
 
 // ── escapeHtml ──
 (function() {

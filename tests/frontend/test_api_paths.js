@@ -6,7 +6,7 @@ function assertEqual(a, b, msg) { tests++; if (a !== b) { console.error('FAIL: '
 
 global.window = global;
 var path = require('path');
-eval(require('fs').readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'api_paths.js'), 'utf8'));
+eval(require('fs').readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'core', 'api_paths.js'), 'utf8'));
 
 // ── String constants ──
 assertEqual(api.chats, '/api/chats', 'api.chats');

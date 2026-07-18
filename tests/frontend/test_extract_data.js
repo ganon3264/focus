@@ -47,7 +47,7 @@ function mockForm(fields, queryMap) {
 }
 
 // Load module
-eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'modal_providers.js'), 'utf8'));
+eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'modals', 'modal_providers.js'), 'utf8'));
 
 // ── openai_compat — basic fields ──
 (function() {

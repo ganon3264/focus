@@ -142,7 +142,7 @@ static/
 
 ## State management — THE critical pattern
 
-**Single source of truth: `StateManager`** (`static/js/state_manager.js`)
+**Single source of truth: `StateManager`** (`static/js/core/state_manager.js`)
 
 Loads in `<head>`. Holds 5 fields:
 
@@ -320,7 +320,7 @@ Always prefer CSS variables over hardcoded colors/radii in inline styles.
 
 ## Backup & export system
 
-**Backup manager** (`static/js/backup_manager.js`):
+**Backup manager** (`static/js/features/backup_manager.js`):
 - `window.BackupManager` singleton with: `create()`, `restore(id)`, `delete(id)`, `loadList()`, `importFile(input)`, `openExportModal()`, `doExport()`, `cleanDatabase()`
 - Backup files are `.focus` ZIP archives stored in `data/backups/` with timestamped filenames
 
@@ -341,7 +341,7 @@ Always prefer CSS variables over hardcoded colors/radii in inline styles.
 ## Character card editor
 
 **Full-page editor** at `/characters` (`templates/characters.html`):
-- Alpine `charEditor` component (`static/js/char_editor.js`) with URL-based character navigation via `URLSearchParams`
+- Alpine `charEditor` component (`static/js/features/char_editor.js`) with URL-based character navigation via `URLSearchParams`
 - PNG card import (extracts `chara` chunk from PNG tEXt/iTXt metadata, v1/v2 spec)
 - Character fields: name, description, personality, scenario, first message, mes_example, alternate greetings
 - Advanced fields toggle with `x-collapse`
@@ -361,7 +361,7 @@ Always prefer CSS variables over hardcoded colors/radii in inline styles.
 
 ## Theme system
 
-**Theme manager** (`static/js/theme_manager.js`):
+**Theme manager** (`static/js/ui/theme_manager.js`):
 - 3 presets: **Slate** (dark indigo, default), **Midnight OLED** (true black + blue), **Light** (white + indigo)
 - Each preset defines: `--bg`, `--surface`, `--surface-2`, `--surface-3`, `--border`, `--accent`, `--text`, `--text-muted`
 - Live preview via `element.style.setProperty()` on `:root`

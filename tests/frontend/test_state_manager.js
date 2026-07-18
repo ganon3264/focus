@@ -48,7 +48,7 @@ global.window.dispatchEvent = function(ev) { global._dispatchedEvents.push(ev); 
 
 // Load StateManager
 var fs = require('fs'), path = require('path');
-eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'state_manager.js'), 'utf8'));
+eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'core', 'state_manager.js'), 'utf8'));
 
 function reset() {
   storage = {};

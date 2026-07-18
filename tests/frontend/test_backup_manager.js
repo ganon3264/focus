@@ -38,7 +38,7 @@ global.URL = { createObjectURL: function() { return 'blob:url'; }, revokeObjectU
 global.Blob = function() {};
 
 // Load module
-eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'backup_manager.js'), 'utf8'));
+eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'features', 'backup_manager.js'), 'utf8'));
 
 var BM = window.BackupManager;
 assert(!!BM, 'BackupManager loaded');

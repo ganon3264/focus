@@ -417,7 +417,7 @@ setTimeout(() => {
 {% endif %}
 </script>
 
-<script src="/static/js/backup_manager.js"></script>
+<script src="/static/js/features/backup_manager.js"></script>
 
 <!-- THEMES MODAL -->
 {% include "modals/theme_modal.html" %}
@@ -425,7 +425,7 @@ setTimeout(() => {
 <!-- BACKUPS MODAL -->
 {% include "modals/backup_modal.html" %}
 
-<script src="/static/js/theme_manager.js"></script>
+<script src="/static/js/ui/theme_manager.js"></script>
 <script>
 // State manager init + callbacks
 StateManager.init({
@@ -497,17 +497,17 @@ function toggleSidebar(side) {
 }
 </script>
 
-<script src="/static/js/modal_char_edit.js"></script>
+<script src="/static/js/modals/modal_char_edit.js"></script>
 
-<script src="/static/js/modal_persona_edit.js"></script>
+<script src="/static/js/modals/modal_persona_edit.js"></script>
 
-<script src="/static/js/modal_providers.js"></script>
+<script src="/static/js/modals/modal_providers.js"></script>
 
 <script>
 // App Providers for Status Panel
 window.APP_PROVIDERS = {{ providers | tojson | safe }};
 </script>
 
-<script src="/static/js/status_panel.js"></script>
-<script src="/static/js/message_pruner.js"></script>
+<script src="/static/js/ui/status_panel.js"></script>
+<script src="/static/js/messages/message_pruner.js"></script>
 {% endblock %}
