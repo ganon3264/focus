@@ -194,7 +194,7 @@
       if (staleCalls) staleCalls.remove();
       var staleSection = asstDiv.querySelector('.tool-calls-section');
       if (staleSection) staleSection.remove();
-      if (!continueText) {
+      if (!continueText && !continueReasoning) {
         var contentDivs = asstDiv.querySelectorAll('.message-content');
         for (var j = 0; j < contentDivs.length; j++) {
           contentDivs[j].innerHTML = (j === 0) ? '<div class="message-spinner"></div>' : '';
@@ -206,11 +206,9 @@
         for (var k = 0; k < staleBlocks.length; k++) staleBlocks[k].remove();
       } else {
         const contentDiv = asstDiv.querySelector('.message-content');
-        if (contentDiv) {
-          const pulse = document.createElement('span');
-          pulse.className = 'gen-pulse';
-          contentDiv.appendChild(pulse);
-        }
+        const pulse = document.createElement('span');
+        pulse.className = 'gen-pulse';
+        contentDiv.appendChild(pulse);
       }
     }
 
@@ -253,8 +251,10 @@
       tools_enabled: window._toolConfig ? window._toolConfig.enabled : false,
       tool_read_only: window._toolConfig ? window._toolConfig.read_only : true,
     };
-    if (continueText) body.continue_text = continueText;
-    if (continueReasoning) body.continue_reasoning = continueReasoning;
+    if (continueText || continueReasoning) {
+      body.continue_text = continueText || '';
+      body.continue_reasoning = continueReasoning;
+    }
 
     window._tempUserMessage = '';
 
@@ -321,7 +321,6 @@
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
-      let prefillMode = false;
       fullText = '';
 
       while (true) {
@@ -344,10 +343,9 @@
             messageId = json.message_id;
             window._streamingMessageId = messageId;
             userMessageId = json.user_message_id;
-            prefillMode = json.prefill_mode || false;
 
-            dbg('SSE start: message_id=%s, user_message_id=%s, prefill=%s',
-              messageId, userMessageId, prefillMode);
+            dbg('SSE start: message_id=%s, user_message_id=%s',
+              messageId, userMessageId);
 
             if (userMessageId && !isRegen) {
               const tempUserMsg = document.getElementById('temp-user-msg');
@@ -380,6 +378,7 @@
                 var bodyEl = asstDiv.querySelector('.message-body');
                 var contentEl = asstDiv.querySelector('.message-content');
                 if (bodyEl && contentEl) bodyEl.insertBefore(rb, contentEl);
+                else if (bodyEl) bodyEl.appendChild(rb);
               }
               var rc = rb.querySelector('.reasoning-content');
               if (rc) rc.textContent = fullReasoning;
@@ -389,15 +388,17 @@
             fullText += json.token;
             if (!currentTextDiv) {
               currentTextDiv = asstDiv.querySelector('.message-content');
+              if (!currentTextDiv) {
+                currentTextDiv = document.createElement('div');
+                currentTextDiv.className = 'message-content markdown-content processed';
+                var bodyEl = asstDiv.querySelector('.message-body');
+                if (bodyEl) bodyEl.appendChild(currentTextDiv);
+              }
               textSegments.push({ div: currentTextDiv, text: '' });
             }
             var seg = textSegments[textSegments.length - 1];
             seg.text += json.token;
-            let displayText = seg.text;
-            if (continueText && prefillMode && textSegments.length === 1) {
-              displayText = continueText + seg.text;
-            }
-            window.preserveOpenStates(currentTextDiv, () => window.renderMessage(displayText));
+            window.preserveOpenStates(currentTextDiv, () => window.renderMessage(seg.text));
             if (window._updateReasoningButton) window._updateReasoningButton(currentTextDiv);
             if (window.autoScroll && window.scrollSentinel) {
               window.scrollSentinel.scrollIntoView({ behavior: 'smooth' });
@@ -414,12 +415,8 @@
       if (textSegments.length > 0) {
         for (var si = 0; si < textSegments.length; si++) {
           var seg = textSegments[si];
-          let segDisplayText = seg.text;
-          if (continueText && prefillMode && si === 0) {
-            segDisplayText = continueText + seg.text;
-          }
           var segReasoning = si === 0 ? fullReasoning : null;
-          window.preserveOpenStates(seg.div, () => window.renderMessage(segDisplayText, 0, segReasoning));
+          window.preserveOpenStates(seg.div, () => window.renderMessage(seg.text, 0, segReasoning));
         }
         if (window._updateReasoningButton) window._updateReasoningButton(asstDiv.querySelector('.message-content'));
       }

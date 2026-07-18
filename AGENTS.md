@@ -62,6 +62,16 @@ Single source of truth (loaded in `<head>`). 5 fields: `character_id`, `persona_
 
 Messages segmented into `text | reasoning | tool_boundary` typed siblings (mirrors `focus/core/message_render.py:render_message_segments()`). Never use `fullText` for per-segment rendering — each segment has its own div with independent `startThinkIdx`. Each generation creates a new `AbortController`. Stop button calls `.abort()`.
 
+### Continue / prefill architecture
+
+When the user continues an interrupted assistant message, the server emits the prefill (existing partial content + reasoning) as **synthetic SSE events** (`type: reasoning` / `token`) before the model's real tokens. This means the frontend receives the *complete* message during streaming — no special `prefillMode` awareness needed.
+
+Key rules:
+- The server's `_prepare_generation_messages()` appends a prefill assistant message with `content` and `reasoning` fields to the API context.
+- The streaming generator emits the prefill as synthetic events after the `start` event when `echoes_prefill` is false (DeepSeek, Moonshot).
+- The non-stream path prepends prefill to `collected` / `collected_reasoning` lists before the final join.
+- The template always renders an empty `.message-content` div when a message has reasoning but no text segment — so the DOM structure is consistent and the pulse cursor has a place.
+
 ## Critical gotchas
 
 1. **`:last-of-type` is not "last with this class"** — `querySelector('.message:last-of-type')` on `#message-list` fails because `#scroll-sentinel` (same `<div>` tag) is truly last. Use `querySelectorAll('.message')` and take the last NodeList element.
@@ -72,4 +82,4 @@ Messages segmented into `text | reasoning | tool_boundary` typed siblings (mirro
 
 4. **`reloadPromptArranger`** (`static/js/modals/edit_entity_modal.js`) — guards with `if (!document.getElementById(targetId)) return;`, safe to call without arranger loaded.
 
-5. **Don't reload preset selector via HTMX outerHTML swap** after state changes — races with DB PATCH. Update Alpine state synchronously; PATCH fires async for persistence only.
+5. **`message-content` div always present for reasoning-only messages** — the Jinja2 template renders an empty `<div class="message-content markdown-content">` when a message has `reasoning` but no text segment, so the streaming pulse cursor and token rendering have a DOM position. The token handler's JS fallback (`querySelector('.message-content')` then create-if-missing) is a safety net for pre-existing messages, but template-rendered messages always have it.

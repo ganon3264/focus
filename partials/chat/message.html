@@ -196,6 +196,9 @@
     </div>
     {% endif %}
     {% endfor %}
+    {% if not (message.segments | selectattr("type", "equalto", "text") | list) and message.get('reasoning') %}
+    <div class="message-content markdown-content" style="padding-left:3rem"></div>
+    {% endif %}
         {% else %}
         <div class="message-content markdown-content" style="padding-left:3rem">{{ message.content }}</div>
         {% if message.get('tool_calls') %}

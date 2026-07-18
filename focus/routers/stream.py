@@ -102,8 +102,8 @@ async def _prepare_generation_messages(
             for msg in messages:
                 msg.pop("reasoning", None)
 
-    if body.continue_text and body.regenerate and provider.supports_prefill:
-        prefill_msg = {"role": "assistant", "content": body.continue_text}
+    if (body.continue_text is not None or body.continue_reasoning) and body.regenerate and provider.supports_prefill:
+        prefill_msg = {"role": "assistant", "content": body.continue_text or ""}
         if body.continue_reasoning:
             prefill_msg["reasoning"] = body.continue_reasoning
         messages.append(prefill_msg)
@@ -263,9 +263,18 @@ async def _stream_generate(
             'type': 'start',
             'message_id': asst_msg_id,
             'user_message_id': user_msg_id if not body.regenerate else None,
-            'prefill_mode': not provider.echoes_prefill,
         })}\n\n"
     )
+
+    # Emit prefill as synthetic events so the frontend always receives the
+    # complete message without any special prefill awareness.
+    if not provider.echoes_prefill:
+        if body.continue_reasoning:
+            final_reasoning.append(body.continue_reasoning)
+            yield f"data: {json.dumps({'type': 'reasoning', 'text': body.continue_reasoning})}\n\n"
+        if body.continue_text:
+            final_text.append(body.continue_text)
+            yield f"data: {json.dumps({'token': body.continue_text})}\n\n"
 
     # ── core loop ───────────────────────────────────────────────────────
     # GeneratorExit/CancelledError are caught here because aclose()
@@ -325,8 +334,6 @@ async def _stream_generate(
                 # ── save final variant ──────────────────────────────────
                 full = "".join(final_text)
                 full_reasoning = "".join(final_reasoning).strip() or None
-                if body.continue_text and not full.startswith(body.continue_text):
-                    full = body.continue_text + full
 
                 logger.debug(
                     "stream: saving variant asst_msg_id=%s variant_index=%d full_length=%d reasoning=%s",
@@ -432,10 +439,14 @@ async def _non_stream_generate(
             await _rollback_assistant(asst_msg_id)
         raise HTTPException(499, "Request cancelled")
 
+    if not provider.echoes_prefill:
+        if body.continue_text:
+            collected.insert(0, body.continue_text)
+        if body.continue_reasoning:
+            collected_reasoning.insert(0, body.continue_reasoning)
+
     full = "".join(collected)
     full_reasoning = "".join(collected_reasoning).strip() or None
-    if body.continue_text and not full.startswith(body.continue_text):
-        full = body.continue_text + full
 
     try:
         await _upsert_variant(
