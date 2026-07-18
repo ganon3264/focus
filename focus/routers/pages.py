@@ -9,6 +9,7 @@ from jinja2 import FileSystemLoader
 import focus.crud as crud
 from focus.core.database import get_db
 from focus.core.macros import apply_macros, build_base_macros
+from focus.core.message_render import render_message_segments
 from focus.core.utils import variable_group_name
 from focus.prompt_chain import partition_blocks, resolve_variable_blocks
 from focus.core.logger import DEBUG_MODE
@@ -21,7 +22,7 @@ def _resolve_macros_for_display(messages, char, persona, preset_blocks=None):
     if not char:
         return
     card = char.get("card")
-    if not card:
+    if card is None:
         return
     macros = build_base_macros(card, persona)
 
@@ -32,6 +33,7 @@ def _resolve_macros_for_display(messages, char, persona, preset_blocks=None):
     for msg in messages:
         if isinstance(msg.get("content"), str):
             msg["content"] = apply_macros(msg["content"], macros)
+            msg["segments"] = render_message_segments(msg["content"], msg.get("reasoning"))
 
 
 templates = Jinja2Templates(directory="templates")
