@@ -1,0 +1,77 @@
+<!-- Center -->
+<main class="main-content">
+  {% if chat_id %}
+  <div class="chat-center">
+    <div class="message-list" id="message-list" data-last-role="{{ messages[-1].role if messages else '' }}">
+      {% include "chat/message_list.html" %}
+    </div>
+  </div>
+  <div class="input-bar flex-col gap-2 items-center relative">
+     <div id="error-toast" class="hidden absolute bottom-[100%] mb-2 w-full max-w-[820px] p-3 rounded-md shadow-lg flex items-start justify-between gap-3 text-sm z-50 pointer-events-auto" role="alert" aria-live="polite" style="background: var(--danger-dim); border: 1px solid var(--danger); color: var(--danger); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);">
+      <div id="error-toast-text" class="flex-1 font-mono break-all whitespace-pre-wrap max-h-[200px] overflow-y-auto"></div>
+      <div class="flex gap-2 shrink-0">
+        <button class="btn btn-secondary btn-sm" onclick="navigator.clipboard.writeText(document.getElementById('error-toast-text').innerText); this.textContent='Copied!'; setTimeout(()=>this.textContent='Copy', 2000);">Copy</button>
+         <button class="btn btn-secondary btn-sm" aria-label="Close error" onclick="document.getElementById('error-toast').classList.add('hidden')">{{ icon_close(16) }}</button>
+      </div>
+    </div>
+    <div id="staging-area" class="w-full max-w-[820px] flex gap-2 overflow-x-auto empty:hidden pointer-events-auto" style="min-height: 0;"></div>
+    
+    <!-- Standard Input -->
+    <div id="standard-input-container" class="input-wrapper relative w-full">
+      <input type="file" id="file-upload" class="hidden" multiple accept="image/*,audio/*">
+       <button class="btn btn-secondary !px-2" style="border: none; background: transparent; color: var(--text-muted);" onclick="document.getElementById('file-upload').click()" title="Attach files" aria-label="Attach files">
+        {{ icon_paperclip(20) }}
+      </button>
+      <textarea id="chat-input" placeholder="Type a message…" onkeydown="if(event.key==='Enter' && !event.shiftKey && !document.getElementById('send-btn').classList.contains('hidden')){event.preventDefault();document.getElementById('send-btn').click()}"></textarea>
+       <button id="send-btn" class="send-btn" aria-label="Send message" data-chat-id="{{ chat_id }}" data-provider-id="{{ providers[0].id if providers else '' }}">
+        {{ icon_send() }}
+      </button>
+       <button id="stop-btn" class="send-btn stop-btn hidden" aria-label="Stop generating">
+        {{ icon_stop() }}
+      </button>
+    </div>
+
+    <!-- Delete Toolbar -->
+    <div id="delete-toolbar" class="input-wrapper relative w-full hidden justify-between items-center px-4" style="background: var(--surface-2); border-color: var(--danger);">
+      <div class="font-bold text-(--danger)"><span id="delete-selected-count">0</span> Selected for deletion</div>
+      <div class="flex gap-2">
+        <button class="btn btn-secondary btn-sm" onclick="exitDeleteMode()">Cancel</button>
+        <button class="btn btn-danger btn-sm" data-chat-id="{{ chat_id }}" onclick="bulkDeleteSelected(this.dataset.chatId || document.getElementById('send-btn').dataset.chatId)">Delete Selected</button>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <!-- Greeter State -->
+  <div class="flex-1 flex flex-col items-center justify-center p-8 text-center" style="height: 100%;">
+    {% if character %}
+    <div style="width: 100px; height: 100px; border-radius: 50%; overflow: hidden; margin-bottom: 1.5rem; border: 2px solid var(--border); box-shadow: var(--shadow-md);">
+      {% if character.image_path %}
+        <img src="/{{ character.image_path }}" alt="{{ character.name }}" style="width: 100%; height: 100%; object-fit: cover; cursor: pointer;" onclick="openLightbox(this.src)">
+      {% else %}
+        <div style="width: 100%; height: 100%; background: var(--surface-3); display: grid; place-items: center; font-size: 2.5rem; font-weight: bold; color: var(--text-muted);">
+          {{ character.name[:1] }}
+        </div>
+      {% endif %}
+    </div>
+    <h1 class="text-2xl font-bold mb-2">{{ character.name }}</h1>
+    <p class="text-muted max-w-md mb-6 leading-relaxed">
+      You don't have any active chats with {{ character.name }}. Start a new conversation!
+    </p>
+    <button class="btn btn-primary" onclick="newChat()" style="padding: 0.75rem 2rem; font-size: 1rem; border-radius: var(--radius-full);">
+      Start Chat
+    </button>
+    {% else %}
+    <div style="width: 80px; height: 80px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-xl); display: grid; place-items: center; margin-bottom: 1.5rem; box-shadow: var(--shadow-sm);">
+      {{ icon_chat(40) }}
+    </div>
+    <h1 class="text-2xl font-bold mb-2">Welcome to Focus</h1>
+    <p class="text-muted max-w-md mb-6 leading-relaxed">
+      You don't have any active chats open. Select a character from your roster to resume a previous conversation, or start a new one.
+    </p>
+    <button class="btn btn-primary" onclick="openModal('modal-characters')" style="padding: 0.75rem 2rem; font-size: 1rem; border-radius: var(--radius-full);">
+      View Characters
+    </button>
+    {% endif %}
+  </div>
+  {% endif %}
+</main>

@@ -1,0 +1,56 @@
+<!-- Left Sidebar -->
+<aside class="left-sidebar" id="left-sidebar">
+  <div class="sidebar-inner">
+  <div class="sidebar-section">
+    <div class="sidebar-title">
+      <span>Preset</span>
+      <button class="action-icon" onclick="toggleSidebar('left')" title="Collapse" style="margin-top: -0.3rem;" aria-label="Toggle sidebar">{{ icon_chevron_left() }}</button>
+    </div>
+    <div id="preset-selector">
+      {% include "presets/preset_selector.html" %}
+    </div>
+  </div>
+  <div class="sidebar-section" style="flex: 1;">
+    <div class="sidebar-title">Preset Variables</div>
+    <div id="preset-variables" style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
+      {% if preset %}
+        {% with preset_id = preset.id, blocks = preset_blocks %}
+          {% include "presets/preset_variables.html" %}
+        {% endwith %}
+      {% else %}
+        <div class="text-muted text-sm mt-2">Select a preset to edit variables.</div>
+      {% endif %}
+    </div>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-title">Tools</div>
+    <div class="grid-cols-2">
+      <button class="btn btn-secondary w-full text-xs" onclick="openModal('modal-sampler')">Samplers</button>
+      <button class="btn btn-secondary w-full text-xs" onclick="openModal('modal-providers')">Providers</button>
+      <button class="btn btn-secondary w-full text-xs" onclick="openModal('modal-personas')">Personas</button>
+      <button class="btn btn-secondary w-full text-xs" onclick="openModal('modal-characters')">Characters</button>
+      <button class="btn btn-secondary w-full text-xs" onclick="openModal('modal-itemizer'); window.dispatchEvent(new CustomEvent('itemizer-open'));">Prompt Itemizer</button>
+      <button class="btn btn-secondary w-full text-xs" onclick="openModal('modal-arranger')">Prompt Arranger</button>
+      <button class="btn btn-secondary w-full text-xs" onclick="openModal('modal-backups')">Backups</button>
+      <button class="btn btn-secondary w-full text-xs" data-action="actionOpenThemeModal">Themes</button>
+      <button class="btn btn-secondary w-full text-xs" onclick="openModal('modal-tools')">Tool Calls</button>
+    </div>
+  </div>
+  <div class="sidebar-section mt-auto">
+    <div class="sidebar-title">Status</div>
+    <div style="background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-md); padding:0.5rem;" class="flex flex-col gap-1 text-xs">
+      <div class="flex justify-between gap-2"><span class="text-muted">Character</span> <span class="font-bold truncate max-w-[130px]" id="status-character" title="{{ character.name if character else 'None' }}">{{ character.name if character else 'None' }}</span></div>
+      <div class="flex justify-between gap-2"><span class="text-muted">Persona</span> <span class="font-bold truncate max-w-[130px]" id="status-persona" title="{{ persona.name if persona else 'None' }}">{{ persona.name if persona else 'None' }}</span></div>
+      <div class="flex justify-between gap-2"><span class="text-muted">Prov. Preset</span> <span class="font-bold truncate max-w-[130px]" id="status-preset" title="None">None</span></div>
+      <div class="flex justify-between gap-2"><span class="text-muted">Provider</span> <span class="font-bold truncate max-w-[130px]" id="status-provider" title="None">None</span></div>
+      <div class="flex justify-between gap-2"><span class="text-muted">Model</span> <span class="font-bold truncate max-w-[130px]" id="status-model" title="None">None</span></div>
+      <div class="flex justify-between gap-2 hidden" id="status-cache-row"><span class="text-muted">Cache</span> <span class="font-bold truncate max-w-[130px]" id="status-cache"></span></div>
+    </div>
+  </div>
+  </div>
+</aside>
+
+<!-- Collapsed left tab -->
+<div id="left-tab" class="left-tab hidden" onclick="toggleSidebar('left')" role="button" tabindex="0">
+  <div class="sidebar-title" style="writing-mode: vertical-rl; padding: 0.5rem 0; cursor: pointer; color: var(--text);">{{ icon_chevron_left() }} Preset</div>
+</div>
