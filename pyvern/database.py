@@ -99,6 +99,11 @@ CREATE TABLE IF NOT EXISTS block_images (
     created_at   TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS secrets (
+    name  TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_block_images_block ON block_images(block_id, position);
 
 CREATE INDEX IF NOT EXISTS idx_preset_blocks_pos     ON preset_blocks(preset_id, position);

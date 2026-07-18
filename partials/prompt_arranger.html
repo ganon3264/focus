@@ -9,13 +9,24 @@
     {% include "prompt_block.html" %}
   {% endfor %}
 </div>
-<div class="arranger-add-buttons">
-  <button class="btn-tag" onclick="addBlock('{{ preset_id }}', 'text', this)">+ Text</button>
-  <button class="btn-tag" onclick="addBlock('{{ preset_id }}', 'char_description', this)">+ Char Desc</button>
-  <button class="btn-tag" onclick="addBlock('{{ preset_id }}', 'char_personality', this)">+ Personality</button>
-  <button class="btn-tag" onclick="addBlock('{{ preset_id }}', 'char_blocks', this)">+ Char Blocks</button>
-  <button class="btn-tag" onclick="addBlock('{{ preset_id }}', 'chat_history', this)">+ Chat History</button>
-  <button class="btn-tag" onclick="addBlock('{{ preset_id }}', 'user_persona', this)">+ User Persona</button>
+
+<div x-data="{ open: false }" style="position: relative; margin-top: 0.5rem;">
+  <button class="btn btn-secondary w-full" @click="open = !open">
+    + Add Block
+  </button>
+  
+  <div x-show="open" @click.away="open = false" x-transition.opacity.duration.200ms
+       style="position: absolute; bottom: 100%; left: 0; right: 0; margin-bottom: 0.5rem; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 0.75rem; box-shadow: var(--shadow-lg); z-index: 10; display: none;">
+    <div class="text-xs font-bold text-muted mb-2 uppercase tracking-wider">Select Block Type</div>
+    <div class="arranger-add-buttons">
+      <button class="btn-tag w-full text-left" @click="open = false; addBlock('{{ preset_id }}', 'text', $el)">Text (Custom Prompt)</button>
+      <button class="btn-tag w-full text-left" @click="open = false; addBlock('{{ preset_id }}', 'char_description', $el)">Character Description</button>
+      <button class="btn-tag w-full text-left" @click="open = false; addBlock('{{ preset_id }}', 'char_personality', $el)">Character Personality</button>
+      <button class="btn-tag w-full text-left" @click="open = false; addBlock('{{ preset_id }}', 'char_blocks', $el)">Character Blocks</button>
+      <button class="btn-tag w-full text-left" @click="open = false; addBlock('{{ preset_id }}', 'chat_history', $el)">Chat History</button>
+      <button class="btn-tag w-full text-left" @click="open = false; addBlock('{{ preset_id }}', 'user_persona', $el)">User Persona</button>
+    </div>
+  </div>
 </div>
 
 <!-- Block Edit Modal -->

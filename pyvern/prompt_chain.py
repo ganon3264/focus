@@ -1,5 +1,6 @@
 from __future__ import annotations
 import base64
+import re
 from pathlib import Path
 from typing import Any
 
@@ -141,9 +142,18 @@ def assemble_prompt(
                 if content:
                     target.append({"role": cb["role"], "content": content})
 
+    # Strip <think>...</think> blocks from assistant messages
+    cleaned_history = []
+    for msg in chat_history:
+        cleaned_msg = dict(msg)
+        if cleaned_msg.get("role") == "assistant" and isinstance(cleaned_msg.get("content"), str):
+            # Non-greedy match for <think> blocks across multiple lines
+            cleaned_msg["content"] = re.sub(r'<think>.*?</think>', '', cleaned_msg["content"], flags=re.DOTALL).strip()
+        cleaned_history.append(cleaned_msg)
+
     messages = (
         _merge_consecutive(pre_history)
-        + list(chat_history)
+        + cleaned_history
         + _merge_consecutive(post_history)
     )
     return messages

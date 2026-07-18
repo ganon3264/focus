@@ -1,18 +1,12 @@
-<div class="mb-5">
-  <h3 class="sidebar-title mb-3">New Persona</h3>
-  <form onsubmit="submitPersonaModal(event)" class="flex flex-col gap-3">
-    <div class="form-group mb-0">
-      <label>Name</label>
-      <input type="text" name="name" placeholder="Name" required class="text-sm">
-    </div>
-    <div class="form-group mb-0">
-      <label>Description</label>
-      <div class="textarea-wrapper">
-        <textarea name="description" placeholder="Description" rows="2" class="text-sm" id="new-persona-desc"></textarea>
-        <button type="button" class="expand-btn" onclick="openTextExpander(document.getElementById('new-persona-desc'), 'New Persona Description')">⤢</button>
-      </div>
-    </div>
-    <button class="btn btn-primary btn-sm w-full mt-1">Create Persona</button>
+<div class="mb-5 flex flex-col gap-3">
+  <h3 class="sidebar-title mb-1">Tools</h3>
+  <div class="flex gap-2 h-10">
+    <a href="/personas" class="btn btn-secondary btn-sm flex-1 flex items-center justify-center h-full text-decoration-none">Advanced Editor</a>
+  </div>
+  <h3 class="sidebar-title mb-1 mt-3">New Persona</h3>
+  <form onsubmit="submitPersonaModal(event)" class="flex gap-2">
+    <input type="text" name="name" placeholder="Name" required class="text-sm flex-1" style="background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-md);padding:0.5rem 0.75rem;">
+    <button class="btn btn-primary btn-sm">Create Empty</button>
   </form>
 </div>
 
@@ -20,7 +14,6 @@
 <div class="grid" style="grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 1rem;">
   {% for p in personas %}
   <div class="card" id="persona-card-{{ p.id }}" style="position:relative;">
-    <!-- Display State -->
     <div id="persona-display-{{ p.id }}" class="h-full flex flex-col">
       <div class="card-image" style="aspect-ratio: 1/1; border-radius: 12px 12px 0 0; cursor:pointer;" onclick="selectPersonaModal('{{ p.id }}')">
         {% if p.avatar_path %}
@@ -33,32 +26,18 @@
         <div class="font-bold text-sm truncate mb-1">{{ p.name }}</div>
         <div class="text-xs text-muted truncate mb-2">{{ p.description or 'No description' }}</div>
         <div class="flex gap-1 mt-auto">
-          <button class="btn btn-secondary btn-sm flex-1" onclick="event.stopPropagation(); togglePersonaEdit('{{ p.id }}')">✎</button>
+          <button class="btn btn-secondary btn-sm flex-1" 
+                  data-persona-id="{{ p.id }}" 
+                  data-persona-name="{{ p.name }}" 
+                  data-persona-desc="{{ p.description or '' }}" 
+                  data-persona-image="{{ p.avatar_path or '' }}"
+                  onclick="event.stopPropagation(); openEditPersonaModal(this)">✎</button>
           {% if p.name != 'User' %}
-          <button class="btn btn-danger btn-sm" hx-delete="/api/personas/{{ p.id }}" hx-confirm="Delete persona?" hx-target="closest .card" hx-swap="delete" onclick="event.stopPropagation()">×</button>
+          <button class="btn btn-danger btn-sm" hx-delete="/api/personas/{{ p.id }}" hx-confirm="Delete persona?" hx-on::after-request="htmx.ajax('GET','/partials/personas-modal',{target:'#personas-modal-body',swap:'innerHTML'})" onclick="event.stopPropagation()">×</button>
           {% endif %}
         </div>
       </div>
     </div>
-
-    <!-- Edit Form State (Expanded) -->
-    <form id="persona-edit-{{ p.id }}" class="hidden flex-col gap-3 w-full" style="padding: 1rem;" onsubmit="savePersonaModal(event, '{{ p.id }}')">
-      <div class="form-group mb-0">
-        <label class="text-xs">Name</label>
-        <input type="text" name="name" value="{{ p.name }}" class="text-sm w-full" required>
-      </div>
-      <div class="form-group mb-0 flex-1 flex flex-col">
-        <label class="text-xs">Description</label>
-        <div class="textarea-wrapper h-full">
-          <textarea name="description" rows="5" class="text-sm w-full h-full" placeholder="Description" id="persona-desc-{{ p.id }}">{{ p.description }}</textarea>
-          <button type="button" class="expand-btn" onclick="openTextExpander(document.getElementById('persona-desc-{{ p.id }}'), 'Edit Persona Description')">⤢</button>
-        </div>
-      </div>
-      <div class="flex gap-2 mt-2 justify-end pt-3" style="border-top: 1px solid var(--border);">
-        <button class="btn btn-secondary btn-sm" style="width: 100px;" type="button" onclick="togglePersonaEdit('{{ p.id }}')">Cancel</button>
-        <button class="btn btn-primary btn-sm" style="width: 100px;" type="submit">Save</button>
-      </div>
-    </form>
   </div>
   {% endfor %}
 </div>
@@ -68,48 +47,30 @@ function selectPersonaModal(pid){
   if (window.CURRENT_CHAT_STATE) {
     window.CURRENT_CHAT_STATE.persona_id = pid;
   }
-  const chatId = document.getElementById('send-btn').dataset.chatId;
-  fetch('/api/chats/' + chatId, {
-    method: 'PATCH',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({persona_id: pid})
-  }).then(function(){
+  const sendBtn = document.getElementById('send-btn');
+  const chatId = sendBtn ? sendBtn.dataset.chatId : null;
+  
+  if (chatId) {
+    // If we are in an active chat, patch it and reload
+    fetch('/api/chats/' + chatId, {
+      method: 'PATCH',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({persona_id: pid})
+    }).then(function(){
+      closeModal('modal-personas');
+      window.location.reload();
+    });
+  } else {
+    // If we are in the greeter state (no chat), just close the modal.
+    // The next chat created will automatically pick up the updated window.CURRENT_CHAT_STATE
     closeModal('modal-personas');
-    window.location.reload();
-  });
+  }
 }
 function submitPersonaModal(e){
   e.preventDefault();
   const data = Object.fromEntries(new FormData(e.target));
   fetch('/api/personas', {
     method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify(data)
-  }).then(function(r){
-    if(r.ok) htmx.ajax('GET','/partials/personas-modal',{target:'#personas-modal-body',swap:'innerHTML'});
-  });
-}
-function togglePersonaEdit(id){
-  const card = document.getElementById('persona-card-' + id);
-  const form = document.getElementById('persona-edit-' + id);
-  const display = document.getElementById('persona-display-' + id);
-  if(form.classList.contains('hidden')){
-    card.classList.add('col-span-full');
-    form.classList.remove('hidden');
-    form.style.display = 'flex';
-    display.classList.add('hidden');
-  } else {
-    card.classList.remove('col-span-full');
-    form.classList.add('hidden');
-    form.style.display = 'none';
-    display.classList.remove('hidden');
-  }
-}
-function savePersonaModal(e, id){
-  e.preventDefault();
-  const data = Object.fromEntries(new FormData(e.target));
-  fetch('/api/personas/' + id, {
-    method: 'PATCH',
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify(data)
   }).then(function(r){

@@ -19,7 +19,5 @@ class BaseProvider(ABC):
     async def stream_complete(
         self,
         messages: list[dict],
-        max_tokens: int = 1024,
-        temperature: float = 1.0,
         **kwargs,
     ) -> AsyncIterator[str]: ...

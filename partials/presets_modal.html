@@ -3,7 +3,7 @@
     {% for p in presets %}
     <div class="sidebar-item" onclick="loadPresetModal('{{ p.id }}')">
       <div class="text-sm truncate flex-1">{{ p.name }}</div>
-      <button class="btn btn-danger btn-sm" style="margin-left:auto;" hx-delete="/api/presets/{{ p.id }}" hx-confirm="Delete?" hx-target="closest div" hx-swap="delete">×</button>
+      <button class="btn btn-danger btn-sm" style="margin-left:auto;" hx-delete="/api/presets/{{ p.id }}" hx-confirm="Delete?" hx-on::after-request="htmx.ajax('GET','/partials/presets-modal',{target:'#presets-modal-body',swap:'innerHTML'})">×</button>
     </div>
     {% endfor %}
     <button class="btn btn-secondary btn-sm w-full mt-1" onclick="fetch('/api/presets',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:'New Preset'})}).then(()=>htmx.ajax('GET','/partials/presets-modal',{target:'#presets-modal-body',swap:'innerHTML'}))">+ New</button>

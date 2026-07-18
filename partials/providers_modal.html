@@ -1,103 +1,665 @@
-<div class="grid gap-3 mb-5" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));">
-  {% for prov in providers %}
-  <div class="provider-card card" id="prov-card-{{ prov.id }}" style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);">
-    <!-- Display State -->
-    <div id="prov-display-{{ prov.id }}" class="p-3 cursor-pointer h-full flex flex-col justify-center" onclick="selectProviderModal('{{ prov.id }}', '{{ prov.name }}')">
-      <div class="flex justify-between items-center mb-1">
-        <strong class="text-sm">{{ prov.name }}</strong>
-        <div class="flex gap-1" onclick="event.stopPropagation()">
-          <button class="btn btn-secondary btn-sm" onclick="toggleProviderEdit('{{ prov.id }}')">✎</button>
-          <button class="btn btn-danger btn-sm" hx-delete="/api/providers/{{ prov.id }}" hx-confirm="Delete?" hx-target="closest .provider-card" hx-swap="delete">×</button>
-        </div>
-      </div>
-      <div class="text-xs text-muted">{{ prov.type }} • {{ prov.model }}</div>
-    </div>
+{% from "macros.html" import custom_select %}
+<div class="modal-grid" style="display: grid; grid-template-columns: 280px 1fr; gap: 1.5rem; height: 100%;">
+  <!-- Left Sidebar: Tools & Create -->
+  <div class="modal-sidebar flex flex-col gap-4 overflow-y-auto pr-2" style="border-right: 1px solid var(--border);">
+    
 
-    <!-- Edit Form State (Expanded Grid) -->
-    <form id="provider-edit-{{ prov.id }}" class="hidden flex-col gap-4 w-full p-4" onsubmit="saveProviderModal(event, '{{ prov.id }}')">
-      <div class="grid gap-4" style="grid-template-columns: 1fr 1fr;">
+    <div>
+      <h3 class="sidebar-title mb-3">Add Provider</h3>
+      <form onsubmit="submitProviderModal(event)" class="flex flex-col gap-3">
         <div class="form-group mb-0">
-          <label class="text-xs">Name</label>
-          <input type="text" name="name" value="{{ prov.name }}" class="text-sm" required>
-        </div>
-        <div class="form-group mb-0">
-          <label class="text-xs">Model</label>
-          <input type="text" name="model" value="{{ prov.model }}" class="text-sm" required>
-        </div>
-        <div class="form-group mb-0 col-span-full">
-          <label class="text-xs">Base URL</label>
-          <input type="text" name="base_url" value="{{ prov.base_url or '' }}" class="text-sm" placeholder="Base URL">
+          <label>Name</label>
+          <input type="text" name="name" required placeholder="e.g. Local LLM" class="text-sm form-control w-full">
         </div>
         <div class="form-group mb-0">
-          <label class="text-xs">API Key</label>
-          <input type="password" name="api_key" value="" class="text-sm" placeholder="(blank = unchanged)">
+          <label>Type</label>
+          {{ custom_select(
+               name="type",
+               id="new-prov-type",
+               options=[
+                 {"value": "openai_compat", "label": "OpenAI Compatible"},
+                 {"value": "openrouter", "label": "OpenRouter"},
+                 {"value": "google_aistudio", "label": "Google AI Studio"},
+                 {"value": "google_vertex", "label": "Google Vertex AI"},
+                 {"value": "deepseek", "label": "Deepseek"},
+                 {"value": "moonshot", "label": "Moonshot"}
+               ],
+               selected="openai_compat",
+               on_change="toggleProviderFields('new-prov')",
+               extra_classes="form-control text-sm w-full"
+             )
+          }}
+        </div>
+        <div class="form-group mb-0" id="new-prov-baseurl">
+          <label>Base URL</label>
+          <input type="text" name="base_url" placeholder="https://api.example.com/v1" class="text-sm form-control w-full">
         </div>
         <div class="form-group mb-0">
-          <label class="text-xs">Params JSON</label>
-          <input type="text" name="params" value="{{ prov.params_json or '{}' }}" class="text-sm">
+          <label>API Key</label>
+          <input type="hidden" name="api_key" id="api-key-input-new-prov" value="">
+          <button type="button" class="form-control text-sm w-full flex justify-between items-center cursor-pointer" onclick="openSecretsModal('new-prov')">
+            <span id="api-key-display-new-prov" class="truncate text-muted">Select API Key...</span>
+            <span class="opacity-50">🔑</span>
+          </button>
         </div>
-      </div>
-      <div class="flex gap-2 mt-1 justify-end pt-3" style="border-top: 1px solid var(--border);">
-        <button class="btn btn-secondary btn-sm" style="width: 100px;" type="button" onclick="toggleProviderEdit('{{ prov.id }}')">Cancel</button>
-        <button class="btn btn-primary btn-sm" style="width: 100px;" type="submit">Save</button>
-      </div>
-    </form>
+
+        <!-- Default Model Input -->
+        <div class="form-group mb-0" id="new-prov-model-input">
+          <label>Model</label>
+          <div class="flex gap-2">
+            <input type="text" name="model" id="model-text-new-prov" required placeholder="gpt-4" class="text-sm form-control w-full">
+            <button type="button" class="btn btn-secondary" onclick="openFetchModelModal('new-prov')" title="Fetch Models from Provider" style="width: 44px; display: grid; place-items: center;">🔍</button>
+          </div>
+        </div>
+        
+        <!-- OpenRouter Dynamic Fields -->
+        <div id="new-prov-or-fields" class="hidden flex-col gap-3">
+          <div class="form-group mb-0">
+            <label>Model</label>
+            <input type="hidden" name="or_model" id="or-model-input-new-prov" value="">
+            <button type="button" class="form-control text-sm w-full flex justify-between items-center cursor-pointer" onclick="openORModelModal('new-prov')">
+              <span id="or-model-display-new-prov" class="truncate text-muted">Select Model...</span>
+              <span class="opacity-50">🔍</span>
+            </button>
+          </div>
+          
+          <div class="form-group mb-0">
+            <label>Provider Routing</label>
+            <div id="new-prov-route-wrapper">
+              {{ custom_select(name="or_route", id="new-prov-or-route", options=[{"value": "", "label": "Auto (Any)"}], selected="", extra_classes="form-control text-sm w-full") }}
+            </div>
+          </div>
+          <div class="form-group mb-0">
+            <label>Quantization</label>
+            <div id="new-prov-quant-wrapper">
+              {{ custom_select(name="or_quant", id="new-prov-or-quant", options=[{"value": "", "label": "Any"}], selected="", extra_classes="form-control text-sm w-full") }}
+            </div>
+          </div>
+        </div>
+
+        <!-- Vertex Dynamic Fields -->
+        <div id="new-prov-vertex-fields" class="hidden flex-col gap-3">
+          <div class="form-group mb-0">
+            <label>Region</label>
+            {{ custom_select(
+                 name="vertex_region",
+                 id="new-prov-vertex-region",
+                 options=[
+                   {"value": "us-central1", "label": "us-central1 (Iowa)"},
+                   {"value": "us-east4", "label": "us-east4 (N. Virginia)"},
+                   {"value": "us-west1", "label": "us-west1 (Oregon)"},
+                   {"value": "us-west4", "label": "us-west4 (Las Vegas)"},
+                   {"value": "europe-west1", "label": "europe-west1 (Belgium)"},
+                   {"value": "europe-west2", "label": "europe-west2 (London)"},
+                   {"value": "europe-west3", "label": "europe-west3 (Frankfurt)"},
+                   {"value": "europe-west4", "label": "europe-west4 (Netherlands)"},
+                   {"value": "europe-west9", "label": "europe-west9 (Paris)"},
+                   {"value": "asia-northeast1", "label": "asia-northeast1 (Tokyo)"},
+                   {"value": "asia-northeast3", "label": "asia-northeast3 (Seoul)"},
+                   {"value": "asia-southeast1", "label": "asia-southeast1 (Singapore)"}
+                 ],
+                 selected="us-central1",
+                 extra_classes="form-control text-sm w-full"
+               )
+            }}
+          </div>
+        </div>
+
+        <div class="form-group mb-0 hidden">
+          <label>Params JSON</label>
+          <input type="text" name="params" value="{}" placeholder='{"key":"val"}' class="text-sm form-control w-full">
+        </div>
+        <button class="btn btn-primary w-full mt-2 text-sm">Create Provider</button>
+      </form>
+    </div>
   </div>
-  {% endfor %}
+
+  <!-- Right Side: Grid of Providers -->
+  <div class="modal-content-area overflow-y-auto">
+    <h3 class="sidebar-title mb-3">Select Active Provider</h3>
+    <div class="grid gap-3" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));">
+      {% for prov in providers %}
+      {% set params = prov.params_json|default('{}')|from_json %}
+      <div class="provider-card card" id="prov-card-{{ prov.id }}" style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);">
+        <!-- Display State -->
+        <div id="prov-display-{{ prov.id }}" class="p-3 h-full flex flex-col justify-between cursor-pointer" onclick="setActiveProvider('{{ prov.id }}', '{{ prov.name|replace("'", "\\'") }}', '{{ prov.type }}')">
+          <div class="flex justify-between items-center mb-1">
+            <strong class="text-sm">{{ prov.name }}</strong>
+            <div class="flex gap-1" onclick="event.stopPropagation()">
+              <button class="btn btn-secondary btn-sm" onclick="toggleProviderEdit('{{ prov.id }}')">✎</button>
+              <button class="btn btn-danger btn-sm" hx-delete="/api/providers/{{ prov.id }}" hx-confirm="Delete?" hx-on::after-request="htmx.ajax('GET','/partials/providers-modal',{target:'#providers-modal-body',swap:'innerHTML'})">×</button>
+            </div>
+          </div>
+          <div class="text-xs text-muted">{{ prov.type }} • <span class="truncate" style="display:inline-block; max-width: 150px; vertical-align:bottom;">{{ prov.model }}</span></div>
+        </div>
+
+        <!-- Edit Form State -->
+        <form id="provider-edit-{{ prov.id }}" class="hidden flex-col gap-3 w-full p-3" onsubmit="saveProviderModal(event, '{{ prov.id }}')">
+          <div class="form-group mb-0">
+            <label class="text-xs">Name</label>
+            <input type="text" name="name" value="{{ prov.name }}" class="text-sm form-control w-full" required>
+          </div>
+          
+          <!-- Hidden inputs for type preservation -->
+          <input type="hidden" name="type" id="edit-prov-type-{{ prov.id }}" value="{{ prov.type }}">
+          
+          {% if prov.type == 'openai_compat' %}
+          <div class="form-group mb-0">
+            <label class="text-xs">Base URL</label>
+            <input type="text" name="base_url" value="{{ prov.base_url or '' }}" class="text-sm form-control w-full" placeholder="Base URL">
+          </div>
+          {% endif %}
+          
+          {% if prov.type != 'openrouter' %}
+          <div class="form-group mb-0">
+            <label class="text-xs">Model</label>
+            <div class="flex gap-2">
+              <input type="text" name="model" id="model-text-{{ prov.id }}" value="{{ prov.model }}" class="text-sm form-control w-full" required>
+              <button type="button" class="btn btn-secondary" onclick="openFetchModelModal('{{ prov.id }}')" title="Fetch Models from Provider" style="width: 44px; display: grid; place-items: center;">🔍</button>
+            </div>
+          </div>
+          {% endif %}
+          
+          {% if prov.type == 'google_vertex' %}
+          <div class="form-group mb-0">
+            <label class="text-xs">Region</label>
+            {{ custom_select(
+                 name="vertex_region",
+                 id="edit-prov-vertex-region-" ~ prov.id,
+                 options=[
+                   {"value": "us-central1", "label": "us-central1 (Iowa)"},
+                   {"value": "us-east4", "label": "us-east4 (N. Virginia)"},
+                   {"value": "us-west1", "label": "us-west1 (Oregon)"},
+                   {"value": "us-west4", "label": "us-west4 (Las Vegas)"},
+                   {"value": "europe-west1", "label": "europe-west1 (Belgium)"},
+                   {"value": "europe-west2", "label": "europe-west2 (London)"},
+                   {"value": "europe-west3", "label": "europe-west3 (Frankfurt)"},
+                   {"value": "europe-west4", "label": "europe-west4 (Netherlands)"},
+                   {"value": "europe-west9", "label": "europe-west9 (Paris)"},
+                   {"value": "asia-northeast1", "label": "asia-northeast1 (Tokyo)"},
+                   {"value": "asia-northeast3", "label": "asia-northeast3 (Seoul)"},
+                   {"value": "asia-southeast1", "label": "asia-southeast1 (Singapore)"}
+                 ],
+                 selected=params.get('vertex_region', 'us-central1'),
+                 extra_classes="form-control text-sm w-full"
+               )
+            }}
+          </div>
+          {% endif %}
+          
+          {% if prov.type == 'openrouter' %}
+          <div class="form-group mb-0">
+            <label class="text-xs">Model</label>
+            <input type="hidden" name="or_model" id="or-model-input-{{ prov.id }}" value="{{ prov.model }}">
+            <button type="button" class="form-control text-sm w-full flex justify-between items-center cursor-pointer" onclick="openORModelModal('{{ prov.id }}')">
+              <span id="or-model-display-{{ prov.id }}" class="truncate">{{ prov.model }}</span>
+              <span class="opacity-50">🔍</span>
+            </button>
+          </div>
+          <div class="form-group mb-0">
+            <label class="text-xs">Provider Routing</label>
+            <div id="edit-prov-route-wrapper-{{ prov.id }}">
+              {% set r_val = params.get('or_route', '') %}
+              {% set r_options = [{"value": "", "label": "Auto (Any)"}] %}
+              {% if r_val %}{% set _ = r_options.append({"value": r_val, "label": r_val}) %}{% endif %}
+              {{ custom_select(name="or_route", id="edit-prov-or-route-" ~ prov.id, options=r_options, selected=r_val, extra_classes="form-control text-sm w-full") }}
+            </div>
+          </div>
+          <div class="form-group mb-0">
+            <label class="text-xs">Quantization</label>
+            <div id="edit-prov-quant-wrapper-{{ prov.id }}">
+              {% set q_val = params.get('or_quant', '') %}
+              {% set q_options = [{"value": "", "label": "Any"}] %}
+              {% if q_val %}{% set _ = q_options.append({"value": q_val, "label": q_val}) %}{% endif %}
+              {{ custom_select(name="or_quant", id="edit-prov-or-quant-" ~ prov.id, options=q_options, selected=q_val, extra_classes="form-control text-sm w-full") }}
+            </div>
+          </div>
+          {% endif %}
+
+          <div class="form-group mb-0">
+            <label class="text-xs">API Key</label>
+            <input type="password" name="api_key" value="" class="text-sm form-control w-full" placeholder="(blank = unchanged)">
+          </div>
+          
+          <div class="form-group mb-0 hidden">
+            <label class="text-xs">Params JSON</label>
+            <input type="text" name="params" value="{{ prov.params_json or '{}' }}" class="text-sm form-control w-full">
+          </div>
+          
+          <div class="flex gap-2 mt-1 justify-end pt-3" style="border-top: 1px solid var(--border);">
+            <button class="btn btn-secondary btn-sm" style="width: 80px;" type="button" onclick="toggleProviderEdit('{{ prov.id }}')">Cancel</button>
+            <button class="btn btn-primary btn-sm" style="width: 80px;" type="submit">Save</button>
+          </div>
+        </form>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
 </div>
 
-<div class="flex items-center gap-4 mb-3">
-  <div class="flex-1 h-px" style="background: var(--border);"></div>
-  <span class="text-xs text-muted font-bold tracking-wider uppercase">Add Provider</span>
-  <div class="flex-1 h-px" style="background: var(--border);"></div>
+<!-- OpenRouter Model Selection Modal -->
+<!-- Universal Model Selection Modal -->
+<div id="modal-fetch-models" class="modal-overlay" style="display:none; z-index: 100;"
+     x-data="{ search: '', models: [], loading: false, error: '' }"
+     @models-loaded.window="models = $event.detail; loading = false; error = ''"
+     @models-loading.window="loading = true; error = ''"
+     @models-error.window="error = $event.detail; loading = false"
+     onclick="if(event.target===this) document.getElementById('modal-fetch-models').style.display='none'">
+  <div class="modal-content flex flex-col p-0" style="max-width: 800px; width: 95vw; height: 80vh; overflow: hidden; background: var(--surface);">
+    <div class="modal-header p-4 mb-0" style="border-bottom: 1px solid var(--border);">
+      <div class="modal-title">Select Model</div>
+      <button class="btn btn-secondary" onclick="document.getElementById('modal-fetch-models').style.display='none'">×</button>
+    </div>
+    
+    <div class="p-4" style="background: var(--surface-2); border-bottom: 1px solid var(--border);">
+       <div class="flex gap-2">
+         <input type="text" x-model="search" placeholder="Search models by name or ID..." class="form-control" autocomplete="off" autofocus>
+         <button type="button" class="btn btn-secondary" onclick="forceFetchModels()" title="Refresh Models" style="width: 44px; display: grid; place-items: center;" :disabled="loading">↻</button>
+       </div>
+    </div>
+    
+    <div class="flex-1 overflow-y-auto p-2" style="background: var(--surface);">
+       <div x-show="loading" class="p-4 text-center text-muted">
+         Fetching models from provider...
+       </div>
+       <div x-show="error" class="p-4 text-center text-danger" x-text="error"></div>
+       <div x-show="!loading && !error && models.length === 0" class="p-4 text-center text-muted">
+         No models found or available. You may need to manually input the model ID.
+       </div>
+       <template x-for="model in models.filter(m => (m.name||'').toLowerCase().includes(search.toLowerCase()) || (m.id||'').toLowerCase().includes(search.toLowerCase()))" :key="model.id">
+         <div class="p-3 mb-1 cursor-pointer rounded-md transition-colors"
+              style="border: 1px solid transparent;"
+              @mouseover="$el.style.background='var(--surface-3)'; $el.style.borderColor='var(--border)'"
+              @mouseout="$el.style.background='transparent'; $el.style.borderColor='transparent'"
+              @click="selectFetchedModel(model.id, model.name)">
+           <div class="flex justify-between items-start mb-1">
+             <div class="font-bold text-sm text-light" x-text="model.name || model.id"></div>
+             <div class="text-xs text-muted font-mono px-1.5 py-0.5 rounded" style="background: rgba(0,0,0,0.3);" x-show="model.pricing">
+               <span x-show="parseFloat(model.pricing.prompt) >= 0" x-text="'$' + (parseFloat(model.pricing.prompt) * 1000000).toFixed(2) + ' / $' + (parseFloat(model.pricing.completion) * 1000000).toFixed(2)"></span>
+               <span x-show="parseFloat(model.pricing.prompt) < 0" class="italic">Dynamic</span>
+             </div>
+           </div>
+           <div class="flex justify-between items-center">
+             <div class="text-xs text-muted" x-text="model.id"></div>
+             <div class="text-xs text-muted px-1.5 py-0.5 rounded border" style="background: var(--surface-2); border-color: var(--border);" x-show="model.context_length" x-text="Math.round(model.context_length/1024) + 'k ctx'"></div>
+           </div>
+         </div>
+       </template>
+       <div x-show="!loading && !error && models.length > 0 && models.filter(m => (m.name||'').toLowerCase().includes(search.toLowerCase()) || (m.id||'').toLowerCase().includes(search.toLowerCase())).length === 0" class="p-4 text-center text-muted">
+         No models match your search.
+       </div>
+    </div>
+  </div>
 </div>
 
-<form onsubmit="submitProviderModal(event)" class="flex flex-col gap-3">
-  <div class="grid gap-3" style="grid-template-columns: 1fr 1fr;">
-    <div class="form-group mb-0">
-      <label>Name</label>
-      <input type="text" name="name" required placeholder="e.g. Local LLM">
-    </div>
-    <div class="form-group mb-0">
-      <label>Type</label>
-      <select name="type">
-        <option value="openai_compat">OpenAI Compatible</option>
-        <option value="openrouter">OpenRouter</option>
-      </select>
+       </template>
+       <div x-show="models.length > 0 && models.filter(m => m.name.toLowerCase().includes(search.toLowerCase()) || m.id.toLowerCase().includes(search.toLowerCase())).length === 0" class="p-4 text-center text-muted">
+         No models match your search.
+       </div>
     </div>
   </div>
-  <div class="form-group mb-0">
-    <label>Base URL</label>
-    <input type="text" name="base_url" placeholder="https://api.example.com/v1">
-  </div>
-  <div class="grid gap-3" style="grid-template-columns: 1fr 1fr;">
-    <div class="form-group mb-0">
-      <label>Model</label>
-      <input type="text" name="model" required placeholder="gpt-4">
+</div>
+
+
+<!-- Secrets Selection Modal -->
+<div id="modal-secrets" class="modal-overlay" style="display:none; z-index: 100;"
+     x-data="{ secrets: [], rawKey: '', newName: '', newValue: '' }"
+     @secrets-loaded.window="secrets = $event.detail"
+     onclick="if(event.target===this) document.getElementById('modal-secrets').style.display='none'">
+  <div class="modal-content flex flex-col p-0" style="max-width: 800px; width: 95vw; height: 75vh; overflow: hidden; background: var(--surface);">
+    <div class="modal-header p-4 mb-0" style="border-bottom: 1px solid var(--border);">
+      <div class="modal-title">Select API Key</div>
+      <button class="btn btn-secondary" onclick="document.getElementById('modal-secrets').style.display='none'">×</button>
     </div>
-    <div class="form-group mb-0">
-      <label>API Key</label>
-      <input type="password" name="api_key" placeholder="sk-...">
+    
+    <div class="p-4" style="background: var(--surface-2); border-bottom: 1px solid var(--border);">
+       <h4 class="text-sm font-bold mb-2">Saved Keys</h4>
+       <div class="flex flex-col gap-2 mb-4 overflow-y-auto" style="max-height: 40vh;">
+         <template x-for="sec in secrets" :key="sec.name">
+           <div class="flex justify-between items-center p-2 rounded-md transition-colors cursor-pointer"
+                style="border: 1px solid var(--border); background: var(--surface);"
+                @mouseover="$el.style.borderColor='var(--accent)'"
+                @mouseout="$el.style.borderColor='var(--border)'"
+                @click="selectSecret(sec.name)">
+             <div>
+               <div class="font-bold text-sm" x-text="sec.name"></div>
+               <div class="text-xs text-muted font-mono" x-text="sec.preview"></div>
+             </div>
+             <div class="flex gap-2">
+               <button type="button" class="btn btn-primary btn-sm" @click.stop="selectSecret(sec.name)">Select</button>
+               <button type="button" class="btn btn-danger btn-sm" @click.stop="deleteSecret(sec.name)">×</button>
+             </div>
+           </div>
+         </template>
+         <div x-show="secrets.length === 0" class="text-sm text-muted">No saved keys yet.</div>
+       </div>
+
+       <h4 class="text-sm font-bold mb-2 mt-4">Save a New Key</h4>
+       <div class="flex gap-2">
+         <input type="text" x-model="newName" placeholder="Key Name (e.g. My OR Key)" class="form-control text-sm w-1/3">
+         <input type="password" x-model="newValue" placeholder="sk-... or JSON" class="form-control text-sm flex-1">
+         <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('sa-file-upload').click()" title="Upload JSON">📂</button>
+         <button type="button" class="btn btn-secondary btn-sm" @click="saveNewSecret(newName, newValue); newName=''; newValue=''">Save</button>
+       </div>
+       <input type="file" id="sa-file-upload" accept=".json" class="hidden" @change="
+         const file = $event.target.files[0];
+         if (!file) return;
+         const reader = new FileReader();
+         reader.onload = (e) => {
+           newValue = e.target.result;
+           if (!newName) newName = file.name.replace('.json', '');
+         };
+         reader.readAsText(file);
+       ">
+    </div>
+
+    <div class="p-4">
+       <h4 class="text-sm font-bold mb-2">Or Use a One-Time Raw Key</h4>
+       <div class="flex gap-2">
+         <input type="password" x-model="rawKey" placeholder="sk-... or JSON" class="form-control text-sm flex-1">
+         <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('sa-file-upload-raw').click()" title="Upload JSON">📂</button>
+         <button type="button" class="btn btn-secondary btn-sm" @click="selectRawKey(rawKey); rawKey=''">Use Raw Key</button>
+       </div>
+       <input type="file" id="sa-file-upload-raw" accept=".json" class="hidden" @change="
+         const file = $event.target.files[0];
+         if (!file) return;
+         const reader = new FileReader();
+         reader.onload = (e) => {
+           rawKey = e.target.result;
+         };
+         reader.readAsText(file);
+       ">
+       <div class="mt-2 text-right">
+         <button type="button" class="btn btn-danger btn-sm" @click="clearKey()">Clear Key</button>
+       </div>
     </div>
   </div>
-  <div class="form-group mb-0">
-    <label>Params JSON</label>
-    <input type="text" name="params" value="{}" placeholder='{"key":"val"}'>
-  </div>
-  <button class="btn btn-primary w-full mt-2">Create Provider</button>
-</form>
+</div>
 
 <script>
-function selectProviderModal(id, name){
-  const select = document.getElementById('stream-provider');
-  if(select) select.value = id;
+window._OR_MODELS_CACHE = window._OR_MODELS_CACHE || [];
+window._currentORPrefix = null;
+
+function toggleProviderFields(prefix) {
+  const type = document.getElementById(prefix + '-type').value;
+  const orFields = document.getElementById(prefix + '-or-fields');
+  const modelInput = document.getElementById(prefix + '-model-input');
+  const baseUrl = document.getElementById(prefix + '-baseurl');
+  const vertexFields = document.getElementById(prefix + '-vertex-fields');
+  
+  if (type === 'openrouter') {
+    if(orFields) { orFields.classList.remove('hidden'); orFields.classList.add('flex'); }
+    if(modelInput) modelInput.classList.add('hidden');
+    if(baseUrl) baseUrl.classList.add('hidden');
+    if(modelInput) modelInput.querySelector('input').removeAttribute('required');
+    if(vertexFields) { vertexFields.classList.add('hidden'); vertexFields.classList.remove('flex'); }
+  } else if (type === 'google_vertex') {
+    if(orFields) { orFields.classList.add('hidden'); orFields.classList.remove('flex'); }
+    if(modelInput) modelInput.classList.remove('hidden');
+    if(baseUrl) baseUrl.classList.add('hidden');
+    if(modelInput) modelInput.querySelector('input').setAttribute('required', 'required');
+    if(vertexFields) { vertexFields.classList.remove('hidden'); vertexFields.classList.add('flex'); }
+  } else if (type === 'google_aistudio' || type === 'deepseek' || type === 'moonshot') {
+    if(orFields) { orFields.classList.add('hidden'); orFields.classList.remove('flex'); }
+    if(modelInput) modelInput.classList.remove('hidden');
+    if(baseUrl) baseUrl.classList.add('hidden');
+    if(modelInput) modelInput.querySelector('input').setAttribute('required', 'required');
+    if(vertexFields) { vertexFields.classList.add('hidden'); vertexFields.classList.remove('flex'); }
+  } else {
+    if(orFields) { orFields.classList.add('hidden'); orFields.classList.remove('flex'); }
+    if(modelInput) modelInput.classList.remove('hidden');
+    if(baseUrl) baseUrl.classList.remove('hidden');
+    if(modelInput) modelInput.querySelector('input').setAttribute('required', 'required');
+    if(vertexFields) { vertexFields.classList.add('hidden'); vertexFields.classList.remove('flex'); }
+  }
+  
+  const keyDisplay = document.getElementById('api-key-display-' + prefix);
+  if (keyDisplay && keyDisplay.innerText.includes('Select')) {
+    if (type === 'google_vertex') {
+      keyDisplay.innerHTML = '<span class="text-muted">Select Service Account JSON...</span>';
+    } else {
+      keyDisplay.innerHTML = '<span class="text-muted">Select API Key...</span>';
+    }
+  }
+}
+
+
+window._currentFetchPrefix = null;
+
+function openFetchModelModal(prefix) {
+  window._currentFetchPrefix = prefix;
+  document.getElementById('modal-fetch-models').style.display = 'grid';
+  forceFetchModels();
+}
+
+async function forceFetchModels() {
+  const prefix = window._currentFetchPrefix;
+  if (!prefix) return;
+  
+  window.dispatchEvent(new CustomEvent('models-loading'));
+  
+  // Extract data from the form to send to backend
+  let type = document.getElementById(prefix + '-type')?.value;
+  if (!type && prefix !== 'new-prov') {
+     type = document.getElementById('edit-prov-type-' + prefix)?.value;
+  }
+  
+  const baseUrlInput = document.querySelector(`#provider-edit-${prefix} input[name="base_url"]`) || document.querySelector(`#new-prov-baseurl input[name="base_url"]`);
+  const baseUrl = baseUrlInput ? baseUrlInput.value : '';
+  
+  const apiKeyInput = document.getElementById('api-key-input-' + prefix);
+  let apiKey = apiKeyInput ? apiKeyInput.value : '';
+  
+  // Vertex needs region
+  let params = {};
+  if (type === 'google_vertex') {
+    const regionInput = document.getElementById('edit-prov-vertex-region-' + prefix) || document.getElementById('new-prov-vertex-region');
+    if (regionInput) {
+       params.vertex_region = regionInput.value;
+    }
+  }
+
+  try {
+    const res = await fetch('/api/providers/fetch_models', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type, base_url: baseUrl, api_key: apiKey, params })
+    });
+    
+    if (!res.ok) {
+       const errData = await res.json();
+       throw new Error(errData.detail || 'Failed to fetch models from provider.');
+    }
+    
+    const data = await res.json();
+    window.dispatchEvent(new CustomEvent('models-loaded', { detail: data.data }));
+  } catch (err) {
+    console.error(err);
+    window.dispatchEvent(new CustomEvent('models-error', { detail: err.message }));
+  }
+}
+
+function selectFetchedModel(id, name) {
+  const prefix = window._currentFetchPrefix;
+  if (!prefix) return;
+  
+  const type = document.getElementById(prefix + '-type')?.value || document.getElementById('edit-prov-type-' + prefix)?.value;
+  
+  if (type === 'openrouter') {
+    const input = document.getElementById('or-model-input-' + prefix);
+    if (input) {
+      input.value = id;
+      const display = document.getElementById('or-model-display-' + prefix);
+      display.textContent = name || id;
+      display.classList.remove('text-muted');
+    }
+    updateOpenRouterOptions(prefix, id);
+  } else {
+    const input = document.getElementById('model-text-' + prefix);
+    if (input) {
+      input.value = id;
+    }
+  }
+  
+  document.getElementById('modal-fetch-models').style.display = 'none';
+}
+
+function openORModelModal(prefix) {
+  openFetchModelModal(prefix);
+}
+/*
+  window._currentORPrefix = prefix;
+  document.getElementById('modal-or-models').style.display = 'grid';
+  if (!window._OR_MODELS_CACHE || window._OR_MODELS_CACHE.length === 0) {
+    forceFetchORModels();
+  }
+}
+
+async function forceFetchORModels() {
+  try {
+    const res = await fetch('/api/providers/openrouter/models');
+    if (!res.ok) throw new Error('Failed to fetch');
+    const data = await res.json();
+    window._OR_MODELS_CACHE = data.data;
+    window.dispatchEvent(new CustomEvent('or-models-loaded'));
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+function selectORModel(id, name) {
+  const prefix = window._currentORPrefix;
+  if (!prefix) return;
+  const input = document.getElementById('or-model-input-' + prefix);
+  if (input) {
+    input.value = id;
+    const display = document.getElementById('or-model-display-' + prefix);
+    display.textContent = name || id;
+    display.classList.remove('text-muted');
+  }
+  document.getElementById('modal-or-models').style.display = 'none';
+  updateOpenRouterOptions(prefix, id);
+}
+
+*/
+function renderMacroSelect(name, id, options, selectedValue) {
+  // Finds the selected label
+  let selectedLabel = "— Select —";
+  for(let o of options) {
+    if(o.value === selectedValue) selectedLabel = o.label;
+  }
+  const escapedLabel = selectedLabel.replace(/'/g, "\\'");
+  
+  // Creates an options html string for Alpine template
+  let optionsHtml = '';
+  options.forEach((opt, idx) => {
+    const isFirst = idx === 0;
+    const escOptLabel = opt.label.replace(/'/g, "\\'");
+    optionsHtml += `
+     <div class="px-3 py-2 cursor-pointer transition-colors duration-150 form-control text-sm w-full"
+          ${isFirst ? '' : 'style="border-top: 1px solid var(--border);"'}
+          onmouseover="this.style.background='var(--surface-3)'"
+          onmouseout="this.style.background='transparent'"
+          @click="
+            selectedValue = '${opt.value}';
+            selectedLabel = '${escOptLabel}';
+            open = false;
+            $nextTick(() => {
+                const el = document.getElementById('${id}');
+                el.value = selectedValue;
+                el.dispatchEvent(new Event('change', { bubbles: true }));
+            });
+          "
+     >
+       ${opt.label}
+     </div>
+    `;
+  });
+
+  return `
+    <div class="relative w-full" x-data="{ open: false, selectedValue: '${selectedValue}', selectedLabel: '${escapedLabel}' }">
+      <input type="hidden" name="${name}" id="${id}" :value="selectedValue">
+      <button type="button" @click="open = !open" class="flex justify-between items-center text-left w-full form-control text-sm w-full" style="cursor: pointer;">
+         <span x-text="selectedLabel" class="truncate font-medium"></span>
+         <span class="text-xs text-muted" style="transition: transform 0.2s;" :style="open ? 'transform: rotate(180deg);' : ''">▼</span>
+      </button>
+      <div x-show="open" @click.away="open = false" x-transition.opacity.duration.200ms
+           class="absolute top-full left-0 right-0 mt-1 z-50 max-h-60 overflow-y-auto"
+           style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); display: none;">
+         ${optionsHtml}
+      </div>
+    </div>
+  `;
+}
+
+async function updateOpenRouterOptions(prefix, modelId) {
+  if (!modelId) return;
+
+  try {
+    const res = await fetch('/api/providers/openrouter/endpoints/' + encodeURIComponent(modelId));
+    if (!res.ok) throw new Error('Failed to fetch endpoints');
+    const data = await res.json();
+    
+    const endpoints = data.data?.endpoints || [];
+    
+    // Route options
+    const routeOptions = [{value: "", label: "Auto (Any)"}];
+    const providers = new Set();
+    endpoints.forEach(ep => {
+      if(ep.provider_name) providers.add(ep.provider_name);
+    });
+    providers.forEach(p => {
+      routeOptions.push({value: p, label: p});
+    });
+    
+    // Quantization options
+    const quantOptions = [{value: "", label: "Any"}];
+    const quants = new Set();
+    endpoints.forEach(ep => {
+      if(ep.quantization && ep.quantization !== 'unknown') quants.add(ep.quantization);
+    });
+    quants.forEach(q => {
+      quantOptions.push({value: q, label: q});
+    });
+
+    // Replace the inner HTML of the wrapper divs with a freshly rendered Alpine component
+    const routeWrapperId = prefix === 'new-prov' ? 'new-prov-route-wrapper' : 'edit-prov-route-wrapper-' + prefix;
+    const routeInputId = prefix === 'new-prov' ? 'new-prov-or-route' : 'edit-prov-or-route-' + prefix;
+    const rWrap = document.getElementById(routeWrapperId);
+    if(rWrap) rWrap.innerHTML = renderMacroSelect('or_route', routeInputId, routeOptions, '');
+    
+    const quantWrapperId = prefix === 'new-prov' ? 'new-prov-quant-wrapper' : 'edit-prov-quant-wrapper-' + prefix;
+    const quantInputId = prefix === 'new-prov' ? 'new-prov-or-quant' : 'edit-prov-or-quant-' + prefix;
+    const qWrap = document.getElementById(quantWrapperId);
+    if(qWrap) qWrap.innerHTML = renderMacroSelect('or_quant', quantInputId, quantOptions, '');
+
+  } catch(err) {
+     console.error(err);
+  }
+}
+
+function setActiveProvider(id, name, type) {
+  document.querySelectorAll('.provider-card').forEach(el => {
+    el.style.borderColor = 'var(--border)';
+    el.style.boxShadow = 'none';
+  });
+  const card = document.getElementById('prov-card-' + id);
+  if(card) {
+    card.style.borderColor = 'var(--accent)';
+    card.style.boxShadow = 'var(--shadow-glow)';
+  }
+  
   const sendBtn = document.getElementById('send-btn');
   if(sendBtn) sendBtn.dataset.providerId = id;
   if (window.saveSampler) {
     window.saveSampler('pyvern-provider-id', id);
   }
-  closeModal('modal-providers');
+  if (type) {
+    localStorage.setItem('pyvern-provider-type', type);
+    window.dispatchEvent(new CustomEvent('provider-changed', { detail: type }));
+  }
 }
+
 function toggleProviderEdit(id){
   const card = document.getElementById('prov-card-' + id);
   const form = document.getElementById('provider-edit-' + id);
@@ -114,11 +676,56 @@ function toggleProviderEdit(id){
     display.classList.remove('hidden');
   }
 }
+
+function extractData(form) {
+  const data = Object.fromEntries(new FormData(form));
+  if(data.api_key === '__HIDDEN__') delete data.api_key;
+  
+  const type = data.type || form.querySelector('input[name="type"]').value;
+  
+  if (type === 'openrouter') {
+    data.model = data.or_model;
+    if (!data.model) {
+      alert('Please select an OpenRouter model.');
+      throw new Error('Model required');
+    }
+    data.base_url = 'https://openrouter.ai/api/v1';
+    
+    let params = {};
+    try { params = JSON.parse(data.params || '{}'); } catch(e){}
+    
+    if (data.or_route) params.or_route = data.or_route;
+    else delete params.or_route;
+    
+    if (data.or_quant) params.or_quant = data.or_quant;
+    else delete params.or_quant;
+    
+    data.params = params;
+  } else if (type === 'google_vertex') {
+    let params = {};
+    try { params = JSON.parse(data.params || '{}'); } catch(e){}
+    if (data.vertex_region) params.vertex_region = data.vertex_region;
+    data.params = params;
+    data.base_url = '';
+  } else if (type === 'google_aistudio' || type === 'deepseek' || type === 'moonshot') {
+    try { data.params = JSON.parse(data.params || '{}'); } catch(e){ data.params = {}; }
+    data.base_url = '';
+  } else {
+    try { data.params = JSON.parse(data.params || '{}'); } catch(e){ data.params = {}; }
+  }
+  
+  delete data.or_model;
+  delete data.or_route;
+  delete data.or_quant;
+  delete data.vertex_region;
+  
+  return data;
+}
+
 function saveProviderModal(e, id){
   e.preventDefault();
-  const data = Object.fromEntries(new FormData(e.target));
-  if(!data.api_key) delete data.api_key;
-  try { data.params = JSON.parse(data.params || '{}'); } catch(err){ data.params = {}; }
+  let data;
+  try { data = extractData(e.target); } catch(err) { return; }
   fetch('/api/providers/' + id, {
     method: 'PATCH',
     headers: {'Content-Type':'application/json'},
@@ -127,10 +734,11 @@ function saveProviderModal(e, id){
     if(r.ok) htmx.ajax('GET','/partials/providers-modal',{target:'#providers-modal-body',swap:'innerHTML'});
   });
 }
+
 function submitProviderModal(e){
   e.preventDefault();
-  const data = Object.fromEntries(new FormData(e.target));
-  try { data.params = JSON.parse(data.params || '{}'); } catch(err){ data.params = {}; }
+  let data;
+  try { data = extractData(e.target); } catch(err) { return; }
   fetch('/api/providers', {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
@@ -139,4 +747,79 @@ function submitProviderModal(e){
     if(r.ok) htmx.ajax('GET','/partials/providers-modal',{target:'#providers-modal-body',swap:'innerHTML'});
   });
 }
+
+// Initialization
+setTimeout(() => {
+  const activeId = localStorage.getItem('pyvern-provider-id');
+  const activeType = localStorage.getItem('pyvern-provider-type');
+  if (activeId) setActiveProvider(activeId, '', activeType);
+}, 100);
+
+
+window._currentSecretPrefix = null;
+
+function openSecretsModal(prefix) {
+  window._currentSecretPrefix = prefix;
+  document.getElementById('modal-secrets').style.display = 'grid';
+  fetchSecrets();
+}
+
+async function fetchSecrets() {
+  try {
+    const res = await fetch('/api/providers/secrets');
+    const data = await res.json();
+    window.dispatchEvent(new CustomEvent('secrets-loaded', { detail: data.data }));
+  } catch (err) { console.error(err); }
+}
+
+async function saveNewSecret(name, value) {
+  if(!name || !value) return;
+  await fetch('/api/providers/secrets', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({name, value})
+  });
+  fetchSecrets();
+}
+
+async function deleteSecret(name) {
+  if(!confirm('Delete this saved key?')) return;
+  await fetch('/api/providers/secrets/' + encodeURIComponent(name), { method: 'DELETE' });
+  fetchSecrets();
+}
+
+function _setKeyInput(val, displayHtml) {
+  const prefix = window._currentSecretPrefix;
+  if (!prefix) return;
+  const input = document.getElementById('api-key-input-' + prefix);
+  const display = document.getElementById('api-key-display-' + prefix);
+  if(input) input.value = val;
+  if(display) {
+    display.innerHTML = displayHtml;
+    display.classList.remove('text-muted');
+  }
+  document.getElementById('modal-secrets').style.display = 'none';
+}
+
+function selectSecret(name) {
+  _setKeyInput('SECRET:' + name, 'Saved Key: ' + name);
+}
+
+function selectRawKey(val) {
+  if(!val) return;
+  _setKeyInput(val, 'Raw Key (Hidden)');
+}
+
+function clearKey() {
+  const prefix = window._currentSecretPrefix;
+  if (!prefix) return;
+  const input = document.getElementById('api-key-input-' + prefix);
+  const display = document.getElementById('api-key-display-' + prefix);
+  if(input) input.value = '';
+  if(display) {
+    display.innerHTML = '<span class="text-muted">Select API Key...</span>';
+  }
+  document.getElementById('modal-secrets').style.display = 'none';
+}
+
 </script>

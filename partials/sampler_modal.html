@@ -1,21 +1,236 @@
-<div class="form-group">
-  <label>Provider</label>
-  <select id="stream-provider" class="text-sm" style="background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:0.4rem;width:100%;"
-    onchange="document.getElementById('send-btn').dataset.providerId = this.value; window.saveSampler('pyvern-provider-id', this.value);">
-    {% for prov in providers %}
-    <option value="{{ prov.id }}">{{ prov.name }} ({{ prov.model }})</option>
-    {% endfor %}
-  </select>
+<style>
+.styled-slider {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 6px;
+  background: var(--surface-2);
+  border-radius: 3px;
+  outline: none;
+  border: 1px solid var(--border);
+}
+.styled-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent, #6366f1);
+  cursor: pointer;
+}
+.styled-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent, #6366f1);
+  cursor: pointer;
+  border: none;
+}
+</style>
+
+<div x-data="samplerModal()" @provider-changed.window="providerType = $event.detail" class="flex flex-col h-full">
+  <!-- Tabs -->
+  <div class="flex mb-4" style="border-bottom: 1px solid var(--border);">
+    <button class="px-4 py-2 text-sm font-medium transition-colors"
+            :style="tab === 'standard' ? 'color: var(--accent); border-bottom: 2px solid var(--accent);' : 'color: var(--muted);'"
+            @click="tab = 'standard'">Standard</button>
+    <button class="px-4 py-2 text-sm font-medium transition-colors"
+            :style="tab === 'custom' ? 'color: var(--accent); border-bottom: 2px solid var(--accent);' : 'color: var(--muted);'"
+            @click="tab = 'custom'">Custom Body</button>
+  </div>
+
+  <!-- Standard Tab -->
+  <div x-show="tab === 'standard'" class="flex flex-col gap-4 overflow-y-auto pr-2 pb-2">
+    <!-- Always visible -->
+    <div class="form-group mb-0">
+      <label class="flex justify-between text-xs mb-1"><span>Temperature</span> <span x-text="samplers.temperature"></span></label>
+      <input type="range" min="0" max="2" step="0.01" x-model.number="samplers.temperature" @change="saveStandard()" class="styled-slider">
+    </div>
+    
+    <div class="form-group mb-0">
+      <label class="flex justify-between text-xs mb-1"><span>Max Tokens</span> <span x-text="samplers.max_tokens"></span></label>
+      <input type="number" min="1" max="128000" x-model.number="samplers.max_tokens" @change="saveStandard()" class="form-control text-sm w-full">
+    </div>
+
+    <div class="form-group mb-0">
+      <label class="flex justify-between text-xs mb-1"><span>Top P</span> <span x-text="samplers.top_p"></span></label>
+      <input type="range" min="0" max="1" step="0.01" x-model.number="samplers.top_p" @change="saveStandard()" class="styled-slider">
+    </div>
+
+    <!-- OpenRouter Specific -->
+    <template x-if="providerType === 'openrouter'">
+      <div class="flex flex-col gap-4 mt-2">
+        <div class="form-group mb-0">
+          <label class="flex justify-between text-xs mb-1"><span>Top K</span> <span x-text="samplers.top_k"></span></label>
+          <input type="range" min="0" max="100" step="1" x-model.number="samplers.top_k" @change="saveStandard()" class="styled-slider">
+        </div>
+        <div class="form-group mb-0">
+          <label class="flex justify-between text-xs mb-1"><span>Min P</span> <span x-text="samplers.min_p"></span></label>
+          <input type="range" min="0" max="1" step="0.01" x-model.number="samplers.min_p" @change="saveStandard()" class="styled-slider">
+        </div>
+        <div class="form-group mb-0">
+          <label class="flex justify-between text-xs mb-1"><span>Repetition Penalty</span> <span x-text="samplers.repetition_penalty"></span></label>
+          <input type="range" min="0" max="2" step="0.01" x-model.number="samplers.repetition_penalty" @change="saveStandard()" class="styled-slider">
+        </div>
+        <div class="form-group mb-0 flex items-center gap-2 mt-2">
+          <input type="checkbox" id="include_reasoning" x-model="samplers.include_reasoning" @change="saveStandard()">
+          <label for="include_reasoning" class="text-xs mb-0 cursor-pointer">Include Reasoning (OpenRouter)</label>
+        </div>
+      </div>
+    </template>
+
+    <!-- OpenAI Compat Specific -->
+    <template x-if="providerType === 'openai_compat' || providerType === 'deepseek' || providerType === 'moonshot'">
+      <div class="flex flex-col gap-4 mt-2">
+        <div class="form-group mb-0">
+          <label class="flex justify-between text-xs mb-1"><span>Frequency Penalty</span> <span x-text="samplers.frequency_penalty"></span></label>
+          <input type="range" min="-2" max="2" step="0.01" x-model.number="samplers.frequency_penalty" @change="saveStandard()" class="styled-slider">
+        </div>
+        <div class="form-group mb-0">
+          <label class="flex justify-between text-xs mb-1"><span>Presence Penalty</span> <span x-text="samplers.presence_penalty"></span></label>
+          <input type="range" min="-2" max="2" step="0.01" x-model.number="samplers.presence_penalty" @change="saveStandard()" class="styled-slider">
+        </div>
+      </div>
+    </template>
+
+    <!-- Google Specific -->
+    <template x-if="providerType === 'google_vertex' || providerType === 'google_aistudio'">
+      <div class="flex flex-col gap-4 mt-2">
+        <div class="form-group mb-0">
+          <label class="flex justify-between text-xs mb-1"><span>Top K</span> <span x-text="samplers.top_k"></span></label>
+          <input type="range" min="0" max="100" step="1" x-model.number="samplers.top_k" @change="saveStandard()" class="styled-slider">
+        </div>
+      </div>
+    </template>
+  </div>
+
+  <!-- Custom Tab -->
+  <div x-show="tab === 'custom'" class="flex flex-col gap-2 overflow-y-auto pr-2 pb-2 h-full">
+    <div class="text-xs text-muted mb-2">Add custom fields sent directly to the provider.</div>
+    
+    <template x-for="(item, index) in customFields" :key="index">
+      <div class="flex items-center gap-2 mb-2 p-2 rounded-md" style="background: var(--surface-2); border: 1px solid var(--border);">
+        <input type="checkbox" x-model="item.enabled" @change="saveCustom()" title="Enable/Disable">
+        <input type="text" x-model="item.key" @change="saveCustom()" placeholder="Key" class="form-control text-sm flex-1">
+        <select x-model="item.type" @change="saveCustom()" class="form-control text-sm w-24">
+          <option value="string">String</option>
+          <option value="number">Number</option>
+          <option value="boolean">Bool</option>
+          <option value="json">JSON</option>
+        </select>
+        <input x-show="item.type !== 'boolean'" type="text" x-model="item.value" @change="saveCustom()" placeholder="Value" class="form-control text-sm flex-1">
+        <select x-show="item.type === 'boolean'" x-model="item.value" @change="saveCustom()" class="form-control text-sm flex-1">
+          <option value="true">True</option>
+          <option value="false">False</option>
+        </select>
+        <button class="btn btn-danger btn-sm" @click="removeCustom(index)" title="Remove">×</button>
+      </div>
+    </template>
+    
+    <button class="btn btn-secondary text-sm mt-2" @click="addCustom()">+ Add Custom Field</button>
+  </div>
 </div>
-<div class="form-group">
-  <label>Temperature: <span id="temp-val">1.0</span></label>
-  <input type="range" id="sampler-temp" min="0" max="2" step="0.01" value="1.0" style="width:100%;" onchange="window.saveSampler('pyvern-sampler-temp', this.value)" oninput="document.getElementById('temp-val').textContent = this.value">
-</div>
-<div class="form-group">
-  <label>Top P: <span id="top-p-val">0.95</span></label>
-  <input type="range" id="sampler-top-p" min="0" max="1" step="0.01" value="0.95" style="width:100%;" onchange="window.saveSampler('pyvern-sampler-top-p', this.value)" oninput="document.getElementById('top-p-val').textContent = this.value">
-</div>
-<div class="form-group">
-  <label>Max Tokens</label>
-  <input type="number" id="sampler-max-tokens" value="1024" min="1" max="8192" style="width:100%;" onchange="window.saveSampler('pyvern-sampler-max-tokens', this.value)">
-</div>
+
+<script>
+document.addEventListener('alpine:init', () => {
+  Alpine.data('samplerModal', () => ({
+    tab: 'standard',
+    providerType: localStorage.getItem('pyvern-provider-type') || 'openai_compat',
+    
+    samplers: {
+      temperature: 1.0,
+      max_tokens: 1024,
+      top_p: 0.95,
+      top_k: 40,
+      min_p: 0.05,
+      repetition_penalty: 1.0,
+      frequency_penalty: 0.0,
+      presence_penalty: 0.0,
+      include_reasoning: false
+    },
+    
+    customFields: [],
+
+    init() {
+      // Load standard samplers
+      const savedStd = localStorage.getItem('pyvern-standard-samplers');
+      if (savedStd) {
+        try {
+          this.samplers = { ...this.samplers, ...JSON.parse(savedStd) };
+        } catch(e) {}
+      } else {
+        // Fallback for old standalone keys
+        const oldTemp = localStorage.getItem('pyvern-sampler-temp');
+        if(oldTemp) this.samplers.temperature = parseFloat(oldTemp);
+        const oldMax = localStorage.getItem('pyvern-sampler-max-tokens');
+        if(oldMax) this.samplers.max_tokens = parseInt(oldMax);
+        const oldTopP = localStorage.getItem('pyvern-sampler-top-p');
+        if(oldTopP) this.samplers.top_p = parseFloat(oldTopP);
+      }
+
+      // Load custom fields
+      const savedCust = localStorage.getItem('pyvern-custom-samplers');
+      if (savedCust) {
+        try {
+          this.customFields = JSON.parse(savedCust);
+        } catch(e) {}
+      }
+
+      // Make global function to retrieve payload
+      window.getActiveSamplers = () => {
+        let payload = {
+          temperature: this.samplers.temperature,
+          max_tokens: this.samplers.max_tokens,
+          top_p: this.samplers.top_p
+        };
+        
+        if (this.providerType === 'openrouter') {
+          payload.top_k = this.samplers.top_k;
+          payload.min_p = this.samplers.min_p;
+          payload.repetition_penalty = this.samplers.repetition_penalty;
+          if (this.samplers.include_reasoning) {
+            payload.include_reasoning = true;
+          }
+        } else if (this.providerType === 'openai_compat' || this.providerType === 'deepseek' || this.providerType === 'moonshot') {
+          payload.frequency_penalty = this.samplers.frequency_penalty;
+          payload.presence_penalty = this.samplers.presence_penalty;
+        } else if (this.providerType === 'google_vertex' || this.providerType === 'google_aistudio') {
+          payload.top_k = this.samplers.top_k;
+        }
+        
+        // Add enabled custom fields
+        for (let item of this.customFields) {
+          if (item.enabled && item.key) {
+            let val = item.value;
+            if (item.type === 'number') val = Number(val);
+            else if (item.type === 'boolean') val = (val === 'true');
+            else if (item.type === 'json') {
+              try { val = JSON.parse(val); } catch(e) {}
+            }
+            payload[item.key] = val;
+          }
+        }
+        
+        return payload;
+      };
+    },
+
+    saveStandard() {
+      localStorage.setItem('pyvern-standard-samplers', JSON.stringify(this.samplers));
+    },
+
+    saveCustom() {
+      localStorage.setItem('pyvern-custom-samplers', JSON.stringify(this.customFields));
+    },
+
+    addCustom() {
+      this.customFields.push({ enabled: true, key: '', type: 'string', value: '' });
+      this.saveCustom();
+    },
+
+    removeCustom(idx) {
+      this.customFields.splice(idx, 1);
+      this.saveCustom();
+    }
+  }));
+});
+</script>

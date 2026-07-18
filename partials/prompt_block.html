@@ -1,59 +1,92 @@
-<div class="arranger-item {% if not block.enabled %}disabled{% endif %}" data-block-id="{{ block.id }}" data-block-content="{{ block.content | replace('"', '&quot;') }}">
+{% from "macros.html" import custom_select %}
+<div class="arranger-item {% if not block.enabled %}disabled{% endif %}" data-block-id="{{ block.id }}" data-block-content="{{ block.content | replace('"', '&quot;') }}" x-data="{ expanded: false }">
   <div class="arranger-header">
-    <div class="arranger-title-group">
-      <span class="arranger-badge badge-{{ block.block_type }}">{{ block.block_type | replace('_', ' ') }}</span>
-      <input type="text" class="arranger-input" value="{{ block.name }}"
-        onchange="fetch('/api/presets/{{ preset_id }}/blocks/{{ block.id }}', {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name:this.value})})"
-      >
+    <div class="arranger-title-group" @click="expanded = !expanded" style="cursor: pointer;">
+      <span style="font-size: 0.8rem; color: var(--text-muted); width: 16px; text-align: center;" x-text="expanded ? '▼' : '▶'"></span>
+      {% if block.block_type == 'text' %}
+        <span class="arranger-badge badge-{{ block.block_type }}">{{ block.block_type | replace('_', ' ') }}</span>
+        <input type="text" class="arranger-input" value="{{ block.name }}" @click.stop
+          onchange="fetch('/api/presets/{{ preset_id }}/blocks/{{ block.id }}', {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name:this.value})})"
+        >
+      {% else %}
+        <span class="arranger-input" style="cursor: pointer;">{{ block.block_type | replace('_', ' ') | title }}</span>
+      {% endif %}
     </div>
     <div class="arranger-actions">
-      <button class="action-icon {% if block.enabled %}active{% endif %}" title="Toggle"
+      {% if block.block_type != 'chat_history' and block.block_type != 'char_blocks' %}
+      <div class="role-indicator role-{{ block.role }}" title="Role: {{ block.role }}">{{ block.role[0] | upper }}</div>
+      {% else %}
+      <div style="width: 24px; height: 24px;"></div>
+      {% endif %}
+      <div class="arranger-toggle {% if block.enabled %}active{% endif %}" title="Toggle Block"
         onclick="fetch('/api/presets/{{ preset_id }}/blocks/{{ block.id }}', {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({enabled:{{ 0 if block.enabled else 1 }}})}).then(()=>htmx.ajax('GET','/partials/prompt-arranger/{{ preset_id }}',{target:'#prompt-arranger',swap:'innerHTML'}))"
-      >{{ '✓' if block.enabled else '○' }}</button>
+      ></div>
+      {% if block.block_type != 'chat_history' %}
       <button class="action-icon danger" title="Delete"
         hx-delete="/api/presets/{{ preset_id }}/blocks/{{ block.id }}"
-        hx-target="#prompt-arranger"
-        hx-swap="innerHTML"
         hx-confirm="Delete block?"
         hx-on::after-request="htmx.ajax('GET','/partials/prompt-arranger/{{ preset_id }}',{target:'#prompt-arranger',swap:'innerHTML'})"
       >×</button>
+      {% else %}
+      <div style="width: 24px; height: 24px;"></div>
+      {% endif %}
     </div>
   </div>
 
-  {% if block.block_type == 'text' %}
-  <div class="arranger-body">
-    <select class="arranger-select"
-      onchange="fetch('/api/presets/{{ preset_id }}/blocks/{{ block.id }}', {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({role:this.value})})"
-    >
-      <option value="system" {% if block.role == 'system' %}selected{% endif %}>system</option>
-      <option value="user" {% if block.role == 'user' %}selected{% endif %}>user</option>
-      <option value="assistant" {% if block.role == 'assistant' %}selected{% endif %}>assistant</option>
-    </select>
-    <div class="block-preview" onclick="openBlockModal('{{ block.id }}', '{{ preset_id }}')">
-      {% if block.content %}{{ block.content[:80] }}{% if block.content | length > 80 %}…{% endif %}{% else %}<em class="empty-text">Empty — click to edit</em>{% endif %}
+  <div x-show="expanded" x-transition.opacity.duration.200ms style="margin-top: 0.5rem; display: none;">
+    {% if block.block_type == 'text' %}
+    <div class="arranger-body">
+      <div style="width: 120px; flex-shrink: 0;">
+        {{ custom_select(
+             name="role",
+             id="role-" + block.id,
+             options=[
+               {"value": "system", "label": "system"},
+               {"value": "user", "label": "user"},
+               {"value": "assistant", "label": "assistant"}
+             ],
+             selected=block.role,
+             on_change="fetch('/api/presets/" + preset_id + "/blocks/" + block.id + "', {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({role:this.value})}); htmx.ajax('GET', '/partials/prompt-arranger/" + preset_id + "', {target:'#prompt-arranger', swap:'innerHTML'})",
+             extra_classes="arranger-select"
+           )
+        }}
+      </div>
+      <div class="block-preview" onclick="openBlockModal('{{ block.id }}', '{{ preset_id }}')">
+        {% if block.content %}{{ block.content[:80] }}{% if block.content | length > 80 %}…{% endif %}{% else %}<em class="empty-text">Empty — click to edit</em>{% endif %}
+      </div>
     </div>
-  </div>
 
-  {% elif block.block_type == 'char_blocks' %}
-  <div class="arranger-body">
-    <span class="arranger-note">Character custom blocks are injected automatically</span>
-  </div>
+    {% elif block.block_type == 'char_blocks' %}
+    <div class="arranger-body">
+      <span class="arranger-note">Character custom blocks are injected automatically</span>
+    </div>
 
-  {% else %}
-  <div class="arranger-body">
-    <select class="arranger-select"
-      onchange="fetch('/api/presets/{{ preset_id }}/blocks/{{ block.id }}', {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({role:this.value})})"
-    >
-      <option value="system" {% if block.role == 'system' %}selected{% endif %}>system</option>
-      <option value="user" {% if block.role == 'user' %}selected{% endif %}>user</option>
-      <option value="assistant" {% if block.role == 'assistant' %}selected{% endif %}>assistant</option>
-    </select>
-    <span class="arranger-note">
-      {% if block.block_type == 'char_description' %}Character description is injected automatically{% endif %}
-      {% if block.block_type == 'char_personality' %}Character personality is injected automatically{% endif %}
-      {% if block.block_type == 'chat_history' %}Chat messages are inserted at this position{% endif %}
-      {% if block.block_type == 'user_persona' %}User persona description is injected automatically{% endif %}
-    </span>
+    {% else %}
+    <div class="arranger-body">
+      {% if block.block_type != 'chat_history' %}
+      <div style="width: 120px; flex-shrink: 0;">
+        {{ custom_select(
+             name="role",
+             id="role-" + block.id,
+             options=[
+               {"value": "system", "label": "system"},
+               {"value": "user", "label": "user"},
+               {"value": "assistant", "label": "assistant"}
+             ],
+             selected=block.role,
+             on_change="fetch('/api/presets/" + preset_id + "/blocks/" + block.id + "', {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({role:this.value})}); htmx.ajax('GET', '/partials/prompt-arranger/" + preset_id + "', {target:'#prompt-arranger', swap:'innerHTML'})",
+             extra_classes="arranger-select"
+           )
+        }}
+      </div>
+      {% endif %}
+      <span class="arranger-note">
+        {% if block.block_type == 'char_description' %}Character description is injected automatically{% endif %}
+        {% if block.block_type == 'char_personality' %}Character personality is injected automatically{% endif %}
+        {% if block.block_type == 'chat_history' %}Chat messages are inserted at this position{% endif %}
+        {% if block.block_type == 'user_persona' %}User persona description is injected automatically{% endif %}
+      </span>
+    </div>
+    {% endif %}
   </div>
-  {% endif %}
 </div>

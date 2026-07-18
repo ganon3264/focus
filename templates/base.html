@@ -60,6 +60,7 @@
 </head>
 <body class="bg-dark text-light" hx-ext="json-enc">
     {% block content %}{% endblock %}
+    {% include "confirm_modal.html" %}
     <script src="/static/chat_stream.js"></script>
 </body>
 </html>

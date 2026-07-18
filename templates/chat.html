@@ -31,10 +31,21 @@
         <button class="btn btn-secondary w-full text-xs" onclick="openModal('modal-providers')">Providers</button>
       </div>
     </div>
+    <div class="sidebar-section mt-auto">
+      <div class="sidebar-title">Status</div>
+      <div style="background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-md); padding:0.5rem;" class="flex flex-col gap-1 text-xs">
+        <div class="flex justify-between gap-2"><span class="text-muted">Character</span> <span class="font-bold truncate max-w-[130px]" id="status-character" title="{{ character.name if character else 'None' }}">{{ character.name if character else 'None' }}</span></div>
+        <div class="flex justify-between gap-2"><span class="text-muted">Persona</span> <span class="font-bold truncate max-w-[130px]" id="status-persona" title="{{ persona.name if persona else 'None' }}">{{ persona.name if persona else 'None' }}</span></div>
+        <div class="flex justify-between gap-2"><span class="text-muted">Prov. Preset</span> <span class="font-bold truncate max-w-[130px]" id="status-preset" title="None">None</span></div>
+        <div class="flex justify-between gap-2"><span class="text-muted">Provider</span> <span class="font-bold truncate max-w-[130px]" id="status-provider" title="None">None</span></div>
+        <div class="flex justify-between gap-2"><span class="text-muted">Model</span> <span class="font-bold truncate max-w-[130px]" id="status-model" title="None">None</span></div>
+      </div>
+    </div>
   </aside>
 
   <!-- Center -->
   <main class="main-content">
+    {% if chat_id %}
     <div class="chat-center">
       <div class="message-list" id="message-list">
         {% include "message_list.html" %}
@@ -51,6 +62,40 @@
         </button>
       </div>
     </div>
+    {% else %}
+    <!-- Greeter State -->
+    <div class="flex-1 flex flex-col items-center justify-center p-8 text-center" style="height: 100%;">
+      {% if character %}
+      <div style="width: 100px; height: 100px; border-radius: 50%; overflow: hidden; margin-bottom: 1.5rem; border: 2px solid var(--border); box-shadow: var(--shadow-md);">
+        {% if character.image_path %}
+          <img src="/{{ character.image_path }}" alt="{{ character.name }}" style="width: 100%; height: 100%; object-fit: cover;">
+        {% else %}
+          <div style="width: 100%; height: 100%; background: var(--surface-3); display: grid; place-items: center; font-size: 2.5rem; font-weight: bold; color: var(--text-muted);">
+            {{ character.name[:1] }}
+          </div>
+        {% endif %}
+      </div>
+      <h1 class="text-2xl font-bold mb-2">{{ character.name }}</h1>
+      <p class="text-muted max-w-md mb-6 leading-relaxed">
+        You don't have any active chats with {{ character.name }}. Start a new conversation!
+      </p>
+      <button class="btn btn-primary" onclick="newChat()" style="padding: 0.75rem 2rem; font-size: 1rem; border-radius: var(--radius-full);">
+        Start Chat
+      </button>
+      {% else %}
+      <div style="width: 80px; height: 80px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-xl); display: grid; place-items: center; margin-bottom: 1.5rem; box-shadow: var(--shadow-sm);">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 40px; height: 40px; color: var(--accent);"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+      </div>
+      <h1 class="text-2xl font-bold mb-2">Welcome to Pyvern</h1>
+      <p class="text-muted max-w-md mb-6 leading-relaxed">
+        You don't have any active chats open. Select a character from your roster to resume a previous conversation, or start a new one.
+      </p>
+      <button class="btn btn-primary" onclick="openModal('modal-characters')" style="padding: 0.75rem 2rem; font-size: 1rem; border-radius: var(--radius-full);">
+        View Characters
+      </button>
+      {% endif %}
+    </div>
+    {% endif %}
   </main>
 
   <!-- Right Sidebar -->
@@ -75,30 +120,146 @@
 
 <!-- MAIN MODALS -->
 <div id="modal-sampler" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeModal('modal-sampler')">
-  <div class="modal-content" style="max-width:420px;">
-    <div class="modal-header"><div class="modal-title">Generation Parameters</div><button class="btn btn-secondary" onclick="closeModal('modal-sampler')">×</button></div>
-    {% include "sampler_modal.html" %}
+  <div class="modal-content" style="max-width:550px; min-height: 400px; display: flex; flex-direction: column;">
+    <div class="modal-header" style="margin-bottom: 0.5rem;"><div class="modal-title">Generation Parameters</div><button class="btn btn-secondary" onclick="closeModal('modal-sampler')">×</button></div>
+    <div class="flex-1 overflow-hidden">
+      {% include "sampler_modal.html" %}
+    </div>
   </div>
 </div>
 
 <div id="modal-characters" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeModal('modal-characters')">
-  <div class="modal-content" style="max-width:760px;">
+  <div class="modal-content" style="max-width:800px; width: 95vw;">
     <div class="modal-header"><div class="modal-title">Characters</div><button class="btn btn-secondary" onclick="closeModal('modal-characters')">×</button></div>
     <div id="characters-modal-body">Loading…</div>
   </div>
 </div>
 
+<!-- EDIT CHARACTER MODAL -->
+<div id="modal-edit-character" class="modal-overlay" style="display:none; z-index: 100;" onclick="if(event.target===this)closeModal('modal-edit-character')">
+  <div class="modal-content" style="max-width: 600px; width: 95vw; display: flex; flex-direction: column;">
+    <div class="modal-header" style="margin-bottom: 1rem;">
+      <div class="modal-title">Edit Character</div>
+      <button class="btn btn-secondary" onclick="closeModal('modal-edit-character')">×</button>
+    </div>
+    <form id="edit-character-form" class="flex flex-col gap-4 flex-1" onsubmit="submitEditCharacter(event)">
+      <input type="hidden" name="id" id="edit-char-id">
+      
+      <div class="flex gap-4 items-center">
+        <!-- Avatar Upload -->
+        <label class="cursor-pointer relative rounded-full overflow-hidden" style="width: 64px; height: 64px; background: var(--surface-3); border: 1px solid var(--border); display: grid; place-items: center; flex-shrink: 0;" title="Change Avatar">
+          <img id="edit-char-image-preview" src="" style="width: 100%; height: 100%; object-fit: cover; display: none;">
+          <span id="edit-char-image-placeholder" class="text-2xl font-bold" style="color: var(--text-muted);"></span>
+          <div class="absolute inset-0 bg-black/50 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs">
+            Upload
+          </div>
+          <input type="file" accept="image/*" class="hidden" onchange="uploadCharacterAvatar(this)">
+        </label>
+
+        <!-- Name Input -->
+        <div class="form-group mb-0 flex-1">
+          <label>Name</label>
+          <input type="text" name="name" id="edit-char-name" required class="form-control w-full">
+        </div>
+      </div>
+
+      <div class="form-group mb-0 flex-1 flex flex-col h-full">
+        <label>Description</label>
+        <div class="textarea-wrapper h-full">
+          <textarea name="description" id="edit-char-desc" rows="10" class="form-control w-full h-full" style="resize:none;"></textarea>
+          <button type="button" class="expand-btn" onclick="openTextExpander(document.getElementById('edit-char-desc'), 'Edit Character Description')">⤢</button>
+        </div>
+      </div>
+      <div class="flex gap-2 mt-4 justify-end pt-4" style="border-top: 1px solid var(--border);">
+        <button class="btn btn-secondary" style="width: 100px;" type="button" onclick="closeModal('modal-edit-character')">Cancel</button>
+        <button class="btn btn-primary" style="width: 100px;" type="submit">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <div id="modal-personas" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeModal('modal-personas')">
-  <div class="modal-content" style="max-width:540px;">
+  <div class="modal-content" style="max-width:800px; width: 95vw;">
     <div class="modal-header"><div class="modal-title">Personas</div><button class="btn btn-secondary" onclick="closeModal('modal-personas')">×</button></div>
     <div id="personas-modal-body">Loading…</div>
   </div>
 </div>
 
+<!-- EDIT PERSONA MODAL -->
+<div id="modal-edit-persona" class="modal-overlay" style="display:none; z-index: 100;" onclick="if(event.target===this)closeModal('modal-edit-persona')">
+  <div class="modal-content" style="max-width: 600px; width: 95vw; display: flex; flex-direction: column;">
+    <div class="modal-header" style="margin-bottom: 1rem;">
+      <div class="modal-title">Edit Persona</div>
+      <button class="btn btn-secondary" onclick="closeModal('modal-edit-persona')">×</button>
+    </div>
+    <form id="edit-persona-form" class="flex flex-col gap-4 flex-1" onsubmit="submitEditPersona(event)">
+      <input type="hidden" name="id" id="edit-persona-id">
+      
+      <div class="flex gap-4 items-center">
+        <!-- Avatar Upload -->
+        <label class="cursor-pointer relative rounded-full overflow-hidden" style="width: 64px; height: 64px; background: var(--surface-3); border: 1px solid var(--border); display: grid; place-items: center; flex-shrink: 0;" title="Change Avatar">
+          <img id="edit-persona-image-preview" src="" style="width: 100%; height: 100%; object-fit: cover; display: none;">
+          <span id="edit-persona-image-placeholder" class="text-2xl font-bold" style="color: var(--text-muted);"></span>
+          <div class="absolute inset-0 bg-black/50 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs">
+            Upload
+          </div>
+          <input type="file" accept="image/*" class="hidden" onchange="uploadPersonaAvatar(this)">
+        </label>
+
+        <!-- Name Input -->
+        <div class="form-group mb-0 flex-1">
+          <label>Name</label>
+          <input type="text" name="name" id="edit-persona-name" required class="form-control w-full">
+        </div>
+      </div>
+
+      <div class="form-group mb-0 flex-1 flex flex-col h-full">
+        <label>Description</label>
+        <div class="textarea-wrapper h-full">
+          <textarea name="description" id="edit-persona-desc" rows="10" class="form-control w-full h-full" style="resize:none;"></textarea>
+          <button type="button" class="expand-btn" onclick="openTextExpander(document.getElementById('edit-persona-desc'), 'Edit Persona Description')">⤢</button>
+        </div>
+      </div>
+      <div class="flex gap-2 mt-4 justify-end pt-4" style="border-top: 1px solid var(--border);">
+        <button class="btn btn-secondary" style="width: 100px;" type="button" onclick="closeModal('modal-edit-persona')">Cancel</button>
+        <button class="btn btn-primary" style="width: 100px;" type="submit">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <div id="modal-providers" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeModal('modal-providers')">
-  <div class="modal-content" style="max-width:600px;max-height:85vh;">
+  <div class="modal-content" style="max-width:1000px; width: 95vw; max-height:85vh; display: flex; flex-direction: column;">
     <div class="modal-header"><div class="modal-title">Providers</div><button class="btn btn-secondary" onclick="closeModal('modal-providers')">×</button></div>
-    <div id="providers-modal-body">Loading…</div>
+    <div id="providers-modal-body" style="flex: 1; overflow: hidden;">Loading…</div>
+  </div>
+</div>
+
+<!-- EDIT MESSAGE MODAL -->
+<div id="modal-edit-message" class="modal-overlay" style="display:none; z-index: 100;" onclick="if(event.target===this)closeModal('modal-edit-message')">
+  <div class="modal-content" style="max-width: 800px; width: 95vw; max-height: 85vh; display: flex; flex-direction: column;">
+    <div class="modal-header" style="margin-bottom: 1rem;">
+      <div class="modal-title">Edit Message</div>
+      <button class="btn btn-secondary" onclick="closeModal('modal-edit-message')">×</button>
+    </div>
+    <div style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 1rem; padding-right: 0.5rem;">
+      <input type="hidden" id="edit-msg-id">
+      <input type="hidden" id="edit-msg-chat-id">
+      
+      <div id="edit-msg-thought-container" style="display:none;">
+        <label class="text-sm font-bold text-muted mb-1 block">Thought Process (Reasoning)</label>
+        <textarea id="edit-msg-thought" class="w-full p-2" rows="6" style="background:var(--surface-3); border:1px solid var(--border); color:var(--text); border-radius:6px; font-family:inherit; resize:vertical;"></textarea>
+      </div>
+      
+      <div>
+        <label class="text-sm font-bold text-muted mb-1 block">Message Content</label>
+        <textarea id="edit-msg-content" class="w-full p-2" rows="8" style="background:var(--surface-2); border:1px solid var(--border); color:var(--text); border-radius:6px; font-family:inherit; resize:vertical;"></textarea>
+      </div>
+    </div>
+    <div class="flex gap-2 mt-4 pt-4" style="border-top: 1px solid var(--border);">
+      <button class="btn btn-primary" style="width: 100px;" onclick="saveMessageEdit()">Save</button>
+      <button class="btn btn-secondary" style="width: 100px;" type="button" onclick="closeModal('modal-edit-message')">Cancel</button>
+    </div>
   </div>
 </div>
 
@@ -120,9 +281,9 @@
 <script>
 // Expose current chat state globally for modals to inherit
 window.CURRENT_CHAT_STATE = {
-  character_id: '{{ current_character_id or "" }}',
-  persona_id: '{{ current_persona_id or "" }}',
-  preset_id: '{{ current_preset_id or "" }}'
+  character_id: '{{ current_character_id or "" }}' || null,
+  persona_id: '{{ current_persona_id or "" }}' || null,
+  preset_id: '{{ current_preset_id or "" }}' || null
 };
 
 /* Modal logic */
@@ -160,6 +321,190 @@ function saveTextExpander() {
   }
   closeTextExpander();
 }
+
+function openEditCharacterModal(btnElement) {
+  document.getElementById('edit-char-id').value = btnElement.dataset.charId || '';
+  const name = btnElement.dataset.charName || '';
+  document.getElementById('edit-char-name').value = name;
+  document.getElementById('edit-char-desc').value = btnElement.dataset.charDesc || '';
+  
+  const imgPath = btnElement.dataset.charImage;
+  const preview = document.getElementById('edit-char-image-preview');
+  const placeholder = document.getElementById('edit-char-image-placeholder');
+  
+  if (imgPath) {
+    preview.src = '/' + imgPath + '?t=' + new Date().getTime(); // cache bust
+    preview.style.display = 'block';
+    placeholder.style.display = 'none';
+  } else {
+    preview.style.display = 'none';
+    placeholder.innerText = name ? name.charAt(0).toUpperCase() : '?';
+    placeholder.style.display = 'block';
+  }
+
+  document.getElementById('modal-edit-character').style.display = 'grid';
+}
+
+function uploadCharacterAvatar(input) {
+  if (!input.files || !input.files[0]) return;
+  const id = document.getElementById('edit-char-id').value;
+  const formData = new FormData();
+  formData.append('file', input.files[0]);
+  
+  const preview = document.getElementById('edit-char-image-preview');
+  const placeholder = document.getElementById('edit-char-image-placeholder');
+  preview.src = URL.createObjectURL(input.files[0]);
+  preview.style.display = 'block';
+  placeholder.style.display = 'none';
+
+  fetch('/api/characters/' + id + '/avatar', {
+    method: 'POST',
+    body: formData
+  }).then(r => {
+    if (r.ok) htmx.ajax('GET','/partials/characters-modal',{target:'#characters-modal-body',swap:'innerHTML'});
+  });
+}
+
+function submitEditCharacter(e) {
+  e.preventDefault();
+  const id = document.getElementById('edit-char-id').value;
+  const data = Object.fromEntries(new FormData(e.target));
+  fetch('/api/characters/' + id, {
+    method: 'PATCH',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(data)
+  }).then(function(r){
+    if(r.ok) {
+      closeModal('modal-edit-character');
+      htmx.ajax('GET','/partials/characters-modal',{target:'#characters-modal-body',swap:'innerHTML'});
+    }
+  });
+}
+
+function openEditPersonaModal(btnElement) {
+  document.getElementById('edit-persona-id').value = btnElement.dataset.personaId || '';
+  const name = btnElement.dataset.personaName || '';
+  document.getElementById('edit-persona-name').value = name;
+  document.getElementById('edit-persona-desc').value = btnElement.dataset.personaDesc || '';
+
+  const imgPath = btnElement.dataset.personaImage;
+  const preview = document.getElementById('edit-persona-image-preview');
+  const placeholder = document.getElementById('edit-persona-image-placeholder');
+  
+  if (imgPath) {
+    preview.src = '/' + imgPath + '?t=' + new Date().getTime(); // cache bust
+    preview.style.display = 'block';
+    placeholder.style.display = 'none';
+  } else {
+    preview.style.display = 'none';
+    placeholder.innerText = name ? name.charAt(0).toUpperCase() : '?';
+    placeholder.style.display = 'block';
+  }
+
+  document.getElementById('modal-edit-persona').style.display = 'grid';
+}
+
+function uploadPersonaAvatar(input) {
+  if (!input.files || !input.files[0]) return;
+  const id = document.getElementById('edit-persona-id').value;
+  const formData = new FormData();
+  formData.append('file', input.files[0]);
+  
+  const preview = document.getElementById('edit-persona-image-preview');
+  const placeholder = document.getElementById('edit-persona-image-placeholder');
+  preview.src = URL.createObjectURL(input.files[0]);
+  preview.style.display = 'block';
+  placeholder.style.display = 'none';
+
+  fetch('/api/personas/' + id + '/avatar', {
+    method: 'POST',
+    body: formData
+  }).then(r => {
+    if (r.ok) htmx.ajax('GET','/partials/personas-modal',{target:'#personas-modal-body',swap:'innerHTML'});
+  });
+}
+
+function submitEditPersona(e) {
+  e.preventDefault();
+  const id = document.getElementById('edit-persona-id').value;
+  const data = Object.fromEntries(new FormData(e.target));
+  fetch('/api/personas/' + id, {
+    method: 'PATCH',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(data)
+  }).then(function(r){
+    if(r.ok) {
+      closeModal('modal-edit-persona');
+      htmx.ajax('GET','/partials/personas-modal',{target:'#personas-modal-body',swap:'innerHTML'});
+    }
+  });
+}
+
+// App Providers for Status Panel
+window.APP_PROVIDERS = {{ providers | tojson | safe }};
+
+function updateStatusPanel() {
+  const activeId = localStorage.getItem('pyvern-provider-id');
+  const providerEl = document.getElementById('status-provider');
+  const presetEl = document.getElementById('status-preset');
+  const modelEl = document.getElementById('status-model');
+  
+  if (!activeId) {
+    providerEl.textContent = 'None';
+    modelEl.textContent = 'None';
+  } else {
+    // Check if we have the provider in our initial payload
+    let provider = window.APP_PROVIDERS.find(p => p.id === activeId);
+    
+    // If we couldn't find it, it might have been created this session. 
+    // Let's see if we can scrape it from the DOM (from the providers modal if it's loaded)
+    if (!provider) {
+      const cardDisplay = document.getElementById('prov-display-' + activeId);
+      if (cardDisplay) {
+        const nameEl = cardDisplay.querySelector('strong');
+        const typeModelEl = cardDisplay.querySelector('.text-muted');
+        if (nameEl && typeModelEl) {
+          const text = typeModelEl.textContent; // e.g. "openai • gpt-4"
+          const parts = text.split('•').map(s => s.trim());
+          provider = {
+            name: nameEl.textContent,
+            type: parts.length > 0 ? parts[0] : 'Unknown',
+            model: parts.length > 1 ? parts[1] : 'Unknown'
+          };
+        }
+      }
+    }
+
+    if (provider) {
+      providerEl.textContent = provider.type;
+      presetEl.textContent = provider.name;
+      modelEl.textContent = provider.model || 'Unknown';
+      providerEl.title = provider.type;
+      presetEl.title = provider.name;
+      modelEl.title = provider.model || 'Unknown';
+    } else {
+      providerEl.textContent = 'Unknown';
+      presetEl.textContent = 'Unknown';
+      modelEl.textContent = 'Unknown';
+      providerEl.title = 'Unknown';
+      presetEl.title = 'Unknown';
+      modelEl.title = 'Unknown';
+    }
+  }
+}
+
+// Hook into provider changes
+window.addEventListener('provider-changed', updateStatusPanel);
+// Run initially
+updateStatusPanel();
+
+// Also update when HTMX swaps content (in case providers were deleted/added)
+document.body.addEventListener('htmx:afterSwap', function(evt){
+  if(evt.detail.target.id === 'providers-modal-body'){
+    // A slight delay to ensure the DOM is parsed and APP_PROVIDERS is stale
+    setTimeout(updateStatusPanel, 50);
+  }
+});
 
 document.addEventListener('DOMContentLoaded', function(){
   const presetSelect = document.querySelector('#preset-selector select');

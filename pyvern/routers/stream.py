@@ -45,7 +45,20 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
         prov_row = await cur.fetchone()
     if not prov_row:
         raise HTTPException(404, "Provider not found")
-    provider = create_provider(dict(prov_row))
+    
+    prov_dict = dict(prov_row)
+    
+    api_key = prov_dict.get("api_key") or ""
+    if api_key.startswith("SECRET:"):
+        secret_name = api_key[7:]
+        async with db.execute("SELECT value FROM secrets WHERE name = ?", (secret_name,)) as cur:
+            secret_row = await cur.fetchone()
+            if secret_row:
+                prov_dict["api_key"] = secret_row["value"]
+            else:
+                prov_dict["api_key"] = ""
+                
+    provider = create_provider(prov_dict)
 
     # ── Macros + char data ────────────────────────────────────────────────────
     char_data: dict = {"name": "Assistant", "description": "", "personality": "",
@@ -192,12 +205,8 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
 
     # ── Gen params ────────────────────────────────────────────────────────────
     gen_kwargs: dict = {}
-    if body.max_tokens is not None:
-        gen_kwargs["max_tokens"] = body.max_tokens
-    if body.temperature is not None:
-        gen_kwargs["temperature"] = body.temperature
-    if body.top_p is not None:
-        gen_kwargs["top_p"] = body.top_p
+    if body.samplers:
+        gen_kwargs.update(body.samplers)
 
     # ── Stream ────────────────────────────────────────────────────────────────
     collected: list[str] = []

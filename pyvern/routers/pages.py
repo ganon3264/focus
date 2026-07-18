@@ -18,12 +18,63 @@ if isinstance(templates.env.loader, FileSystemLoader):
 
 
 @router.get("/chat", response_class=HTMLResponse)
-async def chat_redirect(request: Request, db: aiosqlite.Connection = Depends(get_db)):
-    async with db.execute("SELECT id FROM chats ORDER BY updated_at DESC LIMIT 1") as cur:
+async def chat_redirect(request: Request, character_id: str = Query(None), db: aiosqlite.Connection = Depends(get_db)):
+    if character_id:
+        async with db.execute("SELECT id FROM chats WHERE character_id = ? ORDER BY updated_at DESC LIMIT 1", (character_id,)) as cur:
+            row = await cur.fetchone()
+        if row:
+            return RedirectResponse(url=f"/chat/{row['id']}")
+    else:
+        async with db.execute("SELECT id FROM chats ORDER BY updated_at DESC LIMIT 1") as cur:
+            row = await cur.fetchone()
+        if row:
+            return RedirectResponse(url=f"/chat/{row['id']}")
+
+    # If no chat found (either overall, or for the specified character), load the UI in a "chatless" greeter state.
+    # To do this, we need to gather the base context (providers, presets, etc) just like a normal chat page.
+    character = None
+    if character_id:
+        async with db.execute("SELECT * FROM characters WHERE id = ?", (character_id,)) as cur:
+            char_row = await cur.fetchone()
+        if char_row:
+            character = dict(char_row)
+            try:
+                character["card"] = json.loads(char_row["card_json"] or "{}")
+            except Exception:
+                character["card"] = {}
+
+    async with db.execute("SELECT * FROM presets ORDER BY created_at DESC") as cur:
+        presets = [dict(r) for r in await cur.fetchall()]
+
+    async with db.execute("SELECT * FROM providers") as cur:
+        providers = [dict(r) for r in await cur.fetchall()]
+        
+    async with db.execute("SELECT * FROM personas ORDER BY created_at LIMIT 1") as cur:
         row = await cur.fetchone()
-    if row:
-        return RedirectResponse(url=f"/chat/{row['id']}")
-    return HTMLResponse("""<div class="p-3">No chats yet. <a href="/characters" style="color:var(--accent)">Create a character and start chatting</a></div>""")
+        persona = dict(row) if row else None
+
+    # Determine default preset
+    preset = presets[0] if presets else None
+    preset_blocks = []
+    if preset:
+        async with db.execute("SELECT * FROM preset_blocks WHERE preset_id = ? ORDER BY position, rowid", (preset["id"],)) as cur:
+            preset_blocks = [dict(r) for r in await cur.fetchall()]
+
+    return templates.TemplateResponse(request, "chat.html", {
+        "chat": None,
+        "chat_id": None,
+        "messages": [],
+        "character": character,
+        "persona": persona,
+        "preset": preset,
+        "preset_blocks": preset_blocks,
+        "providers": providers,
+        "presets": presets,
+        "chats": [],
+        "current_character_id": character_id, # Pre-seed the active character for newChat()
+        "current_persona_id": persona["id"] if persona else None,
+        "current_preset_id": preset["id"] if preset else None,
+    })
 
 
 @router.get("/chat/{chat_id}", response_class=HTMLResponse)
@@ -31,7 +82,7 @@ async def chat_page(request: Request, chat_id: str, db: aiosqlite.Connection = D
     async with db.execute("SELECT * FROM chats WHERE id = ?", (chat_id,)) as cur:
         chat = await cur.fetchone()
     if not chat:
-        return HTMLResponse("Chat not found", status_code=404)
+        return RedirectResponse(url="/chat")
     chat = dict(chat)
 
     async with db.execute("""
@@ -89,14 +140,23 @@ async def chat_page(request: Request, chat_id: str, db: aiosqlite.Connection = D
 
     # ── Chats for right sidebar ───────────────────────────────────────────────
     chats_sidebar = []
+    query_base = """
+        SELECT c.*, 
+               (SELECT mv.content 
+                FROM messages m 
+                JOIN message_variants mv ON m.id = mv.message_id AND m.active_index = mv.variant_index 
+                WHERE m.chat_id = c.id 
+                ORDER BY m.position DESC LIMIT 1) as last_message
+        FROM chats c
+    """
     if chat.get("character_id"):
         async with db.execute(
-            "SELECT * FROM chats WHERE character_id = ? ORDER BY updated_at DESC",
+            f"{query_base} WHERE character_id = ? ORDER BY updated_at DESC",
             (chat["character_id"],)
         ) as cur:
             chats_sidebar = [dict(r) for r in await cur.fetchall()]
     else:
-        async with db.execute("SELECT * FROM chats ORDER BY updated_at DESC") as cur:
+        async with db.execute(f"{query_base} ORDER BY updated_at DESC") as cur:
             chats_sidebar = [dict(r) for r in await cur.fetchall()]
 
     return templates.TemplateResponse(request, "chat.html", {
@@ -228,14 +288,23 @@ async def chat_list_partial(
     current_chat_id: str = Query(None),
     db: aiosqlite.Connection = Depends(get_db),
 ):
+    query_base = """
+        SELECT c.*, 
+               (SELECT mv.content 
+                FROM messages m 
+                JOIN message_variants mv ON m.id = mv.message_id AND m.active_index = mv.variant_index 
+                WHERE m.chat_id = c.id 
+                ORDER BY m.position DESC LIMIT 1) as last_message
+        FROM chats c
+    """
     if character_id:
         async with db.execute(
-            "SELECT * FROM chats WHERE character_id = ? ORDER BY updated_at DESC",
+            f"{query_base} WHERE character_id = ? ORDER BY updated_at DESC",
             (character_id,)
         ) as cur:
             chats = [dict(r) for r in await cur.fetchall()]
     else:
-        async with db.execute("SELECT * FROM chats ORDER BY updated_at DESC") as cur:
+        async with db.execute(f"{query_base} ORDER BY updated_at DESC") as cur:
             chats = [dict(r) for r in await cur.fetchall()]
 
     return templates.TemplateResponse(request, "chat_list.html", {
@@ -322,9 +391,17 @@ async def sampler_modal_partial(request: Request, db: aiosqlite.Connection = Dep
 async def providers_modal_partial(request: Request, db: aiosqlite.Connection = Depends(get_db)):
     async with db.execute("SELECT * FROM providers ORDER BY created_at DESC") as cur:
         providers = [dict(r) for r in await cur.fetchall()]
+    
+    # Also fetch whether global secrets exist (just boolean presence, never the raw key)
+    secrets_present = {}
+    async with db.execute("SELECT name FROM secrets") as cur:
+        for row in await cur.fetchall():
+            secrets_present[row["name"]] = True
+
     return templates.TemplateResponse(request, "providers_modal.html", {
         "request": request,
         "providers": providers,
+        "secrets": secrets_present,
     })
 
 
@@ -375,3 +452,13 @@ async def personas_modal_partial(request: Request, db: aiosqlite.Connection = De
         "request": request,
         "personas": personas,
     })
+
+# Add json filter to jinja
+def from_json(value):
+    import json
+    try:
+        return json.loads(value)
+    except Exception:
+        return {}
+
+templates.env.filters["from_json"] = from_json

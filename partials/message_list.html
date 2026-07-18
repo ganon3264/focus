@@ -1,3 +1,4 @@
 {% for message in messages %}
+  {% set is_latest = loop.last %}
   {% include "message.html" %}
 {% endfor %}

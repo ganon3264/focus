@@ -13,6 +13,10 @@ class Role(str, Enum):
 class ProviderType(str, Enum):
     openai_compat = "openai_compat"
     openrouter = "openrouter"
+    google_aistudio = "google_aistudio"
+    google_vertex = "google_vertex"
+    deepseek = "deepseek"
+    moonshot = "moonshot"
 
 
 # ── Providers ────────────────────────────────────────────────────────────────
@@ -130,8 +134,6 @@ class StreamRequest(BaseModel):
     provider_id: str
     user_message: str
     # Override generation params per-request (falls back to provider defaults)
-    max_tokens: Optional[int] = None
-    temperature: Optional[float] = None
-    top_p: Optional[float] = None
+    samplers: dict[str, Any] = Field(default_factory=dict)
     # For swipe/regen: regenerate the last assistant turn instead of appending
     regenerate: bool = False

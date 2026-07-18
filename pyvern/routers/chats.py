@@ -22,9 +22,15 @@ def _now() -> str:
 async def create_chat(body: ChatCreate, db: aiosqlite.Connection = Depends(get_db)):
     chat_id = str(uuid.uuid4())
     now = _now()
+    
+    # Ensure empty strings are cast to None for Foreign Key constraints
+    char_id = body.character_id if body.character_id else None
+    pers_id = body.persona_id if body.persona_id else None
+    pres_id = body.preset_id if body.preset_id else None
+
     await db.execute(
         "INSERT INTO chats (id, title, character_id, persona_id, preset_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (chat_id, body.title or "New Chat", body.character_id, body.persona_id, body.preset_id, now, now),
+        (chat_id, body.title or "New Chat", char_id, pers_id, pres_id, now, now),
     )
 
     # Seed greeting variants from first_mes + alternate_greetings
@@ -58,9 +64,16 @@ async def create_chat(body: ChatCreate, db: aiosqlite.Connection = Depends(get_d
 
 @router.get("/")
 async def list_chats(db: aiosqlite.Connection = Depends(get_db)):
-    async with db.execute(
-        "SELECT id, title, character_id, preset_id, created_at, updated_at FROM chats ORDER BY updated_at DESC"
-    ) as cur:
+    query = """
+        SELECT c.*, 
+               (SELECT mv.content 
+                FROM messages m 
+                JOIN message_variants mv ON m.id = mv.message_id AND m.active_index = mv.variant_index 
+                WHERE m.chat_id = c.id 
+                ORDER BY m.position DESC LIMIT 1) as last_message
+        FROM chats c ORDER BY c.updated_at DESC
+    """
+    async with db.execute(query) as cur:
         return [dict(r) for r in await cur.fetchall()]
 
 
@@ -108,6 +121,24 @@ async def delete_chat(chat_id: str, db: aiosqlite.Connection = Depends(get_db)):
 
 
 # ── Messages ──────────────────────────────────────────────────────────────────
+
+@router.get("/{chat_id}/messages/{message_id}")
+async def get_message(
+    chat_id: str,
+    message_id: str,
+    db: aiosqlite.Connection = Depends(get_db)
+):
+    async with db.execute(
+        """SELECT mv.content
+           FROM messages m
+           JOIN message_variants mv ON mv.message_id = m.id AND mv.variant_index = m.active_index
+           WHERE m.id = ? AND m.chat_id = ?""",
+        (message_id, chat_id)
+    ) as cur:
+        row = await cur.fetchone()
+    if not row:
+        raise HTTPException(404, "Message not found")
+    return {"content": row["content"]}
 
 @router.delete("/{chat_id}/messages/{message_id}", status_code=204)
 async def delete_message(
