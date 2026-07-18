@@ -4,14 +4,19 @@
   <div class="sidebar-section">
     <div class="sidebar-title">
       <span>Preset</span>
-      <button class="action-icon" onclick="toggleSidebar('left')" title="Collapse" style="margin-top: -0.3rem;" aria-label="Toggle sidebar">{{ icon_chevron_left() }}</button>
+      <button class="action-icon" onclick="toggleSidebar('left')" title="Collapse" aria-label="Toggle sidebar" style="margin-right: 0.5rem;">{{ icon_chevron_left() }}</button>
     </div>
     <div id="preset-selector" style="padding-right: 0.5rem;">
       {% include "presets/preset_selector.html" %}
     </div>
   </div>
   <div class="sidebar-section" style="flex: 1;">
-    <div class="sidebar-title">Preset Variables</div>
+    <div class="sidebar-title">
+      <span>Preset Variables</span>
+      {% if preset %}
+      <button type="button" class="action-icon" onclick="openVarEditModal(this)" title="Add Variable" data-preset-id="{{ preset.id }}" style="margin-right: 0.5rem;">{{ icon_plus(14) }}</button>
+      {% endif %}
+    </div>
     <div id="preset-variables" style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
       {% if preset %}
         {% with preset_id = preset.id, blocks = preset_blocks %}
@@ -24,16 +29,16 @@
   </div>
   <div class="sidebar-section">
     <div class="sidebar-title">Tools</div>
-    <div class="grid-cols-2">
-      <button class="btn btn-secondary w-full text-xs" onclick="openModal('modal-sampler')">Samplers</button>
-      <button class="btn btn-secondary w-full text-xs" onclick="openModal('modal-providers')">Providers</button>
-      <button class="btn btn-secondary w-full text-xs" onclick="openModal('modal-personas')">Personas</button>
-      <button class="btn btn-secondary w-full text-xs" onclick="openModal('modal-characters')">Characters</button>
-      <button class="btn btn-secondary w-full text-xs" onclick="openModal('modal-itemizer'); window.dispatchEvent(new CustomEvent('itemizer-open'));">Prompt Itemizer</button>
-      <button class="btn btn-secondary w-full text-xs" onclick="openModal('modal-arranger')">Prompt Arranger</button>
-      <button class="btn btn-secondary w-full text-xs" onclick="openModal('modal-backups')">Backups</button>
-      <button class="btn btn-secondary w-full text-xs" data-action="actionOpenThemeModal">Themes</button>
-      <button class="btn btn-secondary w-full text-xs" onclick="openModal('modal-tools')">Tool Calls</button>
+    <div class="grid-cols-3">
+      <button class="btn btn-secondary w-full flex-col gap-0.5 py-2 text-[10px] leading-tight" onclick="openModal('modal-providers')">{{ icon_key(18) }}<span>Providers</span></button>
+      <button class="btn btn-secondary w-full flex-col gap-0.5 py-2 text-[10px] leading-tight" onclick="openModal('modal-arranger')">{{ icon_layers(18) }}<span>Arranger</span></button>
+      <button class="btn btn-secondary w-full flex-col gap-0.5 py-2 text-[10px] leading-tight" onclick="openModal('modal-personas')">{{ icon_users(18) }}<span>Personas</span></button>
+      <button class="btn btn-secondary w-full flex-col gap-0.5 py-2 text-[10px] leading-tight" onclick="openModal('modal-tools')">{{ icon_wrench(18) }}<span>Tool Calls</span></button>
+      <button class="btn btn-secondary w-full flex-col gap-0.5 py-2 text-[10px] leading-tight" onclick="openModal('modal-itemizer'); window.dispatchEvent(new CustomEvent('itemizer-open'));">{{ icon_search(18) }}<span>Itemizer</span></button>
+      <button class="btn btn-secondary w-full flex-col gap-0.5 py-2 text-[10px] leading-tight" onclick="openModal('modal-characters')">{{ icon_user(18) }}<span>Characters</span></button>
+      <button class="btn btn-secondary w-full flex-col gap-0.5 py-2 text-[10px] leading-tight" onclick="openModal('modal-backups')">{{ icon_folder(18) }}<span>Backups</span></button>
+      <button class="btn btn-secondary w-full flex-col gap-0.5 py-2 text-[10px] leading-tight" data-action="actionOpenThemeModal">{{ icon_palette(18) }}<span>Themes</span></button>
+      <button class="btn btn-secondary w-full flex-col gap-0.5 py-2 text-[10px] leading-tight" onclick="openModal('modal-sampler')">{{ icon_sliders(18) }}<span>Samplers</span></button>
     </div>
   </div>
   <div class="sidebar-section mt-auto">

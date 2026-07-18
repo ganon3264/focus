@@ -939,8 +939,8 @@
 
   /* Radio Switch for variable options */
   .radio-switch {
-    width: 20px;
-    height: 20px;
+    width: 16px;
+    height: 16px;
     border-radius: 50%;
     border: 2px solid var(--border);
     display: grid;
@@ -957,8 +957,8 @@
     border-color: var(--accent);
   }
   .radio-switch .radio-inner {
-    width: 10px;
-    height: 10px;
+    width: 7px;
+    height: 7px;
     border-radius: 50%;
     background: transparent;
     transition: all var(--transition);
@@ -1355,6 +1355,11 @@
   .grid-cols-2 {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+  }
+  .grid-cols-3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
     gap: 0.5rem;
   }
   .card {

@@ -1,8 +1,5 @@
 <div id="preset-variables-container-{{ preset_id }}" data-preset-id="{{ preset_id }}" style="display: flex; flex-direction: column; flex: 1; min-height: 0;">
   {% from "macros.html" import icon_edit, icon_plus, icon_close, icon_chevron_right %}
-  <div style="padding-right: 0.5rem;">
-    <button type="button" class="btn btn-secondary w-full text-xs mb-2 flex-shrink-0" onclick="openVarEditModal(this)">{{ icon_plus(14) }} Add Variable</button>
-  </div>
   {% if var_groups %}
     <div class="flex flex-col gap-1.5 overflow-y-auto pr-2 scroll-fade" id="preset-variables-sortable-{{ preset_id }}" style="flex: 1; min-height: 0;">
     {% for vname, vblocks in var_groups.items() %}
@@ -27,7 +24,7 @@
           <div class="flex flex-col gap-1 items-stretch w-full min-w-0 sortable-var-options">
             {% for vb in vblocks %}
               {% set vlabel = vb.name.split(':', 1)[1] if ':' in vb.name else 'Option' %}
-              <div class="flex items-center gap-1 p-1.5 rounded w-full min-w-0 var-option-item" data-id="{{ vb.id }}" style="background: var(--surface-2); border: 1px solid var(--border);">
+              <div class="flex items-center gap-1.5 p-1.5 rounded w-full min-w-0 var-option-item" data-id="{{ vb.id }}" style="background: var(--surface-2); border: 1px solid var(--border);">
                 <div class="radio-switch {% if vb.enabled %}active{% endif %}" role="radio" tabindex="0" title="Select option"
                      data-var-id="{{ vb.id }}"
                      onclick="handleVarUpdate(this)">
@@ -38,8 +35,8 @@
                 <button type="button" class="action-icon danger" style="flex-shrink: 0;" title="Delete Option" aria-label="Delete option" data-var-id="{{ vb.id }}" onclick="window.customConfirm('Delete variable option?', function(){ handleVarDelete(this); }.bind(this))">{{ icon_close(16) }}</button>
               </div>
             {% endfor %}
-            <div class="flex items-center gap-2 p-1.5 rounded w-full min-w-0 radio-add-row" data-var-name="{{ vname }}" onclick="event.stopPropagation(); openVarEditModal(this)">
-              <span style="color: var(--text-muted); font-size: 0.8rem; display: flex; align-items: center; gap: 0.35rem; padding: 0.1rem 0;">
+            <div class="flex items-center gap-1 p-1.5 rounded w-full min-w-0 radio-add-row" data-var-name="{{ vname }}" onclick="event.stopPropagation(); openVarEditModal(this)">
+              <span style="color: var(--text-muted); font-size: 0.75rem; display: flex; align-items: center; gap: 0.25rem;">
                 {{ icon_plus(14) }} Add Option
               </span>
             </div>
