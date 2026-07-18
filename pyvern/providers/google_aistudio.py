@@ -14,6 +14,14 @@ class GoogleAIStudioProvider(GoogleProviderBase):
         super().__init__(api_key, model, params)
         self.client = genai.Client(api_key=self.api_key or os.environ.get("GEMINI_API_KEY"))
 
+    async def fetch_models(self) -> list[dict]:
+        aistudio_models = await self.client.aio.models.list()
+        models = []
+        async for m in aistudio_models:
+            model_id = m.name.split("/")[-1] if "/" in m.name else m.name
+            models.append({"id": model_id, "name": model_id})
+        return models
+
     def _build_config(self, merged: dict, system_instruction: str | None) -> types.GenerateContentConfig:
         include_reasoning = merged.get("include_reasoning", False)
         reasoning_effort = merged.get("reasoning_effort", None)

@@ -292,6 +292,73 @@ async def swipe_message(
         "is_last": new_index == max_index,
     }
 
+@router.post("/{chat_id}/messages/{message_id}/branch")
+async def branch_chat(
+    chat_id: str,
+    message_id: str,
+    db: aiosqlite.Connection = Depends(get_db),
+):
+    async with db.execute(
+        "SELECT character_id, persona_id, preset_id, title FROM chats WHERE id = ?", (chat_id,)
+    ) as cur:
+        chat = await cur.fetchone()
+    if not chat:
+        raise HTTPException(404, "Chat not found")
+
+    async with db.execute(
+        "SELECT position FROM messages WHERE id = ? AND chat_id = ?", (message_id, chat_id)
+    ) as cur:
+        row = await cur.fetchone()
+    if not row:
+        raise HTTPException(404, "Message not found")
+
+    new_chat_id = str(uuid.uuid4())
+    now = now_iso()
+
+    await db.execute(
+        "INSERT INTO chats (id, title, character_id, persona_id, preset_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (new_chat_id, f"Copy of {chat['title']}", chat["character_id"], chat["persona_id"], chat["preset_id"], now, now),
+    )
+
+    async with db.execute(
+        "SELECT * FROM messages WHERE chat_id = ? AND position <= ? ORDER BY position",
+        (chat_id, row["position"]),
+    ) as cur:
+        messages = [dict(r) for r in await cur.fetchall()]
+
+    msg_id_map = {}
+    for msg in messages:
+        new_msg_id = str(uuid.uuid4())
+        msg_id_map[msg["id"]] = new_msg_id
+        await db.execute(
+            "INSERT INTO messages (id, chat_id, role, position, active_index, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+            (new_msg_id, new_chat_id, msg["role"], msg["position"], msg["active_index"], now),
+        )
+
+        async with db.execute(
+            "SELECT * FROM message_variants WHERE message_id = ?", (msg["id"],)
+        ) as cur2:
+            variants = [dict(r) for r in await cur2.fetchall()]
+        for v in variants:
+            new_variant_id = str(uuid.uuid4())
+            await db.execute(
+                "INSERT INTO message_variants (id, message_id, variant_index, content, created_at) VALUES (?, ?, ?, ?, ?)",
+                (new_variant_id, new_msg_id, v["variant_index"], v["content"], now),
+            )
+            async with db.execute(
+                "SELECT * FROM message_attachments WHERE variant_id = ?", (v["id"],)
+            ) as cur3:
+                attachments = [dict(r) for r in await cur3.fetchall()]
+            for att in attachments:
+                await db.execute(
+                    "INSERT INTO message_attachments (id, chat_id, message_id, variant_id, file_path, mime_type, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (str(uuid.uuid4()), new_chat_id, new_msg_id, new_variant_id, att["file_path"], att["mime_type"], now),
+                )
+
+    await db.commit()
+    return {"id": new_chat_id}
+
+
 @router.post("/{chat_id}/attachments", status_code=201)
 async def upload_attachments(
     chat_id: str,

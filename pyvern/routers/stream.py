@@ -85,6 +85,7 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
                 collected.append(token)
         except Exception as e:
             logger.exception(f"Non-stream completion failed for chat_id={body.chat_id}")
+            await _rollback_assistant(final_asst_msg_id)
             raise HTTPException(500, str(e) or repr(e))
 
         full = "".join(collected)
@@ -95,6 +96,7 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
             )
         except Exception as e:
             logger.exception(f"Failed to save non-stream result for chat_id={body.chat_id}")
+            await _rollback_assistant(final_asst_msg_id)
             raise HTTPException(500, f"Generation succeeded but save failed: {str(e) or repr(e)}")
 
         return JSONResponse({
@@ -145,6 +147,7 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
                 yield f"data: {json.dumps({'token': token})}\n\n"
         except Exception as e:
             logger.exception(f"Stream exception for chat_id={body.chat_id}")
+            await _rollback_assistant(final_asst_msg_id)
             err_msg = str(e)
             if not err_msg or err_msg == "()":
                 err_msg = repr(e)
@@ -159,6 +162,7 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
             )
         except Exception as e:
             logger.exception(f"Failed to save stream result for chat_id={body.chat_id}")
+            await _rollback_assistant(final_asst_msg_id)
             err_msg = str(e) or repr(e)
             yield f"data: {json.dumps({'error': f'Generation succeeded but save failed: {err_msg}'})}\n\n"
             return
@@ -216,6 +220,18 @@ async def _save_assistant_variant(
         await save_db.commit()
 
     return new_variant_id
+
+
+async def _rollback_assistant(asst_msg_id: str | None):
+    """Delete the empty assistant row that get_prompt_context eagerly inserts
+    before the provider is called. Called from the stream's exception paths so
+    a failed request leaves the DB in pre-send state (user message is kept)."""
+    if not asst_msg_id:
+        return
+    async with aiosqlite.connect(DB_PATH) as rollback_db:
+        await rollback_db.execute("PRAGMA foreign_keys=ON")
+        await rollback_db.execute("DELETE FROM messages WHERE id = ?", (asst_msg_id,))
+        await rollback_db.commit()
 
 
 @router.post("/itemize")

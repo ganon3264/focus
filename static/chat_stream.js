@@ -371,14 +371,16 @@
           errorToastText.innerText = err.message;
           errorToast.classList.remove('hidden');
         }
-        
-        // Remove empty assistant message from UI if failed immediately
-        if (!fullText.trim() && asstDiv.parentNode) {
+
+        // Remove the in-progress bubble (server rolled back its DB row)
+        if (asstDiv && asstDiv.parentNode) {
           asstDiv.remove();
         }
 
-        // Force a re-fetch of the message list so the last-role syncs with the DB (user message was saved)
-        await refreshMessagesAfterStream(chatId, userMessageId, messageId);
+        // Full refresh so server-rendered message list reflects rolled-back state.
+        // htmx:afterSwap handler will re-run updateSendButtonState(),
+        // which reads data-last-role from the fresh sentinel.
+        htmx.ajax('GET', api.partials.messageList(chatId), {target:'#message-list', swap:'innerHTML'});
       }
     } finally {
       currentController = null;
@@ -864,6 +866,15 @@
   window.deleteModalAttachment = function(idx) {
       window.currentEditAttachments.splice(idx, 1);
       renderEditModalAttachments();
+  };
+
+  window.branchFromMessage = async function(messageId, chatId) {
+    try {
+      const r = await fetch(api.chatBranch(chatId, messageId), { method: 'POST' });
+      if (!r.ok) throw new Error('Branch failed');
+      const d = await r.json();
+      window.location.href = '/chat/' + d.id;
+    } catch(e) { alert(e.message); }
   };
 
   // Re-apply delete mode if DOM is swapped while active

@@ -27,7 +27,7 @@
 }
 </style>
 
-<div x-data="samplerModal()" @provider-changed.window="providerType = $event.detail" class="flex flex-col h-full">
+<div x-data="samplerModal()" @provider-changed.window="onProviderChanged($event.detail)" class="flex flex-col h-full">
   <!-- Tabs -->
   <div class="flex mb-4" style="border-bottom: 1px solid var(--border);">
     <button class="px-4 py-2 text-sm font-medium transition-colors"
@@ -75,14 +75,11 @@
           <label class="text-xs mb-0 cursor-pointer" @click="samplers.stream_enabled = !samplers.stream_enabled; saveStandard()">Streaming</label>
           <div class="arranger-toggle" role="switch" tabindex="0" :class="{ 'active': samplers.stream_enabled }" @click="samplers.stream_enabled = !samplers.stream_enabled; saveStandard()"></div>
         </div>
-        <div class="flex items-center justify-between mt-2 cursor-pointer select-none" @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()">
-          <div class="flex items-center gap-2">
-            <span class="transform transition-transform duration-200 inline-block w-4 text-center text-xs text-muted" :class="samplers.include_reasoning ? 'rotate-90' : ''">▶</span>
-            <span class="text-xs">Include Reasoning</span>
-          </div>
-          <div class="arranger-toggle" role="switch" :aria-checked="samplers.include_reasoning" :class="{ 'active': samplers.include_reasoning }"></div>
+        <div class="form-group mb-0 flex items-center justify-between mt-2">
+          <label class="text-xs mb-0 cursor-pointer" @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()">Include Reasoning</label>
+          <div class="arranger-toggle" role="switch" tabindex="0" :class="{ 'active': samplers.include_reasoning }" @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()"></div>
         </div>
-        <div x-show="samplers.include_reasoning" x-transition.opacity.duration.200ms class="flex flex-col gap-2 mt-1 p-2 rounded-md" style="background: var(--surface-2); border: 1px solid var(--border); display: none;">
+        <div x-show="samplers.include_reasoning" x-transition.opacity.duration.200ms class="flex flex-col gap-2" style="display: none;">
           <div class="form-group mb-0">
             <label class="flex justify-between text-xs mb-2"><span>Reasoning Effort</span></label>
             <div class="flex gap-2 flex-wrap">
@@ -99,14 +96,11 @@
         </div>
 
         <!-- Claude Caching -->
-        <div class="flex items-center justify-between mt-2 cursor-pointer select-none" @click="samplers.cache_enabled = !samplers.cache_enabled; saveStandard()">
-          <div class="flex items-center gap-2">
-            <span class="transform transition-transform duration-200 inline-block w-4 text-center text-xs text-muted" :class="samplers.cache_enabled ? 'rotate-90' : ''">▶</span>
-            <span class="text-xs">Prompt Caching</span>
-          </div>
-          <div class="arranger-toggle" role="switch" :aria-checked="samplers.cache_enabled" :class="{ 'active': samplers.cache_enabled }"></div>
+        <div class="form-group mb-0 flex items-center justify-between mt-2">
+          <label class="text-xs mb-0 cursor-pointer" @click="samplers.cache_enabled = !samplers.cache_enabled; saveStandard()">Prompt Caching</label>
+          <div class="arranger-toggle" role="switch" tabindex="0" :class="{ 'active': samplers.cache_enabled }" @click="samplers.cache_enabled = !samplers.cache_enabled; saveStandard()"></div>
         </div>
-        <div x-show="samplers.cache_enabled" x-transition.opacity.duration.200ms class="flex flex-col gap-2 mt-1 p-2 rounded-md" style="background: var(--surface-2); border: 1px solid var(--border); display: none;">
+        <div x-show="samplers.cache_enabled" x-transition.opacity.duration.200ms class="flex flex-col gap-2" style="display: none;">
           <div class="form-group mb-0">
             <label class="flex justify-between text-xs mb-1"><span>Depth of Turns</span> <span x-text="samplers.cache_depth"></span></label>
             <input type="number" min="1" max="50" step="1" x-model.number="samplers.cache_depth" @change="saveStandard()" class="form-control text-sm w-full">
@@ -134,12 +128,9 @@
           <label class="text-xs mb-0 cursor-pointer" @click="samplers.stream_enabled = !samplers.stream_enabled; saveStandard()">Streaming</label>
           <div class="arranger-toggle" role="switch" tabindex="0" :class="{ 'active': samplers.stream_enabled }" @click="samplers.stream_enabled = !samplers.stream_enabled; saveStandard()"></div>
         </div>
-        <div class="flex items-center justify-between mt-2 cursor-pointer select-none" @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()">
-          <div class="flex items-center gap-2">
-            <span class="transform transition-transform duration-200 inline-block w-4 text-center text-xs text-muted" :class="samplers.include_reasoning ? 'rotate-90' : ''">▶</span>
-            <span class="text-xs">Enable Thinking / Reasoning</span>
-          </div>
-          <div class="arranger-toggle" role="switch" :aria-checked="samplers.include_reasoning" :class="{ 'active': samplers.include_reasoning }"></div>
+        <div class="form-group mb-0 flex items-center justify-between mt-2">
+          <label class="text-xs mb-0 cursor-pointer" @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()">Enable Thinking / Reasoning</label>
+          <div class="arranger-toggle" role="switch" tabindex="0" :class="{ 'active': samplers.include_reasoning }" @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()"></div>
         </div>
         <div class="form-group mb-0" x-show="samplers.include_reasoning" x-transition.opacity.duration.200ms style="display: none;">
           <label class="flex justify-between text-xs mb-2"><span>Reasoning Effort</span></label>
@@ -165,16 +156,9 @@
           <label class="text-xs mb-0 cursor-pointer" @click="samplers.stream_enabled = !samplers.stream_enabled; saveStandard()">Streaming</label>
           <div class="arranger-toggle" role="switch" tabindex="0" :class="{ 'active': samplers.stream_enabled }" @click="samplers.stream_enabled = !samplers.stream_enabled; saveStandard()"></div>
         </div>
-        <div class="flex items-center justify-between mt-2 cursor-pointer select-none" @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()">
-          <div class="flex items-center gap-2">
-            <span class="transform transition-transform duration-200 inline-block w-4 text-center text-xs text-muted" :class="samplers.include_reasoning ? 'rotate-90' : ''">▶</span>
-            <span class="text-xs">Enable Thinking</span>
-          </div>
-          <div class="arranger-toggle" role="switch" :aria-checked="samplers.include_reasoning" :class="{ 'active': samplers.include_reasoning }"></div>
-        </div>
         <div class="form-group mb-0 flex items-center justify-between mt-2">
-          <label class="text-xs mb-0 cursor-pointer" @click="samplers.send_reasoning_history = !samplers.send_reasoning_history; saveStandard()">Send Reasoning History</label>
-          <div class="arranger-toggle" role="switch" tabindex="0" :class="{ 'active': samplers.send_reasoning_history }" @click="samplers.send_reasoning_history = !samplers.send_reasoning_history; saveStandard()"></div>
+          <label class="text-xs mb-0 cursor-pointer" @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()">Enable Thinking</label>
+          <div class="arranger-toggle" role="switch" tabindex="0" :class="{ 'active': samplers.include_reasoning }" @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()"></div>
         </div>
         <div class="form-group mb-0" x-show="samplers.include_reasoning" x-transition.opacity.duration.200ms style="display: none;">
           <label class="flex justify-between text-xs mb-2"><span>Thinking Level</span></label>
@@ -185,6 +169,10 @@
               <button class="btn-tag" :class="samplers.reasoning_effort === 'MEDIUM' ? 'active' : ''" @click.stop="samplers.reasoning_effort = 'MEDIUM'; saveStandard()">Med</button>
               <button class="btn-tag" :class="samplers.reasoning_effort === 'HIGH' ? 'active' : ''" @click.stop="samplers.reasoning_effort = 'HIGH'; saveStandard()">High</button>
             </div>
+        </div>
+        <div class="form-group mb-0 flex items-center justify-between mt-2">
+          <label class="text-xs mb-0 cursor-pointer" @click="samplers.send_reasoning_history = !samplers.send_reasoning_history; saveStandard()">Send Reasoning History</label>
+          <div class="arranger-toggle" role="switch" tabindex="0" :class="{ 'active': samplers.send_reasoning_history }" @click="samplers.send_reasoning_history = !samplers.send_reasoning_history; saveStandard()"></div>
         </div>
       </div>
     </template>
@@ -222,52 +210,56 @@ document.addEventListener('alpine:init', () => {
   Alpine.data('samplerModal', () => ({
     tab: 'standard',
     providerType: localStorage.getItem('pyvern-provider-type') || 'openai_compat',
-    
-     samplers: {
-       temperature: 1.0,
-       max_tokens: 1024,
-       top_p: 0.95,
-       top_k: 40,
-       min_p: 0.05,
-       repetition_penalty: 1.0,
-       frequency_penalty: 0.0,
-       presence_penalty: 0.0,
+
+    samplers: {},
+    customFields: [],
+
+    defaultSamplers() {
+      return {
+        temperature: 1.0,
+        max_tokens: 1024,
+        top_p: 0.95,
+        top_k: 40,
+        min_p: 0.05,
+        repetition_penalty: 1.0,
+        frequency_penalty: 0.0,
+        presence_penalty: 0.0,
         include_reasoning: false,
         send_reasoning_history: true,
         reasoning_effort: '',
         thinking_budget: 0,
         stream_enabled: true,
-       cache_enabled: false,
-       cache_ttl: 'ephemeral',
-       cache_depth: 5
-     },
-    
-    customFields: [],
+        cache_enabled: false,
+        cache_ttl: 'ephemeral',
+        cache_depth: 5,
+      };
+    },
+
+    storageKey(type) {
+      return `pyvern-samplers-${type}`;
+    },
+
+    customStorageKey(type) {
+      return `pyvern-custom-samplers-${type}`;
+    },
+
+    loadStandard() {
+      const key = this.storageKey(this.providerType);
+      const saved = localStorage.getItem(key);
+      this.samplers = saved
+        ? { ...this.defaultSamplers(), ...JSON.parse(saved) }
+        : { ...this.defaultSamplers() };
+    },
+
+    loadCustom() {
+      const key = this.customStorageKey(this.providerType);
+      const saved = localStorage.getItem(key);
+      this.customFields = saved ? JSON.parse(saved) : [];
+    },
 
     init() {
-      // Load standard samplers
-      const savedStd = localStorage.getItem('pyvern-standard-samplers');
-      if (savedStd) {
-        try {
-          this.samplers = { ...this.samplers, ...JSON.parse(savedStd) };
-        } catch(e) {}
-      } else {
-        // Fallback for old standalone keys
-        const oldTemp = localStorage.getItem('pyvern-sampler-temp');
-        if(oldTemp) this.samplers.temperature = parseFloat(oldTemp);
-        const oldMax = localStorage.getItem('pyvern-sampler-max-tokens');
-        if(oldMax) this.samplers.max_tokens = parseInt(oldMax);
-        const oldTopP = localStorage.getItem('pyvern-sampler-top-p');
-        if(oldTopP) this.samplers.top_p = parseFloat(oldTopP);
-      }
-
-      // Load custom fields
-      const savedCust = localStorage.getItem('pyvern-custom-samplers');
-      if (savedCust) {
-        try {
-          this.customFields = JSON.parse(savedCust);
-        } catch(e) {}
-      }
+      this.loadStandard();
+      this.loadCustom();
 
       // Make global function to retrieve payload
       window.getActiveSamplers = () => {
@@ -277,7 +269,7 @@ document.addEventListener('alpine:init', () => {
           top_p: this.samplers.top_p,
           stream_enabled: this.samplers.stream_enabled
         };
-        
+
         if (this.providerType === 'openrouter') {
           payload.top_k = this.samplers.top_k;
           payload.min_p = this.samplers.min_p;
@@ -296,8 +288,12 @@ document.addEventListener('alpine:init', () => {
         } else if (this.providerType === 'google_vertex' || this.providerType === 'google_aistudio') {
           payload.top_k = this.samplers.top_k;
           payload.send_reasoning_history = this.samplers.send_reasoning_history;
+          if (this.samplers.include_reasoning) {
+            payload.include_reasoning = true;
+            payload.reasoning_effort = this.samplers.reasoning_effort;
+          }
         }
-        
+
         // Add enabled custom fields
         for (let item of this.customFields) {
           if (item.enabled && item.key) {
@@ -310,17 +306,26 @@ document.addEventListener('alpine:init', () => {
             payload[item.key] = val;
           }
         }
-        
+
         return payload;
       };
     },
 
     saveStandard() {
-      localStorage.setItem('pyvern-standard-samplers', JSON.stringify(this.samplers));
+      localStorage.setItem(this.storageKey(this.providerType), JSON.stringify(this.samplers));
     },
 
     saveCustom() {
-      localStorage.setItem('pyvern-custom-samplers', JSON.stringify(this.customFields));
+      localStorage.setItem(this.customStorageKey(this.providerType), JSON.stringify(this.customFields));
+    },
+
+    onProviderChanged(newType) {
+      if (newType === this.providerType) return;
+      this.saveStandard();
+      this.saveCustom();
+      this.providerType = newType;
+      this.loadStandard();
+      this.loadCustom();
     },
 
     addCustom() {
@@ -331,7 +336,7 @@ document.addEventListener('alpine:init', () => {
     removeCustom(idx) {
       this.customFields.splice(idx, 1);
       this.saveCustom();
-    }
+    },
   }));
 });
 </script>

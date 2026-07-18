@@ -6,6 +6,7 @@ window.api = {
   chatMessage: function(chatId, msgId) { return '/api/chats/' + chatId + '/messages/' + msgId; },
   chatBulkDelete: function(chatId) { return '/api/chats/' + chatId + '/messages/bulk_delete'; },
   chatSwipe: function(chatId, msgId) { return '/api/chats/' + chatId + '/messages/' + msgId + '/swipe'; },
+  chatBranch: function(chatId, msgId) { return '/api/chats/' + chatId + '/messages/' + msgId + '/branch'; },
 
   characters: function(id) { return '/api/characters/' + id; },
   charImport: '/api/characters/import',
