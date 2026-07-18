@@ -6,10 +6,11 @@
 <div class="app-shell">
   <!-- Left Sidebar -->
   <aside class="left-sidebar" id="left-sidebar">
+    <div class="sidebar-inner">
     <div class="sidebar-section">
       <div class="sidebar-title">
         <span>Preset</span>
-        <button class="action-icon" onclick="toggleLeftBar()" title="Collapse" style="margin-top: -0.3rem;" aria-label="Toggle sidebar">{{ icon_chevron_left() }}</button>
+        <button class="action-icon" onclick="toggleSidebar('left')" title="Collapse" style="margin-top: -0.3rem;" aria-label="Toggle sidebar">{{ icon_chevron_left() }}</button>
       </div>
       <div id="preset-selector">
         {% include "presets/preset_selector.html" %}
@@ -51,10 +52,11 @@
         <div class="flex justify-between gap-2 hidden" id="status-cache-row"><span class="text-muted">Cache</span> <span class="font-bold truncate max-w-[130px]" id="status-cache"></span></div>
       </div>
     </div>
+    </div>
   </aside>
 
   <!-- Collapsed left tab -->
-  <div id="left-tab" class="left-tab hidden" onclick="toggleLeftBar()" role="button" tabindex="0">
+  <div id="left-tab" class="left-tab hidden" onclick="toggleSidebar('left')" role="button" tabindex="0">
     <div class="sidebar-title" style="writing-mode: vertical-rl; padding: 0.5rem 0; cursor: pointer; color: var(--text);">{{ icon_chevron_left() }} Preset</div>
   </div>
 
@@ -138,9 +140,10 @@
 
   <!-- Right Sidebar -->
   <aside class="right-sidebar" id="right-sidebar">
+    <div class="sidebar-inner">
     <div class="sidebar-section flex flex-col h-full" style="border-bottom: none;">
       <div class="sidebar-title flex justify-between items-center">
-        <button class="action-icon" onclick="toggleRightBar()" title="Collapse" style="margin-top: -0.3rem;" aria-label="Toggle sidebar">{{ icon_chevron_right() }}</button>
+        <button class="action-icon" onclick="toggleSidebar('right')" title="Collapse" style="margin-top: -0.3rem;" aria-label="Toggle sidebar">{{ icon_chevron_right() }}</button>
         <span>Chats</span>
       </div>
       
@@ -157,10 +160,11 @@
     <div style="padding: 0.75rem 1.25rem; flex-shrink: 0; text-align: center;">
       <button class="btn btn-secondary btn-sm" onclick="openChatTrashModal()">{{ icon_trash(14) }} Trash Bin</button>
     </div>
+    </div>
   </aside>
 
   <!-- Collapsed right tab -->
-   <div id="right-tab" class="right-tab hidden" onclick="toggleRightBar()" role="button" tabindex="0">
+   <div id="right-tab" class="right-tab hidden" onclick="toggleSidebar('right')" role="button" tabindex="0">
     <div class="sidebar-title" style="writing-mode: vertical-rl; padding: 0.5rem 0; cursor: pointer; color: var(--text);">Chats {{ icon_chevron_right() }}</div>
   </div>
 </div>
@@ -474,10 +478,6 @@ function closeModal(id){
   const el = document.getElementById(id);
   if (el) el.classList.add('hidden');
 }
-function toggleRightBar(){
-  document.getElementById('right-sidebar').classList.toggle('hidden');
-  document.getElementById('right-tab').classList.toggle('hidden');
-}
 window.toggleReasoning = function(btn) {
   const msg = btn.closest('.msg') || btn.closest('.message');
   if (!msg) return;
@@ -490,9 +490,9 @@ window.toggleReasoning = function(btn) {
   }
   msg.classList.toggle('reasoning-open');
 };
-function toggleLeftBar(){
-  document.getElementById('left-sidebar').classList.toggle('hidden');
-  document.getElementById('left-tab').classList.toggle('hidden');
+function toggleSidebar(side) {
+  document.getElementById(side + '-sidebar').classList.toggle('collapsed');
+  document.getElementById(side + '-tab').classList.toggle('hidden');
 }
 </script>
 

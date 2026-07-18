@@ -25,6 +25,7 @@ media_thumbnail %}
           display: inline-flex;
           align-items: center;
           justify-content: center;
+          transition: rotate var(--transition);
         "
         :class="expanded ? 'rotate-90' : ''"
         >{{ icon_chevron_right(12) }}</span

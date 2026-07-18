@@ -200,6 +200,17 @@ async def add_block(
     block_id = str(uuid.uuid4())
     next_pos = await crud.next_position(db, "preset_blocks", "preset_id", preset_id)
 
+    enabled = int(body.enabled)
+    if enabled and body.block_type == "variable":
+        group_name = variable_group_name(body.name)
+        async with db.execute(
+            "SELECT 1 FROM preset_blocks WHERE preset_id = ? AND block_type = 'variable' "
+            "AND enabled = 1 AND (name = ? OR name LIKE ?) LIMIT 1",
+            (preset_id, group_name, f"{group_name}:%"),
+        ) as cur:
+            if await cur.fetchone():
+                enabled = 0
+
     await db.execute(
         """INSERT INTO preset_blocks
            (id, preset_id, name, content, role, enabled, position, block_type, injection_depth, injection_order)
@@ -210,7 +221,7 @@ async def add_block(
             body.name,
             body.content,
             body.role,
-            int(body.enabled),
+            enabled,
             next_pos,
             body.block_type,
             body.injection_depth,

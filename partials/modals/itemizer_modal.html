@@ -33,9 +33,7 @@
         <div
           class="px-3 py-2 flex justify-between items-center text-xs font-bold uppercase tracking-wider cursor-pointer select-none"
           @click="expanded = !expanded"
-          :style="msg.role === 'system' ? 'background: var(--accent-dim); color: var(--accent);' : 
-                     msg.role === 'user' ? 'background: var(--surface-2);' : 
-                     'background: rgba(16, 185, 129, 0.1); color: #10b981;'"
+          :class="'itemizer-role-' + msg.role"
         >
           <div class="flex items-center gap-2">
             <span

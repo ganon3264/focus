@@ -55,6 +55,24 @@
 
   /* Text-on-accent for buttons — override in theme presets if needed */
   --text-on-accent: white;
+
+  /* Sidebar widths */
+  --sidebar-width-left: 310px;
+  --sidebar-width-right: 310px;
+
+  /* Role colors for arranger items (user/assistant) */
+  --role-user: #10b981;
+  --role-assistant: #f59e0b;
+}
+
+/* ── Reduced motion ─────────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* ── Base: reset & document defaults ──────────────────────────────────────── */
@@ -121,7 +139,7 @@
     box-shadow: var(--shadow-sm);
     transition: all var(--transition);
     cursor: pointer;
-    border-radius: 0;
+    border-radius: var(--radius-sm);
   }
   input[type='color']:hover {
     border-color: var(--border-hover);
@@ -134,6 +152,14 @@
     box-shadow: var(--shadow-glow);
     background: var(--surface-3);
   }
+  :where(input, textarea, select):focus:not(:focus-visible) {
+    box-shadow: var(--shadow-glow);
+    border-color: var(--accent);
+  }
+  :where(input, textarea, select):focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
 }
 
 /* ── Components: layout ───────────────────────────────────────────────────── */
@@ -144,7 +170,7 @@
     overflow: hidden;
   }
   .left-sidebar {
-    width: 320px;
+    width: var(--sidebar-width-left);
     background: var(--surface);
     border-right: 1px solid var(--border);
     display: flex;
@@ -152,6 +178,12 @@
     flex-shrink: 0;
     z-index: 10;
     box-shadow: var(--shadow-sm);
+    transition: width var(--transition), opacity var(--transition);
+    overflow: hidden;
+  }
+  .left-sidebar.collapsed {
+    width: 0;
+    opacity: 0;
   }
   .main-content {
     flex: 1;
@@ -162,15 +194,29 @@
     position: relative;
   }
   .right-sidebar {
-    width: 280px;
+    width: var(--sidebar-width-right);
     background: var(--surface);
     border-left: 1px solid var(--border);
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
     z-index: 10;
-    transition: width var(--transition);
+    transition: width var(--transition), opacity var(--transition);
     box-shadow: -2px 0 10px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+  }
+  .right-sidebar.collapsed {
+    width: 0;
+    opacity: 0;
+  }
+
+  .sidebar-inner {
+    width: var(--sidebar-width-left);
+    min-width: var(--sidebar-width-left);
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
   }
 
   /* Sidebar Sections */
@@ -214,7 +260,7 @@
     align-items: center;
     gap: 0.75rem;
     font-size: 0.9rem;
-    transition: all var(--transition);
+    transition: background var(--transition), border-color var(--transition), color var(--transition);
     border: 1px solid transparent;
     text-decoration: none;
     color: inherit;
@@ -589,18 +635,13 @@
     display: flex;
     gap: 0.5rem;
     align-items: center;
-    background: color-mix(in srgb, var(--surface) 70%, transparent);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 24px;
     padding: 0.6rem;
     width: 100%;
     max-width: min(85%, 820px);
-    box-shadow: var(--shadow-lg);
-    transition:
-      border-color var(--transition),
-      box-shadow var(--transition);
+    transition: border-color var(--transition);
     pointer-events: auto;
   }
   .input-wrapper:focus-within {
@@ -810,6 +851,55 @@
     transform: translateX(14px);
   }
 
+  /* Radio Switch for variable options */
+  .radio-switch {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    cursor: pointer;
+    transition: all var(--transition);
+    background: transparent;
+  }
+  .radio-switch:hover {
+    border-color: var(--border-hover);
+  }
+  .radio-switch.active {
+    border-color: var(--accent);
+  }
+  .radio-switch .radio-inner {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: transparent;
+    transition: all var(--transition);
+  }
+  .radio-switch.active .radio-inner {
+    background: var(--accent);
+  }
+  .radio-add-row {
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all var(--transition);
+  }
+  .radio-add-row:hover {
+    border-color: var(--accent);
+    background: var(--accent-faint);
+  }
+
+  /* Variable group containers — override arranger-item hover lift */
+  .var-group-container:hover {
+    transform: none !important;
+    box-shadow: var(--shadow-sm) !important;
+  }
+  .var-option-item:hover {
+    border-color: var(--border-hover) !important;
+  }
+
   /* Prompt Arranger Drag & Drop */
   .arranger-list {
     display: flex;
@@ -988,18 +1078,18 @@
     border-color: var(--active-border);
   }
   .arranger-item.bg-role-user {
-    background: rgba(16, 185, 129, 0.08);
-    border-color: rgba(16, 185, 129, 0.25);
+    background: color-mix(in srgb, var(--role-user) 8%, transparent);
+    border-color: color-mix(in srgb, var(--role-user) 25%, transparent);
   }
   .arranger-item.bg-role-user:hover {
-    border-color: rgba(16, 185, 129, 0.5);
+    border-color: color-mix(in srgb, var(--role-user) 50%, transparent);
   }
   .arranger-item.bg-role-assistant {
-    background: rgba(245, 158, 11, 0.08);
-    border-color: rgba(245, 158, 11, 0.25);
+    background: color-mix(in srgb, var(--role-assistant) 8%, transparent);
+    border-color: color-mix(in srgb, var(--role-assistant) 25%, transparent);
   }
   .arranger-item.bg-role-assistant:hover {
-    border-color: rgba(245, 158, 11, 0.5);
+    border-color: color-mix(in srgb, var(--role-assistant) 50%, transparent);
   }
 
   .arranger-body {
@@ -1076,6 +1166,20 @@
     color: var(--active-text);
   }
 
+  /* Itemizer role headers */
+  .itemizer-role-system {
+    background: var(--accent-dim);
+    color: var(--accent);
+  }
+  .itemizer-role-user {
+    background: color-mix(in srgb, var(--role-user) 10%, transparent);
+    color: var(--role-user);
+  }
+  .itemizer-role-assistant {
+    background: color-mix(in srgb, var(--role-assistant) 10%, transparent);
+    color: var(--role-assistant);
+  }
+
   /* Modals */
   .modal-overlay {
     position: fixed;
@@ -1098,7 +1202,7 @@
     border-radius: var(--radius-xl);
     padding: 1.5rem;
     width: 100%;
-    max-width: 420px;
+    max-width: 500px;
     max-height: 90vh;
     overflow-y: auto;
     box-shadow: var(--shadow-lg);

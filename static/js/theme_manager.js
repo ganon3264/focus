@@ -33,6 +33,8 @@ const PRESET_THEMES = {
     '--accent': '#6366f1',
     '--text': '#f1f3f5',
     '--text-muted': '#8b949e',
+    '--role-user': '#10b981',
+    '--role-assistant': '#f59e0b',
   },
   midnight: {
     '--bg': '#000000',
@@ -43,6 +45,8 @@ const PRESET_THEMES = {
     '--accent': '#3b82f6',
     '--text': '#ffffff',
     '--text-muted': '#9ca3af',
+    '--role-user': '#34d399',
+    '--role-assistant': '#fbbf24',
   },
   light: {
     '--bg': '#f8fafc',
@@ -53,6 +57,8 @@ const PRESET_THEMES = {
     '--accent': '#4f46e5',
     '--text': '#0f172a',
     '--text-muted': '#64748b',
+    '--role-user': '#059669',
+    '--role-assistant': '#d97706',
   },
 };
 
