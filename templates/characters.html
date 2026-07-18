@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}Characters - Pyvern{% endblock %}
+{% block content %}
+<div class="p-3" x-data="{ detailId: null }">
+  <div class="flex justify-between items-center mb-3">
+    <h1 class="text-xl font-bold">Characters</h1>
+    <form hx-post="/api/characters/import" hx-encoding="multipart/form-data" hx-target="#char-grid" hx-swap="beforeend" hx-indicator="#import-indicator">
+      <label class="btn btn-primary" style="cursor:pointer">
+        Import PNG
+        <input type="file" name="file" accept="image/png" class="hidden" onchange="this.closest('form').requestSubmit()">
+      </label>
+    </form>
+    <span id="import-indicator" class="hidden text-sm text-muted">Importing…</span>
+  </div>
+
+  <div class="grid" id="char-grid">
+    {% for char in characters %}
+    <div class="card" @click="detailId = detailId === '{{ char.id }}' ? null : '{{ char.id }}'">
+      <div class="card-image">
+        {% if char.image_path %}
+          <img src="/{{ char.image_path }}" alt="">
+        {% else %}
+          <span class="text-2xl">{{ char.name[:1] }}</span>
+        {% endif %}
+      </div>
+      <div class="card-body">
+        <div class="font-bold truncate">{{ char.name }}</div>
+        <div class="text-muted text-sm truncate">{{ char.card.get('description','')[:50] }}</div>
+      </div>
+    </div>
+
+    <div class="col-span-full" x-show="detailId === '{{ char.id }}'" x-cloak style="display:none;">
+      <div class="p-3 mb-3" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;">
+        <div class="flex justify-between items-center mb-2">
+          <h2 class="text-lg font-bold">{{ char.name }}</h2>
+          <div class="flex gap-2">
+            <button class="btn btn-primary btn-sm" onclick="saveCharCard('{{ char.id }}')">Save Card</button>
+            <button class="btn btn-danger btn-sm" hx-delete="/api/characters/{{ char.id }}" hx-confirm="Delete character?" hx-target="closest .col-span-full" hx-swap="delete">Delete</button>
+          </div>
+        </div>
+        <div class="grid gap-2 mb-3" style="grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));">
+          <div class="form-group">
+            <label>Name</label>
+            <input type="text" id="char-name-{{ char.id }}" value="{{ char.name }}">
+          </div>
+          <div class="form-group">
+            <label>Avatar</label>
+            <form hx-post="/api/characters/{{ char.id }}/avatar" hx-encoding="multipart/form-data" hx-swap="none">
+              <label class="btn btn-secondary btn-sm w-full" style="cursor:pointer">
+                Upload
+                <input type="file" name="file" class="hidden" onchange="this.closest('form').requestSubmit()">
+              </label>
+            </form>
+          </div>
+          <div class="form-group">
+            <label>Description</label>
+            <textarea id="char-desc-{{ char.id }}" rows="3">{{ char.card.get('description','') }}</textarea>
+          </div>
+          <div class="form-group">
+            <label>Personality</label>
+            <textarea id="char-personality-{{ char.id }}" rows="3">{{ char.card.get('personality','') }}</textarea>
+          </div>
+          <div class="form-group">
+            <label>Scenario</label>
+            <textarea id="char-scenario-{{ char.id }}" rows="3">{{ char.card.get('scenario','') }}</textarea>
+          </div>
+          <div class="form-group">
+            <label>First Message</label>
+            <textarea id="char-first-{{ char.id }}" rows="3">{{ char.card.get('first_mes','') }}</textarea>
+          </div>
+          <div class="form-group">
+            <label>Mes Example</label>
+            <textarea id="char-example-{{ char.id }}" rows="3">{{ char.card.get('mes_example','') }}</textarea>
+          </div>
+        </div>
+
+        <h3 class="sidebar-title mb-2">Blocks</h3>
+        <div class="flex flex-col gap-2 mb-2">
+          {% for block in char.blocks %}
+          <div class="flex gap-2 items-start">
+            <input type="text" class="flex-1 text-sm" value="{{ block.name }}" placeholder="Name"
+              onchange="fetch('/api/characters/{{ char.id }}/blocks/{{ block.id }}', {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name:this.value})})"
+            >
+            <textarea class="flex-[2] text-sm" rows="2" placeholder="Content"
+              onchange="fetch('/api/characters/{{ char.id }}/blocks/{{ block.id }}', {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({content:this.value})})"
+            >{{ block.content }}</textarea>
+            <button class="btn btn-danger btn-sm" title="Delete"
+              onclick="fetch('/api/characters/{{ char.id }}/blocks/{{ block.id }}', {method:'DELETE'}).then(()=>window.location.reload())"
+            >×</button>
+          </div>
+          {% endfor %}
+          <button class="btn btn-secondary btn-sm w-full" onclick="fetch('/api/characters/{{ char.id }}/blocks', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name:'New Block',content:'',role:'system'})}).then(()=>window.location.reload())">+ Add Block</button>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+<script>
+function saveCharCard(charId){
+  const payload = {
+    name: document.getElementById('char-name-'+charId).value,
+    description: document.getElementById('char-desc-'+charId).value,
+    personality: document.getElementById('char-personality-'+charId).value,
+    scenario: document.getElementById('char-scenario-'+charId).value,
+    first_mes: document.getElementById('char-first-'+charId).value,
+    mes_example: document.getElementById('char-example-'+charId).value
+  };
+  fetch('/api/characters/'+charId, {
+    method: 'PATCH',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(payload)
+  }).then(function(r){
+    if(r.ok) alert('Saved');
+  });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,44 @@
+<div class="arranger-list" id="arranger-list-{{ preset_id }}"
+  hx-put="/api/presets/{{ preset_id }}/blocks"
+  hx-trigger="sortEnd"
+  hx-target="#prompt-arranger"
+  hx-swap="innerHTML"
+  hx-include="[name='block_order']"
+>
+  {% for block in blocks %}
+    {% include "prompt_block.html" %}
+  {% endfor %}
+</div>
+<script>
+(function(){
+  const el = document.getElementById('arranger-list-{{ preset_id }}');
+  if(!el) return;
+  if(el._sortable) el._sortable.destroy();
+  el._sortable = new Sortable(el, {
+    animation: 150,
+    ghostClass: 'sortable-ghost',
+    onEnd: function(){
+      const ids = Array.from(el.children).map(function(c){ return c.dataset.blockId; });
+      const form = document.createElement('form');
+      ids.forEach(function(id, idx){
+        const inp = document.createElement('input');
+        inp.type = 'hidden'; inp.name = 'block_order'; inp.value = id;
+        form.appendChild(inp);
+      });
+      document.body.appendChild(form);
+      const evt = new Event('sortEnd');
+      el.dispatchEvent(evt);
+      // HTMX will pick up the trigger, but we need to include the inputs
+      // Use htmx.ajax directly for reliability
+      const body = ids.map(function(id, idx){ return {id: id, position: idx}; });
+      fetch('/api/presets/{{ preset_id }}/blocks', {
+        method: 'PUT',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({blocks: body})
+      }).then(function(){
+        htmx.ajax('GET', '/partials/prompt-arranger/{{ preset_id }}', {target:'#prompt-arranger', swap:'innerHTML'});
+      });
+    }
+  });
+})();
+</script>

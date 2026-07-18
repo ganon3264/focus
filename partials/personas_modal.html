@@ -1,0 +1,28 @@
+<div class="grid" style="grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 1rem;">
+  {% for p in personas %}
+  <div class="card" style="cursor:pointer;" onclick="selectPersonaModal('{{ p.id }}')">
+    <div class="card-image" style="aspect-ratio: 1/1; border-radius: 10px;">
+      {% if p.avatar_path %}
+        <img src="/{{ p.avatar_path }}" alt="" style="border-radius: 10px;">
+      {% else %}
+        <span class="text-2xl">{{ p.name[:1] }}</span>
+      {% endif %}
+    </div>
+    <div class="card-body" style="padding: 0.5rem;">
+      <div class="font-bold text-sm truncate">{{ p.name }}</div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+<script>
+function selectPersonaModal(pid){
+  const chatId = document.getElementById('send-btn').dataset.chatId;
+  fetch('/api/chats/' + chatId, {
+    method: 'PATCH',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({persona_id: pid})
+  }).then(function(){
+    closeModal('modal-personas');
+  });
+}
+</script>

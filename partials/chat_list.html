@@ -1,0 +1,5 @@
+{% for chat in chats %}
+<a href="/chat/{{ chat.id }}" class="sidebar-item {% if current_chat_id == chat.id %}active{% endif %}">
+  <div class="truncate text-sm">{{ chat.title }}</div>
+</a>
+{% endfor %}

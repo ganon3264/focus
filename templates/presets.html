@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Presets - Pyvern{% endblock %}
+{% block content %}
+<div class="p-3" x-data="{ activePreset: '{{ presets[0].id if presets else '' }}' }">
+  <div class="flex justify-between items-center mb-3">
+    <h1 class="text-xl font-bold">Presets</h1>
+    <form onsubmit="createPreset(event)" class="flex gap-2">
+      <input type="text" name="name" placeholder="New preset name" required class="text-sm" style="background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:0.4rem;">
+      <button class="btn btn-primary btn-sm">Create</button>
+    </form>
+  </div>
+
+  <div class="flex gap-3" style="height:calc(100vh - 80px);">
+    <!-- Preset list -->
+    <div style="width:220px;flex-shrink:0;" class="flex flex-col gap-1">
+      {% for p in presets %}
+      <div class="sidebar-item" :class="{'active': activePreset === '{{ p.id }}'}"
+        @click="activePreset = '{{ p.id }}'; document.getElementById('preset-editor-panel').dataset.activePreset = '{{ p.id }}'; htmx.ajax('GET', '/partials/prompt-arranger/{{ p.id }}', {target:'#preset-editor', swap:'innerHTML'})"
+      >
+        <div class="text-sm truncate flex-1">{{ p.name }}</div>
+        <button class="btn btn-danger btn-sm" style="margin-left:auto;" hx-delete="/api/presets/{{ p.id }}" hx-confirm="Delete?" hx-target="closest div" hx-swap="delete">×</button>
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- Block editor -->
+    <div class="flex-1 flex flex-col gap-2 min-w-0" id="preset-editor-panel" data-active-preset="{{ presets[0].id if presets else '' }}">
+      <div class="flex-1 overflow-auto" id="preset-editor" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1rem;">
+        {% if presets %}
+          {% with preset_id = presets[0].id, blocks = presets[0].blocks %}
+            {% include "prompt_arranger.html" %}
+          {% endwith %}
+        {% else %}
+          <div class="text-muted">No presets. Create one to start.</div>
+        {% endif %}
+      </div>
+      <div class="flex gap-2 flex-wrap" x-show="activePreset" x-cloak style="display:none;">
+        <button class="btn btn-secondary btn-sm" @click="addPresetBlock(activePreset, 'text')">+ Text</button>
+        <button class="btn btn-secondary btn-sm" @click="addPresetBlock(activePreset, 'char_description')">+ Char Description</button>
+        <button class="btn btn-secondary btn-sm" @click="addPresetBlock(activePreset, 'char_personality')">+ Char Personality</button>
+        <button class="btn btn-secondary btn-sm" @click="addPresetBlock(activePreset, 'char_blocks')">+ Char Blocks</button>
+        <button class="btn btn-secondary btn-sm" @click="addPresetBlock(activePreset, 'chat_history')">+ Chat History</button>
+        <button class="btn btn-secondary btn-sm" @click="addPresetBlock(activePreset, 'user_persona')">+ User Persona</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+function createPreset(e){
+  e.preventDefault();
+  const data = Object.fromEntries(new FormData(e.target));
+  fetch('/api/presets', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(data)
+  }).then(function(){ window.location.reload(); });
+}
+function addPresetBlock(pid, type){
+  if(!pid) return;
+  type = type || 'text';
+  fetch('/api/presets/' + pid + '/blocks', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({name: type, block_type: type, content: '', role: 'system'})
+  }).then(function(){
+    htmx.ajax('GET', '/partials/prompt-arranger/' + pid, {target:'#preset-editor', swap:'innerHTML'});
+  });
+}
+</script>
+{% endblock %}

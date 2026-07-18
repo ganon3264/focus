@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}Chat - Pyvern{% endblock %}
+{% block content %}
+<div class="app-shell">
+  <!-- Left Sidebar -->
+  <aside class="left-sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-title">Preset</div>
+      <div id="preset-selector">
+        {% include "preset_selector.html" %}
+      </div>
+    </div>
+    <div class="sidebar-section flex-1 overflow-auto">
+      <div class="sidebar-title">Prompt Arranger</div>
+      <div id="prompt-arranger">
+        {% if preset %}
+          {% with preset_id = preset.id, blocks = preset_blocks %}
+            {% include "prompt_arranger.html" %}
+          {% endwith %}
+        {% else %}
+          <div class="text-muted text-sm p-2">Select a preset to edit blocks.</div>
+        {% endif %}
+      </div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-title">Tools</div>
+      <div class="flex flex-col gap-2">
+        <button class="btn btn-secondary w-full" onclick="openModal('modal-sampler')">Samplers</button>
+        <button class="btn btn-secondary w-full" onclick="openModal('modal-characters')">Characters</button>
+        <button class="btn btn-secondary w-full" onclick="openModal('modal-personas')">Personas</button>
+        <button class="btn btn-secondary w-full" onclick="openModal('modal-presets')">Presets</button>
+        <button class="btn btn-secondary w-full" onclick="openModal('modal-providers')">Providers</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Center -->
+  <main class="main-content">
+    <div class="chat-center">
+      <div class="message-list" id="message-list">
+        {% include "message_list.html" %}
+      </div>
+    </div>
+    <div class="input-bar">
+      <textarea id="chat-input" rows="1" placeholder="Type a message…" onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();document.getElementById('send-btn').click()}"></textarea>
+      <button id="send-btn" class="send-btn" data-chat-id="{{ chat_id }}" data-provider-id="{{ providers[0].id if providers else '' }}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22,2 15,22 11,13 2,9 22,2"></polygon></svg>
+      </button>
+      <button id="stop-btn" class="send-btn stop-btn hidden">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12"></rect></svg>
+      </button>
+    </div>
+  </main>
+
+  <!-- Right Sidebar (chats only, collapsible) -->
+  <aside class="right-sidebar" id="right-sidebar">
+    <div class="sidebar-section flex-1 overflow-auto">
+      <div class="sidebar-title flex justify-between items-center">
+        <span>Chats</span>
+        <button class="btn btn-secondary btn-sm" onclick="toggleRightBar()" title="Collapse">→</button>
+      </div>
+      <div id="chat-list" class="sidebar-list">
+        {% include "chat_list.html" %}
+      </div>
+    </div>
+  </aside>
+
+  <!-- Collapsed right tab -->
+  <div id="right-tab" class="right-tab hidden" onclick="toggleRightBar()">
+    <div class="sidebar-title" style="writing-mode: vertical-rl; padding: 0.5rem 0; cursor: pointer;">Chats →</div>
+  </div>
+</div>
+
+<!-- MODALS -->
+<div id="modal-sampler" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeModal('modal-sampler')">
+  <div class="modal-content" style="max-width:420px;">
+    <div class="modal-header"><div class="modal-title">Generation Parameters</div><button class="btn btn-secondary" onclick="closeModal('modal-sampler')">×</button></div>
+    {% include "sampler_modal.html" %}
+  </div>
+</div>
+
+<div id="modal-characters" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeModal('modal-characters')">
+  <div class="modal-content" style="max-width:640px;">
+    <div class="modal-header"><div class="modal-title">Characters</div><button class="btn btn-secondary" onclick="closeModal('modal-characters')">×</button></div>
+    <div id="characters-modal-body">Loading…</div>
+  </div>
+</div>
+
+<div id="modal-personas" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeModal('modal-personas')">
+  <div class="modal-content" style="max-width:480px;">
+    <div class="modal-header"><div class="modal-title">Personas</div><button class="btn btn-secondary" onclick="closeModal('modal-personas')">×</button></div>
+    <div id="personas-modal-body">Loading…</div>
+  </div>
+</div>
+
+<div id="modal-presets" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeModal('modal-presets')">
+  <div class="modal-content" style="max-width:700px;max-height:85vh;">
+    <div class="modal-header"><div class="modal-title">Presets</div><button class="btn btn-secondary" onclick="closeModal('modal-presets')">×</button></div>
+    <div id="presets-modal-body">Loading…</div>
+  </div>
+</div>
+
+<div id="modal-providers" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeModal('modal-providers')">
+  <div class="modal-content" style="max-width:600px;max-height:85vh;">
+    <div class="modal-header"><div class="modal-title">Providers</div><button class="btn btn-secondary" onclick="closeModal('modal-providers')">×</button></div>
+    <div id="providers-modal-body">Loading…</div>
+  </div>
+</div>
+
+<script>
+function openModal(id){
+  document.getElementById(id).style.display = 'grid';
+  const body = document.getElementById(id).querySelector('.modal-content > div:last-child');
+  if(body && body.textContent === 'Loading…'){
+    if(id === 'modal-characters') htmx.ajax('GET','/partials/characters-modal',{target:'#characters-modal-body',swap:'innerHTML'});
+    if(id === 'modal-personas') htmx.ajax('GET','/partials/personas-modal',{target:'#personas-modal-body',swap:'innerHTML'});
+    if(id === 'modal-presets') htmx.ajax('GET','/partials/presets-modal',{target:'#presets-modal-body',swap:'innerHTML'});
+    if(id === 'modal-providers') htmx.ajax('GET','/partials/providers-modal',{target:'#providers-modal-body',swap:'innerHTML'});
+  }
+}
+function closeModal(id){ document.getElementById(id).style.display = 'none'; }
+function toggleRightBar(){
+  document.getElementById('right-sidebar').classList.toggle('hidden');
+  document.getElementById('right-tab').classList.toggle('hidden');
+}
+</script>
+{% endblock %}

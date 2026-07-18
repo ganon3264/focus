@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Personas - Pyvern{% endblock %}
+{% block content %}
+<div class="p-3">
+  <h1 class="text-xl font-bold mb-3">Personas</h1>
+  <div class="grid gap-2 mb-4" style="grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));">
+    {% for p in personas %}
+    <div class="p-3" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;">
+      <div class="flex gap-3 items-center mb-2">
+        <div class="avatar-thumb" style="width:48px;height:48px;font-size:1.2rem;">
+          {% if p.avatar_path %}
+            <img src="/{{ p.avatar_path }}" alt="">
+          {% else %}
+            {{ p.name[:1] }}
+          {% endif %}
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="font-bold">{{ p.name }}</div>
+          <div class="text-sm text-muted truncate">{{ p.description[:60] }}</div>
+        </div>
+      </div>
+      <div class="flex gap-2">
+        <form hx-post="/api/personas/{{ p.id }}/avatar" hx-encoding="multipart/form-data" hx-swap="none">
+          <label class="btn btn-secondary btn-sm" style="cursor:pointer">
+            Avatar
+            <input type="file" name="file" class="hidden" onchange="this.closest('form').requestSubmit()">
+          </label>
+        </form>
+        {% if p.name != 'User' %}
+        <button class="btn btn-danger btn-sm" hx-delete="/api/personas/{{ p.id }}" hx-confirm="Delete?" hx-target="closest div" hx-swap="delete">Delete</button>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <h2 class="text-lg font-bold mb-2">Add Persona</h2>
+  <form onsubmit="submitPersona(event)" class="grid gap-2" style="grid-template-columns: 1fr 1fr;max-width:500px;">
+    <div class="form-group">
+      <label>Name</label>
+      <input type="text" name="name" required>
+    </div>
+    <div class="form-group">
+      <label>Description</label>
+      <textarea name="description" rows="3"></textarea>
+    </div>
+    <div class="col-span-full">
+      <button class="btn btn-primary">Add Persona</button>
+    </div>
+  </form>
+</div>
+<script>
+function submitPersona(e){
+  e.preventDefault();
+  const data = Object.fromEntries(new FormData(e.target));
+  fetch('/api/personas', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(data)
+  }).then(function(r){
+    if(r.ok) window.location.reload();
+  });
+}
+</script>
+{% endblock %}

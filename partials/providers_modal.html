@@ -1,0 +1,59 @@
+<div class="grid gap-2 mb-4" style="grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));">
+  {% for prov in providers %}
+  <div class="p-3" style="background:var(--surface-2);border:1px solid var(--border);border-radius:8px;">
+    <div class="flex justify-between items-center mb-1">
+      <strong class="text-sm">{{ prov.name }}</strong>
+      <button class="btn btn-danger btn-sm" hx-delete="/api/providers/{{ prov.id }}" hx-confirm="Delete?" hx-target="closest div" hx-swap="delete">×</button>
+    </div>
+    <div class="text-xs text-muted">{{ prov.type }} • {{ prov.model }}</div>
+  </div>
+  {% endfor %}
+</div>
+
+<h3 class="sidebar-title mb-2">Add Provider</h3>
+<form onsubmit="submitProviderModal(event)" class="grid gap-2" style="grid-template-columns: 1fr 1fr;">
+  <div class="form-group">
+    <label>Name</label>
+    <input type="text" name="name" required>
+  </div>
+  <div class="form-group">
+    <label>Type</label>
+    <select name="type">
+      <option value="openai_compat">OpenAI Compatible</option>
+      <option value="openrouter">OpenRouter</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label>Base URL</label>
+    <input type="text" name="base_url" placeholder="https://api.example.com/v1">
+  </div>
+  <div class="form-group">
+    <label>API Key</label>
+    <input type="password" name="api_key">
+  </div>
+  <div class="form-group">
+    <label>Model</label>
+    <input type="text" name="model" required placeholder="gpt-4">
+  </div>
+  <div class="form-group">
+    <label>Params JSON</label>
+    <input type="text" name="params" value="{}" placeholder='{"key":"val"}'>
+  </div>
+  <div class="col-span-full">
+    <button class="btn btn-primary">Add Provider</button>
+  </div>
+</form>
+<script>
+function submitProviderModal(e){
+  e.preventDefault();
+  const data = Object.fromEntries(new FormData(e.target));
+  try { data.params = JSON.parse(data.params || '{}'); } catch(err){ data.params = {}; }
+  fetch('/api/providers', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(data)
+  }).then(function(r){
+    if(r.ok) htmx.ajax('GET','/partials/providers-modal',{target:'#providers-modal-body',swap:'innerHTML'});
+  });
+}
+</script>

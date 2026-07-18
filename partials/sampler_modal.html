@@ -1,0 +1,20 @@
+<div class="form-group">
+  <label>Provider</label>
+  <select id="stream-provider" class="text-sm" style="background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:0.4rem;width:100%;">
+    {% for prov in providers %}
+    <option value="{{ prov.id }}">{{ prov.name }} ({{ prov.model }})</option>
+    {% endfor %}
+  </select>
+</div>
+<div class="form-group">
+  <label>Temperature: <span id="temp-val">1.0</span></label>
+  <input type="range" id="sampler-temp" min="0" max="2" step="0.01" value="1.0" style="width:100%;" oninput="document.getElementById('temp-val').textContent = this.value">
+</div>
+<div class="form-group">
+  <label>Top P: <span id="top-p-val">0.95</span></label>
+  <input type="range" id="sampler-top-p" min="0" max="1" step="0.01" value="0.95" style="width:100%;" oninput="document.getElementById('top-p-val').textContent = this.value">
+</div>
+<div class="form-group">
+  <label>Max Tokens</label>
+  <input type="number" id="sampler-max-tokens" value="1024" min="1" max="8192" style="width:100%;">
+</div>

@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Pyvern{% endblock %}</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.12/dist/ext/json-enc.js"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.14.3/dist/cdn.min.js"></script>
+    <script src="https://unpkg.com/sortablejs@1.15.0/Sortable.min.js"></script>
+    <script src="https://unpkg.com/marked@12.0.2/lib/marked.umd.js"></script>
+    <script src="https://unpkg.com/dompurify@3.1.5/dist/purify.min.js"></script>
+    {% block head %}{% endblock %}
+</head>
+<body class="bg-dark text-light" hx-ext="json-enc">
+    {% block content %}{% endblock %}
+    <script src="/static/chat_stream.js"></script>
+</body>
+</html>
