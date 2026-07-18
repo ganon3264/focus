@@ -192,6 +192,9 @@
         if (contentDiv) contentDiv.innerHTML = '<div class="message-spinner"></div>';
         const reasoningBtn = asstDiv.querySelector('.reasoning-toggle-btn');
         if (reasoningBtn) reasoningBtn.classList.add('hidden');
+        asstDiv.classList.remove('reasoning-open');
+        var staleBlocks = asstDiv.querySelectorAll('.reasoning-block');
+        for (var k = 0; k < staleBlocks.length; k++) staleBlocks[k].remove();
       } else {
         const contentDiv = asstDiv.querySelector('.message-content');
         if (contentDiv) {

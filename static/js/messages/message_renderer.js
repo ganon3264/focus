@@ -199,12 +199,8 @@ window.renderMessage = function (text) {
 
   for (let i = 0; i < thoughts.length; i++) {
     const t = thoughts[i];
-    let safeInner;
-    if (t.isClosed) {
-      safeInner = DOMPurify.sanitize(marked.parse(t.content, { breaks: true }));
-    } else {
-      safeInner = '<p>' + window.escapeHtml(t.content) + '</p>';
-    }
+    const completedContent = window.closeMarkdown(t.content);
+    let safeInner = DOMPurify.sanitize(marked.parse(completedContent, { breaks: true }));
     const chevron = (window.getSvgSprite('chevron-right', 12) || '>').replace('<svg', '<svg class="chevron"');
     var detailsHtml;
     if (i === 0) {
