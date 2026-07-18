@@ -87,14 +87,13 @@ async def log_requests(request: Request, call_next):
     process_time = time.time() - start_time
     status = response.status_code
     color = "\x1b[32m" if status < 300 else "\x1b[36m" if status < 400 else "\x1b[33m" if status < 500 else "\x1b[31m"
-    logger.info(
-        "%s %s - Status: %s%d\x1b[0m - %.4fs",
-        request.method,
-        request.url.path,
-        color,
-        status,
-        process_time,
-    )
+    msg = "%s %s - Status: %s%d\x1b[0m - %.4fs"
+    if status >= 500:
+        logger.error(msg, request.method, request.url.path, color, status, process_time)
+    elif status >= 400:
+        logger.warning(msg, request.method, request.url.path, color, status, process_time)
+    else:
+        logger.debug(msg, request.method, request.url.path, color, status, process_time)
     return response
 
 
@@ -207,6 +206,10 @@ if __name__ == "__main__":
     import argparse
 
     import uvicorn
+
+    from focus.core.logger import UvicornFormatter
+
+    uvicorn.config.LOGGING_CONFIG["formatters"]["default"]["()"] = UvicornFormatter
 
     parser = argparse.ArgumentParser(description="Focus")
     parser.add_argument("--host", default="127.0.0.1", help="Bind address")
