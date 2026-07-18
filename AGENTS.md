@@ -477,6 +477,18 @@ Tests are organized into 3 directories with 23 test source files:
 
 19. **`_updateReasoningButton` scope change** — Looks for `.reasoning-block` via `msg.querySelector('.reasoning-block')` (within the whole message), not within `.message-content`. This is necessary because server-rendered segments put `.reasoning-block` as a sibling of `.message-content`, not a child. The JS streaming path still puts them inside `.message-content` (via `renderMessage` html), but the server-rendered refresh path uses the sibling layout.
 
+20. **Streaming segment model** — The streaming code MUST mirror the backend's segment structure. `focus/core/message_render.py:render_message_segments()` splits stored content into `text | reasoning | tool_boundary` segments — each becomes a sibling DOM element. The streaming frontend (`chat_stream.js`) maintains a matching model:
+    - `textSegments[]` — array of `{div, text}` tracking each text segment's DOM element and its accumulated tokens. The first entry is the skeleton's `.message-content` div; a new entry is pushed when tool calls create a continuation div.
+    - `currentTextDiv` — where new tokens land. Lazily initialized from the skeleton's first `.message-content` when the first token arrives, then swapped to a new continuation div by the `tool_calls` handler.
+    - `renderMessage(text, startThinkIdx)` — accepts an optional second parameter to offset reasoning block `data-think-id` values. Each text segment computes `startThinkIdx` by summing `extractThoughtsSafely().thoughts.length` across all prior segments. This ensures global reasoning indexing even though `renderMessage` processes each segment's text independently.
+    - **Never** use `fullText` for per-segment rendering. `fullText` is a global accumulator for error recovery only. Each segment renders its own `seg.text`.
+    - The pre-generation cleanup resets both `textSegments` and `currentTextDiv`. The `tool_calls` handler creates the continuation div and pushes to `textSegments[]`. The final render (post-stream, pre-refresh) loops over `textSegments` to render each div with the correct `startThinkIdx` — preserving the segmented DOM structure until `refreshMessagesAfterStream` replaces it with server HTML.
+
+21. **CSS whitespace and padding** — Two footguns:
+    - **Tailwind v4 preflight** sets `padding: 0; margin: 0` on `*, :before, :after`. This nukes browser defaults including `<pre>` element padding.
+    - **Jinja2 template whitespace** between HTML tags creates text nodes. If a container has `white-space: pre-wrap`, those whitespace text nodes (newlines + indentation between e.g. `<div>` and `<pre>`) render as visible blank lines. Fix: either compact the template to one line, or remove `white-space: pre-wrap` from the container (when the inner element already handles its own whitespace, e.g. `<pre>`).
+    - **Child margin leakage**: When a container has padding but no `overflow: hidden` / `display: flow-root`, the last child's `margin-bottom` extends past the container's padding-box, stacking with `padding-bottom`. The visible gap becomes `padding + margin` instead of just `padding`. Fix: add `> :last-child { margin-bottom: 0 }` to the container.
+
 ## File naming conventions
 
 - Templates: `snake_case.html`

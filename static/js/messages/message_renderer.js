@@ -114,8 +114,9 @@ window.closeMarkdown = function (text) {
 
 marked.use({ breaks: true });
 
-window.renderMessage = function (text) {
+window.renderMessage = function (text, startThinkIdx) {
   if (!text) return '';
+  startThinkIdx = startThinkIdx || 0;
 
   text = window.closeMarkdown(text);
   const extracted = window.extractThoughtsSafely(text);
@@ -202,11 +203,12 @@ window.renderMessage = function (text) {
     const completedContent = window.closeMarkdown(t.content);
     let safeInner = DOMPurify.sanitize(marked.parse(completedContent, { breaks: true }));
     const chevron = (window.getSvgSprite('chevron-right', 12) || '>').replace('<svg', '<svg class="chevron"');
+    var globalIdx = startThinkIdx + i;
     var detailsHtml;
-    if (i === 0) {
-      detailsHtml = `<div class="reasoning-block" data-think-id="${i}"><div class="reasoning-content markdown-content hidden">${safeInner}</div></div>`;
+    if (globalIdx === 0) {
+      detailsHtml = `<div class="reasoning-block" data-think-id="0"><div class="reasoning-content markdown-content hidden">${safeInner}</div></div>`;
     } else {
-      detailsHtml = `<details class="details reasoning-block" data-think-id="${i}"><summary>${chevron} Reasoning</summary><div class="reasoning-content markdown-content">${safeInner}</div></details>`;
+      detailsHtml = `<details class="details reasoning-block" data-think-id="${globalIdx}"><summary>${chevron} Reasoning</summary><div class="reasoning-content markdown-content">${safeInner}</div></details>`;
     }
 
     const regex = new RegExp(`<p>%%%THINK_BLOCK_${i}%%%<\\/p>|%%%THINK_BLOCK_${i}%%%`, 'g');
