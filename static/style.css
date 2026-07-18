@@ -465,7 +465,9 @@
     background: var(--surface-3);
     padding: 1rem;
     border-radius: var(--radius-md);
-    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: break-word;
     margin: 1rem 0;
     border: 1px solid var(--border);
     position: relative;
@@ -583,6 +585,9 @@
   }
   .reasoning-block:not(.details) .reasoning-content.hidden {
     display: none;
+  }
+  .reasoning-block.pl-stream {
+    padding-left: 3rem;
   }
 
   /* ── Message-level reasoning toggle ── */
