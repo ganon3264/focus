@@ -8,7 +8,6 @@ from fastapi import HTTPException
 import focus.crud as crud
 from focus.core.card_parser import safe_load_card
 from focus.core.macros import build_base_macros
-from focus.core.message_render import strip_think_blocks
 from focus.core.utils import now_iso
 from focus.prompt_chain import _build_content, assemble_prompt
 
@@ -93,8 +92,6 @@ async def _append_history_with_tool_calls(
     """Append a history entry for *row*, potentially followed by synthetic
     tool-role messages if the original assistant message had tool_calls."""
     content_text = row["content"]
-    if row["role"] == "assistant":
-        content_text = strip_think_blocks(content_text).strip()
     content_text = content_text.replace("%%%TOOL_BOUNDARY%%%", "").strip()
     content = await _build_content(content_text, msg_attachments.get(row["variant_id"], []))
 

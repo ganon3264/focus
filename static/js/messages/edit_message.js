@@ -8,7 +8,7 @@
       var extracted = window.extractThoughtsSafely(parts[pi]);
 
       for (var t = 0; t < extracted.thoughts.length; t++) {
-        blocks.push({ type: 'reasoning', content: extracted.thoughts[t].content.trim() });
+        blocks.push({ type: 'reasoning', content: extracted.thoughts[t].content.trim(), isClosed: extracted.thoughts[t].isClosed });
       }
 
       var text = extracted.processed;
@@ -188,7 +188,13 @@
       if (blk.type === 'reasoning') {
         var ta = document.querySelector('.edit-block-ta[data-block-idx="' + i + '"]');
         var text = ta ? ta.value.trim() : '';
-        if (text) parts.push('<think>\n' + text + '\n</think>');
+        if (text) {
+          if (blk.isClosed) {
+            parts.push('<think>\n' + text + '\n</think>');
+          } else {
+            parts.push('<think>\n' + text);
+          }
+        }
       } else if (blk.type === 'text') {
         var ta = document.querySelector('.edit-block-ta[data-block-idx="' + i + '"]');
         var text = ta ? ta.value.trim() : '';

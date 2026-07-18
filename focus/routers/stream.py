@@ -110,7 +110,9 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
     if prov_dict.get("type", "") not in ("google_aistudio", "google_vertex"):
         for msg in messages:
             msg.pop("thought_signature", None)
-            msg.pop("reasoning", None)
+        if prov_dict.get("type") != "moonshot":
+            for msg in messages:
+                msg.pop("reasoning", None)
 
     if body.continue_text and body.regenerate and provider.supports_prefill:
         messages.append({"role": "assistant", "content": body.continue_text})
