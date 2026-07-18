@@ -64,7 +64,7 @@ templates/                  # Full-page Jinja2 templates
   personas.html             # Persona CRUD page: card grid, avatar upload, delete confirmation
   presets.html              # Preset management page: sidebar list, HTMX-loaded preset editor
   providers.html            # Provider CRUD page: card grid with hx-delete, add form
-  macros.html               # Shared macro library: _js_str, custom_select (Alpine dropdown), 19+ SVG icon macros, media_thumbnail
+  macros.html               # Shared macro library: _js_str, custom_select (Alpine dropdown), SVG icon macros, media_thumbnail
 
 partials/                   # HTMX partial templates
   modal_shell.html          # Shared modal macro: modal_shell() + modal_footer() — defines overlay/content/header/footer structure
@@ -404,23 +404,21 @@ Tests are organized into 3 directories with 24 test source files:
 
 6. **Path references:** Jinja `{% include %}` paths are relative to templates/partials dirs. Static files are served from `/static/`. API endpoints are in `window.api` (see `api_paths.js`).
 
-7. **`chat_stream.js` is at `static/chat_stream.js`**, NOT `static/js/chat_stream.js`. The script tag in base.html references it as `src="/static/chat_stream.js"`. Don't move it.
+7. **`preserveOpenStates` pattern** — When streaming tokens replaces message content, use `preserveOpenStates(container, renderFn)` to keep `<details.reasoning>` blocks open. Never directly set `innerHTML` on message content during streaming.
 
-8. **`preserveOpenStates` pattern** — When streaming tokens replaces message content, use `preserveOpenStates(container, renderFn)` to keep `<details.reasoning>` blocks open. Never directly set `innerHTML` on message content during streaming.
+8. **AbortController for stream cancellation** — Each generation creates a new `AbortController`. The stop button calls `.abort()`. Canceled streams with no visible text clean up the assistant placeholder div; partial text is preserved.
 
-9. **AbortController for stream cancellation** — Each generation creates a new `AbortController`. The stop button calls `.abort()`. Canceled streams with no visible text clean up the assistant placeholder div; partial text is preserved.
+9. **Message pruning DOM virtualization** — `message_pruner.js` replaces off-screen `.message` nodes with height placeholders (`<div class="message-placeholder" style="height:...px">`). After any HTMX swap affecting messages, call `window.pruneMessages()` or `schedule()`. Always check `window._isMessagePruned(msgId)` before operating on a message DOM node. The streaming message (`window._streamingMessageId`) is excluded from pruning.
 
-10. **Message pruning DOM virtualization** — `message_pruner.js` replaces off-screen `.message` nodes with height placeholders (`<div class="message-placeholder" style="height:...px">`). After any HTMX swap affecting messages, call `window.pruneMessages()` or `schedule()`. Always check `window._isMessagePruned(msgId)` before operating on a message DOM node. The streaming message (`window._streamingMessageId`) is excluded from pruning.
+10. **Send/regen mode** — The send button shows a send icon when textarea has content, and a regen icon when textarea is empty + last message role is user. `updateSendButtonState()` handles this. When in regen mode, clicking sends an empty `user_message` with `regenerate: true`.
 
-11. **Send/regen mode** — The send button shows a send icon when textarea has content, and a regen icon when textarea is empty + last message role is user. `updateSendButtonState()` handles this. When in regen mode, clicking sends an empty `user_message` with `regenerate: true`.
+11. **`ListManager.setup()`** — Config-driven factory that generates named global functions (filter, sort, compact toggle, new item). Don't create separate handlers per entity type. Call it once per modal with the appropriate `cfg` object.
 
-12. **`ListManager.setup()`** — Config-driven factory that generates named global functions (filter, sort, compact toggle, new item). Don't create separate handlers per entity type. Call it once per modal with the appropriate `cfg` object.
+12. **Editor modal z-index** — `var-edit-modal`, `block-edit-modal`, and the preset rename modal all use `--z-modal-high: 1000`. When adding new editor/inline modals, use the same z-index. Sub-modals within provider management use `--z-modal-sub: 100`.
 
-13. **Editor modal z-index** — `var-edit-modal`, `block-edit-modal`, and the preset rename modal all use `--z-modal-high: 1000`. When adding new editor/inline modals, use the same z-index. Sub-modals within provider management use `--z-modal-sub: 100`.
+13. **Variables management scripts** — Defined in `chat.html` with a `!_varScriptsLoaded` guard: `updateVarPositions`, `initVarSortables`, `reloadPresetVariables`, `handleVarUpdate`, `handleVarDelete`, `openVarEditModal`, `closeVarModal`, `saveVarModal`. These survive HTMX re-renders of the variable groups partial.
 
-14. **Variables management scripts** — Defined in `chat.html` with a `!_varScriptsLoaded` guard: `updateVarPositions`, `initVarSortables`, `reloadPresetVariables`, `handleVarUpdate`, `handleVarDelete`, `openVarEditModal`, `closeVarModal`, `saveVarModal`. These survive HTMX re-renders of the variable groups partial.
-
-15. **SVG sprite system** — All icons are in `<div id="svg-sprite">` in `base.html`. Access via `window.getSvgSprite(name, size)`. Don't add inline SVGs.
+14. **SVG sprite system** — SVG icon macros are defined in `macros.html` (`icon_plus`, `icon_trash`, `icon_close`, etc.). The `#svg-sprite` div in `base.html` renders them into a sprite sheet, accessed via `window.getSvgSprite(name, size)`. Don't add inline SVGs — add macros to `macros.html` and reference them via the sprite.
 
 ## File naming conventions
 
