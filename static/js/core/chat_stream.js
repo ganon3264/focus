@@ -7,34 +7,6 @@
 
   if (!sendBtn || !input || !messageList) return;
 
-  function _updateReasoningButton(contentDiv) {
-    const msg = contentDiv.closest('.message');
-    if (!msg) return;
-    const btn = msg.querySelector('.reasoning-toggle-btn');
-    if (!btn) return;
-    const hasReasoning = contentDiv.querySelector('details.reasoning');
-    btn.classList.toggle('hidden', !hasReasoning);
-  }
-
-  function syncReasoningButtons(container) {
-    if (!container) return;
-    container.querySelectorAll('.message-content').forEach((el) => _updateReasoningButton(el));
-  }
-
-  window.syncReasoningButtons = syncReasoningButtons;
-
-  function preserveOpenStates(container, renderFn) {
-    const openStates = new Set();
-    container.querySelectorAll('details.reasoning[open]').forEach((d) => {
-      if (d.dataset.thinkId) openStates.add(d.dataset.thinkId);
-    });
-    container.innerHTML = renderFn();
-    openStates.forEach((id) => {
-      const el = container.querySelector(`details.reasoning[data-think-id="${id}"]`);
-      if (el) el.setAttribute('open', '');
-    });
-  }
-
   function resizeTextarea(el) {
     el.style.height = '44px';
     if (el.value === '') {
@@ -65,6 +37,8 @@
     }
   }
 
+  window.updateSendButtonState = updateSendButtonState;
+
   input.addEventListener('input', function () {
     resizeTextarea(this);
     updateSendButtonState();
@@ -73,105 +47,6 @@
   if (sendBtn) {
     updateSendButtonState();
   }
-
-  function _replaceMessageNode(doc, msgId, inDeleteMode) {
-    const newMsg = doc.getElementById('message-' + msgId);
-    if (!newMsg) return;
-
-    let oldMsg = document.getElementById('message-' + msgId);
-    if (!oldMsg) {
-      const ph = document.querySelector('.message-placeholder[data-msg-id="' + msgId + '"]');
-      if (ph) oldMsg = ph;
-    }
-
-    if (!oldMsg) return;
-
-    newMsg.style.setProperty('animation', 'none', 'important');
-    oldMsg.replaceWith(newMsg);
-    htmx.process(newMsg);
-    newMsg.querySelectorAll('.markdown-content:not(.processed)').forEach(function (el) {
-      el.innerHTML = window.renderMessage(el.textContent || '');
-      el.classList.add('processed');
-    });
-    syncReasoningButtons(newMsg);
-    if (inDeleteMode) {
-      const cb = newMsg.querySelector('.delete-mode-checkbox');
-      if (cb) cb.classList.remove('hidden');
-      const actions = newMsg.querySelector('.normal-mode-actions');
-      if (actions) actions.classList.add('hidden');
-    }
-    if (window._isMessagePruned && window._isMessagePruned(msgId)) {
-      window._unpruneMessage(msgId);
-    }
-  }
-
-  async function refreshMessagesAfterStream(chatId, userMsgId, asstMsgId) {
-    const resp = await fetch(api.partials.messageList(chatId));
-    if (!resp.ok) return;
-    const html = await resp.text();
-    const doc = new DOMParser().parseFromString(html, 'text/html');
-
-    const newSentinel = doc.getElementById('message-list-data');
-    const oldSentinel = document.getElementById('message-list-data');
-    if (newSentinel && oldSentinel) {
-      oldSentinel.replaceWith(newSentinel);
-    }
-
-    const toolbar = document.getElementById('delete-toolbar');
-    const inDeleteMode = toolbar && !toolbar.classList.contains('hidden');
-
-    const ids = [userMsgId, asstMsgId].filter(Boolean);
-    for (const id of ids) {
-      _replaceMessageNode(doc, id, inDeleteMode);
-    }
-
-    if (typeof updateSendButtonState === 'function') {
-      updateSendButtonState();
-    }
-
-    _refreshChatList(chatId);
-    window.ensureSentinelAndObserver();
-  }
-
-  window._refreshChatList = function (chatId) {
-    var params = '?current_chat_id=' + encodeURIComponent(chatId);
-    var charId = StateManager.get('character_id');
-    if (charId) params += '&character_id=' + encodeURIComponent(charId);
-    htmx.ajax('GET', api.partials.chatList + params, {
-      target: '#chat-list',
-      swap: 'innerHTML',
-    });
-  };
-
-  async function refreshSingleMessage(chatId, messageId) {
-    var existingMsg = document.getElementById('message-' + messageId);
-    if (!existingMsg) {
-      var resp = await fetch(api.partials.messageList(chatId));
-      if (!resp.ok) return;
-      var html = await resp.text();
-      var doc = new DOMParser().parseFromString(html, 'text/html');
-      _replaceMessageNode(doc, messageId, document.getElementById('delete-toolbar') && !document.getElementById('delete-toolbar').classList.contains('hidden'));
-      window.ensureSentinelAndObserver();
-      _refreshChatList(chatId);
-      return;
-    }
-
-    var msgIndex = parseInt(existingMsg.getAttribute('data-msg-index')) || 1;
-    var msgList = document.getElementById('message-list');
-    var isLatest = msgList ? existingMsg === msgList.querySelector('.message:last-of-type') : false;
-
-    var url = '/partials/message/' + chatId + '/' + messageId + '?msg_index=' + msgIndex + '&is_latest=' + isLatest;
-    var resp = await fetch(url);
-    if (!resp.ok) return;
-    var html = await resp.text();
-    var doc = new DOMParser().parseFromString(html, 'text/html');
-
-    _replaceMessageNode(doc, messageId, document.getElementById('delete-toolbar') && !document.getElementById('delete-toolbar').classList.contains('hidden'));
-    window.ensureSentinelAndObserver();
-    _refreshChatList(chatId);
-  }
-
-  window.refreshSingleMessage = refreshSingleMessage;
 
   window.triggerGeneration = async function (chatId, asstDiv, isRegen = false, continueText = null) {
     const providerId = sendBtn.dataset.providerId;
@@ -218,7 +93,7 @@
       const formData = new FormData();
       filesToUpload.forEach((f) => formData.append('files', f));
       try {
-        const uploadRes = await fetch(api.chatAttachments(chatId), {
+        const uploadRes = await fetch(window.api.chatAttachments(chatId), {
           method: 'POST',
           body: formData,
         });
@@ -249,7 +124,7 @@
     let fullText = '';
 
     try {
-      const res = await fetch(api.stream, {
+      const res = await fetch(window.api.stream, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -270,14 +145,14 @@
         const contentDiv = asstDiv.querySelector('.message-content');
         if (contentDiv) {
           contentDiv.innerHTML = window.renderMessage(fullText);
-          _updateReasoningButton(contentDiv);
+          window._updateReasoningButton(contentDiv);
         }
         if (messageId) {
           asstDiv.id = 'message-' + messageId;
           asstDiv.dataset.messageId = messageId;
           window._streamingMessageId = messageId;
         }
-        await refreshMessagesAfterStream(chatId, userMessageId, messageId);
+        await window.refreshMessagesAfterStream(chatId, userMessageId, messageId);
         window._streamingMessageId = null;
         return;
       }
@@ -319,8 +194,8 @@
             fullText += json.token;
             const contentDiv = asstDiv.querySelector('.message-content');
             if (contentDiv) {
-              preserveOpenStates(contentDiv, () => window.renderMessage(fullText));
-              _updateReasoningButton(contentDiv);
+              window.preserveOpenStates(contentDiv, () => window.renderMessage(fullText));
+              window._updateReasoningButton(contentDiv);
 
               if (window.autoScroll && window.scrollSentinel) {
                 window.scrollSentinel.scrollIntoView({ behavior: 'instant' });
@@ -336,15 +211,15 @@
 
       const contentDiv = asstDiv.querySelector('.message-content');
       if (contentDiv) {
-        preserveOpenStates(contentDiv, () => window.renderMessage(fullText));
-        _updateReasoningButton(contentDiv);
+        window.preserveOpenStates(contentDiv, () => window.renderMessage(fullText));
+        window._updateReasoningButton(contentDiv);
       }
       if (messageId) {
         asstDiv.id = 'message-' + messageId;
         asstDiv.dataset.messageId = messageId;
       }
 
-      await refreshMessagesAfterStream(chatId, userMessageId, messageId);
+      await window.refreshMessagesAfterStream(chatId, userMessageId, messageId);
 
       const doneProvider =
         window.APP_PROVIDERS && window.APP_PROVIDERS.find((p) => p.id === providerId);
@@ -376,13 +251,13 @@
           asstDiv.remove();
         }
 
-        htmx.ajax('GET', api.partials.messageList(chatId), {
+        htmx.ajax('GET', window.api.partials.messageList(chatId), {
           target: '#message-list',
           swap: 'innerHTML',
         });
       } else if (!fullText) {
         if (isRegen) {
-          htmx.ajax('GET', api.partials.messageList(chatId), {
+          htmx.ajax('GET', window.api.partials.messageList(chatId), {
             target: '#message-list',
             swap: 'innerHTML',
           });
@@ -391,7 +266,7 @@
         }
       } else if (messageId) {
         const partialText = fullText;
-        await refreshMessagesAfterStream(chatId, userMessageId, messageId);
+        await window.refreshMessagesAfterStream(chatId, userMessageId, messageId);
         if (partialText) {
           const restoredDiv = document.getElementById('message-' + messageId);
           if (restoredDiv) {
@@ -399,7 +274,7 @@
             const restoredContent = restoredDiv.querySelector('.message-content');
             if (restoredContent) {
               restoredContent.innerHTML = window.renderMessage(partialText);
-              _updateReasoningButton(restoredContent);
+              window._updateReasoningButton(restoredContent);
             }
           }
         }
@@ -474,7 +349,7 @@
 
   window.branchFromMessage = async function (messageId, chatId) {
     try {
-      const r = await fetch(api.chatBranch(chatId, messageId), { method: 'POST' });
+      const r = await fetch(window.api.chatBranch(chatId, messageId), { method: 'POST' });
       if (!r.ok) throw new Error('Branch failed');
       const d = await r.json();
       window.location.href = '/chat/' + d.id;
@@ -489,7 +364,7 @@
       el.innerHTML = window.renderMessage(raw);
       el.classList.add('processed');
     });
-    syncReasoningButtons(document);
+    window.syncReasoningButtons(document);
 
     document.getElementById('message-list')?.classList.add('ready');
 
@@ -500,26 +375,6 @@
     }
   });
 
-  document.addEventListener('mousedown', function (e) {
-    if (e.target && e.target.tagName === 'SUMMARY') {
-      const details = e.target.closest('details.reasoning');
-      if (details) {
-        e.preventDefault();
-        if (details.hasAttribute('open')) {
-          details.removeAttribute('open');
-        } else {
-          details.setAttribute('open', '');
-        }
-      }
-    }
-  });
-
-  document.addEventListener('click', function (e) {
-    if (e.target && e.target.tagName === 'SUMMARY' && e.target.closest('details.reasoning')) {
-      e.preventDefault();
-    }
-  });
-
   document.body.addEventListener('htmx:afterSwap', function (evt) {
     if (evt.detail.target.id === 'message-list') {
       evt.detail.target.querySelectorAll('.markdown-content').forEach(function (el) {
@@ -527,7 +382,7 @@
         el.innerHTML = window.renderMessage(raw);
         el.classList.add('processed');
       });
-      syncReasoningButtons(evt.detail.target);
+      window.syncReasoningButtons(evt.detail.target);
       if (typeof updateSendButtonState === 'function') {
         updateSendButtonState();
       }

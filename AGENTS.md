@@ -103,7 +103,9 @@ partials/                   # HTMX partial templates
     preset_editor.html       # Thin wrapper including preset_variables.html + prompt_arranger.html
 
 static/
-  chat_stream.js            # Core SSE streaming handler (NOT under js/): triggerGeneration, SSE parsing, preserveOpenStates, AbortController, branchFromMessage, send/regen mode, file upload before generation
+  chat_stream.js            # Core SSE streaming engine: triggerGeneration, AbortController, branchFromMessage, send/regen mode, file upload before generation, updateSendButtonState, resizeTextarea, DOMContentLoaded/afterSwap init (static/js/core/chat_stream.js)
+  reasoning_utils.js         # Reasoning toggle visibility, syncReasoningButtons, preserveOpenStates, event handlers (static/js/messages/reasoning_utils.js)
+  message_refresh.js         # Message DOM refresh: _refreshMessageNodes (internal strategy selector), refreshMessagesAfterStream, refreshSingleMessage, _refreshChatList, _replaceMessageNode (static/js/messages/message_refresh.js)
   favicon.svg               # SVG favicon (lightning bolt)
   style.css                 # Design system: CSS vars, @layer base/components/utilities — all visual classes
   tailwind-input.css        # Tailwind source: @source paths (templates/partials/static), @theme tokens, .hidden { display:none !important }
@@ -115,7 +117,7 @@ static/
     scroll_manager.js       # Auto-scroll via IntersectionObserver, scroll sentinel, RAF-based scrollToBottom
     message_renderer.js     # Message rendering: escapeHtml, extractThoughtsSafely, renderMessage (marked + DOMPurify + code copy buttons + accent-quote + reasoning details)
     msg_dom.js              # DOM builders: createUserMessageDiv (with attachment previews), createAssistantPlaceholderDiv (with reasoning toggle)
-    chat_stream.js          # NOT HERE — see static/chat_stream.js
+    chat_stream.js          # Core streaming engine — see core/chat_stream.js
     file_staging.js         # File staging area: drag/paste/upload pipeline, image crop before send, preview rendering
     delete_mode.js          # Multi-select bulk delete mode: toolbar toggle, auto-select range, bulkDeleteSelected
     edit_message.js         # Message edit modal: load message, split thought/body, render attachments, save/upload/delete
@@ -436,7 +438,7 @@ Tests are organized into 3 directories with 23 test source files:
 
 - Templates: `snake_case.html`
 - Python modules: `snake_case.py`
-- JS modules: `snake_case.js` (exception: `chat_stream.js` is at root of `static/`, not under `js/`)
+- JS modules: `snake_case.js`
 - CSS: `style.css`, `tailwind-input.css`, `tailwind.css`
 - Partials: nested under `partials/<feature>/`
 - Modals: `partials/modals/<name>_modal.html`

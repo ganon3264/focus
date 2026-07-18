@@ -1,6 +1,6 @@
 // tests/frontend/test_reasoning_visibility.js
 // Unit tests for the reasoning button visibility logic.
-// We replicate the toggle logic from static/chat_stream.js to verify the
+// We replicate the toggle logic from static/js/messages/reasoning_utils.js to verify the
 // expected behavior, since the production function lives inside an IIFE
 // with many DOM dependencies. The contract being tested:
 //   - Button is hidden when the message content has no `details.reasoning`
