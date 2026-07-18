@@ -204,6 +204,7 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
     final_asst_msg_id = asst_msg_id
 
     async def generate():
+        yield f"data: {json.dumps({'type': 'start', 'message_id': final_asst_msg_id})}\n\n"
         try:
             async for token in provider.stream_complete(messages, **gen_kwargs):
                 collected.append(token)
