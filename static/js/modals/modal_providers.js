@@ -74,6 +74,9 @@ function toggleProviderFields(prefix) {
 
 window._currentFetchPrefix = null;
 
+/* OpenRouter model selection reuses the same fetch-models modal */
+window.openORModelModal = openFetchModelModal;
+
 function openFetchModelModal(prefix) {
   window._currentFetchPrefix = prefix;
   document.getElementById('modal-fetch-models').classList.remove('hidden');

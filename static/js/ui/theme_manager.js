@@ -64,25 +64,22 @@ const PRESET_THEMES = {
 
 let _savedThemeBackup = {};
 
-const _themeTrigger = document.querySelector('[onclick="openModal(\'modal-themes\')"]');
-if (_themeTrigger) {
-  _themeTrigger.addEventListener('click', function () {
-    _savedThemeBackup = {};
-    const rootStyle = getComputedStyle(document.documentElement);
-    document.querySelectorAll('#theme-color-pickers input[type="color"]').forEach((input) => {
-      const varName = input.getAttribute('data-var');
-      let color = rootStyle.getPropertyValue(varName).trim();
-      if (color.startsWith('rgba')) {
-        color = '#000000';
-      }
-      if (color.length === 4) {
-        color = '#' + color[1] + color[1] + color[2] + color[2] + color[3] + color[3];
-      }
-      input.value = color || '#000000';
-      _savedThemeBackup[varName] = color;
-    });
+window._saveThemeBackup = function () {
+  _savedThemeBackup = {};
+  const rootStyle = getComputedStyle(document.documentElement);
+  document.querySelectorAll('#theme-color-pickers input[type="color"]').forEach((input) => {
+    const varName = input.getAttribute('data-var');
+    let color = rootStyle.getPropertyValue(varName).trim();
+    if (color.startsWith('rgba')) {
+      color = '#000000';
+    }
+    if (color.length === 4) {
+      color = '#' + color[1] + color[1] + color[2] + color[2] + color[3] + color[3];
+    }
+    input.value = color || '#000000';
+    _savedThemeBackup[varName] = color;
   });
-}
+};
 
 function previewThemeColor(input) {
   const varName = input.getAttribute('data-var');

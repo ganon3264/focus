@@ -18,8 +18,8 @@ from focus.core.utils import (
     resolve_secret_key,
 )
 from focus.providers import create_provider
-from focus.providers.openai_compat import OpenAICompatProvider
 from focus.core.message_render import strip_think_blocks
+from focus.routers.providers import get_openrouter_model_modalities
 from focus.routers.stream_utils import (
     apply_claude_caching,
     filter_unsupported_modalities,
@@ -80,8 +80,6 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
         messages = filter_unsupported_modalities(messages, ["text"])
 
     if prov_dict.get("type") == "openrouter":
-        from focus.routers.providers import get_openrouter_model_modalities
-
         modalities = await get_openrouter_model_modalities(prov_dict.get("model", ""))
         if modalities:
             messages = filter_unsupported_modalities(messages, modalities)
@@ -194,7 +192,7 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
             full = body.continue_text + full
 
         try:
-            await _save_assistant_variant(
+            await _upsert_variant(
                 body.chat_id,
                 final_asst_msg_id,
                 next_variant_index,
@@ -436,57 +434,6 @@ async def _execute_tool_round(
     return results
 
 
-async def _save_assistant_variant(
-    chat_id: str,
-    asst_msg_id: str,
-    variant_index: int,
-    content: str,
-    regenerate: bool,
-    model_name: str = "",
-    variant_id: str | None = None,
-) -> str:
-    new_variant_id = variant_id or str(uuid.uuid4())
-    save_now = now_iso()
-
-    async with aiosqlite.connect(DB_PATH) as save_db:
-        await save_db.execute("PRAGMA foreign_keys=ON")
-        await save_db.execute(
-            "INSERT INTO message_variants (id, message_id, variant_index, content, created_at, model_name) VALUES (?, ?, ?, ?, ?, ?)",
-            (new_variant_id, asst_msg_id, variant_index, content, save_now, model_name or None),
-        )
-
-        if regenerate and variant_index > 0:
-            async with save_db.execute("SELECT active_index FROM messages WHERE id = ?", (asst_msg_id,)) as cur:
-                row = await cur.fetchone()
-            if row:
-                async with save_db.execute(
-                    "SELECT * FROM message_attachments WHERE variant_id = (SELECT id FROM message_variants WHERE message_id = ? AND variant_index = ?) ORDER BY created_at",
-                    (asst_msg_id, row[0]),
-                ) as att_cur:
-                    old_attachments = [dict(r) for r in await att_cur.fetchall()]
-
-                for att in old_attachments:
-                    await save_db.execute(
-                        "INSERT INTO message_attachments (id, chat_id, message_id, variant_id, file_path, mime_type, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                        (
-                            str(uuid.uuid4()),
-                            chat_id,
-                            asst_msg_id,
-                            new_variant_id,
-                            att["file_path"],
-                            att["mime_type"],
-                            save_now,
-                        ),
-                    )
-
-        await save_db.execute(
-            "UPDATE messages SET active_index = ? WHERE id = ?",
-            (variant_index, asst_msg_id),
-        )
-        await save_db.execute("UPDATE chats SET updated_at = ? WHERE id = ?", (save_now, chat_id))
-        await save_db.commit()
-
-
 async def _upsert_variant(
     chat_id: str,
     asst_msg_id: str,
@@ -496,9 +443,10 @@ async def _upsert_variant(
     model_name: str = "",
     variant_id: str | None = None,
 ) -> str:
-    """Insert or update a variant. Safer than _save_assistant_variant for
-    repeated calls (during streaming) — updates content in-place instead of
-    creating duplicate rows. Returns the variant id."""
+    """Insert or update a message variant. If a variant with the same
+    (message_id, variant_index) exists, updates it in-place. Otherwise inserts
+    a new row and copies attachments from the previous active variant on
+    regenerate. Returns the variant id."""
     save_now = now_iso()
 
     async with aiosqlite.connect(DB_PATH) as save_db:

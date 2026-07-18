@@ -1,7 +1,7 @@
 import asyncio
 import base64
 import logging
-import math
+
 import time
 from datetime import UTC, datetime
 from io import BytesIO

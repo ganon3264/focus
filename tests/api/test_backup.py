@@ -36,13 +36,13 @@ class TestBackupFunctions:
         assert "id" in result
         assert os.path.join(backups_path, result["id"] + ".focus")
 
-        backups = list_backups(backups_path=backups_path)
+        backups = await list_backups(backups_path=backups_path)
         assert len(backups) == 1
         assert backups[0]["id"] == result["id"]
 
     async def test_list_backups_empty(self, tmp_test_dir):
         backups_path = os.path.join(tmp_test_dir, "empty_backups")
-        backups = list_backups(backups_path=backups_path)
+        backups = await list_backups(backups_path=backups_path)
         assert backups == []
 
     async def test_delete_backup(self, tmp_test_dir):
@@ -55,9 +55,9 @@ class TestBackupFunctions:
             db.row_factory = aiosqlite.Row
             result = await create_backup(db, backups_path=backups_path)
 
-        assert len(list_backups(backups_path=backups_path)) == 1
-        delete_backup(result["id"], backups_path=backups_path)
-        assert len(list_backups(backups_path=backups_path)) == 0
+        assert len(await list_backups(backups_path=backups_path)) == 1
+        await delete_backup(result["id"], backups_path=backups_path)
+        assert len(await list_backups(backups_path=backups_path)) == 0
 
     async def test_restore_imports_data(self, tmp_test_dir):
         db_path = os.path.join(tmp_test_dir, "focus.db")
@@ -107,7 +107,7 @@ class TestBackupFunctions:
     async def test_delete_nonexistent_backup(self, tmp_test_dir):
         backups_path = os.path.join(tmp_test_dir, "empty_backups")
         with pytest.raises(FileNotFoundError):
-            delete_backup("nonexistent", backups_path=backups_path)
+            await delete_backup("nonexistent", backups_path=backups_path)
 
 
 class TestBackupAPI:

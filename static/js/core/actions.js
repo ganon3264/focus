@@ -69,6 +69,11 @@ window.actionSaveProviderModal = function (el, e) {
   saveProviderModal(e, el.dataset.provId);
 };
 
+window.actionOpenThemeModal = function () {
+  if (window._saveThemeBackup) window._saveThemeBackup();
+  openModal("modal-themes");
+};
+
 window.actionOpenFetchModelModal = function (el) {
   openFetchModelModal(el.dataset.provId);
 };

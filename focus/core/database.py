@@ -156,6 +156,7 @@ CREATE INDEX IF NOT EXISTS idx_char_blocks_char      ON char_blocks(character_id
 CREATE INDEX IF NOT EXISTS idx_message_variants_msg  ON message_variants(message_id, variant_index);
 CREATE INDEX IF NOT EXISTS idx_tool_calls_message ON tool_calls(message_id);
 CREATE INDEX IF NOT EXISTS idx_tool_calls_chat    ON tool_calls(chat_id);
+CREATE INDEX IF NOT EXISTS idx_messages_chat_pos  ON messages(chat_id, position);
 """
 
 

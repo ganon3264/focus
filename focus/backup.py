@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 from pathlib import Path
@@ -50,22 +51,26 @@ async def create_backup(
     }
 
 
-def list_backups(backups_path: str | None = None) -> list[dict]:
+async def list_backups(backups_path: str | None = None) -> list[dict]:
     backups_dir = get_backups_dir(backups_path)
-    result = []
-    if not backups_dir.exists():
+
+    def _scan():
+        result = []
+        if not backups_dir.exists():
+            return result
+        for entry in sorted(backups_dir.iterdir(), reverse=True):
+            if not entry.is_file() or entry.suffix != ".focus":
+                continue
+            result.append(
+                {
+                    "id": entry.stem,
+                    "path": str(entry),
+                    "size_bytes": entry.stat().st_size,
+                }
+            )
         return result
-    for entry in sorted(backups_dir.iterdir(), reverse=True):
-        if not entry.is_file() or entry.suffix != ".focus":
-            continue
-        result.append(
-            {
-                "id": entry.stem,
-                "path": str(entry),
-                "size_bytes": entry.stat().st_size,
-            }
-        )
-    return result
+
+    return await asyncio.to_thread(_scan)
 
 
 async def restore_backup(
@@ -90,12 +95,12 @@ async def restore_backup(
     return {"restored": True, "backup_id": backup_id, **summary}
 
 
-def delete_backup(backup_id: str, backups_path: str | None = None) -> None:
+async def delete_backup(backup_id: str, backups_path: str | None = None) -> None:
     if not backup_id or "/" in backup_id or "\\" in backup_id or ".." in backup_id:
         raise ValueError(f"Invalid backup_id: {backup_id!r}")
     backups_dir = get_backups_dir(backups_path)
     backup_file = backups_dir / f"{backup_id}.focus"
     if not backup_file.is_file():
         raise FileNotFoundError(f"Backup '{backup_id}' not found")
-    backup_file.unlink()
+    await asyncio.to_thread(backup_file.unlink)
     logger.info("Deleted backup '%s'", backup_id)

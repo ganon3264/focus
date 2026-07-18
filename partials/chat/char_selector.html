@@ -2,8 +2,6 @@
 <div
   class="sidebar-item char-selector-item {% if current_character_id == char.id %}active{% endif %}"
   data-char-id="{{ char.id }}"
-  hx-trigger="click"
-  hx-swap="none"
   data-char-id="{{ char.id }}"
   data-current-chat-id="{{ chat_id }}"
   onclick="loadChatList(this.dataset.charId, this.dataset.currentChatId)"

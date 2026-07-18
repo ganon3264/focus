@@ -17,7 +17,7 @@ async def api_create_backup(db: aiosqlite.Connection = Depends(get_db)):
 
 @router.get("")
 async def api_list_backups():
-    return list_backups()
+    return await list_backups()
 
 
 @router.post("/{backup_id}/restore")
@@ -36,7 +36,7 @@ async def api_restore_backup(
 @router.delete("/{backup_id}", status_code=204)
 async def api_delete_backup(backup_id: str):
     try:
-        delete_backup(backup_id)
+        await delete_backup(backup_id)
     except FileNotFoundError as e:
         raise HTTPException(404, str(e))
     except ValueError as e:
