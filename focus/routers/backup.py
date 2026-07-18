@@ -2,7 +2,7 @@ import aiosqlite
 from fastapi import APIRouter, Depends, HTTPException
 
 from focus.backup import create_backup, delete_backup, list_backups, restore_backup
-from focus.database import get_db
+from focus.core.database import get_db
 
 router = APIRouter()
 

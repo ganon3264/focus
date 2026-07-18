@@ -1,4 +1,4 @@
-from focus.utils import (
+from focus.core.utils import (
     SUFFIX_MIME_MAP,
     SUFFIX_MIME_MAP_IMAGES_ONLY,
     _image_dims_from_data_url,

@@ -6,8 +6,8 @@ from fastapi import Depends, FastAPI, Request
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from focus.database import get_db, init_db, init_directories
-from focus.logger import get_logger
+from focus.core.database import get_db, init_db, init_directories
+from focus.core.logger import get_logger
 from focus.routers import (
     backup,
     characters,

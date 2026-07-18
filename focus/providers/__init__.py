@@ -1,7 +1,7 @@
 import json
 
-from ..logger import get_logger
-from ..utils import DEFAULT_OPENAI_COMPAT_BASE_URL
+from ..core.logger import get_logger
+from ..core.utils import DEFAULT_OPENAI_COMPAT_BASE_URL
 from .base import BaseProvider
 from .deepseek import DeepseekProvider
 from .google_aistudio import GoogleAIStudioProvider

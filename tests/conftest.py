@@ -15,13 +15,13 @@ async def client():
     os.makedirs(backups_dir, exist_ok=True)
     os.environ["FOCUS_BACKUPS_DIR"] = backups_dir
 
-    from focus.database import SCHEMA
+    from focus.core.database import SCHEMA
 
     async with aiosqlite.connect(path) as db:
         db.row_factory = aiosqlite.Row
         await db.executescript(SCHEMA)
 
-    from focus.database import get_db
+    from focus.core.database import get_db
     from main import app
 
     async def override_get_db():

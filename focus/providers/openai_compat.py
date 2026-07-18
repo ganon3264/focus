@@ -5,8 +5,8 @@ from collections.abc import AsyncIterator
 
 from openai import AsyncOpenAI
 
-from ..logger import get_logger
-from ..utils import (
+from ..core.logger import get_logger
+from ..core.utils import (
     DEFAULT_MAX_TOKENS,
     DEFAULT_OPENAI_COMPAT_BASE_URL,
     DEFAULT_TEMPERATURE,

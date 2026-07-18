@@ -3,8 +3,8 @@ import os
 from google import genai
 from google.genai import types
 
-from ..logger import get_logger
-from ..utils import DEFAULT_TEMPERATURE
+from ..core.logger import get_logger
+from ..core.utils import DEFAULT_TEMPERATURE
 from .google_base import AI_STUDIO_SAFETY_OFF, GoogleProviderBase
 
 logger = get_logger("providers.google_aistudio")

@@ -6,9 +6,9 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
 
 import focus.crud as crud
-from focus.database import get_db
-from focus.paths import BLOCKS_DIR, PERSONAS_DIR
-from focus.utils import now_iso
+from focus.core.database import get_db
+from focus.core.paths import BLOCKS_DIR, PERSONAS_DIR
+from focus.core.utils import now_iso
 
 router = APIRouter()
 

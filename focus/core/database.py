@@ -3,7 +3,7 @@ from datetime import UTC
 
 import aiosqlite
 
-from focus.paths import (
+from focus.core.paths import (
     ATTACHMENTS_DIR,
     CHARACTERS_DIR,
     COMPRESSED_DIR,

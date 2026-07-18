@@ -3,7 +3,7 @@ from collections.abc import AsyncIterator
 
 import httpx
 
-from ..utils import MODEL_FETCH_HTTP_TIMEOUT
+from ..core.utils import MODEL_FETCH_HTTP_TIMEOUT
 
 
 class BaseProvider(ABC):

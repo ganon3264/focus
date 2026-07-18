@@ -1,7 +1,7 @@
 import re
 from datetime import datetime
 
-from focus.utils import MACRO_MAX_PASSES
+from focus.core.utils import MACRO_MAX_PASSES
 
 
 def build_base_macros(card: dict, persona: dict | None = None) -> dict[str, str]:

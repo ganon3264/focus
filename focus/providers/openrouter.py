@@ -1,6 +1,6 @@
 import httpx
 
-from ..logger import get_logger
+from ..core.logger import get_logger
 from .openai_compat import OpenAICompatProvider
 
 logger = get_logger("providers.openrouter")
@@ -17,7 +17,7 @@ class OpenRouterProvider(OpenAICompatProvider):
         self.app_name = app_name
 
     async def fetch_models(self) -> list[dict]:
-        from ..utils import MODEL_FETCH_HTTP_TIMEOUT
+        from ..core.utils import MODEL_FETCH_HTTP_TIMEOUT
 
         async with httpx.AsyncClient() as client:
             resp = await client.get(

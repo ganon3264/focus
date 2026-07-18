@@ -9,9 +9,9 @@ from typing import Any
 
 from PIL import Image
 
-from focus.macros import apply_macros
-from focus.paths import COMPRESSED_DIR
-from focus.utils import MACRO_MAX_PASSES, variable_group_name
+from focus.core.macros import apply_macros
+from focus.core.paths import COMPRESSED_DIR
+from focus.core.utils import MACRO_MAX_PASSES, variable_group_name
 
 logger = logging.getLogger("focus.prompt_chain")
 

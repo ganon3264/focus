@@ -7,9 +7,9 @@ from zipfile import ZIP_DEFLATED, ZipFile
 
 import aiosqlite
 
-from focus.models import ExportRequest
-from focus.paths import ASSETS_DIR
-from focus.utils import now_iso
+from focus.core.models import ExportRequest
+from focus.core.paths import ASSETS_DIR
+from focus.core.utils import now_iso
 
 logger = logging.getLogger("focus.exchange")
 FOCUS_VERSION = "0.1.0"

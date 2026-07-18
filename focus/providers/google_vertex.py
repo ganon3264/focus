@@ -5,8 +5,8 @@ from google import genai
 from google.genai import types
 from google.oauth2 import service_account
 
-from ..logger import get_logger
-from ..utils import (
+from ..core.logger import get_logger
+from ..core.utils import (
     DEFAULT_MAX_TOKENS,
     DEFAULT_TEMPERATURE,
     GOOGLE_VERTEX_HTTP_RETRIES,

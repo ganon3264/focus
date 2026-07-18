@@ -5,7 +5,7 @@ import zlib
 
 import pytest
 
-from focus.card_parser import (
+from focus.core.card_parser import (
     _iter_chunks,
     _parse_itxt_chunk,
     _parse_text_chunk,

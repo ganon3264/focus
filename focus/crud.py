@@ -5,8 +5,8 @@ from pathlib import Path
 
 import aiosqlite
 
-from focus.card_parser import safe_load_card
-from focus.utils import SUFFIX_MIME_MAP, SUFFIX_MIME_MAP_IMAGES_ONLY, now_iso
+from focus.core.card_parser import safe_load_card
+from focus.core.utils import SUFFIX_MIME_MAP, SUFFIX_MIME_MAP_IMAGES_ONLY, now_iso
 
 logger = logging.getLogger("focus.crud")
 

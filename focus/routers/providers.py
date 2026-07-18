@@ -6,10 +6,10 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from focus.database import get_db
-from focus.logger import get_logger
-from focus.models import ProviderCreate
-from focus.utils import MODEL_FETCH_HTTP_TIMEOUT, TTLCache, now_iso, resolve_secret_key
+from focus.core.database import get_db
+from focus.core.logger import get_logger
+from focus.core.models import ProviderCreate
+from focus.core.utils import MODEL_FETCH_HTTP_TIMEOUT, TTLCache, now_iso, resolve_secret_key
 
 router = APIRouter()
 logger = get_logger("routers.providers")

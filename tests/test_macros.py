@@ -1,4 +1,4 @@
-from focus.macros import apply_macros, build_base_macros, extract_setvars
+from focus.core.macros import apply_macros, build_base_macros, extract_setvars
 
 
 class TestBuildBaseMacros:
@@ -35,7 +35,7 @@ class TestBuildBaseMacros:
     def test_time_of_day_classification(self, monkeypatch):
         from datetime import datetime
 
-        import focus.macros as m
+        import focus.core.macros as m
 
         test_cases = [
             (6, "morning"),
@@ -152,7 +152,7 @@ class TestApplyMacros:
         assert result == ""
 
     def test_max_passes_prevents_infinite_loop(self, monkeypatch):
-        import focus.macros as m
+        import focus.core.macros as m
 
         monkeypatch.setattr(m, "MACRO_MAX_PASSES", 2)
         macros = {"a": "{{a}}"}

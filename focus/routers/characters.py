@@ -7,11 +7,11 @@ import aiosqlite
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
 import focus.crud as crud
-from focus.card_parser import extract_card_json, normalise_card
-from focus.database import get_db
-from focus.models import CharacterCreate, CharacterUpdate, CharBlockCreate, CharBlockUpdate
-from focus.paths import BLOCKS_DIR, CHARACTERS_DIR
-from focus.utils import now_iso
+from focus.core.card_parser import extract_card_json, normalise_card
+from focus.core.database import get_db
+from focus.core.models import CharacterCreate, CharacterUpdate, CharBlockCreate, CharBlockUpdate
+from focus.core.paths import BLOCKS_DIR, CHARACTERS_DIR
+from focus.core.utils import now_iso
 
 router = APIRouter()
 logger = logging.getLogger("focus.routers.characters")

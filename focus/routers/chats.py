@@ -6,11 +6,11 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 
 import focus.crud as crud
-from focus.card_parser import safe_load_card
-from focus.database import get_db
-from focus.models import ChatCreate, MessageEdit
-from focus.paths import ATTACHMENTS_DIR
-from focus.utils import now_iso
+from focus.core.card_parser import safe_load_card
+from focus.core.database import get_db
+from focus.core.models import ChatCreate, MessageEdit
+from focus.core.paths import ATTACHMENTS_DIR
+from focus.core.utils import now_iso
 
 router = APIRouter()
 

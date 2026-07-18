@@ -3,8 +3,8 @@ from pathlib import Path
 
 import aiosqlite
 
-from focus.paths import BACKUPS_DIR
-from focus.utils import now_iso
+from focus.core.paths import BACKUPS_DIR
+from focus.core.utils import now_iso
 
 logger = logging.getLogger("focus.backup")
 
@@ -21,7 +21,7 @@ async def create_backup(
     backups_path: str | None = None,
 ) -> dict:
     from focus.exchange import export_data
-    from focus.models import ExportRequest
+    from focus.core.models import ExportRequest
 
     req = ExportRequest(
         characters=["*"],

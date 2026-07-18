@@ -6,10 +6,10 @@ import aiosqlite
 from fastapi import HTTPException
 
 import focus.crud as crud
-from focus.card_parser import safe_load_card
-from focus.macros import build_base_macros
+from focus.core.card_parser import safe_load_card
+from focus.core.macros import build_base_macros
 from focus.prompt_chain import _build_content, assemble_prompt
-from focus.utils import now_iso
+from focus.core.utils import now_iso
 
 logger = logging.getLogger("focus.routers.stream_utils")
 

@@ -5,7 +5,7 @@ import aiosqlite
 import pytest
 
 from focus.backup import create_backup, delete_backup, list_backups, restore_backup
-from focus.database import SCHEMA
+from focus.core.database import SCHEMA
 
 
 async def _init_temp_db(db_path: str):

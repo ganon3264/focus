@@ -3,8 +3,8 @@ import logging
 
 from google.genai import types
 
-from ..logger import get_logger
-from ..utils import THINK_CLOSE, THINK_OPEN, THOUGHT_SIGNATURE_CLOSE, THOUGHT_SIGNATURE_OPEN
+from ..core.logger import get_logger
+from ..core.utils import THINK_CLOSE, THINK_OPEN, THOUGHT_SIGNATURE_CLOSE, THOUGHT_SIGNATURE_OPEN
 from .base import BaseProvider
 
 logger = get_logger("providers.google_base")

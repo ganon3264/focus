@@ -7,10 +7,10 @@ from fastapi.templating import Jinja2Templates
 from jinja2 import FileSystemLoader
 
 import focus.crud as crud
-from focus.database import get_db
-from focus.macros import apply_macros, build_base_macros
+from focus.core.database import get_db
+from focus.core.macros import apply_macros, build_base_macros
 from focus.prompt_chain import partition_blocks, resolve_variable_blocks
-from focus.utils import variable_group_name
+from focus.core.utils import variable_group_name
 
 router = APIRouter()
 
