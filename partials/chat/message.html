@@ -1,18 +1,18 @@
 <div class="message relative" id="message-{{ message.id }}" data-message-id="{{ message.id }}">
   {% from "macros.html" import icon_edit, icon_refresh, icon_trash, icon_music, icon_branch, icon_chevron_left, icon_chevron_right %}
   <div class="delete-mode-checkbox hidden absolute -left-12 top-4">
-    <input type="checkbox" class="w-5 h-5 accent-[var(--accent)] rounded border-[var(--border)] cursor-pointer msg-select-checkbox" value="{{ message.id }}" onchange="updateDeleteSelection()">
+    <input type="checkbox" class="w-5 h-5 accent-(--accent) rounded border-(--border) cursor-pointer msg-select-checkbox" value="{{ message.id }}" onchange="updateDeleteSelection()">
   </div>
   <div class="message-avatar">
     {% if message.role == 'user' %}
       {% if persona and persona.avatar_path %}
-        <img src="/{{ persona.avatar_path }}" alt="{{ persona.name if persona else 'User' }} avatar">
+        <img src="/{{ persona.avatar_path }}" alt="{{ persona.name if persona else 'User' }} avatar" class="cursor-pointer" onclick="openLightbox(this.src)">
       {% else %}
         {{ persona.name[:1] if persona else 'U' }}
       {% endif %}
     {% else %}
       {% if character and character.image_path %}
-        <img src="/{{ character.image_path }}" alt="{{ character.name if character else 'Assistant' }} avatar">
+        <img src="/{{ character.image_path }}" alt="{{ character.name if character else 'Assistant' }} avatar" class="cursor-pointer" onclick="openLightbox(this.src)">
       {% else %}
         {{ character.name[:1] if character else 'A' }}
       {% endif %}

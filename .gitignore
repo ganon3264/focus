@@ -5,3 +5,6 @@ __pycache__/
 .venv/
 *.egg-info/
 .env
+bin/tailwindcss-linux-x64
+static/tailwind.css
+.opencode/

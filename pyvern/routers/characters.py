@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 
 import pyvern.crud as crud
 from pyvern.database import get_db
-from pyvern.card_parser import extract_card_json, normalise_card, safe_load_card
+from pyvern.card_parser import extract_card_json, normalise_card
 from pyvern.models import CharBlockCreate, CharBlockUpdate, CharacterCreate, CharacterUpdate
 from pyvern.utils import now_iso
 
@@ -185,7 +185,11 @@ async def get_character(char_id: str, db: aiosqlite.Connection = Depends(get_db)
     blocks = await crud.load_entity_blocks(db, "char_blocks", "character_id", char_id)
 
     result = dict(row)
-    result["card"] = safe_load_card(result.pop("card_json")) or {}
+    card_raw = result.pop("card_json")
+    try:
+        result["card"] = json.loads(card_raw) if card_raw else {}
+    except (json.JSONDecodeError, TypeError):
+        result["card"] = {}
     result["blocks"] = blocks
     return result
 

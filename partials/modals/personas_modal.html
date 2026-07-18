@@ -16,7 +16,7 @@
              style="padding-left:2rem; padding-right:0.5rem; padding-top:0.35rem; padding-bottom:0.35rem; background:var(--surface-2); border:1px solid var(--border); color:var(--text); border-radius:var(--radius-md);">
     </div>
     <select id="persona-sort-select" onchange="sortPersonas(this.value)"
-            class="text-sm flex-shrink-0"
+            class="text-sm shrink-0"
             style="background:var(--surface-2); border:1px solid var(--border); color:var(--text); border-radius:var(--radius-md); padding:0.35rem 0.4rem;">
       <option value="newest">Newest</option>
       <option value="oldest">Oldest</option>
@@ -24,7 +24,7 @@
       <option value="za">Z → A</option>
     </select>
     <button onclick="togglePersonaCompactView()"
-            class="btn btn-secondary btn-sm flex-shrink-0"
+            class="btn btn-secondary btn-sm shrink-0"
             id="persona-view-toggle-btn"
             title="Toggle compact view" aria-label="Toggle compact view">{{ icon_grid(size=14) }}</button>
   </div>
@@ -33,7 +33,7 @@
 <h3 class="sidebar-title mb-3">Select Persona</h3>
 
 {% if not personas %}
-  <div class="text-muted text-center text-sm py-6 border border-dashed border-[var(--border)] rounded-lg mb-4">
+  <div class="text-muted text-center text-sm py-6 border border-dashed border-(--border) rounded-lg mb-4">
     No personas found. Create one to get started!
   </div>
 {% endif %}
@@ -68,7 +68,7 @@
     </div>
     <div class="persona-view-compact" style="display:{{ 'block' if compact_view else 'none' }};">
       <div class="flex items-center gap-2.5 p-2.5 cursor-pointer" role="button" tabindex="0" onclick="selectPersonaModal('{{ p.id }}')">
-        <div class="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 border border-[var(--border)] flex items-center justify-center" style="background:var(--surface-3);">
+        <div class="w-10 h-10 rounded-full overflow-hidden shrink-0 border border-(--border) flex items-center justify-center" style="background:var(--surface-3);">
           {% if p.avatar_path %}
             <img src="/{{ p.avatar_path }}" alt="{{ p.name }} avatar" class="w-full h-full object-cover">
           {% else %}
@@ -78,7 +78,7 @@
         <div class="flex-1 min-w-0">
           <div class="font-bold text-sm truncate">{{ p.name }}</div>
         </div>
-        <div class="flex flex-col gap-1 flex-shrink-0" onclick="event.stopPropagation()">
+        <div class="flex flex-col gap-1 shrink-0" onclick="event.stopPropagation()">
           <button class="btn btn-secondary btn-sm" style="padding:0.2rem 0.4rem; min-width:0;"
                   data-persona-id="{{ p.id }}" 
                   data-persona-name="{{ p.name }}" 

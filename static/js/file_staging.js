@@ -21,13 +21,13 @@
         const cropBtn = `<button class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black/70 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:bg-black/90" onclick="window.cropStagedImage(${idx})" title="Crop">${window.getSvgSprite('crop', 12)}</button>`;
 
         preview = `
-          <div class="relative h-8 w-8 flex-shrink-0">
+          <div class="relative h-8 w-8 shrink-0">
             <img src="${url}" class="h-full w-full object-cover rounded" onload="try{URL.revokeObjectURL(this.src)}catch(e){}">
             ${cropBtn}
           </div>
         `;
       } else {
-        preview = `<div class="h-8 w-8 bg-surface-3 flex items-center justify-center rounded flex-shrink-0">${window.getSvgSprite('music', 24)}</div>`;
+        preview = `<div class="h-8 w-8 bg-surface-3 flex items-center justify-center rounded shrink-0">${window.getSvgSprite('music', 24)}</div>`;
       }
 
       el.innerHTML = `

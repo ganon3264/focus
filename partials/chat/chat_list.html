@@ -1,6 +1,6 @@
 {% from "macros.html" import icon_close %}
 {% if not chats %}
-  <div class="text-muted text-center text-sm py-4 border border-dashed border-[var(--border)] rounded-lg mt-2">
+  <div class="text-muted text-center text-sm py-4 border border-dashed border-(--border) rounded-lg mt-2">
     No chats found.
   </div>
 {% endif %}
@@ -11,7 +11,7 @@
     <span class="truncate font-bold text-sm leading-tight mb-1">{{ chat.last_message or chat.title }}</span>
     <span class="text-xs text-muted">{{ chat.updated_at[:10] }} {{ chat.updated_at[11:16] }}</span>
   </a>
-  <button class="btn btn-danger action-btn flex-shrink-0" style="opacity: 0; padding: 0.1rem 0.4rem; font-size: 0.8rem;" onclick="event.preventDefault(); deleteChat('{{ chat.id }}', this)" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0'" aria-label="Delete chat">{{ icon_close(12) }}</button>
+  <button class="btn btn-danger action-btn shrink-0" style="opacity: 0; padding: 0.1rem 0.4rem; font-size: 0.8rem;" onclick="event.preventDefault(); deleteChat('{{ chat.id }}', this)" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0'" aria-label="Delete chat">{{ icon_close(12) }}</button>
 </div>
 {% endfor %}
 <style>

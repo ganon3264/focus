@@ -22,7 +22,7 @@
              style="padding-left:2rem; padding-right:0.5rem; padding-top:0.35rem; padding-bottom:0.35rem; background:var(--surface-2); border:1px solid var(--border); color:var(--text); border-radius:var(--radius-md);">
     </div>
     <select id="char-sort-select" onchange="sortCharacters(this.value)"
-            class="text-sm flex-shrink-0"
+            class="text-sm shrink-0"
             style="background:var(--surface-2); border:1px solid var(--border); color:var(--text); border-radius:var(--radius-md); padding:0.35rem 0.4rem;">
       <option value="newest">Newest</option>
       <option value="oldest">Oldest</option>
@@ -30,7 +30,7 @@
       <option value="za">Z → A</option>
     </select>
     <button onclick="toggleCompactView()"
-            class="btn btn-secondary btn-sm flex-shrink-0"
+            class="btn btn-secondary btn-sm shrink-0"
             id="view-toggle-btn"
             title="Toggle compact view" aria-label="Toggle compact view">{{ icon_grid(size=14) }}</button>
   </div>
@@ -39,7 +39,7 @@
 <h3 class="sidebar-title mb-3">Select Character</h3>
 
 {% if not characters %}
-  <div class="text-muted text-center text-sm py-6 border border-dashed border-[var(--border)] rounded-lg mb-4">
+  <div class="text-muted text-center text-sm py-6 border border-dashed border-(--border) rounded-lg mb-4">
     No characters found. Create or import one to get started!
   </div>
 {% endif %}
@@ -72,7 +72,7 @@
     </div>
     <div class="card-view-compact" style="display:{{ 'block' if compact_view else 'none' }};">
       <div class="flex items-center gap-2.5 p-2.5 cursor-pointer" role="button" tabindex="0" onclick="selectCharModal('{{ char.id }}', '{{ char.name }}')">
-        <div class="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 border border-[var(--border)] flex items-center justify-center" style="background:var(--surface-3);">
+        <div class="w-10 h-10 rounded-full overflow-hidden shrink-0 border border-(--border) flex items-center justify-center" style="background:var(--surface-3);">
           {% if char.image_path %}
             <img src="/{{ char.image_path }}" alt="{{ char.name }} avatar" class="w-full h-full object-cover">
           {% else %}
@@ -82,7 +82,7 @@
         <div class="flex-1 min-w-0">
           <div class="font-bold text-sm truncate">{{ char.name }}</div>
         </div>
-        <div class="flex flex-col gap-1 flex-shrink-0" onclick="event.stopPropagation()">
+        <div class="flex flex-col gap-1 shrink-0" onclick="event.stopPropagation()">
           <button class="btn btn-secondary btn-sm" style="padding:0.2rem 0.4rem; min-width:0;"
                   data-char-id="{{ char.id }}" 
                   data-char-name="{{ char.name }}" 
@@ -109,7 +109,7 @@ function promptDeleteChar(charId, charName) {
   const html = `
     <div class="mb-4 text-sm" style="color:var(--text);">Delete character <strong>${charName}</strong>?</div>
     <div class="flex flex-col gap-3">
-      <label class="flex items-start gap-3 cursor-pointer p-3 rounded-lg hover:bg-[var(--surface-3)] transition-colors border border-[var(--border)] relative group">
+      <label class="flex items-start gap-3 cursor-pointer p-3 rounded-lg hover:bg-(--surface-3) transition-colors border border-(--border) relative group">
         <div class="mt-0.5">
           <input type="radio" name="char_delete_option" value="soft" checked class="w-4 h-4 cursor-pointer" style="accent-color: var(--accent);">
         </div>
@@ -118,7 +118,7 @@ function promptDeleteChar(charId, charName) {
           <span class="text-xs text-muted">You can restore the character later.</span>
         </div>
       </label>
-      <label class="flex items-start gap-3 cursor-pointer p-3 rounded-lg hover:bg-[var(--surface-3)] transition-colors border border-[var(--border)] relative group">
+      <label class="flex items-start gap-3 cursor-pointer p-3 rounded-lg hover:bg-(--surface-3) transition-colors border border-(--border) relative group">
         <div class="mt-0.5">
           <input type="radio" name="char_delete_option" value="soft_with_chats" class="w-4 h-4 cursor-pointer" style="accent-color: var(--accent);">
         </div>
@@ -146,13 +146,13 @@ function openTrashModal() {
     .then(chars => {
       let html = `<div class="flex flex-col gap-2 max-h-[60vh] overflow-y-auto pr-1">`;
       if (chars.length === 0) {
-        html += `<div class="text-muted text-center py-6 border border-dashed border-[var(--border)] rounded-lg">Trash is empty.</div>`;
+        html += `<div class="text-muted text-center py-6 border border-dashed border-(--border) rounded-lg">Trash is empty.</div>`;
       } else {
         chars.forEach(c => {
           html += `
-            <div class="flex justify-between items-center p-3 border border-[var(--border)] rounded-lg bg-[var(--surface-2)]">
+            <div class="flex justify-between items-center p-3 border border-(--border) rounded-lg bg-(--surface-2)">
               <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-full overflow-hidden bg-[var(--surface-3)] flex items-center justify-center border border-[var(--border)]">
+                <div class="w-10 h-10 rounded-full overflow-hidden bg-(--surface-3) flex items-center justify-center border border-(--border)">
                   ${c.image_path ? `<img src="/${c.image_path}" class="w-full h-full object-cover">` : `<span class="text-sm font-bold text-muted">${c.name.charAt(0)}</span>`}
                 </div>
                 <span class="font-bold text-sm" style="color:var(--text);">${c.name}</span>
@@ -187,7 +187,7 @@ function openTrashModal() {
 window.restoreChar = function(charId) {
   const html = `
     <div class="mb-4 text-sm" style="color:var(--text);">Restore character?</div>
-    <label class="flex items-start gap-3 cursor-pointer p-3 rounded-lg hover:bg-[var(--surface-3)] transition-colors border border-[var(--border)]">
+    <label class="flex items-start gap-3 cursor-pointer p-3 rounded-lg hover:bg-(--surface-3) transition-colors border border-(--border)">
       <div class="mt-0.5">
         <input type="checkbox" id="restore_chats_cb" checked class="w-4 h-4 cursor-pointer" style="accent-color: var(--accent);">
       </div>

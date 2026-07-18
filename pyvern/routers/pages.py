@@ -6,7 +6,6 @@ from jinja2 import FileSystemLoader
 import aiosqlite
 
 from pyvern.database import get_db
-from pyvern.card_parser import safe_load_card
 from pyvern.utils import variable_group_name
 from pyvern.macros import build_base_macros, apply_macros
 from pyvern.prompt_chain import partition_blocks, resolve_variable_blocks
@@ -18,8 +17,8 @@ def _resolve_macros_for_display(messages, char, persona, preset_blocks=None):
     """Apply macros to message content for display resolution (greetings etc.)."""
     if not char:
         return
-    card = safe_load_card(char)
-    if card is None:
+    card = char.get("card")
+    if not card:
         return
     macros = build_base_macros(card, persona)
 

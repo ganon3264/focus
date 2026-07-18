@@ -56,7 +56,7 @@
 
     window.currentEditAttachments.forEach((att, idx) => {
       const el = document.createElement('div');
-      el.className = 'relative group flex-shrink-0';
+      el.className = 'relative group shrink-0';
 
       if (att.mime_type.startsWith('image/')) {
         el.innerHTML = `

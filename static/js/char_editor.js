@@ -25,7 +25,7 @@ function promptDeleteChar(charId, charName) {
   const html = `
     <div class="mb-4 text-sm" style="color:var(--text);">Delete character <strong>${charName}</strong>?</div>
     <div class="flex flex-col gap-3">
-      <label class="flex items-start gap-3 cursor-pointer p-3 rounded-lg hover:bg-[var(--surface-3)] transition-colors border border-[var(--border)] relative group">
+      <label class="flex items-start gap-3 cursor-pointer p-3 rounded-lg hover:bg-(--surface-3) transition-colors border border-(--border) relative group">
         <div class="mt-0.5">
           <input type="radio" name="char_delete_option" value="soft" checked class="w-4 h-4 cursor-pointer" style="accent-color: var(--accent);">
         </div>
@@ -34,7 +34,7 @@ function promptDeleteChar(charId, charName) {
           <span class="text-xs text-muted">You can restore the character later.</span>
         </div>
       </label>
-      <label class="flex items-start gap-3 cursor-pointer p-3 rounded-lg hover:bg-[var(--surface-3)] transition-colors border border-[var(--border)] relative group">
+      <label class="flex items-start gap-3 cursor-pointer p-3 rounded-lg hover:bg-(--surface-3) transition-colors border border-(--border) relative group">
         <div class="mt-0.5">
           <input type="radio" name="char_delete_option" value="soft_with_chats" class="w-4 h-4 cursor-pointer" style="accent-color: var(--accent);">
         </div>

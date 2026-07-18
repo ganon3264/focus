@@ -2,7 +2,7 @@
   {% from "macros.html" import icon_trash, icon_plus %}
   <div style="width:180px;flex-shrink:0;" class="flex flex-col gap-1 overflow-auto">
     {% if not presets %}
-      <div class="text-muted text-center text-xs py-4 border border-dashed border-[var(--border)] rounded-lg mb-2">
+      <div class="text-muted text-center text-xs py-4 border border-dashed border-(--border) rounded-lg mb-2">
         No presets.
       </div>
     {% endif %}

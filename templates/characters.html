@@ -3,7 +3,7 @@
 {% block title %}Characters - Pyvern{% endblock %}
 {% block content %}
 <div class="p-3 flex flex-col h-full" x-data="charEditor()">
-  <div class="flex justify-between items-center mb-3 flex-shrink-0">
+  <div class="flex justify-between items-center mb-3 shrink-0">
     <div class="flex items-center gap-3">
       <a href="/chat" class="btn btn-secondary text-decoration-none">{{ icon_chevron_left() }} Back to Chat</a>
     </div>
@@ -19,11 +19,11 @@
   <!-- Fancy Character Selector Dropdown -->
   <div class="relative w-full max-w-md mb-6" x-data="{ dropdownOpen: false }">
     <label class="text-xs font-bold text-muted block mb-1 uppercase tracking-wider">Select Character</label>
-    <button @click="dropdownOpen = !dropdownOpen" @click.outside="dropdownOpen = false" class="w-full flex items-center justify-between form-control bg-[var(--surface-2)] hover:bg-[var(--surface-3)] transition-colors h-14">
+    <button @click="dropdownOpen = !dropdownOpen" @click.outside="dropdownOpen = false" class="w-full flex items-center justify-between form-control bg-(--surface-2) hover:bg-(--surface-3) transition-colors h-14">
       <div class="flex items-center gap-3">
         <template x-if="activeChar">
           <div class="flex items-center gap-3">
-            <div class="w-8 h-8 rounded-full bg-[var(--surface-3)] overflow-hidden flex items-center justify-center border border-[var(--border)]">
+            <div class="w-8 h-8 rounded-full bg-(--surface-3) overflow-hidden flex items-center justify-center border border-(--border)">
               <template x-if="activeChar.image_path">
                 <img :src="'/' + activeChar.image_path" class="w-full h-full object-cover" :alt="charData.name + ' avatar'">
               </template>
@@ -42,10 +42,10 @@
     </button>
     
     <!-- Dropdown Menu -->
-    <div x-show="dropdownOpen" x-transition.opacity.duration.200ms style="display:none;" class="absolute z-50 w-full mt-2 bg-[var(--surface-2)] border border-[var(--border)] rounded-lg shadow-xl overflow-hidden max-h-[50vh] overflow-y-auto flex flex-col">
+    <div x-show="dropdownOpen" x-transition.opacity.duration.200ms style="display:none;" class="absolute z-50 w-full mt-2 bg-(--surface-2) border border-(--border) rounded-lg shadow-xl overflow-hidden max-h-[50vh] overflow-y-auto flex flex-col">
       <template x-for="char in charsList" :key="char.id">
-        <button @click="selectChar(char.id); dropdownOpen = false" class="flex items-center gap-3 p-3 w-full text-left hover:bg-[var(--surface-3)] transition-colors border-b border-[var(--border)] last:border-b-0">
-          <div class="w-10 h-10 rounded-full bg-[var(--surface-3)] overflow-hidden flex items-center justify-center flex-shrink-0">
+        <button @click="selectChar(char.id); dropdownOpen = false" class="flex items-center gap-3 p-3 w-full text-left hover:bg-(--surface-3) transition-colors border-b border-(--border) last:border-b-0">
+          <div class="w-10 h-10 rounded-full bg-(--surface-3) overflow-hidden flex items-center justify-center shrink-0">
             <template x-if="char.image_path">
               <img :src="'/' + char.image_path" class="w-full h-full object-cover" alt="Block media">
             </template>
@@ -53,7 +53,7 @@
               <span class="text-sm font-bold text-muted" x-text="char.name.charAt(0)"></span>
             </template>
           </div>
-          <span class="font-bold flex-1 truncate" x-text="char.name" :class="detailId === char.id ? 'text-[var(--active-text)]' : ''"></span>
+          <span class="font-bold flex-1 truncate" x-text="char.name" :class="detailId === char.id ? 'text-(--active-text)' : ''"></span>
         </button>
       </template>
     </div>
@@ -66,7 +66,7 @@
       <div class="p-6 mb-4 shadow-lg flex flex-col gap-4" style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-xl);">
         
         <!-- Header Actions -->
-        <div class="flex justify-between items-center w-full border-b border-[var(--border)] pb-4 mb-2">
+        <div class="flex justify-between items-center w-full border-b border-(--border) pb-4 mb-2">
            <h2 class="text-xl font-bold">Edit Character</h2>
            <div class="flex gap-2">
              <button class="btn btn-primary shadow-md" onclick="saveCharCard('{{ char.id }}')">Save Changes</button>
@@ -77,10 +77,10 @@
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
           
           <!-- LEFT COLUMN: Core Card Data -->
-          <div class="flex flex-col gap-5 border-r border-[var(--border)] pr-8">
+          <div class="flex flex-col gap-5 border-r border-(--border) pr-8">
             
             <div class="flex items-center gap-4 w-full">
-              <div class="relative group cursor-pointer w-20 h-20 rounded-full overflow-hidden border border-[var(--border)] flex-shrink-0 shadow-sm" style="background:var(--surface-3);">
+              <div class="relative group cursor-pointer w-20 h-20 rounded-full overflow-hidden border border-(--border) shrink-0 shadow-xs" style="background:var(--surface-3);">
                 {% if char.image_path %}
                   <img src="/{{ char.image_path }}" class="w-full h-full object-cover" alt="Avatar">
                 {% else %}
@@ -147,7 +147,7 @@
             </div>
 
             <!-- Advanced Fields Toggle -->
-            <div x-data="{ showAdvanced: false }" class="mt-4 pt-4 border-t border-dashed border-[var(--border)] w-full">
+            <div x-data="{ showAdvanced: false }" class="mt-4 pt-4 border-t border-dashed border-(--border) w-full">
               <button class="btn btn-secondary w-full flex items-center justify-between" @click="showAdvanced = !showAdvanced">
                 <span x-text="showAdvanced ? 'Hide Advanced Text Fields' : 'Show Advanced Fields (Personality, Scenario, Example)'"></span>
                 <span :class="showAdvanced ? 'rotate-180' : ''" style="display: inline-flex;" class="text-xs">{{ icon_chevron_down(12) }}</span>
@@ -189,7 +189,7 @@
             
             <div class="flex flex-col gap-4 overflow-y-auto pr-2" id="blocks-container-{{ char.id }}" style="max-height: 800px;">
               {% for block in char.blocks %}
-              <div class="p-3 block-item shadow-sm" id="block-{{ block.id }}" style="background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-md);">
+              <div class="p-3 block-item shadow-xs" id="block-{{ block.id }}" style="background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-md);">
                 <div class="flex justify-between items-center mb-2 gap-2">
                   <input type="text" class="form-control text-sm font-bold flex-1" style="padding:0.3rem 0.5rem;" value="{{ block.name }}" placeholder="Block Name"
                     onchange="updateBlock('{{ char.id }}', '{{ block.id }}', {name: this.value})"
@@ -224,7 +224,7 @@
               {% endfor %}
               
               {% if not char.blocks %}
-              <div class="text-center p-6 text-muted border border-dashed border-[var(--border)] rounded-xl" id="empty-blocks-msg-{{ char.id }}">
+              <div class="text-center p-6 text-muted border border-dashed border-(--border) rounded-xl" id="empty-blocks-msg-{{ char.id }}">
                 <div class="text-2xl mb-2">🧩</div>
                 <p class="text-sm">No custom logic blocks added.</p>
                 <p class="text-xs opacity-70">Add blocks to inject extra system instructions into the prompt.</p>
@@ -238,7 +238,7 @@
     </div>
     {% endfor %}
     
-    <div x-show="!detailId" class="flex flex-col items-center justify-center h-64 text-muted border border-dashed border-[var(--border)] rounded-xl mt-4" style="background:var(--surface-2)">
+    <div x-show="!detailId" class="flex flex-col items-center justify-center h-64 text-muted border border-dashed border-(--border) rounded-xl mt-4" style="background:var(--surface-2)">
       <div class="text-4xl mb-2">🎭</div>
       <div class="font-bold">Select a Character</div>
       <div class="text-sm opacity-70">Use the dropdown above to choose a character to edit</div>
@@ -249,7 +249,7 @@
 
 <!-- Template for new blocks -->
 <template id="block-template">
-  <div class="p-3 block-item shadow-sm" style="background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-md);">
+  <div class="p-3 block-item shadow-xs" style="background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-md);">
     <div class="flex justify-between items-center mb-2 gap-2">
       <input type="text" class="form-control text-sm font-bold flex-1 block-name" style="padding:0.3rem 0.5rem;" value="New Block" placeholder="Block Name">
       <select class="form-control text-sm w-28 block-role" style="padding:0.3rem 0.5rem;">

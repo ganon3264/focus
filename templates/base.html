@@ -33,47 +33,7 @@
 
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <link rel="stylesheet" href="/static/vendor/inter.css">
-    <link rel="stylesheet" href="/static/vendor/cropper.min.css">
-    <script src="/static/vendor/tailwindcss.js"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              surface: {
-                50: '#f8fafc',
-                100: '#f1f5f9',
-                200: '#e2e8f0',
-                300: '#cbd5e1',
-                400: '#94a3b8',
-                500: '#64748b',
-                600: '#475569',
-                700: '#334155',
-                800: '#1e293b',
-                900: '#0f172a',
-                950: '#020617',
-              },
-              indigo: {
-                50: '#eef2ff',
-                100: '#e0e7ff',
-                200: '#c7d2fe',
-                300: '#a5b4fc',
-                400: '#818cf8',
-                500: '#6366f1',
-                600: '#4f46e5',
-                700: '#4338ca',
-                800: '#3730a3',
-                900: '#312e81',
-                950: '#1e1b4b',
-              }
-            },
-            fontFamily: {
-              sans: ['Inter', 'sans-serif'],
-            }
-          }
-        }
-      }
-    </script>
+    <link rel="stylesheet" href="/static/tailwind.css">
     <link rel="stylesheet" href="/static/style.css">
     <script src="/static/vendor/htmx2.min.js"></script>
     <script src="/static/vendor/json-enc.js"></script>
@@ -264,22 +224,21 @@
     {% include "modals/confirm_modal.html" %}
     
     <!-- Global Lightbox for Images -->
-     <div id="lightbox" class="fixed inset-0 z-[9999] bg-black/90 hidden flex-col items-center justify-center backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Image lightbox" onclick="closeLightbox(event)">
-       <button id="lightbox-close" class="absolute top-4 right-4 text-white/50 hover:text-white bg-black/50 hover:bg-black/75 rounded-full w-10 h-10 flex items-center justify-center transition-colors text-xl font-bold cursor-pointer focus:outline-none z-50" onclick="closeLightbox(event)" title="Close" aria-label="Close lightbox">{{ icon_close(24) }}</button>
+     <div id="lightbox" class="fixed inset-0 z-[9999] bg-black/90 hidden flex-col items-center justify-center backdrop-blur-xs" role="dialog" aria-modal="true" aria-label="Image lightbox" onclick="closeLightbox(event)">
+       <button id="lightbox-close" class="absolute top-4 right-4 text-white/50 hover:text-white bg-black/50 hover:bg-black/75 rounded-full w-10 h-10 flex items-center justify-center transition-colors text-xl font-bold cursor-pointer focus:outline-hidden z-50" onclick="closeLightbox(event)" title="Close" aria-label="Close lightbox">{{ icon_close(24) }}</button>
        <img id="lightbox-img" src="" alt="Enlarged image" class="max-w-[95vw] max-h-[95vh] object-contain rounded shadow-2xl" onclick="event.stopPropagation()">
     </div>
 
     <!-- Global Crop Modal -->
-     <div id="crop-modal" class="fixed inset-0 z-[9999] bg-black/80 hidden flex-col items-center justify-center backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Image crop tool">
-      <div class="bg-[var(--surface)] border border-[var(--border)] rounded-xl w-full max-w-2xl flex flex-col overflow-hidden">
-        <div class="flex justify-between items-center p-4 border-b border-[var(--border)]">
+     <div id="crop-modal" class="fixed inset-0 z-[9999] bg-black/80 hidden flex-col items-center justify-center backdrop-blur-xs" role="dialog" aria-modal="true" aria-label="Image crop tool">
+      <div class="bg-(--surface) border border-(--border) rounded-xl w-full max-w-2xl flex flex-col overflow-hidden">
+        <div class="flex justify-between items-center p-4 border-b border-(--border)">
           <h3 class="text-lg font-bold">Crop Image</h3>
           <button class="btn btn-secondary w-8 h-8 rounded-full p-0 flex items-center justify-center" onclick="closeCropModal()" aria-label="Close crop tool">{{ icon_close() }}</button>
         </div>
-        <div class="p-4 bg-[var(--surface-2)]" style="height: 60vh;">
-          <img id="crop-image" src="" alt="Image to crop" class="max-w-full max-h-full block">
+        <div id="crop-container" class="p-2 bg-(--surface-2)" style="height:60vh">
         </div>
-        <div class="flex justify-end gap-3 p-4 border-t border-[var(--border)] bg-[var(--surface)]">
+        <div class="flex justify-end gap-3 p-4 border-t border-(--border) bg-(--surface)">
           <button class="btn btn-secondary" onclick="closeCropModal()">Cancel</button>
           <button class="btn btn-primary" id="crop-save-btn">Save Crop</button>
         </div>

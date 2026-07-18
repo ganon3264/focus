@@ -67,7 +67,7 @@
     <div class="input-bar flex-col gap-2 items-center relative">
        <div id="error-toast" class="hidden absolute bottom-[100%] mb-2 w-full max-w-[820px] p-3 rounded-md shadow-lg flex items-start justify-between gap-3 text-sm z-50 pointer-events-auto" role="alert" aria-live="polite" style="background: var(--danger-dim); border: 1px solid var(--danger); color: var(--danger); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);">
         <div id="error-toast-text" class="flex-1 font-mono break-all whitespace-pre-wrap max-h-[200px] overflow-y-auto"></div>
-        <div class="flex gap-2 flex-shrink-0">
+        <div class="flex gap-2 shrink-0">
           <button class="btn btn-secondary btn-sm" onclick="navigator.clipboard.writeText(document.getElementById('error-toast-text').innerText); this.textContent='Copied!'; setTimeout(()=>this.textContent='Copy', 2000);">Copy</button>
            <button class="btn btn-secondary btn-sm" aria-label="Close error" onclick="document.getElementById('error-toast').classList.add('hidden')">{{ icon_close(16) }}</button>
         </div>
@@ -91,7 +91,7 @@
 
       <!-- Delete Toolbar -->
       <div id="delete-toolbar" class="input-wrapper relative w-full hidden justify-between items-center px-4" style="background: var(--surface-2); border-color: var(--danger);">
-        <div class="font-bold text-[var(--danger)]"><span id="delete-selected-count">0</span> Selected for deletion</div>
+        <div class="font-bold text-(--danger)"><span id="delete-selected-count">0</span> Selected for deletion</div>
         <div class="flex gap-2">
           <button class="btn btn-secondary btn-sm" onclick="exitDeleteMode()">Cancel</button>
           <button class="btn btn-danger btn-sm" onclick="bulkDeleteSelected('{{ chat_id }}')">Delete Selected</button>
@@ -104,7 +104,7 @@
       {% if character %}
       <div style="width: 100px; height: 100px; border-radius: 50%; overflow: hidden; margin-bottom: 1.5rem; border: 2px solid var(--border); box-shadow: var(--shadow-md);">
         {% if character.image_path %}
-          <img src="/{{ character.image_path }}" alt="{{ character.name }}" style="width: 100%; height: 100%; object-fit: cover;">
+          <img src="/{{ character.image_path }}" alt="{{ character.name }}" style="width: 100%; height: 100%; object-fit: cover; cursor: pointer;" onclick="openLightbox(this.src)">
         {% else %}
           <div style="width: 100%; height: 100%; background: var(--surface-3); display: grid; place-items: center; font-size: 2.5rem; font-weight: bold; color: var(--text-muted);">
             {{ character.name[:1] }}
@@ -197,7 +197,7 @@
 {% include "modals/text_expander.html" %}
 
 <!-- PROMPT ARRANGER MODAL -->
-{% call modal_shell('modal-arranger', 'Prompt Arranger', max_width='800px', width='90vw', content_style='display:flex;flex-direction:column;height:85vh;padding:0;') %}
+{% call modal_shell('modal-arranger', 'Prompt Arranger', max_width='600px', width='90vw', content_style='display:flex;flex-direction:column;height:85vh;padding:0;') %}
 <div id="arranger-modal-body" class="flex-1 overflow-auto" style="padding:0.5rem 1rem 1rem 1rem;">
   {% if preset %}
     {% with preset_id = preset.id, blocks = preset_blocks %}
@@ -224,7 +224,7 @@
     <label class="text-xs font-bold text-muted mb-1 block">Value to Inject</label>
     <textarea id="var-modal-content" rows="6" class="form-control" style="resize:vertical;" placeholder="Enter the text to inject..."></textarea>
     <div id="var-modal-hint" class="text-xs text-muted mt-2">
-      Use <code class="bg-[var(--surface-3)] px-1 rounded">{% raw %}{{ getvar::{% endraw %}name{% raw %} }}{% endraw %}</code> in your prompt blocks to insert this value.
+      Use <code class="bg-(--surface-3) px-1 rounded">{% raw %}{{ getvar::{% endraw %}name{% raw %} }}{% endraw %}</code> in your prompt blocks to insert this value.
     </div>
   </div>
   <div class="flex justify-end gap-2 mt-2">
@@ -300,7 +300,7 @@ if (!window._varScriptsLoaded) {
 
   window.updateVarHint = function(groupName) {
     const name = groupName.trim() || 'name';
-    const rawHtml = `Use <code class="bg-[var(--surface-3)] px-1 rounded">{% raw %}{{ getvar::{% endraw %}${name}{% raw %} }}{% endraw %}</code> in your prompt blocks to insert this value.`;
+    const rawHtml = `Use <code class="bg-(--surface-3) px-1 rounded">{% raw %}{{ getvar::{% endraw %}${name}{% raw %} }}{% endraw %}</code> in your prompt blocks to insert this value.`;
     document.getElementById('var-modal-hint').innerHTML = rawHtml;
   };
 

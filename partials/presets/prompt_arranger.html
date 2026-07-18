@@ -24,7 +24,6 @@
       <button type="button" class="btn-tag w-full text-left" @click="open = false; addBlock('{{ preset_id }}', 'char_description', $el)">Character Description</button>
       <button type="button" class="btn-tag w-full text-left" @click="open = false; addBlock('{{ preset_id }}', 'char_personality', $el)">Character Personality</button>
       <button type="button" class="btn-tag w-full text-left" @click="open = false; addBlock('{{ preset_id }}', 'char_blocks', $el)">Character Blocks</button>
-      <button type="button" class="btn-tag w-full text-left" @click="open = false; addBlock('{{ preset_id }}', 'chat_history', $el)">Chat History</button>
       <button type="button" class="btn-tag w-full text-left" @click="open = false; addBlock('{{ preset_id }}', 'user_persona', $el)">User Persona</button>
     </div>
   </div>
@@ -48,6 +47,7 @@
   el._sortable = new Sortable(el, {
     animation: 150,
     ghostClass: 'sortable-ghost',
+    handle: '.arranger-handle',
     onEnd: function(){
       const ids = Array.from(el.children).map(function(c){ return c.dataset.blockId; }).filter(Boolean);
       const body = ids.map(function(id, idx){ return {id: id, position: idx}; });

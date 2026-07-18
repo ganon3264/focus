@@ -30,7 +30,7 @@
     asstDiv.id = 'streaming-message';
 
     const avatarHtml = charImagePath
-      ? `<img src="/${charImagePath}" alt="">`
+      ? `<img src="/${charImagePath}" alt="" class="cursor-pointer" onclick="openLightbox(this.src)">`
       : window.escapeHtml(charName[0] || 'A');
 
     asstDiv.innerHTML = `
