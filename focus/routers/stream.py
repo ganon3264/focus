@@ -383,7 +383,7 @@ async def itemize_prompt(body: ItemizerRequest, db: aiosqlite.Connection = Depen
                     clean_parts.append({"type": "text", "text": part["text"], "tokens": t_count})
                 elif part["type"] == "image_url":
                     dims = _image_dims_from_data_url(part["image_url"]["url"])
-                    img_tokens = estimate_image_tokens(*dims) if dims else 258
+                    img_tokens = estimate_image_tokens(*dims) if dims else 250
                     tokens += img_tokens
                     clean_parts.append({"type": "image", "text": "[IMAGE ATTACHMENT]", "tokens": img_tokens})
                 elif part["type"] == "input_audio":

@@ -17,6 +17,8 @@ logger = logging.getLogger("focus.prompt_chain")
 
 MAX_IMAGE_B64 = 5 * 1024 * 1024  # 5 MB provider limit on base64 payload
 
+MEDIA_PATTERN = re.compile(r"\{\{media::(\d+)\}\}")
+
 
 def _ensure_compressed(orig_path: str, mime: str) -> tuple[Path, str]:
     """Return (compressed_file_path, output_mime) from a disk cache.
@@ -126,14 +128,46 @@ def _load_media(media_row: dict) -> dict | None:
 def _build_content(text: str, images: list[dict]) -> str | list:
     """
     Return plain string if no images, or a multimodal content array if images present.
-    Images come after text within the same block.
+
+    If the text contains {{media::x}} markers (1-based index), images are
+    interleaved at the marker positions instead of being appended at the end.
+    Out-of-range indices leave the raw marker in the text as a visible error.
     """
     if not images:
         return text
+
+    matches = list(MEDIA_PATTERN.finditer(text))
+    if not matches:
+        # No markers — current behavior: append all images after text
+        parts: list[dict] = []
+        if text:
+            parts.append({"type": "text", "text": text})
+        parts.extend(m for img in images if (m := _load_media(img)) is not None)
+        return parts
+
     parts: list[dict] = []
-    if text:
-        parts.append({"type": "text", "text": text})
-    parts.extend(m for img in images if (m := _load_media(img)) is not None)
+    last_end = 0
+
+    for match in matches:
+        text_before = text[last_end : match.start()]
+        if text_before:
+            parts.append({"type": "text", "text": text_before})
+
+        index = int(match.group(1))
+        if 1 <= index <= len(images):
+            img = images[index - 1]
+            media_block = _load_media(img)
+            if media_block:
+                parts.append(media_block)
+        else:
+            parts.append({"type": "text", "text": match.group(0)})
+
+        last_end = match.end()
+
+    text_after = text[last_end:]
+    if text_after:
+        parts.append({"type": "text", "text": text_after})
+
     return parts
 
 

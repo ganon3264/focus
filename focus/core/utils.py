@@ -101,13 +101,22 @@ def _image_dims_from_data_url(url: str) -> tuple[int, int] | None:
 
 
 def estimate_image_tokens(width: int, height: int) -> int:
-    """Gemini-style image token estimate.
-    Both dimensions ≤384px: 258 tokens flat.
-    Larger: ceil(w/768) × ceil(h/768) × 258.
+    """Area-based image token estimate with downscaling for very large images.
+
+    If the longest edge exceeds 2000px, the image is proportionally scaled
+    down so the longest edge fits within 2000px first.  This mirrors what
+    providers do — they don't process images at full resolution.
+
+    tokens = clamp(scaled_area / 900, 250, 1600)
     """
-    if width <= 384 and height <= 384:
-        return 258
-    return math.ceil(width / 768) * math.ceil(height / 768) * 258
+    longest = max(width, height)
+    if longest > 2000:
+        scale = 2000 / longest
+        width = int(width * scale)
+        height = int(height * scale)
+
+    raw = width * height // 900
+    return max(250, min(raw, 1600))
 
 
 MACRO_MAX_PASSES = 10
