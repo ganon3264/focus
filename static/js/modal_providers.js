@@ -216,7 +216,10 @@ async function updateOpenRouterOptions(prefix, modelId) {
     const routeWrapperId = prefix === 'new-prov' ? 'new-prov-route-wrapper' : 'edit-prov-route-wrapper-' + prefix;
     const routeInputId = prefix === 'new-prov' ? 'new-prov-or-route' : 'edit-prov-or-route-' + prefix;
     const rWrap = document.getElementById(routeWrapperId);
-    if(rWrap) rWrap.innerHTML = renderMacroSelect('or_route', routeInputId, routeOptions, '');
+    if(rWrap) {
+      rWrap.innerHTML = renderMacroSelect('or_route', routeInputId, routeOptions, '');
+      refreshNoFallbacksVisibility(prefix);
+    }
     
     const quantWrapperId = prefix === 'new-prov' ? 'new-prov-quant-wrapper' : 'edit-prov-quant-wrapper-' + prefix;
     const quantInputId = prefix === 'new-prov' ? 'new-prov-or-quant' : 'edit-prov-or-quant-' + prefix;
@@ -225,6 +228,27 @@ async function updateOpenRouterOptions(prefix, modelId) {
 
   } catch(err) {
      console.error(err);
+  }
+}
+
+function toggleNoFallbacks(prefix) {
+  const isNew = prefix === 'new-prov';
+  const toggle = document.getElementById(isNew ? 'new-prov-or-no-fallbacks-toggle' : 'edit-prov-or-no-fallbacks-toggle-' + prefix);
+  const input = document.getElementById(isNew ? 'new-prov-or-no-fallbacks' : 'edit-prov-or-no-fallbacks-' + prefix);
+  if (!toggle || !input) return;
+  toggle.classList.toggle('active');
+  input.value = toggle.classList.contains('active') ? 'true' : 'false';
+}
+
+function refreshNoFallbacksVisibility(prefix) {
+  const isNew = prefix === 'new-prov';
+  const routeInput = document.getElementById(isNew ? 'new-prov-or-route' : 'edit-prov-or-route-' + prefix);
+  const row = document.getElementById(isNew ? 'new-prov-or-no-fallbacks-row' : 'edit-prov-or-no-fallbacks-row-' + prefix);
+  if (!routeInput || !row) return;
+  if (routeInput.value) {
+    row.classList.remove('hidden');
+  } else {
+    row.classList.add('hidden');
   }
 }
 
@@ -277,6 +301,9 @@ function extractData(form) {
     
     if (data.or_quant) params.or_quant = data.or_quant;
     else delete params.or_quant;
+
+    const orNoFallbacksInput = form.querySelector('[name="or_no_fallbacks"]');
+    params.or_no_fallbacks = orNoFallbacksInput ? orNoFallbacksInput.value === 'true' : true;
     
     data.params = params;
   } else if (type === 'google_vertex') {
@@ -296,6 +323,7 @@ function extractData(form) {
   delete data.or_model;
   delete data.or_route;
   delete data.or_quant;
+  delete data.or_no_fallbacks;
   delete data.vertex_region;
   delete data.vertex_project_id;
   
@@ -333,6 +361,16 @@ function submitProviderModal(e){
 
 // Initialization
 setTimeout(() => {
+  const createRoute = document.getElementById('new-prov-or-route');
+  if (createRoute && !createRoute.dataset.nfInit) {
+    createRoute.addEventListener('change', function() { refreshNoFallbacksVisibility('new-prov'); });
+    createRoute.dataset.nfInit = '1';
+  }
+  document.querySelectorAll('[id^="edit-prov-or-route-"]').forEach(function(el) {
+    if (el.dataset.nfInit) return;
+    el.addEventListener('change', function() { refreshNoFallbacksVisibility(el.id.replace('edit-prov-or-route-', '')); });
+    el.dataset.nfInit = '1';
+  });
   const activeId = StateManager.get('provider_id');
   const activeType = StateManager.get('provider_type');
   if (activeId) setActiveProvider(activeId, '', activeType);

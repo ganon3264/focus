@@ -64,6 +64,11 @@
         {{ custom_select(name="or_route", id="new-prov-or-route", options=[{"value": "", "label": "Auto (Any)"}], selected="", extra_classes="form-control text-sm w-full") }}
       </div>
     </div>
+    <div id="new-prov-or-no-fallbacks-row" class="form-group mb-0 flex items-center justify-between hidden">
+      <label class="text-xs mb-0 cursor-pointer" onclick="toggleNoFallbacks('new-prov')">Lock provider (no fallbacks)</label>
+      <div class="arranger-toggle active" role="switch" tabindex="0" id="new-prov-or-no-fallbacks-toggle" onclick="toggleNoFallbacks('new-prov')"></div>
+      <input type="hidden" name="or_no_fallbacks" id="new-prov-or-no-fallbacks" value="true">
+    </div>
     <div class="form-group mb-0">
       <label>Quantization</label>
       <div id="new-prov-quant-wrapper">

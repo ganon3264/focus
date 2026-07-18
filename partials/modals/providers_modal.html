@@ -104,6 +104,11 @@
               {{ custom_select(name="or_route", id="edit-prov-or-route-" ~ prov.id, options=r_options, selected=r_val, extra_classes="form-control text-sm w-full") }}
             </div>
           </div>
+          <div id="edit-prov-or-no-fallbacks-row-{{ prov.id }}" class="form-group mb-0 flex items-center justify-between {% if not params.get('or_route') %}hidden{% endif %}">
+            <label class="text-xs mb-0 cursor-pointer" onclick="toggleNoFallbacks('{{ prov.id }}')">Lock provider (no fallbacks)</label>
+            <div class="arranger-toggle {% if params.get('or_no_fallbacks', True) %}active{% endif %}" role="switch" tabindex="0" id="edit-prov-or-no-fallbacks-toggle-{{ prov.id }}" onclick="toggleNoFallbacks('{{ prov.id }}')"></div>
+            <input type="hidden" name="or_no_fallbacks" id="edit-prov-or-no-fallbacks-{{ prov.id }}" value="{% if params.get('or_no_fallbacks', True) %}true{% else %}false{% endif %}">
+          </div>
           <div class="form-group mb-0">
             <label class="text-xs">Quantization</label>
             <div id="edit-prov-quant-wrapper-{{ prov.id }}">

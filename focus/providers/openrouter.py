@@ -41,17 +41,19 @@ class OpenRouterProvider(OpenAICompatProvider):
         # OpenRouter-specific routing params injected into extra_body
         or_route = self.params.get("or_route")
         or_quant = self.params.get("or_quant")
-        
+        or_no_fallbacks = self.params.get("or_no_fallbacks", True)
+
         provider_config = {}
         if or_route:
             provider_config["order"] = [or_route]
-            provider_config["allow_fallbacks"] = False
         if or_quant:
             provider_config["quantizations"] = [or_quant]
-            
+        if or_no_fallbacks:
+            provider_config["allow_fallbacks"] = False
+
         if provider_config:
             prefs["provider"] = provider_config
-            
+
         return prefs
 
     async def stream_complete(self, messages: list[dict], **kwargs):

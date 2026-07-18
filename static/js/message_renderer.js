@@ -87,7 +87,14 @@ window.renderMessage = function(text) {
         pos = tagEnd;
       } else if (ch === '"' && !tagStack.some(t => t.styled)) {
         let end = pos + 1;
-        while (end < html.length && html[end] !== '"' && html[end] !== '<') end++;
+        while (end < html.length && html[end] !== '"') {
+          if (html[end] === '<') {
+            const tagEnd = html.indexOf('>', end);
+            if (tagEnd === -1) break;
+            end = tagEnd;
+          }
+          end++;
+        }
         if (end < html.length && html[end] === '"') {
           result += '<span class="accent-quote">"' + html.slice(pos + 1, end) + '"</span>';
           pos = end;

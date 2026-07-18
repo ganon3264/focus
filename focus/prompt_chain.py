@@ -249,7 +249,7 @@ def assemble_prompt(
         elif btype == "user_persona":
             persona_id = macros.get("persona_id", "")
             persona_images = block_images.get(persona_id, []) if persona_id else []
-            text = macros.get("persona", "").strip()
+            text = apply_macros(macros.get("persona", ""), macros).strip()
             content = _build_content(text, persona_images)
             if content:
                 target.append({"role": block["role"], "content": content})

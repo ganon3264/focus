@@ -12,6 +12,9 @@ async def client():
     """Create an async HTTP client with a fresh isolated database per test."""
     tmpdir = tempfile.mkdtemp()
     path = os.path.join(tmpdir, "test.db")
+    backups_dir = os.path.join(tmpdir, "backups")
+    os.makedirs(backups_dir, exist_ok=True)
+    os.environ["FOCUS_BACKUPS_DIR"] = backups_dir
 
     from focus.database import SCHEMA
 
