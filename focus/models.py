@@ -149,3 +149,14 @@ class ItemizerRequest(BaseModel):
     user_message: str = ""
     attachment_ids: list[str] = Field(default_factory=list)
     regenerate: bool = False
+
+
+# ── Import / Export ───────────────────────────────────────────────────────────
+
+class ExportRequest(BaseModel):
+    characters: list[str] = Field(default_factory=list)
+    personas: list[str] = Field(default_factory=list)
+    presets: list[str] = Field(default_factory=list)
+    chats: list[str] = Field(default_factory=list)
+    include_providers: bool = False
+    include_secrets: bool = False

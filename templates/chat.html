@@ -36,7 +36,8 @@
         <button class="btn btn-secondary w-full text-xs" onclick="openModal('modal-personas')">Personas</button>
         <button class="btn btn-secondary w-full text-xs" onclick="openModal('modal-providers')">Providers</button>
         <button class="btn btn-secondary w-full text-xs" onclick="openModal('modal-themes')">Themes</button>
-        <button class="btn btn-secondary w-full text-xs" style="grid-column: span 2;" onclick="openModal('modal-itemizer'); window.dispatchEvent(new CustomEvent('itemizer-open'));">Prompt Itemizer</button>
+        <button class="btn btn-secondary w-full text-xs" onclick="openModal('modal-itemizer'); window.dispatchEvent(new CustomEvent('itemizer-open'));">Prompt Itemizer</button>
+        <button class="btn btn-secondary w-full text-xs" onclick="openModal('modal-backups')">Backups</button>
       </div>
     </div>
     <div class="sidebar-section mt-auto">
@@ -173,15 +174,15 @@
 </div>
 {% endcall %}
 
-{% call modal_shell('modal-characters', 'Characters', max_width='800px', content_style='') %}
-<div id="characters-modal-body">Loading…</div>
+{% call modal_shell('modal-characters', 'Characters', max_width='800px', content_style='display:flex;flex-direction:column;height:80vh;') %}
+<div id="characters-modal-body" class="flex-1 overflow-hidden" style="min-height:0;">Loading…</div>
 {% endcall %}
 
 {% set prefix = 'char' %}{% set modal_id = 'modal-edit-character' %}{% set entity_name = 'Character' %}{% set upload_fn = 'uploadCharModalMedia' %}{% set avatar_fn = 'uploadCharacterAvatar' %}{% set submit_fn = 'submitEditCharacter' %}
 {% include "modals/edit_entity_modal.html" %}
 
-{% call modal_shell('modal-personas', 'Personas', max_width='800px', content_style='') %}
-<div id="personas-modal-body">Loading…</div>
+{% call modal_shell('modal-personas', 'Personas', max_width='800px', content_style='display:flex;flex-direction:column;height:80vh;') %}
+<div id="personas-modal-body" class="flex-1 overflow-hidden" style="min-height:0;">Loading…</div>
 {% endcall %}
 
 {% set prefix = 'persona' %}{% set modal_id = 'modal-edit-persona' %}{% set entity_name = 'Persona' %}{% set upload_fn = 'uploadPersonaMedia' %}{% set avatar_fn = 'uploadPersonaAvatar' %}{% set submit_fn = 'submitEditPersona' %}
@@ -360,8 +361,13 @@ setTimeout(() => {
 {% endif %}
 </script>
 
+<script src="/static/js/backup_manager.js"></script>
+
 <!-- THEMES MODAL -->
 {% include "modals/theme_modal.html" %}
+
+<!-- BACKUPS MODAL -->
+{% include "modals/backup_modal.html" %}
 
 <script src="/static/js/theme_manager.js"></script>
 <script>
@@ -381,6 +387,7 @@ function openModal(id){
     if(id === 'modal-personas') htmx.ajax('GET',api.partials.personasModal + '?current_persona_id=' + (window.CURRENT_CHAT_STATE?.persona_id || ''),{target:'#personas-modal-body',swap:'innerHTML'});
     if(id === 'modal-providers') htmx.ajax('GET',api.partials.providersModal,{target:'#providers-modal-body',swap:'innerHTML'});
   }
+  if(id === 'modal-backups' && window.BackupManager) { BackupManager.loadList(); }
 }
 function closeModal(id){ document.getElementById(id).style.display = 'none'; }
 function toggleRightBar(){

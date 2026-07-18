@@ -103,7 +103,6 @@
 
     sendBtn.classList.add('hidden');
     stopBtn.classList.remove('hidden');
-    input.disabled = true;
     const fileUpload = document.getElementById('file-upload');
     if (fileUpload) fileUpload.disabled = true;
 
@@ -275,7 +274,6 @@
       currentController = null;
       sendBtn.classList.remove('hidden');
       stopBtn.classList.add('hidden');
-      input.disabled = false;
       const fileUpload = document.getElementById('file-upload');
       if (fileUpload) fileUpload.disabled = false;
     }

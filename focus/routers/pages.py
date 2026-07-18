@@ -379,6 +379,32 @@ async def personas_modal_partial(request: Request, current_persona_id: str = "",
         "current_persona_id": current_persona_id,
     })
 
+@router.get("/partials/export-entities", response_class=HTMLResponse)
+async def export_entities_partial(
+    request: Request,
+    type: str = Query(...),
+    filter: str = Query(""),
+    db: aiosqlite.Connection = Depends(get_db),
+):
+    if type == "characters":
+        entities = await crud.get_characters(db)
+    elif type == "personas":
+        entities = await crud.get_personas(db)
+    elif type == "presets":
+        entities = await crud.get_presets(db)
+    else:
+        entities = []
+
+    f = filter.lower()
+    if f:
+        entities = [e for e in entities if f in (e.get("name") or "").lower()]
+
+    return templates.TemplateResponse(request, "modals/export_entities.html", {
+        "request": request,
+        "entities": entities,
+        "etype": type,
+    })
+
 # Add json filter to jinja
 def from_json(value):
     import json

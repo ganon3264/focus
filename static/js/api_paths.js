@@ -47,6 +47,13 @@ window.api = {
   stream: '/api/stream',
   itemize: '/api/itemize',
 
+  backups: '/api/backups',
+  backupRestore: function(id) { return '/api/backups/' + id + '/restore'; },
+  backupDelete: function(id) { return '/api/backups/' + id; },
+
+  export: '/api/export',
+  import_: '/api/import',
+
   partials: {
     messageList: function(chatId) { return '/partials/message-list/' + chatId; },
     charactersModal: '/partials/characters-modal',
@@ -54,6 +61,7 @@ window.api = {
     providersModal: '/partials/providers-modal',
     promptArranger: function(presetId) { return '/partials/prompt-arranger/' + presetId; },
     presetsModal: '/partials/presets-modal',
+    exportEntities: '/partials/export-entities',
     presetEditor: function(presetId) { return '/partials/preset-editor/' + presetId; },
     presetVariables: function(presetId) { return '/partials/preset-variables/' + presetId; },
     chatList: '/partials/chat-list',

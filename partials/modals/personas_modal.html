@@ -1,99 +1,103 @@
-<div class="mb-5 flex flex-col gap-3">
+<div class="flex flex-col h-full">
   {% from "macros.html" import icon_edit, icon_trash, icon_search, icon_plus, icon_grid %}
-  <h3 class="sidebar-title mb-1">Tools</h3>
-  <div class="flex gap-2 h-10">
-    <button onclick="openNewPersonaPopup()" class="btn btn-secondary btn-sm flex-1 h-full flex items-center justify-center gap-1.5 cursor-pointer m-0">
-      {{ icon_plus(size=14) }} New
-    </button>
-    <a href="/personas" class="btn btn-secondary btn-sm flex-1 flex items-center justify-center h-full text-decoration-none gap-1.5">{{ icon_edit(size=14) }} Editor</a>
-  </div>
-  <div class="flex gap-2 items-center">
-    <div class="flex-1 relative">
-      <span class="absolute left-2.5 top-1/2 -translate-y-1/2 flex" style="color:var(--text-muted); pointer-events:none;">{{ icon_search(size=14) }}</span>
-      <input type="text" placeholder="Search personas..."
-             oninput="filterPersonas(this.value)"
-             class="text-sm w-full"
-             style="padding-left:2rem; padding-right:0.5rem; padding-top:0.35rem; padding-bottom:0.35rem; background:var(--surface-2); border:1px solid var(--border); color:var(--text); border-radius:var(--radius-md);">
+  <div class="flex flex-col gap-3 pb-4 border-b" style="border-color:var(--border);">
+    <h3 class="sidebar-title mb-1">Tools</h3>
+    <div class="flex gap-2 h-10">
+      <button onclick="openNewPersonaPopup()" class="btn btn-secondary btn-sm flex-1 h-full flex items-center justify-center gap-1.5 cursor-pointer m-0">
+        {{ icon_plus(size=14) }} New
+      </button>
+      <a href="/personas" class="btn btn-secondary btn-sm flex-1 flex items-center justify-center h-full text-decoration-none gap-1.5">{{ icon_edit(size=14) }} Editor</a>
     </div>
-    <select id="persona-sort-select" onchange="sortPersonas(this.value)"
-            class="text-sm shrink-0"
-            style="background:var(--surface-2); border:1px solid var(--border); color:var(--text); border-radius:var(--radius-md); padding:0.35rem 0.4rem;">
-      <option value="newest">Newest</option>
-      <option value="oldest">Oldest</option>
-      <option value="az">A → Z</option>
-      <option value="za">Z → A</option>
-    </select>
-    <button onclick="togglePersonaCompactView()"
-            class="btn btn-secondary btn-sm shrink-0"
-            id="persona-view-toggle-btn"
-            title="Toggle compact view" aria-label="Toggle compact view">{{ icon_grid(size=14) }}</button>
-  </div>
-</div>
-
-<h3 class="sidebar-title mb-3">Select Persona</h3>
-
-{% if not personas %}
-  <div class="text-muted text-center text-sm py-6 border border-dashed border-(--border) rounded-lg mb-4">
-    No personas found. Create one to get started!
-  </div>
-{% endif %}
-
-<div class="grid" id="persona-modal-grid" data-view="{{ 'compact' if compact_view else 'full' }}" style="grid-template-columns: {{ 'repeat(3, minmax(200px, 1fr))' if compact_view else 'repeat(auto-fill, minmax(160px, 1fr))' }}; gap: 1rem;">
-  {% for p in personas %}
-  <div class="card{% if current_persona_id == p.id %} active{% endif %}" id="persona-card-{{ p.id }}" data-persona-name="{{ p.name | lower }}" data-persona-created="{{ p.created_at }}">
-    <div class="persona-view-full h-full flex flex-col" style="display:{{ 'none' if compact_view else 'flex' }};">
-      <div class="card-image" style="aspect-ratio: 1/1; border-radius: 12px 12px 0 0; cursor:pointer;" role="button" tabindex="0" onclick="selectPersonaModal('{{ p.id }}')">
-        {% if p.avatar_path %}
-          <img src="/{{ p.avatar_path }}" alt="{{ p.name }} avatar" style="border-radius: 12px 12px 0 0;">
-        {% else %}
-          <span class="text-3xl">{{ p.name[:1] }}</span>
-        {% endif %}
+    <div class="flex gap-2 items-center">
+      <div class="flex-1 relative">
+        <span class="absolute left-2.5 top-1/2 -translate-y-1/2 flex" style="color:var(--text-muted); pointer-events:none;">{{ icon_search(size=14) }}</span>
+        <input type="text" placeholder="Search personas..."
+               oninput="filterPersonas(this.value)"
+               class="text-sm w-full"
+               style="padding-left:2rem; padding-right:0.5rem; padding-top:0.35rem; padding-bottom:0.35rem; background:var(--surface-2); border:1px solid var(--border); color:var(--text); border-radius:var(--radius-md);">
       </div>
-      <div class="card-body" style="padding: 0.75rem;">
-        <div class="font-bold text-sm truncate mb-1">{{ p.name }}</div>
-        <div class="text-xs text-muted truncate mb-2">{{ p.description or 'No description' }}</div>
-        <div class="flex gap-1 mt-auto">
-          <button class="btn btn-secondary btn-sm flex-1" 
-                  data-persona-id="{{ p.id }}" 
-                  data-persona-name="{{ p.name }}" 
-                  data-persona-desc="{{ p.description or '' }}" 
-                  data-persona-image="{{ p.avatar_path or '' }}"
-                  data-persona-media="{{ p.images | tojson | forceescape }}"
-                  onclick="event.stopPropagation(); openEditPersonaModal(this)" aria-label="Edit persona">{{ icon_edit() }}</button>
-          {% if p.name != 'User' %}
-          <button class="btn btn-danger btn-sm" onclick="event.stopPropagation(); promptDeletePersona('{{ p.id }}', '{{ p.name | escape }}')" aria-label="Delete persona">{{ icon_trash() }}</button>
-          {% endif %}
-        </div>
-      </div>
-    </div>
-    <div class="persona-view-compact" style="display:{{ 'block' if compact_view else 'none' }};">
-      <div class="flex items-center gap-2.5 p-2.5 cursor-pointer" role="button" tabindex="0" onclick="selectPersonaModal('{{ p.id }}')">
-        <div class="w-10 h-10 rounded-full overflow-hidden shrink-0 border border-(--border) flex items-center justify-center" style="background:var(--surface-3);">
-          {% if p.avatar_path %}
-            <img src="/{{ p.avatar_path }}" alt="{{ p.name }} avatar" class="w-full h-full object-cover">
-          {% else %}
-            <span class="text-sm font-bold text-muted">{{ p.name[:1] }}</span>
-          {% endif %}
-        </div>
-        <div class="flex-1 min-w-0">
-          <div class="font-bold text-sm truncate">{{ p.name }}</div>
-        </div>
-        <div class="flex flex-col gap-1 shrink-0" onclick="event.stopPropagation()">
-          <button class="btn btn-secondary btn-sm" style="padding:0.2rem 0.4rem; min-width:0;"
-                  data-persona-id="{{ p.id }}" 
-                  data-persona-name="{{ p.name }}" 
-                  data-persona-desc="{{ p.description or '' }}" 
-                  data-persona-image="{{ p.avatar_path or '' }}"
-                  data-persona-media="{{ p.images | tojson | forceescape }}"
-                  onclick="event.stopPropagation(); openEditPersonaModal(this)" aria-label="Edit persona">{{ icon_edit(size=12) }}</button>
-          {% if p.name != 'User' %}
-          <button class="btn btn-danger btn-sm" style="padding:0.2rem 0.4rem; min-width:0;" onclick="event.stopPropagation(); promptDeletePersona('{{ p.id }}', '{{ p.name | escape }}')" aria-label="Delete persona">{{ icon_trash(size=12) }}</button>
-          {% endif %}
-        </div>
-      </div>
+      <select id="persona-sort-select" onchange="sortPersonas(this.value)"
+              class="text-sm shrink-0"
+              style="background:var(--surface-2); border:1px solid var(--border); color:var(--text); border-radius:var(--radius-md); padding:0.35rem 0.4rem;">
+        <option value="newest">Newest</option>
+        <option value="oldest">Oldest</option>
+        <option value="az">A → Z</option>
+        <option value="za">Z → A</option>
+      </select>
+      <button onclick="togglePersonaCompactView()"
+              class="btn btn-secondary btn-sm shrink-0"
+              id="persona-view-toggle-btn"
+              title="Toggle compact view" aria-label="Toggle compact view">{{ icon_grid(size=14) }}</button>
     </div>
   </div>
-  {% endfor %}
+
+  <div class="flex-1 overflow-y-auto min-h-0 py-3">
+    <h3 class="sidebar-title mb-3">Select Persona</h3>
+
+    {% if not personas %}
+      <div class="text-muted text-center text-sm py-6 border border-dashed border-(--border) rounded-lg">
+        No personas found. Create one to get started!
+      </div>
+    {% endif %}
+
+    <div class="grid" id="persona-modal-grid" data-view="{{ 'compact' if compact_view else 'full' }}" style="grid-template-columns: {{ 'repeat(3, minmax(200px, 1fr))' if compact_view else 'repeat(auto-fill, minmax(160px, 1fr))' }}; gap: 1rem;">
+      {% for p in personas %}
+      <div class="card{% if current_persona_id == p.id %} active{% endif %}" id="persona-card-{{ p.id }}" data-persona-name="{{ p.name | lower }}" data-persona-created="{{ p.created_at }}">
+        <div class="persona-view-full h-full flex flex-col" style="display:{{ 'none' if compact_view else 'flex' }};">
+          <div class="card-image" style="aspect-ratio: 1/1; border-radius: 12px 12px 0 0; cursor:pointer;" role="button" tabindex="0" onclick="selectPersonaModal('{{ p.id }}')">
+            {% if p.avatar_path %}
+              <img src="/{{ p.avatar_path }}" alt="{{ p.name }} avatar" style="border-radius: 12px 12px 0 0;">
+            {% else %}
+              <span class="text-3xl">{{ p.name[:1] }}</span>
+            {% endif %}
+          </div>
+          <div class="card-body" style="padding: 0.75rem;">
+            <div class="font-bold text-sm truncate mb-1">{{ p.name }}</div>
+            <div class="text-xs text-muted truncate mb-2">{{ p.description or 'No description' }}</div>
+            <div class="flex gap-1 mt-auto">
+              <button class="btn btn-secondary btn-sm flex-1" 
+                      data-persona-id="{{ p.id }}" 
+                      data-persona-name="{{ p.name }}" 
+                      data-persona-desc="{{ p.description or '' }}" 
+                      data-persona-image="{{ p.avatar_path or '' }}"
+                      data-persona-media="{{ p.images | tojson | forceescape }}"
+                      onclick="event.stopPropagation(); openEditPersonaModal(this)" aria-label="Edit persona">{{ icon_edit() }}</button>
+              {% if p.name != 'User' %}
+              <button class="btn btn-danger btn-sm" onclick="event.stopPropagation(); promptDeletePersona('{{ p.id }}', '{{ p.name | escape }}')" aria-label="Delete persona">{{ icon_trash() }}</button>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        <div class="persona-view-compact" style="display:{{ 'block' if compact_view else 'none' }};">
+          <div class="flex items-center gap-2.5 p-2.5 cursor-pointer" role="button" tabindex="0" onclick="selectPersonaModal('{{ p.id }}')">
+            <div class="w-10 h-10 rounded-full overflow-hidden shrink-0 border border-(--border) flex items-center justify-center" style="background:var(--surface-3);">
+              {% if p.avatar_path %}
+                <img src="/{{ p.avatar_path }}" alt="{{ p.name }} avatar" class="w-full h-full object-cover">
+              {% else %}
+                <span class="text-sm font-bold text-muted">{{ p.name[:1] }}</span>
+              {% endif %}
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="font-bold text-sm truncate">{{ p.name }}</div>
+            </div>
+            <div class="flex flex-col gap-1 shrink-0" onclick="event.stopPropagation()">
+              <button class="btn btn-secondary btn-sm" style="padding:0.2rem 0.4rem; min-width:0;"
+                      data-persona-id="{{ p.id }}" 
+                      data-persona-name="{{ p.name }}" 
+                      data-persona-desc="{{ p.description or '' }}" 
+                      data-persona-image="{{ p.avatar_path or '' }}"
+                      data-persona-media="{{ p.images | tojson | forceescape }}"
+                      onclick="event.stopPropagation(); openEditPersonaModal(this)" aria-label="Edit persona">{{ icon_edit(size=12) }}</button>
+              {% if p.name != 'User' %}
+              <button class="btn btn-danger btn-sm" style="padding:0.2rem 0.4rem; min-width:0;" onclick="event.stopPropagation(); promptDeletePersona('{{ p.id }}', '{{ p.name | escape }}')" aria-label="Delete persona">{{ icon_trash(size=12) }}</button>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
 </div>
 
 <script>

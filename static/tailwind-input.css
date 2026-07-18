@@ -3,22 +3,11 @@
 @theme {
   --spacing: 0.25rem;
   --font-sans: 'Inter', sans-serif;
-  --color-surface-50: #f8fafc;
-  --color-surface-100: #f1f5f9;
-  --color-surface-200: #e2e8f0;
-  --color-surface-300: #cbd5e1;
-  --color-surface-400: #94a3b8;
-  --color-surface-500: #64748b;
-  --color-surface-600: #475569;
-  --color-surface-700: #334155;
-  --color-surface-800: #1e293b;
-  --color-surface-900: #0f172a;
-  --color-surface-950: #020617;
-  --color-muted: #8b949e;
-  --color-dark: #0b0d10;
-  --color-light: #f1f3f5;
-  --color-danger: #e11d48;
-  --color-border: #232730;
+  --color-muted: var(--text-muted);
+  --color-dark: var(--bg);
+  --color-light: var(--text);
+  --color-danger: var(--danger);
+  --color-border: var(--border);
 }
 
 @source "../templates";

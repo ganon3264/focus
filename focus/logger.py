@@ -19,7 +19,7 @@ class UvicornFormatter(logging.Formatter):
         }.get(record.levelno, "\x1b[0m")
         reset = "\x1b[0m"
         
-        levelname = f"{level_color}{record.levelname:<8}{reset}"
+        levelname = f"{level_color}{record.levelname:<7}{reset}:"
         
         # Format similar to uvicorn's default
         record.msg = f"{record.name}: {record.msg}"
@@ -36,6 +36,9 @@ root_logger.setLevel(LOG_LEVEL)
 root_logger.addHandler(console_handler)
 # Prevent duplicate logs if uvicorn or others try to hijack it
 root_logger.propagate = False
+
+# Silence uvicorn's built-in access logging (we handle it ourselves)
+logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 
 def get_logger(name: str) -> logging.Logger:
     """Returns a logger for the given module name."""

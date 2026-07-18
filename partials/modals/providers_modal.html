@@ -184,11 +184,11 @@
                 <template x-if="model.architecture">
                   <span class="text-xs text-muted" x-text="'|'"></span>
                 </template>
-                <span class="text-xs px-1 py-0 rounded font-bold" style="background:rgba(59,130,246,0.2);color:#93c5fd;"
+                <span class="text-xs px-1 py-0 rounded font-bold" style="background:rgba(59,130,246,0.2);color:#3b82f6;"
                       x-show="model.architecture && model.architecture.input_modalities && model.architecture.input_modalities.includes('image')">Img</span>
-                <span class="text-xs px-1 py-0 rounded font-bold" style="background:rgba(34,197,94,0.2);color:#86efac;"
+                <span class="text-xs px-1 py-0 rounded font-bold" style="background:rgba(34,197,94,0.2);color:#22c55e;"
                       x-show="model.architecture && model.architecture.input_modalities && model.architecture.input_modalities.includes('audio')">Aud</span>
-                <span class="text-xs px-1 py-0 rounded font-bold" style="background:rgba(245,158,11,0.2);color:#fcd34d;"
+                <span class="text-xs px-1 py-0 rounded font-bold" style="background:rgba(245,158,11,0.2);color:#f59e0b;"
                       x-show="model.architecture && model.architecture.input_modalities && model.architecture.input_modalities.includes('file')">File</span>
               </div>
               <div class="text-xs text-muted px-1.5 py-0.5 rounded border" style="background: var(--surface-2); border-color: var(--border);" x-show="model.context_length" x-text="Math.round(model.context_length/1024) + 'k ctx'"></div>

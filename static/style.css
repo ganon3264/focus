@@ -41,6 +41,9 @@
 
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   --transition: 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Text-on-accent for buttons — override in theme presets if needed */
+  --text-on-accent: white;
 }
 
 /* ── Base: reset & document defaults ──────────────────────────────────────── */
@@ -148,7 +151,7 @@
   .markdown-content p { margin-bottom: 0.85rem; }
   .markdown-content p:last-child { margin-bottom: 0; }
   .markdown-content code { background: rgba(0,0,0,0.3); color: var(--accent-hover); padding: 0.15rem 0.35rem; border-radius: 4px; font-family: ui-monospace, monospace; font-size: 0.85em; }
-  .markdown-content pre { background: #000; padding: 1rem; border-radius: var(--radius-md); overflow-x: auto; margin: 1rem 0; border: 1px solid var(--border); }
+  .markdown-content pre { background: var(--surface-3); padding: 1rem; border-radius: var(--radius-md); overflow-x: auto; margin: 1rem 0; border: 1px solid var(--border); }
   .markdown-content pre code { background: none; padding: 0; color: inherit; }
 
   /* Reasoning / Thought Process */
@@ -193,9 +196,9 @@
   .input-bar { padding: 1rem 1.5rem 1.5rem; display: flex; justify-content: center; position: absolute; bottom: 0; left: 0; right: 0; z-index: 20; pointer-events: none; background: linear-gradient(to top, var(--bg) 60%, transparent); }
   .input-wrapper { display: flex; gap: 0.5rem; align-items: center;   background: color-mix(in srgb, var(--surface) 70%, transparent); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid var(--border); border-radius: 24px; padding: 0.6rem; width: 100%; max-width: min(85%, 820px); box-shadow: var(--shadow-lg); transition: border-color var(--transition), box-shadow var(--transition); pointer-events: auto; }
   .input-wrapper:focus-within { border-color: var(--accent); box-shadow: var(--shadow-glow); }
-  .input-wrapper textarea { flex: 1; background: transparent; border: none; color: var(--text); padding: 10px 1rem; resize: none; height: 44px; max-height: 250px; font-family: inherit; font-size: 1rem; line-height: 24px; outline: none; overflow-y: hidden; }
+  .input-wrapper textarea { flex: 1; background: transparent; border: none; box-shadow: none; color: var(--text); padding: 10px 1rem; resize: none; height: 44px; max-height: 250px; font-family: inherit; font-size: 1rem; line-height: 24px; outline: none; overflow-y: hidden; }
   .input-wrapper textarea::placeholder { color: var(--text-faint); }
-  .send-btn { background: var(--accent); color: #fff; border: none; border-radius: 18px; width: 44px; height: 44px; cursor: pointer; display: grid; place-items: center; flex-shrink: 0; font-size: 0; transition: all var(--transition); box-shadow: var(--shadow-sm); }
+  .send-btn { background: var(--accent); color: var(--text-on-accent); border: none; border-radius: 18px; width: 44px; height: 44px; cursor: pointer; display: grid; place-items: center; flex-shrink: 0; font-size: 0; transition: all var(--transition); box-shadow: var(--shadow-sm); }
   .send-btn:hover { background: var(--accent-hover); transform: translateY(-1px); }
   .send-btn:active { transform: translateY(0) scale(0.95); }
   .send-btn svg { width: 18px; height: 18px; }
@@ -219,12 +222,12 @@
   /* Buttons */
   .btn { padding: 0.5rem 1rem; border-radius: var(--radius-md); border: 1px solid transparent; cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: all var(--transition); display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; outline: none; font-family: inherit; }
   .btn:active { transform: scale(0.97); }
-  .btn-primary { background: var(--accent); color: #fff; box-shadow: var(--shadow-sm); }
+  .btn-primary { background: var(--accent); color: var(--text-on-accent); box-shadow: var(--shadow-sm); }
   .btn-primary:hover { background: var(--accent-hover); box-shadow: var(--shadow-md); transform: translateY(-1px); }
   .btn-secondary { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); box-shadow: var(--shadow-sm); }
   .btn-secondary:hover { background: var(--surface-3); border-color: var(--border-hover); }
-  .btn-danger { background: var(--danger-dim); color: var(--danger); }
-  .btn-danger:hover { background: var(--danger); color: #fff; }
+  .btn-danger { background: var(--danger-dim); color: var(--danger); box-shadow: var(--shadow-sm); }
+  .btn-danger:hover { background: var(--danger); color: var(--text-on-accent); }
   .btn-sm { padding: 0.35rem 0.75rem; font-size: 0.8rem; border-radius: var(--radius-sm); }
 
   /* Arranger Toggle Switch */

@@ -5,8 +5,8 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from focus.database import init_db, init_directories
-from focus.routers import characters, chats, presets, providers, stream, personas, pages
-from focus.logger import get_logger, DEBUG_MODE
+from focus.routers import characters, chats, presets, providers, stream, personas, pages, backup, exchange
+from focus.logger import get_logger
 import time
 
 
@@ -32,14 +32,15 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Focus", version="0.1.0", lifespan=lifespan)
 
-if DEBUG_MODE:
-    @app.middleware("http")
-    async def log_requests(request: Request, call_next):
-        start_time = time.time()
-        response = await call_next(request)
-        process_time = time.time() - start_time
-        logger.debug(f"{request.method} {request.url.path} - Status: {response.status_code} - {process_time:.4f}s")
-        return response
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start_time = time.time()
+    response = await call_next(request)
+    process_time = time.time() - start_time
+    status = response.status_code
+    color = "\x1b[32m" if status < 300 else "\x1b[36m" if status < 400 else "\x1b[33m" if status < 500 else "\x1b[31m"
+    logger.info(f"{request.method} {request.url.path} - Status: {color}{status}\x1b[0m - {process_time:.4f}s")
+    return response
 
 app.include_router(characters.router, prefix="/api/characters", tags=["characters"])
 app.include_router(chats.router,      prefix="/api/chats",      tags=["chats"])
@@ -48,6 +49,8 @@ app.include_router(providers.router,  prefix="/api/providers",   tags=["provider
 app.include_router(personas.router,   prefix="/api/personas",    tags=["personas"])
 app.include_router(stream.router,     prefix="/api",             tags=["stream"])
 app.include_router(pages.router)
+app.include_router(backup.router,   prefix="/api/backups",  tags=["backups"])
+app.include_router(exchange.router, prefix="/api",           tags=["import-export"])
 
 app.mount("/assets",  CachedStaticFiles(directory="assets"),  name="assets")
 app.mount("/static",  StaticFiles(directory="static"),  name="static")
@@ -69,4 +72,4 @@ if __name__ == "__main__":
     parser.add_argument("--host", default="127.0.0.1", help="Bind address")
     parser.add_argument("--port", type=int, default=8000, help="Bind port")
     args = parser.parse_args()
-    uvicorn.run("main:app", host=args.host, port=args.port)
+    uvicorn.run("main:app", host=args.host, port=args.port, access_log=False)
