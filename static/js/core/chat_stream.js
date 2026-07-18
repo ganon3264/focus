@@ -41,7 +41,7 @@
     if (!section) {
       section = document.createElement('div');
       section.className = 'tool-calls-stream';
-      section.style.cssText = 'padding-left:3rem;margin-top:0.5rem';
+      section.style.cssText = 'padding-left:3rem';
       var bodyEl = container.querySelector('.message-body') || container;
       var contentEl = container.querySelector('.message-content');
       if (contentEl && contentEl.parentNode) {
@@ -57,12 +57,12 @@
       card.className = 'details tool-call';
       card.setAttribute('data-call-id', call.id);
       card.innerHTML =
-        '<summary class="flex items-center gap-2 cursor-pointer py-1 px-2 rounded" style="background:var(--surface-2);border:1px solid var(--border)">' +
-        '<svg class="w-3 h-3 chevron" style="color:var(--text-faint);transition:transform 0.2s ease" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>' +
-        '<code class="text-xs font-bold">' + window.escapeHtml(call.name) + '</code>' +
-        '<span class="text-xs text-muted truncate max-w-[300px]">' + window.escapeHtml(JSON.stringify(call.arguments)) + '</span>' +
+        '<summary>' +
+        '<svg class="w-3 h-3 chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>' +
+        '<code class="font-bold">' + window.escapeHtml(call.name) + '</code>' +
+        '<span class="truncate max-w-[300px]">' + window.escapeHtml(JSON.stringify(call.arguments)) + '</span>' +
         '</summary>' +
-        '<div class="text-xs p-2 rounded mt-1 tool-result-body" style="background:var(--surface-3);display:none">' +
+        '<div class="tool-result-body" style="display:none">' +
         '<pre class="whitespace-pre-wrap break-all"></pre>' +
         '</div>';
       section.appendChild(card);

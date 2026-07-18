@@ -41,7 +41,7 @@ MODEL_FETCH_HTTP_TIMEOUT = 10.0
 
 MODEL_CACHE_TTL = 300
 
-MAX_UPLOAD_SIZE = 25 * 1024 * 1024  # 25 MB
+MAX_UPLOAD_SIZE = 50 * 1024 * 1024  # 50 MB
 
 
 async def read_upload(file: UploadFile) -> bytes:

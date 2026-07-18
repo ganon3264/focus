@@ -13,7 +13,6 @@ from focus.tools import (
     build_tool_result,
 )
 from focus.tools.provider_adapter import (
-    from_provider_response,
     to_provider_tool_results,
     to_provider_tools,
 )

@@ -541,21 +541,16 @@ window.handleSwipeNext = function(event, msgId) {
 window.toggleReasoning = function(btn) {
   const msg = btn.closest('.msg') || btn.closest('.message');
   if (!msg) return;
-  const block = msg.querySelector('.reasoning-block');
+  const block = msg.querySelector('.reasoning-block:not(.details)');
   if (!block) return;
   const content = block.querySelector('.reasoning-content');
-  const sumBtn = block.querySelector('.reasoning-summary');
-  const currentlyOpen = block.classList.contains('open');
-  if (currentlyOpen) {
-    block.classList.remove('open');
-    if (content) content.classList.add('hidden');
-    if (sumBtn) sumBtn.setAttribute('aria-expanded', 'false');
-  } else {
-    block.classList.add('open');
-    if (content) content.classList.remove('hidden');
-    if (sumBtn) sumBtn.setAttribute('aria-expanded', 'true');
+  const isOpen = !msg.classList.contains('reasoning-open');
+  if (isOpen && content && !content.classList.contains('processed')) {
+    content.innerHTML = DOMPurify.sanitize(marked.parse(content.textContent || '', { breaks: true }));
+    content.classList.add('processed');
   }
-  msg.classList.toggle('reasoning-open');
+  if (content) content.classList.toggle('hidden', !isOpen);
+  msg.classList.toggle('reasoning-open', isOpen);
 };
 function toggleSidebar(side) {
   document.getElementById(side + '-sidebar').classList.toggle('collapsed');

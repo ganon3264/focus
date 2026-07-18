@@ -94,8 +94,7 @@ CREATE TABLE IF NOT EXISTS messages (
     role         TEXT NOT NULL,
     position     INTEGER NOT NULL,
     active_index INTEGER NOT NULL DEFAULT 0,
-    created_at   TEXT NOT NULL,
-    is_internal  INTEGER NOT NULL DEFAULT 0
+    created_at   TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS message_variants (
@@ -232,10 +231,5 @@ async def init_db():
             await db.execute("ALTER TABLE chats ADD COLUMN tool_calls_enabled INTEGER NOT NULL DEFAULT 0")
         if "tool_read_only" not in col_names:
             await db.execute("ALTER TABLE chats ADD COLUMN tool_read_only INTEGER NOT NULL DEFAULT 1")
-
-        cols = await db.execute("PRAGMA table_info(messages)")
-        col_names = {row[1] for row in await cols.fetchall()}
-        if "is_internal" not in col_names:
-            await db.execute("ALTER TABLE messages ADD COLUMN is_internal INTEGER NOT NULL DEFAULT 0")
 
         await db.commit()

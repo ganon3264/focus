@@ -86,55 +86,30 @@ document.addEventListener('alpine:init', function () {
       readOnly: true,
       providerType: (StateManager && StateManager.get('provider_type')) || 'openai_compat',
 
-      tools: [
-        {
-          name: 'read_file',
-          description: 'Read a text file from the local filesystem. Returns file contents (truncated at ~8000 tokens).',
-          params: [{ name: 'path', type: 'string' }],
-          writes: false,
-        },
-        {
-          name: 'list_dir',
-          description: 'List files and directories at a given path. Returns names with a type indicator.',
-          params: [{ name: 'path', type: 'string' }],
-          writes: false,
-        },
-        {
-          name: 'read_image',
-          description: 'Read an image file. The image is base64-encoded and sent to the model for visual analysis.',
-          params: [{ name: 'path', type: 'string' }],
-          writes: false,
-        },
-        {
-          name: 'execute_shell',
-          description: 'Execute an arbitrary shell command. Can read, write, or delete files. Disabled in read-only mode.',
-          params: [
-            { name: 'command', type: 'string' },
-            { name: 'timeout_s', type: 'integer' },
-          ],
-          writes: true,
-        },
-      ],
+      tools: [],
 
       get providerSupportsTools() {
         return !['google_aistudio', 'google_vertex'].includes(this.providerType);
       },
 
       init: function () {
+        var self = this;
         var chatId = document.getElementById('send-btn')
           ? document.getElementById('send-btn').dataset.chatId
           : null;
+        var promises = [fetch('/api/tools').then(function (r) { return r.json(); }).then(function (data) { self.tools = data; })];
         if (chatId) {
-          var self = this;
-          fetch('/api/chats/' + chatId)
-            .then(function (r) { return r.json(); })
-            .then(function (chat) {
-              self.enabled = chat.tool_calls_enabled === 1 || chat.tool_calls_enabled === true;
-              self.readOnly = chat.tool_read_only !== 0 && chat.tool_read_only !== false;
-              self._expose();
-            })
-            .catch(function () {});
+          promises.push(
+            fetch('/api/chats/' + chatId)
+              .then(function (r) { return r.json(); })
+              .then(function (chat) {
+                self.enabled = chat.tool_calls_enabled === 1 || chat.tool_calls_enabled === true;
+                self.readOnly = chat.tool_read_only !== 0 && chat.tool_read_only !== false;
+              })
+              .catch(function () {})
+          );
         }
+        Promise.all(promises).then(function () { self._expose(); }).catch(function () { self._expose(); });
       },
 
       toggleEnabled: function () {

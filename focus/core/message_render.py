@@ -27,7 +27,7 @@ def render_message_segments(content: str) -> list[dict]:
         reasoning_idx = _extract_think_blocks(part, reasoning_idx, segments)
 
         # non-think text that remains after stripping think blocks
-        text = _strip_think_blocks(part)
+        text = strip_think_blocks(part)
         if text.strip():
             segments.append({"type": "text", "content": text})
 
@@ -54,14 +54,14 @@ def _extract_think_blocks(text: str, start_idx: int, segments: list) -> int:
         raw = match.group(1)
         for j, cb in enumerate(code_blocks):
             raw = raw.replace(f"%%%FOCUS_CODE_{j}%%%", cb)
-        escaped = _escape_html(raw).strip().replace("\n", "<br>")
+        escaped = _escape_html(raw).strip()
         segments.append({"type": "reasoning", "html": escaped, "index": idx})
         idx += 1
 
     return idx
 
 
-def _strip_think_blocks(text: str) -> str:
+def strip_think_blocks(text: str) -> str:
     """Remove <think>...</think> and <thought_signature> from text."""
     if not text:
         return ""

@@ -105,7 +105,7 @@ partials/                   # HTMX partial templates
 
 static/
   chat_stream.js            # Core SSE streaming engine: triggerGeneration, AbortController, branchFromMessage, send/regen mode, file upload before generation, updateSendButtonState, resizeTextarea, DOMContentLoaded/afterSwap init (static/js/core/chat_stream.js)
-  reasoning_utils.js         # Reasoning toggle visibility, syncReasoningButtons, preserveOpenStates, toggleReasoningBlock (static/js/messages/reasoning_utils.js)
+  reasoning_utils.js         # Reasoning toggle visibility, syncReasoningButtons, preserveOpenStates (static/js/messages/reasoning_utils.js)
   message_refresh.js         # Message DOM refresh: _refreshMessageNodes (internal strategy selector), refreshMessagesAfterStream, refreshSingleMessage, _refreshChatList, _replaceMessageNode (static/js/messages/message_refresh.js)
   favicon.svg               # SVG favicon (lightning bolt)
   style.css                 # Design system: CSS vars, @layer base/components/utilities — all visual classes
@@ -267,7 +267,7 @@ Always prefer CSS variables over hardcoded colors/radii in inline styles.
 - Glassmorphic input bar via `backdrop-filter: blur(16px)` + `color-mix()`
 - Hover-reveal toolbars (`.message:hover .toolbar`)
 - Code copy buttons (`.copy-btn` absolutely positioned in `<pre>`)
-- Reasoning blocks (`.reasoning-block` + `.reasoning-summary` button + `.reasoning-content` — first block uses message-level toggle, subsequent blocks have individual `.reasoning-summary` buttons)
+- Reasoning blocks (`.reasoning-block` — first block uses `<div>` + message-level toggle, subsequent blocks use `<details class="details reasoning-block">` matching tool call look)
 - Tool call sections (`.tool-calls-section` with `.details.tool-call` — collapsed by default, rendered inline between text segments)
 - Markdown processing gate (`.markdown-content:not(.processed)` hidden until marked.js renders)
 - Auto-grow grid (`.grid` with `repeat(auto-fill, minmax(180px, 1fr))`)
@@ -471,7 +471,7 @@ Tests are organized into 3 directories with 23 test source files:
 
 16. **Hint tooltip system** — A reusable `hint_tooltip(text)` macro in `macros.html` renders a `?` icon. Text is stored in a `data-hint` attribute. On hover, `showHint(el)` in `base.html`'s inline script positions a single global `#hint-tooltip` element (`body` child, `position: fixed`) using `getBoundingClientRect()`. `hideHint()` hides it on leave. No Alpine dependency. CSS selectors: `.hint-wrapper` (relative inline-flex), `.hint-icon` (16x16 circle, cursor:help), `#hint-tooltip` (surface-2 background, border, shadow, z-index overlay+1, font-weight 400). To add a hint: `{{ hint_tooltip('Your explanation here.') }}`. Import: `{% from "macros.html" import hint_tooltip %}`. Example in `sampler_modal.html` lines 477, 502, 519.
 
-17. **Server-side message segmentation** — Messages are pre-processed into typed segments by `focus/core/message_render.py:render_message_segments()`. Called in `crud.py:get_chat_messages()`, so every server-rendered message has `.segments`. Three segment types: `text` (raw content, processed by JS `marked`), `reasoning` (pre-escaped HTML, rendered as `.reasoning-block`), `tool_boundary` (insertion point for tool calls). The first reasoning block (index 0) has no toggle button — it's controlled by the message-level `.reasoning-toggle-btn`. Subsequent blocks get individual `.reasoning-summary` buttons calling `toggleReasoningBlock(this)`. Tool call `<details>` elements start collapsed (no `open`). Template renders tool calls only at first boundary (`ns.tool_rendered` flag).
+17. **Server-side message segmentation** — Messages are pre-processed into typed segments by `focus/core/message_render.py:render_message_segments()`. Called in `crud.py:get_chat_messages()`, so every server-rendered message has `.segments`. Three segment types: `text` (raw content, processed by JS `marked`), `reasoning` (pre-escaped HTML, rendered as `.reasoning-block`), `tool_boundary` (insertion point for tool calls). The first reasoning block (index 0) uses a `<div>` controlled by the message-level `.reasoning-toggle-btn`. Subsequent blocks use `<details class="details reasoning-block">` (matching the tool call `<details class="details tool-call">` look) with native open/close. Tool call `<details>` elements start collapsed (no `open`). Template renders tool calls only at first boundary (`ns.tool_rendered` flag).
 
 18. **Tool call boundary markers** — During streaming, `stream.py` inserts `%%%TOOL_BOUNDARY%%%` between iteration texts when the model makes tool calls. Stored in variant content. `render_message_segments` splits on this marker and inserts `tool_boundary` segments. The streaming frontend's `_renderToolCalls` omits `open` attribute and label. Stale `.tool-calls-stream` removed at start of `triggerGeneration`.
 

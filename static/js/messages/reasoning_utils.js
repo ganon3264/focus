@@ -16,32 +16,24 @@
   window.syncReasoningButtons = syncReasoningButtons;
 
   function preserveOpenStates(container, renderFn) {
-    const openStates = new Set();
-    container.querySelectorAll('.reasoning-block.open').forEach((d) => {
-      if (d.dataset.thinkId) openStates.add(d.dataset.thinkId);
+    const openIds = new Set();
+    container.querySelectorAll('.details.reasoning-block[open]').forEach((d) => {
+      if (d.dataset.thinkId) openIds.add(d.dataset.thinkId);
     });
+    const msg = container.closest('.msg');
+    const firstWasOpen = msg ? msg.classList.contains('reasoning-open') : false;
     container.innerHTML = renderFn();
-    openStates.forEach((id) => {
-      const el = container.querySelector(`.reasoning-block[data-think-id="${id}"]`);
-      if (el) {
-        el.classList.add('open');
-        const btn = el.querySelector('.reasoning-summary');
-        if (btn) btn.setAttribute('aria-expanded', 'true');
-        const content = el.querySelector('.reasoning-content');
+    openIds.forEach((id) => {
+      const el = container.querySelector(`[data-think-id="${id}"]`);
+      if (el) el.setAttribute('open', '');
+    });
+    if (firstWasOpen) {
+      const first = container.querySelector('.reasoning-block:not(.details)');
+      if (first) {
+        const content = first.querySelector('.reasoning-content');
         if (content) content.classList.remove('hidden');
       }
-    });
+    }
   }
   window.preserveOpenStates = preserveOpenStates;
-
-  window.toggleReasoningBlock = function (btn) {
-    const block = btn.closest('.reasoning-block');
-    if (!block) return;
-    const content = block.querySelector('.reasoning-content');
-    if (!content) return;
-    const isOpen = btn.getAttribute('aria-expanded') === 'true';
-    btn.setAttribute('aria-expanded', String(!isOpen));
-    content.classList.toggle('hidden', isOpen);
-    block.classList.toggle('open', !isOpen);
-  };
 })();

@@ -114,12 +114,24 @@ eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'messages'
 (function () {
   var html = window.renderMessage('hello<think>hidden</think>world');
   assertIncludes(html, 'class="reasoning-block"', 'renderMessage: think becomes reasoning-block');
+  assertNotIncludes(html, 'class="details reasoning-block"', 'renderMessage: single block is not details');
+  assertNotIncludes(html, '<summary>', 'renderMessage: single block has no summary');
   assertIncludes(html, 'hidden', 'renderMessage: think content in output');
   assertIncludes(html, 'hello', 'renderMessage: text before think preserved');
   assertIncludes(html, 'world', 'renderMessage: text after think preserved');
 
   var html2 = window.renderMessage('a<think>first</think>b<think>second</think>c');
-  assertIncludes(html2, 'class="reasoning-summary"', 'renderMessage: second block has summary button');
+  assertIncludes(html2, '<summary>', 'renderMessage: second block has summary');
+  var summaries = (html2.match(/<summary>/g) || []).length;
+  assertEqual(summaries, 1, 'renderMessage: only one summary (second block)');
+  assertEqual(
+    (html2.match(/class="details reasoning-block"/g) || []).length, 1,
+    'renderMessage: only second block uses details'
+  );
+  assertEqual(
+    (html2.match(/reasoning-block/g) || []).length, 2,
+    'renderMessage: both blocks have reasoning-block class'
+  );
 })();
 
 // ── renderMessage — code block gets copy button ──

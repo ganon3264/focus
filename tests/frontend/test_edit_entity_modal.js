@@ -53,11 +53,22 @@ assert(typeof window.createEditModalHandlers === 'function', 'createEditModalHan
     lastArgs = { method: method, url: url, opts: opts };
   };
 
+  // reloadPromptArranger guards on document.getElementById(targetId)
+  var targetEl = makeElement('div');
+  targetEl.id = 'arranger-modal-body';
+  doc._body.appendChild(targetEl);
+  var origGet = doc.getElementById;
+  doc.getElementById = function (id) {
+    if (id === 'arranger-modal-body') return targetEl;
+    return origGet ? origGet(id) : null;
+  };
+
   window.reloadPromptArranger('preset-1', 'arranger-modal-body');
   assert(!!lastArgs, 'htmx.ajax called');
   assertEqual(lastArgs.url, '/partials/prompt-arranger/preset-1', 'arranger URL without params');
   assertEqual(lastArgs.opts.target, '#arranger-modal-body', 'arranger target');
 
+  doc.getElementById = origGet;
   global.htmx.ajax = oldAjax;
 })();
 

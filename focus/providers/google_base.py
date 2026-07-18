@@ -168,7 +168,7 @@ class GoogleProviderBase(BaseProvider):
                         in_reasoning = True
                         yield {"type": "token", "text": THINK_OPEN}
 
-                    clean_text = part.text.replace("THOUGTH:", "") if part.text else ""
+                    clean_text = part.text.replace("THOUGHT:", "") if part.text else ""
 
                     if clean_text:
                         yield {"type": "token", "text": clean_text}

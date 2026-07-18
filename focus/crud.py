@@ -243,7 +243,6 @@ async def fetch_active_variants(db: aiosqlite.Connection, chat_id: str, extra_co
     """
     cols = (
         "m.id, m.role, m.position, m.active_index, "
-        "m.is_internal, "
         "mv.content, mv.variant_index, mv.id as variant_id, "
         "mv.created_at, mv.model_name, "
         "(SELECT COUNT(*) FROM message_variants WHERE message_id = m.id) as variant_count"
@@ -376,21 +375,6 @@ async def get_counts(db: aiosqlite.Connection, character_id: str | None, persona
 
     return counts
 
-
-async def get_chat_tool_calls(db: aiosqlite.Connection, chat_id: str) -> list[dict]:
-    async with db.execute(
-        "SELECT * FROM tool_calls WHERE chat_id = ? ORDER BY created_at",
-        (chat_id,),
-    ) as cur:
-        return [dict(r) for r in await cur.fetchall()]
-
-
-async def get_message_tool_calls(db: aiosqlite.Connection, message_id: str) -> list[dict]:
-    async with db.execute(
-        "SELECT * FROM tool_calls WHERE message_id = ? ORDER BY created_at",
-        (message_id,),
-    ) as cur:
-        return [dict(r) for r in await cur.fetchall()]
 
 
 async def get_active_provider(db: aiosqlite.Connection) -> dict:

@@ -94,19 +94,20 @@ function makeMessage(opts) {
   // 6. preserveOpenStates — with open state preserved
   (function () {
     var container3 = makeElement('div');
-    var block = makeElement('div');
+    var block = makeElement('details');
+    block.classList.add('details');
     block.classList.add('reasoning-block');
-    block.classList.add('open');
+    block.setAttribute('open', '');
     block.dataset.thinkId = 'think-0';
     container3.appendChild(block);
 
     window.preserveOpenStates(container3, function () {
-      return '<div class="reasoning-block" data-think-id="think-0"></div>';
+      return '<details class="details reasoning-block" data-think-id="think-0"></details>';
     });
 
-    var restoredBlock = container3.querySelector('.reasoning-block');
-    assert(restoredBlock && restoredBlock.classList.contains('open'),
-      'preserveOpenStates: restores open class on matching thinkId');
+    var restoredBlock = container3.querySelector('.details.reasoning-block');
+    assert(restoredBlock && restoredBlock.hasAttribute('open'),
+      'preserveOpenStates: restores open on matching thinkId');
   })();
 })();
 

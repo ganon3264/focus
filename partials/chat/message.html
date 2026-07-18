@@ -1,6 +1,6 @@
 <div class="message relative msg" id="message-{{ message.id }}" data-message-id="{{ message.id }}" data-raw-content="{{ message.content }}" data-msg-index="{{ msg_index }}" data-chat-id="{{ chat_id }}">
   {% from "macros.html" import icon_edit, icon_refresh, icon_trash, icon_music, icon_branch,
-  icon_chevron_left, icon_chevron_right, icon_forward %}
+  icon_chevron_left, icon_chevron_right, icon_forward, tool_call_card %}
   <div class="delete-mode-checkbox hidden absolute -left-12 top-4">
     <input
       type="checkbox"
@@ -37,7 +37,7 @@
           </div>
           {% if message.role == 'assistant' %}
           <div class="text-xs text-muted flex items-center gap-1.5 flex-wrap mt-0.5">
-            {% set has_reasoning = message.segments and message.segments|selectattr("type", "equalto", "reasoning")|list|length > 0 %}
+            {% set has_reasoning = (message.get('segments')|selectattr("type", "equalto", "reasoning")|list|length > 0) if message.get('segments') else '<think>' in message.content %}
             {% if message.model_name %}
             <span>{{ message.model_name }}</span>
             {% if message.position != 0 and has_reasoning %}
@@ -168,56 +168,40 @@
       {% endif %} {% endfor %}
     </div>
     {% endif %}
-    {% if message.is_internal %}
-    <!-- internal message hidden from display -->
-    {% elif message.segments %}
+    {% if message.get('segments') %}
     {% set ns = namespace(tool_rendered=false) %}
     {% for seg in message.segments %}
     {% if seg.type == 'text' and seg.content.strip() %}
     <div class="message-content markdown-content" style="padding-left:3rem">{{ seg.content }}</div>
     {% elif seg.type == 'reasoning' %}
-    <div class="reasoning-block" data-think-id="{{ seg.index }}" style="padding-left:3rem">
-      {% if seg.index > 0 %}
-      <button class="reasoning-summary" onclick="toggleReasoningBlock(this)" aria-expanded="false">
-        <svg class="w-3 h-3 reasoning-chevron" style="transition:transform 0.2s ease" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+    {% if seg.index > 0 %}
+    <details class="details reasoning-block" data-think-id="{{ seg.index }}" style="padding-left:3rem">
+      <summary>
+        <svg class="w-3 h-3 chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
         Reasoning
-      </button>
-      {% endif %}
-      <div class="reasoning-content hidden">{{ seg.html | safe }}</div>
+      </summary>
+      <div class="reasoning-content markdown-content">{{ seg.html | safe }}</div>
+    </details>
+    {% else %}
+    <div class="reasoning-block" data-think-id="0" style="padding-left:3rem">
+      <div class="reasoning-content markdown-content hidden">{{ seg.html | safe }}</div>
     </div>
-    {% elif seg.type == 'tool_boundary' and message.tool_calls and not ns.tool_rendered %}
+    {% endif %}
+    {% elif seg.type == 'tool_boundary' and message.get('tool_calls') and not ns.tool_rendered %}
     {% set ns.tool_rendered = true %}
-    <div class="tool-calls-section" style="padding-left:3rem;margin-top:0.5rem">
-      {% for tc in message.tool_calls %}
-      <details class="details tool-call">
-        <summary class="flex items-center gap-2 cursor-pointer py-1 px-2 rounded" style="background:var(--surface-2);border:1px solid var(--border)">
-          <svg class="w-3 h-3 chevron" style="color:var(--text-faint);transition:transform 0.2s ease" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
-          <code class="text-xs font-bold">{{ tc.function.name }}</code>
-          <span class="text-xs text-muted truncate max-w-[300px]">{{ tc.function.arguments }}</span>
-        </summary>
-        <div class="text-xs p-2 rounded mt-1" style="background:var(--surface-3)">
-          <pre class="whitespace-pre-wrap break-all">{{ tc.result or '' }}</pre>
-        </div>
-      </details>
+    <div class="tool-calls-section" style="padding-left:3rem">
+      {% for tc in message.get('tool_calls') %}
+      {{ tool_call_card(tc) }}
       {% endfor %}
     </div>
     {% endif %}
     {% endfor %}
-    {% else %}
-    <div class="message-content markdown-content" style="padding-left:3rem">{{ message.content }}</div>
-    {% if message.tool_calls %}
-    <div class="tool-calls-section" style="padding-left:3rem;margin-top:0.5rem">
-      {% for tc in message.tool_calls %}
-      <details class="details tool-call">
-        <summary class="flex items-center gap-2 cursor-pointer py-1 px-2 rounded" style="background:var(--surface-2);border:1px solid var(--border)">
-          <svg class="w-3 h-3 chevron" style="color:var(--text-faint);transition:transform 0.2s ease" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
-          <code class="text-xs font-bold">{{ tc.function.name }}</code>
-          <span class="text-xs text-muted truncate max-w-[300px]">{{ tc.function.arguments }}</span>
-        </summary>
-        <div class="text-xs p-2 rounded mt-1" style="background:var(--surface-3)">
-          <pre class="whitespace-pre-wrap break-all">{{ tc.result or '' }}</pre>
-        </div>
-      </details>
+        {% else %}
+        <div class="message-content markdown-content" style="padding-left:3rem">{{ message.content }}</div>
+        {% if message.get('tool_calls') %}
+    <div class="tool-calls-section" style="padding-left:3rem">
+      {% for tc in message.get('tool_calls') %}
+      {{ tool_call_card(tc) }}
       {% endfor %}
     </div>
     {% endif %}

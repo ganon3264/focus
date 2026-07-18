@@ -5,6 +5,7 @@ import os
 import subprocess
 from pathlib import Path
 
+from focus.prompt_chain import _ensure_compressed_sync
 from focus.tools import ToolParam, ToolSpec
 
 
@@ -55,8 +56,10 @@ def read_image(path: str) -> tuple[str, str, str]:
         ".webp": "image/webp",
     }
     mime = mime_map.get(suffix, "image/png")
-    b64 = base64.b64encode(p.read_bytes()).decode("ascii")
-    return (path, b64, mime)
+    compressed_path, out_mime = _ensure_compressed_sync(path, mime)
+    data = compressed_path.read_bytes()
+    b64 = base64.b64encode(data).decode("ascii")
+    return (path, b64, out_mime)
 
 
 # ── Tool registry ─────────────────────────────────────────────────────────────

@@ -1,6 +1,5 @@
 import json
 import logging
-import re
 import uuid
 
 import aiosqlite
@@ -20,6 +19,7 @@ from focus.core.utils import (
 )
 from focus.providers import create_provider
 from focus.providers.openai_compat import OpenAICompatProvider
+from focus.core.message_render import strip_think_blocks
 from focus.routers.stream_utils import (
     apply_claude_caching,
     filter_unsupported_modalities,
@@ -27,7 +27,6 @@ from focus.routers.stream_utils import (
 )
 from focus.tools import (
     MAX_TOOL_ITERATIONS,
-    ToolCall,
     ToolResult,
     active_tools,
     build_tool_result,
@@ -185,23 +184,10 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
                 len(tool_calls_list), body.chat_id,
             )
 
-            asst_text = re.sub(r"<think>.*?</think>", "", "".join(iter_collected), flags=re.DOTALL).strip()
-            asst_msg: dict = {"role": "assistant", "content": asst_text or None}
-            asst_msg["tool_calls"] = [
-                {"id": tc.id, "type": "function",
-                 "function": {"name": tc.name, "arguments": json.dumps(tc.arguments)}}
-                for tc in tool_calls_list
-            ]
-            loop_messages.append(asst_msg)
-
-            results = await _execute_tool_round(
-                tool_calls_list, tools_by_name, tool_read_only,
-                body.chat_id, final_asst_msg_id, variant_id,
+            await _apply_tool_round(
+                loop_messages, tool_calls_list, tools_by_name, tool_read_only,
+                body.chat_id, final_asst_msg_id, variant_id, iter_collected,
             )
-            loop_messages.extend(to_provider_tool_results(results))
-            for r in results:
-                if r.extra_message is not None:
-                    loop_messages.append(r.extra_message)
 
         full = "".join(collected)
         if body.continue_text and not full.startswith(body.continue_text):
@@ -318,28 +304,15 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
             final_text.extend(iter_collected)
             final_text.append("%%%TOOL_BOUNDARY%%%")
 
-            # Execute tools and append results to loop_messages
             tool_calls_list = list(tool_calls_list)
 
-            asst_text = re.sub(r"<think>.*?</think>", "", "".join(iter_collected), flags=re.DOTALL).strip()
-            asst_msg: dict = {"role": "assistant", "content": asst_text or None}
-            asst_msg["tool_calls"] = [
-                {"id": tc.id, "type": "function",
-                 "function": {"name": tc.name, "arguments": json.dumps(tc.arguments)}}
-                for tc in tool_calls_list
-            ]
-            loop_messages.append(asst_msg)
-
-            results = await _execute_tool_round(
-                tool_calls_list, tools_by_name, tool_read_only,
-                body.chat_id, final_asst_msg_id, stream_variant_id,
+            results = await _apply_tool_round(
+                loop_messages, tool_calls_list, tools_by_name, tool_read_only,
+                body.chat_id, final_asst_msg_id, stream_variant_id, iter_collected,
             )
-            loop_messages.extend(to_provider_tool_results(results))
 
             for r in results:
                 yield f"data: {json.dumps({'type': 'tool_result', 'call_id': r.call_id, 'name': next((tc.name for tc in tool_calls_list if tc.id == r.call_id), ''), 'result': r.content, 'is_error': r.is_error})}\n\n"
-                if r.extra_message is not None:
-                    loop_messages.append(r.extra_message)
 
         full = "".join(final_text)
         if body.continue_text and not full.startswith(body.continue_text):
@@ -368,6 +341,39 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+async def _apply_tool_round(
+    loop_messages: list,
+    tool_calls_list: list,
+    tools_by_name: dict,
+    read_only: bool,
+    chat_id: str,
+    asst_msg_id: str,
+    variant_id: str,
+    iter_collected: list[str],
+) -> list:
+    """Build assistant message with tool_calls, execute tools, append results
+    to loop_messages. Returns the ToolResult list so callers can yield SSE events."""
+    asst_text = strip_think_blocks("".join(iter_collected)).strip()
+    asst_msg: dict = {"role": "assistant", "content": asst_text or None}
+    asst_msg["tool_calls"] = [
+        {"id": tc.id, "type": "function",
+         "function": {"name": tc.name, "arguments": json.dumps(tc.arguments)}}
+        for tc in tool_calls_list
+    ]
+    loop_messages.append(asst_msg)
+
+    results = await _execute_tool_round(
+        tool_calls_list, tools_by_name, read_only,
+        chat_id, asst_msg_id, variant_id,
+    )
+    loop_messages.extend(to_provider_tool_results(results))
+    for r in results:
+        if r.extra_message is not None:
+            loop_messages.append(r.extra_message)
+
+    return results
 
 
 async def _execute_tool_round(

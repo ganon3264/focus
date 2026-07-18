@@ -58,6 +58,14 @@ ignore = ["E501"]
 quote-style = "double"
 indent-style = "space"
 
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "pytest-cov>=6.1.1",
+]
+
 [tool.hatch.envs.default.scripts]
 lint = "ruff check focus/ tests/ main.py"
 fmt-check = "ruff format focus/ tests/ main.py --check"
