@@ -168,7 +168,7 @@
             <div class="flex justify-between items-center p-3 border border-(--border) rounded-lg bg-(--surface-2)">
               <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-full overflow-hidden bg-(--surface-3) flex items-center justify-center border border-(--border)">
-                  ${c.image_path ? `<img src="/${c.image_path}" class="w-full h-full object-cover">` : `<span class="text-sm font-bold text-muted">${c.name.charAt(0)}</span>`}
+                  ${c.image_path ? `<img src="/${c.image_path}" loading="lazy" class="w-full h-full object-cover">` : `<span class="text-sm font-bold text-muted">${c.name.charAt(0)}</span>`}
                 </div>
                 <span class="font-bold text-sm" style="color:var(--text);">${c.name}</span>
               </div>

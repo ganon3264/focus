@@ -1,12 +1,17 @@
+import hashlib
 import shutil
+import stat
 import time
 from contextlib import asynccontextmanager
+from email.utils import formatdate
 from pathlib import Path
 
+import anyio
 import aiosqlite
 from fastapi import Depends, FastAPI, Request
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
+from starlette.datastructures import Headers
 
 from focus.core.database import get_db, init_db, init_directories
 from focus.core.logger import get_logger
@@ -27,6 +32,31 @@ from focus.routers import (
 
 class CachedStaticFiles(StaticFiles):
     async def get_response(self, path: str, scope):
+        request_headers = Headers(scope=scope)
+        if_none_match = request_headers.get("if-none-match")
+        if_modified_since = request_headers.get("if-modified-since")
+
+        if if_none_match or if_modified_since:
+            try:
+                full_path, stat_result = await anyio.to_thread.run_sync(self.lookup_path, path)
+                if stat_result and stat.S_ISREG(stat_result.st_mode):
+                    etag_base = str(stat_result.st_mtime) + "-" + str(stat_result.st_size)
+                    etag = f'"{hashlib.md5(etag_base.encode(), usedforsecurity=False).hexdigest()}"'
+                    last_modified = formatdate(stat_result.st_mtime, usegmt=True)
+
+                    if (if_none_match and if_none_match == etag) or \
+                       (if_modified_since and if_modified_since == last_modified):
+                        return Response(
+                            status_code=304,
+                            headers={
+                                "Cache-Control": "public, max-age=31536000, immutable",
+                                "ETag": etag,
+                                "Last-Modified": last_modified,
+                            }
+                        )
+            except Exception:
+                pass
+
         response = await super().get_response(path, scope)
         response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
         return response

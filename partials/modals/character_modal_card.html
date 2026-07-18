@@ -17,6 +17,7 @@
       <img
         src="/{{ char.image_path }}"
         alt="{{ char.name }} avatar"
+        loading="lazy"
         style="border-radius: 12px 12px 0 0"
       />
       {% else %}
@@ -64,6 +65,7 @@
         <img
           src="/{{ char.image_path }}"
           alt="{{ char.name }} avatar"
+          loading="lazy"
           class="w-full h-full object-cover"
         />
         {% else %}
