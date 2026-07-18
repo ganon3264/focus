@@ -202,7 +202,9 @@ async def add_block_image(
     suffix = Path(file.filename).suffix.lower() or ".png"
     mime = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
             ".gif": "image/gif", ".webp": "image/webp"}.get(suffix, "image/png")
-    image_path = f"avatars/block_{image_id}{suffix}"
+    blocks_dir = Path(f"assets/presets/{preset_id}/blocks")
+    blocks_dir.mkdir(parents=True, exist_ok=True)
+    image_path = str(blocks_dir / f"{image_id}{suffix}")
     Path(image_path).write_bytes(await file.read())
 
     await db.execute(

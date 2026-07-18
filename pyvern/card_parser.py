@@ -93,10 +93,11 @@ def normalise_card(card_json: dict) -> dict:
     """
     src = card_json.get("data", card_json)
     return {
-        "name":        src.get("name", "Unknown"),
-        "description": src.get("description", ""),
-        "personality": src.get("personality", ""),
-        "scenario":    src.get("scenario", ""),
-        "mes_example": src.get("mes_example", ""),
-        "first_mes":   src.get("first_mes", ""),
+        "name":                src.get("name", "Unknown"),
+        "description":         src.get("description", ""),
+        "personality":         src.get("personality", ""),
+        "scenario":            src.get("scenario", ""),
+        "mes_example":         src.get("mes_example", ""),
+        "first_mes":           src.get("first_mes", ""),
+        "alternate_greetings": src.get("alternate_greetings") or [],
     }

@@ -50,13 +50,23 @@ class CharBlockUpdate(BaseModel):
     enabled: Optional[bool] = None
     position: Optional[float] = None
 
-class CharacterCard(BaseModel):
-    name: str = "Unknown"
+class CharacterCreate(BaseModel):
+    name: str
     description: str = ""
     personality: str = ""
     scenario: str = ""
     mes_example: str = ""
     first_mes: str = ""
+    alternate_greetings: list[str] = []
+
+class CharacterUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    personality: Optional[str] = None
+    scenario: Optional[str] = None
+    mes_example: Optional[str] = None
+    first_mes: Optional[str] = None
+    alternate_greetings: Optional[list[str]] = None
 
 
 class BlockType(str, Enum):

@@ -23,7 +23,7 @@ app.include_router(providers.router,  prefix="/api/providers",   tags=["provider
 app.include_router(personas.router,   prefix="/api/personas",    tags=["personas"])
 app.include_router(stream.router,     prefix="/api",             tags=["stream"])
 
-app.mount("/avatars", StaticFiles(directory="avatars"), name="avatars")
+app.mount("/assets",  StaticFiles(directory="assets"),  name="assets")
 app.mount("/static",  StaticFiles(directory="static"),  name="static")
 
 

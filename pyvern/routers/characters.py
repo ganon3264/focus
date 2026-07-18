@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 
 from pyvern.database import get_db
 from pyvern.card_parser import extract_card_json, normalise_card
-from pyvern.models import CharBlockCreate, CharBlockUpdate
+from pyvern.models import CharBlockCreate, CharBlockUpdate, CharacterCreate, CharacterUpdate
 
 router = APIRouter()
 
@@ -35,8 +35,9 @@ async def import_character(
     char_id = str(uuid.uuid4())
     now = _now()
 
-    # Persist avatar image
-    avatar_path = f"avatars/{char_id}.png"
+    char_dir = Path(f"assets/characters/{char_id}")
+    char_dir.mkdir(parents=True, exist_ok=True)
+    avatar_path = str(char_dir / "avatar.png")
     Path(avatar_path).write_bytes(data)
 
     await db.execute(
@@ -68,6 +69,92 @@ async def _attach_images(blocks: list[dict], db: aiosqlite.Connection) -> list[d
 
 
 # ── CRUD ──────────────────────────────────────────────────────────────────────
+
+@router.post("/", status_code=201)
+async def create_character(body: CharacterCreate, db: aiosqlite.Connection = Depends(get_db)):
+    char_id = str(uuid.uuid4())
+    now = _now()
+    card_json = {
+        "spec": "chara_card_v2",
+        "spec_version": "2.0",
+        "data": {
+            "name":                body.name,
+            "description":         body.description,
+            "personality":         body.personality,
+            "scenario":            body.scenario,
+            "mes_example":         body.mes_example,
+            "first_mes":           body.first_mes,
+            "alternate_greetings": body.alternate_greetings,
+        }
+    }
+    char_dir = Path(f"assets/characters/{char_id}")
+    char_dir.mkdir(parents=True, exist_ok=True)
+
+    await db.execute(
+        "INSERT INTO characters (id, name, image_path, card_json, created_at) VALUES (?, ?, ?, ?, ?)",
+        (char_id, body.name, None, json.dumps(card_json), now),
+    )
+    await db.commit()
+    return {"id": char_id, "name": body.name}
+
+
+@router.patch("/{char_id}")
+async def update_character(
+    char_id: str,
+    body: CharacterUpdate,
+    db: aiosqlite.Connection = Depends(get_db),
+):
+    async with db.execute("SELECT card_json FROM characters WHERE id = ?", (char_id,)) as cur:
+        row = await cur.fetchone()
+    if not row:
+        raise HTTPException(404, "Character not found")
+
+    card = json.loads(row["card_json"])
+    data = card.get("data", card)
+    updates = body.model_dump(exclude_none=True)
+    data.update(updates)
+    card["data"] = data
+
+    extra = {}
+    if "name" in updates:
+        extra["name"] = updates["name"]
+
+    set_clause = "card_json = ?"
+    vals = [json.dumps(card)]
+    for k, v in extra.items():
+        set_clause += f", {k} = ?"
+        vals.append(v)
+    vals.append(char_id)
+
+    await db.execute(f"UPDATE characters SET {set_clause} WHERE id = ?", vals)
+    await db.commit()
+    return {"ok": True}
+
+
+@router.post("/{char_id}/avatar")
+async def upload_avatar(
+    char_id: str,
+    file: UploadFile = File(...),
+    db: aiosqlite.Connection = Depends(get_db),
+):
+    async with db.execute("SELECT image_path FROM characters WHERE id = ?", (char_id,)) as cur:
+        row = await cur.fetchone()
+    if not row:
+        raise HTTPException(404, "Character not found")
+
+    if row["image_path"]:
+        Path(row["image_path"]).unlink(missing_ok=True)
+
+    suffix = Path(file.filename).suffix.lower() or ".png"
+    char_dir = Path(f"assets/characters/{char_id}")
+    char_dir.mkdir(parents=True, exist_ok=True)
+    avatar_path = str(char_dir / f"avatar{suffix}")
+    Path(avatar_path).write_bytes(await file.read())
+
+    await db.execute("UPDATE characters SET image_path = ? WHERE id = ?", (avatar_path, char_id))
+    await db.commit()
+    return {"avatar_path": avatar_path}
+
 
 @router.get("/")
 async def list_characters(db: aiosqlite.Connection = Depends(get_db)):
@@ -192,7 +279,9 @@ async def add_char_block_image(
     suffix = Path(file.filename).suffix.lower() or ".png"
     mime = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
             ".gif": "image/gif", ".webp": "image/webp"}.get(suffix, "image/png")
-    image_path = f"avatars/block_{image_id}{suffix}"
+    blocks_dir = Path(f"assets/characters/{char_id}/blocks")
+    blocks_dir.mkdir(parents=True, exist_ok=True)
+    image_path = str(blocks_dir / f"{image_id}{suffix}")
     Path(image_path).write_bytes(await file.read())
 
     await db.execute(

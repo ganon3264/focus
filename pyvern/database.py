@@ -116,7 +116,9 @@ async def get_db():
 
 async def init_db():
     os.makedirs("data", exist_ok=True)
-    os.makedirs("avatars", exist_ok=True)
+    os.makedirs("assets/characters", exist_ok=True)
+    os.makedirs("assets/personas", exist_ok=True)
+    os.makedirs("assets/presets", exist_ok=True)
     async with aiosqlite.connect(DB_PATH) as db:
         await db.executescript(SCHEMA)
         # Seed default persona if none exist

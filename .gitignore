@@ -1,5 +1,5 @@
 data/
-avatars/
+assets/
 __pycache__/
 *.pyc
 .venv/

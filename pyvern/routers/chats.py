@@ -1,3 +1,4 @@
+import json
 import uuid
 from datetime import datetime, timezone
 
@@ -6,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from pyvern.database import get_db
 from pyvern.models import ChatCreate, MessageEdit, SwipeRequest
+from pyvern.card_parser import normalise_card
 
 router = APIRouter()
 
@@ -21,9 +23,35 @@ async def create_chat(body: ChatCreate, db: aiosqlite.Connection = Depends(get_d
     chat_id = str(uuid.uuid4())
     now = _now()
     await db.execute(
-        "INSERT INTO chats (id, title, character_id, preset_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
-        (chat_id, body.title or "New Chat", body.character_id, body.preset_id, now, now),
+        "INSERT INTO chats (id, title, character_id, persona_id, preset_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (chat_id, body.title or "New Chat", body.character_id, body.persona_id, body.preset_id, now, now),
     )
+
+    # Seed greeting variants from first_mes + alternate_greetings
+    if body.character_id:
+        async with db.execute(
+            "SELECT card_json FROM characters WHERE id = ?", (body.character_id,)
+        ) as cur:
+            row = await cur.fetchone()
+        if row:
+            card = normalise_card(json.loads(row["card_json"]))
+            greetings = []
+            if card["first_mes"]:
+                greetings.append(card["first_mes"])
+            greetings.extend(card["alternate_greetings"])
+
+            if greetings:
+                msg_id = str(uuid.uuid4())
+                await db.execute(
+                    "INSERT INTO messages (id, chat_id, role, position, active_index, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+                    (msg_id, chat_id, "assistant", 0, 0, now),
+                )
+                for i, text in enumerate(greetings):
+                    await db.execute(
+                        "INSERT INTO message_variants (id, message_id, variant_index, content, created_at) VALUES (?, ?, ?, ?, ?)",
+                        (str(uuid.uuid4()), msg_id, i, text, now),
+                    )
+
     await db.commit()
     return {"id": chat_id}
 
@@ -154,13 +182,14 @@ async def swipe_message(
     so the client knows to fire a /stream request.
     """
     async with db.execute(
-        "SELECT active_index FROM messages WHERE id = ? AND chat_id = ?", (message_id, chat_id)
+        "SELECT active_index, position FROM messages WHERE id = ? AND chat_id = ?", (message_id, chat_id)
     ) as cur:
         row = await cur.fetchone()
     if not row:
         raise HTTPException(404, "Message not found")
 
     current = row["active_index"]
+    is_greeting = row["position"] == 0
 
     async with db.execute(
         "SELECT MAX(variant_index) FROM message_variants WHERE message_id = ?", (message_id,)
@@ -172,9 +201,13 @@ async def swipe_message(
         new_index = max(0, current - 1)
     else:
         if current >= max_index:
-            # Past the end → caller should request a new generation
-            return {"needs_generation": True, "next_variant_index": current + 1}
-        new_index = current + 1
+            if is_greeting:
+                # Greeting swipe wraps around instead of triggering generation
+                new_index = 0
+            else:
+                return {"needs_generation": True, "next_variant_index": current + 1}
+        else:
+            new_index = current + 1
 
     await db.execute("UPDATE messages SET active_index = ? WHERE id = ?", (new_index, message_id))
     await db.commit()
