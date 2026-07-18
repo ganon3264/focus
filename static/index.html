@@ -62,7 +62,8 @@ label { font-size: 11px; color: var(--muted); display: block; margin-bottom: 3px
 
 /* ── Layout ───────────────────────────────────────────────────────────────── */
 #left-panel, #right-panel {
-  width: 25%;
+  width: 15%;
+  min-width: 240px;
   background: var(--panel);
   display: flex;
   flex-direction: column;
@@ -74,7 +75,10 @@ label { font-size: 11px; color: var(--muted); display: block; margin-bottom: 3px
 
 /* ── Left panel ───────────────────────────────────────────────────────────── */
 #left-logo {
-  padding: 13px 14px 10px;
+  padding: 0 14px;
+  height: 30px;
+  display: flex;
+  align-items: center;
   font-size: 16px;
   font-weight: 700;
   color: var(--accent);
@@ -126,13 +130,21 @@ input[type=range]::-webkit-slider-thumb {
 }
 
 #left-footer {
-  padding: 10px 12px;
+  padding: 12px 16px;
   border-top: 1px solid var(--border);
   display: flex;
   gap: 8px;
   flex-shrink: 0;
 }
-#left-footer button { flex: 1; padding: 8px; font-size: 16px; }
+#left-footer button {
+  flex: 1;
+  height: 52px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
 
 /* ── Center ───────────────────────────────────────────────────────────────── */
 #info-bar {
@@ -208,11 +220,11 @@ input[type=range]::-webkit-slider-thumb {
 }
 #user-input {
   flex: 1; resize: none;
-  min-height: 44px; max-height: 180px;
+  min-height: 52px; max-height: 180px;
   line-height: 1.5;
 }
 #btn-send, #btn-stop {
-  width: 40px; height: 40px;
+  width: 52px; height: 52px;
   padding: 0; font-size: 16px; flex-shrink: 0;
 }
 #btn-stop { display: none; }
@@ -251,6 +263,7 @@ input[type=range]::-webkit-slider-thumb {
   cursor: pointer;
   border: 1px solid transparent;
   transition: background .12s, border-color .12s;
+  position: relative;
 }
 .entity-item:hover { background: var(--surface); }
 .entity-item.active { background: var(--accent-bg); border-color: var(--accent); }
@@ -268,6 +281,26 @@ input[type=range]::-webkit-slider-thumb {
   font-size: 11px; text-align: center;
   word-break: break-word; line-height: 1.3; max-width: 100%;
 }
+
+.entity-edit {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  display: none;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  font-size: 11px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+.entity-item:hover .entity-edit { display: flex; }
 
 .rp-divider {
   font-size: 10px; font-weight: 600; letter-spacing: .1em;
@@ -301,7 +334,9 @@ input[type=range]::-webkit-slider-thumb {
   border-radius: 10px; padding: 20px;
   width: min(540px, 95vw); max-height: 87vh;
   overflow-y: auto;
-  display: flex; flex-direction: column; gap: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 .modal.wide { width: min(680px, 95vw); }
 
@@ -440,7 +475,7 @@ input[type=range]::-webkit-slider-thumb {
     <div class="empty-state">Select a character to begin.</div>
   </div>
   <div id="input-area">
-    <textarea id="user-input" placeholder="Message… (Ctrl+Enter to send)" rows="2"></textarea>
+    <textarea id="user-input" placeholder="Message… (Ctrl+Enter to send)"></textarea>
     <button id="btn-send" class="primary" title="Send (Ctrl+Enter)">➤</button>
     <button id="btn-stop" class="danger"  title="Stop generation">■</button>
   </div>
@@ -555,7 +590,7 @@ function setPreset(id) {
 function setPersona(id, save = true) {
   S.activePersonaId = id || null;
   if (save) localStorage.setItem('pv_persona', id || '');
-  renderPersonaGrid();
+  updatePersonaGridActive();
 }
 
 function updateInfoBar() {
@@ -600,10 +635,22 @@ function renderPersonaGrid() {
     g.appendChild(makeEntityItem(p, 'persona', p.id === S.activePersonaId));
 }
 
+function updateCharGridActive() {
+  document.querySelectorAll('#char-grid .entity-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.id === S.activeCharId);
+  });
+}
+function updatePersonaGridActive() {
+  document.querySelectorAll('#persona-grid .entity-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.id === S.activePersonaId);
+  });
+}
+
 function makeEntityItem(entity, type, active) {
   const el = document.createElement('div');
   el.className = 'entity-item' + (active ? ' active' : '');
-  el.title = entity.name + ' (double-click to edit)';
+  el.dataset.id = entity.id;
+  el.title = entity.name;
 
   const av = document.createElement('div');
   av.className = 'entity-avatar';
@@ -620,16 +667,22 @@ function makeEntityItem(entity, type, active) {
   nm.className = 'entity-name';
   nm.textContent = entity.name;
 
+  const editBtn = document.createElement('button');
+  editBtn.className = 'entity-edit';
+  editBtn.textContent = '✎';
+  editBtn.title = 'Edit';
+  editBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (type === 'char') openCharEditor(entity.id);
+    if (type === 'persona') openPersonaEditor(entity.id);
+  });
+
   el.appendChild(av);
   el.appendChild(nm);
+  el.appendChild(editBtn);
   el.addEventListener('click', () => {
     if (type === 'char')    selectChar(entity.id);
-    if (type === 'persona') { setPersona(entity.id); renderPersonaGrid(); }
-  });
-  el.addEventListener('dblclick', e => {
-    e.stopPropagation();
-    if (type === 'char')    openCharEditor(entity.id);
-    if (type === 'persona') openPersonaEditor(entity.id);
+    if (type === 'persona') { setPersona(entity.id); }
   });
   return el;
 }
@@ -637,7 +690,7 @@ function makeEntityItem(entity, type, active) {
 async function selectChar(id, save = true) {
   S.activeCharId = id;
   if (save) localStorage.setItem('pv_char', id || '');
-  renderCharGrid();
+  updateCharGridActive();
   await loadChats(id);
   const name = S.characters.find(c => c.id === id)?.name || '';
   document.getElementById('chats-label').textContent = name ? `CHATS — ${name}` : 'CHATS';
@@ -769,7 +822,7 @@ async function doSwipe(msgId, dir, wrap) {
   if (res.needs_generation) { await doRegen(msgId); return; }
   wrap.querySelector('.msg-bubble').textContent = res.content;
   const sc = wrap.querySelector('.swipe-count');
-  if (sc && res.variant_index !== undefined) sc.textContent = `${res.variant_index + 1}`;
+  if (sc && res.variant_index !== undefined) sc.textContent = `${res.variant_index + 1} / ${res.variant_count}`;
 }
 
 async function doRegen(msgId) {
@@ -916,6 +969,12 @@ async function startStream(userText, regenerate) {
     document.getElementById('btn-send').style.display = '';
     document.getElementById('btn-stop').style.display = 'none';
     await loadChats(S.activeCharId);
+    if (S.activeChatId) {
+      try {
+        const chat = await api('GET', `/chats/${S.activeChatId}`);
+        renderMessages(chat.messages);
+      } catch (_) {}
+    }
   }
 }
 
@@ -1138,26 +1197,34 @@ document.getElementById('btn-add-char').addEventListener('click', () => openChar
 async function openCharEditor(charId) {
   let existing = null;
   if (charId) existing = await api('GET', `/characters/${charId}`);
-  const card = existing?.card || {};
+  const card = existing?.card || existing || {};
 
   const div = document.createElement('div');
-  div.appendChild(modalHeader(charId ? `Edit — ${existing?.name}` : 'New Character'));
+  div.appendChild(modalHeader(charId ? `Edit — ${existing?.name || card.name}` : 'New Character'));
 
   // Avatar row
   const avRow = document.createElement('div');
   avRow.style.cssText = 'display:flex;align-items:center;gap:14px;';
   const avPrev = document.createElement('div'); avPrev.className = 'avatar-preview';
-  if (existing?.image_path) avPrev.innerHTML = `<img src="/${existing.image_path}">`;
-  else avPrev.textContent = (card.name || '?')[0]?.toUpperCase() || '?';
+  if (existing?.image_path || card.image_path) {
+    const src = existing?.image_path || card.image_path;
+    avPrev.innerHTML = `<img src="/${src}">`;
+  } else {
+    avPrev.textContent = (card.name || '?')[0]?.toUpperCase() || '?';
+  }
 
   const avBtns = document.createElement('div');
   avBtns.style.cssText = 'display:flex;flex-direction:column;gap:6px;';
   const upAvBtn = mkBtn('Upload Avatar', () => {
-    S.pendingAvatarFor = { type: 'char', id: charId }; // may be null for new
+    if (!charId) { alert('Save the character first before uploading an avatar.'); return; }
+    S.pendingAvatarFor = { type: 'char', id: charId };
     document.getElementById('file-avatar-upload').click();
   });
-  const impBtn = mkBtn('Import PNG', () => document.getElementById('file-char-import').click());
-  avBtns.appendChild(upAvBtn); avBtns.appendChild(impBtn);
+  avBtns.appendChild(upAvBtn);
+  if (!charId) {
+    const impBtn = mkBtn('Import PNG', () => document.getElementById('file-char-import').click());
+    avBtns.appendChild(impBtn);
+  }
   avRow.appendChild(avPrev); avRow.appendChild(avBtns);
   div.appendChild(avRow);
 
@@ -1219,7 +1286,7 @@ async function openCharEditor(charId) {
   saveBtn.className = 'primary';
   if (charId) {
     const del = mkBtn('Delete', async () => {
-      if (!confirm(`Delete ${existing?.name}?`)) return;
+      if (!confirm(`Delete ${existing?.name || card.name}?`)) return;
       await api('DELETE', `/characters/${charId}`);
       if (S.activeCharId === charId) { S.activeCharId = null; S.activeChatId = null; }
       await loadCharacters(); closeModal();
@@ -1229,6 +1296,13 @@ async function openCharEditor(charId) {
   footer.appendChild(mkBtn('Cancel', closeModal)); footer.appendChild(saveBtn);
   div.appendChild(footer);
 
+  // Update letter avatar when typing name
+  nameIn.addEventListener('input', () => {
+    if (!avPrev.querySelector('img')) {
+      avPrev.textContent = (nameIn.value[0] || '?').toUpperCase();
+    }
+  });
+
   // PNG import handler — populates fields from imported card
   document.getElementById('file-char-import').onchange = async e => {
     const file = e.target.files[0]; if (!file) return;
@@ -1237,7 +1311,7 @@ async function openCharEditor(charId) {
     if (!r.ok) { alert('Import failed: ' + await r.text()); return; }
     const res = await r.json();
     const imported = await api('GET', `/characters/${res.id}`);
-    const ic = imported.card;
+    const ic = imported?.card || imported || {};
     nameIn.value = ic.name || ''; descIn.value = ic.description || '';
     perIn.value  = ic.personality || ''; scIn.value = ic.scenario || '';
     exIn.value   = ic.mes_example || '';
@@ -1246,7 +1320,12 @@ async function openCharEditor(charId) {
     (ic.alternate_greetings || []).forEach(g => greets.push(g));
     if (!greets.length) greets.push('');
     renderGreets();
-    if (imported.image_path) avPrev.innerHTML = `<img src="/${imported.image_path}">`;
+    if (imported?.image_path || ic.image_path) {
+      const src = imported?.image_path || ic.image_path;
+      avPrev.innerHTML = `<img src="/${src}">`;
+    } else {
+      avPrev.textContent = (ic.name || '?')[0]?.toUpperCase() || '?';
+    }
     e.target.value = '';
     await loadCharacters();
   };
@@ -1267,6 +1346,7 @@ async function openPersonaEditor(personaId) {
   if (existing?.avatar_path) avPrev.innerHTML = `<img src="/${existing.avatar_path}">`;
   else avPrev.textContent = (existing?.name || 'U')[0]?.toUpperCase();
   const upBtn = mkBtn('Upload Avatar', () => {
+    if (!personaId) { alert('Save the persona first before uploading an avatar.'); return; }
     S.pendingAvatarFor = { type: 'persona', id: personaId };
     document.getElementById('file-avatar-upload').click();
   });
@@ -1277,6 +1357,12 @@ async function openPersonaEditor(personaId) {
   descIn.rows = 4;
   div.appendChild(frow('Name', nameIn));
   div.appendChild(frow('Description', descIn));
+
+  nameIn.addEventListener('input', () => {
+    if (!avPrev.querySelector('img')) {
+      avPrev.textContent = (nameIn.value[0] || 'U').toUpperCase();
+    }
+  });
 
   const footer = document.createElement('div'); footer.className = 'modal-footer';
   const save = mkBtn(personaId ? 'Save' : 'Create', async () => {
@@ -1313,8 +1399,20 @@ document.getElementById('file-avatar-upload').addEventListener('change', async e
   await apiUpload(path, file);
   if (type === 'char')    await loadCharacters();
   if (type === 'persona') await loadPersonas();
+
+  // Update preview in open modal without closing it
+  const preview = document.querySelector('#modal-box .avatar-preview');
+  if (preview) {
+    if (type === 'char') {
+      const updated = S.characters.find(c => c.id === id);
+      if (updated?.image_path) preview.innerHTML = `<img src="/${updated.image_path}?t=${Date.now()}">`;
+    } else {
+      const updated = S.personas.find(p => p.id === id);
+      if (updated?.avatar_path) preview.innerHTML = `<img src="/${updated.avatar_path}?t=${Date.now()}">`;
+    }
+  }
+
   S.pendingAvatarFor = null; e.target.value = '';
-  closeModal();
 });
 
 // ── Start ─────────────────────────────────────────────────────────────────────
