@@ -88,9 +88,7 @@ class GoogleProviderBase(BaseProvider):
                 last_assistant_idx = i
         return last_assistant_idx
 
-    def _build_contents(
-        self, messages: list[dict], merged: dict, last_assistant_idx: int | None, include_sig: bool
-    ):
+    def _build_contents(self, messages: list[dict], merged: dict, last_assistant_idx: int | None, include_sig: bool):
         system_instruction = None
         contents = []
         for msg_idx, msg in enumerate(messages):
@@ -105,23 +103,13 @@ class GoogleProviderBase(BaseProvider):
             elif role == "user":
                 contents.append(types.Content(role="user", parts=self._build_parts(content)))
             elif role == "assistant":
-                reasoning = (
-                    msg.get("reasoning") if merged.get("send_reasoning_history", True) else None
-                )
+                reasoning = msg.get("reasoning") if merged.get("send_reasoning_history", True) else None
                 thought_sig = (
                     msg.get("thought_signature")
-                    if (
-                        include_sig
-                        and msg_idx == last_assistant_idx
-                        and merged.get("send_reasoning_history", True)
-                    )
+                    if (include_sig and msg_idx == last_assistant_idx and merged.get("send_reasoning_history", True))
                     else None
                 )
-                contents.append(
-                    types.Content(
-                        role="model", parts=self._build_parts(content, reasoning, thought_sig)
-                    )
-                )
+                contents.append(types.Content(role="model", parts=self._build_parts(content, reasoning, thought_sig)))
         return system_instruction, contents
 
     async def _do_stream(self, contents, config):
@@ -161,11 +149,7 @@ class GoogleProviderBase(BaseProvider):
         thought_signature_b64 = None
 
         async for chunk in stream:
-            if (
-                not chunk.candidates
-                or not chunk.candidates[0].content
-                or not chunk.candidates[0].content.parts
-            ):
+            if not chunk.candidates or not chunk.candidates[0].content or not chunk.candidates[0].content.parts:
                 if chunk.text:
                     yield chunk.text
                 continue
@@ -174,9 +158,7 @@ class GoogleProviderBase(BaseProvider):
                 if hasattr(part, "thought_signature") and part.thought_signature:
                     thought_signature_b64 = base64.b64encode(part.thought_signature).decode("utf-8")
 
-                is_thought = getattr(part, "thought", False) or (
-                    part.text and part.text.startswith("THOUGHT:")
-                )
+                is_thought = getattr(part, "thought", False) or (part.text and part.text.startswith("THOUGHT:"))
 
                 if is_thought:
                     if not in_reasoning:
@@ -210,9 +192,7 @@ class GoogleProviderBase(BaseProvider):
         """
         merged = {**self.params, **kwargs}
         last_assistant_idx = self._find_last_assistant_with_signature(messages)
-        system_instruction, contents = self._build_contents(
-            messages, merged, last_assistant_idx, True
-        )
+        system_instruction, contents = self._build_contents(messages, merged, last_assistant_idx, True)
 
         config = self._build_config(merged, system_instruction)
 
@@ -221,26 +201,18 @@ class GoogleProviderBase(BaseProvider):
                 yield chunk
         except Exception:
             if last_assistant_idx is not None:
-                logger.debug(
-                    "First stream attempt failed, retrying without thought_signature", exc_info=True
-                )
-                _, contents_retry = self._build_contents(
-                    messages, merged, last_assistant_idx, False
-                )
+                logger.debug("First stream attempt failed, retrying without thought_signature", exc_info=True)
+                _, contents_retry = self._build_contents(messages, merged, last_assistant_idx, False)
                 async for chunk in self._do_stream(contents_retry, config):
                     yield chunk
             else:
                 raise
 
-    def _build_config(
-        self, merged: dict, system_instruction: str | None
-    ) -> types.GenerateContentConfig:
+    def _build_config(self, merged: dict, system_instruction: str | None) -> types.GenerateContentConfig:
         raise NotImplementedError
 
     @staticmethod
-    def _apply_thinking_config(
-        config: dict, model: str, include_reasoning: bool, reasoning_effort: str | None
-    ):
+    def _apply_thinking_config(config: dict, model: str, include_reasoning: bool, reasoning_effort: str | None):
         if include_reasoning or "gemini-3.1" in model or "gemini-2.0-flash-thinking" in model:
             config.pop("temperature", None)
             thinking_kwargs = {"include_thoughts": True}

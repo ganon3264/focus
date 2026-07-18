@@ -37,9 +37,7 @@ async def attach_images(blocks: list[dict], db: aiosqlite.Connection) -> list[di
     return blocks
 
 
-async def next_position(
-    db: aiosqlite.Connection, table: str, where_col: str, where_val: str
-) -> int:
+async def next_position(db: aiosqlite.Connection, table: str, where_col: str, where_val: str) -> int:
     async with db.execute(
         f"SELECT COALESCE(MAX(position), -1) FROM {table} WHERE {where_col} = ?", (where_val,)
     ) as cur:
@@ -47,9 +45,7 @@ async def next_position(
     return row[0] + 1
 
 
-async def dynamic_update(
-    db: aiosqlite.Connection, table: str, updates: dict, where_clause: str, where_params: list
-):
+async def dynamic_update(db: aiosqlite.Connection, table: str, updates: dict, where_clause: str, where_params: list):
     cols = ", ".join(f"{k} = ?" for k in updates)
     vals = list(updates.values()) + where_params
     await db.execute(f"UPDATE {table} SET {cols} WHERE {where_clause}", vals)
@@ -151,9 +147,7 @@ async def load_entity_blocks(
 
 
 async def get_characters(db: aiosqlite.Connection) -> list[dict]:
-    async with db.execute(
-        "SELECT * FROM characters WHERE is_deleted = 0 ORDER BY created_at DESC"
-    ) as cur:
+    async with db.execute("SELECT * FROM characters WHERE is_deleted = 0 ORDER BY created_at DESC") as cur:
         rows = await cur.fetchall()
         characters = []
         for r in rows:
@@ -219,9 +213,7 @@ async def get_persona(db: aiosqlite.Connection, persona_id: str = None) -> dict 
     return dict(row) if row else None
 
 
-async def fetch_active_variants(
-    db: aiosqlite.Connection, chat_id: str, extra_cols: str = ""
-) -> list[dict]:
+async def fetch_active_variants(db: aiosqlite.Connection, chat_id: str, extra_cols: str = "") -> list[dict]:
     """Fetch messages with their active variant content for a chat.
 
     Returns rows with: id, role, position, active_index, content,
@@ -267,11 +259,11 @@ async def get_chat_messages(db: aiosqlite.Connection, chat_id: str) -> list[dict
 
 async def get_chats_sidebar(db: aiosqlite.Connection, character_id: str = None) -> list[dict]:
     query_base = """
-        SELECT c.*, 
-               (SELECT mv.content 
-                FROM messages m 
-                JOIN message_variants mv ON m.id = mv.message_id AND m.active_index = mv.variant_index 
-                WHERE m.chat_id = c.id 
+        SELECT c.*,
+               (SELECT mv.content
+                FROM messages m
+                JOIN message_variants mv ON m.id = mv.message_id AND m.active_index = mv.variant_index
+                WHERE m.chat_id = c.id
                 ORDER BY m.position DESC LIMIT 1) as last_message
         FROM chats c
     """
@@ -294,15 +286,11 @@ async def get_chats_sidebar(db: aiosqlite.Connection, character_id: str = None) 
     return chats
 
 
-async def get_counts(
-    db: aiosqlite.Connection, character_id: str | None, persona_id: str | None
-) -> dict:
+async def get_counts(db: aiosqlite.Connection, character_id: str | None, persona_id: str | None) -> dict:
     counts = {"char_blocks": 0, "char_attachments": 0, "persona_attachments": 0}
 
     if character_id:
-        async with db.execute(
-            "SELECT id FROM char_blocks WHERE character_id = ?", (character_id,)
-        ) as cur:
+        async with db.execute("SELECT id FROM char_blocks WHERE character_id = ?", (character_id,)) as cur:
             char_blocks_rows = await cur.fetchall()
             counts["char_blocks"] = len(char_blocks_rows)
 

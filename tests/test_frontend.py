@@ -22,14 +22,17 @@ ALL_TEMPLATES = sorted(
     + [str(p.relative_to(PARTIALS_DIR)) for p in PARTIALS_DIR.rglob("*.html")]
 )
 
+
 @pytest.mark.parametrize("template_name", ALL_TEMPLATES)
 def test_template_compiles(template_name):
     """Each Jinja2 template must parse without syntax errors."""
     env.parse(loader.get_source(env, template_name)[0])
 
+
 def _is_jinja_expression(path: str) -> bool:
     """Check if a path is a Jinja2 expression like '/{{ var }}' or '{% ... %}'."""
     return bool(re.search(r"\{\{|\{%", path))
+
 
 def _find_asset_refs(text: str) -> list[str]:
     """Extract static asset paths from src/href attributes."""
@@ -40,12 +43,12 @@ def _find_asset_refs(text: str) -> list[str]:
             continue
         path = path.split("?")[0]
         if (
-            path.startswith(("http://", "https://", "data:", "#", "//"))
-            or "${" in path  # JS template literal
+            path.startswith(("http://", "https://", "data:", "#", "//")) or "${" in path  # JS template literal
         ):
             continue
         refs.add(path)
     return list(refs)
+
 
 @pytest.mark.parametrize("template_name", ALL_TEMPLATES)
 def test_template_asset_references(template_name):
@@ -58,6 +61,7 @@ def test_template_asset_references(template_name):
         candidates = [Path(rel), STATIC_DIR / rel]
         if not any(c.exists() for c in candidates):
             pytest.fail(f"{template_name}: asset not found: {ref}")
+
 
 CRITICAL_ASSETS = [
     "style.css",
@@ -72,10 +76,12 @@ CRITICAL_ASSETS = [
     "vendor/cropper.min.js",
 ]
 
+
 def test_critical_assets_exist():
     """Every vendored library and core stylesheet must be present."""
     missing = [f for f in CRITICAL_ASSETS if not (STATIC_DIR / f).exists()]
     assert not missing, f"Missing critical assets: {', '.join(missing)}"
+
 
 def test_css_valid():
     """style.css must parse without fatal errors."""

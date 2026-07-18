@@ -8,12 +8,13 @@ from fastapi import HTTPException
 import focus.crud as crud
 from focus.core.card_parser import safe_load_card
 from focus.core.macros import build_base_macros
-from focus.prompt_chain import _build_content, assemble_prompt
 from focus.core.utils import now_iso
+from focus.prompt_chain import _build_content, assemble_prompt
 
 logger = logging.getLogger("focus.routers.stream_utils")
 
 _chat_locks: dict[str, asyncio.Lock] = {}
+
 
 async def _get_history(db: aiosqlite.Connection, chat_id: str, regenerate: bool):
     """Load message history and message attachments for a chat."""
@@ -56,6 +57,7 @@ async def _get_history(db: aiosqlite.Connection, chat_id: str, regenerate: bool)
         ]
         return history, None, 0
 
+
 async def get_prompt_context(
     db: aiosqlite.Connection,
     chat_id: str,
@@ -93,9 +95,7 @@ async def get_prompt_context(
 
     if chat["character_id"]:
         char_data["id"] = chat["character_id"]
-        async with db.execute(
-            "SELECT card_json FROM characters WHERE id = ?", (chat["character_id"],)
-        ) as cur:
+        async with db.execute("SELECT card_json FROM characters WHERE id = ?", (chat["character_id"],)) as cur:
             char_row = await cur.fetchone()
         if char_row:
             card_json = safe_load_card(char_row) or {}
@@ -143,9 +143,7 @@ async def get_prompt_context(
             lock = _chat_locks.setdefault(chat_id, asyncio.Lock())
             async with lock:
                 now = now_iso()
-                async with db.execute(
-                    "SELECT MAX(position) FROM messages WHERE chat_id = ?", (chat_id,)
-                ) as cur:
+                async with db.execute("SELECT MAX(position) FROM messages WHERE chat_id = ?", (chat_id,)) as cur:
                     pos_row = await cur.fetchone()
                 next_pos = (pos_row[0] if pos_row[0] is not None else -1) + 1
 
@@ -178,9 +176,7 @@ async def get_prompt_context(
                     else:
                         new_attachments = []
 
-                    history.append(
-                        {"role": "user", "content": _build_content(user_message, new_attachments)}
-                    )
+                    history.append({"role": "user", "content": _build_content(user_message, new_attachments)})
                     next_pos += 1
 
                 # Create assistant message slot
@@ -202,9 +198,7 @@ async def get_prompt_context(
                         attachment_ids,
                     ) as cur:
                         new_attachments = [dict(r) for r in await cur.fetchall()]
-                history.append(
-                    {"role": "user", "content": _build_content(user_message, new_attachments)}
-                )
+                history.append({"role": "user", "content": _build_content(user_message, new_attachments)})
 
     # ── Block images ──────────────────────────────────────────────────────────
     all_block_ids = [b["id"] for b in preset_blocks] + [b["id"] for b in char_own_blocks]
@@ -228,9 +222,7 @@ async def get_prompt_context(
     if history and history[0].get("role") == "assistant":
         history[0]["_greeting"] = True
 
-    messages = assemble_prompt(
-        preset_blocks, history, char_data, char_own_blocks, macros, block_images
-    )
+    messages = assemble_prompt(preset_blocks, history, char_data, char_own_blocks, macros, block_images)
 
     return {
         "messages": messages,
@@ -239,9 +231,8 @@ async def get_prompt_context(
         "user_msg_id": user_msg_id,
     }
 
-def filter_unsupported_modalities(
-    messages: list[dict], supported_modalities: list[str] | None
-) -> list[dict]:
+
+def filter_unsupported_modalities(messages: list[dict], supported_modalities: list[str] | None) -> list[dict]:
     """Strip media blocks (image_url, input_audio) for models that don't support them.
 
     If a model only accepts text, all image/audio/file parts are removed and
@@ -284,6 +275,7 @@ def filter_unsupported_modalities(
             filtered.append({"role": msg["role"], "content": new_parts})
 
     return filtered
+
 
 def apply_claude_caching(
     messages: list[dict],

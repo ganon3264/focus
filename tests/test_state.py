@@ -8,13 +8,13 @@ import subprocess
 
 from tests.conftest import create_character, create_chat, create_persona, create_preset
 
+
 def test_state_manager_js():
     """Run the Node-based unit tests for StateManager."""
     test_file = os.path.join(os.path.dirname(__file__), "test_state_manager.js")
     result = subprocess.run(["node", test_file], capture_output=True, text=True)
-    assert result.returncode == 0, (
-        f"StateManager JS tests failed:\n{result.stdout}\n{result.stderr}"
-    )
+    assert result.returncode == 0, f"StateManager JS tests failed:\n{result.stdout}\n{result.stderr}"
+
 
 class TestPresetLifecycle:
     """Tests that the server behaves correctly for operations the StateManager depends on."""
@@ -62,6 +62,7 @@ class TestPresetLifecycle:
         resp = await client.get(f"/api/presets/{pr['id']}")
         assert resp.status_code == 404
 
+
 class TestCharacterLifecycle:
     async def test_set_character_on_chat(self, client):
         """PATCH /api/chats/{id} with character_id persists."""
@@ -84,6 +85,7 @@ class TestCharacterLifecycle:
         chat = await client.get(f"/api/chats/{ch['id']}")
         assert chat.json()["character_id"] is None
 
+
 class TestPersonaLifecycle:
     async def test_set_persona_on_chat(self, client):
         """PATCH /api/chats/{id} with persona_id persists."""
@@ -95,6 +97,7 @@ class TestPersonaLifecycle:
 
         chat = await client.get(f"/api/chats/{ch['id']}")
         assert chat.json()["persona_id"] == p["id"]
+
 
 class TestModalPartials:
     """Tests that partial templates render correctly with query params — the

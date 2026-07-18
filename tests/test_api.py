@@ -2,6 +2,7 @@
 
 from tests.conftest import create_character, create_chat, create_persona, create_preset
 
+
 class TestCharacters:
     async def test_list_empty(self, client):
         resp = await client.get("/api/characters/")
@@ -81,6 +82,7 @@ class TestCharacters:
         resp = await client.get(f"/api/characters/{c['id']}")
         assert resp.status_code == 404
 
+
 class TestPersonas:
     async def test_list(self, client):
         resp = await client.get("/api/personas/")
@@ -114,6 +116,7 @@ class TestPersonas:
     async def test_get_not_found(self, client):
         resp = await client.get("/api/personas/nope")
         assert resp.status_code == 404
+
 
 class TestPresets:
     async def test_create(self, client):
@@ -154,6 +157,7 @@ class TestPresets:
 
         resp = await client.get(f"/api/presets/{p['id']}")
         assert resp.status_code == 404
+
 
 class TestChats:
     async def test_create_empty(self, client):
@@ -214,6 +218,7 @@ class TestChats:
         await client.patch(f"/api/chats/{ch['id']}", json={"character_id": c2["id"]})
         resp = await client.get(f"/api/chats/{ch['id']}")
         assert resp.json()["character_id"] == c2["id"]
+
 
 class TestProviders:
     async def test_list_empty(self, client):
@@ -279,6 +284,7 @@ class TestProviders:
         await client.delete(f"/api/providers/{pid}")
         resp = await client.get("/api/providers/")
         assert resp.json() == []
+
 
 class TestCrossEntity:
     async def test_chat_with_character_no_greetings(self, client):

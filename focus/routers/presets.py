@@ -13,6 +13,7 @@ from focus.core.utils import now_iso, variable_group_name
 
 router = APIRouter()
 
+
 @router.post("/", status_code=201)
 async def create_preset(name: str = Form(...), db: aiosqlite.Connection = Depends(get_db)):
     preset_id = str(uuid.uuid4())
@@ -47,10 +48,12 @@ async def create_preset(name: str = Form(...), db: aiosqlite.Connection = Depend
     await db.commit()
     return {"id": preset_id}
 
+
 @router.get("/")
 async def list_presets(db: aiosqlite.Connection = Depends(get_db)):
     async with db.execute("SELECT id, name, created_at FROM presets ORDER BY name") as cur:
         return [dict(r) for r in await cur.fetchall()]
+
 
 @router.get("/{preset_id}")
 async def get_preset(preset_id: str, db: aiosqlite.Connection = Depends(get_db)):
@@ -69,6 +72,7 @@ async def get_preset(preset_id: str, db: aiosqlite.Connection = Depends(get_db))
     result["blocks"] = blocks
     return result
 
+
 @router.patch("/{preset_id}")
 async def update_preset(
     preset_id: str,
@@ -79,10 +83,12 @@ async def update_preset(
     await db.commit()
     return {"ok": True}
 
+
 @router.delete("/{preset_id}", status_code=204)
 async def delete_preset(preset_id: str, db: aiosqlite.Connection = Depends(get_db)):
     await db.execute("DELETE FROM presets WHERE id = ?", (preset_id,))
     await db.commit()
+
 
 @router.post("/import", status_code=201)
 async def import_preset(file: UploadFile = File(...), db: aiosqlite.Connection = Depends(get_db)):
@@ -184,6 +190,7 @@ async def import_preset(file: UploadFile = File(...), db: aiosqlite.Connection =
     await db.commit()
     return {"id": preset_id, "name": preset_name, "block_count": len(blocks_in_order)}
 
+
 @router.post("/{preset_id}/blocks", status_code=201)
 async def add_block(
     preset_id: str,
@@ -212,6 +219,7 @@ async def add_block(
     )
     await db.commit()
     return {"id": block_id, "position": next_pos}
+
 
 @router.put("/{preset_id}/blocks")
 async def replace_blocks(
@@ -245,6 +253,7 @@ async def replace_blocks(
 
     await db.commit()
     return {"ok": True}
+
 
 @router.patch("/{preset_id}/blocks/{block_id}")
 async def patch_block(
@@ -287,16 +296,16 @@ async def patch_block(
     await db.commit()
     return {"ok": True}
 
+
 @router.delete("/{preset_id}/blocks/{block_id}", status_code=204)
 async def delete_block(
     preset_id: str,
     block_id: str,
     db: aiosqlite.Connection = Depends(get_db),
 ):
-    await db.execute(
-        "DELETE FROM preset_blocks WHERE id = ? AND preset_id = ?", (block_id, preset_id)
-    )
+    await db.execute("DELETE FROM preset_blocks WHERE id = ? AND preset_id = ?", (block_id, preset_id))
     await db.commit()
+
 
 @router.post("/{preset_id}/blocks/{block_id}/images", status_code=201)
 async def add_block_image(
@@ -319,6 +328,7 @@ async def add_block_image(
         )
     except Exception as e:
         raise HTTPException(500, f"Failed to save image: {str(e)}")
+
 
 @router.delete("/{preset_id}/blocks/{block_id}/images/{image_id}", status_code=204)
 async def delete_block_image(

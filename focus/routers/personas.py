@@ -96,9 +96,7 @@ async def upload_avatar(
 
 @router.delete("/{persona_id}", status_code=204)
 async def delete_persona(persona_id: str, db: aiosqlite.Connection = Depends(get_db)):
-    async with db.execute(
-        "SELECT avatar_path, name FROM personas WHERE id = ?", (persona_id,)
-    ) as cur:
+    async with db.execute("SELECT avatar_path, name FROM personas WHERE id = ?", (persona_id,)) as cur:
         row = await cur.fetchone()
     if not row:
         raise HTTPException(404, "Persona not found")

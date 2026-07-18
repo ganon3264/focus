@@ -43,9 +43,7 @@ class GoogleVertexProvider(GoogleProviderBase):
                 if not self.project_id:
                     self.project_id = adc_project_id
             except Exception as e:
-                raise ValueError(
-                    f"Failed to load ADC credentials. Are you logged in via gcloud? Error: {e}"
-                )
+                raise ValueError(f"Failed to load ADC credentials. Are you logged in via gcloud? Error: {e}")
 
         if not self.project_id or not self.region:
             raise ValueError("Vertex AI requires a Project ID and Region")
@@ -71,9 +69,7 @@ class GoogleVertexProvider(GoogleProviderBase):
             models.append({"id": model_id, "name": model_id})
         return models
 
-    def _build_config(
-        self, merged: dict, system_instruction: str | None
-    ) -> types.GenerateContentConfig:
+    def _build_config(self, merged: dict, system_instruction: str | None) -> types.GenerateContentConfig:
         max_tokens = merged.pop("max_tokens", DEFAULT_MAX_TOKENS)
         temperature = merged.pop("temperature", DEFAULT_TEMPERATURE)
         top_p = merged.pop("top_p", None)

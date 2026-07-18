@@ -136,11 +136,13 @@ CREATE INDEX IF NOT EXISTS idx_char_blocks_char      ON char_blocks(character_id
 CREATE INDEX IF NOT EXISTS idx_message_variants_msg  ON message_variants(message_id, variant_index);
 """
 
+
 async def get_db():
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         await db.execute("PRAGMA foreign_keys=ON")
         yield db
+
 
 def init_directories():
     """Ensure asset directories exist on startup."""
@@ -150,6 +152,7 @@ def init_directories():
     PRESETS_DIR.mkdir(parents=True, exist_ok=True)
     ATTACHMENTS_DIR.mkdir(parents=True, exist_ok=True)
     COMPRESSED_DIR.mkdir(parents=True, exist_ok=True)
+
 
 async def init_db():
     """Create database tables, seed defaults, and apply migrations on startup."""
@@ -177,13 +180,9 @@ async def init_db():
         cols = await db.execute("PRAGMA table_info(preset_blocks)")
         col_names = {row[1] for row in await cols.fetchall()}
         if "injection_depth" not in col_names:
-            await db.execute(
-                "ALTER TABLE preset_blocks ADD COLUMN injection_depth INTEGER DEFAULT NULL"
-            )
+            await db.execute("ALTER TABLE preset_blocks ADD COLUMN injection_depth INTEGER DEFAULT NULL")
         if "injection_order" not in col_names:
-            await db.execute(
-                "ALTER TABLE preset_blocks ADD COLUMN injection_order INTEGER DEFAULT 0"
-            )
+            await db.execute("ALTER TABLE preset_blocks ADD COLUMN injection_order INTEGER DEFAULT 0")
         if "cache_control" in col_names:
             await db.execute("ALTER TABLE preset_blocks DROP COLUMN cache_control")
 

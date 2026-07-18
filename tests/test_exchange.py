@@ -130,9 +130,7 @@ class TestExport:
 
 class TestImport:
     async def test_roundtrip_characters(self, client):
-        c1 = await create_character(
-            client, "ExportMe", description="Test desc", personality="Quiet"
-        )
+        c1 = await create_character(client, "ExportMe", description="Test desc", personality="Quiet")
         c2 = await create_character(client, "AlsoExport")
 
         # Export
@@ -231,9 +229,7 @@ class TestImport:
 
 class TestEndToEnd:
     async def test_full_roundtrip(self, client):
-        char = await create_character(
-            client, "E2E Char", description="Full test", first_mes="Hello there!"
-        )
+        char = await create_character(client, "E2E Char", description="Full test", first_mes="Hello there!")
         preset = await create_preset(client, "E2E Preset")
         persona = await create_persona(client, "E2E Persona")
         await create_chat(client, char["id"], persona["id"], preset["id"])

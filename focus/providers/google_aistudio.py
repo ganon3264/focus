@@ -23,9 +23,7 @@ class GoogleAIStudioProvider(GoogleProviderBase):
             models.append({"id": model_id, "name": model_id})
         return models
 
-    def _build_config(
-        self, merged: dict, system_instruction: str | None
-    ) -> types.GenerateContentConfig:
+    def _build_config(self, merged: dict, system_instruction: str | None) -> types.GenerateContentConfig:
         include_reasoning = merged.get("include_reasoning", False)
         reasoning_effort = merged.get("reasoning_effort", None)
 

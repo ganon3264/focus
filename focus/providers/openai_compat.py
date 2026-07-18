@@ -123,15 +123,11 @@ class OpenAICompatProvider(BaseProvider):
 
                 delta_obj = chunk.choices[0].delta
                 delta = getattr(delta_obj, "content", None)
-                reasoning = getattr(delta_obj, "reasoning_content", None) or getattr(
-                    delta_obj, "reasoning", None
-                )
+                reasoning = getattr(delta_obj, "reasoning_content", None) or getattr(delta_obj, "reasoning", None)
 
                 # Fallback to check model_extra for non-standard reasoning fields
                 if not reasoning and hasattr(delta_obj, "model_extra") and delta_obj.model_extra:
-                    reasoning = delta_obj.model_extra.get(
-                        "reasoning_content"
-                    ) or delta_obj.model_extra.get("reasoning")
+                    reasoning = delta_obj.model_extra.get("reasoning_content") or delta_obj.model_extra.get("reasoning")
 
                 if reasoning:
                     if not in_reasoning:

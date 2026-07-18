@@ -52,15 +52,7 @@ async def log_requests(request: Request, call_next):
     response = await call_next(request)
     process_time = time.time() - start_time
     status = response.status_code
-    color = (
-        "\x1b[32m"
-        if status < 300
-        else "\x1b[36m"
-        if status < 400
-        else "\x1b[33m"
-        if status < 500
-        else "\x1b[31m"
-    )
+    color = "\x1b[32m" if status < 300 else "\x1b[36m" if status < 400 else "\x1b[33m" if status < 500 else "\x1b[31m"
     logger.info(
         "%s %s - Status: %s%d\x1b[0m - %.4fs",
         request.method,
@@ -100,9 +92,7 @@ async def favicon():
 async def clean_database(db: aiosqlite.Connection = Depends(get_db)):
     counts = {}
     counts["chats"] = (await db.execute("DELETE FROM chats WHERE is_deleted = 1")).rowcount
-    counts["characters"] = (
-        await db.execute("DELETE FROM characters WHERE is_deleted = 1")
-    ).rowcount
+    counts["characters"] = (await db.execute("DELETE FROM characters WHERE is_deleted = 1")).rowcount
     counts["block_images"] = (
         await db.execute("""
         DELETE FROM block_images WHERE block_id NOT IN (
@@ -116,9 +106,7 @@ async def clean_database(db: aiosqlite.Connection = Depends(get_db)):
         )
     """)
     ).rowcount
-    counts["attachments"] = (
-        await db.execute("DELETE FROM message_attachments WHERE message_id IS NULL")
-    ).rowcount
+    counts["attachments"] = (await db.execute("DELETE FROM message_attachments WHERE message_id IS NULL")).rowcount
     await db.commit()
     await db.execute("VACUUM")
     return counts

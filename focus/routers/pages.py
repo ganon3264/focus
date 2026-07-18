@@ -9,10 +9,11 @@ from jinja2 import FileSystemLoader
 import focus.crud as crud
 from focus.core.database import get_db
 from focus.core.macros import apply_macros, build_base_macros
-from focus.prompt_chain import partition_blocks, resolve_variable_blocks
 from focus.core.utils import variable_group_name
+from focus.prompt_chain import partition_blocks, resolve_variable_blocks
 
 router = APIRouter()
+
 
 def _resolve_macros_for_display(messages, char, persona, preset_blocks=None):
     """Apply macros to message content for display resolution (greetings etc.)."""
@@ -31,16 +32,16 @@ def _resolve_macros_for_display(messages, char, persona, preset_blocks=None):
         if isinstance(msg.get("content"), str):
             msg["content"] = apply_macros(msg["content"], macros)
 
+
 # Create templates with both directories in search path
 templates = Jinja2Templates(directory="templates")
 # Extend searchpath so partials/ resolves by name without moving files
 if isinstance(templates.env.loader, FileSystemLoader):
     templates.env.loader.searchpath.append(str(Path("partials").resolve()))
 
+
 @router.get("/chat", response_class=HTMLResponse)
-async def chat_redirect(
-    request: Request, character_id: str = Query(None), db: aiosqlite.Connection = Depends(get_db)
-):
+async def chat_redirect(request: Request, character_id: str = Query(None), db: aiosqlite.Connection = Depends(get_db)):
     if character_id:
         async with db.execute(
             "SELECT id FROM chats WHERE character_id = ? AND is_deleted = 0 ORDER BY updated_at DESC LIMIT 1",
@@ -50,9 +51,7 @@ async def chat_redirect(
         if row:
             return RedirectResponse(url=f"/chat/{row['id']}")
     else:
-        async with db.execute(
-            "SELECT id FROM chats WHERE is_deleted = 0 ORDER BY updated_at DESC LIMIT 1"
-        ) as cur:
+        async with db.execute("SELECT id FROM chats WHERE is_deleted = 0 ORDER BY updated_at DESC LIMIT 1") as cur:
             row = await cur.fetchone()
         if row:
             return RedirectResponse(url=f"/chat/{row['id']}")
@@ -94,6 +93,7 @@ async def chat_redirect(
             "current_preset_id": preset["id"] if preset else None,
         },
     )
+
 
 @router.get("/chat/{chat_id}", response_class=HTMLResponse)
 async def chat_page(request: Request, chat_id: str, db: aiosqlite.Connection = Depends(get_db)):
@@ -150,6 +150,7 @@ async def chat_page(request: Request, chat_id: str, db: aiosqlite.Connection = D
         },
     )
 
+
 @router.get("/characters", response_class=HTMLResponse)
 async def characters_page(request: Request, db: aiosqlite.Connection = Depends(get_db)):
     characters = await crud.get_characters(db)
@@ -160,6 +161,7 @@ async def characters_page(request: Request, db: aiosqlite.Connection = Depends(g
             "characters": characters,
         },
     )
+
 
 @router.get("/presets", response_class=HTMLResponse)
 async def presets_page(request: Request, db: aiosqlite.Connection = Depends(get_db)):
@@ -183,6 +185,7 @@ async def presets_page(request: Request, db: aiosqlite.Connection = Depends(get_
         },
     )
 
+
 @router.get("/providers", response_class=HTMLResponse)
 async def providers_page(request: Request, db: aiosqlite.Connection = Depends(get_db)):
     providers = await crud.get_providers(db)
@@ -193,6 +196,7 @@ async def providers_page(request: Request, db: aiosqlite.Connection = Depends(ge
             "providers": providers,
         },
     )
+
 
 @router.get("/personas", response_class=HTMLResponse)
 async def personas_page(request: Request, db: aiosqlite.Connection = Depends(get_db)):
@@ -205,10 +209,9 @@ async def personas_page(request: Request, db: aiosqlite.Connection = Depends(get
         },
     )
 
+
 @router.get("/partials/message-list/{chat_id}", response_class=HTMLResponse)
-async def message_list_partial(
-    request: Request, chat_id: str, db: aiosqlite.Connection = Depends(get_db)
-):
+async def message_list_partial(request: Request, chat_id: str, db: aiosqlite.Connection = Depends(get_db)):
     messages = await crud.get_chat_messages(db, chat_id)
 
     char = None
@@ -233,6 +236,7 @@ async def message_list_partial(
         },
     )
 
+
 @router.get("/partials/chat-list", response_class=HTMLResponse)
 async def chat_list_partial(
     request: Request,
@@ -251,10 +255,9 @@ async def chat_list_partial(
         },
     )
 
+
 @router.get("/partials/char-selector", response_class=HTMLResponse)
-async def char_selector_partial(
-    request: Request, chat_id: str, db: aiosqlite.Connection = Depends(get_db)
-):
+async def char_selector_partial(request: Request, chat_id: str, db: aiosqlite.Connection = Depends(get_db)):
     characters = await crud.get_characters(db)
     current_character_id = None
     async with db.execute("SELECT character_id FROM chats WHERE id = ?", (chat_id,)) as cur:
@@ -271,10 +274,9 @@ async def char_selector_partial(
         },
     )
 
+
 @router.get("/partials/persona-selector", response_class=HTMLResponse)
-async def persona_selector_partial(
-    request: Request, chat_id: str, db: aiosqlite.Connection = Depends(get_db)
-):
+async def persona_selector_partial(request: Request, chat_id: str, db: aiosqlite.Connection = Depends(get_db)):
     personas = await crud.get_personas(db)
     current_persona_id = None
     async with db.execute("SELECT persona_id FROM chats WHERE id = ?", (chat_id,)) as cur:
@@ -291,10 +293,9 @@ async def persona_selector_partial(
         },
     )
 
+
 @router.get("/partials/preset-selector", response_class=HTMLResponse)
-async def preset_selector_partial(
-    request: Request, chat_id: str, db: aiosqlite.Connection = Depends(get_db)
-):
+async def preset_selector_partial(request: Request, chat_id: str, db: aiosqlite.Connection = Depends(get_db)):
     presets = await crud.get_presets(db)
     current_preset_id = None
     async with db.execute("SELECT preset_id FROM chats WHERE id = ?", (chat_id,)) as cur:
@@ -311,10 +312,9 @@ async def preset_selector_partial(
         },
     )
 
+
 @router.get("/partials/preset-variables/{preset_id}", response_class=HTMLResponse)
-async def preset_variables_partial(
-    request: Request, preset_id: str, db: aiosqlite.Connection = Depends(get_db)
-):
+async def preset_variables_partial(request: Request, preset_id: str, db: aiosqlite.Connection = Depends(get_db)):
     preset = await crud.get_preset(db, preset_id)
     blocks = preset["blocks"] if preset else []
 
@@ -327,6 +327,7 @@ async def preset_variables_partial(
     return templates.TemplateResponse(
         request, "presets/preset_variables.html", {"preset_id": preset_id, "var_groups": var_groups}
     )
+
 
 @router.get("/partials/preset-editor/{preset_id}", response_class=HTMLResponse)
 async def preset_editor_partial(
@@ -353,6 +354,7 @@ async def preset_editor_partial(
         },
     )
 
+
 @router.get("/partials/prompt-arranger/{preset_id}", response_class=HTMLResponse)
 async def prompt_arranger_partial(
     request: Request,
@@ -374,6 +376,7 @@ async def prompt_arranger_partial(
         {"blocks": regular_blocks, "preset_id": preset_id, "counts": counts},
     )
 
+
 @router.get("/partials/sampler-modal", response_class=HTMLResponse)
 async def sampler_modal_partial(request: Request, db: aiosqlite.Connection = Depends(get_db)):
     providers = await crud.get_providers(db)
@@ -384,6 +387,7 @@ async def sampler_modal_partial(request: Request, db: aiosqlite.Connection = Dep
             "providers": providers,
         },
     )
+
 
 @router.get("/partials/providers-modal", response_class=HTMLResponse)
 async def providers_modal_partial(request: Request, db: aiosqlite.Connection = Depends(get_db)):
@@ -405,6 +409,7 @@ async def providers_modal_partial(request: Request, db: aiosqlite.Connection = D
         },
     )
 
+
 @router.get("/partials/characters-modal", response_class=HTMLResponse)
 async def characters_modal_partial(
     request: Request, current_character_id: str = "", db: aiosqlite.Connection = Depends(get_db)
@@ -422,6 +427,7 @@ async def characters_modal_partial(
         },
     )
 
+
 @router.get("/partials/presets-modal", response_class=HTMLResponse)
 async def presets_modal_partial(request: Request, db: aiosqlite.Connection = Depends(get_db)):
     presets = await crud.get_presets(db)
@@ -433,6 +439,7 @@ async def presets_modal_partial(request: Request, db: aiosqlite.Connection = Dep
             "presets": presets,
         },
     )
+
 
 @router.get("/partials/personas-modal", response_class=HTMLResponse)
 async def personas_modal_partial(
@@ -450,6 +457,7 @@ async def personas_modal_partial(
             "current_persona_id": current_persona_id,
         },
     )
+
 
 @router.get("/partials/export-entities", response_class=HTMLResponse)
 async def export_entities_partial(
@@ -481,6 +489,7 @@ async def export_entities_partial(
         },
     )
 
+
 # Add json filter to jinja
 def from_json(value):
     import json
@@ -489,5 +498,6 @@ def from_json(value):
         return json.loads(value)
     except Exception:
         return {}
+
 
 templates.env.filters["from_json"] = from_json

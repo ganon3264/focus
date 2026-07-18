@@ -10,9 +10,11 @@ from focus.core.database import get_db
 from focus.core.logger import get_logger
 from focus.core.models import ProviderCreate
 from focus.core.utils import MODEL_FETCH_HTTP_TIMEOUT, TTLCache, now_iso, resolve_secret_key
+from focus.providers import create_provider as provider_factory
 
 router = APIRouter()
 logger = get_logger("routers.providers")
+
 
 @router.post("/", status_code=201)
 async def create_provider(body: ProviderCreate, db: aiosqlite.Connection = Depends(get_db)):
@@ -33,6 +35,7 @@ async def create_provider(body: ProviderCreate, db: aiosqlite.Connection = Depen
     await db.commit()
     return {"id": provider_id}
 
+
 @router.get("/")
 async def list_providers(db: aiosqlite.Connection = Depends(get_db)):
     async with db.execute(
@@ -50,6 +53,7 @@ async def list_providers(db: aiosqlite.Connection = Depends(get_db)):
                 d["api_key"] = ""
             out.append(d)
         return out
+
 
 @router.patch("/{provider_id}")
 async def update_provider(
@@ -74,21 +78,23 @@ async def update_provider(
     await db.commit()
     return {"ok": True}
 
+
 @router.delete("/{provider_id}", status_code=204)
 async def delete_provider(provider_id: str, db: aiosqlite.Connection = Depends(get_db)):
     await db.execute("DELETE FROM providers WHERE id = ?", (provider_id,))
     await db.commit()
 
-from focus.providers import create_provider as provider_factory
 
 _model_cache = TTLCache()
 _or_cache = TTLCache()
+
 
 class FetchModelsRequest(BaseModel):
     type: str
     base_url: str | None = None
     api_key: str | None = None
     params: dict = {}
+
 
 @router.post("/fetch_models")
 async def fetch_models(body: FetchModelsRequest, db: aiosqlite.Connection = Depends(get_db)):
@@ -137,6 +143,7 @@ async def fetch_models(body: FetchModelsRequest, db: aiosqlite.Connection = Depe
         logger.exception("Failed to fetch models from standard provider")
         raise HTTPException(500, f"Failed to fetch models: {str(e)}")
 
+
 @router.get("/openrouter/models")
 async def get_openrouter_models():
     cached = await _or_cache.get("models")
@@ -154,6 +161,7 @@ async def get_openrouter_models():
         logger.exception("Failed to fetch openrouter models")
         raise HTTPException(500, f"Failed to fetch models: {str(e)}")
 
+
 @router.get("/openrouter/endpoints/{model:path}")
 async def get_openrouter_endpoints(model: str):
     try:
@@ -167,9 +175,11 @@ async def get_openrouter_endpoints(model: str):
         logger.exception("Failed to fetch openrouter endpoints for model %s", model)
         raise HTTPException(500, f"Failed to fetch endpoints: {str(e)}")
 
+
 class SecretUpdate(BaseModel):
     name: str
     value: str
+
 
 @router.post("/secrets")
 async def update_secret(body: SecretUpdate, db: aiosqlite.Connection = Depends(get_db)):
@@ -183,6 +193,7 @@ async def update_secret(body: SecretUpdate, db: aiosqlite.Connection = Depends(g
     await db.commit()
     return {"ok": True}
 
+
 @router.get("/secrets")
 async def list_secrets(db: aiosqlite.Connection = Depends(get_db)):
     async with db.execute("SELECT name, value FROM secrets ORDER BY name") as cur:
@@ -193,11 +204,13 @@ async def list_secrets(db: aiosqlite.Connection = Depends(get_db)):
             out.append({"name": r["name"], "preview": preview})
         return {"data": out}
 
+
 @router.delete("/secrets/{name}", status_code=204)
 async def delete_secret(name: str, db: aiosqlite.Connection = Depends(get_db)):
     await db.execute("DELETE FROM secrets WHERE name = ?", (name,))
     await db.commit()
     return {"ok": True}
+
 
 async def get_openrouter_model_modalities(model_id: str) -> list[str] | None:
     """Look up input_modalities for an OpenRouter model from the in-memory cache.

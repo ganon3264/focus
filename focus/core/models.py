@@ -5,10 +5,12 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+
 class Role(StrEnum):
     system = "system"
     user = "user"
     assistant = "assistant"
+
 
 class ProviderType(StrEnum):
     openai_compat = "openai_compat"
@@ -18,6 +20,7 @@ class ProviderType(StrEnum):
     deepseek = "deepseek"
     moonshot = "moonshot"
 
+
 class ProviderCreate(BaseModel):
     name: str
     type: ProviderType
@@ -25,6 +28,7 @@ class ProviderCreate(BaseModel):
     api_key: str | None = None
     model: str
     params: dict[str, Any] = Field(default_factory=dict)
+
 
 class ProviderOut(BaseModel):
     id: str
@@ -34,6 +38,7 @@ class ProviderOut(BaseModel):
     model: str
     created_at: str
 
+
 class CharBlockCreate(BaseModel):
     name: str
     content: str = ""
@@ -41,12 +46,14 @@ class CharBlockCreate(BaseModel):
     enabled: bool = True
     position: float = 0.0
 
+
 class CharBlockUpdate(BaseModel):
     name: str | None = None
     content: str | None = None
     role: Role | None = None
     enabled: bool | None = None
     position: float | None = None
+
 
 class CharacterCreate(BaseModel):
     name: str
@@ -57,6 +64,7 @@ class CharacterCreate(BaseModel):
     first_mes: str = ""
     alternate_greetings: list[str] = []
 
+
 class CharacterUpdate(BaseModel):
     name: str | None = None
     description: str | None = None
@@ -65,6 +73,7 @@ class CharacterUpdate(BaseModel):
     mes_example: str | None = None
     first_mes: str | None = None
     alternate_greetings: list[str] | None = None
+
 
 class BlockType(StrEnum):
     text = "text"
@@ -75,6 +84,7 @@ class BlockType(StrEnum):
     user_persona = "user_persona"
     variable = "variable"
 
+
 SENTINEL_TYPES = {
     BlockType.chat_history,
     BlockType.char_description,
@@ -82,8 +92,10 @@ SENTINEL_TYPES = {
     BlockType.char_blocks,
 }
 
+
 class PresetUpdate(BaseModel):
     name: str
+
 
 class PresetBlockCreate(BaseModel):
     name: str
@@ -94,8 +106,10 @@ class PresetBlockCreate(BaseModel):
     injection_depth: int | None = None
     injection_order: int = 0
 
+
 class PresetBlockBulkUpdate(BaseModel):
     blocks: list[dict[str, Any]]
+
 
 class ChatCreate(BaseModel):
     character_id: str | None = None
@@ -103,9 +117,11 @@ class ChatCreate(BaseModel):
     preset_id: str | None = None
     title: str | None = None
 
+
 class MessageEdit(BaseModel):
     content: str
     attachment_ids: list[str] = Field(default_factory=list)
+
 
 class StreamRequest(BaseModel):
     chat_id: str
@@ -118,11 +134,13 @@ class StreamRequest(BaseModel):
     # Attachment IDs to bind to the new user message
     attachment_ids: list[str] = Field(default_factory=list)
 
+
 class ItemizerRequest(BaseModel):
     chat_id: str
     user_message: str = ""
     attachment_ids: list[str] = Field(default_factory=list)
     regenerate: bool = False
+
 
 class ExportRequest(BaseModel):
     characters: list[str] = Field(default_factory=list)

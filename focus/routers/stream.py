@@ -10,12 +10,6 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from focus.core.database import DB_PATH, get_db
 from focus.core.logger import get_logger
 from focus.core.models import ItemizerRequest, StreamRequest
-from focus.providers import create_provider
-from focus.routers.stream_utils import (
-    apply_claude_caching,
-    filter_unsupported_modalities,
-    get_prompt_context,
-)
 from focus.core.utils import (
     AUDIO_TOKEN_ESTIMATE,
     _image_dims_from_data_url,
@@ -23,9 +17,16 @@ from focus.core.utils import (
     now_iso,
     resolve_secret_key,
 )
+from focus.providers import create_provider
+from focus.routers.stream_utils import (
+    apply_claude_caching,
+    filter_unsupported_modalities,
+    get_prompt_context,
+)
 
 router = APIRouter()
 logger = get_logger("routers.stream")
+
 
 @router.post("/stream")
 async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)):
@@ -69,9 +70,7 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
 
         # Claude prompt caching
         s = dict(body.samplers) if body.samplers else {}
-        if s.pop("cache_enabled", False) and prov_dict.get("model", "").startswith(
-            "anthropic/claude"
-        ):
+        if s.pop("cache_enabled", False) and prov_dict.get("model", "").startswith("anthropic/claude"):
             messages = apply_claude_caching(
                 messages,
                 True,
@@ -104,9 +103,7 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
         final_asst_msg_id = asst_msg_id
 
         try:
-            logger.debug(
-                f"Starting non-stream completion for chat_id={body.chat_id} provider={prov_dict['name']}"
-            )
+            logger.debug(f"Starting non-stream completion for chat_id={body.chat_id} provider={prov_dict['name']}")
             async for token in provider.stream_complete(messages, **gen_kwargs):
                 collected.append(token)
         except Exception as e:
@@ -168,17 +165,13 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
         logger.debug("OUTBOUND PAYLOAD =========================")
         logger.debug("Provider: %s (%s)", prov_dict.get("name"), prov_dict.get("model"))
         logger.debug("Samplers:\n%s", json.dumps(gen_kwargs, indent=2))
-        logger.debug(
-            "Messages:\n%s", json.dumps(_truncate_b64(messages), indent=2, ensure_ascii=False)
-        )
+        logger.debug("Messages:\n%s", json.dumps(_truncate_b64(messages), indent=2, ensure_ascii=False))
         logger.debug("==========================================")
 
     async def generate():
         yield f"data: {json.dumps({'type': 'start', 'message_id': final_asst_msg_id, 'user_message_id': user_msg_id if not body.regenerate else None})}\n\n"
         try:
-            logger.debug(
-                f"Starting generation stream for chat_id={body.chat_id} provider={prov_dict['name']}"
-            )
+            logger.debug(f"Starting generation stream for chat_id={body.chat_id} provider={prov_dict['name']}")
             async for token in provider.stream_complete(messages, **gen_kwargs):
                 collected.append(token)
                 yield f"data: {json.dumps({'token': token})}\n\n"
@@ -217,6 +210,7 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
 
+
 async def _save_assistant_variant(
     chat_id: str,
     asst_msg_id: str,
@@ -236,9 +230,7 @@ async def _save_assistant_variant(
         )
 
         if regenerate and variant_index > 0:
-            async with save_db.execute(
-                "SELECT active_index FROM messages WHERE id = ?", (asst_msg_id,)
-            ) as cur:
+            async with save_db.execute("SELECT active_index FROM messages WHERE id = ?", (asst_msg_id,)) as cur:
                 row = await cur.fetchone()
             if row:
                 async with save_db.execute(
@@ -270,6 +262,7 @@ async def _save_assistant_variant(
 
     return new_variant_id
 
+
 async def _rollback_assistant(asst_msg_id: str | None):
     """Delete the empty assistant row that get_prompt_context eagerly inserts
     before the provider is called. Called from the stream's exception paths so
@@ -280,6 +273,7 @@ async def _rollback_assistant(asst_msg_id: str | None):
         await rollback_db.execute("PRAGMA foreign_keys=ON")
         await rollback_db.execute("DELETE FROM messages WHERE id = ?", (asst_msg_id,))
         await rollback_db.commit()
+
 
 @router.post("/itemize")
 async def itemize_prompt(body: ItemizerRequest, db: aiosqlite.Connection = Depends(get_db)):
@@ -312,9 +306,7 @@ async def itemize_prompt(body: ItemizerRequest, db: aiosqlite.Connection = Depen
                     dims = _image_dims_from_data_url(part["image_url"]["url"])
                     img_tokens = estimate_image_tokens(*dims) if dims else 258
                     tokens += img_tokens
-                    clean_parts.append(
-                        {"type": "image", "text": "[IMAGE ATTACHMENT]", "tokens": img_tokens}
-                    )
+                    clean_parts.append({"type": "image", "text": "[IMAGE ATTACHMENT]", "tokens": img_tokens})
                 elif part["type"] == "input_audio":
                     tokens += AUDIO_TOKEN_ESTIMATE
                     clean_parts.append(

@@ -17,6 +17,7 @@ logger = logging.getLogger("focus.prompt_chain")
 
 MAX_IMAGE_B64 = 5 * 1024 * 1024  # 5 MB provider limit on base64 payload
 
+
 def _ensure_compressed(orig_path: str, mime: str) -> tuple[Path, str]:
     """Return (compressed_file_path, output_mime) from a disk cache.
 
@@ -84,6 +85,7 @@ def _ensure_compressed(orig_path: str, mime: str) -> tuple[Path, str]:
     jpg_cache.write_bytes(buf.getvalue())
     return jpg_cache, "image/jpeg"
 
+
 def _load_media(media_row: dict) -> dict | None:
     """Read a media file from disk and return an OpenAI-format block."""
     path = media_row.get("image_path") or media_row.get("file_path")
@@ -120,6 +122,7 @@ def _load_media(media_row: dict) -> dict | None:
         "image_url": {"url": f"data:{out_mime};base64,{base64.b64encode(data).decode()}"},
     }
 
+
 def _build_content(text: str, images: list[dict]) -> str | list:
     """
     Return plain string if no images, or a multimodal content array if images present.
@@ -132,6 +135,7 @@ def _build_content(text: str, images: list[dict]) -> str | list:
         parts.append({"type": "text", "text": text})
     parts.extend(m for img in images if (m := _load_media(img)) is not None)
     return parts
+
 
 def _merge_consecutive(messages: list[dict]) -> list[dict]:
     """
@@ -176,6 +180,7 @@ def _merge_consecutive(messages: list[dict]) -> list[dict]:
             result.append(dict(msg))
     return result
 
+
 def partition_blocks(blocks: list[dict]) -> tuple[list[dict], list[dict], dict[str, list[dict]]]:
     """Split preset blocks into variable and non-variable buckets.
 
@@ -193,6 +198,7 @@ def partition_blocks(blocks: list[dict]) -> tuple[list[dict], list[dict], dict[s
         else:
             regular_blocks.append(b)
     return var_blocks, regular_blocks, var_groups
+
 
 def resolve_variable_blocks(variable_blocks: list[dict], macros: dict[str, str]) -> None:
     """Resolve {{macro}} references inside variable blocks, mutating `macros`.
@@ -218,6 +224,7 @@ def resolve_variable_blocks(variable_blocks: list[dict], macros: dict[str, str])
                 changed = True
         if not changed:
             break
+
 
 def assemble_prompt(
     preset_blocks: list[dict[str, Any]],
@@ -315,14 +322,10 @@ def assemble_prompt(
             content = cleaned_msg["content"]
 
             # Find thought signature
-            signature_match = re.search(
-                r"<thought_signature>(.*?)</thought_signature>", content, flags=re.DOTALL
-            )
+            signature_match = re.search(r"<thought_signature>(.*?)</thought_signature>", content, flags=re.DOTALL)
             if signature_match:
                 cleaned_msg["thought_signature"] = signature_match.group(1).strip()
-                content = re.sub(
-                    r"<thought_signature>.*?</thought_signature>", "", content, flags=re.DOTALL
-                ).strip()
+                content = re.sub(r"<thought_signature>.*?</thought_signature>", "", content, flags=re.DOTALL).strip()
 
             # Find all think blocks
             thoughts = re.findall(r"<think>(.*?)</think>", content, flags=re.DOTALL)
@@ -331,9 +334,7 @@ def assemble_prompt(
                 cleaned_msg["reasoning"] = "\n\n".join(t.strip() for t in thoughts if t.strip())
 
             # Non-greedy match for <think> blocks across multiple lines to strip them
-            cleaned_msg["content"] = re.sub(
-                r"<think>.*?</think>", "", content, flags=re.DOTALL
-            ).strip()
+            cleaned_msg["content"] = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
 
         cleaned_history.append(cleaned_msg)
 

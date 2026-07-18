@@ -20,8 +20,8 @@ async def create_backup(
     *,
     backups_path: str | None = None,
 ) -> dict:
-    from focus.exchange import export_data
     from focus.core.models import ExportRequest
+    from focus.exchange import export_data
 
     req = ExportRequest(
         characters=["*"],

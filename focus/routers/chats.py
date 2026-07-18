@@ -14,6 +14,7 @@ from focus.core.utils import now_iso
 
 router = APIRouter()
 
+
 @router.post("/", status_code=201)
 async def create_chat(body: ChatCreate, db: aiosqlite.Connection = Depends(get_db)):
     chat_id = str(uuid.uuid4())
@@ -34,9 +35,7 @@ async def create_chat(body: ChatCreate, db: aiosqlite.Connection = Depends(get_d
 
     # Seed greeting variants from first_mes + alternate_greetings
     if body.character_id:
-        async with db.execute(
-            "SELECT card_json FROM characters WHERE id = ?", (body.character_id,)
-        ) as cur:
+        async with db.execute("SELECT card_json FROM characters WHERE id = ?", (body.character_id,)) as cur:
             row = await cur.fetchone()
         if row:
             card = safe_load_card(row) or {"first_mes": "", "alternate_greetings": []}
@@ -60,19 +59,21 @@ async def create_chat(body: ChatCreate, db: aiosqlite.Connection = Depends(get_d
     await db.commit()
     return {"id": chat_id}
 
+
 @router.get("/")
 async def list_chats(db: aiosqlite.Connection = Depends(get_db)):
     query = """
-        SELECT c.*, 
-               (SELECT mv.content 
-                FROM messages m 
-                JOIN message_variants mv ON m.id = mv.message_id AND m.active_index = mv.variant_index 
-                WHERE m.chat_id = c.id 
+        SELECT c.*,
+               (SELECT mv.content
+                FROM messages m
+                JOIN message_variants mv ON m.id = mv.message_id AND m.active_index = mv.variant_index
+                WHERE m.chat_id = c.id
                 ORDER BY m.position DESC LIMIT 1) as last_message
         FROM chats c ORDER BY c.updated_at DESC
     """
     async with db.execute(query) as cur:
         return [dict(r) for r in await cur.fetchall()]
+
 
 @router.get("/{chat_id}")
 async def get_chat(chat_id: str, db: aiosqlite.Connection = Depends(get_db)):
@@ -86,6 +87,7 @@ async def get_chat(chat_id: str, db: aiosqlite.Connection = Depends(get_db)):
     result = dict(chat)
     result["messages"] = messages
     return result
+
 
 @router.patch("/{chat_id}")
 async def update_chat(chat_id: str, body: dict, db: aiosqlite.Connection = Depends(get_db)):
@@ -101,10 +103,12 @@ async def update_chat(chat_id: str, body: dict, db: aiosqlite.Connection = Depen
             raise HTTPException(400, f"Invalid reference: {e}")
     return {"ok": True}
 
+
 @router.delete("/{chat_id}", status_code=204)
 async def delete_chat(chat_id: str, db: aiosqlite.Connection = Depends(get_db)):
     await db.execute("DELETE FROM chats WHERE id = ?", (chat_id,))
     await db.commit()
+
 
 @router.get("/{chat_id}/messages/{message_id}")
 async def get_message(chat_id: str, message_id: str, db: aiosqlite.Connection = Depends(get_db)):
@@ -127,6 +131,7 @@ async def get_message(chat_id: str, message_id: str, db: aiosqlite.Connection = 
 
     return {"content": row["content"], "attachments": attachments}
 
+
 @router.delete("/{chat_id}/messages/{message_id}", status_code=204)
 async def delete_message(
     chat_id: str,
@@ -134,20 +139,18 @@ async def delete_message(
     db: aiosqlite.Connection = Depends(get_db),
 ):
     """Delete a message and all messages after it (for retry/truncation)."""
-    async with db.execute(
-        "SELECT position FROM messages WHERE id = ? AND chat_id = ?", (message_id, chat_id)
-    ) as cur:
+    async with db.execute("SELECT position FROM messages WHERE id = ? AND chat_id = ?", (message_id, chat_id)) as cur:
         row = await cur.fetchone()
     if not row:
         raise HTTPException(404, "Message not found")
 
-    await db.execute(
-        "DELETE FROM messages WHERE chat_id = ? AND position >= ?", (chat_id, row["position"])
-    )
+    await db.execute("DELETE FROM messages WHERE chat_id = ? AND position >= ?", (chat_id, row["position"]))
     await db.commit()
+
 
 class BulkDeleteRequest(BaseModel):
     message_ids: list[str]
+
 
 @router.post("/{chat_id}/messages/bulk_delete")
 async def bulk_delete_messages(
@@ -165,6 +168,7 @@ async def bulk_delete_messages(
     )
     await db.commit()
     return {"deleted": len(body.message_ids)}
+
 
 @router.patch("/{chat_id}/messages/{message_id}")
 async def edit_message(
@@ -184,9 +188,7 @@ async def edit_message(
     if not row:
         raise HTTPException(404, "Message not found")
 
-    async with db.execute(
-        "SELECT MAX(variant_index) FROM message_variants WHERE message_id = ?", (message_id,)
-    ) as cur:
+    async with db.execute("SELECT MAX(variant_index) FROM message_variants WHERE message_id = ?", (message_id,)) as cur:
         max_row = await cur.fetchone()
 
     new_index = (max_row[0] or 0) + 1
@@ -226,6 +228,7 @@ async def edit_message(
     await db.commit()
     return {"ok": True, "variant_index": new_index, "variant_id": new_variant_id}
 
+
 @router.post("/{chat_id}/messages/{message_id}/swipe")
 async def swipe_message(
     chat_id: str,
@@ -249,9 +252,7 @@ async def swipe_message(
     current = row["active_index"]
     is_greeting = row["position"] == 0
 
-    async with db.execute(
-        "SELECT MAX(variant_index) FROM message_variants WHERE message_id = ?", (message_id,)
-    ) as cur:
+    async with db.execute("SELECT MAX(variant_index) FROM message_variants WHERE message_id = ?", (message_id,)) as cur:
         max_row = await cur.fetchone()
     max_index = max_row[0] or 0
 
@@ -283,6 +284,7 @@ async def swipe_message(
         "is_last": new_index == max_index,
     }
 
+
 @router.post("/{chat_id}/messages/{message_id}/branch")
 async def branch_chat(
     chat_id: str,
@@ -296,9 +298,7 @@ async def branch_chat(
     if not chat:
         raise HTTPException(404, "Chat not found")
 
-    async with db.execute(
-        "SELECT position FROM messages WHERE id = ? AND chat_id = ?", (message_id, chat_id)
-    ) as cur:
+    async with db.execute("SELECT position FROM messages WHERE id = ? AND chat_id = ?", (message_id, chat_id)) as cur:
         row = await cur.fetchone()
     if not row:
         raise HTTPException(404, "Message not found")
@@ -334,9 +334,7 @@ async def branch_chat(
             (new_msg_id, new_chat_id, msg["role"], msg["position"], msg["active_index"], now),
         )
 
-        async with db.execute(
-            "SELECT * FROM message_variants WHERE message_id = ?", (msg["id"],)
-        ) as cur2:
+        async with db.execute("SELECT * FROM message_variants WHERE message_id = ?", (msg["id"],)) as cur2:
             variants = [dict(r) for r in await cur2.fetchall()]
         for v in variants:
             new_variant_id = str(uuid.uuid4())
@@ -344,9 +342,7 @@ async def branch_chat(
                 "INSERT INTO message_variants (id, message_id, variant_index, content, created_at) VALUES (?, ?, ?, ?, ?)",
                 (new_variant_id, new_msg_id, v["variant_index"], v["content"], now),
             )
-            async with db.execute(
-                "SELECT * FROM message_attachments WHERE variant_id = ?", (v["id"],)
-            ) as cur3:
+            async with db.execute("SELECT * FROM message_attachments WHERE variant_id = ?", (v["id"],)) as cur3:
                 attachments = [dict(r) for r in await cur3.fetchall()]
             for att in attachments:
                 await db.execute(
@@ -364,6 +360,7 @@ async def branch_chat(
 
     await db.commit()
     return {"id": new_chat_id}
+
 
 @router.post("/{chat_id}/attachments", status_code=201)
 async def upload_attachments(
@@ -409,6 +406,7 @@ async def upload_attachments(
     await db.commit()
     return {"attachments": results}
 
+
 @router.delete("/{chat_id}/attachments/{attachment_id}", status_code=204)
 async def delete_attachment(
     chat_id: str,
@@ -427,9 +425,7 @@ async def delete_attachment(
     await db.execute("DELETE FROM message_attachments WHERE id = ?", (attachment_id,))
 
     # Check if any other attachments share this file path (e.g. from variant duplication)
-    async with db.execute(
-        "SELECT COUNT(*) FROM message_attachments WHERE file_path = ?", (file_path,)
-    ) as cur:
+    async with db.execute("SELECT COUNT(*) FROM message_attachments WHERE file_path = ?", (file_path,)) as cur:
         count = (await cur.fetchone())[0]
 
     if count == 0:

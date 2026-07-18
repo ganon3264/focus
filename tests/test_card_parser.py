@@ -106,19 +106,19 @@ class TestParseITxtChunk:
 
 
 class TestExtractCardJson:
-    def test_tEXt_chunk(self):
+    def test_text_chunk(self):
         card = {"name": "Test", "description": "A test card"}
         data = _png_with_chunk("tEXt", _chara_text(card))
         result = extract_card_json(data)
         assert result == card
 
-    def test_iTXt_chunk(self):
+    def test_itxt_chunk(self):
         card = {"name": "iTXt Card", "description": "From iTXt"}
         data = _png_with_chunk("iTXt", _chara_itxt(card))
         result = extract_card_json(data)
         assert result == card
 
-    def test_iTXt_compressed_chunk(self):
+    def test_itxt_compressed_chunk(self):
         card = {"name": "Compressed", "description": "zlib compressed"}
         data = _png_with_chunk("iTXt", _chara_itxt(card, compressed=True))
         result = extract_card_json(data)

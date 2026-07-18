@@ -16,6 +16,7 @@ from focus.core.utils import now_iso
 router = APIRouter()
 logger = logging.getLogger("focus.routers.characters")
 
+
 @router.post("/import", status_code=201)
 async def import_character(
     files: list[UploadFile] = File(...),
@@ -63,6 +64,7 @@ async def import_character(
         result["errors"] = errors
     return result
 
+
 @router.post("/", status_code=201)
 async def create_character(body: CharacterCreate, db: aiosqlite.Connection = Depends(get_db)):
     char_id = str(uuid.uuid4())
@@ -89,6 +91,7 @@ async def create_character(body: CharacterCreate, db: aiosqlite.Connection = Dep
     )
     await db.commit()
     return {"id": char_id, "name": body.name}
+
 
 @router.patch("/{char_id}")
 async def update_character(
@@ -126,6 +129,7 @@ async def update_character(
     await db.commit()
     return {"ok": True}
 
+
 @router.post("/{char_id}/avatar")
 async def upload_avatar(
     char_id: str,
@@ -153,6 +157,7 @@ async def upload_avatar(
     await db.commit()
     return {"avatar_path": avatar_path}
 
+
 @router.get("/")
 async def list_characters(db: aiosqlite.Connection = Depends(get_db)):
     async with db.execute(
@@ -160,12 +165,14 @@ async def list_characters(db: aiosqlite.Connection = Depends(get_db)):
     ) as cur:
         return [dict(r) for r in await cur.fetchall()]
 
+
 @router.get("/trash")
 async def list_trashed_characters(db: aiosqlite.Connection = Depends(get_db)):
     async with db.execute(
         "SELECT id, name, image_path, created_at FROM characters WHERE is_deleted = 1 ORDER BY name"
     ) as cur:
         return [dict(r) for r in await cur.fetchall()]
+
 
 @router.get("/{char_id}")
 async def get_character(char_id: str, db: aiosqlite.Connection = Depends(get_db)):
@@ -184,6 +191,7 @@ async def get_character(char_id: str, db: aiosqlite.Connection = Depends(get_db)
         result["card"] = {}
     result["blocks"] = blocks
     return result
+
 
 @router.delete("/{char_id}", status_code=204)
 async def delete_character(
@@ -207,15 +215,15 @@ async def delete_character(
             await db.execute("UPDATE chats SET is_deleted = 1 WHERE character_id = ?", (char_id,))
     await db.commit()
 
+
 @router.post("/{char_id}/restore", status_code=200)
-async def restore_character(
-    char_id: str, restore_chats: bool = False, db: aiosqlite.Connection = Depends(get_db)
-):
+async def restore_character(char_id: str, restore_chats: bool = False, db: aiosqlite.Connection = Depends(get_db)):
     await db.execute("UPDATE characters SET is_deleted = 0 WHERE id = ?", (char_id,))
     if restore_chats:
         await db.execute("UPDATE chats SET is_deleted = 0 WHERE character_id = ?", (char_id,))
     await db.commit()
     return {"ok": True}
+
 
 @router.post("/{char_id}/images", status_code=201)
 async def add_char_image(
@@ -238,6 +246,7 @@ async def add_char_image(
     except Exception as e:
         raise HTTPException(500, f"Failed to save image: {str(e)}")
 
+
 @router.delete("/{char_id}/images/{image_id}", status_code=204)
 async def delete_char_image(
     char_id: str,
@@ -246,6 +255,7 @@ async def delete_char_image(
 ):
     await crud.delete_block_image(db, image_id, char_id)
 
+
 @router.get("/{char_id}/blocks")
 async def list_char_blocks(char_id: str, db: aiosqlite.Connection = Depends(get_db)):
     async with db.execute(
@@ -253,6 +263,7 @@ async def list_char_blocks(char_id: str, db: aiosqlite.Connection = Depends(get_
     ) as cur:
         blocks = [dict(r) for r in await cur.fetchall()]
     return await crud.attach_images(blocks, db)
+
 
 @router.post("/{char_id}/blocks", status_code=201)
 async def create_char_block(
@@ -267,6 +278,7 @@ async def create_char_block(
     )
     await db.commit()
     return {"id": block_id}
+
 
 @router.patch("/{char_id}/blocks/{block_id}")
 async def update_char_block(
@@ -284,16 +296,16 @@ async def update_char_block(
     await db.commit()
     return {"ok": True}
 
+
 @router.delete("/{char_id}/blocks/{block_id}", status_code=204)
 async def delete_char_block(
     char_id: str,
     block_id: str,
     db: aiosqlite.Connection = Depends(get_db),
 ):
-    await db.execute(
-        "DELETE FROM char_blocks WHERE id = ? AND character_id = ?", (block_id, char_id)
-    )
+    await db.execute("DELETE FROM char_blocks WHERE id = ? AND character_id = ?", (block_id, char_id))
     await db.commit()
+
 
 @router.post("/{char_id}/blocks/{block_id}/images", status_code=201)
 async def add_char_block_image(
@@ -316,6 +328,7 @@ async def add_char_block_image(
         )
     except Exception as e:
         raise HTTPException(500, f"Failed to save image: {str(e)}")
+
 
 @router.delete("/{char_id}/blocks/{block_id}/images/{image_id}", status_code=204)
 async def delete_char_block_image(

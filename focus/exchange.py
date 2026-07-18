@@ -72,6 +72,7 @@ PATH_FIELDS = [
     ("message_attachments", "file_path"),
 ]
 
+
 def _extract_file_paths(database: dict[str, list[dict]]) -> list[str]:
     paths: list[str] = []
     for table, field in PATH_FIELDS:
@@ -81,12 +82,14 @@ def _extract_file_paths(database: dict[str, list[dict]]) -> list[str]:
                 paths.append(val)
     return paths
 
+
 def _remap_path(old_path: str, id_map: dict[str, str]) -> str:
     parts = Path(old_path).parts
     new_parts = []
     for part in parts:
         new_parts.append(id_map.get(part, part))
     return str(Path(*new_parts))
+
 
 def _remap_attachment_path(old_path: str, id_map: dict[str, str]) -> str:
     path = Path(old_path)
@@ -95,6 +98,7 @@ def _remap_attachment_path(old_path: str, id_map: dict[str, str]) -> str:
     new_stem = id_map.get(stem, str(uuid.uuid4()))
     parent = _remap_path(str(path.parent), id_map)
     return str(Path(parent) / f"{new_stem}{suffix}")
+
 
 def _build_id_map(database: dict[str, list[dict]]) -> dict[str, str]:
     id_map: dict[str, str] = {}
@@ -118,6 +122,7 @@ def _build_id_map(database: dict[str, list[dict]]) -> dict[str, str]:
                 id_map[old_id] = str(uuid.uuid4())
     return id_map
 
+
 async def _resolve_entity_ids(
     db: aiosqlite.Connection,
     table: str,
@@ -127,12 +132,11 @@ async def _resolve_entity_ids(
         return set()
     if "*" in selections:
         async with db.execute(
-            f"SELECT id FROM {table} WHERE is_deleted = 0"
-            if table == "characters"
-            else f"SELECT id FROM {table}"
+            f"SELECT id FROM {table} WHERE is_deleted = 0" if table == "characters" else f"SELECT id FROM {table}"
         ) as cur:
             return {r["id"] for r in await cur.fetchall()}
     return set(selections)
+
 
 async def _query_table(
     db: aiosqlite.Connection,
@@ -146,6 +150,7 @@ async def _query_table(
     sql = f"SELECT * FROM {table} WHERE {where_col} IN ({placeholders})"
     async with db.execute(sql, list(ids)) as cur:
         return [dict(r) for r in await cur.fetchall()]
+
 
 async def export_data(db: aiosqlite.Connection, req: ExportRequest) -> bytes:
     char_ids = await _resolve_entity_ids(db, "characters", req.characters)
@@ -208,7 +213,6 @@ async def export_data(db: aiosqlite.Connection, req: ExportRequest) -> bytes:
 
     # Collect all block_images referenced by any entity
     all_block_refs = char_ids | persona_ids | preset_ids | char_block_ids | preset_block_ids
-    block_image_ids: set[str] = set()
 
     # Query block_images where block_id matches any of the above
     block_image_rows: list[dict] = []
@@ -299,13 +303,13 @@ async def export_data(db: aiosqlite.Connection, req: ExportRequest) -> bytes:
 
     return buf.getvalue()
 
+
 async def _query_table_all(db: aiosqlite.Connection, table: str) -> list[dict]:
     async with db.execute(f"SELECT * FROM {table}") as cur:
         return [dict(r) for r in await cur.fetchall()]
 
-def _remap_database(
-    database: dict[str, list[dict]], id_map: dict[str, str]
-) -> dict[str, list[dict]]:
+
+def _remap_database(database: dict[str, list[dict]], id_map: dict[str, str]) -> dict[str, list[dict]]:
     remapped: dict[str, list[dict]] = {}
     for table, rows in database.items():
         remapped[table] = []
@@ -345,6 +349,7 @@ def _remap_database(
                 row[field] = _remap_path(old_path, id_map)
 
     return remapped
+
 
 async def import_data(db: aiosqlite.Connection, zip_bytes: bytes) -> dict:
     with ZipFile(BytesIO(zip_bytes)) as zf:

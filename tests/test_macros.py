@@ -57,9 +57,7 @@ class TestBuildBaseMacros:
 
             monkeypatch.setattr(m, "datetime", FakeDatetime)
             macros = build_base_macros({})
-            assert macros["time_of_day"] == expected, (
-                f"hour={hour} expected={expected} got={macros['time_of_day']}"
-            )
+            assert macros["time_of_day"] == expected, f"hour={hour} expected={expected} got={macros['time_of_day']}"
 
     def test_time_date_keys_present(self):
         macros = build_base_macros({})

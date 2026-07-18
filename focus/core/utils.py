@@ -40,6 +40,7 @@ MODEL_FETCH_HTTP_TIMEOUT = 10.0
 
 MODEL_CACHE_TTL = 300
 
+
 class TTLCache:
     """Async-safe TTL cache with dict semantics.
 
@@ -84,7 +85,9 @@ class TTLCache:
             await self.set(key, new_value)
         return new_value
 
+
 AUDIO_TOKEN_ESTIMATE = 100
+
 
 def _image_dims_from_data_url(url: str) -> tuple[int, int] | None:
     """Extract (width, height) from a data: URL using Pillow."""
@@ -96,6 +99,7 @@ def _image_dims_from_data_url(url: str) -> tuple[int, int] | None:
     except Exception:
         return None
 
+
 def estimate_image_tokens(width: int, height: int) -> int:
     """Gemini-style image token estimate.
     Both dimensions ≤384px: 258 tokens flat.
@@ -105,10 +109,13 @@ def estimate_image_tokens(width: int, height: int) -> int:
         return 258
     return math.ceil(width / 768) * math.ceil(height / 768) * 258
 
+
 MACRO_MAX_PASSES = 10
+
 
 def now_iso() -> str:
     return datetime.now(UTC).isoformat()
+
 
 async def resolve_secret_key(db: aiosqlite.Connection, api_key: str) -> str:
     if not api_key or not api_key.startswith("SECRET:"):
@@ -121,6 +128,7 @@ async def resolve_secret_key(db: aiosqlite.Connection, api_key: str) -> str:
         logger.warning("Failed to resolve secret %s: %s", secret_name, e)
         return ""
     return row["value"] if row else ""
+
 
 def variable_group_name(block_name: str) -> str:
     return block_name.split(":")[0] if ":" in block_name else block_name
