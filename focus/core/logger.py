@@ -19,11 +19,11 @@ class UvicornFormatter(logging.Formatter):
         }.get(record.levelno, "\x1b[0m")
         reset = "\x1b[0m"
 
-        levelname = f"{level_color}{record.levelname:<7}{reset}:"
+        levelname = f"{level_color}{record.levelname}{reset}:"
+        padding = " " * (10 - len(record.levelname) - 1)
 
-        # Format similar to uvicorn's default
         record.msg = f"{record.name}: {record.msg}"
-        self._style._fmt = f"{levelname} %(message)s"
+        self._style._fmt = f"{levelname}{padding}%(message)s"
         return super().format(record)
 
 
@@ -40,6 +40,9 @@ root_logger.propagate = False
 
 # Silence uvicorn's built-in access logging (we handle it ourselves)
 logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+
+if DEBUG_MODE:
+    root_logger.info("Debug output enabled via FOCUS_DEBUG")
 
 
 def get_logger(name: str) -> logging.Logger:
