@@ -9,7 +9,7 @@
 | Frontend | HTMX + Alpine.js (hypermedia SPA) |
 | CSS | Tailwind CSS v4 (`tailwind-input.css` → `tailwind.css`) + custom `style.css` |
 | Build / Pkg | `uv` + `hatchling` |
-| Tests | `pytest` + `pytest-asyncio` → `uv run pytest tests/` (USER runs after changes) |
+| Tests | `pytest with node runner` + `pytest-asyncio` → `uv run pytest tests/` (USER runs after changes) |
 | Tailwind compile | `./bin/tailwindcss-linux-x64 -i static/tailwind-input.css -o static/tailwind.css --minify` (USER must run — agent env can't) |
 | Start | `./start.sh` |
 
