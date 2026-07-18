@@ -1,8 +1,9 @@
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 
 import aiosqlite
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 
 from pyvern.database import get_db
 from pyvern.models import PresetCreate, PresetBlockCreate, PresetBlockBulkUpdate
@@ -12,6 +13,24 @@ router = APIRouter()
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+async def _attach_images(blocks: list[dict], db: aiosqlite.Connection) -> list[dict]:
+    if not blocks:
+        return blocks
+    ids = [b["id"] for b in blocks]
+    placeholders = ",".join("?" * len(ids))
+    async with db.execute(
+        f"SELECT id, block_id, image_path, mime_type, position FROM block_images WHERE block_id IN ({placeholders}) ORDER BY position",
+        ids,
+    ) as cur:
+        rows = await cur.fetchall()
+    images_by_block: dict[str, list] = {}
+    for r in rows:
+        images_by_block.setdefault(r["block_id"], []).append(dict(r))
+    for b in blocks:
+        b["images"] = images_by_block.get(b["id"], [])
+    return blocks
 
 
 # ── Presets ───────────────────────────────────────────────────────────────────
@@ -28,13 +47,14 @@ async def create_preset(body: PresetCreate, db: aiosqlite.Connection = Depends(g
 
     # Seed with sensible default blocks
     defaults = [
-        (str(uuid.uuid4()), preset_id, "System Prompt", "", "system", 1, 0.0, 0),
-        (str(uuid.uuid4()), preset_id, "Char Description", "{{description}}", "system", 1, 1.0, 0),
-        (str(uuid.uuid4()), preset_id, "Persona",          "{{personality}}", "system", 1, 2.0, 0),
-        (str(uuid.uuid4()), preset_id, "Chat History",     "",                "system", 1, 3.0, 1),  # sentinel
+        (str(uuid.uuid4()), preset_id, "Char Description", "", "system", 1, 0.0, "char_description"),
+        (str(uuid.uuid4()), preset_id, "Char Personality",  "", "system", 1, 1.0, "char_personality"),
+        (str(uuid.uuid4()), preset_id, "Char Blocks",       "", "system", 1, 2.0, "char_blocks"),
+        (str(uuid.uuid4()), preset_id, "System Prompt",     "", "system", 1, 3.0, "text"),
+        (str(uuid.uuid4()), preset_id, "Chat History",      "", "system", 1, 4.0, "chat_history"),
     ]
     await db.executemany(
-        "INSERT INTO preset_blocks (id, preset_id, name, content, role, enabled, position, is_sentinel) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO preset_blocks (id, preset_id, name, content, role, enabled, position, block_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         defaults,
     )
     await db.commit()
@@ -55,9 +75,10 @@ async def get_preset(preset_id: str, db: aiosqlite.Connection = Depends(get_db))
         raise HTTPException(404, "Preset not found")
 
     async with db.execute(
-        "SELECT * FROM preset_blocks WHERE preset_id = ? ORDER BY position", (preset_id,)
+        "SELECT * FROM preset_blocks WHERE preset_id = ? ORDER BY position, rowid", (preset_id,)
     ) as cur:
         blocks = [dict(r) for r in await cur.fetchall()]
+    await _attach_images(blocks, db)
 
     result = dict(row)
     result["blocks"] = blocks
@@ -79,18 +100,21 @@ async def add_block(
     db: aiosqlite.Connection = Depends(get_db),
 ):
     block_id = str(uuid.uuid4())
-    # Treat blank or obviously-invalid character_id as NULL
-    char_id = body.character_id if body.character_id and len(body.character_id) == 36 else None
+    async with db.execute(
+        "SELECT COALESCE(MAX(position), -1) FROM preset_blocks WHERE preset_id = ?", (preset_id,)
+    ) as cur:
+        row = await cur.fetchone()
+    next_pos = row[0] + 1
+
     await db.execute(
         """INSERT INTO preset_blocks
-           (id, preset_id, name, content, role, enabled, position, is_sentinel, source, character_id)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+           (id, preset_id, name, content, role, enabled, position, block_type)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
         (block_id, preset_id, body.name, body.content, body.role,
-         int(body.enabled), body.position, int(body.is_sentinel),
-         body.source, char_id),
+         int(body.enabled), next_pos, body.block_type),
     )
     await db.commit()
-    return {"id": block_id}
+    return {"id": block_id, "position": next_pos}
 
 
 @router.put("/{preset_id}/blocks")
@@ -100,22 +124,21 @@ async def replace_blocks(
     db: aiosqlite.Connection = Depends(get_db),
 ):
     """
-    Replace all preset-source blocks atomically.
-    Used for drag-reorder saves. Character-source blocks are untouched.
+    Replace all text blocks atomically. Sentinel blocks are untouched.
+    Used for drag-reorder saves.
     """
     await db.execute(
-        "DELETE FROM preset_blocks WHERE preset_id = ? AND source = 'preset'", (preset_id,)
+        "DELETE FROM preset_blocks WHERE preset_id = ? AND block_type = 'text'", (preset_id,)
     )
     for b in body.blocks:
         bid = b.get("id") or str(uuid.uuid4())
         await db.execute(
             """INSERT INTO preset_blocks
-               (id, preset_id, name, content, role, enabled, position, is_sentinel, source, character_id)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               (id, preset_id, name, content, role, enabled, position, block_type)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
             (bid, preset_id, b["name"], b.get("content", ""),
              b.get("role", "system"), int(b.get("enabled", True)),
-             b["position"], int(b.get("is_sentinel", False)),
-             "preset", b.get("character_id")),
+             b["position"], b.get("block_type", "text")),
         )
     await db.commit()
     return {"ok": True}
@@ -150,4 +173,59 @@ async def delete_block(
     await db.execute(
         "DELETE FROM preset_blocks WHERE id = ? AND preset_id = ?", (block_id, preset_id)
     )
+    await db.commit()
+
+
+# ── Block images ──────────────────────────────────────────────────────────────
+
+@router.post("/{preset_id}/blocks/{block_id}/images", status_code=201)
+async def add_block_image(
+    preset_id: str,
+    block_id: str,
+    file: UploadFile = File(...),
+    db: aiosqlite.Connection = Depends(get_db),
+):
+    # Verify block belongs to preset
+    async with db.execute(
+        "SELECT id FROM preset_blocks WHERE id = ? AND preset_id = ?", (block_id, preset_id)
+    ) as cur:
+        if not await cur.fetchone():
+            raise HTTPException(404, "Block not found")
+
+    async with db.execute(
+        "SELECT COALESCE(MAX(position), -1) FROM block_images WHERE block_id = ?", (block_id,)
+    ) as cur:
+        row = await cur.fetchone()
+    next_pos = row[0] + 1
+
+    image_id = str(uuid.uuid4())
+    suffix = Path(file.filename).suffix.lower() or ".png"
+    mime = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
+            ".gif": "image/gif", ".webp": "image/webp"}.get(suffix, "image/png")
+    image_path = f"avatars/block_{image_id}{suffix}"
+    Path(image_path).write_bytes(await file.read())
+
+    await db.execute(
+        "INSERT INTO block_images (id, block_id, block_source, image_path, mime_type, position, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (image_id, block_id, "preset", image_path, mime, next_pos, _now()),
+    )
+    await db.commit()
+    return {"id": image_id, "position": next_pos}
+
+
+@router.delete("/{preset_id}/blocks/{block_id}/images/{image_id}", status_code=204)
+async def delete_block_image(
+    preset_id: str,
+    block_id: str,
+    image_id: str,
+    db: aiosqlite.Connection = Depends(get_db),
+):
+    async with db.execute(
+        "SELECT image_path FROM block_images WHERE id = ? AND block_id = ?", (image_id, block_id)
+    ) as cur:
+        row = await cur.fetchone()
+    if not row:
+        raise HTTPException(404, "Image not found")
+    Path(row["image_path"]).unlink(missing_ok=True)
+    await db.execute("DELETE FROM block_images WHERE id = ?", (image_id,))
     await db.commit()

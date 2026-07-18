@@ -19,13 +19,13 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _build_macros(card: dict, user_name: str = "User") -> dict:
+def _build_macros(card: dict, persona: dict | None = None) -> dict:
     return {
         "char":        card.get("name", "Assistant"),
-        "user":        user_name,
+        "user":        persona["name"] if persona else "User",
+        "persona":     persona["description"] if persona else "",
         "description": card.get("description", ""),
         "personality": card.get("personality", ""),
-        "persona":     card.get("personality", ""),
         "scenario":    card.get("scenario", ""),
         "mes_example": card.get("mes_example", ""),
     }
@@ -47,23 +47,49 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
         raise HTTPException(404, "Provider not found")
     provider = create_provider(dict(prov_row))
 
-    # ── Macros ────────────────────────────────────────────────────────────────
-    macros: dict = {"char": "Assistant", "user": "User", "description": "",
-                    "personality": "", "persona": "", "scenario": "", "mes_example": ""}
+    # ── Macros + char data ────────────────────────────────────────────────────
+    char_data: dict = {"name": "Assistant", "description": "", "personality": "",
+                       "scenario": "", "mes_example": "", "first_mes": ""}
+    char_own_blocks: list[dict] = []
+
     if chat["character_id"]:
         async with db.execute(
             "SELECT card_json FROM characters WHERE id = ?", (chat["character_id"],)
         ) as cur:
             char_row = await cur.fetchone()
         if char_row:
-            card = normalise_card(json.loads(char_row["card_json"]))
-            macros = _build_macros(card)
+            char_data = normalise_card(json.loads(char_row["card_json"]))
+
+        async with db.execute(
+            "SELECT * FROM char_blocks WHERE character_id = ? ORDER BY position, rowid",
+            (chat["character_id"],),
+        ) as cur:
+            char_own_blocks = [dict(r) for r in await cur.fetchall()]
+
+    macros = _build_macros(char_data)
+
+    # ── Persona ───────────────────────────────────────────────────────────────
+    persona: dict | None = None
+    if chat["persona_id"]:
+        async with db.execute(
+            "SELECT * FROM personas WHERE id = ?", (chat["persona_id"],)
+        ) as cur:
+            row = await cur.fetchone()
+            if row:
+                persona = dict(row)
+    if not persona:
+        async with db.execute("SELECT * FROM personas ORDER BY created_at LIMIT 1") as cur:
+            row = await cur.fetchone()
+            if row:
+                persona = dict(row)
+
+    macros = _build_macros(char_data, persona)
 
     # ── Preset blocks ─────────────────────────────────────────────────────────
     preset_blocks: list[dict] = []
     if chat["preset_id"]:
         async with db.execute(
-            "SELECT * FROM preset_blocks WHERE preset_id = ? ORDER BY position",
+            "SELECT * FROM preset_blocks WHERE preset_id = ? ORDER BY position, rowid",
             (chat["preset_id"],),
         ) as cur:
             preset_blocks = [dict(r) for r in await cur.fetchall()]
@@ -148,8 +174,21 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
 
     await db.commit()
 
+    # ── Block images ──────────────────────────────────────────────────────────
+    all_block_ids = [b["id"] for b in preset_blocks] + [b["id"] for b in char_own_blocks]
+    block_images: dict[str, list[dict]] = {}
+    if all_block_ids:
+        placeholders = ",".join("?" * len(all_block_ids))
+        async with db.execute(
+            f"SELECT * FROM block_images WHERE block_id IN ({placeholders}) ORDER BY position",
+            all_block_ids,
+        ) as cur:
+            for row in await cur.fetchall():
+                r = dict(row)
+                block_images.setdefault(r["block_id"], []).append(r)
+
     # ── Assemble final prompt ─────────────────────────────────────────────────
-    messages = assemble_prompt(preset_blocks, history, macros)
+    messages = assemble_prompt(preset_blocks, history, char_data, char_own_blocks, macros, block_images)
 
     # ── Gen params ────────────────────────────────────────────────────────────
     gen_kwargs: dict = {}

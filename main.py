@@ -5,7 +5,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from pyvern.database import init_db
-from pyvern.routers import characters, chats, presets, providers, stream
+from pyvern.routers import characters, chats, presets, providers, stream, personas
 
 
 @asynccontextmanager
@@ -20,6 +20,7 @@ app.include_router(characters.router, prefix="/api/characters", tags=["character
 app.include_router(chats.router,      prefix="/api/chats",      tags=["chats"])
 app.include_router(presets.router,    prefix="/api/presets",     tags=["presets"])
 app.include_router(providers.router,  prefix="/api/providers",   tags=["providers"])
+app.include_router(personas.router,   prefix="/api/personas",    tags=["personas"])
 app.include_router(stream.router,     prefix="/api",             tags=["stream"])
 
 app.mount("/avatars", StaticFiles(directory="avatars"), name="avatars")

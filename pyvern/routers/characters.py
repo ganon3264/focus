@@ -48,6 +48,25 @@ async def import_character(
     return {"id": char_id, "name": card["name"]}
 
 
+async def _attach_images(blocks: list[dict], db: aiosqlite.Connection) -> list[dict]:
+    """Attach image metadata to a list of blocks. Mutates in place, also returns the list."""
+    if not blocks:
+        return blocks
+    ids = [b["id"] for b in blocks]
+    placeholders = ",".join("?" * len(ids))
+    async with db.execute(
+        f"SELECT id, block_id, image_path, mime_type, position FROM block_images WHERE block_id IN ({placeholders}) ORDER BY position",
+        ids,
+    ) as cur:
+        rows = await cur.fetchall()
+    images_by_block: dict[str, list] = {}
+    for r in rows:
+        images_by_block.setdefault(r["block_id"], []).append(dict(r))
+    for b in blocks:
+        b["images"] = images_by_block.get(b["id"], [])
+    return blocks
+
+
 # ── CRUD ──────────────────────────────────────────────────────────────────────
 
 @router.get("/")
@@ -66,9 +85,10 @@ async def get_character(char_id: str, db: aiosqlite.Connection = Depends(get_db)
         raise HTTPException(404, "Character not found")
 
     async with db.execute(
-        "SELECT * FROM char_blocks WHERE character_id = ? ORDER BY position", (char_id,)
+        "SELECT * FROM char_blocks WHERE character_id = ? ORDER BY position, rowid", (char_id,)
     ) as cur:
         blocks = [dict(r) for r in await cur.fetchall()]
+    await _attach_images(blocks, db)
 
     result = dict(row)
     result["card"] = normalise_card(json.loads(result.pop("card_json")))
@@ -95,9 +115,10 @@ async def delete_character(char_id: str, db: aiosqlite.Connection = Depends(get_
 @router.get("/{char_id}/blocks")
 async def list_char_blocks(char_id: str, db: aiosqlite.Connection = Depends(get_db)):
     async with db.execute(
-        "SELECT * FROM char_blocks WHERE character_id = ? ORDER BY position", (char_id,)
+        "SELECT * FROM char_blocks WHERE character_id = ? ORDER BY position, rowid", (char_id,)
     ) as cur:
-        return [dict(r) for r in await cur.fetchall()]
+        blocks = [dict(r) for r in await cur.fetchall()]
+    return await _attach_images(blocks, db)
 
 
 @router.post("/{char_id}/blocks", status_code=201)
@@ -143,4 +164,58 @@ async def delete_char_block(
     await db.execute(
         "DELETE FROM char_blocks WHERE id = ? AND character_id = ?", (block_id, char_id)
     )
+    await db.commit()
+
+
+# ── Char block images ─────────────────────────────────────────────────────────
+
+@router.post("/{char_id}/blocks/{block_id}/images", status_code=201)
+async def add_char_block_image(
+    char_id: str,
+    block_id: str,
+    file: UploadFile = File(...),
+    db: aiosqlite.Connection = Depends(get_db),
+):
+    async with db.execute(
+        "SELECT id FROM char_blocks WHERE id = ? AND character_id = ?", (block_id, char_id)
+    ) as cur:
+        if not await cur.fetchone():
+            raise HTTPException(404, "Block not found")
+
+    async with db.execute(
+        "SELECT COALESCE(MAX(position), -1) FROM block_images WHERE block_id = ?", (block_id,)
+    ) as cur:
+        row = await cur.fetchone()
+    next_pos = row[0] + 1
+
+    image_id = str(uuid.uuid4())
+    suffix = Path(file.filename).suffix.lower() or ".png"
+    mime = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
+            ".gif": "image/gif", ".webp": "image/webp"}.get(suffix, "image/png")
+    image_path = f"avatars/block_{image_id}{suffix}"
+    Path(image_path).write_bytes(await file.read())
+
+    await db.execute(
+        "INSERT INTO block_images (id, block_id, block_source, image_path, mime_type, position, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (image_id, block_id, "char", image_path, mime, next_pos, _now()),
+    )
+    await db.commit()
+    return {"id": image_id, "position": next_pos}
+
+
+@router.delete("/{char_id}/blocks/{block_id}/images/{image_id}", status_code=204)
+async def delete_char_block_image(
+    char_id: str,
+    block_id: str,
+    image_id: str,
+    db: aiosqlite.Connection = Depends(get_db),
+):
+    async with db.execute(
+        "SELECT image_path FROM block_images WHERE id = ? AND block_id = ?", (image_id, block_id)
+    ) as cur:
+        row = await cur.fetchone()
+    if not row:
+        raise HTTPException(404, "Image not found")
+    Path(row["image_path"]).unlink(missing_ok=True)
+    await db.execute("DELETE FROM block_images WHERE id = ?", (image_id,))
     await db.commit()

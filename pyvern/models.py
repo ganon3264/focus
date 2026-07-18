@@ -59,6 +59,22 @@ class CharacterCard(BaseModel):
     first_mes: str = ""
 
 
+class BlockType(str, Enum):
+    text             = "text"
+    chat_history     = "chat_history"
+    char_description = "char_description"
+    char_personality = "char_personality"
+    char_blocks      = "char_blocks"
+    user_persona     = "user_persona"
+
+SENTINEL_TYPES = {
+    BlockType.chat_history,
+    BlockType.char_description,
+    BlockType.char_personality,
+    BlockType.char_blocks,
+}
+
+
 # ── Presets ──────────────────────────────────────────────────────────────────
 
 class PresetCreate(BaseModel):
@@ -69,10 +85,7 @@ class PresetBlockCreate(BaseModel):
     content: str = ""
     role: Role = Role.system
     enabled: bool = True
-    position: float = 0.0
-    is_sentinel: bool = False
-    source: str = "preset"
-    character_id: Optional[str] = None
+    block_type: BlockType = BlockType.text
 
 class PresetBlockBulkUpdate(BaseModel):
     blocks: list[dict[str, Any]]
@@ -82,6 +95,7 @@ class PresetBlockBulkUpdate(BaseModel):
 
 class ChatCreate(BaseModel):
     character_id: Optional[str] = None
+    persona_id: Optional[str] = None
     preset_id: Optional[str] = None
     title: Optional[str] = None
 

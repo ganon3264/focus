@@ -63,7 +63,7 @@ async def get_chat(chat_id: str, db: aiosqlite.Connection = Depends(get_db)):
 
 @router.patch("/{chat_id}")
 async def update_chat(chat_id: str, body: dict, db: aiosqlite.Connection = Depends(get_db)):
-    allowed = {"title", "preset_id", "character_id"}
+    allowed = {"title", "preset_id", "character_id", "persona_id"}
     updates = {k: v for k, v in body.items() if k in allowed}
     if updates:
         cols = ", ".join(f"{k} = ?" for k in updates)

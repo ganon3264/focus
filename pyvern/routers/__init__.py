@@ -1,1 +1,1 @@
-from . import characters, chats, presets, providers, stream
+from . import characters, chats, presets, providers, stream, personas

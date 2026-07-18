@@ -1,22 +1,6 @@
-"""
-Prompt chain assembly.
-
-A preset is an ordered list of blocks with one sentinel block (is_sentinel=1)
-that marks where the actual chat history gets spliced in.
-
-Blocks before the sentinel → prepended as messages
-Sentinel position         → chat history is inserted here
-Blocks after the sentinel → appended after history (rare but supported)
-
-Macro substitution happens on all block content:
-  {{char}}        → character name
-  {{user}}        → user name (persona)
-  {{description}} → character description
-  {{personality}} → character personality
-  {{scenario}}    → character scenario
-  {{persona}}     → alias for {{personality}}
-"""
-
+from __future__ import annotations
+import base64
+from pathlib import Path
 from typing import Any
 
 
@@ -26,48 +10,140 @@ def apply_macros(text: str, macros: dict[str, str]) -> str:
     return text
 
 
+def _load_image(image_row: dict) -> dict:
+    """Read an image from disk and return an OpenAI-format image_url block."""
+    data = Path(image_row["image_path"]).read_bytes()
+    b64 = base64.b64encode(data).decode()
+    mime = image_row.get("mime_type", "image/png")
+    return {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64}"}}
+
+
+def _build_content(text: str, images: list[dict]) -> str | list:
+    """
+    Return plain string if no images, or a multimodal content array if images present.
+    Images come after text within the same block.
+    """
+    if not images:
+        return text
+    parts: list[dict] = []
+    if text:
+        parts.append({"type": "text", "text": text})
+    parts.extend(_load_image(img) for img in images)
+    return parts
+
+
+def _merge_consecutive(messages: list[dict]) -> list[dict]:
+    """
+    Merge adjacent messages that share the same role into one.
+    Text parts are joined with \\n\\n.
+    If either part has images the result is normalized to a content array.
+    """
+    if not messages:
+        return []
+
+    def to_parts(content) -> list[dict]:
+        if isinstance(content, str):
+            return [{"type": "text", "text": content}] if content else []
+        return list(content)
+
+    def merge_content(a, b):
+        all_text = (
+            isinstance(a, str) and isinstance(b, str)
+        )
+        if all_text:
+            sep = "\n\n" if a and b else ""
+            return a + sep + b
+        # At least one side has images — normalize both to arrays
+        return to_parts(a) + to_parts(b)
+
+    result = [dict(messages[0])]
+    for msg in messages[1:]:
+        last = result[-1]
+        if msg["role"] == last["role"]:
+            result[-1] = {
+                "role": last["role"],
+                "content": merge_content(last["content"], msg["content"]),
+            }
+        else:
+            result.append(dict(msg))
+    return result
+
+
 def assemble_prompt(
     preset_blocks: list[dict[str, Any]],
     chat_history: list[dict[str, str]],
+    char_data: dict[str, str],
+    char_own_blocks: list[dict[str, Any]],
     macros: dict[str, str],
+    block_images: dict[str, list[dict]] | None = None,
 ) -> list[dict[str, str]]:
     """
     Returns the full messages list ready to send to the provider.
 
-    preset_blocks: all rows from preset_blocks for this preset, ordered by position.
-                  Disabled blocks are skipped. The sentinel block is the splice point.
-    chat_history:  list of {"role": ..., "content": ...} dicts from the DB.
-    macros:        substitution dict.
+    preset_blocks:   rows from preset_blocks ordered by position.
+    chat_history:    list of {"role": ..., "content": ...} from the DB.
+    char_data:       normalised character card fields.
+    char_own_blocks: rows from char_blocks for the active character, ordered by position.
+    macros:          substitution dict built from char_data + persona.
+    block_images:    mapping of block_id → list of image rows, for multimodal blocks.
     """
+    if block_images is None:
+        block_images = {}
 
-    sentinel_pos: float | None = None
-    for b in preset_blocks:
-        if b["is_sentinel"]:
-            sentinel_pos = b["position"]
-            break
-
-    # Fallback: if no sentinel found, splice history at the very end
-    if sentinel_pos is None:
-        sentinel_pos = float("inf")
-
-    active = [b for b in preset_blocks if b["enabled"] and not b["is_sentinel"]]
+    active = [b for b in preset_blocks if b["enabled"]]
     active.sort(key=lambda b: b["position"])
 
-    before = [b for b in active if b["position"] < sentinel_pos]
-    after  = [b for b in active if b["position"] > sentinel_pos]
+    pre_history:  list[dict] = []
+    post_history: list[dict] = []
+    history_seen = False
 
-    messages: list[dict[str, str]] = []
+    for block in active:
+        btype = block["block_type"]
+        target = post_history if history_seen else pre_history
 
-    for block in before:
-        content = apply_macros(block["content"], macros).strip()
-        if content:
-            messages.append({"role": block["role"], "content": content})
+        if btype == "chat_history":
+            history_seen = True
+            continue
 
-    messages.extend(chat_history)
+        images = block_images.get(block["id"], [])
 
-    for block in after:
-        content = apply_macros(block["content"], macros).strip()
-        if content:
-            messages.append({"role": block["role"], "content": content})
+        if btype == "text":
+            text = apply_macros(block["content"], macros).strip()
+            content = _build_content(text, images)
+            if content:
+                target.append({"role": block["role"], "content": content})
 
+        elif btype == "char_description":
+            text = apply_macros(char_data.get("description", ""), macros).strip()
+            content = _build_content(text, images)
+            if content:
+                target.append({"role": block["role"], "content": content})
+
+        elif btype == "char_personality":
+            text = apply_macros(char_data.get("personality", ""), macros).strip()
+            content = _build_content(text, images)
+            if content:
+                target.append({"role": block["role"], "content": content})
+
+        elif btype == "user_persona":
+            text = macros.get("persona", "").strip()
+            content = _build_content(text, images)
+            if content:
+                target.append({"role": block["role"], "content": content})
+
+        elif btype == "char_blocks":
+            enabled = [b for b in char_own_blocks if b["enabled"]]
+            enabled.sort(key=lambda b: b["position"])
+            for cb in enabled:
+                text = apply_macros(cb["content"], macros).strip()
+                cb_images = block_images.get(cb["id"], [])
+                content = _build_content(text, cb_images)
+                if content:
+                    target.append({"role": cb["role"], "content": content})
+
+    messages = (
+        _merge_consecutive(pre_history)
+        + list(chat_history)
+        + _merge_consecutive(post_history)
+    )
     return messages
