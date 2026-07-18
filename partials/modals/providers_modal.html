@@ -20,7 +20,7 @@
           <div class="flex justify-between items-center mb-1">
             <strong class="text-sm">{{ prov.name }}</strong>
             <div class="flex gap-1" onclick="event.stopPropagation()">
-              <button class="btn btn-secondary btn-sm" data-action="actionToggleProviderEdit" data-prov-id="{{ prov.id }}" aria-label="Edit provider">{{ icon_edit() }}</button>
+              <button class="btn btn-secondary btn-sm" data-prov-id="{{ prov.id }}" onclick="event.stopPropagation(); toggleProviderEdit('{{ prov.id }}')" aria-label="Edit provider">{{ icon_edit() }}</button>
               <button class="btn btn-danger btn-sm" hx-delete="/api/providers/{{ prov.id }}" hx-confirm="Delete?" hx-swap="none" hx-on:htmx:after-request="htmx.ajax('GET','/partials/providers-modal',{target:'#providers-modal-body',swap:'innerHTML'})" aria-label="Delete provider">{{ icon_close(16) }}</button>
             </div>
           </div>

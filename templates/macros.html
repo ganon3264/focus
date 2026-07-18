@@ -237,8 +237,6 @@
     <code class="font-bold">{{ tc.function.name }}</code>
     <span class="truncate max-w-[300px]">{{ tc.function.arguments }}</span>
   </summary>
-  <div class="tool-result-body">
-    <pre class="whitespace-pre-wrap break-all">{{ tc.result or '' }}</pre>
-  </div>
+  <div class="tool-result-body"><pre class="whitespace-pre-wrap break-all">{{ tc.result or '' }}</pre></div>
 </details>
 {% endmacro %}

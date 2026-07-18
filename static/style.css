@@ -529,26 +529,29 @@
     transform: rotate(90deg);
   }
   .details .tool-result-body {
-    padding: 0.5rem;
+    padding: 0.375rem 0.5rem;
+    line-height: 1.4;
     background: var(--surface-3);
     border-radius: var(--radius-sm);
     margin-top: 0.25rem;
     font-size: 0.75rem;
-    white-space: pre-wrap;
+  }
+  .details .tool-result-body pre {
+    margin: 0;
+    padding: 0;
   }
 
   /* ── Shared reasoning block content styling (both primary and subsequent) ── */
   .reasoning-content {
-    padding: 0.5rem;
+    padding: 0.375rem 0.5rem;
     background: var(--surface-3);
     border-radius: var(--radius-sm);
     margin-top: 0.25rem;
     font-size: 0.75rem;
     word-wrap: break-word;
     overflow-wrap: break-word;
-    white-space: pre-wrap;
     color: var(--text);
-    line-height: 1.5;
+    line-height: 1.4;
   }
   .reasoning-content.markdown-content:not(.processed) {
     opacity: 1;
@@ -561,6 +564,9 @@
   }
   .reasoning-content p {
     margin: 0.25rem 0;
+  }
+  .reasoning-content > :last-child {
+    margin-bottom: 0;
   }
 
   /* ── First reasoning block (index 0) — div-based, no details marker ── */

@@ -41,6 +41,7 @@
   window._renderToolCalls = function (container, calls) {
     var section = container.querySelector('.tool-calls-stream');
     if (!section) {
+      container._reasoningCount = container.querySelectorAll('.reasoning-block').length;
       section = document.createElement('div');
       section.className = 'tool-calls-stream';
       section.style.cssText = 'padding-left:3rem';
@@ -51,6 +52,11 @@
       } else {
         bodyEl.appendChild(section);
       }
+      var contDiv = document.createElement('div');
+      contDiv.className = 'message-content markdown-content processed';
+      contDiv.style.cssText = 'padding-left:3rem';
+      section.parentNode.insertBefore(contDiv, section.nextSibling);
+      container._contentTarget = contDiv;
     }
     calls.forEach(function (call) {
       var existing = section.querySelector('[data-call-id="' + call.id + '"]');
@@ -185,11 +191,17 @@
     if (fileUpload) fileUpload.disabled = true;
 
     if (asstDiv) {
+      delete asstDiv._contentTarget;
+      delete asstDiv._reasoningCount;
       var staleCalls = asstDiv.querySelector('.tool-calls-stream');
       if (staleCalls) staleCalls.remove();
+      var staleSection = asstDiv.querySelector('.tool-calls-section');
+      if (staleSection) staleSection.remove();
       if (!continueText) {
-        const contentDiv = asstDiv.querySelector('.message-content');
-        if (contentDiv) contentDiv.innerHTML = '<div class="message-spinner"></div>';
+        var contentDivs = asstDiv.querySelectorAll('.message-content');
+        for (var j = 0; j < contentDivs.length; j++) {
+          contentDivs[j].innerHTML = (j === 0) ? '<div class="message-spinner"></div>' : '';
+        }
         const reasoningBtn = asstDiv.querySelector('.reasoning-toggle-btn');
         if (reasoningBtn) reasoningBtn.classList.add('hidden');
         asstDiv.classList.remove('reasoning-open');
@@ -345,18 +357,45 @@
               }
             }
           } else if (json.type === 'tool_calls') {
+            asstDiv._textBeforeToolCalls = fullText;
             window._renderToolCalls(asstDiv, json.calls);
           } else if (json.type === 'tool_result') {
             window._updateToolResult(asstDiv, json.call_id, json.name, json.result, json.is_error);
           } else if (json.token !== undefined) {
             fullText += json.token;
             let displayText = fullText;
+            if (asstDiv._contentTarget && asstDiv._textBeforeToolCalls !== undefined) {
+              displayText = fullText.substring(asstDiv._textBeforeToolCalls.length);
+            }
             if (continueText && prefillMode) {
               displayText = continueText + fullText;
             }
-            const contentDiv = asstDiv.querySelector('.message-content');
+            const contentDiv = asstDiv._contentTarget || asstDiv.querySelector('.message-content');
             if (contentDiv) {
               window.preserveOpenStates(contentDiv, () => window.renderMessage(displayText));
+              if (asstDiv._contentTarget && asstDiv._reasoningCount > 0) {
+                var rBlocks = contentDiv.querySelectorAll('.reasoning-block');
+                for (var rb = 0; rb < rBlocks.length; rb++) {
+                  var block = rBlocks[rb];
+                  var oldId = parseInt(block.dataset.thinkId || '0');
+                  var newId = oldId + asstDiv._reasoningCount;
+                  block.dataset.thinkId = String(newId);
+                  if (oldId === 0 && !block.classList.contains('details')) {
+                    var summary = document.createElement('summary');
+                    var chevron = window.getSvgSprite ? window.getSvgSprite('chevron-right', 12) : '>';
+                    if (typeof chevron === 'string') chevron = chevron.replace('<svg', '<svg class="chevron"');
+                    summary.innerHTML = chevron + ' Reasoning';
+                    var details = document.createElement('details');
+                    details.className = 'details reasoning-block';
+                    details.dataset.thinkId = String(newId);
+                    details.appendChild(summary);
+                    while (block.firstChild) details.appendChild(block.firstChild);
+                    var content = details.querySelector('.reasoning-content');
+                    if (content) content.classList.remove('hidden');
+                    block.parentNode.replaceChild(details, block);
+                  }
+                }
+              }
               if (window._updateReasoningButton) window._updateReasoningButton(contentDiv);
 
               if (window.autoScroll && window.scrollSentinel) {
