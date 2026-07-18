@@ -1,0 +1,62 @@
+<div id="global-confirm-modal" class="modal-overlay" style="display: none; z-index: 9999;">
+  <div class="modal-content" style="max-width: 400px;">
+    <div class="modal-header" style="margin-bottom: 1rem;">
+      <div class="modal-title text-xl font-bold">Confirm Action</div>
+      <button class="btn btn-secondary btn-sm" onclick="closeConfirmModal()">×</button>
+    </div>
+    <div id="global-confirm-message" class="text-sm mb-4" style="color: var(--text);">
+      Are you sure?
+    </div>
+    <div class="flex justify-end gap-2">
+      <button class="btn btn-secondary" onclick="closeConfirmModal()">Cancel</button>
+      <button id="global-confirm-btn" class="btn btn-danger">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let pendingConfirmCallback = null;
+
+  function closeConfirmModal() {
+    document.getElementById('global-confirm-modal').style.display = 'none';
+    pendingConfirmCallback = null;
+  }
+
+  function openConfirmModal(message, callback) {
+    document.getElementById('global-confirm-message').textContent = message || "Are you sure?";
+    pendingConfirmCallback = callback;
+    document.getElementById('global-confirm-modal').style.display = 'grid';
+  }
+
+  document.getElementById('global-confirm-btn').addEventListener('click', function() {
+    if (pendingConfirmCallback) {
+      pendingConfirmCallback();
+    }
+    closeConfirmModal();
+  });
+
+  // Global async confirm wrapper for inline scripts
+  window.customConfirm = function(message, callback) {
+    openConfirmModal(message, callback);
+  };
+
+  // HTMX Event Interceptor
+  document.addEventListener("htmx:confirm", function(e) {
+    // Prevent the default browser confirmation immediately
+    e.preventDefault();
+    
+    // Check if the element has an hx-confirm attribute
+    const message = e.detail.question;
+    if (!message) {
+        // If no message, just proceed
+        e.detail.issueRequest(true);
+        return;
+    }
+    
+    // Show our custom modal instead
+    openConfirmModal(message, function() {
+        // The user clicked confirm
+        e.detail.issueRequest(true);
+    });
+  });
+</script>
