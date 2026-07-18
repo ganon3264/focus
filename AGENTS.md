@@ -13,6 +13,7 @@
 | Tailwind compile | `./bin/tailwindcss-linux-x64 -i static/tailwind-input.css -o static/tailwind.css --minify` (USER must run — agent env can't) |
 | Vendor sync | `./vendor-sync.py` — downloads all third-party JS/CSS from CDN (no npm) |
 | Start | `./start.sh` (vendor-sync → tailwind → uv run main.py) |
+| Test runner | `./test.sh` — runs `uv run pytest tests/ -v` |
 
 ## Project structure
 
@@ -26,8 +27,8 @@ focus/
   backup.py                 # Backup management (create/list/restore/delete .focus snapshots in data/backups/)
   core/
     __init__.py
-    database.py             # DB schema (11 tables), migrations (v0.2, v0.3), seed data, init_db()
-    models.py               # Pydantic models (ProviderCreate/Out, CharBlock*, CharacterCreate/Update, PresetBlock*, ChatCreate, StreamRequest, ItemizerRequest, ExportRequest, enums)
+    database.py             # DB schema (13 tables), migrations (v0.2–v0.5), seed data, init_db()
+    models.py               # Pydantic models (ProviderCreate/Out, CharBlock*, CharacterCreate/Update, PresetBlock*, ChatCreate, StreamRequest, ItemizerRequest, SettingsUpdate, ActiveProviderUpdate, ExportRequest, enums)
     paths.py                # Filesystem paths (configurable via FOCUS_DATA_DIR, FOCUS_BACKUPS_DIR env vars)
     utils.py                # TTLCache (async-safe), MIME maps, image/audio token estimation, now_iso(), resolve_secret_key(), variable_group_name()
     logger.py               # Colored console logging, FOCUS_DEBUG env var, get_logger() helper
@@ -49,13 +50,13 @@ focus/
     chats.py                # /api/chats — CRUD, messages, variants, swipe, branch, attachments, bulk delete
     characters.py           # /api/characters — CRUD, PNG import, soft-delete/trash/restore, blocks+media, images
     presets.py              # /api/presets — CRUD, import (SillyTavern JSON), blocks (reorder, add, update with mutual-exclusivity), images
-    providers.py            # /api/providers — CRUD, fetch_models (5-min TTL cache), OpenRouter models/endpoints, secrets sub-system
+    providers.py            # /api/providers — CRUD, fetch_models (5-min TTL cache), OpenRouter models/endpoints, secrets sub-system, balance (1-min TTL cache per key)
     personas.py             # /api/personas — CRUD, avatar upload, images, "User" persona protected from delete
     stream.py               # /api/stream — streaming completion (SSE), prompt context, multimodal, Claude caching, OpenRouter modality; /api/itemize — token counting
     stream_utils.py         # Shared utilities: get_prompt_context, _get_history, filter_unsupported_modalities, apply_claude_caching
     exchange.py             # /api/export — export entities as .focus ZIP; /api/import — import .focus ZIP
     backup.py               # /api/backups — create/list/restore/delete backups
-    __init__.py
+    settings.py             # /api/settings — key/value store, active provider, DB-persisted sampler configs
 
 templates/                  # Full-page Jinja2 templates
   base.html                 # Root layout: head (theme+CSS+vendor JS), SVG sprite, inline utilities (expandGet, reloadPromptArranger, buildMediaThumbnail, setupDropZone, createEditModalHandlers), global overlays (confirm/lightbox/crop modals), script includes
@@ -74,11 +75,15 @@ partials/                   # HTMX partial templates
     char_selector.html       # Character list for left sidebar — HTMX click filters chat list
     persona_selector.html    # Persona list for sidebar — click calls StateManager.setPersona()
     chat_list.html           # Chat list for right sidebar — links to /chat/{id}, delete with customConfirm
+  personas/
+    persona_card.html        # Persona card component: avatar, name, description, avatar upload, delete
   modals/
     confirm_modal.html       # Global confirm dialog (z-index 10010, role=alertdialog). Exposes customConfirm(msg, cb), intercepts htmx:confirm events
     sampler_modal.html       # Generation parameters modal (3 tabs: Standard/Advanced/Custom). Alpine component with provider-specific visibility, localStorage persistence, exposes getActiveSamplers()
     itemizer_modal.html      # Prompt itemizer — POSTs to /api/itemize, displays tokenized prompt by role. Listens for @itemizer-open.window
+    character_modal_card.html  # Character card partial for modal grid (compact/full views, edit/delete)
     characters_modal.html    # Character selection modal: search, sort, compact/grid view, import PNG, trash bin with restore, ListManager.setup()
+    persona_modal_card.html  # Persona card partial for modal grid (compact/full views, edit/delete)
     personas_modal.html      # Persona selection modal: search, sort, compact view, delete (User protected), ListManager.setup()
     providers_modal.html     # Provider selection & management: cards, inline edit, secrets sub-modal, fetch-models sub-modal, OpenRouter-specific fields
     provider_create_modal.html  # Create provider form: name, type, base_url, API key (with secrets), model (with fetch), OpenRouter/Vertex-specific fields
@@ -89,6 +94,7 @@ partials/                   # HTMX partial templates
     backup_modal.html        # Backups/export modal: create/restore/delete backups, export with granular entity selection, import .focus files, database cleanup
     export_entities.html     # Entity selection list for export modal — renders checklist of entities with images
   presets/
+    sidebar_item.html        # Sidebar preset list item — click loads preset editor, delete button
     preset_selector.html     # Alpine-powered preset dropdown: select (StateManager.setPreset), new (HTMX POST + reload), import (file input), rename (inline modal at z-index 1000), delete (fallback click pattern)
     preset_variables.html    # Variable groups: sortable groups and options, expandable via expandGet/expandToggle, option toggle/edit/delete, Add Variable button
     prompt_arranger.html     # Drag-and-drop prompt arranger (Sortable.js): add block dropdown, block list, inline block-edit-modal (z-index 1000), Script with _arrangerScriptsLoaded guard
@@ -145,8 +151,8 @@ Loads in `<head>`. Holds 5 fields:
 | `character_id` | DB (PATCH /api/chats/{id}) | `character-changed` |
 | `persona_id` | DB (PATCH /api/chats/{id}) | `persona-changed` |
 | `preset_id` | DB (PATCH /api/chats/{id}) | `preset-changed` |
-| `provider_id` | localStorage | `provider-changed` |
-| `provider_type` | localStorage | `provider-changed` |
+| `provider_id` | localStorage + DB (`/api/settings/active-provider`) | `provider-changed` |
+| `provider_type` | localStorage + DB (`/api/settings/active-provider`) | `provider-changed` |
 
 **How to use it:**
 
@@ -154,7 +160,7 @@ Loads in `<head>`. Holds 5 fields:
 - **Read state:** `StateManager.get('character_id')` or `StateManager.getAll()`.
 - **React to changes:** `StateManager.on('preset-changed', function(e) { ... })`. Callbacks receive `{ prev, value }` (or `{ prevId, prevType, id, type }` for provider). Register them in `chat.html`.
 - **Alpine reacts too:** StateManager dispatches `window.CustomEvent` for every change. Alpine components listen via `@preset-changed.window` / `@provider-changed.window` / etc.
-- **Provider state** is session-scoped (localStorage). Chat-level fields (character/persona/preset) are chat-scoped (DB via PATCH /api/chats/{id}).
+- **Provider state** is dual-persisted: localStorage (session) + DB via `/api/settings/active-provider`. Chat-level fields (character/persona/preset) are chat-scoped (DB via PATCH /api/chats/{id}).
 - Existing callbacks in `chat.html` already handle: reloading `#preset-variables`, reloading `#arranger-modal-body` on preset change, reloading arranger and sampler on character/persona change. Add new reactions there — don't inline them in `@click` handlers.
 
 **Important:** `setPreset(null)` clears the preset. `setCharacter(null)` / `setPersona(null)` are also valid. The PATCH body shape is `{field_name: value}` (value can be null).
@@ -279,6 +285,7 @@ Always prefer CSS variables over hardcoded colors/radii in inline styles.
 - JS modules listen via `StateManager.on('provider-changed', fn)` or `window.addEventListener('provider-changed', fn)`
 - `modal_providers.js` dispatches custom events for async operations: `models-loading`, `models-loaded`, `models-error`, `secrets-loaded`
 - Alpine components in `providers_modal.html` listen: `@models-loaded.window`, `@models-loading.window`, `@models-error.window`, `@secrets-loaded.window`
+- **Balance fetch** (`get_provider_balance`) is cached backend-side via `_balance_cache` (1-min TTL) keyed on `type + hash(api_key)`. Providers sharing the same API key will share the cached balance. Frontend fetches per-provider and relies on the backend cache for dedup.
 
 ## Prompt chain & macros
 
@@ -344,7 +351,7 @@ Always prefer CSS variables over hardcoded colors/radii in inline styles.
 - Provider-specific parameter visibility (OpenRouter, OpenAI, DeepSeek, Moonshot, Google)
 - Streaming/multimodal/reasoning toggles with effort levels
 - Prompt caching controls (Claude)
-- **Persistence:** localStorage key `sampler_${preset_id}_${provider_id}`
+- **Persistence:** localStorage key `sampler_${preset_id}_${provider_id}` + DB via `/api/settings` (flat key/value store with composite keys like `global_sampler_config_{providerId}`)
 - **Integration:** exposes `window.getActiveSamplers()` for streaming code; listens to `@provider-changed.window` and `@preset-changed.window` for automatic reload
 
 ## Theme system
@@ -363,7 +370,7 @@ Always prefer CSS variables over hardcoded colors/radii in inline styles.
 uv run pytest tests/ -v
 ```
 
-Tests are organized into 3 directories with 24 test source files:
+Tests are organized into 3 directories with 23 test source files:
 
 **`tests/api/`** (8 files) — Full-stack async HTTP testing via `httpx.ASGITransport` with isolated in-memory SQLite DB:
 - `test_characters.py` — CRUD, soft-delete/trash/restore, hard-delete cascade, modal highlight
