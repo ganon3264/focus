@@ -8,6 +8,7 @@ import aiosqlite
 
 from pyvern.database import get_db
 from pyvern.card_parser import normalise_card
+import pyvern.crud as crud
 
 router = APIRouter()
 
@@ -17,78 +18,58 @@ templates = Jinja2Templates(directory="templates")
 if isinstance(templates.env.loader, FileSystemLoader):
     templates.env.loader.searchpath.append(str(Path("partials").resolve()))
 
-async def _attach_images(blocks: list[dict], db: aiosqlite.Connection) -> list[dict]:
-    if not blocks:
-        return blocks
-    ids = [b["id"] for b in blocks]
-    placeholders = ",".join("?" * len(ids))
-    async with db.execute(
-        f"SELECT id, block_id, image_path, mime_type, position FROM block_images WHERE block_id IN ({placeholders}) ORDER BY position",
-        ids,
-    ) as cur:
-        rows = await cur.fetchall()
-    images_by_block: dict[str, list] = {}
-    for r in rows:
-        images_by_block.setdefault(r["block_id"], []).append(dict(r))
-    for b in blocks:
-        b["images"] = images_by_block.get(b["id"], [])
-    return blocks
-
 @router.get("/chat", response_class=HTMLResponse)
 async def chat_redirect(request: Request, character_id: str = Query(None), db: aiosqlite.Connection = Depends(get_db)):
     if character_id:
-        async with db.execute("SELECT id FROM chats WHERE character_id = ? ORDER BY updated_at DESC LIMIT 1", (character_id,)) as cur:
+        async with db.execute("SELECT id FROM chats WHERE character_id = ? AND is_deleted = 0 ORDER BY updated_at DESC LIMIT 1", (character_id,)) as cur:
             row = await cur.fetchone()
         if row:
             return RedirectResponse(url=f"/chat/{row['id']}")
     else:
-        async with db.execute("SELECT id FROM chats ORDER BY updated_at DESC LIMIT 1") as cur:
+        async with db.execute("SELECT id FROM chats WHERE is_deleted = 0 ORDER BY updated_at DESC LIMIT 1") as cur:
             row = await cur.fetchone()
         if row:
             return RedirectResponse(url=f"/chat/{row['id']}")
 
     # If no chat found (either overall, or for the specified character), load the UI in a "chatless" greeter state.
     # To do this, we need to gather the base context (providers, presets, etc) just like a normal chat page.
-    character = None
-    if character_id:
-        async with db.execute("SELECT * FROM characters WHERE id = ?", (character_id,)) as cur:
-            char_row = await cur.fetchone()
-        if char_row:
-            character = dict(char_row)
-            try:
-                character["card"] = normalise_card(json.loads(char_row["card_json"] or "{}"))
-            except Exception:
-                character["card"] = {}
-
-    async with db.execute("SELECT * FROM presets ORDER BY created_at DESC") as cur:
-        presets = [dict(r) for r in await cur.fetchall()]
-
-    async with db.execute("SELECT * FROM providers") as cur:
-        providers = [dict(r) for r in await cur.fetchall()]
-        
-    async with db.execute("SELECT * FROM personas ORDER BY created_at LIMIT 1") as cur:
-        row = await cur.fetchone()
-        persona = dict(row) if row else None
+    character = await crud.get_character(db, character_id)
+    presets = await crud.get_presets(db)
+    providers = await crud.get_providers(db)
+    persona = await crud.get_persona(db)
 
     # Determine default preset
     preset = presets[0] if presets else None
-    preset_blocks = []
-    if preset:
-        async with db.execute("SELECT * FROM preset_blocks WHERE preset_id = ? ORDER BY position, rowid", (preset["id"],)) as cur:
-            preset_blocks = [dict(r) for r in await cur.fetchall()]
-        await _attach_images(preset_blocks, db)
+    preset_blocks = preset["blocks"] if preset else []
+
+    var_blocks = []
+    regular_blocks = []
+    var_groups = {}
+    
+    for b in preset_blocks:
+        if b["block_type"] == "variable":
+            var_blocks.append(b)
+            group_name = b["name"].split(":")[0] if ":" in b["name"] else b["name"]
+            var_groups.setdefault(group_name, []).append(b)
+        else:
+            regular_blocks.append(b)
+
+    has_chars = await crud.has_characters(db)
 
     return templates.TemplateResponse(request, "chat.html", {
         "chat": None,
         "chat_id": None,
+        "current_chat_id": None,
         "messages": [],
         "character": character,
         "persona": persona,
         "preset": preset,
-        "preset_blocks": preset_blocks,
+        "preset_blocks": regular_blocks,
+        "var_groups": var_groups,
         "providers": providers,
         "presets": presets,
         "chats": [],
+        "has_characters": has_chars,
         "current_character_id": character_id, # Pre-seed the active character for newChat()
         "current_persona_id": persona["id"] if persona else None,
         "current_preset_id": preset["id"] if preset else None,
@@ -103,105 +84,74 @@ async def chat_page(request: Request, chat_id: str, db: aiosqlite.Connection = D
         return RedirectResponse(url="/chat")
     chat = dict(chat)
 
-    async with db.execute("""
-        SELECT m.id, m.role, m.position, m.active_index, mv.content, mv.variant_index,
-               (SELECT COUNT(*) FROM message_variants WHERE message_id = m.id) as variant_count
-        FROM messages m
-        JOIN message_variants mv ON mv.message_id = m.id AND mv.variant_index = m.active_index
-        WHERE m.chat_id = ?
-        ORDER BY m.position
-    """, (chat_id,)) as cur:
-        messages = [dict(r) for r in await cur.fetchall()]
+    messages = await crud.get_chat_messages(db, chat_id)
+    char = await crud.get_character(db, chat.get("character_id"))
+    persona = await crud.get_persona(db, chat.get("persona_id"))
 
-    async with db.execute(
-        "SELECT id, message_id, file_path, mime_type FROM message_attachments WHERE chat_id = ? AND message_id IS NOT NULL",
-        (chat_id,)
-    ) as cur:
-        attachments = await cur.fetchall()
-        
-    attachments_by_msg = {}
-    for a in attachments:
-        attachments_by_msg.setdefault(a["message_id"], []).append(dict(a))
-        
-    for m in messages:
-        m["attachments"] = attachments_by_msg.get(m["id"], [])
+    preset = await crud.get_preset(db, chat.get("preset_id"))
+    preset_blocks = preset["blocks"] if preset else []
+    
+    var_blocks = []
+    regular_blocks = []
+    var_groups = {}
+    
+    for b in preset_blocks:
+        if b["block_type"] == "variable":
+            var_blocks.append(b)
+            group_name = b["name"].split(":")[0] if ":" in b["name"] else b["name"]
+            var_groups.setdefault(group_name, []).append(b)
+        else:
+            regular_blocks.append(b)
+            
+    # Collect stats for the sentinel blocks on page load
+    counts = {"char_blocks": 0, "char_attachments": 0, "persona_attachments": 0}
+    
+    char_id_for_counts = chat.get("character_id")
+    if char_id_for_counts:
+        async with db.execute("SELECT id FROM char_blocks WHERE character_id = ?", (char_id_for_counts,)) as cur:
+            char_blocks_rows = await cur.fetchall()
+            counts["char_blocks"] = len(char_blocks_rows)
+            
+            async with db.execute("SELECT COUNT(*) FROM block_images WHERE block_id = ? AND block_source = 'char'", (char_id_for_counts,)) as img_cur:
+                row = await img_cur.fetchone()
+                counts["char_attachments"] += row[0] if row else 0
 
-    char = None
-    if chat.get("character_id"):
-        async with db.execute("SELECT * FROM characters WHERE id = ?", (chat["character_id"],)) as cur:
-            char_row = await cur.fetchone()
-        if char_row:
-            char = dict(char_row)
-            try:
-                char["card"] = normalise_card(json.loads(char_row["card_json"] or "{}"))
-            except Exception:
-                char["card"] = {}
+            if char_blocks_rows:
+                block_ids = [r["id"] for r in char_blocks_rows]
+                placeholders = ",".join("?" * len(block_ids))
+                async with db.execute(f"SELECT COUNT(*) FROM block_images WHERE block_id IN ({placeholders}) AND block_source = 'char'", block_ids) as img_cur:
+                    row = await img_cur.fetchone()
+                    counts["char_attachments"] += row[0] if row else 0
 
-    persona = None
-    if chat.get("persona_id"):
-        async with db.execute("SELECT * FROM personas WHERE id = ?", (chat["persona_id"],)) as cur:
-            row = await cur.fetchone()
-            if row:
-                persona = dict(row)
-    if not persona:
-        async with db.execute("SELECT * FROM personas ORDER BY created_at LIMIT 1") as cur:
-            row = await cur.fetchone()
-            if row:
-                persona = dict(row)
+    persona_id_for_counts = chat.get("persona_id") or (persona["id"] if persona else None)
+    if persona_id_for_counts:
+        async with db.execute("SELECT COUNT(*) FROM block_images WHERE block_id = ? AND block_source = 'char'", (persona_id_for_counts,)) as img_cur:
+            row = await img_cur.fetchone()
+            counts["persona_attachments"] += row[0] if row else 0
 
-    preset = None
-    preset_blocks = []
-    if chat.get("preset_id"):
-        async with db.execute("SELECT * FROM presets WHERE id = ?", (chat["preset_id"],)) as cur:
-            row = await cur.fetchone()
-            if row:
-                preset = dict(row)
-        if preset:
-            async with db.execute(
-                "SELECT * FROM preset_blocks WHERE preset_id = ? ORDER BY position, rowid",
-                (preset["id"],)
-            ) as cur:
-                preset_blocks = [dict(r) for r in await cur.fetchall()]
-            await _attach_images(preset_blocks, db)
-
-    async with db.execute("SELECT * FROM presets ORDER BY created_at DESC") as cur:
-        presets = [dict(r) for r in await cur.fetchall()]
-
-    async with db.execute("SELECT * FROM providers") as cur:
-        providers = [dict(r) for r in await cur.fetchall()]
+    presets = await crud.get_presets(db)
+    providers = await crud.get_providers(db)
 
     # ── Chats for right sidebar ───────────────────────────────────────────────
-    chats_sidebar = []
-    query_base = """
-        SELECT c.*, 
-               (SELECT mv.content 
-                FROM messages m 
-                JOIN message_variants mv ON m.id = mv.message_id AND m.active_index = mv.variant_index 
-                WHERE m.chat_id = c.id 
-                ORDER BY m.position DESC LIMIT 1) as last_message
-        FROM chats c
-    """
-    if chat.get("character_id"):
-        async with db.execute(
-            f"{query_base} WHERE character_id = ? ORDER BY updated_at DESC",
-            (chat["character_id"],)
-        ) as cur:
-            chats_sidebar = [dict(r) for r in await cur.fetchall()]
-    else:
-        async with db.execute(f"{query_base} ORDER BY updated_at DESC") as cur:
-            chats_sidebar = [dict(r) for r in await cur.fetchall()]
+    chats_sidebar = await crud.get_chats_sidebar(db, chat.get("character_id"))
+
+    has_chars = await crud.has_characters(db)
 
     return templates.TemplateResponse(request, "chat.html", {
         "chat": chat,
         "chat_id": chat_id,
+        "current_chat_id": chat_id,
         "messages": messages,
         "character": char,
         "persona": persona,
         "preset": preset,
-        "preset_blocks": preset_blocks,
+        "preset_blocks": regular_blocks,
+        "var_groups": var_groups,
         "providers": providers,
         "presets": presets,
+        "counts": counts,
         "chats": chats_sidebar,
+        "has_characters": has_chars,
         "current_character_id": chat.get("character_id"),
         "current_persona_id": chat.get("persona_id"),
         "current_preset_id": preset["id"] if preset else None,
@@ -210,25 +160,7 @@ async def chat_page(request: Request, chat_id: str, db: aiosqlite.Connection = D
 
 @router.get("/characters", response_class=HTMLResponse)
 async def characters_page(request: Request, db: aiosqlite.Connection = Depends(get_db)):
-    async with db.execute("SELECT * FROM characters ORDER BY created_at DESC") as cur:
-        rows = await cur.fetchall()
-        characters = []
-        for r in rows:
-            c = dict(r)
-            try:
-                c["card"] = normalise_card(json.loads(r["card_json"] or "{}"))
-            except Exception:
-                c["card"] = {}
-            async with db.execute(
-                "SELECT * FROM char_blocks WHERE character_id = ? ORDER BY position, rowid",
-                (r["id"],)
-            ) as bcur:
-                c["blocks"] = [dict(b) for b in await bcur.fetchall()]
-            await _attach_images(c["blocks"], db)
-            characters.append(c)
-    
-    await _attach_images(characters, db)
-
+    characters = await crud.get_characters(db)
     return templates.TemplateResponse(request, "characters.html", {
         "characters": characters,
     })
@@ -236,25 +168,31 @@ async def characters_page(request: Request, db: aiosqlite.Connection = Depends(g
 
 @router.get("/presets", response_class=HTMLResponse)
 async def presets_page(request: Request, db: aiosqlite.Connection = Depends(get_db)):
-    async with db.execute("SELECT * FROM presets ORDER BY created_at DESC") as cur:
-        presets = [dict(r) for r in await cur.fetchall()]
-    for p in presets:
-        async with db.execute(
-            "SELECT * FROM preset_blocks WHERE preset_id = ? ORDER BY position, rowid",
-            (p["id"],)
-        ) as cur:
-            p["blocks"] = [dict(r) for r in await cur.fetchall()]
-        await _attach_images(p["blocks"], db)
+    presets = await crud.get_presets(db)
+    
+    var_groups = {}
+    regular_blocks = []
+    if presets:
+        for b in presets[0]["blocks"]:
+            if b["block_type"] == "variable":
+                group_name = b["name"].split(":")[0] if ":" in b["name"] else b["name"]
+                var_groups.setdefault(group_name, []).append(b)
+            else:
+                regular_blocks.append(b)
+        
+        # Override the blocks of the first preset to only be regular blocks
+        # so the prompt_arranger partial include doesn't duplicate them
+        presets[0]["blocks"] = regular_blocks
 
     return templates.TemplateResponse(request, "presets.html", {
         "presets": presets,
+        "var_groups": var_groups,
     })
 
 
 @router.get("/providers", response_class=HTMLResponse)
 async def providers_page(request: Request, db: aiosqlite.Connection = Depends(get_db)):
-    async with db.execute("SELECT * FROM providers ORDER BY created_at DESC") as cur:
-        providers = [dict(r) for r in await cur.fetchall()]
+    providers = await crud.get_providers(db)
     return templates.TemplateResponse(request, "providers.html", {
         "providers": providers,
     })
@@ -262,9 +200,7 @@ async def providers_page(request: Request, db: aiosqlite.Connection = Depends(ge
 
 @router.get("/personas", response_class=HTMLResponse)
 async def personas_page(request: Request, db: aiosqlite.Connection = Depends(get_db)):
-    async with db.execute("SELECT * FROM personas ORDER BY created_at DESC") as cur:
-        personas = [dict(r) for r in await cur.fetchall()]
-    await _attach_images(personas, db)
+    personas = await crud.get_personas(db)
     return templates.TemplateResponse(request, "personas.html", {
         "personas": personas,
     })
@@ -274,28 +210,7 @@ async def personas_page(request: Request, db: aiosqlite.Connection = Depends(get
 
 @router.get("/partials/message-list/{chat_id}", response_class=HTMLResponse)
 async def message_list_partial(request: Request, chat_id: str, db: aiosqlite.Connection = Depends(get_db)):
-    async with db.execute("""
-        SELECT m.id, m.role, m.position, m.active_index, mv.content, mv.variant_index,
-               (SELECT COUNT(*) FROM message_variants WHERE message_id = m.id) as variant_count
-        FROM messages m
-        JOIN message_variants mv ON mv.message_id = m.id AND mv.variant_index = m.active_index
-        WHERE m.chat_id = ?
-        ORDER BY m.position
-    """, (chat_id,)) as cur:
-        messages = [dict(r) for r in await cur.fetchall()]
-
-    async with db.execute(
-        "SELECT id, message_id, file_path, mime_type FROM message_attachments WHERE chat_id = ? AND message_id IS NOT NULL",
-        (chat_id,)
-    ) as cur:
-        attachments = await cur.fetchall()
-        
-    attachments_by_msg = {}
-    for a in attachments:
-        attachments_by_msg.setdefault(a["message_id"], []).append(dict(a))
-        
-    for m in messages:
-        m["attachments"] = attachments_by_msg.get(m["id"], [])
+    messages = await crud.get_chat_messages(db, chat_id)
 
     char = None
     persona = None
@@ -303,25 +218,8 @@ async def message_list_partial(request: Request, chat_id: str, db: aiosqlite.Con
         chat_row = await cur.fetchone()
     if chat_row:
         chat = dict(chat_row)
-        if chat.get("character_id"):
-            async with db.execute("SELECT * FROM characters WHERE id = ?", (chat["character_id"],)) as cur:
-                row = await cur.fetchone()
-                if row:
-                    char = dict(row)
-                    try:
-                        char["card"] = normalise_card(json.loads(row["card_json"] or "{}"))
-                    except Exception:
-                        char["card"] = {}
-        if chat.get("persona_id"):
-            async with db.execute("SELECT * FROM personas WHERE id = ?", (chat["persona_id"],)) as cur:
-                row = await cur.fetchone()
-                if row:
-                    persona = dict(row)
-        if not persona:
-            async with db.execute("SELECT * FROM personas ORDER BY created_at LIMIT 1") as cur:
-                row = await cur.fetchone()
-                if row:
-                    persona = dict(row)
+        char = await crud.get_character(db, chat.get("character_id"))
+        persona = await crud.get_persona(db, chat.get("persona_id"))
 
     return templates.TemplateResponse(request, "message_list.html", {
         "messages": messages,
@@ -338,24 +236,7 @@ async def chat_list_partial(
     current_chat_id: str = Query(None),
     db: aiosqlite.Connection = Depends(get_db),
 ):
-    query_base = """
-        SELECT c.*, 
-               (SELECT mv.content 
-                FROM messages m 
-                JOIN message_variants mv ON m.id = mv.message_id AND m.active_index = mv.variant_index 
-                WHERE m.chat_id = c.id 
-                ORDER BY m.position DESC LIMIT 1) as last_message
-        FROM chats c
-    """
-    if character_id:
-        async with db.execute(
-            f"{query_base} WHERE character_id = ? ORDER BY updated_at DESC",
-            (character_id,)
-        ) as cur:
-            chats = [dict(r) for r in await cur.fetchall()]
-    else:
-        async with db.execute(f"{query_base} ORDER BY updated_at DESC") as cur:
-            chats = [dict(r) for r in await cur.fetchall()]
+    chats = await crud.get_chats_sidebar(db, character_id)
 
     return templates.TemplateResponse(request, "chat_list.html", {
         "chats": chats,
@@ -365,8 +246,7 @@ async def chat_list_partial(
 
 @router.get("/partials/char-selector", response_class=HTMLResponse)
 async def char_selector_partial(request: Request, chat_id: str, db: aiosqlite.Connection = Depends(get_db)):
-    async with db.execute("SELECT * FROM characters ORDER BY created_at DESC") as cur:
-        characters = [dict(r) for r in await cur.fetchall()]
+    characters = await crud.get_characters(db)
     current_character_id = None
     async with db.execute("SELECT character_id FROM chats WHERE id = ?", (chat_id,)) as cur:
         row = await cur.fetchone()
@@ -381,8 +261,7 @@ async def char_selector_partial(request: Request, chat_id: str, db: aiosqlite.Co
 
 @router.get("/partials/persona-selector", response_class=HTMLResponse)
 async def persona_selector_partial(request: Request, chat_id: str, db: aiosqlite.Connection = Depends(get_db)):
-    async with db.execute("SELECT * FROM personas ORDER BY created_at DESC") as cur:
-        personas = [dict(r) for r in await cur.fetchall()]
+    personas = await crud.get_personas(db)
     current_persona_id = None
     async with db.execute("SELECT persona_id FROM chats WHERE id = ?", (chat_id,)) as cur:
         row = await cur.fetchone()
@@ -397,8 +276,7 @@ async def persona_selector_partial(request: Request, chat_id: str, db: aiosqlite
 
 @router.get("/partials/preset-selector", response_class=HTMLResponse)
 async def preset_selector_partial(request: Request, chat_id: str, db: aiosqlite.Connection = Depends(get_db)):
-    async with db.execute("SELECT * FROM presets ORDER BY created_at DESC") as cur:
-        presets = [dict(r) for r in await cur.fetchall()]
+    presets = await crud.get_presets(db)
     current_preset_id = None
     async with db.execute("SELECT preset_id FROM chats WHERE id = ?", (chat_id,)) as cur:
         row = await cur.fetchone()
@@ -411,27 +289,125 @@ async def preset_selector_partial(request: Request, chat_id: str, db: aiosqlite.
     })
 
 
-@router.get("/partials/prompt-arranger/{preset_id}", response_class=HTMLResponse)
-async def prompt_arranger_partial(request: Request, preset_id: str, db: aiosqlite.Connection = Depends(get_db)):
-    async with db.execute(
-        "SELECT * FROM preset_blocks WHERE preset_id = ? ORDER BY position, rowid",
-        (preset_id,)
-    ) as cur:
-        blocks = [dict(r) for r in await cur.fetchall()]
-    await _attach_images(blocks, db)
-    return templates.TemplateResponse(request, "prompt_arranger.html", {
-        "blocks": blocks,
+@router.get("/partials/preset-variables/{preset_id}", response_class=HTMLResponse)
+async def preset_variables_partial(request: Request, preset_id: str, db: aiosqlite.Connection = Depends(get_db)):
+    preset = await crud.get_preset(db, preset_id)
+    blocks = preset["blocks"] if preset else []
+    
+    var_groups = {}
+    for b in blocks:
+        if b["block_type"] == "variable":
+            group_name = b["name"].split(":")[0] if ":" in b["name"] else b["name"]
+            var_groups.setdefault(group_name, []).append(b)
+
+    return templates.TemplateResponse(request, "preset_variables.html", {
         "preset_id": preset_id,
+        "var_groups": var_groups
+    })
+
+@router.get("/partials/preset-editor/{preset_id}", response_class=HTMLResponse)
+async def preset_editor_partial(
+    request: Request,
+    preset_id: str,
+    character_id: str = Query(None),
+    persona_id: str = Query(None),
+    db: aiosqlite.Connection = Depends(get_db)
+):
+    preset = await crud.get_preset(db, preset_id)
+    blocks = preset["blocks"] if preset else []
+
+    # Collect stats for the sentinel blocks
+    counts = {"char_blocks": 0, "char_attachments": 0, "persona_attachments": 0}
+    
+    if character_id:
+        async with db.execute("SELECT id FROM char_blocks WHERE character_id = ?", (character_id,)) as cur:
+            char_blocks_rows = await cur.fetchall()
+            counts["char_blocks"] = len(char_blocks_rows)
+            
+            async with db.execute("SELECT COUNT(*) FROM block_images WHERE block_id = ? AND block_source = 'char'", (character_id,)) as img_cur:
+                row = await img_cur.fetchone()
+                counts["char_attachments"] += row[0] if row else 0
+
+            if char_blocks_rows:
+                block_ids = [r["id"] for r in char_blocks_rows]
+                placeholders = ",".join("?" * len(block_ids))
+                async with db.execute(f"SELECT COUNT(*) FROM block_images WHERE block_id IN ({placeholders}) AND block_source = 'char'", block_ids) as img_cur:
+                    row = await img_cur.fetchone()
+                    counts["char_attachments"] += row[0] if row else 0
+
+    if persona_id:
+        async with db.execute("SELECT COUNT(*) FROM block_images WHERE block_id = ? AND block_source = 'char'", (persona_id,)) as img_cur:
+            row = await img_cur.fetchone()
+            counts["persona_attachments"] += row[0] if row else 0
+
+    var_blocks = []
+    regular_blocks = []
+    var_groups = {}
+    
+    for b in blocks:
+        if b["block_type"] == "variable":
+            var_blocks.append(b)
+            group_name = b["name"].split(":")[0] if ":" in b["name"] else b["name"]
+            var_groups.setdefault(group_name, []).append(b)
+        else:
+            regular_blocks.append(b)
+
+    return templates.TemplateResponse(request, "preset_editor.html", {
+        "blocks": regular_blocks,
+        "var_groups": var_groups,
+        "preset_id": preset_id,
+        "counts": counts
+    })
+
+@router.get("/partials/prompt-arranger/{preset_id}", response_class=HTMLResponse)
+async def prompt_arranger_partial(
+    request: Request,
+    preset_id: str,
+    character_id: str = Query(None),
+    persona_id: str = Query(None),
+    db: aiosqlite.Connection = Depends(get_db)
+):
+    preset = await crud.get_preset(db, preset_id)
+    blocks = preset["blocks"] if preset else []
+
+    # Collect stats for the sentinel blocks
+    counts = {"char_blocks": 0, "char_attachments": 0, "persona_attachments": 0}
+    
+    if character_id:
+        async with db.execute("SELECT id FROM char_blocks WHERE character_id = ?", (character_id,)) as cur:
+            char_blocks_rows = await cur.fetchall()
+            counts["char_blocks"] = len(char_blocks_rows)
+            
+            # Count character's direct attachments (avatar not included)
+            async with db.execute("SELECT COUNT(*) FROM block_images WHERE block_id = ? AND block_source = 'char'", (character_id,)) as img_cur:
+                row = await img_cur.fetchone()
+                counts["char_attachments"] += row[0] if row else 0
+
+            # Count attachments across all of this character's blocks
+            if char_blocks_rows:
+                block_ids = [r["id"] for r in char_blocks_rows]
+                placeholders = ",".join("?" * len(block_ids))
+                async with db.execute(f"SELECT COUNT(*) FROM block_images WHERE block_id IN ({placeholders}) AND block_source = 'char'", block_ids) as img_cur:
+                    row = await img_cur.fetchone()
+                    counts["char_attachments"] += row[0] if row else 0
+
+    if persona_id:
+        async with db.execute("SELECT COUNT(*) FROM block_images WHERE block_id = ? AND block_source = 'char'", (persona_id,)) as img_cur:
+            row = await img_cur.fetchone()
+            counts["persona_attachments"] += row[0] if row else 0
+
+    regular_blocks = [b for b in blocks if b["block_type"] != "variable"]
+
+    return templates.TemplateResponse(request, "prompt_arranger.html", {
+        "blocks": regular_blocks,
+        "preset_id": preset_id,
+        "counts": counts
     })
 
 
 @router.get("/partials/sampler-modal", response_class=HTMLResponse)
 async def sampler_modal_partial(request: Request, db: aiosqlite.Connection = Depends(get_db)):
-    async with db.execute("SELECT * FROM presets ORDER BY created_at DESC") as cur:
-        presets = [dict(r) for r in await cur.fetchall()]
-
-    async with db.execute("SELECT * FROM providers") as cur:
-        providers = [dict(r) for r in await cur.fetchall()]
+    providers = await crud.get_providers(db)
     return templates.TemplateResponse(request, "sampler_modal.html", {
         "providers": providers,
     })
@@ -440,8 +416,7 @@ async def sampler_modal_partial(request: Request, db: aiosqlite.Connection = Dep
 
 @router.get("/partials/providers-modal", response_class=HTMLResponse)
 async def providers_modal_partial(request: Request, db: aiosqlite.Connection = Depends(get_db)):
-    async with db.execute("SELECT * FROM providers ORDER BY created_at DESC") as cur:
-        providers = [dict(r) for r in await cur.fetchall()]
+    providers = await crud.get_providers(db)
     
     # Also fetch whether global secrets exist (just boolean presence, never the raw key)
     secrets_present = {}
@@ -458,23 +433,7 @@ async def providers_modal_partial(request: Request, db: aiosqlite.Connection = D
 
 @router.get("/partials/characters-modal", response_class=HTMLResponse)
 async def characters_modal_partial(request: Request, db: aiosqlite.Connection = Depends(get_db)):
-    async with db.execute("SELECT * FROM characters ORDER BY created_at DESC") as cur:
-        rows = await cur.fetchall()
-        characters = []
-        for r in rows:
-            c = dict(r)
-            try:
-                c["card"] = normalise_card(json.loads(r["card_json"] or "{}"))
-            except Exception:
-                c["card"] = {}
-            async with db.execute(
-                "SELECT * FROM char_blocks WHERE character_id = ? ORDER BY position, rowid",
-                (r["id"],)
-            ) as bcur:
-                c["blocks"] = [dict(b) for b in await bcur.fetchall()]
-            await _attach_images(c["blocks"], db)
-            characters.append(c)
-    await _attach_images(characters, db)
+    characters = await crud.get_characters(db)
     return templates.TemplateResponse(request, "characters_modal.html", {
         "request": request,
         "characters": characters,
@@ -483,15 +442,7 @@ async def characters_modal_partial(request: Request, db: aiosqlite.Connection = 
 
 @router.get("/partials/presets-modal", response_class=HTMLResponse)
 async def presets_modal_partial(request: Request, db: aiosqlite.Connection = Depends(get_db)):
-    async with db.execute("SELECT * FROM presets ORDER BY created_at DESC") as cur:
-        presets = [dict(r) for r in await cur.fetchall()]
-    for p in presets:
-        async with db.execute(
-            "SELECT * FROM preset_blocks WHERE preset_id = ? ORDER BY position, rowid",
-            (p["id"],)
-        ) as cur:
-            p["blocks"] = [dict(r) for r in await cur.fetchall()]
-        await _attach_images(p["blocks"], db)
+    presets = await crud.get_presets(db)
     return templates.TemplateResponse(request, "presets_modal.html", {
         "request": request,
         "presets": presets,
@@ -500,9 +451,7 @@ async def presets_modal_partial(request: Request, db: aiosqlite.Connection = Dep
 
 @router.get("/partials/personas-modal", response_class=HTMLResponse)
 async def personas_modal_partial(request: Request, db: aiosqlite.Connection = Depends(get_db)):
-    async with db.execute("SELECT * FROM personas ORDER BY created_at DESC") as cur:
-        personas = [dict(r) for r in await cur.fetchall()]
-    await _attach_images(personas, db)
+    personas = await crud.get_personas(db)
     return templates.TemplateResponse(request, "personas_modal.html", {
         "request": request,
         "personas": personas,

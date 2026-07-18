@@ -71,9 +71,18 @@
           <label class="flex justify-between text-xs mb-1"><span>Repetition Penalty</span> <span x-text="samplers.repetition_penalty"></span></label>
           <input type="range" min="0" max="2" step="0.01" x-model.number="samplers.repetition_penalty" @change="saveStandard()" class="styled-slider">
         </div>
-        <div class="form-group mb-0 flex items-center gap-2 mt-2">
-          <input type="checkbox" id="include_reasoning" x-model="samplers.include_reasoning" @change="saveStandard()">
-          <label for="include_reasoning" class="text-xs mb-0 cursor-pointer">Include Reasoning (OpenRouter)</label>
+        <div class="form-group mb-0 flex items-center justify-between mt-2">
+          <label class="text-xs mb-0 cursor-pointer" @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()">Include Reasoning</label>
+          <div class="arranger-toggle" :class="{ 'active': samplers.include_reasoning }" @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()"></div>
+        </div>
+        <div class="form-group mb-0" x-show="samplers.include_reasoning">
+          <label class="flex justify-between text-xs mb-2"><span>Reasoning Effort</span></label>
+          <div class="flex gap-2 flex-wrap">
+            <button class="btn-tag" :class="!samplers.reasoning_effort ? 'active' : ''" @click="samplers.reasoning_effort = ''; saveStandard()">Default</button>
+            <button class="btn-tag" :class="samplers.reasoning_effort === 'low' ? 'active' : ''" @click="samplers.reasoning_effort = 'low'; saveStandard()">Low</button>
+            <button class="btn-tag" :class="samplers.reasoning_effort === 'medium' ? 'active' : ''" @click="samplers.reasoning_effort = 'medium'; saveStandard()">Medium</button>
+            <button class="btn-tag" :class="samplers.reasoning_effort === 'high' ? 'active' : ''" @click="samplers.reasoning_effort = 'high'; saveStandard()">High</button>
+          </div>
         </div>
       </div>
     </template>
@@ -89,6 +98,19 @@
           <label class="flex justify-between text-xs mb-1"><span>Presence Penalty</span> <span x-text="samplers.presence_penalty"></span></label>
           <input type="range" min="-2" max="2" step="0.01" x-model.number="samplers.presence_penalty" @change="saveStandard()" class="styled-slider">
         </div>
+        <div class="form-group mb-0 flex items-center justify-between mt-2">
+          <label class="text-xs mb-0 cursor-pointer" @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()">Enable Thinking / Reasoning</label>
+          <div class="arranger-toggle" :class="{ 'active': samplers.include_reasoning }" @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()"></div>
+        </div>
+        <div class="form-group mb-0" x-show="samplers.include_reasoning">
+          <label class="flex justify-between text-xs mb-2"><span>Reasoning Effort</span></label>
+          <div class="flex gap-2 flex-wrap">
+            <button class="btn-tag" :class="!samplers.reasoning_effort ? 'active' : ''" @click="samplers.reasoning_effort = ''; saveStandard()">Default</button>
+            <button class="btn-tag" :class="samplers.reasoning_effort === 'low' ? 'active' : ''" @click="samplers.reasoning_effort = 'low'; saveStandard()">Low</button>
+            <button class="btn-tag" :class="samplers.reasoning_effort === 'medium' ? 'active' : ''" @click="samplers.reasoning_effort = 'medium'; saveStandard()">Medium</button>
+            <button class="btn-tag" :class="samplers.reasoning_effort === 'high' ? 'active' : ''" @click="samplers.reasoning_effort = 'high'; saveStandard()">High</button>
+          </div>
+        </div>
       </div>
     </template>
 
@@ -98,6 +120,24 @@
         <div class="form-group mb-0">
           <label class="flex justify-between text-xs mb-1"><span>Top K</span> <span x-text="samplers.top_k"></span></label>
           <input type="range" min="0" max="100" step="1" x-model.number="samplers.top_k" @change="saveStandard()" class="styled-slider">
+        </div>
+        <div class="form-group mb-0 flex items-center justify-between mt-2">
+          <label class="text-xs mb-0 cursor-pointer" @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()">Enable Thinking</label>
+          <div class="arranger-toggle" :class="{ 'active': samplers.include_reasoning }" @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()"></div>
+        </div>
+        <div class="form-group mb-0 flex items-center justify-between mt-2">
+          <label class="text-xs mb-0 cursor-pointer" @click="samplers.send_reasoning_history = !samplers.send_reasoning_history; saveStandard()">Send Reasoning History</label>
+          <div class="arranger-toggle" :class="{ 'active': samplers.send_reasoning_history }" @click="samplers.send_reasoning_history = !samplers.send_reasoning_history; saveStandard()"></div>
+        </div>
+        <div class="form-group mb-0" x-show="samplers.include_reasoning">
+          <label class="flex justify-between text-xs mb-2"><span>Thinking Level</span></label>
+          <div class="flex gap-2 flex-wrap">
+            <button class="btn-tag" :class="!samplers.reasoning_effort ? 'active' : ''" @click="samplers.reasoning_effort = ''; saveStandard()">Default</button>
+            <button class="btn-tag" :class="samplers.reasoning_effort === 'MINIMAL' ? 'active' : ''" @click="samplers.reasoning_effort = 'MINIMAL'; saveStandard()">Min</button>
+            <button class="btn-tag" :class="samplers.reasoning_effort === 'LOW' ? 'active' : ''" @click="samplers.reasoning_effort = 'LOW'; saveStandard()">Low</button>
+            <button class="btn-tag" :class="samplers.reasoning_effort === 'MEDIUM' ? 'active' : ''" @click="samplers.reasoning_effort = 'MEDIUM'; saveStandard()">Med</button>
+            <button class="btn-tag" :class="samplers.reasoning_effort === 'HIGH' ? 'active' : ''" @click="samplers.reasoning_effort = 'HIGH'; saveStandard()">High</button>
+          </div>
         </div>
       </div>
     </template>
@@ -145,7 +185,9 @@ document.addEventListener('alpine:init', () => {
       repetition_penalty: 1.0,
       frequency_penalty: 0.0,
       presence_penalty: 0.0,
-      include_reasoning: false
+      include_reasoning: false,
+      send_reasoning_history: true,
+      reasoning_effort: ''
     },
     
     customFields: [],
@@ -195,6 +237,7 @@ document.addEventListener('alpine:init', () => {
           payload.presence_penalty = this.samplers.presence_penalty;
         } else if (this.providerType === 'google_vertex' || this.providerType === 'google_aistudio') {
           payload.top_k = this.samplers.top_k;
+          payload.send_reasoning_history = this.samplers.send_reasoning_history;
         }
         
         // Add enabled custom fields

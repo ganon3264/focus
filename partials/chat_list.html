@@ -1,3 +1,9 @@
+{% if not chats %}
+  <div class="text-muted text-center text-sm py-4 border border-dashed border-[var(--border)] rounded-lg mt-2">
+    No chats found.
+  </div>
+{% endif %}
+
 {% for chat in chats %}
 <div class="sidebar-item group {% if current_chat_id == chat.id %}active{% endif %}" data-chat-id="{{ chat.id }}">
   <a href="/chat/{{ chat.id }}" class="min-w-0 flex-1 flex flex-col justify-center">

@@ -9,8 +9,10 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from pyvern.database import get_db
 from pyvern.models import ProviderCreate
+from pyvern.logger import get_logger
 
 router = APIRouter()
+logger = get_logger("routers.providers")
 
 
 def _now() -> str:
@@ -191,6 +193,7 @@ async def fetch_models(body: FetchModelsRequest, db: aiosqlite.Connection = Depe
         return {"data": simplified_models}
             
     except Exception as e:
+        logger.exception("Failed to fetch models from standard provider")
         raise HTTPException(500, f"Failed to fetch models: {str(e)}")
 
 @router.get("/openrouter/models")
@@ -210,6 +213,7 @@ async def get_openrouter_models():
             _OPENROUTER_CACHE_TIME = now
             return data
     except Exception as e:
+        logger.exception("Failed to fetch openrouter models")
         raise HTTPException(500, f"Failed to fetch models: {str(e)}")
 
 @router.get("/openrouter/endpoints/{model:path}")
@@ -222,8 +226,8 @@ async def get_openrouter_endpoints(model: str):
             resp.raise_for_status()
             return resp.json()
     except Exception as e:
+        logger.exception(f"Failed to fetch openrouter endpoints for model {model}")
         raise HTTPException(500, f"Failed to fetch endpoints: {str(e)}")
-
 
 class SecretUpdate(BaseModel):
     name: str

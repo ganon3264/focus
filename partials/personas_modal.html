@@ -1,4 +1,5 @@
 <div class="mb-5 flex flex-col gap-3">
+  {% from "macros.html" import icon_edit, icon_trash %}
   <h3 class="sidebar-title mb-1 mt-3">New Persona</h3>
   <form onsubmit="submitPersonaModal(event)" class="flex gap-2">
     <input type="text" name="name" placeholder="Name" required class="text-sm flex-1" style="background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-md);padding:0.5rem 0.75rem;">
@@ -7,6 +8,13 @@
 </div>
 
 <h3 class="sidebar-title mb-3">Select Persona</h3>
+
+{% if not personas %}
+  <div class="text-muted text-center text-sm py-6 border border-dashed border-[var(--border)] rounded-lg mb-4">
+    No personas found. Create one to get started!
+  </div>
+{% endif %}
+
 <div class="grid" style="grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 1rem;">
   {% for p in personas %}
   <div class="card" id="persona-card-{{ p.id }}" style="position:relative;">
@@ -28,9 +36,9 @@
                   data-persona-desc="{{ p.description or '' }}" 
                   data-persona-image="{{ p.avatar_path or '' }}"
                   data-persona-media="{{ p.images | tojson | forceescape }}"
-                  onclick="event.stopPropagation(); openEditPersonaModal(this)">✎</button>
+                  onclick="event.stopPropagation(); openEditPersonaModal(this)">{{ icon_edit() }}</button>
           {% if p.name != 'User' %}
-          <button class="btn btn-danger btn-sm" hx-delete="/api/personas/{{ p.id }}" hx-confirm="Delete persona?" hx-on::after-request="htmx.ajax('GET','/partials/personas-modal',{target:'#personas-modal-body',swap:'innerHTML'})" onclick="event.stopPropagation()">×</button>
+          <button class="btn btn-danger btn-sm" onclick="event.stopPropagation(); promptDeletePersona('{{ p.id }}', '{{ p.name | escape }}')">{{ icon_trash() }}</button>
           {% endif %}
         </div>
       </div>
@@ -40,6 +48,16 @@
 </div>
 
 <script>
+function promptDeletePersona(pid, pName) {
+  window.customConfirm(`Delete persona <strong>${pName}</strong>?`, function() {
+    fetch(`/api/personas/${pid}`, {
+      method: 'DELETE'
+    }).then(r => {
+      if(r.ok) htmx.ajax('GET','/partials/personas-modal',{target:'#personas-modal-body',swap:'innerHTML'});
+    });
+  });
+}
+
 function selectPersonaModal(pid){
   if (window.CURRENT_CHAT_STATE) {
     window.CURRENT_CHAT_STATE.persona_id = pid;

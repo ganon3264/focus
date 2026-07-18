@@ -1,4 +1,4 @@
-{% from "macros.html" import custom_select %}
+{% from "macros.html" import custom_select, icon_edit, icon_key, icon_search, icon_refresh, icon_folder %}
 <div class="modal-grid" style="display: grid; grid-template-columns: 280px 1fr; gap: 1.5rem; height: 100%;">
   <!-- Left Sidebar: Tools & Create -->
   <div class="modal-sidebar flex flex-col gap-4 overflow-y-auto pr-2" style="border-right: 1px solid var(--border);">
@@ -39,7 +39,7 @@
           <input type="hidden" name="api_key" id="api-key-input-new-prov" value="">
           <button type="button" class="form-control text-sm w-full flex justify-between items-center cursor-pointer" onclick="openSecretsModal('new-prov')">
             <span id="api-key-display-new-prov" class="truncate text-muted">Select API Key...</span>
-            <span class="opacity-50">🔑</span>
+            <span class="opacity-50">{{ icon_key() }}</span>
           </button>
         </div>
 
@@ -48,7 +48,7 @@
           <label>Model</label>
           <div class="flex gap-2">
             <input type="text" name="model" id="model-text-new-prov" required placeholder="gpt-4" class="text-sm form-control w-full">
-            <button type="button" class="btn btn-secondary" onclick="openFetchModelModal('new-prov')" title="Fetch Models from Provider" style="width: 44px; display: grid; place-items: center;">🔍</button>
+            <button type="button" class="btn btn-secondary" onclick="openFetchModelModal('new-prov')" title="Fetch Models from Provider" style="width: 44px; display: grid; place-items: center;">{{ icon_search(18) }}</button>
           </div>
         </div>
         
@@ -59,7 +59,7 @@
             <input type="hidden" name="or_model" id="or-model-input-new-prov" value="">
             <button type="button" class="form-control text-sm w-full flex justify-between items-center cursor-pointer" onclick="openORModelModal('new-prov')">
               <span id="or-model-display-new-prov" class="truncate text-muted">Select Model...</span>
-              <span class="opacity-50">🔍</span>
+              <span class="opacity-50">{{ icon_search() }}</span>
             </button>
           </div>
           
@@ -122,6 +122,13 @@
   <!-- Right Side: Grid of Providers -->
   <div class="modal-content-area overflow-y-auto">
     <h3 class="sidebar-title mb-3">Select Active Provider</h3>
+    
+    {% if not providers %}
+      <div class="text-muted text-center text-sm py-6 border border-dashed border-[var(--border)] rounded-lg mb-4">
+        No providers configured. Add one from the sidebar.
+      </div>
+    {% endif %}
+
     <div class="grid gap-3" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));">
       {% for prov in providers %}
       {% set params = prov.params_json|default('{}')|from_json %}
@@ -131,8 +138,8 @@
           <div class="flex justify-between items-center mb-1">
             <strong class="text-sm">{{ prov.name }}</strong>
             <div class="flex gap-1" onclick="event.stopPropagation()">
-              <button class="btn btn-secondary btn-sm" onclick="toggleProviderEdit('{{ prov.id }}')">✎</button>
-              <button class="btn btn-danger btn-sm" hx-delete="/api/providers/{{ prov.id }}" hx-confirm="Delete?" hx-on::after-request="htmx.ajax('GET','/partials/providers-modal',{target:'#providers-modal-body',swap:'innerHTML'})">×</button>
+              <button class="btn btn-secondary btn-sm" onclick="toggleProviderEdit('{{ prov.id }}')">{{ icon_edit() }}</button>
+              <button class="btn btn-danger btn-sm" hx-delete="/api/providers/{{ prov.id }}" hx-confirm="Delete?" hx-on:htmx:after-request="htmx.ajax('GET','/partials/providers-modal',{target:'#providers-modal-body',swap:'innerHTML'})">×</button>
             </div>
           </div>
           <div class="text-xs text-muted">{{ prov.type }} • <span class="truncate" style="display:inline-block; max-width: 150px; vertical-align:bottom;">{{ prov.model }}</span></div>
@@ -160,7 +167,7 @@
             <label class="text-xs">Model</label>
             <div class="flex gap-2">
               <input type="text" name="model" id="model-text-{{ prov.id }}" value="{{ prov.model }}" class="text-sm form-control w-full" required>
-              <button type="button" class="btn btn-secondary" onclick="openFetchModelModal('{{ prov.id }}')" title="Fetch Models from Provider" style="width: 44px; display: grid; place-items: center;">🔍</button>
+              <button type="button" class="btn btn-secondary" onclick="openFetchModelModal('{{ prov.id }}')" title="Fetch Models from Provider" style="width: 44px; display: grid; place-items: center;">{{ icon_search(18) }}</button>
             </div>
           </div>
           {% endif %}
@@ -203,7 +210,7 @@
             <input type="hidden" name="or_model" id="or-model-input-{{ prov.id }}" value="{{ prov.model }}">
             <button type="button" class="form-control text-sm w-full flex justify-between items-center cursor-pointer" onclick="openORModelModal('{{ prov.id }}')">
               <span id="or-model-display-{{ prov.id }}" class="truncate">{{ prov.model }}</span>
-              <span class="opacity-50">🔍</span>
+              <span class="opacity-50">{{ icon_search() }}</span>
             </button>
           </div>
           <div class="form-group mb-0">
@@ -264,7 +271,7 @@
     <div class="p-4" style="background: var(--surface-2); border-bottom: 1px solid var(--border);">
        <div class="flex gap-2">
          <input type="text" x-model="search" placeholder="Search models by name or ID..." class="form-control" autocomplete="off" autofocus>
-         <button type="button" class="btn btn-secondary" onclick="forceFetchModels()" title="Refresh Models" style="width: 44px; display: grid; place-items: center;" :disabled="loading">↻</button>
+         <button type="button" class="btn btn-secondary" onclick="forceFetchModels()" title="Refresh Models" style="width: 44px; display: grid; place-items: center;" :disabled="loading">{{ icon_refresh(18) }}</button>
        </div>
     </div>
     
@@ -348,7 +355,7 @@
        <div class="flex gap-2">
          <input type="text" x-model="newName" placeholder="Key Name (e.g. My OR Key)" class="form-control text-sm w-1/3">
          <input type="password" x-model="newValue" placeholder="sk-... or JSON" class="form-control text-sm flex-1">
-         <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('sa-file-upload').click()" title="Upload JSON">📂</button>
+         <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('sa-file-upload').click()" title="Upload JSON">{{ icon_folder() }}</button>
          <button type="button" class="btn btn-secondary btn-sm" @click="saveNewSecret(newName, newValue); newName=''; newValue=''">Save</button>
        </div>
        <input type="file" id="sa-file-upload" accept=".json" class="hidden" @change="
@@ -367,7 +374,7 @@
        <h4 class="text-sm font-bold mb-2">Or Use a One-Time Raw Key</h4>
        <div class="flex gap-2">
          <input type="password" x-model="rawKey" placeholder="sk-... or JSON" class="form-control text-sm flex-1">
-         <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('sa-file-upload-raw').click()" title="Upload JSON">📂</button>
+         <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('sa-file-upload-raw').click()" title="Upload JSON">{{ icon_folder() }}</button>
          <button type="button" class="btn btn-secondary btn-sm" @click="selectRawKey(rawKey); rawKey=''">Use Raw Key</button>
        </div>
        <input type="file" id="sa-file-upload-raw" accept=".json" class="hidden" @change="

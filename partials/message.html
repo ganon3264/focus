@@ -1,4 +1,8 @@
-<div class="message" id="message-{{ message.id }}" data-message-id="{{ message.id }}">
+<div class="message relative" id="message-{{ message.id }}" data-message-id="{{ message.id }}">
+  {% from "macros.html" import icon_edit, icon_refresh, icon_trash, icon_music %}
+  <div class="delete-mode-checkbox hidden absolute -left-12 top-4">
+    <input type="checkbox" class="w-5 h-5 accent-[var(--accent)] rounded border-[var(--border)] cursor-pointer msg-select-checkbox" value="{{ message.id }}" onchange="updateDeleteSelection()">
+  </div>
   <div class="message-avatar">
     {% if message.role == 'user' %}
       {% if persona and persona.avatar_path %}
@@ -15,19 +19,25 @@
     {% endif %}
   </div>
   <div class="message-body">
-    <div class="message-header">{{ character.name if message.role == 'assistant' and character else (persona.name if message.role == 'user' and persona else message.role) }}</div>
+    <div class="message-header flex justify-between items-center">
+      <span>{{ character.name if message.role == 'assistant' and character else (persona.name if message.role == 'user' and persona else message.role) }}</span>
+    </div>
     
     {% if message.attachments %}
     <div class="flex gap-2 flex-wrap mb-2">
       {% for att in message.attachments %}
         {% if att.mime_type.startswith('image/') %}
-          <img src="/{{ att.file_path }}" class="h-24 rounded object-cover border border-border cursor-pointer hover:opacity-90 transition-opacity" alt="attachment" onclick="openLightbox(this.src)">
+          <div class="relative group">
+            <img src="/{{ att.file_path }}" class="h-24 rounded object-cover border border-border cursor-pointer hover:opacity-90 transition-opacity" alt="attachment" onclick="openLightbox(this.src)">
+          </div>
         {% else %}
-          <div class="h-16 bg-surface-3 px-3 rounded border border-border flex items-center gap-2 text-sm">
-            <span>🎵</span>
-            <audio controls class="h-8 max-w-[200px]" style="filter: contrast(0.8) grayscale(1);">
-              <source src="/{{ att.file_path }}" type="{{ att.mime_type }}">
-            </audio>
+          <div class="relative group">
+            <div class="h-16 bg-surface-3 px-3 rounded border border-border flex items-center gap-2 text-sm">
+              <span>{{ icon_music(18) }}</span>
+              <audio controls class="h-8 max-w-[200px]" style="filter: contrast(0.8) grayscale(1);">
+                <source src="/{{ att.file_path }}" type="{{ att.mime_type }}">
+              </audio>
+            </div>
           </div>
         {% endif %}
       {% endfor %}
@@ -40,34 +50,32 @@
       <div class="message-content">{{ message.content }}</div>
     {% endif %}
   </div>
-  <div class="message-actions">
+  <div class="message-actions normal-mode-actions">
     {% if message.variant_count > 1 or (is_latest and message.role == 'assistant') %}
     <button class="action-btn" title="Swipe left"
       hx-post="/api/chats/{{ chat_id }}/messages/{{ message.id }}/swipe"
       hx-vals='{"direction":"prev"}'
       hx-swap="none"
-      hx-on::after-request="htmx.ajax('GET', '/partials/message-list/{{ chat_id }}', {target:'#message-list', swap:'innerHTML'})"
+      hx-on:htmx:after-request="htmx.ajax('GET', '/partials/message-list/{{ chat_id }}', {target:'#message-list', swap:'innerHTML'})"
     >←</button>
     <span class="text-xs text-muted" style="display:flex;align-items:center;">{{ message.active_index + 1 }}/{{ message.variant_count }}</span>
     <button class="action-btn" title="Swipe right"
       hx-post="/api/chats/{{ chat_id }}/messages/{{ message.id }}/swipe"
       hx-vals='{"direction":"next"}'
       hx-swap="none"
-      hx-on::after-request="let res = JSON.parse(event.detail.xhr.response); if(res.needs_generation) { const asstDiv = document.getElementById('message-{{ message.id }}'); window.triggerGeneration('{{ chat_id }}', asstDiv, true); } else { htmx.ajax('GET', '/partials/message-list/{{ chat_id }}', {target:'#message-list', swap:'innerHTML'}); }"
+      hx-on:htmx:after-request="let res = JSON.parse(event.detail.xhr.response); if(res.needs_generation) { const asstDiv = document.getElementById('message-{{ message.id }}'); window.triggerGeneration('{{ chat_id }}', asstDiv, true); } else { htmx.ajax('GET', '/partials/message-list/{{ chat_id }}', {target:'#message-list', swap:'innerHTML'}); }"
     >→</button>
     {% endif %}
     {% if is_latest and message.role == 'assistant' %}
     <button class="action-btn" title="Regenerate"
       onclick="const asstDiv = document.getElementById('message-{{ message.id }}'); window.triggerGeneration('{{ chat_id }}', asstDiv, true);"
-    >↻</button>
+    >{{ icon_refresh() }}</button>
     {% endif %}
     <button class="action-btn" title="Edit"
       onclick="editMessage('{{ message.id }}', '{{ chat_id }}')"
-    >✎</button>
-    <button class="action-btn" title="Delete"
-      hx-delete="/api/chats/{{ chat_id }}/messages/{{ message.id }}"
-      hx-confirm="Delete message?"
-      hx-on::after-request="htmx.ajax('GET', '/partials/message-list/{{ chat_id }}', {target:'#message-list', swap:'innerHTML'})"
-    >🗑</button>
+    >{{ icon_edit() }}</button>
+    <button class="action-btn text-danger" title="Delete Mode"
+      onclick="enterDeleteMode('{{ message.id }}')"
+    >{{ icon_trash() }}</button>
   </div>
 </div>

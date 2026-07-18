@@ -5,10 +5,7 @@ from pathlib import Path
 from typing import Any
 
 
-def apply_macros(text: str, macros: dict[str, str]) -> str:
-    for key, value in macros.items():
-        text = text.replace(f"{{{{{key}}}}}", value)
-    return text
+from pyvern.macros import apply_macros
 
 
 def _load_media(media_row: dict) -> dict:
@@ -107,6 +104,30 @@ def assemble_prompt(
     active = [b for b in preset_blocks if b["enabled"]]
     active.sort(key=lambda b: b["position"])
 
+    # Separate in-chat injection blocks (injection_depth not null) from regular blocks
+    in_chat_blocks = [b for b in active if b.get("injection_depth") is not None]
+    active = [b for b in active if b.get("injection_depth") is None]
+
+    # ── Two-pass variable resolution (order-independent, handles chains) ──
+    variables = [b for b in active if b["block_type"] == "variable"]
+    active = [b for b in active if b["block_type"] != "variable"]
+
+    if variables:
+        var_map: dict[str, str] = {}
+        for v in variables:
+            var_key = v["name"].split(":")[0] if ":" in v["name"] else v["name"]
+            var_map[var_key] = v["content"]
+
+        for _ in range(10):
+            changed = False
+            for key, content in var_map.items():
+                resolved = apply_macros(content, macros).strip()
+                if macros.get(key) != resolved:
+                    macros[key] = resolved
+                    changed = True
+            if not changed:
+                break
+
     pre_history:  list[dict] = []
     post_history: list[dict] = []
     history_seen = False
@@ -159,18 +180,52 @@ def assemble_prompt(
                 if content:
                     target.append({"role": cb["role"], "content": content})
 
-    # Strip <think>...</think> blocks from assistant messages
+    # Extract <think>...</think> blocks from assistant messages
     cleaned_history = []
     for msg in chat_history:
         cleaned_msg = dict(msg)
         if cleaned_msg.get("role") == "assistant" and isinstance(cleaned_msg.get("content"), str):
-            # Non-greedy match for <think> blocks across multiple lines
-            cleaned_msg["content"] = re.sub(r'<think>.*?</think>', '', cleaned_msg["content"], flags=re.DOTALL).strip()
+            content = cleaned_msg["content"]
+            
+            # Find thought signature
+            signature_match = re.search(r'<thought_signature>(.*?)</thought_signature>', content, flags=re.DOTALL)
+            if signature_match:
+                cleaned_msg["thought_signature"] = signature_match.group(1).strip()
+                content = re.sub(r'<thought_signature>.*?</thought_signature>', '', content, flags=re.DOTALL).strip()
+                
+            # Find all think blocks
+            thoughts = re.findall(r'<think>(.*?)</think>', content, flags=re.DOTALL)
+            if thoughts:
+                # Combine multiple blocks just in case, though usually there's only one
+                cleaned_msg["reasoning"] = "\n\n".join(t.strip() for t in thoughts if t.strip())
+            
+            # Non-greedy match for <think> blocks across multiple lines to strip them
+            cleaned_msg["content"] = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL).strip()
+            
         cleaned_history.append(cleaned_msg)
 
-    messages = (
-        _merge_consecutive(pre_history)
-        + cleaned_history
-        + _merge_consecutive(post_history)
-    )
+    # Inject in-chat blocks into cleaned_history at their specified depths
+    if in_chat_blocks:
+        from collections import defaultdict
+        by_depth: dict[int, list] = defaultdict(list)
+        for block in in_chat_blocks:
+            if block["block_type"] == "text":
+                by_depth[block["injection_depth"]].append(block)
+
+        for depth in sorted(by_depth.keys(), reverse=True):
+            blocks = sorted(by_depth[depth], key=lambda b: b.get("injection_order", 0))
+            injected: list[dict] = []
+            for block in blocks:
+                text = apply_macros(block["content"], macros).strip()
+                images = block_images.get(block["id"], [])
+                content = _build_content(text, images)
+                if content:
+                    injected.append({"role": block["role"], "content": content})
+            if not injected:
+                continue
+            injected = _merge_consecutive(injected)
+            insert_at = max(0, len(cleaned_history) - depth)
+            cleaned_history[insert_at:insert_at] = injected
+
+    messages = _merge_consecutive(pre_history + cleaned_history + post_history)
     return messages

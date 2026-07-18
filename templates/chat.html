@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "macros.html" import icon_edit, icon_expand, icon_close, icon_trash, icon_refresh, icon_music, icon_key, icon_search, icon_folder %}
 {% block title %}Chat - Pyvern{% endblock %}
 {% block content %}
 <div class="app-shell">
@@ -11,24 +12,27 @@
       </div>
     </div>
     <div class="sidebar-section flex-1 overflow-auto">
-      <div class="sidebar-title">Prompt Arranger</div>
-      <div id="prompt-arranger">
+      <div class="sidebar-title">Preset Variables</div>
+      <div id="preset-variables">
         {% if preset %}
           {% with preset_id = preset.id, blocks = preset_blocks %}
-            {% include "prompt_arranger.html" %}
+            {% include "preset_variables.html" %}
           {% endwith %}
         {% else %}
-          <div class="text-muted text-sm mt-2">Select a preset to edit blocks.</div>
+          <div class="text-muted text-sm mt-2">Select a preset to edit variables.</div>
         {% endif %}
       </div>
     </div>
     <div class="sidebar-section">
       <div class="sidebar-title">Tools</div>
       <div class="grid-cols-2">
+        <button class="btn btn-secondary w-full text-xs" onclick="openModal('modal-arranger')">Prompt Arranger</button>
         <button class="btn btn-secondary w-full text-xs" onclick="openModal('modal-sampler')">Samplers</button>
         <button class="btn btn-secondary w-full text-xs" onclick="openModal('modal-characters')">Characters</button>
         <button class="btn btn-secondary w-full text-xs" onclick="openModal('modal-personas')">Personas</button>
         <button class="btn btn-secondary w-full text-xs" onclick="openModal('modal-providers')">Providers</button>
+        <button class="btn btn-secondary w-full text-xs" onclick="openModal('modal-themes')">Themes</button>
+        <button class="btn btn-secondary w-full text-xs" style="grid-column: span 2;" onclick="openModal('modal-itemizer'); window.dispatchEvent(new CustomEvent('itemizer-open'));">Prompt Itemizer</button>
       </div>
     </div>
     <div class="sidebar-section mt-auto">
@@ -51,9 +55,18 @@
         {% include "message_list.html" %}
       </div>
     </div>
-    <div class="input-bar flex-col gap-2 items-center">
+    <div class="input-bar flex-col gap-2 items-center relative">
+      <div id="error-toast" class="hidden absolute bottom-[100%] mb-2 w-full max-w-[820px] p-3 rounded-md shadow-lg flex items-start justify-between gap-3 text-sm z-50 pointer-events-auto" style="background: var(--danger-dim); border: 1px solid var(--danger); color: var(--danger); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);">
+        <div id="error-toast-text" class="flex-1 font-mono break-all whitespace-pre-wrap max-h-[200px] overflow-y-auto"></div>
+        <div class="flex gap-2 flex-shrink-0">
+          <button class="btn btn-secondary btn-sm" onclick="navigator.clipboard.writeText(document.getElementById('error-toast-text').innerText); this.textContent='Copied!'; setTimeout(()=>this.textContent='Copy', 2000);">Copy</button>
+          <button class="btn btn-secondary btn-sm" onclick="document.getElementById('error-toast').classList.add('hidden')">×</button>
+        </div>
+      </div>
       <div id="staging-area" class="w-full max-w-[820px] flex gap-2 overflow-x-auto empty:hidden pointer-events-auto" style="min-height: 0;"></div>
-      <div class="input-wrapper relative w-full">
+      
+      <!-- Standard Input -->
+      <div id="standard-input-container" class="input-wrapper relative w-full">
         <input type="file" id="file-upload" class="hidden" multiple accept="image/*,audio/*">
         <button class="btn btn-secondary !px-2" style="border: none; background: transparent; color: var(--text-muted);" onclick="document.getElementById('file-upload').click()" title="Attach files">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
@@ -65,6 +78,15 @@
         <button id="stop-btn" class="send-btn stop-btn hidden">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12"></rect></svg>
         </button>
+      </div>
+
+      <!-- Delete Toolbar -->
+      <div id="delete-toolbar" class="input-wrapper relative w-full hidden justify-between items-center px-4" style="background: var(--surface-2); border-color: var(--danger);">
+        <div class="font-bold text-[var(--danger)]"><span id="delete-selected-count">0</span> Selected for deletion</div>
+        <div class="flex gap-2">
+          <button class="btn btn-secondary btn-sm" onclick="exitDeleteMode()">Cancel</button>
+          <button class="btn btn-danger btn-sm" onclick="bulkDeleteSelected('{{ chat_id }}')">Delete Selected</button>
+        </div>
       </div>
     </div>
     {% else %}
@@ -110,7 +132,13 @@
         <span>Chats</span>
         <button class="action-icon" onclick="toggleRightBar()" title="Collapse" style="margin-top: -0.3rem;">→</button>
       </div>
-      <button class="btn btn-primary btn-sm w-full mb-3 mt-1" onclick="newChat()">+ New Chat</button>
+      
+      {% if has_characters %}
+        <button class="btn btn-primary btn-sm w-full mb-3 mt-1" onclick="newChat()">+ New Chat</button>
+      {% else %}
+        <button class="btn btn-primary btn-sm w-full mb-3 mt-1" onclick="openModal('modal-characters')">+ Add Character</button>
+      {% endif %}
+
       <div id="chat-list" class="sidebar-list">
         {% include "chat_list.html" %}
       </div>
@@ -129,6 +157,15 @@
     <div class="modal-header" style="margin-bottom: 0.5rem;"><div class="modal-title">Generation Parameters</div><button class="btn btn-secondary" onclick="closeModal('modal-sampler')">×</button></div>
     <div class="flex-1 overflow-hidden">
       {% include "sampler_modal.html" %}
+    </div>
+  </div>
+</div>
+
+<div id="modal-itemizer" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeModal('modal-itemizer')">
+  <div class="modal-content" style="max-width:700px; height: 80vh; display: flex; flex-direction: column;">
+    <button class="btn btn-secondary btn-sm absolute top-4 right-4 z-50" onclick="closeModal('modal-itemizer')">{{ icon_close() }}</button>
+    <div class="flex-1 overflow-hidden" style="min-height: 0;">
+      {% include "itemizer_modal.html" %}
     </div>
   </div>
 </div>
@@ -172,7 +209,7 @@
         <label>Description</label>
         <div class="textarea-wrapper h-full">
           <textarea name="description" id="edit-char-desc" rows="10" class="form-control w-full h-full" style="resize:none;"></textarea>
-          <button type="button" class="expand-btn" onclick="openTextExpander(document.getElementById('edit-char-desc'), 'Edit Character Description')">⤢</button>
+          <button type="button" class="expand-btn" onclick="openTextExpander(document.getElementById('edit-char-desc'), 'Edit Character Description')">{{ icon_expand(18) }}</button>
         </div>
       </div>
       
@@ -236,7 +273,7 @@
         <label>Description</label>
         <div class="textarea-wrapper h-full">
           <textarea name="description" id="edit-persona-desc" rows="10" class="form-control w-full h-full" style="resize:none;"></textarea>
-          <button type="button" class="expand-btn" onclick="openTextExpander(document.getElementById('edit-persona-desc'), 'Edit Persona Description')">⤢</button>
+          <button type="button" class="expand-btn" onclick="openTextExpander(document.getElementById('edit-persona-desc'), 'Edit Persona Description')">{{ icon_expand(18) }}</button>
         </div>
       </div>
       
@@ -288,6 +325,17 @@
         <label class="text-sm font-bold text-muted mb-1 block">Message Content</label>
         <textarea id="edit-msg-content" class="w-full p-2" rows="8" style="background:var(--surface-2); border:1px solid var(--border); color:var(--text); border-radius:6px; font-family:inherit; resize:vertical;"></textarea>
       </div>
+      
+      <div>
+        <div class="flex justify-between items-center mb-1">
+            <label class="text-sm font-bold text-muted">Attachments</label>
+            <button class="btn btn-secondary btn-sm" onclick="document.getElementById('edit-msg-attach-input').click()">+ Add Media</button>
+            <input type="file" id="edit-msg-attach-input" class="hidden" multiple accept="image/*,audio/*" onchange="uploadMessageAttachment(this)">
+        </div>
+        <div id="edit-msg-attachments" class="flex gap-2 flex-wrap empty:hidden p-2 rounded" style="background: var(--surface-2); border: 1px solid var(--border); min-height: 2.5rem;">
+            <!-- Rendered via JS -->
+        </div>
+      </div>
     </div>
     <div class="flex gap-2 mt-4 pt-4" style="border-top: 1px solid var(--border);">
       <button class="btn btn-primary" style="width: 100px;" onclick="saveMessageEdit()">Save</button>
@@ -311,7 +359,84 @@
   </div>
 </div>
 
+<!-- PROMPT ARRANGER MODAL -->
+<div id="modal-arranger" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeModal('modal-arranger')">
+  <div class="modal-content" style="max-width:800px;width:90vw;height:85vh;display:flex;flex-direction:column;padding:0;">
+    <div class="modal-header" style="padding: 1rem 1rem 0.5rem 1rem;">
+      <div class="modal-title">Prompt Arranger</div>
+      <button class="btn btn-secondary" onclick="closeModal('modal-arranger')">×</button>
+    </div>
+    <div id="arranger-modal-body" class="flex-1 overflow-auto" style="padding: 0.5rem 1rem 1rem 1rem;">
+      {% if preset %}
+        {% with preset_id = preset.id, blocks = preset_blocks %}
+          {% include "prompt_arranger.html" %}
+        {% endwith %}
+      {% else %}
+        <div class="text-muted text-center mt-4">Select a preset first.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- THEMES MODAL -->
+<div id="modal-themes" class="modal-overlay" style="display:none; z-index: 100;" onclick="if(event.target===this)closeModal('modal-themes')">
+  <div class="modal-content" style="max-width:400px;width:90vw;">
+    <div class="modal-header">
+      <div class="modal-title">Theme Customizer</div>
+      <button class="btn btn-secondary" onclick="closeModal('modal-themes')">×</button>
+    </div>
+    <div class="flex flex-col gap-4 mt-2">
+      <div class="flex gap-2">
+        <button class="btn btn-secondary flex-1 text-xs" onclick="applyPresetTheme('default')">Slate (Default)</button>
+        <button class="btn btn-secondary flex-1 text-xs" onclick="applyPresetTheme('midnight')">Midnight (OLED)</button>
+        <button class="btn btn-secondary flex-1 text-xs" onclick="applyPresetTheme('light')">Light</button>
+      </div>
+      
+      <div class="grid grid-cols-2 gap-3" id="theme-color-pickers">
+        <label class="flex flex-col gap-1 text-xs font-bold text-muted">
+          Background
+          <input type="color" data-var="--bg" class="w-full h-8 cursor-pointer rounded" onchange="previewThemeColor(this)" oninput="previewThemeColor(this)">
+        </label>
+        <label class="flex flex-col gap-1 text-xs font-bold text-muted">
+          Surface (Primary)
+          <input type="color" data-var="--surface" class="w-full h-8 cursor-pointer rounded" onchange="previewThemeColor(this)" oninput="previewThemeColor(this)">
+        </label>
+        <label class="flex flex-col gap-1 text-xs font-bold text-muted">
+          Surface (Secondary)
+          <input type="color" data-var="--surface-2" class="w-full h-8 cursor-pointer rounded" onchange="previewThemeColor(this)" oninput="previewThemeColor(this)">
+        </label>
+        <label class="flex flex-col gap-1 text-xs font-bold text-muted">
+          Surface (Tertiary)
+          <input type="color" data-var="--surface-3" class="w-full h-8 cursor-pointer rounded" onchange="previewThemeColor(this)" oninput="previewThemeColor(this)">
+        </label>
+        <label class="flex flex-col gap-1 text-xs font-bold text-muted">
+          Borders
+          <input type="color" data-var="--border" class="w-full h-8 cursor-pointer rounded" onchange="previewThemeColor(this)" oninput="previewThemeColor(this)">
+        </label>
+        <label class="flex flex-col gap-1 text-xs font-bold text-muted">
+          Accent Color
+          <input type="color" data-var="--accent" class="w-full h-8 cursor-pointer rounded" onchange="previewThemeColor(this)" oninput="previewThemeColor(this)">
+        </label>
+        <label class="flex flex-col gap-1 text-xs font-bold text-muted">
+          Text (Main)
+          <input type="color" data-var="--text" class="w-full h-8 cursor-pointer rounded" onchange="previewThemeColor(this)" oninput="previewThemeColor(this)">
+        </label>
+        <label class="flex flex-col gap-1 text-xs font-bold text-muted">
+          Text (Muted)
+          <input type="color" data-var="--text-muted" class="w-full h-8 cursor-pointer rounded" onchange="previewThemeColor(this)" oninput="previewThemeColor(this)">
+        </label>
+      </div>
+
+      <div class="flex justify-end gap-2 mt-4">
+        <button class="btn btn-secondary" onclick="closeModal('modal-themes'); resetThemePreview()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveCustomTheme()">Save Theme</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
+const SVG_MUSIC = '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>';
 // Expose current chat state globally for modals to inherit
 window.CURRENT_CHAT_STATE = {
   character_id: '{{ current_character_id or "" }}' || null,
@@ -329,6 +454,76 @@ function openModal(id){
     if(id === 'modal-providers') htmx.ajax('GET','/partials/providers-modal',{target:'#providers-modal-body',swap:'innerHTML'});
   }
 }
+/* Theme Engine Logic */
+const PRESET_THEMES = {
+  default: {
+    '--bg': '#0b0d10', '--surface': '#13151a', '--surface-2': '#1c1f26', '--surface-3': '#2b303b',
+    '--border': '#232730', '--accent': '#6366f1', '--text': '#f1f3f5', '--text-muted': '#8b949e'
+  },
+  midnight: {
+    '--bg': '#000000', '--surface': '#090909', '--surface-2': '#111111', '--surface-3': '#1a1a1a',
+    '--border': '#222222', '--accent': '#3b82f6', '--text': '#ffffff', '--text-muted': '#9ca3af'
+  },
+  light: {
+    '--bg': '#f8fafc', '--surface': '#ffffff', '--surface-2': '#f1f5f9', '--surface-3': '#e2e8f0',
+    '--border': '#e2e8f0', '--accent': '#4f46e5', '--text': '#0f172a', '--text-muted': '#64748b'
+  }
+};
+
+let _savedThemeBackup = {};
+
+// When opening the themes modal, read current active variables
+document.querySelector('[onclick="openModal(\'modal-themes\')"]').addEventListener('click', function() {
+  _savedThemeBackup = {};
+  const rootStyle = getComputedStyle(document.documentElement);
+  document.querySelectorAll('#theme-color-pickers input[type="color"]').forEach(input => {
+    const varName = input.getAttribute('data-var');
+    // Get actual color, default to a safe hex if undefined
+    let color = rootStyle.getPropertyValue(varName).trim();
+    if (color.startsWith('rgba')) { color = '#000000'; } // fallback for complex colors
+    if (color.length === 4) { color = '#' + color[1]+color[1]+color[2]+color[2]+color[3]+color[3]; } // expand #fff
+    input.value = color || '#000000';
+    _savedThemeBackup[varName] = color;
+  });
+});
+
+function previewThemeColor(input) {
+  document.documentElement.style.setProperty(input.getAttribute('data-var'), input.value);
+}
+
+function applyPresetTheme(presetName) {
+  const theme = PRESET_THEMES[presetName];
+  if (!theme) return;
+  localStorage.setItem('pyvern-custom-theme', JSON.stringify(theme));
+  for (const [key, value] of Object.entries(theme)) {
+    document.documentElement.style.setProperty(key, value);
+    const input = document.querySelector(`input[data-var="${key}"]`);
+    if (input) input.value = value;
+  }
+}
+
+function resetThemePreview() {
+  const stored = localStorage.getItem('pyvern-custom-theme');
+  if (stored) {
+    const theme = JSON.parse(stored);
+    for (const key in theme) document.documentElement.style.setProperty(key, theme[key]);
+  } else {
+    // Revert to defaults by removing inline styles
+    document.querySelectorAll('#theme-color-pickers input[type="color"]').forEach(input => {
+      document.documentElement.style.removeProperty(input.getAttribute('data-var'));
+    });
+  }
+}
+
+function saveCustomTheme() {
+  const newTheme = {};
+  document.querySelectorAll('#theme-color-pickers input[type="color"]').forEach(input => {
+    newTheme[input.getAttribute('data-var')] = input.value;
+  });
+  localStorage.setItem('pyvern-custom-theme', JSON.stringify(newTheme));
+  closeModal('modal-themes');
+}
+
 function closeModal(id){ document.getElementById(id).style.display = 'none'; }
 function toggleRightBar(){
   document.getElementById('right-sidebar').classList.toggle('hidden');
@@ -409,7 +604,7 @@ function openEditCharacterModal(btnElement) {
       div.id = `char-modal-media-${img.id}`;
       
       if (img.mime_type && img.mime_type.startsWith('audio/')) {
-          div.innerHTML = `<div style="width: 100%; height: 100%; background: var(--surface-3); display: grid; place-items: center; font-size: 1.2rem;" title="Audio Attachment">🎵</div>`;
+          div.innerHTML = `<div style="width: 100%; height: 100%; background: var(--surface-3); display: grid; place-items: center;" title="Audio Attachment">${SVG_MUSIC}</div>`;
       } else {
           div.innerHTML = `<img src="/${img.image_path}" style="width: 100%; height: 100%; object-fit: cover;">`;
       }
@@ -455,7 +650,7 @@ function uploadCharModalMedia(input) {
     div.id = `char-modal-media-${data.id}`;
     
     if (data.mime_type && data.mime_type.startsWith('audio/')) {
-        div.innerHTML = `<div style="width: 100%; height: 100%; background: var(--surface-3); display: grid; place-items: center; font-size: 1.2rem;" title="Audio Attachment">🎵</div>`;
+        div.innerHTML = `<div style="width: 100%; height: 100%; background: var(--surface-3); display: grid; place-items: center;" title="Audio Attachment">${SVG_MUSIC}</div>`;
     } else {
         div.innerHTML = `<img src="/${data.image_path}" style="width: 100%; height: 100%; object-fit: cover;">`;
     }
@@ -478,6 +673,10 @@ function uploadCharModalMedia(input) {
     
     input.value = '';
     htmx.ajax('GET','/partials/characters-modal',{target:'#characters-modal-body',swap:'innerHTML'});
+    if (window.CURRENT_CHAT_STATE && window.CURRENT_CHAT_STATE.character_id === id && window.reloadPromptArranger) {
+      const presetId = window.CURRENT_CHAT_STATE.preset_id || (document.getElementById('prompt-arranger') && document.querySelector('#prompt-arranger .arranger-list') ? document.querySelector('#prompt-arranger .arranger-list').id.replace('arranger-list-', '') : null);
+      if (presetId) reloadPromptArranger(presetId, 'prompt-arranger');
+    }
   });
 }
 
@@ -490,6 +689,10 @@ function deleteCharModalMedia(imageId) {
       const el = document.getElementById(`char-modal-media-${imageId}`);
       if(el) el.remove();
       htmx.ajax('GET','/partials/characters-modal',{target:'#characters-modal-body',swap:'innerHTML'});
+      if (window.CURRENT_CHAT_STATE && window.CURRENT_CHAT_STATE.character_id === charId && window.reloadPromptArranger) {
+        const presetId = window.CURRENT_CHAT_STATE.preset_id || (document.getElementById('prompt-arranger') && document.querySelector('#prompt-arranger .arranger-list') ? document.querySelector('#prompt-arranger .arranger-list').id.replace('arranger-list-', '') : null);
+        if (presetId) reloadPromptArranger(presetId, 'prompt-arranger');
+      }
     }
   });
 }
@@ -591,7 +794,7 @@ function openEditPersonaModal(btnElement) {
       div.id = `persona-media-${img.id}`;
       
       if (img.mime_type && img.mime_type.startsWith('audio/')) {
-          div.innerHTML = `<div style="width: 100%; height: 100%; background: var(--surface-3); display: grid; place-items: center; font-size: 1.2rem;" title="Audio Attachment">🎵</div>`;
+          div.innerHTML = `<div style="width: 100%; height: 100%; background: var(--surface-3); display: grid; place-items: center;" title="Audio Attachment">${SVG_MUSIC}</div>`;
       } else {
           div.innerHTML = `<img src="/${img.image_path}" style="width: 100%; height: 100%; object-fit: cover;">`;
       }
@@ -637,7 +840,7 @@ function uploadPersonaMedia(input) {
     div.id = `persona-media-${data.id}`;
     
     if (data.mime_type && data.mime_type.startsWith('audio/')) {
-        div.innerHTML = `<div style="width: 100%; height: 100%; background: var(--surface-3); display: grid; place-items: center; font-size: 1.2rem;" title="Audio Attachment">🎵</div>`;
+        div.innerHTML = `<div style="width: 100%; height: 100%; background: var(--surface-3); display: grid; place-items: center;" title="Audio Attachment">${SVG_MUSIC}</div>`;
     } else {
         div.innerHTML = `<img src="/${data.image_path}" style="width: 100%; height: 100%; object-fit: cover;">`;
     }
@@ -660,6 +863,10 @@ function uploadPersonaMedia(input) {
     
     input.value = '';
     htmx.ajax('GET','/partials/personas-modal',{target:'#personas-modal-body',swap:'innerHTML'});
+    if (window.CURRENT_CHAT_STATE && window.CURRENT_CHAT_STATE.persona_id === id && window.reloadPromptArranger) {
+      const presetId = window.CURRENT_CHAT_STATE.preset_id || (document.getElementById('prompt-arranger') && document.querySelector('#prompt-arranger .arranger-list') ? document.querySelector('#prompt-arranger .arranger-list').id.replace('arranger-list-', '') : null);
+      if (presetId) reloadPromptArranger(presetId, 'prompt-arranger');
+    }
   });
 }
 
@@ -672,6 +879,10 @@ function deletePersonaMedia(imageId) {
       const el = document.getElementById(`persona-media-${imageId}`);
       if(el) el.remove();
       htmx.ajax('GET','/partials/personas-modal',{target:'#personas-modal-body',swap:'innerHTML'});
+      if (window.CURRENT_CHAT_STATE && window.CURRENT_CHAT_STATE.persona_id === personaId && window.reloadPromptArranger) {
+        const presetId = window.CURRENT_CHAT_STATE.preset_id || (document.getElementById('prompt-arranger') && document.querySelector('#prompt-arranger .arranger-list') ? document.querySelector('#prompt-arranger .arranger-list').id.replace('arranger-list-', '') : null);
+        if (presetId) reloadPromptArranger(presetId, 'prompt-arranger');
+      }
     }
   });
 }

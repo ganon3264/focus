@@ -1,7 +1,7 @@
-{% from "macros.html" import custom_select %}
-<div class="arranger-item {% if not block.enabled %}disabled{% endif %} {% if block.block_type != 'chat_history' and block.block_type != 'char_blocks' %}bg-role-{{ block.role }}{% endif %}" data-block-id="{{ block.id }}" data-block-content="{{ block.content | replace('"', '&quot;') }}" x-data="{ expanded: false }">
+{% from "macros.html" import custom_select, icon_music %}
+<div class="arranger-item {% if not block.enabled %}disabled{% endif %} {% if block.block_type != 'chat_history' and block.block_type != 'char_blocks' %}bg-role-{{ block.role }}{% endif %}" data-block-id="{{ block.id }}" data-block-content="{{ block.content | replace('"', '&quot;') }}" x-data="{ expanded: (window._expandedArrangerBlocks || new Set()).has('{{ block.id }}') }">
   <div class="arranger-header">
-    <div class="arranger-title-group" @click="expanded = !expanded" style="cursor: pointer;">
+      <div class="arranger-title-group" @click="expanded = !expanded; expanded ? (window._expandedArrangerBlocks = window._expandedArrangerBlocks || new Set()).add('{{ block.id }}') : (window._expandedArrangerBlocks || new Set()).delete('{{ block.id }}')" style="cursor: pointer;">
       <span style="font-size: 0.8rem; color: var(--text-muted); width: 16px; text-align: center;" x-text="expanded ? '▼' : '▶'"></span>
       {% if block.block_type == 'text' %}
         <span class="arranger-badge badge-{{ block.block_type }}">{{ block.block_type | replace('_', ' ') }}</span>
@@ -14,13 +14,11 @@
     </div>
     <div class="arranger-actions">
       <div class="arranger-toggle {% if block.enabled %}active{% endif %}" title="Toggle Block"
-        onclick="fetch('/api/presets/{{ preset_id }}/blocks/{{ block.id }}', {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({enabled:{{ 0 if block.enabled else 1 }}})}).then(()=>htmx.ajax('GET','/partials/prompt-arranger/{{ preset_id }}',{target:'#prompt-arranger',swap:'innerHTML'}))"
+        onclick="handleArrangerBlockUpdate('{{ preset_id }}', '{{ block.id }}', {enabled:{{ 0 if block.enabled else 1 }}})"
       ></div>
       {% if block.block_type != 'chat_history' %}
-      <button class="action-icon danger" title="Delete"
-        hx-delete="/api/presets/{{ preset_id }}/blocks/{{ block.id }}"
-        hx-confirm="Delete block?"
-        hx-on::after-request="htmx.ajax('GET','/partials/prompt-arranger/{{ preset_id }}',{target:'#prompt-arranger',swap:'innerHTML'})"
+      <button type="button" class="action-icon danger" title="Delete"
+        onclick="window.customConfirm('Delete block?', function(){ handleArrangerBlockDelete('{{ preset_id }}', '{{ block.id }}'); })"
       >×</button>
       {% else %}
       <div style="width: 24px; height: 24px;"></div>
@@ -41,7 +39,7 @@
                {"value": "assistant", "label": "assistant"}
              ],
              selected=block.role,
-             on_change="fetch('/api/presets/" + preset_id + "/blocks/" + block.id + "', {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({role:this.value})}); htmx.ajax('GET', '/partials/prompt-arranger/" + preset_id + "', {target:'#prompt-arranger', swap:'innerHTML'})",
+             on_change="handleArrangerBlockUpdate('" + preset_id + "', '" + block.id + "', {role:$event.target.value})",
              extra_classes="arranger-select"
            )
         }}
@@ -51,9 +49,42 @@
       </div>
     </div>
 
+    <!-- In-Chat Injection Controls -->
+    <div class="flex items-center gap-3 mt-3 pt-2" style="border-top: 1px solid var(--border);">
+      <div class="flex items-center gap-2">
+        <span class="text-xs text-muted select-none">In-Chat</span>
+        <div class="arranger-toggle {% if block.injection_depth is not none %}active{% endif %}" title="Toggle In-Chat Mode"
+          onclick="handleArrangerBlockUpdate('{{ preset_id }}', '{{ block.id }}', {injection_depth: {{ 'null' if block.injection_depth is not none else '0' }}})"
+        ></div>
+      </div>
+      {% if block.injection_depth is not none %}
+      <div class="flex items-center gap-3">
+        <label class="flex items-center gap-1 text-xs text-muted">
+          Depth
+          <input type="number" min="0" value="{{ block.injection_depth }}" class="form-control" style="width: 56px; padding: 2px 4px; font-size: 0.8rem;"
+            onchange="handleArrangerBlockUpdate('{{ preset_id }}', '{{ block.id }}', {injection_depth: parseInt(this.value) || 0})"
+          >
+        </label>
+        <label class="flex items-center gap-1 text-xs text-muted">
+          Order
+          <input type="number" min="0" value="{{ block.injection_order | default(0) }}" class="form-control" style="width: 56px; padding: 2px 4px; font-size: 0.8rem;"
+            onchange="handleArrangerBlockUpdate('{{ preset_id }}', '{{ block.id }}', {injection_order: parseInt(this.value) || 0})"
+          >
+        </label>
+      </div>
+      {% endif %}
+    </div>
+
     {% elif block.block_type == 'char_blocks' %}
     <div class="arranger-body">
-      <span class="arranger-note">Character custom blocks are injected automatically</span>
+      <div class="arranger-note flex flex-col gap-1">
+        <span>Character custom blocks are injected automatically</span>
+        {% if counts %}
+          <div class="text-xs mt-1" style="color: var(--text);">
+            Blocks: <strong>{{ counts.char_blocks }}</strong> | Attachments: <strong>{{ counts.char_attachments }}</strong>
+          </div>
+        {% endif %}
+      </div>
     </div>
 
     {% else %}
@@ -69,19 +100,56 @@
                {"value": "assistant", "label": "assistant"}
              ],
              selected=block.role,
-             on_change="fetch('/api/presets/" + preset_id + "/blocks/" + block.id + "', {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({role:this.value})}); htmx.ajax('GET', '/partials/prompt-arranger/" + preset_id + "', {target:'#prompt-arranger', swap:'innerHTML'})",
+             on_change="handleArrangerBlockUpdate('" + preset_id + "', '" + block.id + "', {role:$event.target.value})",
              extra_classes="arranger-select"
            )
         }}
       </div>
       {% endif %}
-      <span class="arranger-note">
-        {% if block.block_type == 'char_description' %}Character description is injected automatically{% endif %}
-        {% if block.block_type == 'char_personality' %}Character personality is injected automatically{% endif %}
-        {% if block.block_type == 'chat_history' %}Chat messages are inserted at this position{% endif %}
-        {% if block.block_type == 'user_persona' %}User persona description is injected automatically{% endif %}
-      </span>
+      <div class="arranger-note flex flex-col gap-1">
+        {% if block.block_type == 'char_description' %}
+          <span>Character description is injected automatically</span>
+          {% if counts and counts.char_attachments > 0 %}<span class="text-xs text-[var(--text)]">Attachments: <strong>{{ counts.char_attachments }}</strong></span>{% endif %}
+        {% endif %}
+        {% if block.block_type == 'char_personality' %}
+          <span>Character personality is injected automatically</span>
+          {% if counts and counts.char_attachments > 0 %}<span class="text-xs text-[var(--text)]">Attachments: <strong>{{ counts.char_attachments }}</strong></span>{% endif %}
+        {% endif %}
+        {% if block.block_type == 'chat_history' %}<span>Chat messages are inserted at this position</span>{% endif %}
+        {% if block.block_type == 'user_persona' %}
+          <span>User persona description is injected automatically</span>
+          {% if counts and counts.persona_attachments > 0 %}<span class="text-xs text-[var(--text)]">Attachments: <strong>{{ counts.persona_attachments }}</strong></span>{% endif %}
+        {% endif %}
+      </div>
     </div>
+
+    {% if block.block_type != 'chat_history' %}
+    <!-- In-Chat Injection Controls -->
+    <div class="flex items-center gap-3 mt-3 pt-2" style="border-top: 1px solid var(--border);">
+      <div class="flex items-center gap-2">
+        <span class="text-xs text-muted select-none">In-Chat</span>
+        <div class="arranger-toggle {% if block.injection_depth is not none %}active{% endif %}" title="Toggle In-Chat Mode"
+          onclick="handleArrangerBlockUpdate('{{ preset_id }}', '{{ block.id }}', {injection_depth: {{ 'null' if block.injection_depth is not none else '0' }}})"
+        ></div>
+      </div>
+      {% if block.injection_depth is not none %}
+      <div class="flex items-center gap-3">
+        <label class="flex items-center gap-1 text-xs text-muted">
+          Depth
+          <input type="number" min="0" value="{{ block.injection_depth }}" class="form-control" style="width: 56px; padding: 2px 4px; font-size: 0.8rem;"
+            onchange="handleArrangerBlockUpdate('{{ preset_id }}', '{{ block.id }}', {injection_depth: parseInt(this.value) || 0})"
+          >
+        </label>
+        <label class="flex items-center gap-1 text-xs text-muted">
+          Order
+          <input type="number" min="0" value="{{ block.injection_order | default(0) }}" class="form-control" style="width: 56px; padding: 2px 4px; font-size: 0.8rem;"
+            onchange="handleArrangerBlockUpdate('{{ preset_id }}', '{{ block.id }}', {injection_order: parseInt(this.value) || 0})"
+          >
+        </label>
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
     {% endif %}
 
     <!-- Media attachments -->
@@ -90,11 +158,11 @@
       {% for img in block.images %}
       <div class="relative group" style="width: 48px; height: 48px; border-radius: 4px; overflow: hidden; border: 1px solid var(--border); flex-shrink: 0;" data-image-id="{{ img.id }}">
         {% if img.mime_type.startswith('audio/') %}
-        <div style="width: 100%; height: 100%; background: var(--surface-3); display: grid; place-items: center; font-size: 1.2rem;" title="Audio Attachment">🎵</div>
+        <div style="width: 100%; height: 100%; background: var(--surface-3); display: grid; place-items: center;" title="Audio Attachment">{{ icon_music(24) }}</div>
         {% else %}
         <img src="/{{ img.image_path }}" style="width: 100%; height: 100%; object-fit: cover;">
         {% endif %}
-        <button class="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" onclick="deleteBlockMedia('{{ preset_id }}', '{{ block.id }}', '{{ img.id }}')">×</button>
+        <button type="button" class="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" onclick="deleteBlockMedia('{{ preset_id }}', '{{ block.id }}', '{{ img.id }}')">×</button>
       </div>
       {% endfor %}
       

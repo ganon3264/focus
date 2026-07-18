@@ -1,4 +1,4 @@
-<div id="global-confirm-modal" class="modal-overlay" style="display: none; z-index: 9999;">
+<div id="global-confirm-modal" class="modal-overlay" style="display: none; z-index: 10005;">
   <div class="modal-content" style="max-width: 400px;">
     <div class="modal-header" style="margin-bottom: 1rem;">
       <div class="modal-title text-xl font-bold">Confirm Action</div>
@@ -23,7 +23,12 @@
   }
 
   function openConfirmModal(message, callback) {
-    document.getElementById('global-confirm-message').textContent = message || "Are you sure?";
+    const msgEl = document.getElementById('global-confirm-message');
+    if (message && message.includes("<")) {
+      msgEl.innerHTML = message;
+    } else {
+      msgEl.textContent = message || "Are you sure?";
+    }
     pendingConfirmCallback = callback;
     document.getElementById('global-confirm-modal').style.display = 'grid';
   }

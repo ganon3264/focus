@@ -15,6 +15,7 @@ dependencies = [
     "google-auth",
     "requests",
     "google-genai",
+    "tiktoken>=0.13.0",
 ]
 
 [build-system]

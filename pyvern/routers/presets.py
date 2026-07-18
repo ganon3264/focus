@@ -1,3 +1,4 @@
+import json
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -102,6 +103,93 @@ async def delete_preset(preset_id: str, db: aiosqlite.Connection = Depends(get_d
     await db.commit()
 
 
+@router.post("/import", status_code=201)
+async def import_preset(file: UploadFile = File(...), db: aiosqlite.Connection = Depends(get_db)):
+    content = await file.read()
+    data = json.loads(content)
+
+    preset_name = Path(file.filename or "Imported Preset").stem
+    preset_id = str(uuid.uuid4())
+    now = _now()
+    await db.execute(
+        "INSERT INTO presets (id, name, created_at) VALUES (?, ?, ?)",
+        (preset_id, preset_name, now),
+    )
+
+    SENTINEL_MAP = {
+        "chatHistory": "chat_history",
+        "charDescription": "char_description",
+        "charPersonality": "char_personality",
+        "personaDescription": "user_persona",
+    }
+
+    prompts = data.get("prompts", [])
+    prompt_order = data.get("prompt_order", [])
+
+    enabled_map: dict[str, bool] = {}
+    order_list: list[str] = []
+    if prompt_order:
+        best_profile = max(prompt_order, key=lambda p: len(p.get("order", [])))
+        for entry in best_profile.get("order", []):
+            ident = entry["identifier"]
+            enabled_map[ident] = entry.get("enabled", True)
+            order_list.append(ident)
+
+    # Build blocks from prompts, keeping identifier for reordering
+    block_map: dict[str, dict] = {}
+    blocks_in_order: list[dict] = []
+
+    for prompt in prompts:
+        identifier = prompt.get("identifier", "")
+        block_type = SENTINEL_MAP.get(identifier, "text")
+
+        enabled = enabled_map.get(identifier)
+        if enabled is None:
+            enabled = prompt.get("enabled", True)
+
+        is_in_chat = prompt.get("system_prompt") is False
+        block = {
+            "id": str(uuid.uuid4()),
+            "preset_id": preset_id,
+            "name": prompt.get("name") or identifier,
+            "content": prompt.get("content", ""),
+            "role": prompt.get("role", "system"),
+            "enabled": int(enabled),
+            "position": 0.0,
+            "block_type": block_type,
+            "injection_depth": prompt.get("injection_depth") if is_in_chat else None,
+            "injection_order": prompt.get("injection_order", 0) if is_in_chat else 0,
+        }
+        block_map[identifier] = block
+
+    # Position blocks: prompt_order sequence first, then remaining in prompts order
+    seen: set[str] = set()
+    for ident in order_list:
+        if ident in block_map and ident not in seen:
+            blocks_in_order.append(block_map[ident])
+            seen.add(ident)
+    for prompt in prompts:
+        ident = prompt.get("identifier", "")
+        if ident not in seen:
+            blocks_in_order.append(block_map[ident])
+            seen.add(ident)
+
+    pos = 0.0
+    for b in blocks_in_order:
+        pos += 1.0
+        b["position"] = pos
+        await db.execute(
+            """INSERT INTO preset_blocks
+               (id, preset_id, name, content, role, enabled, position, block_type, injection_depth, injection_order)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (b["id"], b["preset_id"], b["name"], b["content"], b["role"],
+             b["enabled"], b["position"], b["block_type"], b["injection_depth"], b["injection_order"]),
+        )
+
+    await db.commit()
+    return {"id": preset_id, "name": preset_name, "block_count": len(blocks_in_order)}
+
+
 # ── Block management ──────────────────────────────────────────────────────────
 
 @router.post("/{preset_id}/blocks", status_code=201)
@@ -119,10 +207,10 @@ async def add_block(
 
     await db.execute(
         """INSERT INTO preset_blocks
-           (id, preset_id, name, content, role, enabled, position, block_type)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+           (id, preset_id, name, content, role, enabled, position, block_type, injection_depth, injection_order)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (block_id, preset_id, body.name, body.content, body.role,
-         int(body.enabled), next_pos, body.block_type),
+         int(body.enabled), next_pos, body.block_type, body.injection_depth, body.injection_order),
     )
     await db.commit()
     return {"id": block_id, "position": next_pos}
@@ -169,10 +257,23 @@ async def patch_block(
     body: dict,
     db: aiosqlite.Connection = Depends(get_db),
 ):
-    allowed = {"name", "content", "role", "enabled", "position"}
+    allowed = {"name", "content", "role", "enabled", "position", "injection_depth", "injection_order"}
     updates = {k: v for k, v in body.items() if k in allowed}
     if not updates:
         return {"ok": True}
+        
+    # Check mutual exclusivity for variable blocks
+    if "enabled" in updates and updates["enabled"]:
+        async with db.execute("SELECT name, block_type FROM preset_blocks WHERE id = ? AND preset_id = ?", (block_id, preset_id)) as cur:
+            block_row = await cur.fetchone()
+        
+        if block_row and block_row["block_type"] == "variable":
+            group_name = block_row["name"].split(":")[0] if ":" in block_row["name"] else block_row["name"]
+            await db.execute(
+                "UPDATE preset_blocks SET enabled = 0 WHERE preset_id = ? AND block_type = 'variable' AND id != ? AND (name = ? OR name LIKE ?)",
+                (preset_id, block_id, group_name, f"{group_name}:%")
+            )
+
     cols = ", ".join(f"{k} = ?" for k in updates)
     vals = list(updates.values()) + [block_id, preset_id]
     await db.execute(

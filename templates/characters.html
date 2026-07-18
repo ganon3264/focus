@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "macros.html" import icon_expand, icon_music, icon_close %}
 {% block title %}Characters - Pyvern{% endblock %}
 {% block content %}
 <div class="p-3 flex flex-col h-full" x-data="charEditor()">
@@ -6,7 +7,7 @@
     <div class="flex items-center gap-3">
       <a href="/chat" class="btn btn-secondary text-decoration-none">← Back to Chat</a>
     </div>
-    <form hx-post="/api/characters/import" hx-encoding="multipart/form-data" hx-target="body" hx-swap="outerHTML" hx-indicator="#import-indicator">
+    <form onsubmit="importCharPage(event)">
       <label class="btn btn-primary" style="cursor:pointer">
         Import PNG
         <input type="file" name="file" accept="image/png" class="hidden" onchange="this.closest('form').requestSubmit()">
@@ -69,7 +70,7 @@
            <h2 class="text-xl font-bold">Edit Character</h2>
            <div class="flex gap-2">
              <button class="btn btn-primary shadow-md" onclick="saveCharCard('{{ char.id }}')">Save Changes</button>
-             <button class="btn btn-danger" hx-delete="/api/characters/{{ char.id }}" hx-confirm="Delete character forever?" hx-target="body" hx-swap="outerHTML">Delete</button>
+             <button class="btn btn-danger" onclick="promptDeleteChar('{{ char.id }}', '{{ char.name | escape }}')">Delete</button>
            </div>
         </div>
 
@@ -98,7 +99,7 @@
               <label class="text-sm font-semibold text-muted block mb-1">Description</label>
               <div class="textarea-wrapper">
                 <textarea class="form-control w-full" id="char-desc-{{ char.id }}" rows="5">{{ char.card.get('description','') }}</textarea>
-                <button type="button" class="expand-btn" onclick="openTextExpander(document.getElementById('char-desc-{{ char.id }}'), 'Edit Description')">⤢</button>
+                <button type="button" class="expand-btn" onclick="openTextExpander(document.getElementById('char-desc-{{ char.id }}'), 'Edit Description')">{{ icon_expand(18) }}</button>
               </div>
             </div>
             
@@ -109,7 +110,7 @@
                 {% for img in char.images %}
                 <div class="relative group" style="width: 48px; height: 48px; border-radius: 4px; overflow: hidden; border: 1px solid var(--border); flex-shrink: 0;" id="char-media-{{ img.id }}">
                   {% if img.mime_type.startswith('audio/') %}
-                  <div style="width: 100%; height: 100%; background: var(--surface-3); display: grid; place-items: center; font-size: 1.2rem;" title="Audio Attachment">🎵</div>
+                  <div style="width: 100%; height: 100%; background: var(--surface-3); display: grid; place-items: center;" title="Audio Attachment">{{ icon_music(24) }}</div>
                   {% else %}
                   <img src="/{{ img.image_path }}" style="width: 100%; height: 100%; object-fit: cover;">
                   {% endif %}
@@ -130,7 +131,7 @@
               <label class="text-sm font-semibold text-muted block mb-1">First Message</label>
               <div class="textarea-wrapper">
                 <textarea class="form-control w-full" id="char-first-{{ char.id }}" rows="4">{{ char.card.get('first_mes','') }}</textarea>
-                <button type="button" class="expand-btn" onclick="openTextExpander(document.getElementById('char-first-{{ char.id }}'), 'Edit First Message')">⤢</button>
+                <button type="button" class="expand-btn" onclick="openTextExpander(document.getElementById('char-first-{{ char.id }}'), 'Edit First Message')">{{ icon_expand(18) }}</button>
               </div>
             </div>
 
@@ -145,7 +146,7 @@
                 {% for greeting in char.card.get('alternate_greetings', []) %}
                 <div class="relative group greeting-item textarea-wrapper">
                   <textarea class="form-control w-full text-sm" rows="3" placeholder="Greeting content">{{ greeting }}</textarea>
-                  <button type="button" class="expand-btn" onclick="openTextExpander(this.previousElementSibling, 'Edit Alternate Greeting')">⤢</button>
+                  <button type="button" class="expand-btn" onclick="openTextExpander(this.previousElementSibling, 'Edit Alternate Greeting')">{{ icon_expand(18) }}</button>
                   <button class="absolute bottom-2 right-2 btn btn-danger btn-sm opacity-0 group-hover:opacity-100 transition-opacity" style="z-index: 10;" onclick="this.closest('.greeting-item').remove()">Delete</button>
                 </div>
                 {% endfor %}
@@ -164,21 +165,21 @@
                   <label class="text-sm font-semibold text-muted block mb-1">Personality</label>
                   <div class="textarea-wrapper">
                     <textarea class="form-control w-full" id="char-personality-{{ char.id }}" rows="4">{{ char.card.get('personality','') }}</textarea>
-                    <button type="button" class="expand-btn" onclick="openTextExpander(document.getElementById('char-personality-{{ char.id }}'), 'Edit Personality')">⤢</button>
+                    <button type="button" class="expand-btn" onclick="openTextExpander(document.getElementById('char-personality-{{ char.id }}'), 'Edit Personality')">{{ icon_expand(18) }}</button>
                   </div>
                 </div>
                 <div class="form-group">
                   <label class="text-sm font-semibold text-muted block mb-1">Scenario</label>
                   <div class="textarea-wrapper">
                     <textarea class="form-control w-full" id="char-scenario-{{ char.id }}" rows="4">{{ char.card.get('scenario','') }}</textarea>
-                    <button type="button" class="expand-btn" onclick="openTextExpander(document.getElementById('char-scenario-{{ char.id }}'), 'Edit Scenario')">⤢</button>
+                    <button type="button" class="expand-btn" onclick="openTextExpander(document.getElementById('char-scenario-{{ char.id }}'), 'Edit Scenario')">{{ icon_expand(18) }}</button>
                   </div>
                 </div>
                 <div class="form-group">
                   <label class="text-sm font-semibold text-muted block mb-1">Mes Example</label>
                   <div class="textarea-wrapper">
                     <textarea class="form-control w-full" id="char-example-{{ char.id }}" rows="6">{{ char.card.get('mes_example','') }}</textarea>
-                    <button type="button" class="expand-btn" onclick="openTextExpander(document.getElementById('char-example-{{ char.id }}'), 'Edit Mes Example')">⤢</button>
+                    <button type="button" class="expand-btn" onclick="openTextExpander(document.getElementById('char-example-{{ char.id }}'), 'Edit Mes Example')">{{ icon_expand(18) }}</button>
                   </div>
                 </div>
               </div>
@@ -211,14 +212,14 @@
                   <textarea class="form-control text-sm w-full" rows="4" placeholder="Block Content"
                     onchange="updateBlock('{{ char.id }}', '{{ block.id }}', {content: this.value})"
                   >{{ block.content }}</textarea>
-                  <button type="button" class="expand-btn" onclick="openTextExpander(this.previousElementSibling, 'Edit Custom Block')">⤢</button>
+                  <button type="button" class="expand-btn" onclick="openTextExpander(this.previousElementSibling, 'Edit Custom Block')">{{ icon_expand(18) }}</button>
                 </div>
                 
                 <div class="char-block-media-section" id="media-section-{{ block.id }}" style="margin-top: 0.5rem; display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
                   {% for img in block.images %}
                   <div class="relative group" style="width: 48px; height: 48px; border-radius: 4px; overflow: hidden; border: 1px solid var(--border); flex-shrink: 0;" id="media-{{ img.id }}">
                     {% if img.mime_type.startswith('audio/') %}
-                    <div style="width: 100%; height: 100%; background: var(--surface-3); display: grid; place-items: center; font-size: 1.2rem;" title="Audio Attachment">🎵</div>
+<div style="width: 100%; height: 100%; background: var(--surface-3); display: grid; place-items: center;" title="Audio Attachment">{{ icon_music(24) }}</div>
                     {% else %}
                     <img src="/{{ img.image_path }}" style="width: 100%; height: 100%; object-fit: cover;">
                     {% endif %}
@@ -274,7 +275,7 @@
     </div>
     <div class="textarea-wrapper">
       <textarea class="form-control text-sm w-full block-content" rows="4" placeholder="Block Content"></textarea>
-      <button type="button" class="expand-btn" onclick="openTextExpander(this.previousElementSibling, 'Edit Custom Block')">⤢</button>
+      <button type="button" class="expand-btn" onclick="openTextExpander(this.previousElementSibling, 'Edit Custom Block')">{{ icon_expand(18) }}</button>
     </div>
     
     <div class="char-block-media-section" style="margin-top: 0.5rem; display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
@@ -291,7 +292,7 @@
 <template id="greeting-template">
   <div class="relative group greeting-item textarea-wrapper">
     <textarea class="form-control w-full text-sm" rows="3" placeholder="Greeting content"></textarea>
-    <button type="button" class="expand-btn" onclick="openTextExpander(this.previousElementSibling, 'Edit Alternate Greeting')">⤢</button>
+    <button type="button" class="expand-btn" onclick="openTextExpander(this.previousElementSibling, 'Edit Alternate Greeting')">{{ icon_expand(18) }}</button>
     <button class="absolute bottom-2 right-2 btn btn-danger btn-sm opacity-0 group-hover:opacity-100 transition-opacity" style="z-index: 10;" onclick="this.closest('.greeting-item').remove()">Delete</button>
   </div>
 </template>
@@ -301,7 +302,7 @@
   <div class="modal-content flex flex-col h-[85vh] max-w-4xl" style="padding: 1.25rem;">
     <div class="modal-header shrink-0 mb-4 flex justify-between items-center w-full">
       <div class="modal-title text-xl font-bold" id="text-expander-title">Edit Text</div>
-      <button class="btn btn-secondary w-8 h-8 rounded-full p-0 flex items-center justify-center" onclick="closeTextExpander()">✕</button>
+      <button class="btn btn-secondary w-8 h-8 rounded-full p-0 flex items-center justify-center" onclick="closeTextExpander()">{{ icon_close() }}</button>
     </div>
     <textarea id="text-expander-input" class="form-control w-full flex-1 mb-4" style="resize:none; font-family: ui-monospace, monospace; font-size: 0.9rem; line-height: 1.6;"></textarea>
     <div class="flex justify-end gap-3 shrink-0">
@@ -312,6 +313,58 @@
 </div>
 
 <script>
+const SVG_MUSIC = '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>';
+function importCharPage(e) {
+  e.preventDefault();
+  document.getElementById('import-indicator').classList.remove('hidden');
+  const formData = new FormData(e.target);
+  fetch('/api/characters/import', {
+    method: 'POST',
+    body: formData
+  }).then(r => {
+    if(r.ok) window.location.reload();
+    else {
+      r.text().then(t => alert('Import failed: ' + t));
+      document.getElementById('import-indicator').classList.add('hidden');
+    }
+  });
+}
+
+function promptDeleteChar(charId, charName) {
+  const html = `
+    <div class="mb-4 text-sm" style="color:var(--text);">Delete character <strong>${charName}</strong>?</div>
+    <div class="flex flex-col gap-3">
+      <label class="flex items-start gap-3 cursor-pointer p-3 rounded-lg hover:bg-[var(--surface-3)] transition-colors border border-[var(--border)] relative group">
+        <div class="mt-0.5">
+          <input type="radio" name="char_delete_option" value="soft" checked class="w-4 h-4 cursor-pointer" style="accent-color: var(--accent);">
+        </div>
+        <div class="flex flex-col">
+          <span class="text-sm font-bold" style="color:var(--text);">Move Character to Trash</span>
+          <span class="text-xs text-muted">You can restore the character later.</span>
+        </div>
+      </label>
+      <label class="flex items-start gap-3 cursor-pointer p-3 rounded-lg hover:bg-[var(--surface-3)] transition-colors border border-[var(--border)] relative group">
+        <div class="mt-0.5">
+          <input type="radio" name="char_delete_option" value="soft_with_chats" class="w-4 h-4 cursor-pointer" style="accent-color: var(--accent);">
+        </div>
+        <div class="flex flex-col">
+          <span class="text-sm font-bold" style="color:var(--text);">Move Character & Conversations to Trash</span>
+          <span class="text-xs text-muted">Hides their chats too. Both can be restored.</span>
+        </div>
+      </label>
+    </div>
+  `;
+  window.customConfirm(html, function() {
+    const selected = document.querySelector('input[name="char_delete_option"]:checked').value;
+    const delChats = selected === 'soft_with_chats';
+    fetch(`/api/characters/${charId}?delete_chats=${delChats}`, {
+      method: 'DELETE'
+    }).then(r => {
+      if(r.ok) window.location.href = '/characters';
+    });
+  });
+}
+
 // Serialize character data to pass to Alpine safely
 const ALL_CHARS = [
   {% for char in characters %}
@@ -504,7 +557,7 @@ function uploadCharMedia(charId, input) {
     div.id = `char-media-${data.id}`;
     
     if (data.mime_type && data.mime_type.startsWith('audio/')) {
-        div.innerHTML = `<div style="width: 100%; height: 100%; background: var(--surface-3); display: grid; place-items: center; font-size: 1.2rem;" title="Audio Attachment">🎵</div>`;
+        div.innerHTML = `<div style="width: 100%; height: 100%; background: var(--surface-3); display: grid; place-items: center;" title="Audio Attachment">${SVG_MUSIC}</div>`;
     } else {
         div.innerHTML = `<img src="/${data.image_path}" style="width: 100%; height: 100%; object-fit: cover;">`;
     }
@@ -558,7 +611,7 @@ function uploadCharBlockMedia(charId, blockId, input) {
     div.id = `media-${data.id}`;
     
     if (data.mime_type && data.mime_type.startsWith('audio/')) {
-        div.innerHTML = `<div style="width: 100%; height: 100%; background: var(--surface-3); display: grid; place-items: center; font-size: 1.2rem;" title="Audio Attachment">🎵</div>`;
+        div.innerHTML = `<div style="width: 100%; height: 100%; background: var(--surface-3); display: grid; place-items: center;" title="Audio Attachment">${SVG_MUSIC}</div>`;
     } else {
         div.innerHTML = `<img src="/${data.image_path}" style="width: 100%; height: 100%; object-fit: cover;">`;
     }

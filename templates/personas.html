@@ -25,7 +25,7 @@
           <input type="file" accept="image/*" class="hidden" onchange="handleAvatarUpload(this, '/api/personas/{{ p.id }}/avatar')">
         </label>
         {% if p.name != 'User' %}
-        <button class="btn btn-danger btn-sm" hx-delete="/api/personas/{{ p.id }}" hx-confirm="Delete?" hx-target="closest div" hx-swap="delete">Delete</button>
+        <button class="btn btn-danger btn-sm" onclick="promptDeletePersona('{{ p.id }}', '{{ p.name | escape }}')">Delete</button>
         {% endif %}
       </div>
     </div>
@@ -36,18 +36,26 @@
   <form onsubmit="submitPersona(event)" class="grid gap-2" style="grid-template-columns: 1fr 1fr;max-width:500px;">
     <div class="form-group">
       <label>Name</label>
-      <input type="text" name="name" required>
+      <input type="text" name="name" class="form-control" required>
     </div>
     <div class="form-group">
       <label>Description</label>
-      <textarea name="description" rows="3"></textarea>
+      <input type="text" name="description" class="form-control">
     </div>
-    <div class="col-span-full">
-      <button class="btn btn-primary">Add Persona</button>
-    </div>
+    <button class="btn btn-primary" style="grid-column: span 2;">Create Persona</button>
   </form>
 </div>
 <script>
+function promptDeletePersona(pid, pName) {
+  window.customConfirm(`Delete persona <strong>${pName}</strong>?`, function() {
+    fetch(`/api/personas/${pid}`, {
+      method: 'DELETE'
+    }).then(r => {
+      if(r.ok) window.location.reload();
+    });
+  });
+}
+
 function submitPersona(e){
   e.preventDefault();
   const data = Object.fromEntries(new FormData(e.target));

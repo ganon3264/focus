@@ -159,10 +159,16 @@ async def upload_avatar(
 @router.get("/")
 async def list_characters(db: aiosqlite.Connection = Depends(get_db)):
     async with db.execute(
-        "SELECT id, name, image_path, created_at FROM characters ORDER BY name"
+        "SELECT id, name, image_path, created_at FROM characters WHERE is_deleted = 0 ORDER BY name"
     ) as cur:
         return [dict(r) for r in await cur.fetchall()]
 
+@router.get("/trash")
+async def list_trashed_characters(db: aiosqlite.Connection = Depends(get_db)):
+    async with db.execute(
+        "SELECT id, name, image_path, created_at FROM characters WHERE is_deleted = 1 ORDER BY name"
+    ) as cur:
+        return [dict(r) for r in await cur.fetchall()]
 
 @router.get("/{char_id}")
 async def get_character(char_id: str, db: aiosqlite.Connection = Depends(get_db)):
@@ -184,17 +190,29 @@ async def get_character(char_id: str, db: aiosqlite.Connection = Depends(get_db)
 
 
 @router.delete("/{char_id}", status_code=204)
-async def delete_character(char_id: str, db: aiosqlite.Connection = Depends(get_db)):
+async def delete_character(char_id: str, hard: bool = False, delete_chats: bool = False, db: aiosqlite.Connection = Depends(get_db)):
     async with db.execute("SELECT image_path FROM characters WHERE id = ?", (char_id,)) as cur:
         row = await cur.fetchone()
     if not row:
         raise HTTPException(404, "Character not found")
 
-    if row["image_path"]:
-        Path(row["image_path"]).unlink(missing_ok=True)
-
-    await db.execute("DELETE FROM characters WHERE id = ?", (char_id,))
+    if hard:
+        if row["image_path"]:
+            Path(row["image_path"]).unlink(missing_ok=True)
+        await db.execute("DELETE FROM characters WHERE id = ?", (char_id,))
+    else:
+        await db.execute("UPDATE characters SET is_deleted = 1 WHERE id = ?", (char_id,))
+        if delete_chats:
+            await db.execute("UPDATE chats SET is_deleted = 1 WHERE character_id = ?", (char_id,))
     await db.commit()
+
+@router.post("/{char_id}/restore", status_code=200)
+async def restore_character(char_id: str, restore_chats: bool = False, db: aiosqlite.Connection = Depends(get_db)):
+    await db.execute("UPDATE characters SET is_deleted = 0 WHERE id = ?", (char_id,))
+    if restore_chats:
+        await db.execute("UPDATE chats SET is_deleted = 0 WHERE character_id = ?", (char_id,))
+    await db.commit()
+    return {"ok": True}
 
 
 @router.post("/{char_id}/images", status_code=201)

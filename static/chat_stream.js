@@ -1,4 +1,6 @@
 (function(){
+  const SVG_MUSIC = '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>';
+  const SVG_CLOSE = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
   let currentController = null;
   const sendBtn = document.getElementById('send-btn');
   const stopBtn = document.getElementById('stop-btn');
@@ -21,15 +23,23 @@
       let preview = '';
       if (f.type.startsWith('image/')) {
         const url = URL.createObjectURL(f);
-        preview = `<img src="${url}" class="h-8 w-8 object-cover rounded" onload="URL.revokeObjectURL(this.src)">`;
+        const cropSvg = `<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.13 1L6 16a2 2 0 0 0 2 2h15"></path><path d="M1 6.13L16 6a2 2 0 0 1 2 2v15"></path></svg>`;
+        const cropBtn = `<button class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black/70 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:bg-black/90" onclick="cropStagedImage(${idx})" title="Crop">${cropSvg}</button>`;
+        
+        preview = `
+          <div class="relative h-8 w-8 flex-shrink-0">
+            <img src="${url}" class="h-full w-full object-cover rounded" onload="URL.revokeObjectURL(this.src)">
+            ${cropBtn}
+          </div>
+        `;
       } else {
-        preview = `<div class="h-8 w-8 bg-surface-3 flex items-center justify-center rounded">🎵</div>`;
+        preview = `<div class="h-8 w-8 bg-surface-3 flex items-center justify-center rounded flex-shrink-0">${SVG_MUSIC}</div>`;
       }
 
       el.innerHTML = `
         ${preview}
         <span class="max-w-[100px] truncate" title="${f.name}">${f.name}</span>
-        <button class="absolute -top-2 -right-2 bg-danger text-white rounded-full w-4 h-4 flex items-center justify-center hidden group-hover:flex" onclick="removeStagedFile(${idx})">×</button>
+        <button class="text-danger hover:text-white hover:bg-danger rounded w-5 h-5 flex items-center justify-center ml-1 transition-colors z-20" onclick="removeStagedFile(${idx})" title="Remove">${SVG_CLOSE}</button>
       `;
       stagingArea.appendChild(el);
     });
@@ -44,6 +54,19 @@
     stagedFiles.splice(idx, 1);
     renderStagingArea();
   };
+  
+  window.cropStagedImage = function(idx) {
+    const file = stagedFiles[idx];
+    if (!file || !file.type.startsWith('image/')) return;
+    if (typeof openCropModal !== 'function') return;
+    
+    openCropModal(file, (croppedBlob) => {
+        // Replace the staged file with the new cropped blob
+        const newFile = new File([croppedBlob], file.name, { type: 'image/png' });
+        stagedFiles[idx] = newFile;
+        renderStagingArea();
+    }, { aspectRatio: NaN }); // Freeform crop
+  };
 
   if (fileUpload) {
     fileUpload.addEventListener('change', function(e) {
@@ -54,6 +77,19 @@
       }
     });
   }
+
+  // Paste handling
+  window.addEventListener('paste', e => {
+      if (e.clipboardData && e.clipboardData.files && e.clipboardData.files.length > 0) {
+          // If the user pastes an image, grab it
+          const newFiles = Array.from(e.clipboardData.files).filter(f => f.type.startsWith('image/'));
+          if (newFiles.length > 0) {
+              stagedFiles.push(...newFiles);
+              renderStagingArea();
+              e.preventDefault();
+          }
+      }
+  });
 
   // Drag and Drop
   input.addEventListener('dragover', e => { e.preventDefault(); input.style.background = 'var(--surface-3)'; });
@@ -111,8 +147,12 @@
   }
 
   window.triggerGeneration = async function(chatId, asstDiv, isRegen = false) {
-    const providerId = document.getElementById('stream-provider')?.value || sendBtn.dataset.providerId;
+    const providerId = sendBtn.dataset.providerId;
     if(!providerId){ alert('No provider configured. Add one in Providers.'); return; }
+    
+    // Hide error toast on new generation
+    const errorToast = document.getElementById('error-toast');
+    if (errorToast) errorToast.classList.add('hidden');
     
     if(currentController){
       currentController.abort();
@@ -128,8 +168,9 @@
     // Handle file upload if any (only on first send, not on regen)
     let attachmentIds = [];
     if (!isRegen && stagedFiles.length > 0) {
+      const filesToUpload = [...stagedFiles];
       const formData = new FormData();
-      stagedFiles.forEach(f => formData.append('files', f));
+      filesToUpload.forEach(f => formData.append('files', f));
       try {
         const uploadRes = await fetch(`/api/chats/${chatId}/attachments`, {
           method: 'POST',
@@ -142,7 +183,7 @@
       } catch (e) {
         console.error("Upload failed", e);
       }
-      stagedFiles = [];
+      stagedFiles = stagedFiles.filter(f => !filesToUpload.includes(f));
       renderStagingArea();
     }
 
@@ -190,6 +231,13 @@
           try{ json = JSON.parse(data); }catch(e){ continue; }
           if(json.type === 'start'){
             messageId = json.message_id;
+            // Set user message div ID so the OOB swap can match it
+            if(json.user_message_id){
+              const userDiv = asstDiv.previousElementSibling;
+              if(userDiv && userDiv.classList.contains('message')){
+                userDiv.id = 'message-' + json.user_message_id;
+              }
+            }
           } else if(json.token !== undefined){
             fullText += json.token;
             const contentDiv = asstDiv.querySelector('.message-content');
@@ -240,10 +288,21 @@
 
     } catch(err){
       if(err.name !== 'AbortError'){
-        const contentDiv = asstDiv.querySelector('.message-content');
-        if(contentDiv){
-          contentDiv.innerHTML = '<span style="color:var(--danger)">Error: ' + escapeHtml(err.message) + '</span>';
+        // Show error toast
+        const errorToast = document.getElementById('error-toast');
+        const errorToastText = document.getElementById('error-toast-text');
+        if (errorToast && errorToastText) {
+          errorToastText.innerText = err.message;
+          errorToast.classList.remove('hidden');
         }
+        
+        // Remove empty assistant message from UI if failed immediately
+        if (!fullText.trim() && asstDiv.parentNode) {
+          asstDiv.remove();
+        }
+
+        // Force a re-fetch of the message list so the last-role syncs with the DB (user message was saved)
+        htmx.ajax('GET', '/partials/message-list/' + chatId, {target:'#message-list', swap:'innerHTML'});
       }
     } finally {
       currentController = null;
@@ -254,7 +313,7 @@
 
   sendBtn.addEventListener('click', async function(){
     const chatId = sendBtn.dataset.chatId;
-    const providerId = document.getElementById('stream-provider')?.value || sendBtn.dataset.providerId;
+    const providerId = sendBtn.dataset.providerId;
     
     if (sendBtn.dataset.mode === 'regen') {
       if(!providerId){ alert('No provider configured. Add one in Providers.'); return; }
@@ -271,7 +330,7 @@
         <div class="message-avatar">${avatarHtml}</div>
         <div class="message-body">
           <div class="message-header">${escapeHtml(charName)}</div>
-          <div class="message-content markdown-content"></div>
+          <div class="message-content markdown-content processed"></div>
         </div>
       `;
       messageList.appendChild(asstDiv);
@@ -295,7 +354,7 @@
     if (stagedFiles.length > 0) {
       attachPreview = '<div class="flex gap-2 flex-wrap mb-2">' + stagedFiles.map(f => {
         if (f.type.startsWith('image/')) return `<img src="${URL.createObjectURL(f)}" class="h-24 rounded object-cover border border-border cursor-pointer" onclick="openLightbox(this.src)">`;
-        return `<div class="h-16 bg-surface-3 px-2 rounded flex items-center text-xs">🎵 ${f.name}</div>`;
+        return `<div class="h-16 bg-surface-3 px-2 rounded flex items-center text-xs">${SVG_MUSIC} ${f.name}</div>`;
       }).join('') + '</div>';
     }
 
@@ -325,7 +384,7 @@
       <div class="message-avatar">${avatarHtml}</div>
       <div class="message-body">
         <div class="message-header">${escapeHtml(charName)}</div>
-        <div class="message-content markdown-content"></div>
+        <div class="message-content markdown-content processed"></div>
       </div>
     `;
     messageList.appendChild(asstDiv);
@@ -358,6 +417,9 @@
       codeBlocks.push(match);
       return `%%%PYVERN_CODE_${codeBlocks.length - 1}%%%`;
     });
+
+    // Remove thought signature completely from UI
+    processed = processed.replace(/<thought_signature>([\s\S]*?)(?:<\/thought_signature>|$)/g, '');
     
     const thoughts = [];
     processed = processed.replace(/<think>([\s\S]*?)(?:<\/think>|$)/g, function(match, p1) {
@@ -437,6 +499,9 @@
 
       document.getElementById('edit-msg-content').value = messageText;
       
+      window.currentEditAttachments = data.attachments || [];
+      renderEditModalAttachments();
+      
       // We assume openModal exists globally from base.html/chat.html
       if(window.openModal) window.openModal('modal-edit-message');
       else document.getElementById('modal-edit-message').style.display = 'grid';
@@ -444,6 +509,35 @@
     } catch (err) {
       alert("Error editing message: " + err.message);
     }
+  };
+
+  window.renderEditModalAttachments = function() {
+      const container = document.getElementById('edit-msg-attachments');
+      if (!container) return;
+      
+      container.innerHTML = '';
+      if (window.currentEditAttachments.length === 0) {
+          container.innerHTML = '<div class="text-xs text-muted w-full text-center italic py-2">No attachments</div>';
+          return;
+      }
+      
+      window.currentEditAttachments.forEach((att, idx) => {
+          const el = document.createElement('div');
+          el.className = 'relative group flex-shrink-0';
+          
+          if (att.mime_type.startsWith('image/')) {
+              el.innerHTML = `
+                  <img src="/${att.file_path}" class="h-16 w-16 rounded object-cover border border-border" alt="attachment">
+                  <button class="absolute -top-2 -right-2 bg-danger text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] hidden group-hover:flex z-10" onclick="deleteModalAttachment(${idx})" title="Delete">${SVG_CLOSE}</button>
+              `;
+          } else {
+              el.innerHTML = `
+                  <div class="h-16 w-16 bg-surface-3 rounded border border-border flex items-center justify-center">${SVG_MUSIC}</div>
+                  <button class="absolute -top-2 -right-2 bg-danger text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] hidden group-hover:flex z-10" onclick="deleteModalAttachment(${idx})" title="Delete">${SVG_CLOSE}</button>
+              `;
+          }
+          container.appendChild(el);
+      });
   };
 
   window.saveMessageEdit = async function(){
@@ -464,7 +558,10 @@
       await fetch(`/api/chats/${chatId}/messages/${messageId}`, {
         method: 'PATCH',
         headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({content: text})
+        body: JSON.stringify({
+            content: text,
+            attachment_ids: window.currentEditAttachments.map(a => a.id)
+        })
       });
       
       if(window.closeModal) window.closeModal('modal-edit-message');
@@ -479,18 +576,16 @@
   document.addEventListener('DOMContentLoaded', function(){
     document.querySelectorAll('.markdown-content').forEach(function(el){
       const raw = el.textContent || '';
-        el.innerHTML = renderMessage(raw);
+      el.innerHTML = renderMessage(raw);
+      el.classList.add('processed');
     });
+    document.getElementById('message-list')?.classList.add('ready');
     
     // Restore provider from localStorage
     const savedProvider = localStorage.getItem('pyvern-provider-id');
     if (savedProvider) {
-      const select = document.getElementById('stream-provider');
-      if (select && select.querySelector(`option[value="${savedProvider}"]`)) {
-        select.value = savedProvider;
-        const sendBtn = document.getElementById('send-btn');
-        if(sendBtn) sendBtn.dataset.providerId = savedProvider;
-      }
+      const sendBtn = document.getElementById('send-btn');
+      if(sendBtn) sendBtn.dataset.providerId = savedProvider;
     }
   });
 
@@ -525,8 +620,132 @@
     if(evt.detail.target.id === 'message-list'){
       evt.detail.target.querySelectorAll('.markdown-content').forEach(function(el){
         const raw = el.textContent || '';
-      el.innerHTML = renderMessage(raw);
+        el.innerHTML = renderMessage(raw);
+        el.classList.add('processed');
       });
+      // Ensure the send button correctly updates its mode after DOM changes (like deletions or errors)
+      if (typeof updateSendButtonState === 'function') {
+        updateSendButtonState();
+      }
     }
   });
 })();
+  // --- DELETE MODE & BULK DELETE ---
+  let lastDeleteSelection = [];
+  
+  window.enterDeleteMode = function(startMessageId) {
+    document.getElementById('standard-input-container').classList.add('hidden');
+    document.getElementById('delete-toolbar').classList.remove('hidden');
+    document.getElementById('delete-toolbar').classList.add('flex');
+    
+    // Hide normal actions, show checkboxes
+    document.querySelectorAll('.normal-mode-actions').forEach(el => el.classList.add('hidden'));
+    document.querySelectorAll('.delete-mode-checkbox').forEach(el => el.classList.remove('hidden'));
+    
+    if (startMessageId) {
+      // Pre-select the clicked message and all following messages
+      let foundStart = false;
+      document.querySelectorAll('.message').forEach(msgDiv => {
+        if (msgDiv.dataset.messageId === startMessageId) foundStart = true;
+        const cb = msgDiv.querySelector('.msg-select-checkbox');
+        if (cb) cb.checked = foundStart;
+      });
+    } else {
+      // Restore previous selection if re-entering after DOM swap
+      document.querySelectorAll('.msg-select-checkbox').forEach(cb => {
+         if (lastDeleteSelection.includes(cb.value)) cb.checked = true;
+      });
+    }
+    
+    updateDeleteSelection();
+  };
+
+  window.exitDeleteMode = function() {
+    document.getElementById('delete-toolbar').classList.remove('flex');
+    document.getElementById('delete-toolbar').classList.add('hidden');
+    document.getElementById('standard-input-container').classList.remove('hidden');
+    
+    document.querySelectorAll('.normal-mode-actions').forEach(el => el.classList.remove('hidden'));
+    document.querySelectorAll('.delete-mode-checkbox').forEach(el => el.classList.add('hidden'));
+    
+    document.querySelectorAll('.msg-select-checkbox').forEach(cb => cb.checked = false);
+    lastDeleteSelection = [];
+  };
+
+  window.updateDeleteSelection = function() {
+    const selectedCbs = document.querySelectorAll('.msg-select-checkbox:checked');
+    lastDeleteSelection = Array.from(selectedCbs).map(cb => cb.value);
+    const countEl = document.getElementById('delete-selected-count');
+    if (countEl) countEl.textContent = lastDeleteSelection.length;
+  };
+
+  window.bulkDeleteSelected = async function(chatId) {
+    const selected = Array.from(document.querySelectorAll('.msg-select-checkbox:checked')).map(cb => cb.value);
+    if (selected.length === 0) {
+        exitDeleteMode();
+        return;
+    }
+    
+    window.customConfirm(`Delete ${selected.length} message(s)?`, async () => {
+        try {
+            const res = await fetch(`/api/chats/${chatId}/messages/bulk_delete`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ message_ids: selected })
+            });
+            if (res.ok) {
+                htmx.ajax('GET', `/partials/message-list/${chatId}`, {target: '#message-list', swap: 'innerHTML'});
+            } else {
+                alert('Failed to delete messages');
+            }
+        } catch (e) {
+            console.error(e);
+        }
+        
+        exitDeleteMode();
+    });
+  };
+
+  // --- EXISTING MESSAGE ATTACHMENTS ---
+  window.uploadMessageAttachment = async function(inputEl) {
+      if (!inputEl.files.length) return;
+      const chatId = document.getElementById('edit-msg-chat-id').value;
+      if (!chatId) return;
+      
+      const formData = new FormData();
+      Array.from(inputEl.files).forEach(f => formData.append('files', f));
+      
+      try {
+          const res = await fetch(`/api/chats/${chatId}/attachments`, {
+              method: 'POST',
+              body: formData
+          });
+          if (res.ok) {
+              const data = await res.json();
+              window.currentEditAttachments.push(...data.attachments);
+              renderEditModalAttachments();
+          } else {
+              alert("Failed to upload attachment");
+          }
+      } catch(err) {
+          console.error(err);
+      } finally {
+          inputEl.value = ''; // Reset file input
+      }
+  };
+
+  window.deleteModalAttachment = function(idx) {
+      window.currentEditAttachments.splice(idx, 1);
+      renderEditModalAttachments();
+  };
+
+  // Re-apply delete mode if DOM is swapped while active
+  document.body.addEventListener('htmx:afterSettle', function(e) {
+      if (e.target.id === 'message-list') {
+          const toolbar = document.getElementById('delete-toolbar');
+          if (toolbar && !toolbar.classList.contains('hidden')) {
+              enterDeleteMode();
+          }
+      }
+  });
+

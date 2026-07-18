@@ -1,0 +1,198 @@
+<div id="preset-variables-container-{{ preset_id }}">
+  {% from "macros.html" import icon_edit %}
+  {% if var_groups %}
+    <div class="flex flex-col gap-2" id="preset-variables-sortable-{{ preset_id }}">
+    {% for vname, vblocks in var_groups.items() %}
+      <div class="arranger-item bg-role-system var-group-container" x-data="{ expanded: (window._expandedVarGroups || new Set()).has('{{ vname }}') }">
+        <div class="hidden var-group-ids" data-ids="{{ vblocks | map(attribute='id') | join(',') }}"></div>
+        <div class="arranger-header">
+          <div class="arranger-title-group" @click="expanded = !expanded; expanded ? (window._expandedVarGroups = window._expandedVarGroups || new Set()).add('{{ vname }}') : (window._expandedVarGroups || new Set()).delete('{{ vname }}')" style="cursor: pointer;">
+            <span style="font-size: 0.8rem; color: var(--text-muted); width: 16px; text-align: center;" x-text="expanded ? '▼' : '▶'"></span>
+            <span class="arranger-badge" style="background: var(--surface-3); border: 1px solid var(--border); color: var(--text-muted);">VAR</span>
+            <span class="arranger-input" style="cursor: pointer; font-weight: bold;">{{ vname }}</span>
+          </div>
+          <div class="arranger-actions">
+            <button type="button" class="action-icon" title="Add Option" onclick="event.stopPropagation(); openVarEditModal(null, '{{ preset_id }}', '{{ vname }}', '', '')">+</button>
+          </div>
+        </div>
+        <div x-show="expanded" x-transition.opacity.duration.200ms style="margin-top: 0.5rem; display: none;">
+          <div class="flex flex-col gap-2 items-stretch w-full min-w-0 sortable-var-options">
+            {% for vb in vblocks %}
+              {% set vlabel = vb.name.split(':', 1)[1] if ':' in vb.name else 'Option' %}
+              <div class="flex items-center gap-2 p-2 rounded w-full min-w-0 var-option-item" data-id="{{ vb.id }}" style="background: var(--surface-2); border: 1px solid var(--border);">
+                <div class="arranger-toggle {% if vb.enabled %}active{% endif %}" style="flex-shrink: 0;" title="Toggle Option"
+                     onclick="handleVarUpdate('{{ preset_id }}', '{{ vb.id }}', {enabled:{{ 0 if vb.enabled else 1 }}})"></div>
+                <span class="text-sm font-semibold truncate cursor-pointer" style="width: 130px; flex-shrink: 0;" onclick="handleVarUpdate('{{ preset_id }}', '{{ vb.id }}', {enabled:{{ 0 if vb.enabled else 1 }}})" title="{{ vlabel }}">{{ vlabel }}</span>
+                <span class="text-xs text-muted truncate flex-1" style="min-width: 0;" title="{{ vb.content }}">{{ vb.content }}</span>
+                <button type="button" class="action-icon" style="flex-shrink: 0;" title="Edit Option" onclick="openVarEditModal('{{ vb.id }}', '{{ preset_id }}', '{{ vname }}', '{{ vlabel }}', '{{ vb.content | replace('\n', '\\n') | replace('\'', '\\\'') | replace('"', '\\"') }}')">{{ icon_edit() }}</button>
+                <button type="button" class="action-icon danger" style="flex-shrink: 0;" title="Delete Option" onclick="window.customConfirm('Delete variable option?', function(){ handleVarDelete('{{ preset_id }}', '{{ vb.id }}'); })">×</button>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+    </div>
+  {% else %}
+    <div class="text-muted text-sm mb-2">No variables configured.</div>
+  {% endif %}
+  <button type="button" class="btn btn-secondary w-full text-xs mt-2" onclick="openVarEditModal(null, '{{ preset_id }}', '', '', '')">+ Add Variable</button>
+
+  <!-- Variable Edit Modal -->
+  <div id="var-edit-modal" class="modal-overlay" style="display:none; z-index: 1000;" onclick="if(event.target===this)closeVarModal()">
+    <div class="modal-content" style="max-width:500px;width:90vw;">
+      <div class="modal-header">
+        <div class="modal-title" id="var-modal-title">Edit Variable Option</div>
+        <button type="button" class="btn btn-secondary" onclick="closeVarModal()">×</button>
+      </div>
+      <div class="flex flex-col gap-3">
+        <div>
+          <label class="text-xs font-bold text-muted mb-1 block">Variable Group Name</label>
+          <input type="text" id="var-modal-group" class="form-control" placeholder="e.g. Tense" onkeyup="updateVarHint(this.value)">
+        </div>
+        <div>
+          <label class="text-xs font-bold text-muted mb-1 block">Option Label</label>
+          <input type="text" id="var-modal-label" class="form-control" placeholder="e.g. First Person">
+        </div>
+        <div>
+          <label class="text-xs font-bold text-muted mb-1 block">Value to Inject</label>
+          <textarea id="var-modal-content" rows="6" class="form-control" style="resize:vertical;" placeholder="Enter the text to inject..."></textarea>
+          <div id="var-modal-hint" class="text-xs text-muted mt-2">
+            Use <code class="bg-[var(--surface-3)] px-1 rounded">{% raw %}{{ getvar::{% endraw %}name{% raw %} }}{% endraw %}</code> in your prompt blocks to insert this value.
+          </div>
+        </div>
+        <div class="flex justify-end gap-2 mt-2">
+          <button type="button" class="btn btn-secondary" onclick="closeVarModal()">Cancel</button>
+          <button type="button" class="btn btn-primary" id="var-modal-save" onclick="saveVarModal()">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    if (!window._varScriptsLoaded) {
+      window._varScriptsLoaded = true;
+      window._expandedVarGroups = new Set();
+      var _currentVarBlockId = null;
+      var _currentPresetId = null;
+
+      window.updateVarPositions = function(presetId) {
+        let pos = -1000;
+        const updates = [];
+        // Handle options order first inside each group
+        document.querySelectorAll(`#preset-variables-sortable-${presetId} .sortable-var-options`).forEach(groupBody => {
+          groupBody.querySelectorAll('.var-option-item').forEach(opt => {
+             updates.push({id: opt.dataset.id, position: pos++});
+          });
+        });
+        
+        fetch(`/api/presets/${presetId}/blocks`, {
+          method: 'PUT',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({blocks: updates})
+        });
+      };
+
+      // Initialize Sortable on groups and options
+      window.initVarSortables = function(presetId) {
+        const groupContainer = document.getElementById('preset-variables-sortable-' + presetId);
+        if (groupContainer) {
+          if (groupContainer._sortable) groupContainer._sortable.destroy();
+          groupContainer._sortable = new Sortable(groupContainer, {
+            animation: 150,
+            ghostClass: 'sortable-ghost',
+            handle: '.arranger-header',
+            onEnd: () => window.updateVarPositions(presetId)
+          });
+
+          // Initialize sortable for options inside each group
+          groupContainer.querySelectorAll('.sortable-var-options').forEach(optContainer => {
+            if (optContainer._sortable) optContainer._sortable.destroy();
+            optContainer._sortable = new Sortable(optContainer, {
+              animation: 150,
+              ghostClass: 'sortable-ghost',
+              onEnd: () => window.updateVarPositions(presetId)
+            });
+          });
+        }
+      };
+
+      window.reloadPresetVariables = function(presetId) {
+        htmx.ajax('GET', '/partials/preset-variables/' + presetId, {target: '#preset-variables-container-' + presetId, swap: 'outerHTML'})
+            .then(() => setTimeout(() => initVarSortables(presetId), 50));
+      };
+
+      window.handleVarUpdate = function(presetId, blockId, payload) {
+        fetch(`/api/presets/${presetId}/blocks/${blockId}`, {
+          method: 'PATCH',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify(payload)
+        }).then(() => reloadPresetVariables(presetId));
+      };
+
+      window.handleVarDelete = function(presetId, blockId) {
+        fetch(`/api/presets/${presetId}/blocks/${blockId}`, {
+          method: 'DELETE'
+        }).then(() => reloadPresetVariables(presetId));
+      };
+
+      window.updateVarHint = function(groupName) {
+        const name = groupName.trim() || 'name';
+        const rawHtml = `Use <code class="bg-[var(--surface-3)] px-1 rounded">{% raw %}{{ getvar::{% endraw %}${name}{% raw %} }}{% endraw %}</code> in your prompt blocks to insert this value.`;
+        document.getElementById('var-modal-hint').innerHTML = rawHtml;
+      };
+
+      window.openVarEditModal = function(blockId, presetId, groupName, optionLabel, content) {
+        _currentVarBlockId = blockId;
+        _currentPresetId = presetId;
+        document.getElementById('var-modal-title').innerText = blockId ? 'Edit Variable Option' : 'Add New Variable Option';
+        document.getElementById('var-modal-group').value = groupName || '';
+        document.getElementById('var-modal-label').value = optionLabel || '';
+        document.getElementById('var-modal-content').value = content || '';
+        updateVarHint(groupName || '');
+        document.getElementById('var-edit-modal').style.display = 'grid';
+      };
+
+      window.closeVarModal = function() {
+        document.getElementById('var-edit-modal').style.display = 'none';
+        _currentVarBlockId = null;
+        _currentPresetId = null;
+      };
+
+      window.saveVarModal = function(){
+        if(!_currentPresetId) return;
+        const group = document.getElementById('var-modal-group').value.trim() || 'Variable';
+        const label = document.getElementById('var-modal-label').value.trim() || 'Option';
+        const content = document.getElementById('var-modal-content').value;
+        const combinedName = group + ':' + label;
+        const presetId = _currentPresetId;
+        const varBlockId = _currentVarBlockId;
+
+        if (varBlockId) {
+          fetch('/api/presets/' + presetId + '/blocks/' + varBlockId, {
+            method: 'PATCH',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({name: combinedName, content: content})
+          }).then(function(){
+            closeVarModal();
+            reloadPresetVariables(presetId);
+          });
+        } else {
+          fetch('/api/presets/' + presetId + '/blocks', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({name: combinedName, block_type: 'variable', content: content, role: 'system'})
+          }).then(function(){
+            closeVarModal();
+            reloadPresetVariables(presetId);
+          });
+        }
+      };
+    }
+    
+    // Call initialization on load
+    setTimeout(() => {
+      if (window.initVarSortables) window.initVarSortables('{{ preset_id }}');
+    }, 50);
+  </script>
+</div>

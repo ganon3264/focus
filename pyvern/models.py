@@ -80,6 +80,7 @@ class BlockType(str, Enum):
     char_personality = "char_personality"
     char_blocks      = "char_blocks"
     user_persona     = "user_persona"
+    variable         = "variable"
 
 SENTINEL_TYPES = {
     BlockType.chat_history,
@@ -103,6 +104,8 @@ class PresetBlockCreate(BaseModel):
     role: Role = Role.system
     enabled: bool = True
     block_type: BlockType = BlockType.text
+    injection_depth: Optional[int] = None
+    injection_order: int = 0
 
 class PresetBlockBulkUpdate(BaseModel):
     blocks: list[dict[str, Any]]
@@ -118,6 +121,7 @@ class ChatCreate(BaseModel):
 
 class MessageEdit(BaseModel):
     content: str
+    attachment_ids: list[str] = Field(default_factory=list)
 
 class SwipeDirection(str, Enum):
     prev = "prev"
@@ -131,11 +135,17 @@ class SwipeRequest(BaseModel):
 
 class StreamRequest(BaseModel):
     chat_id: str
-    provider_id: str
-    user_message: str
+    provider_id: str = ""
+    user_message: str = ""
     # Override generation params per-request (falls back to provider defaults)
     samplers: dict[str, Any] = Field(default_factory=dict)
     # For swipe/regen: regenerate the last assistant turn instead of appending
     regenerate: bool = False
     # Attachment IDs to bind to the new user message
     attachment_ids: list[str] = Field(default_factory=list)
+
+class ItemizerRequest(BaseModel):
+    chat_id: str
+    user_message: str = ""
+    attachment_ids: list[str] = Field(default_factory=list)
+    regenerate: bool = False

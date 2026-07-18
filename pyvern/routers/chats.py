@@ -3,7 +3,8 @@ import uuid
 from datetime import datetime, timezone
 
 import aiosqlite
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from pydantic import BaseModel
 from pathlib import Path
 
 from pyvern.database import get_db
@@ -130,7 +131,7 @@ async def get_message(
     db: aiosqlite.Connection = Depends(get_db)
 ):
     async with db.execute(
-        """SELECT mv.content
+        """SELECT mv.content, mv.id as variant_id
            FROM messages m
            JOIN message_variants mv ON mv.message_id = m.id AND mv.variant_index = m.active_index
            WHERE m.id = ? AND m.chat_id = ?""",
@@ -139,7 +140,14 @@ async def get_message(
         row = await cur.fetchone()
     if not row:
         raise HTTPException(404, "Message not found")
-    return {"content": row["content"]}
+        
+    async with db.execute(
+        "SELECT * FROM message_attachments WHERE variant_id = ? ORDER BY created_at",
+        (row["variant_id"],)
+    ) as cur:
+        attachments = [dict(r) for r in await cur.fetchall()]
+        
+    return {"content": row["content"], "attachments": attachments}
 
 @router.delete("/{chat_id}/messages/{message_id}", status_code=204)
 async def delete_message(
@@ -160,6 +168,25 @@ async def delete_message(
     )
     await db.commit()
 
+class BulkDeleteRequest(BaseModel):
+    message_ids: list[str]
+
+@router.post("/{chat_id}/messages/bulk_delete")
+async def bulk_delete_messages(
+    chat_id: str,
+    body: BulkDeleteRequest,
+    db: aiosqlite.Connection = Depends(get_db),
+):
+    if not body.message_ids:
+        return {"deleted": 0}
+        
+    placeholders = ",".join("?" * len(body.message_ids))
+    await db.execute(
+        f"DELETE FROM messages WHERE chat_id = ? AND id IN ({placeholders})",
+        [chat_id] + body.message_ids
+    )
+    await db.commit()
+    return {"deleted": len(body.message_ids)}
 
 @router.patch("/{chat_id}/messages/{message_id}")
 async def edit_message(
@@ -186,11 +213,28 @@ async def edit_message(
 
     new_index = (max_row[0] or 0) + 1
     now = _now()
+    new_variant_id = str(uuid.uuid4())
 
     await db.execute(
         "INSERT INTO message_variants (id, message_id, variant_index, content, created_at) VALUES (?, ?, ?, ?, ?)",
-        (str(uuid.uuid4()), message_id, new_index, body.content, now),
+        (new_variant_id, message_id, new_index, body.content, now),
     )
+    
+    for att_id in body.attachment_ids:
+        async with db.execute("SELECT * FROM message_attachments WHERE id = ?", (att_id,)) as cur:
+            att = await cur.fetchone()
+        if att:
+            if att["variant_id"] is None:
+                await db.execute(
+                    "UPDATE message_attachments SET message_id = ?, variant_id = ? WHERE id = ?",
+                    (message_id, new_variant_id, att["id"])
+                )
+            else:
+                await db.execute(
+                    "INSERT INTO message_attachments (id, chat_id, message_id, variant_id, file_path, mime_type, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (str(uuid.uuid4()), chat_id, message_id, new_variant_id, att["file_path"], att["mime_type"], _now()),
+                )
+
     await db.execute(
         "UPDATE messages SET active_index = ? WHERE id = ?", (new_index, message_id)
     )
@@ -198,7 +242,7 @@ async def edit_message(
         "UPDATE chats SET updated_at = ? WHERE id = ?", (now, chat_id)
     )
     await db.commit()
-    return {"ok": True, "variant_index": new_index}
+    return {"ok": True, "variant_index": new_index, "variant_id": new_variant_id}
 
 
 @router.post("/{chat_id}/messages/{message_id}/swipe")
@@ -284,8 +328,8 @@ async def upload_attachments(
         Path(file_path).write_bytes(content)
         
         await db.execute(
-            "INSERT INTO message_attachments (id, chat_id, message_id, file_path, mime_type, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-            (attachment_id, chat_id, None, file_path, mime, _now()),
+            "INSERT INTO message_attachments (id, chat_id, message_id, variant_id, file_path, mime_type, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (attachment_id, chat_id, None, None, file_path, mime, _now()),
         )
         results.append({
             "id": attachment_id,
@@ -308,6 +352,14 @@ async def delete_attachment(
     if not row:
         raise HTTPException(404, "Attachment not found")
         
-    Path(row["file_path"]).unlink(missing_ok=True)
+    file_path = row["file_path"]
     await db.execute("DELETE FROM message_attachments WHERE id = ?", (attachment_id,))
+    
+    # Check if any other attachments share this file path (e.g. from variant duplication)
+    async with db.execute("SELECT COUNT(*) FROM message_attachments WHERE file_path = ?", (file_path,)) as cur:
+        count = (await cur.fetchone())[0]
+        
+    if count == 0:
+        Path(file_path).unlink(missing_ok=True)
+        
     await db.commit()

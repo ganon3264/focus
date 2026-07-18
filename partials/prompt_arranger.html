@@ -1,7 +1,7 @@
 <div class="arranger-list" id="arranger-list-{{ preset_id }}"
   hx-put="/api/presets/{{ preset_id }}/blocks"
   hx-trigger="sortEnd"
-  hx-target="#prompt-arranger"
+  hx-target="#prompt-arranger-inner"
   hx-swap="innerHTML"
   hx-include="[name='block_order']"
 >
@@ -11,36 +11,36 @@
 </div>
 
 <div x-data="{ open: false }" style="position: relative; margin-top: 0.5rem;">
-  <button class="btn btn-secondary w-full" @click="open = !open">
+  <button type="button" class="btn btn-secondary w-full" @click="open = !open">
     + Add Block
   </button>
   
   <div x-show="open" @click.away="open = false" x-transition.opacity.duration.200ms
        style="position: absolute; bottom: 100%; left: 0; right: 0; margin-bottom: 0.5rem; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 0.75rem; box-shadow: var(--shadow-lg); z-index: 10; display: none;">
     <div class="text-xs font-bold text-muted mb-2 uppercase tracking-wider">Select Block Type</div>
-    <div class="arranger-add-buttons">
-      <button class="btn-tag w-full text-left" @click="open = false; addBlock('{{ preset_id }}', 'text', $el)">Text (Custom Prompt)</button>
-      <button class="btn-tag w-full text-left" @click="open = false; addBlock('{{ preset_id }}', 'char_description', $el)">Character Description</button>
-      <button class="btn-tag w-full text-left" @click="open = false; addBlock('{{ preset_id }}', 'char_personality', $el)">Character Personality</button>
-      <button class="btn-tag w-full text-left" @click="open = false; addBlock('{{ preset_id }}', 'char_blocks', $el)">Character Blocks</button>
-      <button class="btn-tag w-full text-left" @click="open = false; addBlock('{{ preset_id }}', 'chat_history', $el)">Chat History</button>
-      <button class="btn-tag w-full text-left" @click="open = false; addBlock('{{ preset_id }}', 'user_persona', $el)">User Persona</button>
+    <div class="arranger-add-buttons grid grid-cols-2 gap-2">
+      <button type="button" class="btn-tag w-full text-left" @click="open = false; addBlock('{{ preset_id }}', 'text', $el)">Text (Custom Prompt)</button>
+      <button type="button" class="btn-tag w-full text-left" @click="open = false; addBlock('{{ preset_id }}', 'char_description', $el)">Character Description</button>
+      <button type="button" class="btn-tag w-full text-left" @click="open = false; addBlock('{{ preset_id }}', 'char_personality', $el)">Character Personality</button>
+      <button type="button" class="btn-tag w-full text-left" @click="open = false; addBlock('{{ preset_id }}', 'char_blocks', $el)">Character Blocks</button>
+      <button type="button" class="btn-tag w-full text-left" @click="open = false; addBlock('{{ preset_id }}', 'chat_history', $el)">Chat History</button>
+      <button type="button" class="btn-tag w-full text-left" @click="open = false; addBlock('{{ preset_id }}', 'user_persona', $el)">User Persona</button>
     </div>
   </div>
 </div>
 
 <!-- Block Edit Modal -->
-<div id="block-edit-modal" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeBlockModal()">
+<div id="block-edit-modal" class="modal-overlay" style="display:none; z-index: 1000;" onclick="if(event.target===this)closeBlockModal()">
   <div class="modal-content" style="max-width:640px;width:90vw;">
     <div class="modal-header">
       <div class="modal-title">Edit Block Content</div>
-      <button class="btn btn-secondary" onclick="closeBlockModal()">×</button>
+      <button type="button" class="btn btn-secondary" onclick="closeBlockModal()">×</button>
     </div>
     <div>
       <textarea id="block-modal-textarea" rows="12" class="form-control h-full" style="resize:vertical; line-height:1.6;" placeholder="Enter block content…"></textarea>
       <div class="flex justify-end gap-2 mt-3">
-        <button class="btn btn-secondary" onclick="closeBlockModal()">Cancel</button>
-        <button class="btn btn-primary" id="block-modal-save">Save</button>
+        <button type="button" class="btn btn-secondary" onclick="closeBlockModal()">Cancel</button>
+        <button type="button" class="btn btn-primary" id="block-modal-save" onclick="saveBlockModal()">Save</button>
       </div>
     </div>
   </div>
@@ -64,77 +64,121 @@
       }).then(function(){
         const container = el.parentElement;
         if(container && container.id){
-          htmx.ajax('GET', '/partials/prompt-arranger/{{ preset_id }}', {target: '#' + container.id, swap:'innerHTML'});
+          reloadPromptArranger('{{ preset_id }}', container.id);
         }
       });
     }
   });
 })();
 
-function addBlock(pid, type, btn){
-  if(!pid) return;
-  type = type || 'text';
-  fetch('/api/presets/' + pid + '/blocks', {
-    method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({name: type, block_type: type, content: '', role: 'system'})
-  }).then(function(){
-    const list = btn.closest('.arranger-list') || document.getElementById('arranger-list-' + pid);
-    const container = list ? list.parentElement : null;
-    if(container && container.id){
-      htmx.ajax('GET', '/partials/prompt-arranger/' + pid, {target: '#' + container.id, swap:'innerHTML'});
+if (!window._arrangerScriptsLoaded) {
+  window._arrangerScriptsLoaded = true;
+  window._expandedArrangerBlocks = new Set();
+
+  window.getArrangerContainerId = function(presetId) {
+    const list = document.getElementById('arranger-list-' + presetId);
+    return (list && list.parentElement && list.parentElement.id) ? list.parentElement.id : 'arranger-modal-body';
+  }
+
+  window.reloadPromptArranger = function(presetId, targetId) {
+    let url = '/partials/prompt-arranger/' + presetId;
+    const params = new URLSearchParams();
+    if (window.CURRENT_CHAT_STATE) {
+      if (window.CURRENT_CHAT_STATE.character_id) params.append('character_id', window.CURRENT_CHAT_STATE.character_id);
+      if (window.CURRENT_CHAT_STATE.persona_id) params.append('persona_id', window.CURRENT_CHAT_STATE.persona_id);
     }
-  });
-}
+    const query = params.toString();
+    if (query) url += '?' + query;
+    
+    htmx.ajax('GET', url, {target: '#' + targetId, swap:'innerHTML'});
+  }
 
-var _currentBlockId = null;
-var _currentPresetId = null;
+  window.addBlock = function(pid, type, btn, nameOverride=null, contentOverride=''){
+    if(!pid) return;
+    type = type || 'text';
+    let name = nameOverride || type;
+    fetch('/api/presets/' + pid + '/blocks', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({name: name, block_type: type, content: contentOverride, role: 'system'})
+    }).then(function(){
+      const list = btn ? btn.closest('.arranger-list') : null;
+      const container = list ? list.parentElement : document.getElementById('arranger-modal-body');
+      if(container && container.id){
+        reloadPromptArranger(pid, container.id);
+      } else {
+        reloadPromptArranger(pid, 'arranger-modal-body');
+      }
+    });
+  }
 
-function openBlockModal(blockId, presetId){
-  _currentBlockId = blockId;
-  _currentPresetId = presetId;
-  const item = document.querySelector('.arranger-item[data-block-id="' + blockId + '"]');
-  const content = item ? (item.dataset.blockContent || '') : '';
-  document.getElementById('block-modal-textarea').value = content;
-  document.getElementById('block-edit-modal').style.display = 'grid';
-}
+  var _currentBlockId = null;
+  var _currentPresetId = null;
 
-function closeBlockModal(){
-  document.getElementById('block-edit-modal').style.display = 'none';
-  _currentBlockId = null;
-  _currentPresetId = null;
-}
+  window.openBlockModal = function(blockId, presetId){
+    _currentBlockId = blockId;
+    _currentPresetId = presetId;
+    const item = document.querySelector('.arranger-item[data-block-id="' + blockId + '"]');
+    const content = item ? (item.dataset.blockContent || '') : '';
+    document.getElementById('block-modal-textarea').value = content;
+    document.getElementById('block-edit-modal').style.display = 'grid';
+  }
 
-document.getElementById('block-modal-save').addEventListener('click', function(){
-  if(!_currentBlockId || !_currentPresetId) return;
-  var text = document.getElementById('block-modal-textarea').value;
-  fetch('/api/presets/' + _currentPresetId + '/blocks/' + _currentBlockId, {
-    method: 'PATCH',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({content: text})
-  }).then(function(){
-    closeBlockModal();
-    htmx.ajax('GET', '/partials/prompt-arranger/' + _currentPresetId, {target: '#prompt-arranger', swap:'innerHTML'});
-  });
-});
+  window.closeBlockModal = function(){
+    document.getElementById('block-edit-modal').style.display = 'none';
+    _currentBlockId = null;
+    _currentPresetId = null;
+  }
 
-function uploadBlockMedia(presetId, blockId, input) {
-  if (!input.files || !input.files[0]) return;
-  const formData = new FormData();
-  formData.append('file', input.files[0]);
-  fetch('/api/presets/' + presetId + '/blocks/' + blockId + '/images', {
-    method: 'POST',
-    body: formData
-  }).then(function(){
-    htmx.ajax('GET', '/partials/prompt-arranger/' + presetId, {target: '#prompt-arranger', swap:'innerHTML'});
-  });
-}
+  window.saveBlockModal = function(){
+    if(!_currentBlockId || !_currentPresetId) return;
+    var text = document.getElementById('block-modal-textarea').value;
+    var presetId = _currentPresetId;
+    var blockId = _currentBlockId;
+    fetch('/api/presets/' + presetId + '/blocks/' + blockId, {
+      method: 'PATCH',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({content: text})
+    }).then(function(){
+      closeBlockModal();
+      reloadPromptArranger(presetId, getArrangerContainerId(presetId));
+    });
+  };
 
-function deleteBlockMedia(presetId, blockId, imageId) {
-  fetch('/api/presets/' + presetId + '/blocks/' + blockId + '/images/' + imageId, {
-    method: 'DELETE'
-  }).then(function(){
-    htmx.ajax('GET', '/partials/prompt-arranger/' + presetId, {target: '#prompt-arranger', swap:'innerHTML'});
-  });
+  window.uploadBlockMedia = function(presetId, blockId, input) {
+    if (!input.files || !input.files[0]) return;
+    const formData = new FormData();
+    formData.append('file', input.files[0]);
+    fetch('/api/presets/' + presetId + '/blocks/' + blockId + '/images', {
+      method: 'POST',
+      body: formData
+    }).then(function(){
+      reloadPromptArranger(presetId, getArrangerContainerId(presetId));
+    });
+  }
+
+  window.deleteBlockMedia = function(presetId, blockId, imageId) {
+    fetch('/api/presets/' + presetId + '/blocks/' + blockId + '/images/' + imageId, {
+      method: 'DELETE'
+    }).then(function(){
+      reloadPromptArranger(presetId, getArrangerContainerId(presetId));
+    });
+  }
+
+  window.handleArrangerBlockUpdate = function(presetId, blockId, payload) {
+    fetch(`/api/presets/${presetId}/blocks/${blockId}`, {
+      method: 'PATCH',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    }).then(() => reloadPromptArranger(presetId, getArrangerContainerId(presetId)));
+  };
+
+  window.handleArrangerBlockDelete = function(presetId, blockId) {
+    fetch(`/api/presets/${presetId}/blocks/${blockId}`, {
+      method: 'DELETE'
+    }).then(r => {
+      if(r.ok) reloadPromptArranger(presetId, getArrangerContainerId(presetId));
+    });
+  };
 }
 </script>

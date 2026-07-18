@@ -3,6 +3,9 @@ from typing import AsyncIterator
 from openai import AsyncOpenAI
 
 from .base import BaseProvider
+from ..logger import get_logger
+
+logger = get_logger("providers.openai")
 
 
 class OpenAICompatProvider(BaseProvider):
@@ -39,7 +42,8 @@ class OpenAICompatProvider(BaseProvider):
             "response_format", "seed", "stop", "stream", "stream_options",
             "temperature", "top_p", "tools", "tool_choice", "user",
             "function_call", "functions", "parallel_tool_calls",
-            "extra_headers", "extra_query", "extra_body", "timeout"
+            "extra_headers", "extra_query", "extra_body", "timeout",
+            "reasoning_effort"
         }
         
         extra_body = merged.pop("extra_body", {})
@@ -68,17 +72,29 @@ class OpenAICompatProvider(BaseProvider):
 
         self._in_reasoning = False
 
+        logger.debug(f"OpenAI compat request: model={self.model}, base_url={self.base_url}, is_o_model={is_o_model}, temperature={temperature}")
+
         async with self._get_client() as client:
             stream = await client.chat.completions.create(**request_params)
             async for chunk in stream:
-                delta = getattr(chunk.choices[0].delta, "content", None)
-                reasoning = getattr(chunk.choices[0].delta, "reasoning_content", None)
+                if not chunk.choices:
+                    continue
+                
+                delta_obj = chunk.choices[0].delta
+                delta = getattr(delta_obj, "content", None)
+                reasoning = getattr(delta_obj, "reasoning_content", None)
+                
+                # Fallback to check model_extra for non-standard reasoning fields
+                if not reasoning and hasattr(delta_obj, "model_extra") and delta_obj.model_extra:
+                    reasoning = delta_obj.model_extra.get("reasoning_content") or delta_obj.model_extra.get("reasoning")
+
                 if reasoning:
                     if not self._in_reasoning:
                         self._in_reasoning = True
                         yield "<think>\n"
                     yield reasoning
-                elif delta:
+                
+                if delta:
                     if self._in_reasoning:
                         self._in_reasoning = False
                         yield "\n</think>\n\n"

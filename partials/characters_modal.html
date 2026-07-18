@@ -1,7 +1,8 @@
 <div class="mb-5 flex flex-col gap-3">
+  {% from "macros.html" import icon_edit, icon_trash %}
   <h3 class="sidebar-title mb-1">Tools</h3>
   <div class="flex gap-2 h-10">
-    <form hx-post="/api/characters/import" hx-encoding="multipart/form-data" hx-target="#char-modal-grid" hx-swap="beforeend" class="flex-1 h-full">
+    <form onsubmit="importCharModal(event)" class="flex-1 h-full">
       <label class="btn btn-secondary btn-sm w-full h-full flex items-center justify-center cursor-pointer m-0">
         Import PNG Card
         <input type="file" name="file" accept="image/png" class="hidden" onchange="this.closest('form').requestSubmit()">
@@ -17,6 +18,13 @@
 </div>
 
 <h3 class="sidebar-title mb-3">Select Character</h3>
+
+{% if not characters %}
+  <div class="text-muted text-center text-sm py-6 border border-dashed border-[var(--border)] rounded-lg mb-4">
+    No characters found. Create or import one to get started!
+  </div>
+{% endif %}
+
 <div class="grid" id="char-modal-grid" style="grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 1rem;">
   {% for char in characters %}
   <div class="card" id="char-card-{{ char.id }}" style="position:relative;">
@@ -38,8 +46,8 @@
                   data-char-desc="{{ char.card.get('description','') }}" 
                   data-char-image="{{ char.image_path or '' }}"
                   data-char-media="{{ char.images | tojson | forceescape }}"
-                  onclick="event.stopPropagation(); openEditCharacterModal(this)">✎</button>
-          <button class="btn btn-danger btn-sm" hx-delete="/api/characters/{{ char.id }}" hx-confirm="Delete character?" hx-on::after-request="htmx.ajax('GET','/partials/characters-modal',{target:'#characters-modal-body',swap:'innerHTML'})" onclick="event.stopPropagation()">×</button>
+                  onclick="event.stopPropagation(); openEditCharacterModal(this)">{{ icon_edit() }}</button>
+          <button class="btn btn-danger btn-sm" onclick="event.stopPropagation(); promptDeleteChar('{{ char.id }}', '{{ char.name | escape }}')">{{ icon_trash() }}</button>
         </div>
       </div>
     </div>
@@ -47,7 +55,132 @@
   {% endfor %}
 </div>
 
+<div class="flex justify-end mt-4">
+  <button class="btn btn-secondary btn-sm flex items-center gap-2" onclick="openTrashModal()">
+    <span>{{ icon_trash() }}</span> Trash Bin
+  </button>
+</div>
+
 <script>
+function promptDeleteChar(charId, charName) {
+  const html = `
+    <div class="mb-4 text-sm" style="color:var(--text);">Delete character <strong>${charName}</strong>?</div>
+    <div class="flex flex-col gap-3">
+      <label class="flex items-start gap-3 cursor-pointer p-3 rounded-lg hover:bg-[var(--surface-3)] transition-colors border border-[var(--border)] relative group">
+        <div class="mt-0.5">
+          <input type="radio" name="char_delete_option" value="soft" checked class="w-4 h-4 cursor-pointer" style="accent-color: var(--accent);">
+        </div>
+        <div class="flex flex-col">
+          <span class="text-sm font-bold" style="color:var(--text);">Move Character to Trash</span>
+          <span class="text-xs text-muted">You can restore the character later.</span>
+        </div>
+      </label>
+      <label class="flex items-start gap-3 cursor-pointer p-3 rounded-lg hover:bg-[var(--surface-3)] transition-colors border border-[var(--border)] relative group">
+        <div class="mt-0.5">
+          <input type="radio" name="char_delete_option" value="soft_with_chats" class="w-4 h-4 cursor-pointer" style="accent-color: var(--accent);">
+        </div>
+        <div class="flex flex-col">
+          <span class="text-sm font-bold" style="color:var(--text);">Move Character & Conversations to Trash</span>
+          <span class="text-xs text-muted">Hides their chats too. Both can be restored.</span>
+        </div>
+      </label>
+    </div>
+  `;
+  window.customConfirm(html, function() {
+    const selected = document.querySelector('input[name="char_delete_option"]:checked').value;
+    const delChats = selected === 'soft_with_chats';
+    fetch(`/api/characters/${charId}?delete_chats=${delChats}`, {
+      method: 'DELETE'
+    }).then(r => {
+      if(r.ok) htmx.ajax('GET','/partials/characters-modal',{target:'#characters-modal-body',swap:'innerHTML'});
+    });
+  });
+}
+
+function openTrashModal() {
+  fetch('/api/characters/trash')
+    .then(r => r.json())
+    .then(chars => {
+      let html = `<div class="flex flex-col gap-2 max-h-[60vh] overflow-y-auto pr-1">`;
+      if (chars.length === 0) {
+        html += `<div class="text-muted text-center py-6 border border-dashed border-[var(--border)] rounded-lg">Trash is empty.</div>`;
+      } else {
+        chars.forEach(c => {
+          html += `
+            <div class="flex justify-between items-center p-3 border border-[var(--border)] rounded-lg bg-[var(--surface-2)]">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full overflow-hidden bg-[var(--surface-3)] flex items-center justify-center border border-[var(--border)]">
+                  ${c.image_path ? `<img src="/${c.image_path}" class="w-full h-full object-cover">` : `<span class="text-sm font-bold text-muted">${c.name.charAt(0)}</span>`}
+                </div>
+                <span class="font-bold text-sm" style="color:var(--text);">${c.name}</span>
+              </div>
+              <div class="flex gap-2">
+                <button class="btn btn-secondary btn-sm" onclick="restoreChar('${c.id}')">Restore</button>
+                <button class="btn btn-danger btn-sm" onclick="hardDeleteChar('${c.id}', '${c.name.replace(/'/g, "\\'")}')">Delete Forever</button>
+              </div>
+            </div>
+          `;
+        });
+      }
+      html += `</div>`;
+      
+      const modalHtml = `
+        <div id="trash-modal" class="modal-overlay" style="display:grid; z-index:9999;" onclick="if(event.target===this) this.remove()">
+          <div class="modal-content" style="max-width: 500px; width: 90vw;">
+            <div class="modal-header mb-4">
+              <div class="modal-title text-xl font-bold">Trash Bin</div>
+              <button class="btn btn-secondary btn-sm" onclick="document.getElementById('trash-modal').remove()">×</button>
+            </div>
+            <div id="trash-modal-body">
+              ${html}
+            </div>
+          </div>
+        </div>
+      `;
+      document.body.insertAdjacentHTML('beforeend', modalHtml);
+    });
+}
+
+window.restoreChar = function(charId) {
+  const html = `
+    <div class="mb-4 text-sm" style="color:var(--text);">Restore character?</div>
+    <label class="flex items-start gap-3 cursor-pointer p-3 rounded-lg hover:bg-[var(--surface-3)] transition-colors border border-[var(--border)]">
+      <div class="mt-0.5">
+        <input type="checkbox" id="restore_chats_cb" checked class="w-4 h-4 cursor-pointer" style="accent-color: var(--accent);">
+      </div>
+      <div class="flex flex-col">
+        <span class="text-sm font-bold" style="color:var(--text);">Also restore conversations</span>
+        <span class="text-xs text-muted">Brings back chats previously deleted with this character.</span>
+      </div>
+    </label>
+  `;
+  window.customConfirm(html, function() {
+    const restoreChats = document.getElementById('restore_chats_cb').checked;
+    fetch(`/api/characters/${charId}/restore?restore_chats=${restoreChats}`, {
+      method: 'POST'
+    }).then(r => {
+      if(r.ok) {
+        document.getElementById('trash-modal').remove();
+        htmx.ajax('GET','/partials/characters-modal',{target:'#characters-modal-body',swap:'innerHTML'});
+      }
+    });
+  });
+};
+
+window.hardDeleteChar = function(charId, charName) {
+  window.customConfirm(`Permanently delete <strong>${charName}</strong>? This cannot be undone.`, function() {
+    fetch(`/api/characters/${charId}?hard=true`, {
+      method: 'DELETE'
+    }).then(r => {
+      if(r.ok) {
+        document.getElementById('trash-modal').remove();
+        openTrashModal(); // Refresh
+      }
+    });
+  });
+};
+
+
 function selectCharModal(charId, charName){
   if (window.CURRENT_CHAT_STATE) {
     window.CURRENT_CHAT_STATE.character_id = charId;
@@ -56,6 +189,19 @@ function selectCharModal(charId, charName){
   // The backend will either load the most recent chat for this char, or the greeter state with this char pre-selected.
   window.location.href = '/chat?character_id=' + charId;
 }
+
+function importCharModal(e){
+  e.preventDefault();
+  const formData = new FormData(e.target);
+  fetch('/api/characters/import', {
+    method: 'POST',
+    body: formData
+  }).then(function(r){
+    if(r.ok) htmx.ajax('GET','/partials/characters-modal',{target:'#characters-modal-body',swap:'innerHTML'});
+    else r.text().then(t => alert('Import failed: ' + t));
+  });
+}
+
 function createCharModal(e){
   e.preventDefault();
   const data = Object.fromEntries(new FormData(e.target));

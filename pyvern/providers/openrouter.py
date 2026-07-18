@@ -1,4 +1,7 @@
 from .openai_compat import OpenAICompatProvider
+from ..logger import get_logger
+
+logger = get_logger("providers.openrouter")
 
 OPENROUTER_BASE = "https://openrouter.ai/api/v1"
 
@@ -37,11 +40,19 @@ class OpenRouterProvider(OpenAICompatProvider):
     async def stream_complete(self, messages: list[dict], **kwargs):
         # Merge openrouter specific provider preferences into extra_body
         prefs = self._get_provider_preferences()
+        extra_body = kwargs.get("extra_body", {})
+        
+        # Check if user enabled reasoning
+        include_reasoning = kwargs.pop("include_reasoning", False)
+        if include_reasoning:
+            extra_body["include_reasoning"] = True
+        
         if prefs:
-            extra_body = kwargs.get("extra_body", {})
             extra_body.update(prefs)
-            kwargs["extra_body"] = extra_body
             
+        kwargs["extra_body"] = extra_body
+            
+        logger.debug(f"OpenRouter routing extra_body={kwargs.get('extra_body')}")
         async for chunk in super().stream_complete(messages, **kwargs):
             yield chunk
 

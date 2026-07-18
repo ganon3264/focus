@@ -23,7 +23,8 @@ CREATE TABLE IF NOT EXISTS characters (
     name        TEXT NOT NULL,
     image_path  TEXT,
     card_json   TEXT NOT NULL,
-    created_at  TEXT NOT NULL
+    created_at  TEXT NOT NULL,
+    is_deleted  INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS char_blocks (
@@ -58,7 +59,9 @@ CREATE TABLE IF NOT EXISTS preset_blocks (
     role         TEXT NOT NULL DEFAULT 'system',
     enabled      INTEGER NOT NULL DEFAULT 1,
     position     REAL NOT NULL DEFAULT 0,
-    block_type   TEXT NOT NULL DEFAULT 'text'
+    block_type   TEXT NOT NULL DEFAULT 'text',
+    injection_depth INTEGER DEFAULT NULL,
+    injection_order INTEGER DEFAULT 0
     -- block_type: text | chat_history | char_description | char_personality | char_blocks | user_persona
 );
 
@@ -69,7 +72,8 @@ CREATE TABLE IF NOT EXISTS chats (
     persona_id   TEXT REFERENCES personas(id) ON DELETE SET NULL,
     preset_id    TEXT REFERENCES presets(id) ON DELETE SET NULL,
     created_at   TEXT NOT NULL,
-    updated_at   TEXT NOT NULL
+    updated_at   TEXT NOT NULL,
+    is_deleted   INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS messages (
@@ -103,6 +107,7 @@ CREATE TABLE IF NOT EXISTS message_attachments (
     id           TEXT PRIMARY KEY,
     chat_id      TEXT NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
     message_id   TEXT REFERENCES messages(id) ON DELETE CASCADE,
+    variant_id   TEXT REFERENCES message_variants(id) ON DELETE CASCADE,
     file_path    TEXT NOT NULL,
     mime_type    TEXT NOT NULL,
     created_at   TEXT NOT NULL
@@ -128,15 +133,18 @@ async def get_db():
         await db.execute("PRAGMA foreign_keys=ON")
         yield db
 
-
-async def init_db():
+def init_directories():
     os.makedirs("data", exist_ok=True)
     os.makedirs("assets/characters", exist_ok=True)
     os.makedirs("assets/personas", exist_ok=True)
     os.makedirs("assets/presets", exist_ok=True)
     os.makedirs("assets/attachments", exist_ok=True)
+
+async def init_db():
+    init_directories()
     async with aiosqlite.connect(DB_PATH) as db:
         await db.executescript(SCHEMA)
+
         # Seed default persona if none exist
         async with db.execute("SELECT COUNT(*) FROM personas") as cur:
             count = (await cur.fetchone())[0]
@@ -148,4 +156,14 @@ async def init_db():
                 "INSERT INTO personas (id, name, description, avatar_path, created_at) VALUES (?, ?, ?, ?, ?)",
                 (str(uuid.uuid4()), "User", "", None, now),
             )
+        await db.commit()
+
+        # ── Migrations ──────────────────────────────────────────────────
+        # v0.2: injection_depth / injection_order for in-chat blocks
+        cols = await db.execute("PRAGMA table_info(preset_blocks)")
+        col_names = {row[1] for row in await cols.fetchall()}
+        if "injection_depth" not in col_names:
+            await db.execute("ALTER TABLE preset_blocks ADD COLUMN injection_depth INTEGER DEFAULT NULL")
+        if "injection_order" not in col_names:
+            await db.execute("ALTER TABLE preset_blocks ADD COLUMN injection_order INTEGER DEFAULT 0")
         await db.commit()

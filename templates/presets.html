@@ -1,13 +1,20 @@
 {% extends "base.html" %}
+{% from "macros.html" import icon_trash %}
 {% block title %}Presets - Pyvern{% endblock %}
 {% block content %}
 <div class="p-3" x-data="{ activePreset: '{{ presets[0].id if presets else '' }}' }">
   <div class="flex justify-between items-center mb-3">
     <h1 class="text-xl font-bold">Presets</h1>
-    <form onsubmit="createPreset(event)" class="flex gap-2">
-      <input type="text" name="name" placeholder="New preset name" required class="text-sm" style="background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:0.4rem;">
-      <button class="btn btn-primary btn-sm">Create</button>
-    </form>
+    <div class="flex gap-3">
+      <form onsubmit="createPreset(event)" class="flex gap-2">
+        <input type="text" name="name" placeholder="New preset name" required class="text-sm" style="background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:0.4rem;">
+        <button class="btn btn-primary btn-sm">Create</button>
+      </form>
+      <form onsubmit="importPreset(event)" class="flex gap-2" enctype="multipart/form-data">
+        <input type="file" name="file" accept=".json" required class="text-sm" style="background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:0.4rem;max-width:180px;">
+        <button class="btn btn-secondary btn-sm">Import</button>
+      </form>
+    </div>
   </div>
 
   <div class="flex gap-3" style="height:calc(100vh - 80px);">
@@ -15,10 +22,10 @@
     <div style="width:220px;flex-shrink:0;" class="flex flex-col gap-1">
       {% for p in presets %}
       <div class="sidebar-item" :class="{'active': activePreset === '{{ p.id }}'}"
-        @click="activePreset = '{{ p.id }}'; document.getElementById('preset-editor-panel').dataset.activePreset = '{{ p.id }}'; htmx.ajax('GET', '/partials/prompt-arranger/{{ p.id }}', {target:'#preset-editor', swap:'innerHTML'})"
+        @click="activePreset = '{{ p.id }}'; document.getElementById('preset-editor-panel').dataset.activePreset = '{{ p.id }}'; htmx.ajax('GET', '/partials/preset-editor/{{ p.id }}', {target:'#preset-editor', swap:'innerHTML'})"
       >
         <div class="text-sm truncate flex-1">{{ p.name }}</div>
-        <button class="btn btn-danger btn-sm" style="margin-left:auto;" hx-delete="/api/presets/{{ p.id }}" hx-confirm="Delete?" hx-target="closest div" hx-swap="delete">×</button>
+        <button class="btn btn-danger btn-sm" style="margin-left:auto;" onclick="event.stopPropagation(); promptDeletePreset('{{ p.id }}', '{{ p.name | escape }}')">{{ icon_trash() }}</button>
       </div>
       {% endfor %}
     </div>
@@ -28,7 +35,7 @@
       <div class="flex-1 overflow-auto" id="preset-editor" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1rem;">
         {% if presets %}
           {% with preset_id = presets[0].id, blocks = presets[0].blocks %}
-            {% include "prompt_arranger.html" %}
+            {% include "preset_editor.html" %}
           {% endwith %}
         {% else %}
           <div class="text-muted">No presets. Create one to start.</div>
@@ -38,6 +45,16 @@
   </div>
 </div>
 <script>
+function promptDeletePreset(pid, pName) {
+  window.customConfirm(`Delete preset <strong>${pName}</strong>?`, function() {
+    fetch(`/api/presets/${pid}`, {
+      method: 'DELETE'
+    }).then(r => {
+      if(r.ok) window.location.reload();
+    });
+  });
+}
+
 function createPreset(e){
   e.preventDefault();
   const data = Object.fromEntries(new FormData(e.target));
@@ -46,6 +63,18 @@ function createPreset(e){
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify(data)
   }).then(function(){ window.location.reload(); });
+}
+
+function importPreset(e){
+  e.preventDefault();
+  const formData = new FormData(e.target);
+  fetch('/api/presets/import', {
+    method: 'POST',
+    body: formData
+  }).then(r => {
+    if(r.ok) window.location.reload();
+    else r.text().then(t => alert('Import failed: ' + t));
+  });
 }
 </script>
 {% endblock %}

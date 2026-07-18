@@ -1,20 +1,38 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from pyvern.database import init_db
+from pyvern.database import init_db, init_directories
 from pyvern.routers import characters, chats, presets, providers, stream, personas, pages
+from pyvern.logger import get_logger, DEBUG_MODE
+import time
 
+# Ensure directories exist before mounting static files
+init_directories()
+
+logger = get_logger("main")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    logger.info("Initializing database...")
     await init_db()
+    logger.info("Database initialized. Pyvern is ready.")
     yield
+    logger.info("Pyvern shutting down.")
 
 
 app = FastAPI(title="Pyvern", version="0.1.0", lifespan=lifespan)
+
+if DEBUG_MODE:
+    @app.middleware("http")
+    async def log_requests(request: Request, call_next):
+        start_time = time.time()
+        response = await call_next(request)
+        process_time = time.time() - start_time
+        logger.debug(f"{request.method} {request.url.path} - Status: {response.status_code} - {process_time:.4f}s")
+        return response
 
 app.include_router(characters.router, prefix="/api/characters", tags=["characters"])
 app.include_router(chats.router,      prefix="/api/chats",      tags=["chats"])
