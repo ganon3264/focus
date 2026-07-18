@@ -159,7 +159,7 @@ Loads in `<head>`. Holds 5 fields:
 - **Set state:** `StateManager.setPreset(id)` / `setCharacter(id)` / `setPersona(id)` / `setProvider(id, type)`. Persistence to DB or localStorage is automatic.
 - **Read state:** `StateManager.get('character_id')` or `StateManager.getAll()`.
 - **React to changes:** `StateManager.on('preset-changed', function(e) { ... })`. Callbacks receive `{ prev, value }` (or `{ prevId, prevType, id, type }` for provider). Register them in `chat.html`.
-- **Alpine reacts too:** StateManager dispatches `window.CustomEvent` for every change. Alpine components listen via `@preset-changed.window` / `@provider-changed.window` / etc.
+- **Alpine reacts too:** `setPreset` and `setProvider` also dispatch a matching `window.CustomEvent` (e.g. `@preset-changed.window` / `@provider-changed.window`). `setCharacter` and `setPersona` emit listener-only events; Alpine components listening to those must use the `StateManager.on(...)` callback registered in `chat.html`, not `@character-changed.window`.
 - **Provider state** is dual-persisted: localStorage (session) + DB via `/api/settings/active-provider`. Chat-level fields (character/persona/preset) are chat-scoped (DB via PATCH /api/chats/{id}).
 - Existing callbacks in `chat.html` already handle: reloading `#preset-variables`, reloading `#arranger-modal-body` on preset change, reloading arranger and sampler on character/persona change. Add new reactions there — don't inline them in `@click` handlers.
 
@@ -210,7 +210,12 @@ A `modal_footer()` macro exists for standardized action buttons:
 | `modal-fetch-models` | `modals/providers_modal.html` (inline) | 100 | Fetch and select models from provider |
 | `modal-secrets` | `modals/providers_modal.html` (inline) | 100 | Secrets management (API keys) |
 | Preset rename | `presets/preset_selector.html` (inline) | 1000 | Inline rename modal |
-| Trash | `characters_modal.html` (dynamic) | 10000 | Trash bin overlay for soft-deleted characters |
+| `modal-arranger` | `chat.html` (inline) | 50 | Prompt arranger (drag-and-drop block list) |
+| `lightbox` | `base.html` (inline) | 10000 | Image lightbox overlay |
+| `crop-modal` | `base.html` (inline) | 10000 | Cropper.js avatar/image crop |
+| `trash-modal` | `modals/characters_modal.html` (dynamic) | 10000 | Trash bin for soft-deleted characters |
+| `persona-trash-modal` | `modals/personas_modal.html` (dynamic) | 10000 | Trash bin for soft-deleted personas |
+| `chat-trash-modal` | `chat/chat_list.html` (dynamic) | 10000 | Trash bin for soft-deleted chats |
 
 **Z-index scale** (defined in `style.css :root`):
 - `--z-modal: 50` — base modals

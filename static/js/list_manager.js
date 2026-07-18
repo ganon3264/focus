@@ -1,7 +1,3 @@
-// Shared list management for character/persona modal grids.
-// Call ListManager.setup({ filterFn: 'filterCharacters', sortFn: 'sortCharacters', ... })
-// to create the expected-named global functions so existing onclick handlers keep working.
-
 function _saveListPref(key, value) {
   localStorage.setItem(key, value);
   fetch('/api/settings', {

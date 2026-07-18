@@ -456,19 +456,20 @@ StateManager.on('persona-changed', function() {
   if (pid) reloadPromptArranger(pid, 'arranger-modal-body');
   const chatId = document.getElementById('send-btn')?.dataset?.chatId;
   if (chatId) {
-    htmx.ajax('GET', '/partials/chat-list?current_chat_id=' + chatId, {
+    var cParams = '?current_chat_id=' + encodeURIComponent(chatId);
+    var charId = StateManager.get('character_id');
+    if (charId) cParams += '&character_id=' + encodeURIComponent(charId);
+    htmx.ajax('GET', '/partials/chat-list' + cParams, {
       target: '#chat-list',
       swap: 'innerHTML',
     });
   }
 });
 
-/* Modal logic */
 function openModal(id){
   const el = document.getElementById(id);
   if (!el) return;
   el.classList.remove('hidden');
-  const body = el.querySelector('.modal-content > div:last-child');
   if(id === 'modal-characters') htmx.ajax('GET',api.partials.charactersModal + '?current_character_id=' + (StateManager.get('character_id') || ''),{target:'#characters-modal-body',swap:'innerHTML'});
   else if(id === 'modal-personas') htmx.ajax('GET',api.partials.personasModal + '?current_persona_id=' + (StateManager.get('persona_id') || ''),{target:'#personas-modal-body',swap:'innerHTML'});
   else if(id === 'modal-providers') htmx.ajax('GET',api.partials.providersModal,{target:'#providers-modal-body',swap:'innerHTML'});

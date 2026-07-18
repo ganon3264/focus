@@ -85,7 +85,6 @@ async def upload_avatar(
     if not row:
         raise HTTPException(404, "Persona not found")
 
-    # Remove old avatar if present
     if row["avatar_path"]:
         Path(row["avatar_path"]).unlink(missing_ok=True)
 

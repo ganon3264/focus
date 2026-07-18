@@ -33,9 +33,7 @@ def _resolve_macros_for_display(messages, char, persona, preset_blocks=None):
             msg["content"] = apply_macros(msg["content"], macros)
 
 
-# Create templates with both directories in search path
 templates = Jinja2Templates(directory="templates")
-# Extend searchpath so partials/ resolves by name without moving files
 if isinstance(templates.env.loader, FileSystemLoader):
     templates.env.loader.searchpath.append(str(Path("partials").resolve()))
 
@@ -124,7 +122,6 @@ async def chat_page(request: Request, chat_id: str, db: aiosqlite.Connection = D
     presets = await crud.get_presets(db)
     providers = await crud.get_providers(db)
 
-    # ── Chats for right sidebar ───────────────────────────────────────────────
     chats_sidebar = await crud.get_chats_sidebar(db, chat.get("character_id"))
 
     has_chars = await crud.has_characters(db)
@@ -617,7 +614,6 @@ async def preset_sidebar_partial(
     return templates.TemplateResponse(request, "presets/sidebar_item.html", {"p": p})
 
 
-# Add json filter to jinja
 def from_json(value):
     import json
 

@@ -166,7 +166,6 @@ async def init_db():
     async with aiosqlite.connect(DB_PATH) as db:
         await db.executescript(SCHEMA)
 
-        # Seed default persona if none exist
         async with db.execute("SELECT COUNT(*) FROM personas") as cur:
             count = (await cur.fetchone())[0]
         if count == 0:
@@ -181,8 +180,6 @@ async def init_db():
             )
         await db.commit()
 
-        # ── Migrations ──────────────────────────────────────────────────
-        # v0.2: injection_depth / injection_order for in-chat blocks
         cols = await db.execute("PRAGMA table_info(preset_blocks)")
         col_names = {row[1] for row in await cols.fetchall()}
         if "injection_depth" not in col_names:
@@ -192,13 +189,11 @@ async def init_db():
         if "cache_control" in col_names:
             await db.execute("ALTER TABLE preset_blocks DROP COLUMN cache_control")
 
-        # v0.3: model_name on message_variants
         cols = await db.execute("PRAGMA table_info(message_variants)")
         col_names = {row[1] for row in await cols.fetchall()}
         if "model_name" not in col_names:
             await db.execute("ALTER TABLE message_variants ADD COLUMN model_name TEXT")
 
-        # v0.4: settings table
         cols = await db.execute("PRAGMA table_info(settings)")
         col_names = {row[1] for row in await cols.fetchall()}
         if "key" not in col_names:
@@ -209,7 +204,6 @@ async def init_db():
                 )
             """)
 
-        # v0.5: is_deleted for personas
         cols = await db.execute("PRAGMA table_info(personas)")
         col_names = {row[1] for row in await cols.fetchall()}
         if "is_deleted" not in col_names:

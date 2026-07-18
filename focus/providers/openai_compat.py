@@ -43,7 +43,6 @@ class OpenAICompatProvider(BaseProvider):
         """
         merged = {**self.params, **kwargs}  # stored defaults, per-request wins
 
-        # Extract max_tokens and temperature if they exist in kwargs or params, otherwise provide defaults
         max_tokens = merged.pop("max_tokens", DEFAULT_MAX_TOKENS)
         temperature = merged.pop("temperature", DEFAULT_TEMPERATURE)
 
@@ -125,7 +124,6 @@ class OpenAICompatProvider(BaseProvider):
                 delta = getattr(delta_obj, "content", None)
                 reasoning = getattr(delta_obj, "reasoning_content", None) or getattr(delta_obj, "reasoning", None)
 
-                # Fallback to check model_extra for non-standard reasoning fields
                 if not reasoning and hasattr(delta_obj, "model_extra") and delta_obj.model_extra:
                     reasoning = delta_obj.model_extra.get("reasoning_content") or delta_obj.model_extra.get("reasoning")
 

@@ -18,8 +18,7 @@
 
   function syncReasoningButtons(container) {
     if (!container) return;
-    const root = container === document ? document : container;
-    root.querySelectorAll('.message-content').forEach((el) => _updateReasoningButton(el));
+    container.querySelectorAll('.message-content').forEach((el) => _updateReasoningButton(el));
   }
 
   window.syncReasoningButtons = syncReasoningButtons;
@@ -130,8 +129,19 @@
       updateSendButtonState();
     }
 
+    _refreshChatList(chatId);
     window.ensureSentinelAndObserver();
   }
+
+  window._refreshChatList = function (chatId) {
+    var params = '?current_chat_id=' + encodeURIComponent(chatId);
+    var charId = StateManager.get('character_id');
+    if (charId) params += '&character_id=' + encodeURIComponent(charId);
+    htmx.ajax('GET', api.partials.chatList + params, {
+      target: '#chat-list',
+      swap: 'innerHTML',
+    });
+  };
 
   async function refreshSingleMessage(chatId, messageId) {
     var existingMsg = document.getElementById('message-' + messageId);
@@ -142,6 +152,7 @@
       var doc = new DOMParser().parseFromString(html, 'text/html');
       _replaceMessageNode(doc, messageId, document.getElementById('delete-toolbar') && !document.getElementById('delete-toolbar').classList.contains('hidden'));
       window.ensureSentinelAndObserver();
+      _refreshChatList(chatId);
       return;
     }
 
@@ -157,6 +168,7 @@
 
     _replaceMessageNode(doc, messageId, document.getElementById('delete-toolbar') && !document.getElementById('delete-toolbar').classList.contains('hidden'));
     window.ensureSentinelAndObserver();
+    _refreshChatList(chatId);
   }
 
   window.refreshSingleMessage = refreshSingleMessage;

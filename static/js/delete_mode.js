@@ -1,6 +1,3 @@
-// Delete mode: multi-select UI toggle, bulk delete API.
-// Depends on window.api, htmx, window.customConfirm
-
 (function () {
   let lastDeleteSelection = [];
 
@@ -73,6 +70,7 @@
             target: '#message-list',
             swap: 'innerHTML',
           });
+          if (window._refreshChatList) window._refreshChatList(chatId);
         } else {
           alert('Failed to delete messages');
         }

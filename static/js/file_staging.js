@@ -1,6 +1,3 @@
-// File staging area: drag/paste/upload, preview rendering, crop.
-// Depends on window.getSvgSprite, window.openCropModal
-
 (function () {
   window.stagedFiles = [];
 

@@ -5,7 +5,7 @@ function openLightbox(src) {
   lb.classList.remove('hidden');
 }
 
-function closeLightbox(e) {
+function closeLightbox() {
   const lb = document.getElementById('lightbox');
   lb.classList.add('hidden');
   document.getElementById('lightbox-img').src = '';

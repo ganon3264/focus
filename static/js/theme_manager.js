@@ -153,7 +153,6 @@ function saveCustomTheme() {
   closeModal('modal-themes');
 }
 
-// On load, try to load theme from API if localStorage is empty (fresh browser)
 (function () {
   if (!localStorage.getItem('focus-custom-theme')) {
     fetch('/api/settings')

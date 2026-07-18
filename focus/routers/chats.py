@@ -20,7 +20,6 @@ async def create_chat(body: ChatCreate, db: aiosqlite.Connection = Depends(get_d
     chat_id = str(uuid.uuid4())
     now = now_iso()
 
-    # Ensure empty strings are cast to None for Foreign Key constraints
     char_id = body.character_id if body.character_id else None
     pers_id = body.persona_id if body.persona_id else None
     pres_id = body.preset_id if body.preset_id else None
@@ -33,7 +32,6 @@ async def create_chat(body: ChatCreate, db: aiosqlite.Connection = Depends(get_d
     except aiosqlite.IntegrityError as e:
         raise HTTPException(400, f"Invalid reference: {e}")
 
-    # Seed greeting variants from first_mes + alternate_greetings
     if body.character_id:
         async with db.execute("SELECT card_json FROM characters WHERE id = ?", (body.character_id,)) as cur:
             row = await cur.fetchone()
@@ -226,6 +224,13 @@ async def edit_message(
     if not row:
         raise HTTPException(404, "Message not found")
 
+    async with db.execute(
+        "SELECT mv.model_name FROM message_variants mv JOIN messages m ON m.active_index = mv.variant_index WHERE mv.message_id = ? AND m.id = ?",
+        (message_id, message_id),
+    ) as cur:
+        prev = await cur.fetchone()
+    prev_model = prev["model_name"] if prev else None
+
     async with db.execute("SELECT MAX(variant_index) FROM message_variants WHERE message_id = ?", (message_id,)) as cur:
         max_row = await cur.fetchone()
 
@@ -234,8 +239,8 @@ async def edit_message(
     new_variant_id = str(uuid.uuid4())
 
     await db.execute(
-        "INSERT INTO message_variants (id, message_id, variant_index, content, created_at) VALUES (?, ?, ?, ?, ?)",
-        (new_variant_id, message_id, new_index, body.content, now),
+        "INSERT INTO message_variants (id, message_id, variant_index, content, created_at, model_name) VALUES (?, ?, ?, ?, ?, ?)",
+        (new_variant_id, message_id, new_index, body.content, now, prev_model),
     )
 
     for att_id in body.attachment_ids:
@@ -307,6 +312,7 @@ async def swipe_message(
             new_index = current + 1
 
     await db.execute("UPDATE messages SET active_index = ? WHERE id = ?", (new_index, message_id))
+    await db.execute("UPDATE chats SET updated_at = ? WHERE id = ?", (now_iso(), chat_id))
     await db.commit()
 
     async with db.execute(

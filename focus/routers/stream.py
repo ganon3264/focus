@@ -46,7 +46,6 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
 
     provider = create_provider(prov_dict)
 
-    # ── Build prompt context (includes user message persistence) ─────────────
     ctx = await get_prompt_context(
         db, body.chat_id, body.regenerate, body.user_message, body.attachment_ids, persist=True
     )
@@ -55,12 +54,10 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
     next_variant_index = ctx["next_variant_index"]
     user_msg_id = ctx["user_msg_id"]
 
-    # ── User-controlled multimodal disable ──────────────────────────────────────
     s = dict(body.samplers) if body.samplers else {}
     if s.pop("disable_multimodal", False):
         messages = filter_unsupported_modalities(messages, ["text"])
 
-    # ── OpenRouter modality filter ─────────────────────────────────────────────
     if prov_dict.get("type") == "openrouter":
         from focus.routers.providers import get_openrouter_model_modalities
 
@@ -78,20 +75,16 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
                 s.pop("cache_depth", 5),
             )
 
-    # Strip internal metadata tags — set by get_prompt_context / assemble_prompt
     for msg in messages:
         msg.pop("_greeting", None)
-    # Strip provider-internal keys (used only by google provider, leak to others)
     if prov_dict.get("type") != "google":
         for msg in messages:
             msg.pop("thought_signature", None)
             msg.pop("reasoning", None)
 
-    # ── Continue generation: append assistant prefill ──────────────────────────
     if body.continue_text and body.regenerate:
         messages.append({"role": "assistant", "content": body.continue_text})
 
-    # ── Gen params ────────────────────────────────────────────────────────────
     gen_kwargs: dict = {}
     use_stream = True
     if body.samplers:
@@ -107,7 +100,6 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
     if prov_dict.get("type") == "openrouter":
         gen_kwargs["session_id"] = body.chat_id
 
-    # ── Non-streaming path ─────────────────────────────────────────────────────
     if not use_stream:
         collected: list[str] = []
         final_asst_msg_id = asst_msg_id
@@ -149,13 +141,9 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
             }
         )
 
-    # ── Streaming path ──────────────────────────────────────────────────────────
-
-    # ── Stream ────────────────────────────────────────────────────────────────
     collected: list[str] = []
     final_asst_msg_id = asst_msg_id
 
-    # ── Debug Payload Dumper ──────────────────────────────────────────────────
     if logger.isEnabledFor(logging.DEBUG):
         import copy
 
@@ -182,7 +170,6 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
 
     async def generate():
         yield f"data: {json.dumps({'type': 'start', 'message_id': final_asst_msg_id, 'user_message_id': user_msg_id if not body.regenerate else None})}\n\n"
-        _saved = False
         try:
             logger.debug(f"Starting generation stream for chat_id={body.chat_id} provider={prov_dict['name']}")
             async for token in provider.stream_complete(messages, **gen_kwargs):
@@ -193,7 +180,6 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
                         body.chat_id, final_asst_msg_id, next_variant_index,
                         "".join(collected), body.regenerate, prov_dict.get("model", ""),
                     )
-                    _saved = True
         except Exception as e:
             logger.exception("Stream exception for chat_id=%s", body.chat_id)
             if collected:
@@ -201,7 +187,6 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
                     body.chat_id, final_asst_msg_id, next_variant_index,
                     "".join(collected), body.regenerate, prov_dict.get("model", ""),
                 )
-                _saved = True
             elif not body.regenerate:
                 await _rollback_assistant(final_asst_msg_id)
             err_msg = str(e)
@@ -218,7 +203,6 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
                 body.chat_id, final_asst_msg_id, next_variant_index,
                 full, body.regenerate, prov_dict.get("model", ""),
             )
-            _saved = True
         except Exception as e:
             logger.exception("Failed to save stream result for chat_id=%s", body.chat_id)
             if not body.regenerate:

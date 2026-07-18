@@ -1,5 +1,3 @@
-import logging
-
 from ..core.logger import get_logger
 from .openai_compat import OpenAICompatProvider
 

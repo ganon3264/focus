@@ -52,10 +52,8 @@ def _parse_itxt_chunk(cdata: bytes) -> tuple[str, str] | None:
         return None
     compression_flag = rest[0]
     rest = rest[2:]  # skip compression_flag + compression_method
-    # skip language tag
     n = rest.find(b"\x00")
     rest = rest[n + 1 :]
-    # skip translated keyword
     n = rest.find(b"\x00")
     text_bytes = rest[n + 1 :]
     if compression_flag:

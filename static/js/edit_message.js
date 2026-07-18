@@ -1,6 +1,3 @@
-// Message edit modal: load, render attachments, save, upload, delete.
-// Depends on window.api, window.extractThoughtsSafely, window.getSvgSprite
-
 (function () {
   window.editMessage = async function (messageId, chatId) {
     try {
@@ -107,6 +104,7 @@
           target: '#message-list',
           swap: 'innerHTML',
         });
+        if (window._refreshChatList) window._refreshChatList(chatId);
       }
     } catch (err) {
       alert('Failed to save edit: ' + err.message);

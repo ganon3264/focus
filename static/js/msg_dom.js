@@ -1,6 +1,3 @@
-// DOM builders for chat message elements.
-// Depends on window.escapeHtml, window.renderMessage, window.getSvgSprite
-
 (function () {
   window.createUserMessageDiv = function (text, stagedFiles, personaName, personaAvatarPath) {
     const userDiv = document.createElement('div');

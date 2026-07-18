@@ -38,7 +38,6 @@ class OpenRouterProvider(OpenAICompatProvider):
 
     def _get_provider_preferences(self) -> dict:
         prefs = {}
-        # OpenRouter-specific routing params injected into extra_body
         or_route = self.params.get("or_route")
         or_quant = self.params.get("or_quant")
         or_no_fallbacks = self.params.get("or_no_fallbacks", True)
@@ -57,11 +56,9 @@ class OpenRouterProvider(OpenAICompatProvider):
         return prefs
 
     async def stream_complete(self, messages: list[dict], **kwargs):
-        # Merge openrouter specific provider preferences into extra_body
         prefs = self._get_provider_preferences()
         extra_body = kwargs.get("extra_body", {})
 
-        # Build reasoning object (OpenRouter unified API)
         include_reasoning = kwargs.pop("include_reasoning", False)
         reasoning_effort = kwargs.pop("reasoning_effort", "")
         thinking_budget = kwargs.pop("thinking_budget", 0)

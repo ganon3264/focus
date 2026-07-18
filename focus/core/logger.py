@@ -2,13 +2,11 @@ import logging
 import os
 import sys
 
-# Define the log level based on the environment variable
 DEBUG_MODE = os.environ.get("FOCUS_DEBUG", "0") in ("1", "true", "True", "yes")
 
 LOG_LEVEL = logging.DEBUG if DEBUG_MODE else logging.INFO
 
 
-# Set up the formatter
 class UvicornFormatter(logging.Formatter):
     def format(self, record):
         level_color = {
@@ -27,18 +25,14 @@ class UvicornFormatter(logging.Formatter):
         return super().format(record)
 
 
-# Set up the console handler
 console_handler = logging.StreamHandler(sys.stdout)
 console_handler.setFormatter(UvicornFormatter())
 
-# Configure the root logger
 root_logger = logging.getLogger("focus")
 root_logger.setLevel(LOG_LEVEL)
 root_logger.addHandler(console_handler)
-# Prevent duplicate logs if uvicorn or others try to hijack it
 root_logger.propagate = False
 
-# Silence uvicorn's built-in access logging (we handle it ourselves)
 logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 
 if DEBUG_MODE:
@@ -46,5 +40,4 @@ if DEBUG_MODE:
 
 
 def get_logger(name: str) -> logging.Logger:
-    """Returns a logger for the given module name."""
     return logging.getLogger(f"focus.{name}")

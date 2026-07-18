@@ -24,7 +24,6 @@ async def create_preset(name: str = Form(...), db: aiosqlite.Connection = Depend
         (preset_id, name, now),
     )
 
-    # Seed with sensible default blocks
     defaults = [
         (
             str(uuid.uuid4()),
@@ -126,7 +125,6 @@ async def import_preset(file: UploadFile = File(...), db: aiosqlite.Connection =
             enabled_map[ident] = entry.get("enabled", True)
             order_list.append(ident)
 
-    # Build blocks from prompts, keeping identifier for reordering
     block_map: dict[str, dict] = {}
     blocks_in_order: list[dict] = []
 
@@ -153,7 +151,6 @@ async def import_preset(file: UploadFile = File(...), db: aiosqlite.Connection =
         }
         block_map[identifier] = block
 
-    # Position blocks: prompt_order sequence first, then remaining in prompts order
     seen: set[str] = set()
     for ident in order_list:
         if ident in block_map and ident not in seen:
@@ -255,7 +252,6 @@ async def replace_blocks(
     if missing:
         raise HTTPException(400, detail=f"Blocks not found: {missing}")
 
-    # Update only positions — no delete, no insert
     for b in body.blocks:
         await db.execute(
             "UPDATE preset_blocks SET position = ? WHERE id = ? AND preset_id = ?",
@@ -286,7 +282,6 @@ async def patch_block(
     if not updates:
         return {"ok": True}
 
-    # Check mutual exclusivity for variable blocks
     if "enabled" in updates and updates["enabled"]:
         async with db.execute(
             "SELECT name, block_type FROM preset_blocks WHERE id = ? AND preset_id = ?",

@@ -3,9 +3,6 @@ window.api = {
   chat: function (id) {
     return '/api/chats/' + id;
   },
-  chatDelete: function (id) {
-    return '/api/chats/' + id;
-  },
   chatRestore: function (id) {
     return '/api/chats/' + id + '/restore';
   },
@@ -68,7 +65,6 @@ window.api = {
   personas: function (id) {
     return '/api/personas/' + id;
   },
-  personas_: '/api/personas',
   personaImages: function (id) {
     return '/api/personas/' + id + '/images';
   },

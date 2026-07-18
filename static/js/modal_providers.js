@@ -1,6 +1,3 @@
-window._OR_MODELS_CACHE = window._OR_MODELS_CACHE || [];
-window._currentORPrefix = null;
-
 var PROVIDER_FIELD_CONFIG = {
   openrouter: {
     orFields: true,
@@ -75,7 +72,6 @@ async function forceFetchModels() {
 
   window.dispatchEvent(new CustomEvent('models-loading'));
 
-  // Extract data from the form to send to backend
   let type = document.getElementById(prefix + '-type')?.value;
   if (!type && prefix !== 'new-prov') {
     type = document.getElementById('edit-prov-type-' + prefix)?.value;
@@ -89,7 +85,6 @@ async function forceFetchModels() {
   const apiKeyInput = document.getElementById('api-key-input-' + prefix);
   let apiKey = apiKeyInput ? apiKeyInput.value : '';
 
-  // Vertex needs region
   let params = {};
   if (type === 'google_vertex') {
     const regionInput =
@@ -153,18 +148,13 @@ function selectFetchedModel(id, name) {
   document.getElementById('modal-fetch-models').classList.add('hidden');
 }
 
-function openORModelModal(prefix) {
-  openFetchModelModal(prefix);
-}
 function renderMacroSelect(name, id, options, selectedValue) {
-  // Finds the selected label
   let selectedLabel = '— Select —';
   for (let o of options) {
     if (o.value === selectedValue) selectedLabel = o.label;
   }
   const escapedLabel = selectedLabel.replace(/'/g, "\\'");
 
-  // Creates an options html string for Alpine template
   let optionsHtml = '';
   options.forEach((opt, idx) => {
     const isFirst = idx === 0;
@@ -216,7 +206,6 @@ async function updateOpenRouterOptions(prefix, modelId) {
 
     const endpoints = data.data?.endpoints || [];
 
-    // Route options
     const routeOptions = [{ value: '', label: 'Auto (Any)' }];
     const providers = new Set();
     endpoints.forEach((ep) => {
@@ -226,7 +215,6 @@ async function updateOpenRouterOptions(prefix, modelId) {
       routeOptions.push({ value: p, label: p });
     });
 
-    // Quantization options
     const quantOptions = [{ value: '', label: 'Any' }];
     const quants = new Set();
     endpoints.forEach((ep) => {
@@ -236,7 +224,6 @@ async function updateOpenRouterOptions(prefix, modelId) {
       quantOptions.push({ value: q, label: q });
     });
 
-    // Replace the inner HTML of the wrapper divs with a freshly rendered Alpine component
     const routeWrapperId =
       prefix === 'new-prov' ? 'new-prov-route-wrapper' : 'edit-prov-route-wrapper-' + prefix;
     const routeInputId =
@@ -443,7 +430,6 @@ async function fetchProviderBalances() {
   });
 }
 
-// Initialization
 setTimeout(() => {
   const createRoute = document.getElementById('new-prov-or-route');
   if (createRoute && !createRoute.dataset.nfInit) {

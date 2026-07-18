@@ -1,5 +1,3 @@
-// Scroll sentinel and auto-scroll behavior for the chat message list.
-
 (function () {
   window.autoScroll = true;
   window.scrollSentinel = null;

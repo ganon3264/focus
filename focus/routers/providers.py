@@ -45,11 +45,9 @@ async def list_providers(db: aiosqlite.Connection = Depends(get_db)):
         for r in await cur.fetchall():
             d = dict(r)
             ak = d.get("api_key") or ""
-            if ak.startswith("SECRET:"):
-                pass
-            elif ak:
+            if ak and not ak.startswith("SECRET:"):
                 d["api_key"] = "__HIDDEN__"
-            else:
+            elif not ak:
                 d["api_key"] = ""
             out.append(d)
         return out
@@ -102,7 +100,6 @@ async def fetch_models(body: FetchModelsRequest, db: aiosqlite.Connection = Depe
     """Fetch available models from a provider and cache the result for 5 minutes."""
     api_key = await resolve_secret_key(db, body.api_key or "")
 
-    # Cache key based on provider type and api key hash (to avoid caching across different keys)
     cache_key = f"{body.type}_{hash(api_key)}"
     cached = await _model_cache.get(cache_key)
     if cached is not None:
@@ -120,7 +117,6 @@ async def fetch_models(body: FetchModelsRequest, db: aiosqlite.Connection = Depe
         provider = provider_factory(prov_dict)
         models = await provider.fetch_models()
 
-        # Filter and simplify for frontend
         simplified_models = []
         for m in models:
             if isinstance(m, dict) and "id" in m:
@@ -134,7 +130,6 @@ async def fetch_models(body: FetchModelsRequest, db: aiosqlite.Connection = Depe
                     }
                 )
 
-        # Sort alphabetically by name or ID
         simplified_models.sort(key=lambda x: x["name"].lower() if x["name"] else x["id"].lower())
 
         await _model_cache.set(cache_key, simplified_models)

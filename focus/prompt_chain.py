@@ -138,7 +138,6 @@ def _build_content(text: str, images: list[dict]) -> str | list:
 
     matches = list(MEDIA_PATTERN.finditer(text))
     if not matches:
-        # No markers — current behavior: append all images after text
         parts: list[dict] = []
         if text:
             parts.append({"type": "text", "text": text})
@@ -150,7 +149,6 @@ def _build_content(text: str, images: list[dict]) -> str | list:
 
     for match in matches:
         raw_before = text[last_end : match.start()]
-        # Strip artifact newline that placed the marker on its own line
         text_before = raw_before.rstrip("\n") if images else raw_before
         if text_before:
             parts.append({"type": "text", "text": text_before})
@@ -194,7 +192,6 @@ def _merge_consecutive(messages: list[dict]) -> list[dict]:
         if all_text:
             sep = "\n" if a and b else ""
             return a + sep + b
-        # At least one side has images — normalize both to arrays
         return to_parts(a) + to_parts(b)
 
     result = [dict(messages[0])]
@@ -287,7 +284,6 @@ def assemble_prompt(
     active = [b for b in preset_blocks if b["enabled"]]
     active.sort(key=lambda b: b["position"])
 
-    # Separate in-chat injection blocks (injection_depth not null) from regular blocks
     in_chat_blocks = [b for b in active if b.get("injection_depth") is not None]
     active = [b for b in active if b.get("injection_depth") is None]
 

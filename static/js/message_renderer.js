@@ -1,7 +1,3 @@
-// Pure message rendering pipeline: HTML escaping, thought block extraction,
-// markdown parsing, quoting, and thinking block rendering.
-// Depends on globals: marked, DOMPurify
-
 window.escapeHtml = function (text) {
   const div = document.createElement('div');
   div.textContent = text;

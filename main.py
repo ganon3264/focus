@@ -32,7 +32,6 @@ class CachedStaticFiles(StaticFiles):
         return response
 
 
-# Ensure directories exist before mounting static files
 init_directories()
 
 logger = get_logger("main")
@@ -97,24 +96,19 @@ async def favicon():
 async def clean_database(db: aiosqlite.Connection = Depends(get_db)):
     counts = {}
 
-    # 1. Collect IDs of soft-deleted entities before deleting them
     deleted_char_ids = {r[0] async for r in await db.execute("SELECT id FROM characters WHERE is_deleted = 1")}
     deleted_persona_ids = {r[0] async for r in await db.execute("SELECT id FROM personas WHERE is_deleted = 1")}
 
-    # 2. Delete chats belonging to deleted characters (cascades to messages, variants, attachments)
     counts["chats"] = (
         await db.execute(
             "DELETE FROM chats WHERE is_deleted = 1 OR character_id IN (SELECT id FROM characters WHERE is_deleted = 1)"
         )
     ).rowcount
 
-    # 3. Delete soft-deleted characters (FK CASCADE handles char_blocks; FK SET NULL has no chats left to hit)
     counts["characters"] = (await db.execute("DELETE FROM characters WHERE is_deleted = 1")).rowcount
 
-    # 4. Delete soft-deleted personas
     counts["personas"] = (await db.execute("DELETE FROM personas WHERE is_deleted = 1")).rowcount
 
-    # 5. Orphaned block_images
     counts["block_images"] = (
         await db.execute(
             """
@@ -131,12 +125,10 @@ async def clean_database(db: aiosqlite.Connection = Depends(get_db)):
         )
     ).rowcount
 
-    # 6. Orphaned attachments (staged but never linked to a message)
     counts["attachments"] = (await db.execute("DELETE FROM message_attachments WHERE message_id IS NULL")).rowcount
 
     await db.commit()
 
-    # 7. Remove character directories on disk
     dirs_purged = 0
     for char_id in deleted_char_ids:
         char_dir = CHARACTERS_DIR / char_id
@@ -145,7 +137,6 @@ async def clean_database(db: aiosqlite.Connection = Depends(get_db)):
             dirs_purged += 1
     counts["char_dirs_purged"] = dirs_purged
 
-    # 8. Remove persona directories on disk
     dirs_purged = 0
     for persona_id in deleted_persona_ids:
         persona_dir = PERSONAS_DIR / persona_id
@@ -154,7 +145,6 @@ async def clean_database(db: aiosqlite.Connection = Depends(get_db)):
             dirs_purged += 1
     counts["persona_dirs_purged"] = dirs_purged
 
-    # 9. Scan for orphaned UUID directories (no matching row in DB)
     orphaned_dirs = 0
     if CHARACTERS_DIR.exists():
         for entry in CHARACTERS_DIR.iterdir():
@@ -172,7 +162,6 @@ async def clean_database(db: aiosqlite.Connection = Depends(get_db)):
                         orphaned_dirs += 1
     counts["orphaned_dirs_purged"] = orphaned_dirs
 
-    # 10. Also clean the nested assets/assets/ bug if present
     nested = Path("assets") / "assets"
     if nested.exists():
         shutil.rmtree(nested, ignore_errors=True)

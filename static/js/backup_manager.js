@@ -1,12 +1,8 @@
-// backup_manager.js — clean backup / export UI logic
-// Requires: window.api, window.customConfirm, htmx
-
 (function () {
   if (window.BackupManager) return;
 
   const M = {};
 
-  /* ── formatting ────────────────────────────────────────────── */
   function formatBytes(bytes) {
     if (!bytes) return '0 B';
     if (bytes < 1024) return bytes + ' B';
@@ -38,7 +34,6 @@
     else el.classList.remove('active');
   }
 
-  /* ── backups list ─────────────────────────────────────────── */
   M.loadList = async function () {
     const list = document.getElementById('backups-list');
     if (!list) return;
@@ -87,7 +82,6 @@
     }
   };
 
-  /* ── actions ───────────────────────────────────────────────── */
   M.create = function () {
     const btn = document.getElementById('btn-create-backup');
     if (!btn || btn.disabled) return;
@@ -159,7 +153,6 @@
       });
   };
 
-  /* ── export state ──────────────────────────────────────────── */
   M._exportState = {
     characters: 'none',
     personas: 'none',

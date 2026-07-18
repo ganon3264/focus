@@ -267,11 +267,6 @@ async def export_data(db: aiosqlite.Connection, req: ExportRequest) -> bytes:
         "settings": await _query_table_all(db, "settings"),
     }
 
-    if req.include_providers and database["providers"]:
-        # providers don't have an is_deleted filter; query all
-        pass
-
-    # Collect file paths
     file_paths = _extract_file_paths(database)
 
     # Build ZIP
@@ -325,9 +320,6 @@ def _remap_database(database: dict[str, list[dict]], id_map: dict[str, str]) -> 
                     old = new_row[pk_col]
                     if old in id_map:
                         new_row[pk_col] = id_map[old]
-            # Don't remap secrets.name — it's the natural PK
-            if table == "secrets":
-                pass
             remapped[table].append(new_row)
 
     # Remap foreign keys

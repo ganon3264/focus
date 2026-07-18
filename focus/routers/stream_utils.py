@@ -84,14 +84,12 @@ async def get_prompt_context(
 
     Returns dict with keys: messages, asst_msg_id, next_variant_index, user_msg_id.
     """
-    # ── Validate chat ────────────────────────────────────────────────────────
     async with db.execute("SELECT * FROM chats WHERE id = ?", (chat_id,)) as cur:
         chat = await cur.fetchone()
     if not chat:
         raise HTTPException(404, "Chat not found")
     chat = dict(chat)
 
-    # ── Macros + char data ────────────────────────────────────────────────────
     char_data: dict = {
         "name": "Assistant",
         "description": "",
@@ -118,7 +116,6 @@ async def get_prompt_context(
 
     macros = build_base_macros(char_data)
 
-    # ── Persona ───────────────────────────────────────────────────────────────
     persona: dict | None = None
     if chat["persona_id"]:
         async with db.execute("SELECT * FROM personas WHERE id = ?", (chat["persona_id"],)) as cur:
@@ -133,7 +130,6 @@ async def get_prompt_context(
 
     macros = build_base_macros(char_data, persona)
 
-    # ── Preset blocks ─────────────────────────────────────────────────────────
     preset_blocks: list[dict] = []
     if chat["preset_id"]:
         async with db.execute(
@@ -142,10 +138,8 @@ async def get_prompt_context(
         ) as cur:
             preset_blocks = [dict(r) for r in await cur.fetchall()]
 
-    # ── History ───────────────────────────────────────────────────────────────
     history, asst_msg_id, next_variant_index = await _get_history(db, chat_id, regenerate)
 
-    # ── User message persistence / history append ─────────────────────────────
     user_msg_id = None
     if not regenerate:
         if persist:
@@ -209,7 +203,6 @@ async def get_prompt_context(
                         new_attachments = [dict(r) for r in await cur.fetchall()]
                 history.append({"role": "user", "content": _build_content(user_message, new_attachments)})
 
-    # ── Block images ──────────────────────────────────────────────────────────
     all_block_ids = [b["id"] for b in preset_blocks] + [b["id"] for b in char_own_blocks]
     if chat["character_id"]:
         all_block_ids.append(chat["character_id"])
@@ -227,7 +220,6 @@ async def get_prompt_context(
                 r = dict(row)
                 block_images.setdefault(r["block_id"], []).append(r)
 
-    # ── Assemble final prompt ─────────────────────────────────────────────────
     if history and history[0].get("role") == "assistant":
         history[0]["_greeting"] = True
 

@@ -21,7 +21,6 @@
 
     var streamId = window._streamingMessageId;
 
-    // ── Pass 1: reads only ──
     var toPrune = [];
     var msgs = ml.querySelectorAll('.message');
     for (var i = 0; i < msgs.length; i++) {
@@ -51,7 +50,6 @@
       }
     }
 
-    // ── Pass 2: writes only ──
     for (var k = 0; k < toPrune.length; k++) {
       var p = toPrune[k];
       var ph = document.createElement('div');
@@ -112,15 +110,8 @@
       _pruned.delete(msgId);
       return msg;
     }
-    _pruned.delete(msgId);
-    return null;
-  };
-
-  window._prunedCount = function () { return _pruned.size; };
-  window._prunedIds = function () { return Array.from(_pruned.keys()); };
-
-  window._clearPrunedCache = function () {
-    _pruned.clear();
+      _pruned.delete(msgId);
+      return null;
   };
 
   document.addEventListener('DOMContentLoaded', function () {
