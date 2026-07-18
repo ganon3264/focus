@@ -121,6 +121,7 @@ class ChatCreate(BaseModel):
 
 class MessageEdit(BaseModel):
     content: str
+    reasoning: str | None = None
     attachment_ids: list[str] = Field(default_factory=list)
 
 
@@ -134,6 +135,7 @@ class StreamRequest(BaseModel):
     regenerate: bool = False
     # For Continue: prefill the assistant response with existing partial text
     continue_text: str | None = None
+    continue_reasoning: str | None = None
     # Attachment IDs to bind to the new user message
     attachment_ids: list[str] = Field(default_factory=list)
     # Tool calling configuration

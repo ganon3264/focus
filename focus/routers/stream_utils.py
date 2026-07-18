@@ -99,6 +99,8 @@ async def _append_history_with_tool_calls(
         "role": row["role"],
         "content": content,
     }
+    if row["role"] == "assistant" and row.get("reasoning"):
+        entry["reasoning"] = row["reasoning"]
 
     # Attach tool_calls if this assistant message had them (keyed by variant_id)
     tcs = tool_calls_by_variant.get(row["variant_id"], [])

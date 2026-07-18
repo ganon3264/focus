@@ -25,11 +25,6 @@ SUFFIX_MIME_MAP = {
 
 SUFFIX_MIME_MAP_IMAGES_ONLY = {k: v for k, v in SUFFIX_MIME_MAP.items() if v.startswith("image/")}
 
-THINK_OPEN = "<think>\n"
-THINK_CLOSE = "\n</think>\n\n"
-THOUGHT_SIGNATURE_OPEN = "<thought_signature>"
-THOUGHT_SIGNATURE_CLOSE = "</thought_signature>"
-
 DEFAULT_OPENAI_COMPAT_BASE_URL = "http://localhost:8080/v1"
 
 DEFAULT_MAX_TOKENS = 8192

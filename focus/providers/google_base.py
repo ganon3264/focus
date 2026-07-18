@@ -4,7 +4,6 @@ import logging
 from google.genai import types
 
 from ..core.logger import get_logger
-from ..core.utils import THINK_CLOSE, THINK_OPEN, THOUGHT_SIGNATURE_CLOSE, THOUGHT_SIGNATURE_OPEN
 from .base import BaseProvider
 
 logger = get_logger("providers.google_base")
@@ -148,7 +147,6 @@ class GoogleProviderBase(BaseProvider):
             contents=contents,
             config=config,
         )
-        in_reasoning = False
         thought_signature_b64 = None
 
         async for chunk in stream:
@@ -164,28 +162,12 @@ class GoogleProviderBase(BaseProvider):
                 is_thought = getattr(part, "thought", False) or (part.text and part.text.startswith("THOUGHT:"))
 
                 if is_thought:
-                    if not in_reasoning:
-                        in_reasoning = True
-                        yield {"type": "token", "text": THINK_OPEN}
-
                     clean_text = part.text.replace("THOUGHT:", "") if part.text else ""
-
                     if clean_text:
-                        yield {"type": "token", "text": clean_text}
+                        yield {"type": "reasoning", "text": clean_text}
                 else:
-                    if in_reasoning:
-                        in_reasoning = False
-                        yield {"type": "token", "text": THINK_CLOSE}
-
                     if part.text:
                         yield {"type": "token", "text": part.text}
-
-        if in_reasoning:
-            in_reasoning = False
-            yield {"type": "token", "text": THINK_CLOSE}
-
-        if thought_signature_b64:
-            yield {"type": "token", "text": f"\n{THOUGHT_SIGNATURE_OPEN}{thought_signature_b64}{THOUGHT_SIGNATURE_CLOSE}"}
 
     async def stream_complete(self, messages: list[dict], **kwargs):
         """Stream tokens from a Google Gemini model.

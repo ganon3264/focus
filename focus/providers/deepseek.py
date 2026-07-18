@@ -23,6 +23,11 @@ class DeepseekProvider(OpenAICompatProvider):
 
         kwargs["extra_body"] = extra_body
 
+        # Map msg["reasoning"] to the native reasoning_content field
+        for msg in messages:
+            if msg.get("role") == "assistant" and msg.get("reasoning"):
+                msg["reasoning_content"] = msg.pop("reasoning")
+
         if messages and messages[-1].get("role") == "assistant":
             messages[-1]["prefix"] = True
 

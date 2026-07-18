@@ -149,7 +149,7 @@ async def restore_chat(chat_id: str, db: aiosqlite.Connection = Depends(get_db))
 @router.get("/{chat_id}/messages/{message_id}")
 async def get_message(chat_id: str, message_id: str, db: aiosqlite.Connection = Depends(get_db)):
     async with db.execute(
-        """SELECT mv.content, mv.id as variant_id
+        """SELECT mv.content, mv.reasoning, mv.id as variant_id
            FROM messages m
            JOIN message_variants mv ON mv.message_id = m.id AND mv.variant_index = m.active_index
            WHERE m.id = ? AND m.chat_id = ?""",
@@ -184,7 +184,7 @@ async def get_message(chat_id: str, message_id: str, db: aiosqlite.Connection = 
             "is_error": bool(tc["is_error"]),
         })
 
-    return {"content": row["content"], "attachments": attachments, "tool_calls": tool_calls}
+    return {"content": row["content"], "reasoning": row["reasoning"], "attachments": attachments, "tool_calls": tool_calls}
 
 
 @router.delete("/{chat_id}/messages/{message_id}", status_code=204)
@@ -258,8 +258,8 @@ async def edit_message(
     new_variant_id = str(uuid.uuid4())
 
     await db.execute(
-        "INSERT INTO message_variants (id, message_id, variant_index, content, created_at, model_name) VALUES (?, ?, ?, ?, ?, ?)",
-        (new_variant_id, message_id, new_index, body.content, now, prev_model),
+        "INSERT INTO message_variants (id, message_id, variant_index, content, created_at, model_name, reasoning) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (new_variant_id, message_id, new_index, body.content, now, prev_model, body.reasoning),
     )
 
     for att_id in body.attachment_ids:

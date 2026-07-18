@@ -20,8 +20,7 @@ window.extractThoughtsSafely = function (text) {
 
   const thoughts = [];
   processed = processed.replace(/<think>([\s\S]*?)(?:<\/think>|$)/g, function (match, p1) {
-    const isClosed = match.includes('</think>');
-    thoughts.push({ content: p1, isClosed: isClosed });
+    thoughts.push({ content: p1 });
     return `\n\n%%%THINK_BLOCK_${thoughts.length - 1}%%%\n\n`;
   });
 
@@ -114,14 +113,29 @@ window.closeMarkdown = function (text) {
 
 marked.use({ breaks: true });
 
-window.renderMessage = function (text, startThinkIdx) {
-  if (!text) return '';
+window.renderMessage = function (text, startThinkIdx, reasoning) {
+  if (!text && !reasoning) return '';
   startThinkIdx = startThinkIdx || 0;
 
-  text = window.closeMarkdown(text);
+  text = window.closeMarkdown(text || '');
   const extracted = window.extractThoughtsSafely(text);
-  const thoughts = extracted.thoughts;
   let processed = extracted.processed;
+
+  // Prepend reasoning from separate field (new messages) or fall back to thinks extracted from text (old messages)
+  const thoughts = extracted.thoughts.slice();
+  if (reasoning) {
+    thoughts.unshift({ content: reasoning });
+    // Insert placeholder at start so marked renders it inline for replacement
+    processed = '\n\n%%%THINK_BLOCK_0%%%\n\n' + processed;
+    // Renumber existing placeholders by +1 to make room
+    for (var ri = 0; ri < extracted.thoughts.length; ri++) {
+      processed = processed.replace(
+        new RegExp('%%%THINK_BLOCK_' + ri + '%%%', 'g'),
+        '%%%THINK_BLOCK_' + (ri + 1) + '%%%'
+      );
+    }
+  }
+
   let html = DOMPurify.sanitize(marked.parse(processed));
 
   const codeStash = [];

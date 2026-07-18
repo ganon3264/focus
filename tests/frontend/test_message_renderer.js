@@ -62,7 +62,6 @@ eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'messages'
   var result = window.extractThoughtsSafely('before<think>hidden</think>after');
   assertEqual(result.thoughts.length, 1, 'extractThoughts: one thought');
   assertEqual(result.thoughts[0].content, 'hidden', 'extractThoughts: thought content');
-  assert(result.thoughts[0].isClosed, 'extractThoughts: thought is closed');
   assertNotIncludes(result.processed, 'hidden', 'extractThoughts: thought content removed from processed');
   assertIncludes(result.processed, '%%%THINK_BLOCK_0%%%', 'extractThoughts: placeholder inserted');
 })();
@@ -71,7 +70,6 @@ eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'messages'
 (function () {
   var result = window.extractThoughtsSafely('<think>unclosed');
   assert(result.thoughts.length === 1, 'extractThoughts: unclosed thought extracted');
-  assert(!result.thoughts[0].isClosed, 'extractThoughts: unclosed flagged');
   assertEqual(result.thoughts[0].content, 'unclosed', 'extractThoughts: unclosed content');
 })();
 

@@ -1,14 +1,19 @@
 (function () {
-  function buildEditBlocks(content, toolCalls) {
-    var parts = (content || '').split('%%%TOOL_BOUNDARY%%%');
+  function buildEditBlocks(content, toolCalls, reasoning) {
     var blocks = [];
     var toolCallsRendered = false;
+
+    if (reasoning) {
+      blocks.push({ type: 'reasoning', content: reasoning.trim() });
+    }
+
+    var parts = (content || '').split('%%%TOOL_BOUNDARY%%%');
 
     for (var pi = 0; pi < parts.length; pi++) {
       var extracted = window.extractThoughtsSafely(parts[pi]);
 
       for (var t = 0; t < extracted.thoughts.length; t++) {
-        blocks.push({ type: 'reasoning', content: extracted.thoughts[t].content.trim(), isClosed: extracted.thoughts[t].isClosed });
+        blocks.push({ type: 'reasoning', content: extracted.thoughts[t].content.trim() });
       }
 
       var text = extracted.processed;
@@ -121,7 +126,7 @@
       if (!res.ok) throw new Error('Failed to load message');
       var data = await res.json();
 
-      var blocks = buildEditBlocks(data.content, data.tool_calls);
+      var blocks = buildEditBlocks(data.content, data.tool_calls, data.reasoning);
       window._editBlocks = blocks;
 
       document.getElementById('edit-msg-id').value = messageId;
@@ -182,29 +187,25 @@
     var chatId = document.getElementById('edit-msg-chat-id').value;
     var blocks = window._editBlocks || [];
 
-    var parts = [];
+    var textParts = [];
+    var reasoningText = '';
     for (var i = 0; i < blocks.length; i++) {
       var blk = blocks[i];
       if (blk.type === 'reasoning') {
         var ta = document.querySelector('.edit-block-ta[data-block-idx="' + i + '"]');
         var text = ta ? ta.value.trim() : '';
-        if (text) {
-          if (blk.isClosed) {
-            parts.push('<think>\n' + text + '\n</think>');
-          } else {
-            parts.push('<think>\n' + text);
-          }
-        }
+        if (text) reasoningText = text;
       } else if (blk.type === 'text') {
         var ta = document.querySelector('.edit-block-ta[data-block-idx="' + i + '"]');
         var text = ta ? ta.value.trim() : '';
-        if (text) parts.push(text);
+        if (text) textParts.push(text);
       } else if (blk.type === 'tool_boundary') {
-        parts.push('%%%TOOL_BOUNDARY%%%');
+        textParts.push('%%%TOOL_BOUNDARY%%%');
       }
     }
 
-    var content = parts.join('\n');
+    var content = textParts.join('\n');
+    var reasoning = reasoningText || null;
 
     try {
       await fetch(window.api.chatMessage(chatId, messageId), {
@@ -212,6 +213,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           content: content,
+          reasoning: reasoning,
           attachment_ids: window.currentEditAttachments.map(function (a) { return a.id; }),
         }),
       });

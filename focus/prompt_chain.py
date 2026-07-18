@@ -361,7 +361,7 @@ async def assemble_prompt(
                 if content:
                     target.append({"role": cb["role"], "content": content})
 
-    # Extract <think>...</think> blocks from assistant messages
+    # Extract reasoning from assistant messages
     cleaned_history = []
     for msg in chat_history:
         cleaned_msg = dict(msg)
@@ -371,20 +371,27 @@ async def assemble_prompt(
         if cleaned_msg.get("role") == "assistant" and isinstance(cleaned_msg.get("content"), str):
             content = cleaned_msg["content"]
 
-            # Find thought signature
-            signature_match = re.search(r"<thought_signature>(.*?)</thought_signature>", content, flags=re.DOTALL)
-            if signature_match:
-                cleaned_msg["thought_signature"] = signature_match.group(1).strip()
-                content = re.sub(r"<thought_signature>.*?</thought_signature>", "", content, flags=re.DOTALL).strip()
+            if cleaned_msg.get("reasoning"):
+                # reasoning already populated from DB column — just strip <think> tags
+                # for backward compat with old messages that still have them in content
+                if "<think>" in content:
+                    cleaned_msg["content"] = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
+            else:
+                # Fall back to <think> extraction for old messages
+                signature_match = re.search(
+                    r"<thought_signature>(.*?)</thought_signature>", content, flags=re.DOTALL
+                )
+                if signature_match:
+                    cleaned_msg["thought_signature"] = signature_match.group(1).strip()
+                    content = re.sub(
+                        r"<thought_signature>.*?</thought_signature>", "", content, flags=re.DOTALL
+                    ).strip()
 
-            # Find all think blocks
-            thoughts = re.findall(r"<think>(.*?)</think>", content, flags=re.DOTALL)
-            if thoughts:
-                # Combine multiple blocks just in case, though usually there's only one
-                cleaned_msg["reasoning"] = "\n\n".join(t.strip() for t in thoughts if t.strip())
+                thoughts = re.findall(r"<think>(.*?)</think>", content, flags=re.DOTALL)
+                if thoughts:
+                    cleaned_msg["reasoning"] = "\n\n".join(t.strip() for t in thoughts if t.strip())
 
-            # Non-greedy match for <think> blocks across multiple lines to strip them
-            cleaned_msg["content"] = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
+                cleaned_msg["content"] = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
 
         cleaned_history.append(cleaned_msg)
 

@@ -243,7 +243,7 @@ async def fetch_active_variants(db: aiosqlite.Connection, chat_id: str, extra_co
     """
     cols = (
         "m.id, m.role, m.position, m.active_index, "
-        "mv.content, mv.variant_index, mv.id as variant_id, "
+        "mv.content, mv.reasoning, mv.variant_index, mv.id as variant_id, "
         "mv.created_at, mv.model_name, "
         "(SELECT COUNT(*) FROM message_variants WHERE message_id = m.id) as variant_count"
     )
@@ -288,7 +288,7 @@ async def get_chat_messages(db: aiosqlite.Connection, chat_id: str) -> list[dict
 
     for m in messages:
         m["attachments"] = attachments_by_variant.get(m["variant_id"], [])
-        m["segments"] = render_message_segments(m["content"])
+        m["segments"] = render_message_segments(m["content"], m.get("reasoning"))
         tcs = tool_calls_by_variant.get(m["variant_id"], [])
         if tcs:
             m["tool_calls"] = [

@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 
 
-def render_message_segments(content: str) -> list[dict]:
+def render_message_segments(content: str, reasoning: str | None = None) -> list[dict]:
     """Split message content into typed segments for template rendering.
 
     Returns a flat list of dicts:
@@ -17,6 +17,11 @@ def render_message_segments(content: str) -> list[dict]:
     """
     segments: list[dict] = []
     reasoning_idx = 0
+
+    if reasoning:
+        escaped = _escape_html(reasoning.strip())
+        segments.append({"type": "reasoning", "html": escaped, "index": 0})
+        reasoning_idx = 1
 
     parts = content.split("%%%TOOL_BOUNDARY%%%")
 

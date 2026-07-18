@@ -18,7 +18,6 @@ from focus.core.utils import (
     resolve_secret_key,
 )
 from focus.providers import create_provider
-from focus.core.message_render import strip_think_blocks
 from focus.routers.providers import get_openrouter_model_modalities
 from focus.routers.stream_utils import (
     apply_claude_caching,
@@ -110,12 +109,15 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
     if prov_dict.get("type", "") not in ("google_aistudio", "google_vertex"):
         for msg in messages:
             msg.pop("thought_signature", None)
-        if prov_dict.get("type") != "moonshot":
+        if prov_dict.get("type") not in ("moonshot", "deepseek"):
             for msg in messages:
                 msg.pop("reasoning", None)
 
     if body.continue_text and body.regenerate and provider.supports_prefill:
-        messages.append({"role": "assistant", "content": body.continue_text})
+        prefill_msg = {"role": "assistant", "content": body.continue_text}
+        if body.continue_reasoning:
+            prefill_msg["reasoning"] = body.continue_reasoning
+        messages.append(prefill_msg)
 
     gen_kwargs: dict = {}
     use_stream = True
@@ -155,12 +157,14 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
 
     if not use_stream:
         collected: list[str] = []
+        collected_reasoning: list[str] = []
         final_asst_msg_id = asst_msg_id
         loop_messages = list(messages)
         variant_id = str(uuid.uuid4())
 
         for _iteration in range(MAX_TOOL_ITERATIONS if tools_enabled else 1):
             iter_collected: list[str] = []
+            iter_reasoning: list[str] = []
             tool_calls_list: list | None = None
 
             try:
@@ -171,6 +175,8 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
                 async for event in provider.stream_complete(loop_messages, **gen_kwargs):
                     if event["type"] == "token":
                         iter_collected.append(event["text"])
+                    elif event["type"] == "reasoning":
+                        iter_reasoning.append(event["text"])
                     elif event["type"] == "tool_calls":
                         tool_calls_list = event["calls"]
                         break
@@ -185,9 +191,11 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
 
             if not tool_calls_list:
                 collected.extend(iter_collected)
+                collected_reasoning.extend(iter_reasoning)
                 break
 
             collected.extend(iter_collected)
+            collected_reasoning.extend(iter_reasoning)
             collected.append("%%%TOOL_BOUNDARY%%%")
             tool_calls_list = list(tool_calls_list)
             logger.debug(
@@ -197,10 +205,11 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
 
             await _apply_tool_round(
                 loop_messages, tool_calls_list, tools_by_name, tool_read_only,
-                body.chat_id, final_asst_msg_id, variant_id, iter_collected,
+                body.chat_id, final_asst_msg_id, variant_id, iter_collected, iter_reasoning,
             )
 
         full = "".join(collected)
+        full_reasoning = "".join(collected_reasoning).strip() or None
         if body.continue_text and not full.startswith(body.continue_text):
             full = body.continue_text + full
 
@@ -213,6 +222,7 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
                 body.regenerate,
                 prov_dict.get("model", ""),
                 variant_id=variant_id,
+                reasoning=full_reasoning,
             )
         except Exception as e:
             logger.exception("Failed to save non-stream result for chat_id=%s", body.chat_id)
@@ -227,6 +237,7 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
                 "variant_index": next_variant_index,
                 "user_message_id": user_msg_id if not body.regenerate else None,
                 "full_text": full,
+                "full_reasoning": full_reasoning,
             }
         )
 
@@ -263,10 +274,12 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
         loop_messages = list(messages)
         variant_saved = False
         final_text: list[str] = []
+        final_reasoning: list[str] = []
         stream_variant_id = str(uuid.uuid4())
 
         for _iteration in range(MAX_TOOL_ITERATIONS if tools_enabled else 1):
             iter_collected: list[str] = []
+            iter_reasoning: list[str] = []
             tool_calls_list: list | None = None
 
             try:
@@ -283,7 +296,11 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
                                 body.chat_id, final_asst_msg_id, next_variant_index,
                                 "".join(iter_collected), body.regenerate, prov_dict.get("model", ""),
                                 variant_id=stream_variant_id,
+                                reasoning="".join(iter_reasoning).strip() or None,
                             )
+                    elif event["type"] == "reasoning":
+                        iter_reasoning.append(event["text"])
+                        yield f"data: {json.dumps({'type': 'reasoning', 'text': event['text']})}\n\n"
                     elif event["type"] == "tool_calls":
                         tool_calls_list = event["calls"]
                         yield f"data: {json.dumps({'type': 'tool_calls', 'calls': [{'id': tc.id, 'name': tc.name, 'arguments': tc.arguments} for tc in event['calls']]})}\n\n"
@@ -302,6 +319,7 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
                         body.chat_id, final_asst_msg_id, next_variant_index,
                         "".join(iter_collected), body.regenerate, prov_dict.get("model", ""),
                         variant_id=stream_variant_id,
+                        reasoning="".join(iter_reasoning).strip() or None,
                     )
                 elif not body.regenerate and not final_text:
                     await _rollback_assistant(final_asst_msg_id)
@@ -314,34 +332,38 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
 
             if not tool_calls_list:
                 final_text.extend(iter_collected)
+                final_reasoning.extend(iter_reasoning)
                 break
 
             final_text.extend(iter_collected)
+            final_reasoning.extend(iter_reasoning)
             final_text.append("%%%TOOL_BOUNDARY%%%")
 
             tool_calls_list = list(tool_calls_list)
 
             results = await _apply_tool_round(
                 loop_messages, tool_calls_list, tools_by_name, tool_read_only,
-                body.chat_id, final_asst_msg_id, stream_variant_id, iter_collected,
+                body.chat_id, final_asst_msg_id, stream_variant_id, iter_collected, iter_reasoning,
             )
 
             for r in results:
                 yield f"data: {json.dumps({'type': 'tool_result', 'call_id': r.call_id, 'name': next((tc.name for tc in tool_calls_list if tc.id == r.call_id), ''), 'result': r.content, 'is_error': r.is_error})}\n\n"
 
         full = "".join(final_text)
+        full_reasoning = "".join(final_reasoning).strip() or None
         if body.continue_text and not full.startswith(body.continue_text):
             full = body.continue_text + full
 
         logger.debug(
-            "stream: saving variant asst_msg_id=%s variant_index=%d full_length=%d",
-            final_asst_msg_id, next_variant_index, len(full),
+            "stream: saving variant asst_msg_id=%s variant_index=%d full_length=%d reasoning=%s",
+            final_asst_msg_id, next_variant_index, len(full), "yes" if full_reasoning else "no",
         )
         try:
             await _upsert_variant(
                 body.chat_id, final_asst_msg_id, next_variant_index,
                 full, body.regenerate, prov_dict.get("model", ""),
                 variant_id=stream_variant_id,
+                reasoning=full_reasoning,
             )
             variant_saved = True
             logger.debug("stream: variant saved successfully")
@@ -372,11 +394,16 @@ async def _apply_tool_round(
     asst_msg_id: str,
     variant_id: str,
     iter_collected: list[str],
+    iter_reasoning: list[str] | None = None,
 ) -> list:
     """Build assistant message with tool_calls, execute tools, append results
     to loop_messages. Returns the ToolResult list so callers can yield SSE events."""
-    asst_text = strip_think_blocks("".join(iter_collected)).strip()
+    asst_text = "".join(iter_collected).strip()
     asst_msg: dict = {"role": "assistant", "content": asst_text or None}
+    if iter_reasoning:
+        reasoning_text = "".join(iter_reasoning).strip()
+        if reasoning_text:
+            asst_msg["reasoning"] = reasoning_text
     asst_msg["tool_calls"] = [
         {"id": tc.id, "type": "function",
          "function": {"name": tc.name, "arguments": json.dumps(tc.arguments)}}
@@ -464,6 +491,7 @@ async def _upsert_variant(
     regenerate: bool,
     model_name: str = "",
     variant_id: str | None = None,
+    reasoning: str | None = None,
 ) -> str:
     """Insert or update a message variant. If a variant with the same
     (message_id, variant_index) exists, updates it in-place. Otherwise inserts
@@ -482,14 +510,14 @@ async def _upsert_variant(
         if existing:
             vid = existing[0]
             await save_db.execute(
-                "UPDATE message_variants SET content = ?, model_name = ?, created_at = ? WHERE id = ?",
-                (content, model_name or None, save_now, vid),
+                "UPDATE message_variants SET content = ?, model_name = ?, created_at = ?, reasoning = ? WHERE id = ?",
+                (content, model_name or None, save_now, reasoning, vid),
             )
         else:
             vid = variant_id or str(uuid.uuid4())
             await save_db.execute(
-                "INSERT INTO message_variants (id, message_id, variant_index, content, created_at, model_name) VALUES (?, ?, ?, ?, ?, ?)",
-                (vid, asst_msg_id, variant_index, content, save_now, model_name or None),
+                "INSERT INTO message_variants (id, message_id, variant_index, content, created_at, model_name, reasoning) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (vid, asst_msg_id, variant_index, content, save_now, model_name or None, reasoning),
             )
             if regenerate and variant_index > 0:
                 async with save_db.execute("SELECT active_index FROM messages WHERE id = ?", (asst_msg_id,)) as act:

@@ -11,8 +11,6 @@ from ..core.utils import (
     DEFAULT_OPENAI_COMPAT_BASE_URL,
     DEFAULT_TEMPERATURE,
     OPENAI_HTTP_TIMEOUT,
-    THINK_CLOSE,
-    THINK_OPEN,
 )
 from ..tools import ToolCall
 from .base import BaseProvider
@@ -99,8 +97,6 @@ class OpenAICompatProvider(BaseProvider):
             request_params["max_tokens"] = max_tokens
             request_params["temperature"] = temperature
 
-        in_reasoning = False
-
         if logger.isEnabledFor(logging.DEBUG):
             dump = copy.deepcopy(request_params)
             for m in dump.get("messages", []):
@@ -148,15 +144,9 @@ class OpenAICompatProvider(BaseProvider):
                                 tool_calls_acc[idx]["args_parts"].append(tc.function.arguments)
 
                 if reasoning:
-                    if not in_reasoning:
-                        in_reasoning = True
-                        yield {"type": "token", "text": THINK_OPEN}
-                    yield {"type": "token", "text": reasoning}
+                    yield {"type": "reasoning", "text": reasoning}
 
                 if delta:
-                    if in_reasoning:
-                        in_reasoning = False
-                        yield {"type": "token", "text": THINK_CLOSE}
                     yield {"type": "token", "text": delta}
 
         # After stream ends: emit tool_calls or done

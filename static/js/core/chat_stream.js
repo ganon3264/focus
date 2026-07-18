@@ -165,7 +165,7 @@
     return div;
   }
 
-  window.triggerGeneration = async function (chatId, asstDiv, isRegen = false, continueText = null) {
+  window.triggerGeneration = async function (chatId, asstDiv, isRegen = false, continueText = null, continueReasoning = null) {
     let textSegments = [];
     let currentTextDiv = null;
 
@@ -254,12 +254,14 @@
       tool_read_only: window._toolConfig ? window._toolConfig.read_only : true,
     };
     if (continueText) body.continue_text = continueText;
+    if (continueReasoning) body.continue_reasoning = continueReasoning;
 
     window._tempUserMessage = '';
 
     const useStream = body.samplers.stream_enabled !== false;
 
     let fullText = '';
+    let fullReasoning = '';
 
     try {
       const res = await fetch(window.api.stream, {
@@ -277,6 +279,7 @@
       if (!useStream) {
         const json = await res.json();
         fullText = json.full_text || '';
+        const fullReasoning = json.full_reasoning || '';
         const messageId = json.message_id;
         const userMessageId = json.user_message_id;
 
@@ -300,7 +303,7 @@
 
         const contentDiv = asstDiv.querySelector('.message-content');
         if (contentDiv) {
-          contentDiv.innerHTML = window.renderMessage(fullText);
+          contentDiv.innerHTML = window.renderMessage(fullText, 0, fullReasoning);
           if (window._updateReasoningButton) window._updateReasoningButton(contentDiv);
         }
         if (messageId) {
@@ -364,6 +367,24 @@
             textSegments.push({ div: contDiv, text: '' });
           } else if (json.type === 'tool_result') {
             window._updateToolResult(asstDiv, json.call_id, json.name, json.result, json.is_error);
+          } else if (json.type === 'reasoning') {
+            fullReasoning += json.text || '';
+            if (asstDiv) {
+              var rb = asstDiv.querySelector('.reasoning-block');
+              if (!rb) {
+                rb = document.createElement('div');
+                rb.className = 'reasoning-block';
+                rb.setAttribute('data-think-id', '0');
+                rb.style.cssText = 'padding-left:3rem';
+                rb.innerHTML = '<div class="reasoning-content markdown-content hidden" style="white-space:pre-wrap"></div>';
+                var bodyEl = asstDiv.querySelector('.message-body');
+                var contentEl = asstDiv.querySelector('.message-content');
+                if (bodyEl && contentEl) bodyEl.insertBefore(rb, contentEl);
+              }
+              var rc = rb.querySelector('.reasoning-content');
+              if (rc) rc.textContent = fullReasoning;
+              if (window._updateReasoningButton) window._updateReasoningButton(contentEl || asstDiv);
+            }
           } else if (json.token !== undefined) {
             fullText += json.token;
             if (!currentTextDiv) {
@@ -372,15 +393,11 @@
             }
             var seg = textSegments[textSegments.length - 1];
             seg.text += json.token;
-            var startIdx = 0;
-            for (var si = 0; si < textSegments.length - 1; si++) {
-              startIdx += window.extractThoughtsSafely(textSegments[si].text).thoughts.length;
-            }
             let displayText = seg.text;
             if (continueText && prefillMode && textSegments.length === 1) {
               displayText = continueText + seg.text;
             }
-            window.preserveOpenStates(currentTextDiv, () => window.renderMessage(displayText, startIdx));
+            window.preserveOpenStates(currentTextDiv, () => window.renderMessage(displayText));
             if (window._updateReasoningButton) window._updateReasoningButton(currentTextDiv);
             if (window.autoScroll && window.scrollSentinel) {
               window.scrollSentinel.scrollIntoView({ behavior: 'smooth' });
@@ -395,15 +412,14 @@
       }
 
       if (textSegments.length > 0) {
-        var finalStartIdx = 0;
         for (var si = 0; si < textSegments.length; si++) {
           var seg = textSegments[si];
           let segDisplayText = seg.text;
           if (continueText && prefillMode && si === 0) {
             segDisplayText = continueText + seg.text;
           }
-          window.preserveOpenStates(seg.div, () => window.renderMessage(segDisplayText, finalStartIdx));
-          finalStartIdx += window.extractThoughtsSafely(seg.text).thoughts.length;
+          var segReasoning = si === 0 ? fullReasoning : null;
+          window.preserveOpenStates(seg.div, () => window.renderMessage(segDisplayText, 0, segReasoning));
         }
         if (window._updateReasoningButton) window._updateReasoningButton(asstDiv.querySelector('.message-content'));
       }
@@ -452,7 +468,7 @@
             restoredDiv.dataset.rawContent = partialText;
             const restoredContent = restoredDiv.querySelector('.message-content');
             if (restoredContent) {
-              restoredContent.innerHTML = window.renderMessage(partialText);
+              restoredContent.innerHTML = window.renderMessage(partialText, 0, fullReasoning);
               if (window._updateReasoningButton) window._updateReasoningButton(restoredContent);
             }
           }
