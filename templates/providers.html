@@ -4,7 +4,7 @@
 {% block content %}
 <div class="p-3">
   <h1 class="text-xl font-bold mb-3">Providers</h1>
-  <div class="grid gap-2 mb-4" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));">
+  <div class="grid gap-2 mb-4" id="provider-grid" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));">
     {% for prov in providers %}
     <div class="p-3" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;">
       <div class="flex justify-between items-center mb-1">
@@ -54,14 +54,49 @@
 <script>
 function submitProvider(e){
   e.preventDefault();
-  const data = Object.fromEntries(new FormData(e.target));
+  var form = e.target;
+  var data = Object.fromEntries(new FormData(form));
   try { data.params = JSON.parse(data.params || '{}'); } catch(err){ data.params = {}; }
   fetch('/api/providers', {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify(data)
   }).then(function(r){
-    if(r.ok) window.location.reload();
+    if(!r.ok) { r.text().then(function(t){ alert('Failed to create provider: ' + t); }); return; }
+    return r.json();
+  }).then(function(result){
+    if (!result) return;
+    var grid = document.getElementById('provider-grid');
+    if (!grid) return;
+    var div = document.createElement('div');
+    div.className = 'p-3';
+    div.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:10px;';
+    var hdr = document.createElement('div');
+    hdr.className = 'flex justify-between items-center mb-1';
+    var strong = document.createElement('strong');
+    strong.textContent = data.name;
+    var btn = document.createElement('button');
+    btn.className = 'btn btn-danger btn-sm';
+    btn.setAttribute('hx-delete', '/api/providers/' + result.id);
+    btn.setAttribute('hx-confirm', 'Delete?');
+    btn.setAttribute('hx-target', 'closest div');
+    btn.setAttribute('hx-swap', 'delete');
+    btn.setAttribute('aria-label', 'Delete provider');
+    btn.innerHTML = window.getSvgSprite('close', 16);
+    hdr.appendChild(strong);
+    hdr.appendChild(btn);
+    var meta = document.createElement('div');
+    meta.className = 'text-sm text-muted';
+    meta.textContent = data.type + ' \u2022 ' + data.model;
+    var url = document.createElement('div');
+    url.className = 'text-sm text-muted truncate';
+    url.textContent = data.base_url || '';
+    div.appendChild(hdr);
+    div.appendChild(meta);
+    div.appendChild(url);
+    grid.insertBefore(div, grid.firstChild);
+    htmx.process(div);
+    form.reset();
   });
 }
 </script>

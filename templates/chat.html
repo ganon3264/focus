@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import icon_edit, icon_expand, icon_trash, icon_refresh, icon_music, icon_key, icon_search, icon_folder, icon_paperclip, icon_plus, icon_stop, icon_send, icon_chat, icon_close, icon_chevron_left, icon_chevron_right %}
+{% from "macros.html" import icon_edit, icon_trash, icon_refresh, icon_music, icon_key, icon_search, icon_folder, icon_paperclip, icon_plus, icon_stop, icon_send, icon_chat, icon_close, icon_chevron_left, icon_chevron_right %}
 {% from "modal_shell.html" import modal_shell %}
 {% block title %}Chat - Focus{% endblock %}
 {% block content %}
@@ -295,7 +295,17 @@ if (!window._varScriptsLoaded) {
         temp.innerHTML = html;
         var newGroup = temp.querySelector('.var-group-container');
         if (!newGroup) return;
-        var oldGroup = document.querySelector('.var-group-container[data-group-name="' + groupName.replace(/"/g, '\\"') + '"]');
+        if (!newGroup.querySelector('.var-option-item')) {
+          var oldGroup = document.querySelector('.var-group-container[data-group-name="' + CSS.escape(groupName) + '"]');
+          if (oldGroup) oldGroup.remove();
+          var outer = document.getElementById('preset-variables-container-' + presetId);
+          if (outer && !outer.querySelector('.var-group-container')) {
+            var sortable = outer.querySelector('.flex.flex-col.gap-2');
+            if (sortable) sortable.innerHTML = '<div class="text-muted text-sm mb-2">No variables configured.</div>';
+          }
+          return;
+        }
+        var oldGroup = document.querySelector('.var-group-container[data-group-name="' + CSS.escape(groupName) + '"]');
         if (oldGroup && oldGroup.parentNode) {
           oldGroup.parentNode.replaceChild(newGroup, oldGroup);
           htmx.process(newGroup);

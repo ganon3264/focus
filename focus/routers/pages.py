@@ -574,6 +574,30 @@ async def export_entities_partial(
     )
 
 
+@router.get("/partials/persona-card/{persona_id}", response_class=HTMLResponse)
+async def persona_card_partial(
+    request: Request, persona_id: str, db: aiosqlite.Connection = Depends(get_db)
+):
+    from focus.crud import get_persona
+    p = await get_persona(db, persona_id)
+    if not p:
+        from fastapi import HTTPException
+        raise HTTPException(404)
+    return templates.TemplateResponse(request, "personas/card.html", {"p": p})
+
+
+@router.get("/partials/preset-sidebar/{preset_id}", response_class=HTMLResponse)
+async def preset_sidebar_partial(
+    request: Request, preset_id: str, db: aiosqlite.Connection = Depends(get_db)
+):
+    from focus.crud import get_preset
+    p = await get_preset(db, preset_id)
+    if not p:
+        from fastapi import HTTPException
+        raise HTTPException(404)
+    return templates.TemplateResponse(request, "presets/sidebar_item.html", {"p": p})
+
+
 # Add json filter to jinja
 def from_json(value):
     import json

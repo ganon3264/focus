@@ -1,0 +1,6 @@
+{% from "macros.html" import icon_trash %}
+<div class="sidebar-item" id="preset-{{ p.id }}" data-name="{{ p.name | escape }}" :class="{'active': activePreset === '{{ p.id }}'}"
+  @click="activePreset = '{{ p.id }}'; htmx.ajax('GET', '/partials/preset-editor/{{ p.id }}', {target:'#preset-editor', swap:'innerHTML'})">
+  <div class="text-sm truncate flex-1">{{ p.name }}</div>
+  <button class="btn btn-danger btn-sm" style="margin-left:auto;" onclick="event.stopPropagation(); promptDeletePreset('{{ p.id }}')" aria-label="Delete preset">{{ icon_trash() }}</button>
+</div>

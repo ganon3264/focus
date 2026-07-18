@@ -145,8 +145,7 @@
       return;
     }
 
-    var indexEl = existingMsg.querySelector('.meta-right [style*="font-size: 1.75rem"]');
-    var msgIndex = indexEl ? parseInt(indexEl.textContent.replace('#', '').trim()) || 1 : 1;
+    var msgIndex = parseInt(existingMsg.getAttribute('data-msg-index')) || 1;
     var msgList = document.getElementById('message-list');
     var isLatest = msgList ? existingMsg === msgList.querySelector('.message:last-of-type') : false;
 

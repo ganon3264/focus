@@ -1,8 +1,7 @@
 {% extends "base.html" %}
-{% from "macros.html" import icon_trash %}
 {% block title %}Presets - Focus{% endblock %}
 {% block content %}
-<div class="p-3" x-data="{ activePreset: '{{ presets[0].id if presets else '' }}' }">
+<div class="p-3" id="presets-page" x-data="{ activePreset: '{{ presets[0].id if presets else '' }}' }">
   <div class="flex justify-between items-center mb-3">
     <h1 class="text-xl font-bold">Presets</h1>
     <div class="flex gap-3">
@@ -19,19 +18,14 @@
 
   <div class="flex gap-3" style="height:calc(100vh - 80px);">
     <!-- Preset list -->
-    <div style="width:220px;flex-shrink:0;" class="flex flex-col gap-1">
+    <div style="width:220px;flex-shrink:0;" class="flex flex-col gap-1" id="preset-list">
       {% for p in presets %}
-      <div class="sidebar-item" :class="{'active': activePreset === '{{ p.id }}'}"
-        @click="activePreset = '{{ p.id }}'; htmx.ajax('GET', '/partials/preset-editor/{{ p.id }}', {target:'#preset-editor', swap:'innerHTML'})"
-      >
-        <div class="text-sm truncate flex-1">{{ p.name }}</div>
-        <button class="btn btn-danger btn-sm" style="margin-left:auto;" onclick="event.stopPropagation(); promptDeletePreset('{{ p.id }}', '{{ p.name | escape }}')" aria-label="Delete preset">{{ icon_trash() }}</button>
-      </div>
+      {% include "presets/sidebar_item.html" %}
       {% endfor %}
     </div>
 
     <!-- Block editor -->
-    <div class="flex-1 flex flex-col gap-2 min-w-0" id="preset-editor-panel" data-active-preset="{{ presets[0].id if presets else '' }}">
+    <div class="flex-1 flex flex-col gap-2 min-w-0">
       <div class="flex-1 overflow-auto" id="preset-editor" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1rem;">
         {% if presets %}
           {% with preset_id = presets[0].id, blocks = presets[0].blocks %}
@@ -45,36 +39,83 @@
   </div>
 </div>
 <script>
-function promptDeletePreset(pid, pName) {
-  window.customConfirm(`Delete preset <strong>${pName}</strong>?`, function() {
-    fetch(`/api/presets/${pid}`, {
+function promptDeletePreset(pid) {
+  var item = document.getElementById('preset-' + pid);
+  var pName = item ? item.getAttribute('data-name') || 'this preset' : 'this preset';
+  window.customConfirm('Delete preset <strong>' + window.escapeHtml(pName) + '</strong>?', function() {
+    fetch('/api/presets/' + pid, {
       method: 'DELETE'
-    }).then(r => {
-      if(r.ok) window.location.reload();
+    }).then(function(r) {
+      if(!r.ok) return;
+      var el = document.getElementById('preset-' + pid);
+      if (el) el.remove();
+      var container = document.getElementById('preset-list');
+      if (container && container.querySelectorAll('.sidebar-item').length === 0) {
+        container.innerHTML = '<div class="text-muted text-sm text-center py-4">No presets. Create one to start.</div>';
+      }
+      var alpineEl = document.getElementById('presets-page');
+      if (alpineEl) {
+        var state = Alpine.$data(alpineEl);
+        if (state.activePreset === pid) {
+          state.activePreset = '';
+          var editor = document.getElementById('preset-editor');
+          if (editor) editor.innerHTML = '<div class="text-muted">No preset selected.</div>';
+        }
+      }
     });
   });
 }
 
 function createPreset(e){
   e.preventDefault();
-  const data = Object.fromEntries(new FormData(e.target));
+  var form = e.target;
+  var data = Object.fromEntries(new FormData(form));
   fetch('/api/presets', {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify(data)
-  }).then(function(){ window.location.reload(); });
+  }).then(function(r){
+    if(!r.ok) { r.text().then(function(t){ alert('Failed to create preset: ' + t); }); return; }
+    return r.json();
+  }).then(function(result){
+    if (!result) return;
+    insertPresetSidebar(result.id);
+  });
+}
+
+function insertPresetSidebar(id) {
+  var container = document.getElementById('preset-list');
+  if (!container) return;
+  fetch('/partials/preset-sidebar/' + id)
+    .then(function(r) { return r.text(); })
+    .then(function(html) {
+      var emptyMsg = container.querySelector('.text-muted.text-center');
+      if (emptyMsg) emptyMsg.remove();
+      var temp = document.createElement('div');
+      temp.innerHTML = html;
+      var sidebar = temp.firstElementChild;
+      if (!sidebar) return;
+      container.appendChild(sidebar);
+      Alpine.initTree(sidebar);
+      var state = Alpine.$data(document.getElementById('presets-page'));
+      if (state) state.activePreset = id;
+      htmx.ajax('GET', '/partials/preset-editor/' + id, {target:'#preset-editor', swap:'innerHTML'});
+    });
 }
 
 function importPreset(e){
   e.preventDefault();
-  const formData = new FormData(e.target);
+  var form = e.target;
+  var formData = new FormData(form);
   fetch('/api/presets/import', {
     method: 'POST',
     body: formData
-  }).then(r => {
-    if(r.ok) window.location.reload();
-    else r.text().then(t => alert('Import failed: ' + t));
+  }).then(function(r) {
+    if(!r.ok) return r.text().then(function(t){ alert('Import failed: ' + t); });
+    return r.json();
+  }).then(function(data) {
+    if (data && data.id) insertPresetSidebar(data.id);
   });
 }
-</script>
+
 {% endblock %}

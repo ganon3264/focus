@@ -3,32 +3,9 @@
 {% block content %}
 <div class="p-3">
   <h1 class="text-xl font-bold mb-3">Personas</h1>
-  <div class="grid gap-2 mb-4" style="grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));">
+  <div class="grid gap-2 mb-4" id="persona-grid" style="grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));">
     {% for p in personas %}
-    <div class="p-3" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;">
-      <div class="flex gap-3 items-center mb-2">
-        <div class="avatar-thumb" style="width:48px;height:48px;font-size:1.2rem;">
-          {% if p.avatar_path %}
-            <img src="/{{ p.avatar_path }}" alt="{{ p.name }} avatar">
-          {% else %}
-            {{ p.name[:1] }}
-          {% endif %}
-        </div>
-        <div class="flex-1 min-w-0">
-          <div class="font-bold">{{ p.name }}</div>
-          <div class="text-sm text-muted truncate">{{ p.description[:60] }}</div>
-        </div>
-      </div>
-      <div class="flex gap-2">
-        <label class="btn btn-secondary btn-sm" style="cursor:pointer">
-          Avatar
-          <input type="file" accept="image/*" class="hidden" onchange="handleAvatarUpload(this, '/api/personas/{{ p.id }}/avatar')">
-        </label>
-        {% if p.name != 'User' %}
-        <button class="btn btn-danger btn-sm" onclick="promptDeletePersona('{{ p.id }}', '{{ p.name | escape }}')">Delete</button>
-        {% endif %}
-      </div>
-    </div>
+    {% include "personas/card.html" %}
     {% endfor %}
   </div>
 
@@ -46,25 +23,49 @@
   </form>
 </div>
 <script>
-function promptDeletePersona(pid, pName) {
-  window.customConfirm(`Delete persona <strong>${pName}</strong>?`, function() {
-    fetch(`/api/personas/${pid}`, {
+function promptDeletePersona(pid) {
+  var card = document.getElementById('persona-' + pid);
+  var pName = card ? card.getAttribute('data-name') || 'this persona' : 'this persona';
+  window.customConfirm('Delete persona <strong>' + window.escapeHtml(pName) + '</strong>?', function() {
+    fetch('/api/personas/' + pid, {
       method: 'DELETE'
-    }).then(r => {
-      if(r.ok) window.location.reload();
+    }).then(function(r) {
+      if(!r.ok) return;
+      var c = document.getElementById('persona-' + pid);
+      if (c) c.remove();
+      var grid = document.getElementById('persona-grid');
+      if (grid && grid.children.length === 0) {
+        grid.innerHTML = '<div class="text-muted text-center text-sm py-6 border border-dashed border-(--border) rounded-lg">No personas found. Create one to get started!</div>';
+      }
     });
   });
 }
 
 function submitPersona(e){
   e.preventDefault();
-  const data = Object.fromEntries(new FormData(e.target));
+  var form = e.target;
   fetch('/api/personas', {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
-    body: JSON.stringify(data)
+    body: JSON.stringify(Object.fromEntries(new FormData(form)))
   }).then(function(r){
-    if(r.ok) window.location.reload();
+    if(!r.ok) { r.text().then(function(t){ alert('Failed to create persona: ' + t); }); return; }
+    return r.json();
+  }).then(function(result){
+    if (!result) return;
+    var grid = document.getElementById('persona-grid');
+    if (!grid) return;
+    var emptyMsg = grid.querySelector('.border-dashed');
+    if (emptyMsg) emptyMsg.remove();
+    fetch('/partials/persona-card/' + result.id)
+      .then(function(r) { return r.text(); })
+      .then(function(html) {
+        var temp = document.createElement('div');
+        temp.innerHTML = html;
+        grid.insertBefore(temp.firstElementChild, grid.firstChild);
+        htmx.process(grid.firstElementChild);
+        form.reset();
+      });
   });
 }
 </script>
