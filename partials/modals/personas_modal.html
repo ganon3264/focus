@@ -40,7 +40,7 @@
 
 <div class="grid" id="persona-modal-grid" data-view="{{ 'compact' if compact_view else 'full' }}" style="grid-template-columns: {{ 'repeat(3, minmax(200px, 1fr))' if compact_view else 'repeat(auto-fill, minmax(160px, 1fr))' }}; gap: 1rem;">
   {% for p in personas %}
-  <div class="card" id="persona-card-{{ p.id }}" data-persona-name="{{ p.name | lower }}" data-persona-created="{{ p.created_at }}">
+  <div class="card{% if current_persona_id == p.id %} active{% endif %}" id="persona-card-{{ p.id }}" data-persona-name="{{ p.name | lower }}" data-persona-created="{{ p.created_at }}">
     <div class="persona-view-full h-full flex flex-col" style="display:{{ 'none' if compact_view else 'flex' }};">
       <div class="card-image" style="aspect-ratio: 1/1; border-radius: 12px 12px 0 0; cursor:pointer;" role="button" tabindex="0" onclick="selectPersonaModal('{{ p.id }}')">
         {% if p.avatar_path %}

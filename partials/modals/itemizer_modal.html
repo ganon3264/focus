@@ -4,7 +4,7 @@
     <div class="text-xs text-muted">Visualize and estimate tokens for the outbound prompt.</div>
     <div class="flex items-center gap-3">
       <span class="text-sm font-mono bg-surface-2 px-2 py-1 rounded" style="background:var(--surface-2); border:1px solid var(--border);" title="Uses cl100k_base estimation">
-        Tokens: <span class="font-bold text-[var(--accent)]" x-text="totalTokens">...</span>
+        Tokens: <span class="font-bold text-[var(--active-text)]" x-text="totalTokens">...</span>
       </span>
       <button class="btn btn-secondary btn-sm" @click="load()" :disabled="loading">
         <span x-show="!loading">Refresh</span>

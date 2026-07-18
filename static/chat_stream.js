@@ -537,7 +537,51 @@
       codeStash.push(m);
       return `%%%ACCENT_CODE_${codeStash.length - 1}%%%`;
     });
-    html = html.replace(/(?<!=)"([^"<]*?)"/g, '<span class="accent-quote">"$1"</span>');
+    // Walk remaining HTML, wrapping quotes only when not inside a styled tag
+    {
+      let result = '';
+      const tagStack = [];
+      for (let pos = 0; pos < html.length; pos++) {
+        const ch = html[pos];
+        if (ch === '<') {
+          const tagEnd = html.indexOf('>', pos);
+          if (tagEnd === -1) { result += ch; continue; }
+          const tag = html.slice(pos, tagEnd + 1);
+
+          if (tag.startsWith('</')) {
+            const tagName = tag.match(/<\/(\w+)/)?.[1];
+            if (tagName) {
+              for (let j = tagStack.length - 1; j >= 0; j--) {
+                if (tagStack[j].name === tagName) {
+                  tagStack.splice(j);
+                  break;
+                }
+              }
+            }
+          } else if (!tag.endsWith('/>') && !tag.match(/<(area|base|br|col|embed|hr|img|input|link|meta|param|source|track|wbr)\b/i)) {
+            const tagName = tag.match(/<(\w+)/)?.[1];
+            if (tagName) {
+              tagStack.push({ name: tagName, styled: /style\s*=/i.test(tag) });
+            }
+          }
+
+          result += tag;
+          pos = tagEnd;
+        } else if (ch === '"' && !tagStack.some(t => t.styled)) {
+          let end = pos + 1;
+          while (end < html.length && html[end] !== '"' && html[end] !== '<') end++;
+          if (end < html.length && html[end] === '"') {
+            result += '<span class="accent-quote">"' + html.slice(pos + 1, end) + '"</span>';
+            pos = end;
+          } else {
+            result += ch;
+          }
+        } else {
+          result += ch;
+        }
+      }
+      html = result;
+    }
     html = html.replace(/%%%ACCENT_CODE_(\d+)%%%/g, (_, i) => codeStash[+i]);
     
     // 3. Restore thinking blocks with exact line breaks

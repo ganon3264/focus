@@ -31,12 +31,8 @@
 <div x-data="samplerModal()" @provider-changed.window="onProviderChanged($event.detail)" class="flex flex-col h-full">
   <!-- Tabs -->
   <div class="flex mb-4" style="border-bottom: 1px solid var(--border);">
-    <button class="px-4 py-2 text-sm font-medium transition-colors"
-            :style="tab === 'standard' ? 'color: var(--accent); border-bottom: 2px solid var(--accent);' : 'color: var(--muted);'"
-            @click="tab = 'standard'">Standard</button>
-    <button class="px-4 py-2 text-sm font-medium transition-colors"
-            :style="tab === 'custom' ? 'color: var(--accent); border-bottom: 2px solid var(--accent);' : 'color: var(--muted);'"
-            @click="tab = 'custom'">Custom Body</button>
+    <button class="tab-btn" :class="{'active': tab === 'standard'}" @click="tab = 'standard'">Standard</button>
+    <button class="tab-btn" :class="{'active': tab === 'custom'}" @click="tab = 'custom'">Custom Body</button>
   </div>
 
   <!-- Standard Tab -->

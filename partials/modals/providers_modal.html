@@ -14,7 +14,7 @@
   <div class="grid gap-3" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));">
     {% for prov in providers %}
       {% set params = prov.params_json|default('{}')|from_json %}
-      <div class="provider-card card" id="prov-card-{{ prov.id }}" style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);">
+      <div class="provider-card card" id="prov-card-{{ prov.id }}">
         <!-- Display State -->
         <div id="prov-display-{{ prov.id }}" class="p-3 h-full flex flex-col justify-between cursor-pointer" role="button" tabindex="0" onclick="setActiveProvider('{{ prov.id }}', '{{ prov.name|replace("'", "\\'") }}', '{{ prov.type }}')">
           <div class="flex justify-between items-center mb-1">
@@ -220,8 +220,8 @@
          <template x-for="sec in secrets" :key="sec.name">
            <div class="flex justify-between items-center p-2 rounded-md transition-colors cursor-pointer"
                 style="border: 1px solid var(--border); background: var(--surface);"
-                @mouseover="$el.style.borderColor='var(--accent)'"
-                @mouseout="$el.style.borderColor='var(--border)'"
+                 @mouseover="$el.style.borderColor='var(--active-text)'"
+                 @mouseout="$el.style.borderColor='var(--border)'"
                 @click="selectSecret(sec.name)">
              <div>
                <div class="font-bold text-sm" x-text="sec.name"></div>

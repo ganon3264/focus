@@ -229,15 +229,9 @@ async function updateOpenRouterOptions(prefix, modelId) {
 }
 
 function setActiveProvider(id, name, type) {
-  document.querySelectorAll('.provider-card').forEach(el => {
-    el.style.borderColor = 'var(--border)';
-    el.style.boxShadow = 'none';
-  });
+  document.querySelectorAll('.provider-card').forEach(el => el.classList.remove('active'));
   const card = document.getElementById('prov-card-' + id);
-  if(card) {
-    card.style.borderColor = 'var(--accent)';
-    card.style.boxShadow = 'var(--shadow-glow)';
-  }
+  if(card) card.classList.add('active');
   
   const sendBtn = document.getElementById('send-btn');
   if(sendBtn) sendBtn.dataset.providerId = id;
