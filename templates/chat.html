@@ -198,7 +198,7 @@
 {% include "modals/text_expander.html" %}
 
 <!-- PROMPT ARRANGER MODAL -->
-{% call modal_shell('modal-arranger', 'Prompt Arranger', max_width='600px', width='90vw', content_style='display:flex;flex-direction:column;height:85vh;padding:0;') %}
+{% call modal_shell('modal-arranger', 'Prompt Arranger', max_width='600px', width='90vw', content_style='display:flex;flex-direction:column;height:85vh;padding:1.5rem 1.5rem 0 1.5rem;') %}
 <div id="arranger-modal-body" class="flex-1 overflow-auto" style="padding:0.5rem 1rem 1rem 1rem;">
   {% if preset %}
     {% with preset_id = preset.id, blocks = preset_blocks %}
@@ -313,11 +313,11 @@ if (!window._varScriptsLoaded) {
     document.getElementById('var-modal-label').value = optionLabel || '';
     document.getElementById('var-modal-content').value = content || '';
     updateVarHint(groupName || '');
-    document.getElementById('var-edit-modal').style.display = 'grid';
+    document.getElementById('var-edit-modal').classList.remove('hidden');
   };
 
   window.closeVarModal = function() {
-    document.getElementById('var-edit-modal').style.display = 'none';
+    document.getElementById('var-edit-modal').classList.add('hidden');
     _currentVarBlockId = null;
     _currentPresetId = null;
   };
@@ -371,25 +371,65 @@ setTimeout(() => {
 
 <script src="/static/js/theme_manager.js"></script>
 <script>
-// Expose current chat state globally for modals to inherit
-window.CURRENT_CHAT_STATE = {
+// Shared arranger helpers (always available)
+window.reloadPromptArranger = function(presetId, targetId) {
+    let url = '/partials/prompt-arranger/' + presetId;
+    const params = new URLSearchParams();
+    if (StateManager.get('character_id')) params.append('character_id', StateManager.get('character_id'));
+    if (StateManager.get('persona_id')) params.append('persona_id', StateManager.get('persona_id'));
+    const query = params.toString();
+    if (query) url += '?' + query;
+    htmx.ajax('GET', url, {target: '#' + targetId, swap:'innerHTML'});
+};
+window.getArrangerContainerId = function(presetId) {
+    const list = document.getElementById('arranger-list-' + presetId);
+    return (list && list.parentElement && list.parentElement.id) ? list.parentElement.id : 'arranger-modal-body';
+};
+
+// State manager init + callbacks
+StateManager.init({
   character_id: '{{ current_character_id or "" }}' || null,
   persona_id: '{{ current_persona_id or "" }}' || null,
   preset_id: '{{ current_preset_id or "" }}' || null
-};
+}, '{{ chat_id }}');
+
+StateManager.on('preset-changed', function(e) {
+  if (e.value) {
+    htmx.ajax('GET', '/partials/preset-variables/' + e.value, {target:'#preset-variables', swap:'innerHTML'});
+    reloadPromptArranger(e.value, 'arranger-modal-body');
+  } else {
+    document.getElementById('preset-variables').innerHTML = '';
+    document.getElementById('arranger-modal-body').innerHTML = '<div class="text-muted text-center mt-4">Select a preset first.</div>';
+  }
+});
+
+StateManager.on('character-changed', function() {
+  const pid = StateManager.get('preset_id');
+  if (pid) reloadPromptArranger(pid, 'arranger-modal-body');
+});
+
+StateManager.on('persona-changed', function() {
+  const pid = StateManager.get('preset_id');
+  if (pid) reloadPromptArranger(pid, 'arranger-modal-body');
+});
 
 /* Modal logic */
 function openModal(id){
-  document.getElementById(id).style.display = 'grid';
-  const body = document.getElementById(id).querySelector('.modal-content > div:last-child');
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.remove('hidden');
+  const body = el.querySelector('.modal-content > div:last-child');
   if(body && body.textContent === 'Loading…'){
-    if(id === 'modal-characters') htmx.ajax('GET',api.partials.charactersModal + '?current_character_id=' + (window.CURRENT_CHAT_STATE?.character_id || ''),{target:'#characters-modal-body',swap:'innerHTML'});
-    if(id === 'modal-personas') htmx.ajax('GET',api.partials.personasModal + '?current_persona_id=' + (window.CURRENT_CHAT_STATE?.persona_id || ''),{target:'#personas-modal-body',swap:'innerHTML'});
+    if(id === 'modal-characters') htmx.ajax('GET',api.partials.charactersModal + '?current_character_id=' + (StateManager.get('character_id') || ''),{target:'#characters-modal-body',swap:'innerHTML'});
+    if(id === 'modal-personas') htmx.ajax('GET',api.partials.personasModal + '?current_persona_id=' + (StateManager.get('persona_id') || ''),{target:'#personas-modal-body',swap:'innerHTML'});
     if(id === 'modal-providers') htmx.ajax('GET',api.partials.providersModal,{target:'#providers-modal-body',swap:'innerHTML'});
   }
   if(id === 'modal-backups' && window.BackupManager) { BackupManager.loadList(); }
 }
-function closeModal(id){ document.getElementById(id).style.display = 'none'; }
+function closeModal(id){
+  const el = document.getElementById(id);
+  if (el) el.classList.add('hidden');
+}
 function toggleRightBar(){
   document.getElementById('right-sidebar').classList.toggle('hidden');
   document.getElementById('right-tab').classList.toggle('hidden');

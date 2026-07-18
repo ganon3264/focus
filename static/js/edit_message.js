@@ -37,7 +37,7 @@
       window.renderEditModalAttachments();
 
       if (window.openModal) window.openModal('modal-edit-message');
-      else document.getElementById('modal-edit-message').style.display = 'grid';
+      else document.getElementById('modal-edit-message').classList.remove('hidden');
 
     } catch (err) {
       alert("Error editing message: " + err.message);
@@ -98,7 +98,7 @@
       });
 
       if (window.closeModal) window.closeModal('modal-edit-message');
-      else document.getElementById('modal-edit-message').style.display = 'none';
+      else document.getElementById('modal-edit-message').classList.add('hidden');
 
       htmx.ajax('GET', window.api.partials.messageList(chatId), {target: '#message-list', swap: 'innerHTML'});
     } catch (err) {

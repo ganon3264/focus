@@ -138,16 +138,16 @@
 {% include "modals/provider_create_modal.html" %}
 
 <!-- Universal Model Selection Modal -->
-<div id="modal-fetch-models" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Fetch models" style="display:none; z-index: 100;"
+<div id="modal-fetch-models" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-label="Fetch models" style="z-index: var(--z-modal-sub);"
      x-data="{ search: '', models: [], loading: false, error: '' }"
      @models-loaded.window="models = $event.detail; loading = false; error = ''"
      @models-loading.window="loading = true; error = ''"
      @models-error.window="error = $event.detail; loading = false"
-     onclick="if(event.target===this) document.getElementById('modal-fetch-models').style.display='none'">
+     onclick="if(event.target===this) document.getElementById('modal-fetch-models').classList.add('hidden')">
   <div class="modal-content flex flex-col p-0" style="max-width: 800px; width: 95vw; height: 80vh; overflow: hidden; background: var(--surface);">
-    <div class="modal-header p-4 mb-0" style="border-bottom: 1px solid var(--border);">
+    <div class="modal-header p-4" style="margin-bottom: 0; border-bottom: 1px solid var(--border);">
       <div class="modal-title">Select Model</div>
-      <button class="btn btn-secondary" onclick="document.getElementById('modal-fetch-models').style.display='none'" aria-label="Close">{{ icon_close(16) }}</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('modal-fetch-models').classList.add('hidden')" aria-label="Close">{{ icon_close(16) }}</button>
     </div>
     
     <div class="p-4" style="background: var(--surface-2); border-bottom: 1px solid var(--border);">
@@ -204,14 +204,14 @@
 
 
 <!-- Secrets Selection Modal -->
-<div id="modal-secrets" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Secrets" style="display:none; z-index: 100;"
+<div id="modal-secrets" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-label="Secrets" style="z-index: var(--z-modal-sub);"
      x-data="{ secrets: [], rawKey: '', newName: '', newValue: '' }"
      @secrets-loaded.window="secrets = $event.detail"
-     onclick="if(event.target===this) document.getElementById('modal-secrets').style.display='none'">
+     onclick="if(event.target===this) document.getElementById('modal-secrets').classList.add('hidden')">
   <div class="modal-content flex flex-col p-0" style="max-width: 800px; width: 95vw; height: 75vh; overflow: hidden; background: var(--surface);">
-    <div class="modal-header p-4 mb-0" style="border-bottom: 1px solid var(--border);">
+    <div class="modal-header p-4" style="margin-bottom: 0; border-bottom: 1px solid var(--border);">
       <div class="modal-title">Select API Key</div>
-      <button class="btn btn-secondary" onclick="document.getElementById('modal-secrets').style.display='none'" aria-label="Close">{{ icon_close(16) }}</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('modal-secrets').classList.add('hidden')" aria-label="Close">{{ icon_close(16) }}</button>
     </div>
     
     <div class="p-4" style="background: var(--surface-2); border-bottom: 1px solid var(--border);">

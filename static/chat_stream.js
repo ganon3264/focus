@@ -349,7 +349,7 @@
 
     document.getElementById('message-list')?.classList.add('ready');
 
-    const savedProvider = localStorage.getItem('focus-provider-id');
+    const savedProvider = StateManager.get('provider_id');
     if (savedProvider) {
       const sendBtn = document.getElementById('send-btn');
       if(sendBtn) sendBtn.dataset.providerId = savedProvider;

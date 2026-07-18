@@ -49,7 +49,7 @@ window._currentFetchPrefix = null;
 
 function openFetchModelModal(prefix) {
   window._currentFetchPrefix = prefix;
-  document.getElementById('modal-fetch-models').style.display = 'grid';
+  document.getElementById('modal-fetch-models').classList.remove('hidden');
   forceFetchModels();
 }
 
@@ -126,7 +126,7 @@ function selectFetchedModel(id, name) {
     }
   }
   
-  document.getElementById('modal-fetch-models').style.display = 'none';
+  document.getElementById('modal-fetch-models').classList.add('hidden');
 }
 
 function openORModelModal(prefix) {
@@ -235,11 +235,7 @@ function setActiveProvider(id, name, type) {
   
   const sendBtn = document.getElementById('send-btn');
   if(sendBtn) sendBtn.dataset.providerId = id;
-  localStorage.setItem('focus-provider-id', id);
-  if (type) {
-    localStorage.setItem('focus-provider-type', type);
-    window.dispatchEvent(new CustomEvent('provider-changed', { detail: type }));
-  }
+  StateManager.setProvider(id, type);
 }
 
 function toggleProviderEdit(id){
@@ -337,8 +333,8 @@ function submitProviderModal(e){
 
 // Initialization
 setTimeout(() => {
-  const activeId = localStorage.getItem('focus-provider-id');
-  const activeType = localStorage.getItem('focus-provider-type');
+  const activeId = StateManager.get('provider_id');
+  const activeType = StateManager.get('provider_type');
   if (activeId) setActiveProvider(activeId, '', activeType);
 }, 100);
 
@@ -347,7 +343,7 @@ window._currentSecretPrefix = null;
 
 function openSecretsModal(prefix) {
   window._currentSecretPrefix = prefix;
-  document.getElementById('modal-secrets').style.display = 'grid';
+  document.getElementById('modal-secrets').classList.remove('hidden');
   fetchSecrets();
 }
 
@@ -385,7 +381,7 @@ function _setKeyInput(val, displayHtml) {
     display.innerHTML = displayHtml;
     display.classList.remove('text-muted');
   }
-  document.getElementById('modal-secrets').style.display = 'none';
+  document.getElementById('modal-secrets').classList.add('hidden');
 }
 
 function selectSecret(name) {
@@ -406,5 +402,5 @@ function clearKey() {
   if(display) {
     display.innerHTML = '<span class="text-muted">Select API Key...</span>';
   }
-  document.getElementById('modal-secrets').style.display = 'none';
+  document.getElementById('modal-secrets').classList.add('hidden');
 }

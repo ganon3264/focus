@@ -35,6 +35,7 @@
     <link rel="stylesheet" href="/static/vendor/inter.css">
     <link rel="stylesheet" href="/static/tailwind.css">
     <link rel="stylesheet" href="/static/style.css">
+    <script src="/static/js/state_manager.js"></script>
     <script src="/static/vendor/htmx2.min.js"></script>
     <script src="/static/vendor/json-enc.js"></script>
     <script defer src="/static/vendor/alpine-collapse.min.js"></script>
@@ -123,8 +124,8 @@
           s.insertBefore(div, s.lastElementChild.previousElementSibling);
           var ph = s.querySelector('.block-media-placeholder');
           if (ph) ph.style.display = 'none';
-          if (window.CURRENT_CHAT_STATE && window.CURRENT_CHAT_STATE[cfg.stateKey] === id && window.reloadPromptArranger) {
-            var pid = window.CURRENT_CHAT_STATE.preset_id || (document.getElementById('prompt-arranger') && document.querySelector('#prompt-arranger .arranger-list') ? document.querySelector('#prompt-arranger .arranger-list').id.replace('arranger-list-', '') : null);
+          if (window.StateManager && StateManager.get(cfg.stateKey) === id && window.reloadPromptArranger) {
+            var pid = StateManager.get('preset_id') || (document.getElementById('prompt-arranger') && document.querySelector('#prompt-arranger .arranger-list') ? document.querySelector('#prompt-arranger .arranger-list').id.replace('arranger-list-', '') : null);
             if (pid) reloadPromptArranger(pid, 'prompt-arranger');
           }
         });
@@ -159,7 +160,7 @@
         list.forEach(function(img) {
           s.insertBefore(buildMediaThumbnail(img, function(e) { window[cfg.deleteFn](img.id); }, cfg.mediaIdPrefix), s.lastElementChild.previousElementSibling);
         });
-        document.getElementById(mid).style.display = 'grid';
+        document.getElementById(mid).classList.remove('hidden');
       };
 
       window[cfg.uploadFn] = function(input) {
@@ -175,8 +176,8 @@
           if (!r.ok) return;
           var el = document.getElementById(cfg.mediaIdPrefix + '-' + imageId);
           if (el) el.remove();
-          if (window.CURRENT_CHAT_STATE && window.CURRENT_CHAT_STATE[cfg.stateKey] === id && window.reloadPromptArranger) {
-            var pid = window.CURRENT_CHAT_STATE.preset_id || (document.getElementById('prompt-arranger') && document.querySelector('#prompt-arranger .arranger-list') ? document.querySelector('#prompt-arranger .arranger-list').id.replace('arranger-list-', '') : null);
+          if (window.StateManager && StateManager.get(cfg.stateKey) === id && window.reloadPromptArranger) {
+            var pid = StateManager.get('preset_id') || (document.getElementById('prompt-arranger') && document.querySelector('#prompt-arranger .arranger-list') ? document.querySelector('#prompt-arranger .arranger-list').id.replace('arranger-list-', '') : null);
             if (pid) reloadPromptArranger(pid, 'prompt-arranger');
           }
         });
@@ -212,7 +213,10 @@
         }).then(async function(r) {
           if (!r.ok) return;
           closeModal(mid);
-          htmx.ajax('GET', cfg.modalBodyUrl, {target: cfg.modalBodySelector, swap: 'innerHTML'});
+          var url = cfg.modalBodyUrl;
+          var currentId = StateManager.get(cfg.stateKey);
+          if (currentId) url += '?current_' + cfg.stateKey + '=' + encodeURIComponent(currentId);
+          htmx.ajax('GET', url, {target: cfg.modalBodySelector, swap: 'innerHTML'});
         });
       };
 
@@ -224,21 +228,20 @@
     {% include "modals/confirm_modal.html" %}
     
     <!-- Global Lightbox for Images -->
-     <div id="lightbox" class="fixed inset-0 z-[9999] bg-black/90 hidden flex-col items-center justify-center backdrop-blur-xs" role="dialog" aria-modal="true" aria-label="Image lightbox" onclick="closeLightbox(event)">
+     <div id="lightbox" class="modal-overlay heavy hidden" role="dialog" aria-modal="true" aria-label="Image lightbox" style="z-index: var(--z-overlay);" onclick="closeLightbox(event)">
        <button id="lightbox-close" class="absolute top-4 right-4 text-white/50 hover:text-white bg-black/50 hover:bg-black/75 rounded-full w-10 h-10 flex items-center justify-center transition-colors text-xl font-bold cursor-pointer focus:outline-hidden z-50" onclick="closeLightbox(event)" title="Close" aria-label="Close lightbox">{{ icon_close(24) }}</button>
        <img id="lightbox-img" src="" alt="Enlarged image" class="max-w-[95vw] max-h-[95vh] object-contain rounded shadow-2xl" onclick="event.stopPropagation()">
     </div>
 
     <!-- Global Crop Modal -->
-     <div id="crop-modal" class="fixed inset-0 z-[9999] bg-black/80 hidden flex-col items-center justify-center backdrop-blur-xs" role="dialog" aria-modal="true" aria-label="Image crop tool">
-      <div class="bg-(--surface) border border-(--border) rounded-xl w-full max-w-2xl flex flex-col overflow-hidden">
-        <div class="flex justify-between items-center p-4 border-b border-(--border)">
-          <h3 class="text-lg font-bold">Crop Image</h3>
+     <div id="crop-modal" class="modal-overlay heavy hidden" role="dialog" aria-modal="true" aria-label="Image crop tool" style="z-index: var(--z-overlay);">
+      <div class="modal-content" style="max-width: 42rem; width: 90vw; padding: 0; overflow: hidden; display: flex; flex-direction: column;">
+        <div class="modal-header" style="padding: 1rem 1.5rem; margin-bottom: 0; border-bottom: 1px solid var(--border);">
+          <div class="modal-title">Crop Image</div>
           <button class="btn btn-secondary w-8 h-8 rounded-full p-0 flex items-center justify-center" onclick="closeCropModal()" aria-label="Close crop tool">{{ icon_close() }}</button>
         </div>
-        <div id="crop-container" class="p-2 bg-(--surface-2)" style="height:60vh">
-        </div>
-        <div class="flex justify-end gap-3 p-4 border-t border-(--border) bg-(--surface)">
+        <div id="crop-container" class="p-2" style="background: var(--surface-2); height: 60vh;"></div>
+        <div class="modal-footer" style="padding: 1rem 1.5rem;">
           <button class="btn btn-secondary" onclick="closeCropModal()">Cancel</button>
           <button class="btn btn-primary" id="crop-save-btn">Save Crop</button>
         </div>

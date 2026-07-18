@@ -28,6 +28,17 @@
   --radius-xl: 20px;
   --radius-full: 9999px;
 
+  /* Z-index scale — lowest to highest */
+  --z-modal: 50;
+  --z-modal-sub: 100;
+  --z-modal-high: 1000;
+  --z-overlay: 10000;
+  --z-max: 10010;
+
+  /* Modal backdrops */
+  --modal-backdrop: rgba(0,0,0,0.6);
+  --modal-backdrop-heavy: rgba(0,0,0,0.85);
+
   /* Shadows */
   --shadow-sm: 0 2px 4px rgba(0,0,0,0.1);
   --shadow-md: 0 4px 12px rgba(0,0,0,0.15);
@@ -291,11 +302,33 @@
   .btn-tag.active { background: var(--active-bg); border-color: var(--active-border); color: var(--active-text); }
 
   /* Modals */
-  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); display: grid; place-items: center; z-index: 50; padding: 1rem; animation: fade-in 0.2s ease-out; }
-  .modal-content { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-xl); padding: 1.5rem; width: 100%; max-width: 420px; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-lg); animation: slide-up 0.2s ease-out; }
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: var(--modal-backdrop);
+    backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+    display: grid; place-items: center;
+    z-index: var(--z-modal);
+    padding: 1rem;
+    animation: fade-in 0.2s ease-out;
+  }
+  .modal-overlay.heavy { background: var(--modal-backdrop-heavy); }
+  .modal-content {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+    padding: 1.5rem;
+    width: 100%; max-width: 420px;
+    max-height: 90vh; overflow-y: auto;
+    box-shadow: var(--shadow-lg);
+    animation: slide-up 0.2s ease-out;
+  }
   .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
-  #modal-arranger .modal-header { padding: 1.5rem; }
   .modal-title { font-size: 1.15rem; font-weight: 600; color: var(--text); }
+  .modal-footer {
+    display: flex; justify-content: flex-end; gap: 0.5rem;
+    padding-top: 1rem; margin-top: 1rem;
+    border-top: 1px solid var(--border);
+  }
   .tab-btn { padding: 0.5rem 1rem; font-size: 0.9rem; font-weight: 500; border: none; background: transparent; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; transition: all var(--transition); font-family: inherit; }
   .tab-btn.active { background: var(--active-bg); border-bottom-color: var(--active-border); color: var(--active-text); }
 

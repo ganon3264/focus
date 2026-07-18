@@ -206,7 +206,7 @@
 document.addEventListener('alpine:init', () => {
   Alpine.data('samplerModal', () => ({
     tab: 'standard',
-    providerType: localStorage.getItem('focus-provider-type') || 'openai_compat',
+    providerType: StateManager.get('provider_type') || 'openai_compat',
 
     samplers: {},
     customFields: [],

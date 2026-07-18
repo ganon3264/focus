@@ -77,10 +77,8 @@ if (!window._arrangerScriptsLoaded) {
   window.reloadPromptArranger = function(presetId, targetId) {
     let url = '/partials/prompt-arranger/' + presetId;
     const params = new URLSearchParams();
-    if (window.CURRENT_CHAT_STATE) {
-      if (window.CURRENT_CHAT_STATE.character_id) params.append('character_id', window.CURRENT_CHAT_STATE.character_id);
-      if (window.CURRENT_CHAT_STATE.persona_id) params.append('persona_id', window.CURRENT_CHAT_STATE.persona_id);
-    }
+    if (StateManager.get('character_id')) params.append('character_id', StateManager.get('character_id'));
+    if (StateManager.get('persona_id')) params.append('persona_id', StateManager.get('persona_id'));
     const query = params.toString();
     if (query) url += '?' + query;
     
@@ -115,11 +113,11 @@ if (!window._arrangerScriptsLoaded) {
     const item = document.querySelector('.arranger-item[data-block-id="' + blockId + '"]');
     const content = item ? (item.dataset.blockContent || '') : '';
     document.getElementById('block-modal-textarea').value = content;
-    document.getElementById('block-edit-modal').style.display = 'grid';
+    document.getElementById('block-edit-modal').classList.remove('hidden');
   }
 
   window.closeBlockModal = function(){
-    document.getElementById('block-edit-modal').style.display = 'none';
+    document.getElementById('block-edit-modal').classList.add('hidden');
     _currentBlockId = null;
     _currentPresetId = null;
   }

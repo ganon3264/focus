@@ -1,5 +1,5 @@
 function updateStatusPanel() {
-  const activeId = localStorage.getItem('focus-provider-id');
+  const activeId = StateManager.get('provider_id');
   const providerEl = document.getElementById('status-provider');
   const presetEl = document.getElementById('status-preset');
   const modelEl = document.getElementById('status-model');
@@ -65,7 +65,7 @@ function newChat(){
   fetch(api.chats, {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
-    body: JSON.stringify(window.CURRENT_CHAT_STATE)
+    body: JSON.stringify(StateManager.getAll())
   }).then(r => {
     if(!r.ok) throw new Error('Failed to create chat');
     return r.json();

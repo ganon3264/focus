@@ -3,12 +3,10 @@ function openLightbox(src) {
   const img = document.getElementById('lightbox-img');
   img.src = src;
   lb.classList.remove('hidden');
-  lb.classList.add('flex');
 }
 
 function closeLightbox(e) {
   const lb = document.getElementById('lightbox');
-  lb.classList.remove('flex');
   lb.classList.add('hidden');
   document.getElementById('lightbox-img').src = '';
 }
@@ -29,7 +27,6 @@ function openCropModal(file, callback, options = {}) {
   const url = URL.createObjectURL(file);
 
   modal.classList.remove('hidden');
-  modal.classList.add('flex');
 
   if (cropper) {
     cropper.destroy();
@@ -69,7 +66,6 @@ function openCropModal(file, callback, options = {}) {
 
 function closeCropModal() {
   const modal = document.getElementById('crop-modal');
-  modal.classList.remove('flex');
   modal.classList.add('hidden');
   if (cropper) {
     cropper.destroy();

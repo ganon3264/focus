@@ -112,24 +112,9 @@ function promptDeletePersona(pid, pName) {
 }
 
 function selectPersonaModal(pid){
-  if (window.CURRENT_CHAT_STATE) {
-    window.CURRENT_CHAT_STATE.persona_id = pid;
-  }
-  const sendBtn = document.getElementById('send-btn');
-  const chatId = sendBtn ? sendBtn.dataset.chatId : null;
-  
-  if (chatId) {
-    fetch('/api/chats/' + chatId, {
-      method: 'PATCH',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({persona_id: pid})
-    }).then(function(){
-      closeModal('modal-personas');
-      window.location.reload();
-    });
-  } else {
-    closeModal('modal-personas');
-  }
+  StateManager.setPersona(pid);
+  closeModal('modal-personas');
+  window.location.reload();
 }
 
 ListManager.setup({

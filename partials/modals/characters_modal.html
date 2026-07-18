@@ -172,10 +172,10 @@ function openTrashModal() {
       html += `</div>`;
       
       const modalHtml = `
-        <div id="trash-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Trash" style="display:grid; z-index:9999;" onclick="if(event.target===this) this.remove()">
+        <div id="trash-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Trash" style="z-index: var(--z-overlay);" onclick="if(event.target===this) this.remove()">
           <div class="modal-content" style="max-width: 500px; width: 90vw;">
-            <div class="modal-header mb-4">
-              <div class="modal-title text-xl font-bold">Trash Bin</div>
+            <div class="modal-header" style="margin-bottom: 1rem;">
+              <div class="modal-title">Trash Bin</div>
                <button class="btn btn-secondary btn-sm" onclick="document.getElementById('trash-modal').remove()" aria-label="Close">{{ icon_close(16) }}</button>
             </div>
             <div id="trash-modal-body">
@@ -229,9 +229,7 @@ window.hardDeleteChar = function(charId, charName) {
 
 
 function selectCharModal(charId, charName){
-  if (window.CURRENT_CHAT_STATE) {
-    window.CURRENT_CHAT_STATE.character_id = charId;
-  }
+  StateManager.setCharacter(charId);
   window.location.href = '/chat?character_id=' + charId;
 }
 

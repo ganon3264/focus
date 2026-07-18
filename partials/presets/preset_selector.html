@@ -28,37 +28,32 @@
        <div class="px-3 py-2 cursor-pointer text-sm text-muted"
             onmouseover="this.style.background='var(--surface-3)'"
             onmouseout="this.style.background='transparent'"
-             @click="
-               selectedId = '';
-               selectedName = '— Select Preset —';
-               open = false;
-               if(window.CURRENT_CHAT_STATE) window.CURRENT_CHAT_STATE.preset_id = '';
-               fetch('/api/chats/{{ chat_id }}', {method: 'PATCH', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({preset_id: null})});
-               document.getElementById('preset-variables').innerHTML = '';
-               document.getElementById('arranger-modal-body').innerHTML = '<div class=\'text-muted text-center mt-4\'>Select a preset first.</div>';
-             "
+              @click="
+                selectedId = '';
+                selectedName = '— Select Preset —';
+                open = false;
+                StateManager.setPreset(null);
+              "
        >
          — Select Preset —
        </div>
 
-       {% for p in presets %}
-       <div class="px-3 py-2 cursor-pointer text-sm transition-colors duration-150"
-            style="border-top: 1px solid var(--border);"
-            onmouseover="this.style.background='var(--surface-3)'"
-            onmouseout="this.style.background='transparent'"
-             @click="
-               selectedId = '{{ p.id }}';
-               selectedName = '{{ p.name | replace("'", "\\'") }}';
-               open = false;
-               if(window.CURRENT_CHAT_STATE) window.CURRENT_CHAT_STATE.preset_id = '{{ p.id }}';
-               fetch('/api/chats/{{ chat_id }}', {method: 'PATCH', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({preset_id: '{{ p.id }}'})});
-               htmx.ajax('GET', '/partials/preset-variables/{{ p.id }}', {target:'#preset-variables', swap:'innerHTML'});
-               if(window.reloadPromptArranger) reloadPromptArranger('{{ p.id }}', 'arranger-modal-body');
-             "
-       >
-         {{ p.name }}
-       </div>
-       {% endfor %}
+        {% for p in presets %}
+        <div class="px-3 py-2 cursor-pointer text-sm transition-colors duration-150"
+             style="border-top: 1px solid var(--border);"
+             data-preset-id="{{ p.id }}"
+             onmouseover="this.style.background='var(--surface-3)'"
+             onmouseout="this.style.background='transparent'"
+              @click="
+                selectedId = '{{ p.id }}';
+                selectedName = '{{ p.name | replace("'", "\\'") }}';
+                open = false;
+                StateManager.setPreset('{{ p.id }}');
+              "
+        >
+          {{ p.name }}
+        </div>
+        {% endfor %}
     </div>
   </div>
 
@@ -81,7 +76,7 @@
     >{{ icon_trash() }}</button>
   </div>
 
-  <div class="modal-overlay" role="dialog" aria-modal="true" aria-label="Rename preset" style="display: none; z-index: 1000;" x-show="renaming" x-transition.opacity @click.self="renaming = false">
+  <div class="modal-overlay" role="dialog" aria-modal="true" aria-label="Rename preset" style="z-index: var(--z-modal-high);" x-show="renaming" x-transition.opacity @click.self="renaming = false">
     <div class="modal-content" style="max-width:420px;width:90vw;">
       <div class="modal-header">
         <div class="modal-title">Rename Preset</div>
@@ -130,11 +125,22 @@ function importPreset(file){
 function deletePreset(btn){
   const pid = document.getElementById('hidden-preset-id').value;
   if(!pid) return;
+  let fallbackItem = null;
+  const items = document.querySelectorAll('#preset-selector-wrapper [data-preset-id]');
+  for (const item of items) {
+    if (item.dataset.presetId !== pid) { fallbackItem = item; break; }
+  }
   window.customConfirm('Delete this preset?', function() {
     fetch('/api/presets/' + pid, {method: 'DELETE'})
       .then(function(r){
-        if(r.ok) window.location.reload();
-        else alert('Failed to delete preset');
+        if(!r.ok) { alert('Failed to delete preset'); return; }
+        if (fallbackItem) {
+          fallbackItem.click();
+        } else {
+          StateManager.setPreset(null);
+        }
+        const deletedEl = document.querySelector('#preset-selector-wrapper [data-preset-id="' + pid + '"]');
+        if (deletedEl) deletedEl.remove();
       });
   });
 }

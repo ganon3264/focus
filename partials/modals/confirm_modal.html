@@ -1,5 +1,5 @@
 {% from "modal_shell.html" import modal_shell %}
-{% call modal_shell('global-confirm-modal', 'Confirm Action', max_width='400px', content_style='', z_index='10005', role='alertdialog', overlay_close=false, close_fn='closeConfirmModal') %}
+{% call modal_shell('global-confirm-modal', 'Confirm Action', max_width='400px', content_style='', z_index='10010', role='alertdialog', overlay_close=false, close_fn='closeConfirmModal') %}
 <div id="global-confirm-message" class="text-sm mb-4" style="color: var(--text);">
   Are you sure?
 </div>
@@ -13,7 +13,7 @@
   let pendingConfirmCallback = null;
 
   function closeConfirmModal() {
-    document.getElementById('global-confirm-modal').style.display = 'none';
+    document.getElementById('global-confirm-modal').classList.add('hidden');
     pendingConfirmCallback = null;
   }
 
@@ -25,7 +25,7 @@
       msgEl.textContent = message || "Are you sure?";
     }
     pendingConfirmCallback = callback;
-    document.getElementById('global-confirm-modal').style.display = 'grid';
+    document.getElementById('global-confirm-modal').classList.remove('hidden');
   }
 
   document.getElementById('global-confirm-btn').addEventListener('click', function() {
