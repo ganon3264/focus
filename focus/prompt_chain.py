@@ -1,6 +1,7 @@
 from __future__ import annotations
 import base64
 import logging
+import os
 import re
 from pathlib import Path
 from typing import Any
@@ -13,34 +14,77 @@ from focus.utils import variable_group_name, MACRO_MAX_PASSES
 
 logger = logging.getLogger("focus.prompt_chain")
 
+from focus.paths import COMPRESSED_DIR
+
 MAX_IMAGE_B64 = 5 * 1024 * 1024  # 5 MB provider limit on base64 payload
 
 
-def _compress_image(data: bytes, mime: str) -> tuple[str, str]:
-    """Downscale image until its base64 payload fits under MAX_IMAGE_B64."""
+def _ensure_compressed(orig_path: str, mime: str) -> tuple[Path, str]:
+    """Return (compressed_file_path, output_mime) from a disk cache.
+
+    Creates a compressed version on disk if missing or stale.
+    Preserves PNG (with transparency) when possible; falls back to JPEG
+    only when dimension reduction alone can't fit under MAX_IMAGE_B64.
+    Cache invalidation is by mtime: compressed must be newer than original.
+    """
+    orig = Path(orig_path)
+    stem = orig.stem
+    png_cache = Path(COMPRESSED_DIR) / f"{stem}.png"
+    jpg_cache = Path(COMPRESSED_DIR) / f"{stem}.jpg"
+
+    try:
+        orig_mtime = orig.stat().st_mtime
+    except OSError:
+        orig_mtime = 0
+
+    if png_cache.exists() and png_cache.stat().st_mtime >= orig_mtime:
+        return png_cache, "image/png"
+    if jpg_cache.exists() and jpg_cache.stat().st_mtime >= orig_mtime:
+        return jpg_cache, "image/jpeg"
+
+    data = orig.read_bytes()
+
+    if len(base64.b64encode(data).decode()) <= MAX_IMAGE_B64:
+        if mime == "image/png":
+            png_cache.write_bytes(data)
+            return png_cache, "image/png"
+        jpg_cache.write_bytes(data)
+        return jpg_cache, "image/jpeg"
+
     img = Image.open(BytesIO(data))
-    b64 = base64.b64encode(data).decode()
+    has_alpha = img.mode in ("RGBA", "LA", "P")
 
-    if len(b64) <= MAX_IMAGE_B64:
-        return b64, mime
-
-    scale = 1.0
-    while len(b64) > MAX_IMAGE_B64 and scale > 0.05:
-        scale *= 0.8
-        new_w = max(1, int(img.width * scale))
-        new_h = max(1, int(img.height * scale))
-        resized = img.resize((new_w, new_h), Image.LANCZOS)
-        buf = BytesIO()
-        if resized.mode in ("RGBA", "LA", "P"):
-            resized = resized.convert("RGB")
-        resized.save(buf, format="JPEG", quality=85)
-        b64 = base64.b64encode(buf.getvalue()).decode()
-        if len(b64) > MAX_IMAGE_B64:
+    if has_alpha:
+        scale = 1.0
+        while scale > 0.05:
+            scale *= 0.8
+            w = max(1, int(img.width * scale))
+            h = max(1, int(img.height * scale))
+            resized = img.resize((w, h), Image.LANCZOS)
             buf = BytesIO()
-            resized.save(buf, format="JPEG", quality=65)
-            b64 = base64.b64encode(buf.getvalue()).decode()
+            resized.save(buf, format="PNG", optimize=True)
+            if len(base64.b64encode(buf.getvalue()).decode()) <= MAX_IMAGE_B64:
+                png_cache.write_bytes(buf.getvalue())
+                return png_cache, "image/png"
+        img = img.convert("RGB")
 
-    return b64, "image/jpeg"
+    for quality in (85, 65):
+        scale = 1.0
+        while scale > 0.05:
+            scale *= 0.8
+            w = max(1, int(img.width * scale))
+            h = max(1, int(img.height * scale))
+            resized = img.resize((w, h), Image.LANCZOS)
+            if resized.mode in ("RGBA", "LA", "P"):
+                resized = resized.convert("RGB")
+            buf = BytesIO()
+            resized.save(buf, format="JPEG", quality=quality)
+            if len(base64.b64encode(buf.getvalue()).decode()) <= MAX_IMAGE_B64:
+                jpg_cache.write_bytes(buf.getvalue())
+                return jpg_cache, "image/jpeg"
+
+    jpg_cache.write_bytes(buf.getvalue())
+    return jpg_cache, "image/jpeg"
 
 
 def _load_media(media_row: dict) -> dict | None:
@@ -49,29 +93,35 @@ def _load_media(media_row: dict) -> dict | None:
     if not path:
         logger.warning("_load_media: no path in media_row %r", media_row.get("id"))
         return None
-    try:
-        data = Path(path).read_bytes()
-    except (FileNotFoundError, PermissionError, OSError) as e:
-        logger.warning("_load_media: cannot read %s: %s", path, e)
+    if not Path(path).exists():
+        logger.warning("_load_media: file not found %s", path)
         return None
-    b64 = base64.b64encode(data).decode()
+
     mime = media_row.get("mime_type", "image/png")
 
     if mime.startswith("audio/"):
-        # Format might be extracted from mime type, e.g. audio/mpeg -> mp3
+        try:
+            data = Path(path).read_bytes()
+        except OSError as e:
+            logger.warning("_load_media: cannot read %s: %s", path, e)
+            return None
         fmt = mime.split("/")[-1].replace("mpeg", "mp3")
         return {
             "type": "input_audio",
             "input_audio": {
-                "data": b64,
+                "data": base64.b64encode(data).decode(),
                 "format": fmt
             }
         }
 
-    # Compress oversized images to stay under provider limits
-    b64, mime = _compress_image(data, mime)
+    try:
+        compressed_path, out_mime = _ensure_compressed(path, mime)
+        data = compressed_path.read_bytes()
+    except OSError as e:
+        logger.warning("_load_media: compression failed for %s: %s", path, e)
+        return None
 
-    return {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64}"}}
+    return {"type": "image_url", "image_url": {"url": f"data:{out_mime};base64,{base64.b64encode(data).decode()}"}}
 
 
 def _build_content(text: str, images: list[dict]) -> str | list:

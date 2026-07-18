@@ -213,6 +213,7 @@ async def fetch_active_variants(db: aiosqlite.Connection, chat_id: str, extra_co
     cols = (
         "m.id, m.role, m.position, m.active_index, "
         "mv.content, mv.variant_index, mv.id as variant_id, "
+        "mv.created_at, mv.model_name, "
         "(SELECT COUNT(*) FROM message_variants WHERE message_id = m.id) as variant_count"
     )
     if extra_cols:

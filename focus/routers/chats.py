@@ -369,8 +369,7 @@ async def upload_attachments(
         if not await cur.fetchone():
             raise HTTPException(404, "Chat not found")
             
-    attachments_dir = Path("assets/attachments")
-    attachments_dir.mkdir(exist_ok=True)
+    ATTACHMENTS_DIR.mkdir(exist_ok=True)
     
     results = []
     for file in files:
@@ -380,7 +379,7 @@ async def upload_attachments(
             suffix = ".bin"
         
         mime = file.content_type or "application/octet-stream"
-        file_path = str(attachments_dir / f"{attachment_id}{suffix}")
+        file_path = str(ATTACHMENTS_DIR / f"{attachment_id}{suffix}")
         
         content = await file.read()
         try:

@@ -47,13 +47,15 @@
     {% block head %}{% endblock %}
 </head>
 <body class="bg-dark text-light" hx-ext="json-enc">
-    {% from "macros.html" import icon_close, icon_music, icon_send, icon_regen, icon_crop %}
+    {% from "macros.html" import icon_close, icon_music, icon_send, icon_regen, icon_crop, icon_copy, icon_check %}
     <div style="display:none" aria-hidden="true" id="svg-sprite">
       <svg data-svg-icon="close" data-svg-size="16">{{ icon_close(16) }}</svg>
       <svg data-svg-icon="music" data-svg-size="24">{{ icon_music(24) }}</svg>
       <svg data-svg-icon="send" data-svg-size="18">{{ icon_send() }}</svg>
       <svg data-svg-icon="regen" data-svg-size="18">{{ icon_regen() }}</svg>
       <svg data-svg-icon="crop" data-svg-size="12">{{ icon_crop(12) }}</svg>
+      <svg data-svg-icon="copy" data-svg-size="14">{{ icon_copy(14) }}</svg>
+      <svg data-svg-icon="check" data-svg-size="14">{{ icon_check(14) }}</svg>
     </div>
     <!-- ── inline scripts ──────────────────────────────────────────────── -->
     <script>

@@ -37,7 +37,7 @@
             <template x-for="(part, j) in msg.parts" :key="j">
               <div :class="part.type !== 'text' ? 'text-(--accent) font-mono text-xs p-2 rounded bg-surface-2 border inline-block w-max' : 'whitespace-pre-wrap'"
                    :style="part.type !== 'text' ? 'background: var(--surface-2); border-color: var(--border);' : ''"
-                   x-text="part.text">
+                   x-text="part.type !== 'text' ? part.text + ' (' + part.tokens + ' tk)' : part.text">
               </div>
             </template>
           </div>

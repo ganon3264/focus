@@ -8,6 +8,7 @@ from typing import Optional
 
 import focus.crud as crud
 from focus.database import get_db
+from focus.paths import PERSONAS_DIR, BLOCKS_DIR
 from focus.utils import now_iso
 
 router = APIRouter()
@@ -81,7 +82,7 @@ async def upload_avatar(
         Path(row["avatar_path"]).unlink(missing_ok=True)
 
     suffix = Path(file.filename).suffix or ".png"
-    persona_dir = Path(f"assets/personas/{persona_id}")
+    persona_dir = PERSONAS_DIR / persona_id
     persona_dir.mkdir(parents=True, exist_ok=True)
     avatar_path = str(persona_dir / f"avatar{suffix}")
     try:
@@ -118,7 +119,7 @@ async def add_persona_image(
 ):
     await crud.verify_entity_exists(db, "personas", persona_id)
     try:
-        return await crud.upload_block_image(db, persona_id, "char", await file.read(), file.filename, file.content_type, "assets/blocks", images_only=False)
+        return await crud.upload_block_image(db, persona_id, "char", await file.read(), file.filename, file.content_type, str(BLOCKS_DIR), images_only=False)
     except Exception as e:
         raise HTTPException(500, f"Failed to save image: {str(e)}")
 

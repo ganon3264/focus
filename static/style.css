@@ -162,8 +162,12 @@
   .markdown-content p { margin-bottom: 0.85rem; }
   .markdown-content p:last-child { margin-bottom: 0; }
   .markdown-content code { background: rgba(0,0,0,0.3); color: var(--accent-hover); padding: 0.15rem 0.35rem; border-radius: 4px; font-family: ui-monospace, monospace; font-size: 0.85em; }
-  .markdown-content pre { background: var(--surface-3); padding: 1rem; border-radius: var(--radius-md); overflow-x: auto; margin: 1rem 0; border: 1px solid var(--border); }
+  .markdown-content pre { background: var(--surface-3); padding: 1rem; border-radius: var(--radius-md); overflow-x: auto; margin: 1rem 0; border: 1px solid var(--border); position: relative; }
   .markdown-content pre code { background: none; padding: 0; color: inherit; }
+  .copy-btn { position: absolute; top: 6px; right: 6px; padding: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-muted); cursor: pointer; opacity: 0; transition: opacity var(--transition); line-height: 0; z-index: 1; }
+  .markdown-content pre:hover .copy-btn { opacity: 1; }
+  .copy-btn:hover { color: var(--text); border-color: var(--border-hover); background: var(--surface-2); }
+  .copy-btn.copied { opacity: 1; color: var(--accent); }
 
   /* Reasoning / Thought Process */
   details.reasoning {

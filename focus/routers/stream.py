@@ -105,7 +105,7 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
 
         try:
             new_variant_id = await _save_assistant_variant(
-                body.chat_id, final_asst_msg_id, next_variant_index, full, body.regenerate
+                body.chat_id, final_asst_msg_id, next_variant_index, full, body.regenerate, prov_dict.get("model", "")
             )
         except Exception as e:
             logger.exception(f"Failed to save non-stream result for chat_id={body.chat_id}")
@@ -171,7 +171,7 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
 
         try:
             new_variant_id = await _save_assistant_variant(
-                body.chat_id, final_asst_msg_id, next_variant_index, full, body.regenerate
+                body.chat_id, final_asst_msg_id, next_variant_index, full, body.regenerate, prov_dict.get("model", "")
             )
         except Exception as e:
             logger.exception(f"Failed to save stream result for chat_id={body.chat_id}")
@@ -194,6 +194,7 @@ async def _save_assistant_variant(
     variant_index: int,
     content: str,
     regenerate: bool,
+    model_name: str = "",
 ) -> str:
     new_variant_id = str(uuid.uuid4())
     save_now = now_iso()
@@ -201,8 +202,8 @@ async def _save_assistant_variant(
     async with aiosqlite.connect(DB_PATH) as save_db:
         await save_db.execute("PRAGMA foreign_keys=ON")
         await save_db.execute(
-            "INSERT INTO message_variants (id, message_id, variant_index, content, created_at) VALUES (?, ?, ?, ?, ?)",
-            (new_variant_id, asst_msg_id, variant_index, content, save_now),
+            "INSERT INTO message_variants (id, message_id, variant_index, content, created_at, model_name) VALUES (?, ?, ?, ?, ?, ?)",
+            (new_variant_id, asst_msg_id, variant_index, content, save_now, model_name or None),
         )
 
         if regenerate and variant_index > 0:

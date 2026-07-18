@@ -285,7 +285,7 @@ async def add_block_image(
 ):
     await crud.verify_entity_exists(db, "preset_blocks", block_id, "preset_id", preset_id)
     try:
-        return await crud.upload_block_image(db, block_id, "preset", await file.read(), file.filename, file.content_type, f"assets/presets/{preset_id}/blocks", images_only=True)
+        return await crud.upload_block_image(db, block_id, "preset", await file.read(), file.filename, file.content_type, str(PRESETS_DIR / preset_id / "blocks"), images_only=True)
     except Exception as e:
         raise HTTPException(500, f"Failed to save image: {str(e)}")
 

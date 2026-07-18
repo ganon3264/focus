@@ -10,6 +10,7 @@ import focus.crud as crud
 from focus.database import get_db
 from focus.card_parser import extract_card_json, normalise_card
 from focus.models import CharBlockCreate, CharBlockUpdate, CharacterCreate, CharacterUpdate
+from focus.paths import CHARACTERS_DIR, BLOCKS_DIR
 from focus.utils import now_iso
 
 router = APIRouter()
@@ -44,7 +45,7 @@ async def import_character(
         char_id = str(uuid.uuid4())
         now = now_iso()
 
-        char_dir = Path(f"assets/characters/{char_id}")
+        char_dir = CHARACTERS_DIR / char_id
         char_dir.mkdir(parents=True, exist_ok=True)
         avatar_path = str(char_dir / "avatar.png")
         try:
@@ -85,7 +86,7 @@ async def create_character(body: CharacterCreate, db: aiosqlite.Connection = Dep
             "alternate_greetings": body.alternate_greetings,
         }
     }
-    char_dir = Path(f"assets/characters/{char_id}")
+    char_dir = CHARACTERS_DIR / char_id
     char_dir.mkdir(parents=True, exist_ok=True)
 
     await db.execute(
@@ -148,7 +149,7 @@ async def upload_avatar(
         Path(row["image_path"]).unlink(missing_ok=True)
 
     suffix = Path(file.filename).suffix.lower() or ".png"
-    char_dir = Path(f"assets/characters/{char_id}")
+    char_dir = CHARACTERS_DIR / char_id
     char_dir.mkdir(parents=True, exist_ok=True)
     avatar_path = str(char_dir / f"avatar{suffix}")
     try:
@@ -228,7 +229,7 @@ async def add_char_image(
 ):
     await crud.verify_entity_exists(db, "characters", char_id)
     try:
-        return await crud.upload_block_image(db, char_id, "char", await file.read(), file.filename, file.content_type, "assets/blocks", images_only=False)
+        return await crud.upload_block_image(db, char_id, "char", await file.read(), file.filename, file.content_type, str(BLOCKS_DIR), images_only=False)
     except Exception as e:
         raise HTTPException(500, f"Failed to save image: {str(e)}")
 
@@ -310,7 +311,7 @@ async def add_char_block_image(
 ):
     await crud.verify_entity_exists(db, "char_blocks", block_id, "character_id", char_id)
     try:
-        return await crud.upload_block_image(db, block_id, "char", await file.read(), file.filename, file.content_type, f"assets/characters/{char_id}/blocks", images_only=True)
+        return await crud.upload_block_image(db, block_id, "char", await file.read(), file.filename, file.content_type, str(CHARACTERS_DIR / char_id / "blocks"), images_only=True)
     except Exception as e:
         raise HTTPException(500, f"Failed to save image: {str(e)}")
 

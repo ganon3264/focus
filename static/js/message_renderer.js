@@ -107,7 +107,13 @@ window.renderMessage = function(text) {
     }
     html = result;
   }
-  html = html.replace(/%%%ACCENT_CODE_(\d+)%%%/g, (_, i) => codeStash[+i]);
+  html = html.replace(/%%%ACCENT_CODE_(\d+)%%%/g, (_, i) => {
+    const stashed = codeStash[+i];
+    if (stashed.startsWith('<pre')) {
+      return stashed.replace('</pre>', `<button class="copy-btn" title="Copy code">${window.getSvgSprite('copy', 14)}</button></pre>`);
+    }
+    return stashed;
+  });
 
   for (let i = 0; i < thoughts.length; i++) {
     const t = thoughts[i];
@@ -120,3 +126,18 @@ window.renderMessage = function(text) {
 
   return html;
 };
+
+document.addEventListener('click', function(e) {
+  const btn = e.target.closest('.copy-btn');
+  if (!btn) return;
+  const pre = btn.closest('pre');
+  const code = pre && pre.querySelector('code');
+  if (!code) return;
+  navigator.clipboard.writeText(code.textContent);
+  btn.innerHTML = window.getSvgSprite('check', 14);
+  btn.classList.add('copied');
+  setTimeout(() => {
+    btn.innerHTML = window.getSvgSprite('copy', 14);
+    btn.classList.remove('copied');
+  }, 2000);
+});

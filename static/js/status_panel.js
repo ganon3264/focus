@@ -45,8 +45,53 @@ function updateStatusPanel() {
   }
 }
 
-window.addEventListener('provider-changed', updateStatusPanel);
+function updateCacheTimer() {
+  const activeId = StateManager.get('provider_id');
+  const cacheRow = document.getElementById('status-cache-row');
+  const cacheEl = document.getElementById('status-cache');
+  if (!cacheRow || !cacheEl) return;
+
+  const provider = activeId && window.APP_PROVIDERS && window.APP_PROVIDERS.find(p => p.id === activeId);
+  const isClaude = provider && provider.type === 'openrouter' && provider.model && provider.model.startsWith('anthropic/claude');
+
+  if (!isClaude) {
+    cacheRow.classList.add('hidden');
+    return;
+  }
+
+  cacheRow.classList.remove('hidden');
+
+  const cacheTime = parseInt(localStorage.getItem('focus-cache-time-' + activeId), 10);
+  const cacheTtl = localStorage.getItem('focus-cache-ttl-' + activeId) || 'ephemeral';
+
+  if (!cacheTime) {
+    cacheEl.textContent = '—';
+    return;
+  }
+
+  const ttlMs = cacheTtl === '1h' ? 3600000 : 300000;
+  const remaining = (cacheTime + ttlMs) - Date.now();
+
+  if (remaining <= 0) {
+    cacheEl.textContent = 'expired';
+    cacheEl.style.color = 'var(--text-muted)';
+    return;
+  }
+
+  cacheEl.style.color = '';
+  const totalSec = Math.floor(remaining / 1000);
+  const min = Math.floor(totalSec / 60);
+  const sec = totalSec % 60;
+  cacheEl.textContent = min + 'm ' + (sec < 10 ? '0' : '') + sec + 's';
+}
+
+window.addEventListener('provider-changed', function() {
+  updateStatusPanel();
+  updateCacheTimer();
+});
 updateStatusPanel();
+updateCacheTimer();
+setInterval(updateCacheTimer, 1000);
 
 document.body.addEventListener('htmx:afterSwap', function(evt){
   if(evt.detail.target.id === 'providers-modal-body'){

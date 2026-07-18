@@ -255,6 +255,15 @@
 
       await refreshMessagesAfterStream(chatId, userMessageId, messageId);
 
+      const doneProvider = window.APP_PROVIDERS && window.APP_PROVIDERS.find(p => p.id === providerId);
+      if (doneProvider && doneProvider.type === 'openrouter' && doneProvider.model && doneProvider.model.startsWith('anthropic/claude')) {
+        const doneSamplers = body.samplers || {};
+        if (doneSamplers.cache_enabled) {
+          localStorage.setItem('focus-cache-time-' + providerId, Date.now().toString());
+          localStorage.setItem('focus-cache-ttl-' + providerId, doneSamplers.cache_ttl || 'ephemeral');
+        }
+      }
+
     } catch(err){
       if(err.name !== 'AbortError'){
         const errorToast = document.getElementById('error-toast');

@@ -21,6 +21,12 @@
   <div class="message-body">
     <div class="message-header flex justify-between items-center">
       <span>{{ character.name if message.role == 'assistant' and character else (persona.name if message.role == 'user' and persona else message.role) }}</span>
+      <span class="text-xs text-muted whitespace-nowrap">
+        {{ message.created_at[:10] if message.created_at else '' }} {{ message.created_at[11:16] if message.created_at else '' }}
+        {% if message.role == 'assistant' and message.model_name %}
+        · {{ message.model_name }}
+        {% endif %}
+      </span>
     </div>
     
     {% if message.attachments %}

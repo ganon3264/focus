@@ -1,7 +1,7 @@
 import os
 import aiosqlite
 
-DB_PATH = os.environ.get("FOCUS_DB", "data/focus.db")
+from focus.paths import DB_PATH, CHARACTERS_DIR, PERSONAS_DIR, PRESETS_DIR, ATTACHMENTS_DIR, COMPRESSED_DIR
 
 SCHEMA = """
 PRAGMA journal_mode=WAL;
@@ -90,7 +90,8 @@ CREATE TABLE IF NOT EXISTS message_variants (
     message_id    TEXT NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
     variant_index INTEGER NOT NULL,
     content       TEXT NOT NULL,
-    created_at    TEXT NOT NULL
+    created_at    TEXT NOT NULL,
+    model_name    TEXT
 );
 
 CREATE TABLE IF NOT EXISTS block_images (
@@ -136,10 +137,11 @@ async def get_db():
 def init_directories():
     """Ensure asset directories exist on startup."""
     os.makedirs("data", exist_ok=True)
-    os.makedirs("assets/characters", exist_ok=True)
-    os.makedirs("assets/personas", exist_ok=True)
-    os.makedirs("assets/presets", exist_ok=True)
-    os.makedirs("assets/attachments", exist_ok=True)
+    CHARACTERS_DIR.mkdir(parents=True, exist_ok=True)
+    PERSONAS_DIR.mkdir(parents=True, exist_ok=True)
+    PRESETS_DIR.mkdir(parents=True, exist_ok=True)
+    ATTACHMENTS_DIR.mkdir(parents=True, exist_ok=True)
+    COMPRESSED_DIR.mkdir(parents=True, exist_ok=True)
 
 async def init_db():
     """Create database tables, seed defaults, and apply migrations on startup."""
@@ -170,4 +172,10 @@ async def init_db():
             await db.execute("ALTER TABLE preset_blocks ADD COLUMN injection_order INTEGER DEFAULT 0")
         if "cache_control" in col_names:
             await db.execute("ALTER TABLE preset_blocks DROP COLUMN cache_control")
+
+        # v0.3: model_name on message_variants
+        cols = await db.execute("PRAGMA table_info(message_variants)")
+        col_names = {row[1] for row in await cols.fetchall()}
+        if "model_name" not in col_names:
+            await db.execute("ALTER TABLE message_variants ADD COLUMN model_name TEXT")
         await db.commit()

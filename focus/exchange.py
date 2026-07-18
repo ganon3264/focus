@@ -9,12 +9,11 @@ from zipfile import ZipFile, ZIP_DEFLATED
 import aiosqlite
 
 from focus.database import DB_PATH
+from focus.paths import ASSETS_DIR
 from focus.models import ExportRequest
 from focus.utils import now_iso
 
 logger = logging.getLogger("focus.exchange")
-
-ASSETS_DIR = Path("assets")
 FOCUS_VERSION = "0.1.0"
 
 # Tables in dependency order for export (must include all FKs before dependents)
@@ -389,7 +388,7 @@ async def import_data(db: aiosqlite.Connection, zip_bytes: bytes) -> dict:
     # Write asset files from ZIP
     with ZipFile(BytesIO(zip_bytes)) as zf:
         for name in zf.namelist():
-            if not name.startswith("assets/"):
+            if not name.startswith(str(ASSETS_DIR) + "/"):
                 continue
             disk_path = Path(name)  # e.g., assets/characters/{old_id}/avatar.png
             # Remap the path using id_map
