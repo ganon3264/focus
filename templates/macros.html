@@ -217,3 +217,19 @@
   <button type="button" aria-label="Delete media" class="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" onclick="{{ delete_onclick | safe }}">{{ icon_close(10) }}</button>
 </div>
 {% endmacro %}
+
+{% macro icon_help(size=14) %}
+<svg aria-hidden="true" viewBox="0 0 24 24" width="{{ size }}" height="{{ size }}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>
+</svg>
+{% endmacro %}
+
+{% macro hint_tooltip(text) %}
+<span class="hint-wrapper"
+  x-data="{ show: false, style: {} }"
+  @mouseenter="const r=$el.querySelector('.hint-icon').getBoundingClientRect();style={position:'fixed',left:(r.left+r.width/2)+'px',top:(r.bottom+4)+'px',transform:'translateX(-50%)'};show=true"
+  @mouseleave="show=false">
+  <span class="hint-icon">{{ icon_help(14) }}</span>
+  <div class="hint-tooltip" x-show="show" :style="style">{{ text }}</div>
+</span>
+{% endmacro %}

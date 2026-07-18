@@ -1,4 +1,4 @@
-{% from "macros.html" import icon_plus, icon_close %}
+{% from "macros.html" import icon_plus, icon_close, hint_tooltip %}
 <style>
   .styled-slider {
     -webkit-appearance: none;
@@ -424,10 +424,10 @@
         <input type="text" inputmode="numeric"
           x-model.number="samplers.seed"
           @change="saveStandard()"
-          @blur="$el.value = fmt(parseFloat($el.value) || 0, 0)"
-          class="form-control text-xs sampler-input" data-dec="0" />
+          @blur="handleSeedBlur($el)"
+          class="form-control text-xs sampler-input" data-dec="0" data-seed-random />
       </label>
-      <input type="range" min="0" max="999999" step="1"
+      <input type="range" min="-1" max="999999" step="1"
         x-model.number="samplers.seed" @change="saveStandard()"
         class="styled-slider" />
     </div>
@@ -468,11 +468,14 @@
     </div>
     <div x-show="showCacheConfig" class="flex flex-col gap-3">
       <div class="form-group mb-0 flex items-center justify-between mt-2">
-        <label
-          class="text-xs mb-0 cursor-pointer"
-          @click="samplers.cache_enabled = !samplers.cache_enabled; saveStandard()"
-          >Prompt Caching</label
-        >
+        <div class="flex items-center gap-1">
+          <label
+            class="text-xs mb-0 cursor-pointer"
+            @click="samplers.cache_enabled = !samplers.cache_enabled; saveStandard()"
+            >Prompt Caching</label
+          >
+          {{ hint_tooltip('Enables cache for Anthropic models. Recommended for costs reduction.') }}
+        </div>
         <div
           class="arranger-toggle"
           role="switch"
@@ -490,11 +493,14 @@
         <div class="tree-child">
           <span class="tree-dot"></span>
           <div class="form-group mb-0 flex items-center justify-between">
-            <label
-              class="text-xs mb-0 cursor-pointer"
-              @click="samplers.cache_ttl = samplers.cache_ttl === '1h' ? 'ephemeral' : '1h'; saveStandard()"
-              >Extra TTL (1 hour)</label
-            >
+            <div class="flex items-center gap-1">
+              <label
+                class="text-xs mb-0 cursor-pointer"
+                @click="samplers.cache_ttl = samplers.cache_ttl === '1h' ? 'ephemeral' : '1h'; saveStandard()"
+                >Extra TTL (1 hour)</label
+              >
+              {{ hint_tooltip('By default cache has an expiry time of 5 minutes. This extends it to 1 hour, but this also costs more. Not recommended.') }}
+            </div>
             <div
               class="arranger-toggle"
               role="switch"
@@ -507,18 +513,19 @@
         <div class="tree-child">
           <span class="tree-dot"></span>
           <div class="form-group mb-0">
-            <label class="flex justify-between text-xs mb-1"
-              ><span>Depth of Turns</span> <span x-text="samplers.cache_depth"></span
-            ></label>
-            <input
-              type="number"
-              min="1"
-              max="50"
-              step="1"
-              x-model.number="samplers.cache_depth"
-              @change="saveStandard()"
-              class="form-control text-sm w-full"
-            />
+            <label class="flex justify-between text-xs mb-1">
+              <span class="flex items-center gap-1">
+                Depth of Turns
+                {{ hint_tooltip('Number of User turns to skip from caching. 0 is the latest message sent by user.') }}
+              </span>
+              <input type="text" inputmode="numeric"
+                x-model.number="samplers.cache_depth"
+                @change="saveStandard()"
+                class="form-control text-xs sampler-input" data-dec="0" />
+            </label>
+            <input type="range" min="1" max="10" step="1"
+              x-model.number="samplers.cache_depth" @change="saveStandard()"
+              class="styled-slider" />
           </div>
         </div>
       </div>
@@ -640,7 +647,7 @@ const PROVIDER_SAMPLERS = {
         repetition_penalty: s.repetition_penalty,
         include_reasoning: s.include_reasoning,
         top_a: s.top_a,
-        seed: s.seed,
+        ...(s.seed >= 0 ? { seed: s.seed } : {}),
         verbosity: s.verbosity || undefined,
       };
       if (s.include_reasoning) {
@@ -707,7 +714,7 @@ const PROVIDER_SAMPLERS = {
           cache_ttl: 'ephemeral',
           cache_depth: 5,
           top_a: 0,
-          seed: 0,
+          seed: -1,  // -1 = random (don't send seed), 0+ = actual seed
           verbosity: '',
         };
         const provider = PROVIDER_SAMPLERS[this.providerType];
@@ -814,7 +821,11 @@ const PROVIDER_SAMPLERS = {
                 const dec = parseInt(el.dataset.dec ?? '0');
                 const v = parseFloat(el.value);
                 if (!isNaN(v)) {
-                  el.value = el.dataset.auto && !v ? 'auto' : this.fmt(v, dec);
+                  if (el.dataset.seedRandom !== undefined && this.samplers.seed === -1) {
+                    el.value = 'Random';
+                  } else {
+                    el.value = el.dataset.auto && !v ? 'auto' : this.fmt(v, dec);
+                  }
                 }
               }
             });
@@ -900,6 +911,16 @@ const PROVIDER_SAMPLERS = {
       },
 
       fmt(v, d) { return Number(v ?? 0).toFixed(d); },
+
+      handleSeedBlur(el) {
+        const v = parseFloat(el.value);
+        if (isNaN(v) || v < 0) {
+          this.samplers.seed = -1;
+        } else {
+          this.samplers.seed = Math.round(v);
+        }
+        this.saveStandard();
+      },
 
       addCustom() {
         this.customFields.push({ enabled: true, key: '', type: 'string', value: '' });

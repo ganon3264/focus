@@ -434,6 +434,8 @@ Tests are organized into 3 directories with 23 test source files:
 
 14. **SVG sprite system** — SVG icon macros are defined in `macros.html` (`icon_plus`, `icon_trash`, `icon_close`, etc.). The `#svg-sprite` div in `base.html` renders them into a sprite sheet, accessed via `window.getSvgSprite(name, size)`. Don't add inline SVGs — add macros to `macros.html` and reference them via the sprite.
 
+15. **Hint tooltip system** — A reusable `hint_tooltip(text)` macro in `macros.html` renders a `?` icon with a hover tooltip. It uses Alpine (`x-data`, `@mouseenter`, `x-show`) to position the tooltip with `position: fixed` via `getBoundingClientRect()` — this escapes any ancestor `overflow: hidden/auto` clipping (e.g., modal scroll containers). The tooltip always appears below the icon. CSS classes in `style.css`: `.hint-wrapper` (relative inline-flex wrapper), `.hint-icon` (16x16 circle with cursor:help), `.hint-tooltip` (surface-2 background, border, shadow, z-index overlay+1, font-weight 400). To add a hint next to a label: `{{ hint_tooltip('Your explanation here.') }}`. Register the macro via `{% from "macros.html" import hint_tooltip %}`. Example in `sampler_modal.html` lines 477, 502, 519.
+
 ## File naming conventions
 
 - Templates: `snake_case.html`

@@ -1346,6 +1346,48 @@
   border-radius: 2px;
   animation: gen-pulse 1s ease-in-out infinite;
 }
+/* Hint tooltip for help icons */
+.hint-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.hint-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  color: var(--text-faint);
+  cursor: help;
+  transition: color var(--transition), background var(--transition);
+  flex-shrink: 0;
+}
+.hint-icon:hover {
+  color: var(--text-muted);
+  background: var(--surface-3);
+}
+.hint-tooltip {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  white-space: normal;
+  width: max-content;
+  max-width: 280px;
+  pointer-events: none;
+  box-shadow: var(--shadow-md);
+  z-index: calc(var(--z-overlay) + 1);
+  font-weight: 400;
+}
+.hint-wrapper:hover .hint-tooltip {
+  opacity: 1;
+}
+
 @keyframes slide-up {
   from {
     opacity: 0;
