@@ -28,6 +28,8 @@ EXPORT_TABLES = [
     "message_variants",
     "block_images",
     "message_attachments",
+    "settings",
+    "preset_sampler_configs",
 ]
 
 # Insertion order: parents before children
@@ -44,6 +46,8 @@ INSERT_ORDER = [
     "message_variants",
     "block_images",
     "message_attachments",
+    "settings",
+    "preset_sampler_configs",
 ]
 
 # Foreign-key remap rules: (table, column, referenced_table)
@@ -63,6 +67,8 @@ FK_RULES = [
     ("block_images", "block_id", "characters"),
     ("block_images", "block_id", "personas"),
     ("block_images", "block_id", "presets"),
+    ("preset_sampler_configs", "preset_id", "presets"),
+    ("preset_sampler_configs", "provider_id", "providers"),
 ]
 
 PATH_FIELDS = [
@@ -246,6 +252,16 @@ async def export_data(db: aiosqlite.Connection, req: ExportRequest) -> bytes:
             ) as cur:
                 attachment_rows = [dict(r) for r in await cur.fetchall()]
 
+    # Sampler configs cascade from presets
+    preset_sampler_config_rows: list[dict] = []
+    if preset_ids:
+        placeholders = ",".join("?" * len(preset_ids))
+        async with db.execute(
+            f"SELECT * FROM preset_sampler_configs WHERE preset_id IN ({placeholders})",
+            list(preset_ids),
+        ) as cur:
+            preset_sampler_config_rows = [dict(r) for r in await cur.fetchall()]
+
     # Build the database dump
     database: dict[str, list[dict]] = {
         "characters": await _query_table(db, "characters", "id", char_ids),
@@ -262,6 +278,8 @@ async def export_data(db: aiosqlite.Connection, req: ExportRequest) -> bytes:
         "message_variants": await _query_table(db, "message_variants", "id", variant_ids),
         "block_images": block_image_rows,
         "message_attachments": attachment_rows,
+        "settings": await _query_table_all(db, "settings"),
+        "preset_sampler_configs": preset_sampler_config_rows,
     }
 
     if req.include_providers and database["providers"]:
@@ -291,6 +309,8 @@ async def export_data(db: aiosqlite.Connection, req: ExportRequest) -> bytes:
                 "message_variants": len(database["message_variants"]),
                 "block_images": len(database["block_images"]),
                 "message_attachments": len(database["message_attachments"]),
+                "settings": len(database.get("settings", [])),
+                "preset_sampler_configs": len(database.get("preset_sampler_configs", [])),
             },
         }
         zf.writestr("manifest.json", json.dumps(manifest, indent=2, ensure_ascii=False))

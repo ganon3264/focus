@@ -320,3 +320,15 @@ async def get_counts(db: aiosqlite.Connection, character_id: str | None, persona
             counts["persona_attachments"] += row[0] if row else 0
 
     return counts
+
+
+async def get_active_provider(db: aiosqlite.Connection) -> dict:
+    async with db.execute("SELECT value FROM settings WHERE key = 'active_provider_id'") as cur:
+        row = await cur.fetchone()
+    provider_id = row["value"] if row else None
+
+    async with db.execute("SELECT value FROM settings WHERE key = 'active_provider_type'") as cur:
+        row = await cur.fetchone()
+    provider_type = row["value"] if row else None
+
+    return {"provider_id": provider_id, "provider_type": provider_type}

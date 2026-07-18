@@ -2,6 +2,22 @@
 // Call ListManager.setup({ filterFn: 'filterCharacters', sortFn: 'sortCharacters', ... })
 // to create the expected-named global functions so existing onclick handlers keep working.
 
+function _saveListPref(key, value) {
+  localStorage.setItem(key, value);
+  fetch('/api/settings', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key: key, value: value }),
+  });
+}
+
+function _loadListPref(key, fallback) {
+  var val = localStorage.getItem(key);
+  if (val) return val;
+  // Could load from API, but for UI prefs localStorage fallback is fine
+  return fallback;
+}
+
 window.ListManager = {
   setup: function (cfg) {
     window[cfg.filterFn] = function (query) {
@@ -13,7 +29,7 @@ window.ListManager = {
     };
 
     window[cfg.sortFn] = function (mode) {
-      localStorage.setItem(cfg.sortStorageKey, mode);
+      _saveListPref(cfg.sortStorageKey, mode);
       var grid = document.getElementById(cfg.gridId);
       if (!grid) return;
       var cards = Array.from(grid.querySelectorAll('.card'));
@@ -32,11 +48,6 @@ window.ListManager = {
       });
       document.getElementById(cfg.sortSelectId).value = mode;
     };
-
-    function setViewCookie(view) {
-      if (cfg.cookieKey)
-        document.cookie = cfg.cookieKey + '=' + view + '; path=/; max-age=31536000';
-    }
 
     window[cfg.applyCompactFn] = function (compact) {
       var grid = document.getElementById(cfg.gridId);
@@ -57,8 +68,7 @@ window.ListManager = {
           compactEl.style.display = 'none';
         }
       });
-      localStorage.setItem(cfg.viewStorageKey, view);
-      setViewCookie(view);
+      _saveListPref(cfg.viewStorageKey, view);
     };
 
     window[cfg.toggleCompactFn] = function () {
@@ -106,11 +116,11 @@ window.ListManager = {
 
     // Restore saved view/sort state
     (function () {
-      var view = localStorage.getItem(cfg.viewStorageKey);
+      var view = _loadListPref(cfg.viewStorageKey);
       if (view === 'compact') {
         window[cfg.applyCompactFn](true);
       }
-      var sortVal = localStorage.getItem(cfg.sortStorageKey);
+      var sortVal = _loadListPref(cfg.sortStorageKey);
       if (sortVal) {
         window[cfg.sortFn](sortVal);
       }

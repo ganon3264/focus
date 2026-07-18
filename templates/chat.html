@@ -424,7 +424,9 @@ setTimeout(() => {
 StateManager.init({
   character_id: '{{ current_character_id or "" }}' || null,
   persona_id: '{{ current_persona_id or "" }}' || null,
-  preset_id: '{{ current_preset_id or "" }}' || null
+  preset_id: '{{ current_preset_id or "" }}' || null,
+  provider_id: '{{ active_provider_id or "" }}' || null,
+  provider_type: '{{ active_provider_type or "" }}' || null
 }, '{{ chat_id }}');
 
 StateManager.on('preset-changed', function(e) {

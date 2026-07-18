@@ -17,6 +17,7 @@ from focus.routers import (
     personas,
     presets,
     providers,
+    settings,
     stream,
 )
 
@@ -72,6 +73,7 @@ app.include_router(personas.router, prefix="/api/personas", tags=["personas"])
 app.include_router(stream.router, prefix="/api", tags=["stream"])
 app.include_router(pages.router)
 app.include_router(backup.router, prefix="/api/backups", tags=["backups"])
+app.include_router(settings.router, prefix="/api/settings", tags=["settings"])
 app.include_router(exchange.router, prefix="/api", tags=["import-export"])
 
 app.mount("/assets", CachedStaticFiles(directory="assets"), name="assets")

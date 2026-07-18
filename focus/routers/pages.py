@@ -70,6 +70,7 @@ async def chat_redirect(request: Request, character_id: str = Query(None), db: a
     var_blocks, regular_blocks, var_groups = partition_blocks(preset_blocks)
 
     has_chars = await crud.has_characters(db)
+    active_provider = await crud.get_active_provider(db)
 
     return templates.TemplateResponse(
         request,
@@ -91,6 +92,8 @@ async def chat_redirect(request: Request, character_id: str = Query(None), db: a
             "current_character_id": character_id,  # Pre-seed the active character for newChat()
             "current_persona_id": persona["id"] if persona else None,
             "current_preset_id": preset["id"] if preset else None,
+            "active_provider_id": active_provider["provider_id"],
+            "active_provider_type": active_provider["provider_type"],
         },
     )
 
@@ -125,6 +128,7 @@ async def chat_page(request: Request, chat_id: str, db: aiosqlite.Connection = D
     chats_sidebar = await crud.get_chats_sidebar(db, chat.get("character_id"))
 
     has_chars = await crud.has_characters(db)
+    active_provider = await crud.get_active_provider(db)
 
     return templates.TemplateResponse(
         request,
@@ -147,6 +151,8 @@ async def chat_page(request: Request, chat_id: str, db: aiosqlite.Connection = D
             "current_character_id": chat.get("character_id"),
             "current_persona_id": chat.get("persona_id"),
             "current_preset_id": preset["id"] if preset else None,
+            "active_provider_id": active_provider["provider_id"],
+            "active_provider_type": active_provider["provider_type"],
         },
     )
 
@@ -464,11 +470,14 @@ async def prompt_arranger_block_partial(
 @router.get("/partials/sampler-modal", response_class=HTMLResponse)
 async def sampler_modal_partial(request: Request, db: aiosqlite.Connection = Depends(get_db)):
     providers = await crud.get_providers(db)
+    active_provider = await crud.get_active_provider(db)
     return templates.TemplateResponse(
         request,
         "modals/sampler_modal.html",
         {
             "providers": providers,
+            "active_provider_id": active_provider["provider_id"],
+            "active_provider_type": active_provider["provider_type"],
         },
     )
 
@@ -499,7 +508,12 @@ async def characters_modal_partial(
     request: Request, current_character_id: str = "", db: aiosqlite.Connection = Depends(get_db)
 ):
     characters = await crud.get_characters(db)
-    compact_view = request.cookies.get("focus_view_char") == "compact"
+    compact_view = request.cookies.get("focus_view_char")
+    if compact_view is None:
+        async with db.execute("SELECT value FROM settings WHERE key = 'focus_char_view'") as cur:
+            row = await cur.fetchone()
+        compact_view = row["value"] if row else None
+    compact_view = compact_view == "compact"
     return templates.TemplateResponse(
         request,
         "modals/characters_modal.html",
@@ -530,7 +544,12 @@ async def personas_modal_partial(
     request: Request, current_persona_id: str = "", db: aiosqlite.Connection = Depends(get_db)
 ):
     personas = await crud.get_personas(db)
-    compact_view = request.cookies.get("focus_view_persona") == "compact"
+    compact_view = request.cookies.get("focus_view_persona")
+    if compact_view is None:
+        async with db.execute("SELECT value FROM settings WHERE key = 'focus_persona_view'") as cur:
+            row = await cur.fetchone()
+        compact_view = row["value"] if row else None
+    compact_view = compact_view == "compact"
     return templates.TemplateResponse(
         request,
         "modals/personas_modal.html",

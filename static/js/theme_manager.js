@@ -89,6 +89,14 @@ function previewThemeColor(input) {
   }
 }
 
+function _saveThemeToApi(theme) {
+  fetch('/api/settings', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key: 'theme_json', value: JSON.stringify(theme) }),
+  });
+}
+
 function applyPresetTheme(presetName) {
   const base = PRESET_THEMES[presetName];
   if (!base) return;
@@ -98,6 +106,7 @@ function applyPresetTheme(presetName) {
     Object.assign(theme, computeAccentDerivatives(accent));
   }
   localStorage.setItem('focus-custom-theme', JSON.stringify(theme));
+  _saveThemeToApi(theme);
   for (const [key, value] of Object.entries(theme)) {
     document.documentElement.style.setProperty(key, value);
     const input = document.querySelector(`input[data-var="${key}"]`);
@@ -134,5 +143,24 @@ function saveCustomTheme() {
     document.documentElement.style.setProperty(key, value);
   }
   localStorage.setItem('focus-custom-theme', JSON.stringify(newTheme));
+  _saveThemeToApi(newTheme);
   closeModal('modal-themes');
 }
+
+// On load, try to load theme from API if localStorage is empty (fresh browser)
+(function () {
+  if (!localStorage.getItem('focus-custom-theme')) {
+    fetch('/api/settings')
+      .then(function (r) { return r.json(); })
+      .then(function (settings) {
+        if (settings.theme_json) {
+          var theme = JSON.parse(settings.theme_json);
+          localStorage.setItem('focus-custom-theme', JSON.stringify(theme));
+          for (var key in theme) {
+            document.documentElement.style.setProperty(key, theme[key]);
+          }
+        }
+      })
+      .catch(function () {});
+  }
+})();

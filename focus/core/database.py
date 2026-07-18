@@ -128,6 +128,20 @@ CREATE TABLE IF NOT EXISTS secrets (
     value TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS settings (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS preset_sampler_configs (
+    preset_id     TEXT NOT NULL REFERENCES presets(id) ON DELETE CASCADE,
+    provider_id   TEXT NOT NULL REFERENCES providers(id) ON DELETE CASCADE,
+    samplers      TEXT NOT NULL DEFAULT '{}',
+    custom_fields TEXT NOT NULL DEFAULT '[]',
+    updated_at    TEXT NOT NULL,
+    PRIMARY KEY (preset_id, provider_id)
+);
+
 CREATE INDEX IF NOT EXISTS idx_block_images_block ON block_images(block_id, position);
 CREATE INDEX IF NOT EXISTS idx_message_attachments_msg ON message_attachments(message_id);
 
@@ -191,4 +205,28 @@ async def init_db():
         col_names = {row[1] for row in await cols.fetchall()}
         if "model_name" not in col_names:
             await db.execute("ALTER TABLE message_variants ADD COLUMN model_name TEXT")
+
+        # v0.4: settings + preset_sampler_configs tables
+        cols = await db.execute("PRAGMA table_info(settings)")
+        col_names = {row[1] for row in await cols.fetchall()}
+        if "key" not in col_names:
+            await db.execute("""
+                CREATE TABLE settings (
+                    key   TEXT PRIMARY KEY,
+                    value TEXT NOT NULL
+                )
+            """)
+        cols = await db.execute("PRAGMA table_info(preset_sampler_configs)")
+        col_names = {row[1] for row in await cols.fetchall()}
+        if "preset_id" not in col_names:
+            await db.execute("""
+                CREATE TABLE preset_sampler_configs (
+                    preset_id     TEXT NOT NULL REFERENCES presets(id) ON DELETE CASCADE,
+                    provider_id   TEXT NOT NULL REFERENCES providers(id) ON DELETE CASCADE,
+                    samplers      TEXT NOT NULL DEFAULT '{}',
+                    custom_fields TEXT NOT NULL DEFAULT '[]',
+                    updated_at    TEXT NOT NULL,
+                    PRIMARY KEY (preset_id, provider_id)
+                )
+            """)
         await db.commit()

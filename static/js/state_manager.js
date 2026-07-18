@@ -28,8 +28,13 @@
         state,
       );
       _chatId = chatId || null;
-      STATE.provider_id = localStorage.getItem('focus-provider-id') || null;
-      STATE.provider_type = localStorage.getItem('focus-provider-type') || null;
+      // Fall back to localStorage if server didn't provide provider state
+      if (!STATE.provider_id) {
+        STATE.provider_id = localStorage.getItem('focus-provider-id') || null;
+      }
+      if (!STATE.provider_type) {
+        STATE.provider_type = localStorage.getItem('focus-provider-type') || null;
+      }
     },
 
     on: function (event, fn) {
@@ -69,6 +74,13 @@
     },
 
     _persistProvider: function (id, type) {
+      // Write to API
+      fetch('/api/settings/active-provider', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider_id: id, provider_type: type }),
+      });
+      // Keep localStorage as a fallback for backward compatibility
       if (id) localStorage.setItem('focus-provider-id', id);
       else localStorage.removeItem('focus-provider-id');
       if (type) localStorage.setItem('focus-provider-type', type);

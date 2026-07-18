@@ -144,6 +144,22 @@ class ItemizerRequest(BaseModel):
     regenerate: bool = False
 
 
+class SettingsUpdate(BaseModel):
+    key: str
+    value: str
+
+
+class SamplerConfigUpdate(BaseModel):
+    provider_id: str
+    samplers: dict[str, Any] = Field(default_factory=dict)
+    custom_fields: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class ActiveProviderUpdate(BaseModel):
+    provider_id: str | None = None
+    provider_type: str | None = None
+
+
 class ExportRequest(BaseModel):
     characters: list[str] = Field(default_factory=list)
     personas: list[str] = Field(default_factory=list)

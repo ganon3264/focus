@@ -104,6 +104,16 @@ window.api = {
     return '/api/providers/secrets/' + encodeURIComponent(name);
   },
 
+  settings: '/api/settings',
+  setting: function (key) {
+    return '/api/settings/' + key;
+  },
+  activeProvider: '/api/settings/active-provider',
+  presetSamplers: function (presetId) {
+    return '/api/settings/samplers/' + presetId;
+  },
+  globalSamplers: '/api/settings/global-samplers',
+
   stream: '/api/stream',
   itemize: '/api/itemize',
 

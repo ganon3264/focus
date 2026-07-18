@@ -544,32 +544,69 @@
         };
       },
 
-      storageKey(type, id) {
-        const suffix = id || type || 'unknown';
-        return this.presetId
-          ? `focus-samplers-${this.presetId}-${suffix}`
-          : `focus-samplers-${suffix}`;
+      async loadStandard() {
+        const base = { ...this.defaultSamplers() };
+        if (this.presetId) {
+          const url = '/api/settings/samplers/' + this.presetId + '?provider_id=' + (this.providerId || '');
+          try {
+            const r = await fetch(url);
+            if (r.ok) {
+              const data = await r.json();
+              if (data.samplers && Object.keys(data.samplers).length > 0) {
+                this.samplers = { ...base, ...data.samplers };
+                return;
+              }
+            }
+          } catch (e) {}
+        }
+        // Fallback: global sampler config from settings
+        try {
+          const r = await fetch('/api/settings');
+          if (r.ok) {
+            const settings = await r.json();
+            const globalSuffix = this.providerId
+              ? 'global_sampler_config_' + this.providerId
+              : 'global_sampler_config';
+            const saved = settings[globalSuffix];
+            if (saved) {
+              this.samplers = { ...base, ...JSON.parse(saved) };
+              return;
+            }
+          }
+        } catch (e) {}
+        this.samplers = base;
       },
 
-      customStorageKey(type, id) {
-        const suffix = id || type || 'unknown';
-        return this.presetId
-          ? `focus-custom-samplers-${this.presetId}-${suffix}`
-          : `focus-custom-samplers-${suffix}`;
-      },
-
-      loadStandard() {
-        const key = this.storageKey(this.providerType, this.providerId);
-        const saved = localStorage.getItem(key);
-        this.samplers = saved
-          ? { ...this.defaultSamplers(), ...JSON.parse(saved) }
-          : { ...this.defaultSamplers() };
-      },
-
-      loadCustom() {
-        const key = this.customStorageKey(this.providerType, this.providerId);
-        const saved = localStorage.getItem(key);
-        this.customFields = saved ? JSON.parse(saved) : [];
+      async loadCustom() {
+        if (this.presetId) {
+          const url = '/api/settings/samplers/' + this.presetId + '?provider_id=' + (this.providerId || '');
+          try {
+            const r = await fetch(url);
+            if (r.ok) {
+              const data = await r.json();
+              if (data.custom_fields && data.custom_fields.length > 0) {
+                this.customFields = data.custom_fields;
+                return;
+              }
+            }
+          } catch (e) {}
+        }
+        // Fallback: global custom sampler config
+        try {
+          const r = await fetch('/api/settings');
+          if (r.ok) {
+            const settings = await r.json();
+            const globalSuffix = this.providerId
+              ? 'global_custom_sampler_config_' + this.providerId
+              : 'global_custom_sampler_config';
+            const saved = settings[globalSuffix];
+            if (saved) {
+              this.customFields = JSON.parse(saved);
+              return;
+            }
+          }
+        } catch (e) {}
+        this.customFields = [];
       },
 
       get effortOptions() {
@@ -679,29 +716,60 @@
       },
 
       saveStandard() {
-        localStorage.setItem(
-          this.storageKey(this.providerType, this.providerId),
-          JSON.stringify(this.samplers),
-        );
+        if (this.presetId) {
+          fetch('/api/settings/samplers/' + this.presetId, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              provider_id: this.providerId || '',
+              samplers: this.samplers,
+            }),
+          });
+        } else {
+          // Save as global fallback
+          const key = this.providerId
+            ? 'global_sampler_config_' + this.providerId
+            : 'global_sampler_config';
+          fetch('/api/settings', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key: key, value: JSON.stringify(this.samplers) }),
+          });
+        }
       },
 
       saveCustom() {
-        localStorage.setItem(
-          this.customStorageKey(this.providerType, this.providerId),
-          JSON.stringify(this.customFields),
-        );
+        if (this.presetId) {
+          fetch('/api/settings/samplers/' + this.presetId, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              provider_id: this.providerId || '',
+              custom_fields: this.customFields,
+            }),
+          });
+        } else {
+          const key = this.providerId
+            ? 'global_custom_sampler_config_' + this.providerId
+            : 'global_custom_sampler_config';
+          fetch('/api/settings', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key: key, value: JSON.stringify(this.customFields) }),
+          });
+        }
       },
 
       onProviderChanged(detail) {
         const newType = detail && typeof detail === 'object' ? detail.type : detail;
         const newId = detail && typeof detail === 'object' ? detail.id : null;
         if (newType === this.providerType && newId === this.providerId) return;
-        const oldKey = this.storageKey(this.providerType, this.providerId);
+        const sameProvider = newType === this.providerType && newId === this.providerId;
         this.saveStandard();
         this.saveCustom();
         this.providerType = newType;
         this.providerId = newId;
-        if (oldKey !== this.storageKey(newType, newId)) {
+        if (!sameProvider) {
           this.loadStandard();
           this.loadCustom();
         }
