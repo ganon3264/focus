@@ -358,6 +358,14 @@
     border-radius: 50%;
     animation: spin 0.6s linear infinite;
   }
+  .message .message-spinner {
+    top: calc(1.15rem - 3px);
+    left: calc(1rem - 3px);
+    right: auto;
+    width: 42px;
+    height: 42px;
+    pointer-events: none;
+  }
 
   .message {
     width: 100%;
