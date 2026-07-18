@@ -12,11 +12,10 @@ LOG_LEVEL = logging.DEBUG if DEBUG_MODE else logging.INFO
 class UvicornFormatter(logging.Formatter):
     def format(self, record):
         level_color = {
-            logging.DEBUG: "\x1b[36m",  # Cyan
-            logging.INFO: "\x1b[32m",  # Green
-            logging.WARNING: "\x1b[33m",  # Yellow
-            logging.ERROR: "\x1b[31m",  # Red
-            logging.CRITICAL: "\x1b[31;1m",  # Bold Red
+            logging.DEBUG: "\x1b[36m",       # Cyan
+            logging.INFO: "\x1b[32m",        # Green
+            logging.WARNING: "\x1b[33m",     # Yellow
+            logging.ERROR: "\x1b[31m",       # Red
         }.get(record.levelno, "\x1b[0m")
         reset = "\x1b[0m"
 

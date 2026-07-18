@@ -97,7 +97,6 @@ def sync() -> int:
     ok = 0
     fail = 0
 
-    # Tailwind CLI
     name = "tailwindcss-linux-x64"
     print(f"  {name} ...", end=" ", flush=True)
     try:
@@ -110,7 +109,6 @@ def sync() -> int:
         print(f"  FAILED ({e})")
         fail += 1
 
-    # Downloaded vendor files
     for filename, (url, label) in DOWNLOADS.items():
         dest = VENDOR_DIR / filename
         print(f"  {filename} ...", end=" ", flush=True)
