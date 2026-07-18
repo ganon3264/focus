@@ -16,7 +16,13 @@ dependencies = [
     "requests",
     "google-genai",
     "tiktoken>=0.13.0",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "cssutils>=2.15.0",
 ]
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-asyncio"]
 
 [build-system]
 requires = ["hatchling"]

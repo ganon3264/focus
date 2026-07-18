@@ -57,6 +57,14 @@ def apply_macros(text: str, macros: dict[str, str], max_passes: int = MACRO_MAX_
 
     # Detect {{trim}} — consumed as a special token, not a macro lookup
     needs_trim = bool(re.search(r'\{\{trim\}\}', text, re.IGNORECASE))
+    # Strip {{trim}} along with surrounding whitespace/newlines so it
+    # doesn't leave a dangling blank line when on its own line.
+    text = re.sub(
+        r'[ \t]*\n?[ \t]*\{\{trim\}\}[ \t]*\n?[ \t]*',
+        lambda m: '\n' if '\n' in m.group(0) else '',
+        text,
+        flags=re.IGNORECASE,
+    )
 
     pattern_get = r'\{\{(.*?)\}\}'
     def get_repl_func(match):
