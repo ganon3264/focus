@@ -265,50 +265,59 @@ def filter_unsupported_modalities(messages: list[dict], supported_modalities: li
     return filtered
 
 
-def apply_claude_caching(messages: list[dict], cache_enabled: bool, cache_ttl: str = "ephemeral", cache_depth: int = 5) -> list[dict]:
+def apply_claude_caching(
+    messages: list[dict],
+    cache_enabled: bool,
+    cache_ttl: str = "5m",
+    cache_depth: int = 5,
+) -> list[dict]:
     if not cache_enabled or not messages:
         return messages
 
-    cc: dict = {"type": "1h"} if cache_ttl == "1h" else {"type": "ephemeral"}
+    # cache_control is always {"type": "ephemeral"}; duration is the
+    # separate "ttl" field ("5m" default/omitted, or "1h").
+    cc: dict = {"type": "ephemeral", "ttl": "1h"} if cache_ttl == "1h" else {"type": "ephemeral"}
 
-    # Strip existing cache control to stay under the 4-breakpoint limit
+    # Strip existing cache control so we never exceed the 4-breakpoint limit
     for msg in messages:
         content = msg.get("content")
         if isinstance(content, list):
             for part in content:
-                part.pop("cache_control", None)
+                if isinstance(part, dict):
+                    part.pop("cache_control", None)
 
     def _inject_cache(msg: dict) -> bool:
         content = msg.get("content")
         if isinstance(content, str):
+            if not content:
+                return False
             msg["content"] = [{"type": "text", "text": content, "cache_control": cc}]
             return True
-        if isinstance(content, list):
+        if isinstance(content, list) and content:
+            # cache_control is valid on any block type (text, image,
+            # tool_use, tool_result, document) - just tag the last one.
             for part in reversed(content):
-                if part.get("type") == "text":
+                if isinstance(part, dict) and part.get("type"):
                     part["cache_control"] = cc
                     return True
-            content.append({"type": "text", "text": "", "cache_control": cc})
-            return True
         return False
 
-    # 1. Always cache the system/character instructions at the very beginning (usually messages[0])
-    if messages:
-        _inject_cache(messages[0])
+    # 1. Always cache the system/character instructions at the very beginning
+    _inject_cache(messages[0])
 
-    # 2. Find the sliding breakpoint (cache_depth + 1 user messages back)
+    # 2. Sliding breakpoint further back in the conversation
     user_indices = [i for i, msg in enumerate(messages) if msg.get("role") == "user"]
 
+    bp_idx = None
     if len(user_indices) >= cache_depth + 1:
-        # Conversation is long enough; place a sliding breakpoint
         bp_idx = user_indices[-(cache_depth + 1)]
-        _inject_cache(messages[bp_idx])
     elif len(user_indices) > 1:
-        # Chat is short, but we can still cache the growing conversation up to the second-to-last turn
         bp_idx = user_indices[-2]
+
+    # Skip if it's the same message as the system breakpoint (avoid wasted work)
+    if bp_idx is not None and bp_idx != 0:
         _inject_cache(messages[bp_idx])
 
-    # Clean up metadata tags
     for msg in messages:
         msg.pop("_greeting", None)
 
