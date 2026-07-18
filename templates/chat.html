@@ -421,7 +421,7 @@ function toggleRightBar(){
   document.getElementById('right-tab').classList.toggle('hidden');
 }
 window.toggleReasoning = function(btn) {
-  const msg = btn.closest('.msg');
+  const msg = btn.closest('.msg') || btn.closest('.message');
   if (!msg) return;
   const details = msg.querySelector('details.reasoning');
   if (!details) return;

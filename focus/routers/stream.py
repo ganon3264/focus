@@ -81,6 +81,11 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
     # Strip internal metadata tags — set by get_prompt_context / assemble_prompt
     for msg in messages:
         msg.pop("_greeting", None)
+    # Strip provider-internal keys (used only by google provider, leak to others)
+    if prov_dict.get("type") != "google":
+        for msg in messages:
+            msg.pop("thought_signature", None)
+            msg.pop("reasoning", None)
 
     # ── Gen params ────────────────────────────────────────────────────────────
     gen_kwargs: dict = {}
@@ -108,7 +113,8 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
                 collected.append(token)
         except Exception as e:
             logger.exception("Non-stream completion failed for chat_id=%s", body.chat_id)
-            await _rollback_assistant(final_asst_msg_id)
+            if not body.regenerate:
+                await _rollback_assistant(final_asst_msg_id)
             raise HTTPException(500, str(e) or repr(e))
 
         full = "".join(collected)
@@ -124,7 +130,8 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
             )
         except Exception as e:
             logger.exception("Failed to save non-stream result for chat_id=%s", body.chat_id)
-            await _rollback_assistant(final_asst_msg_id)
+            if not body.regenerate:
+                await _rollback_assistant(final_asst_msg_id)
             raise HTTPException(500, f"Generation succeeded but save failed: {str(e) or repr(e)}")
 
         return JSONResponse(
@@ -177,7 +184,8 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
                 yield f"data: {json.dumps({'token': token})}\n\n"
         except Exception as e:
             logger.exception("Stream exception for chat_id=%s", body.chat_id)
-            await _rollback_assistant(final_asst_msg_id)
+            if not body.regenerate:
+                await _rollback_assistant(final_asst_msg_id)
             err_msg = str(e)
             if not err_msg or err_msg == "()":
                 err_msg = repr(e)
@@ -197,7 +205,8 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
             )
         except Exception as e:
             logger.exception("Failed to save stream result for chat_id=%s", body.chat_id)
-            await _rollback_assistant(final_asst_msg_id)
+            if not body.regenerate:
+                await _rollback_assistant(final_asst_msg_id)
             err_msg = str(e) or repr(e)
             yield f"data: {json.dumps({'error': f'Generation succeeded but save failed: {err_msg}'})}\n\n"
             return

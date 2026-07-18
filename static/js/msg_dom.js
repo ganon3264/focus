@@ -40,7 +40,7 @@
 
   window.createAssistantPlaceholderDiv = function (charName, charImagePath) {
     const asstDiv = document.createElement('div');
-    asstDiv.className = 'message';
+    asstDiv.className = 'message msg';
     asstDiv.id = 'streaming-message';
 
     const avatarHtml = charImagePath
@@ -54,7 +54,12 @@
             <div class="message-avatar">${avatarHtml}</div>
             <div class="min-w-0">
               <div class="text-sm font-medium" style="color:var(--text)">${window.escapeHtml(charName)}</div>
-              <div class="text-xs text-muted flex items-center gap-1.5 flex-wrap mt-0.5"></div>
+              <div class="text-xs text-muted flex items-center gap-1.5 flex-wrap mt-0.5">
+                <button class="reasoning-toggle-btn hidden" onclick="toggleReasoning(this)" aria-label="Toggle reasoning" style="background:none;border:none;padding:0;font:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:0.25rem">
+                  <svg class="w-3 h-3 reasoning-chevron" style="color:var(--text-faint);transition:transform 0.2s ease" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                  <span>Reasoning</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>

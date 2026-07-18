@@ -7,6 +7,23 @@
 
   if (!sendBtn || !input || !messageList) return;
 
+  function _updateReasoningButton(contentDiv) {
+    const msg = contentDiv.closest('.message');
+    if (!msg) return;
+    const btn = msg.querySelector('.reasoning-toggle-btn');
+    if (!btn) return;
+    const hasReasoning = contentDiv.querySelector('details.reasoning');
+    btn.classList.toggle('hidden', !hasReasoning);
+  }
+
+  function syncReasoningButtons(container) {
+    if (!container) return;
+    const root = container === document ? document : container;
+    root.querySelectorAll('.message-content').forEach((el) => _updateReasoningButton(el));
+  }
+
+  window.syncReasoningButtons = syncReasoningButtons;
+
   function preserveOpenStates(container, renderFn) {
     const openStates = new Set();
     container.querySelectorAll('details.reasoning[open]').forEach((d) => {
@@ -77,6 +94,7 @@
       el.innerHTML = window.renderMessage(el.textContent || '');
       el.classList.add('processed');
     });
+    syncReasoningButtons(newMsg);
     if (inDeleteMode) {
       const cb = newMsg.querySelector('.delete-mode-checkbox');
       if (cb) cb.classList.remove('hidden');
@@ -162,6 +180,9 @@
       contentDiv.innerHTML = '<div class="message-spinner"></div>';
     }
 
+    const reasoningBtn = asstDiv.querySelector('.reasoning-toggle-btn');
+    if (reasoningBtn) reasoningBtn.classList.add('hidden');
+
     currentController = new AbortController();
     const signal = currentController.signal;
 
@@ -198,6 +219,8 @@
 
     const useStream = body.samplers.stream_enabled !== false;
 
+    let fullText = '';
+
     try {
       const res = await fetch(api.stream, {
         method: 'POST',
@@ -220,12 +243,15 @@
         const contentDiv = asstDiv.querySelector('.message-content');
         if (contentDiv) {
           contentDiv.innerHTML = window.renderMessage(fullText);
+          _updateReasoningButton(contentDiv);
         }
         if (messageId) {
           asstDiv.id = 'message-' + messageId;
           asstDiv.dataset.messageId = messageId;
+          window._streamingMessageId = messageId;
         }
         await refreshMessagesAfterStream(chatId, userMessageId, messageId);
+        window._streamingMessageId = null;
         return;
       }
 
@@ -234,7 +260,7 @@
       let buffer = '';
       let messageId = null;
       let userMessageId = null;
-      let fullText = '';
+      fullText = '';
 
       while (true) {
         const { done, value } = await reader.read();
@@ -254,6 +280,7 @@
           }
           if (json.type === 'start') {
             messageId = json.message_id;
+            window._streamingMessageId = messageId;
             userMessageId = json.user_message_id;
             if (json.user_message_id) {
               const userDiv = asstDiv.previousElementSibling;
@@ -266,6 +293,7 @@
             const contentDiv = asstDiv.querySelector('.message-content');
             if (contentDiv) {
               preserveOpenStates(contentDiv, () => window.renderMessage(fullText));
+              _updateReasoningButton(contentDiv);
 
               if (window.autoScroll && window.scrollSentinel) {
                 window.scrollSentinel.scrollIntoView({ behavior: 'instant' });
@@ -282,6 +310,7 @@
       const contentDiv = asstDiv.querySelector('.message-content');
       if (contentDiv) {
         preserveOpenStates(contentDiv, () => window.renderMessage(fullText));
+        _updateReasoningButton(contentDiv);
       }
       if (messageId) {
         asstDiv.id = 'message-' + messageId;
@@ -324,8 +353,18 @@
           target: '#message-list',
           swap: 'innerHTML',
         });
+      } else if (!fullText) {
+        if (isRegen) {
+          htmx.ajax('GET', api.partials.messageList(chatId), {
+            target: '#message-list',
+            swap: 'innerHTML',
+          });
+        } else if (asstDiv && asstDiv.parentNode) {
+          asstDiv.remove();
+        }
       }
     } finally {
+      window._streamingMessageId = null;
       currentController = null;
       sendBtn.classList.remove('hidden');
       stopBtn.classList.add('hidden');
@@ -409,6 +448,7 @@
       el.innerHTML = window.renderMessage(raw);
       el.classList.add('processed');
     });
+    syncReasoningButtons(document);
 
     document.getElementById('message-list')?.classList.add('ready');
 
@@ -446,6 +486,7 @@
         el.innerHTML = window.renderMessage(raw);
         el.classList.add('processed');
       });
+      syncReasoningButtons(evt.detail.target);
       if (typeof updateSendButtonState === 'function') {
         updateSendButtonState();
       }

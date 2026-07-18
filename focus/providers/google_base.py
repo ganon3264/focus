@@ -212,8 +212,10 @@ class GoogleProviderBase(BaseProvider):
         raise NotImplementedError
 
     @staticmethod
-    def _apply_thinking_config(config: dict, model: str, include_reasoning: bool, reasoning_effort: str | None):
-        if include_reasoning or "gemini-3.1" in model or "gemini-2.0-flash-thinking" in model:
+    def _apply_thinking_config(config: dict, model: str, include_reasoning: bool | None, reasoning_effort: str | None):
+        if include_reasoning is False:
+            config["thinking_config"] = types.ThinkingConfig(include_thoughts=False, thinking_level="minimal")
+        elif include_reasoning or "gemini-3.1" in model or "gemini-2.0-flash-thinking" in model:
             config.pop("temperature", None)
             thinking_kwargs = {"include_thoughts": True}
             if reasoning_effort:

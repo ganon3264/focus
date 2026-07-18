@@ -22,6 +22,14 @@ def test_message_renderer():
     _run_js_test("test_message_renderer.js")
 
 
+def test_reasoning_visibility():
+    _run_js_test("test_reasoning_visibility.js")
+
+
+def test_abort_cleanup():
+    _run_js_test("test_abort_cleanup.js")
+
+
 def test_state_manager():
     _run_js_test("test_state_manager.js")
 

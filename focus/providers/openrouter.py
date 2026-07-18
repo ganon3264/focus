@@ -80,6 +80,8 @@ class OpenRouterProvider(OpenAICompatProvider):
                 kwargs.pop("temperature", None)
                 kwargs.pop("top_p", None)
                 kwargs.pop("top_k", None)
+        else:
+            extra_body["reasoning"] = {"enabled": False}
 
         if prefs:
             extra_body.update(prefs)

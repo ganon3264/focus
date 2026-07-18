@@ -19,53 +19,63 @@
     var topBound = st - range;
     var botBound = st + vh + range;
 
-    var messages = ml.querySelectorAll('.message');
-    messages.forEach(function (msg) {
-      var id = msg.id;
-      if (!id) return;
-      if (_pruned.has(id)) return;
+    var streamId = window._streamingMessageId;
 
+    // ── Pass 1: reads only ──
+    var toPrune = [];
+    var msgs = ml.querySelectorAll('.message');
+    for (var i = 0; i < msgs.length; i++) {
+      var msg = msgs[i];
+      var id = msg.id;
+      if (!id || _pruned.has(id) || id === streamId) continue;
       var rect = msg.getBoundingClientRect();
       var msgTop = rect.top + st;
       var msgBot = rect.bottom + st;
-
       if (msgBot < topBound || msgTop > botBound) {
-        var height = msg.offsetHeight;
-        var html = msg.outerHTML;
-
-        var ph = document.createElement('div');
-        ph.className = 'message-placeholder';
-        ph.dataset.msgId = id;
-        ph.style.height = height + 'px';
-
-        msg.replaceWith(ph);
-        _pruned.set(id, { html: html, height: height });
+        toPrune.push({ el: msg, id: id, height: msg.offsetHeight, html: msg.outerHTML });
       }
-    });
+    }
 
-    var placeholders = ml.querySelectorAll('.message-placeholder');
-    placeholders.forEach(function (ph) {
-      var id = ph.dataset.msgId;
-      if (!id) return;
-
+    var toRestore = [];
+    var phs = ml.querySelectorAll('.message-placeholder');
+    for (var j = 0; j < phs.length; j++) {
+      var ph = phs[j];
+      var phId = ph.dataset.msgId;
+      if (!phId) continue;
       var rect = ph.getBoundingClientRect();
       var phTop = rect.top + st;
       var phBot = rect.bottom + st;
-
       if (phBot >= topBound && phTop <= botBound) {
-        var stored = _pruned.get(id);
-        if (!stored) return;
-
-        var temp = document.createElement('div');
-        temp.innerHTML = stored.html;
-        var msg = temp.firstElementChild;
-        if (msg) {
-          ph.replaceWith(msg);
-          if (typeof htmx !== 'undefined') htmx.process(msg);
-        }
-        _pruned.delete(id);
+        var stored = _pruned.get(phId);
+        if (stored) toRestore.push({ el: ph, id: phId, html: stored.html });
       }
-    });
+    }
+
+    // ── Pass 2: writes only ──
+    for (var k = 0; k < toPrune.length; k++) {
+      var p = toPrune[k];
+      var ph = document.createElement('div');
+      ph.className = 'message-placeholder';
+      ph.dataset.msgId = p.id;
+      ph.style.height = p.height + 'px';
+      p.el.replaceWith(ph);
+      _pruned.set(p.id, { html: p.html, height: p.height });
+    }
+
+    for (var l = 0; l < toRestore.length; l++) {
+      var r = toRestore[l];
+      var temp = document.createElement('div');
+      temp.innerHTML = r.html;
+      var msg = temp.firstElementChild;
+      if (msg) {
+        r.el.replaceWith(msg);
+        if (typeof htmx !== 'undefined') htmx.process(msg);
+        if (typeof syncReasoningButtons === 'function') {
+          syncReasoningButtons(msg);
+        }
+      }
+      _pruned.delete(r.id);
+    }
   }
 
   function schedule() {
@@ -75,12 +85,6 @@
       pruneMessages();
     });
   }
-
-  window._findMessageOrPlaceholder = function (msgId) {
-    var el = document.getElementById('message-' + msgId);
-    if (el) return el;
-    return document.querySelector('.message-placeholder[data-msg-id="' + msgId + '"]');
-  };
 
   window._isMessagePruned = function (msgId) {
     return _pruned.has(msgId);
@@ -102,6 +106,9 @@
     if (msg) {
       ph.replaceWith(msg);
       if (typeof htmx !== 'undefined') htmx.process(msg);
+      if (typeof syncReasoningButtons === 'function') {
+        syncReasoningButtons(msg);
+      }
       _pruned.delete(msgId);
       return msg;
     }

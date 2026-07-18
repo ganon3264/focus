@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import re
 import uuid
 
 import aiosqlite
@@ -40,7 +41,11 @@ async def _get_history(db: aiosqlite.Connection, chat_id: str, regenerate: bool)
         history = [
             {
                 "role": r["role"],
-                "content": _build_content(r["content"], msg_attachments.get(r["variant_id"], [])),
+                "content": _build_content(
+                    re.sub(r"<think>.*?</think>", "", r["content"], flags=re.DOTALL).strip()
+                    if r["role"] == "assistant" else r["content"],
+                    msg_attachments.get(r["variant_id"], []),
+                ),
             }
             for r in all_rows
             if r["id"] != last_asst_id
@@ -51,7 +56,11 @@ async def _get_history(db: aiosqlite.Connection, chat_id: str, regenerate: bool)
         history = [
             {
                 "role": r["role"],
-                "content": _build_content(r["content"], msg_attachments.get(r["variant_id"], [])),
+                "content": _build_content(
+                    re.sub(r"<think>.*?</think>", "", r["content"], flags=re.DOTALL).strip()
+                    if r["role"] == "assistant" else r["content"],
+                    msg_attachments.get(r["variant_id"], []),
+                ),
             }
             for r in history_rows
         ]

@@ -1,3 +1,5 @@
+{% macro _js_str(s) %}{{ s | replace("\\", "\\\\") | replace("'", "\\'") | replace("\n", "\\n") | replace("\r", "\\r") }}{% endmacro %}
+
 {% macro custom_select(name, id, options, selected, on_change="", extra_classes="") %}
 {% set found = options | selectattr('value', 'equalto', selected) | list %}
 {% set current_label = found[0].label if found else "— Select —" %}
@@ -5,8 +7,8 @@
 <div class="relative w-full" 
      x-data="{ 
         open: false, 
-        selectedValue: '{{ selected }}', 
-        selectedLabel: '{{ current_label | replace("'", "\\'") }}'
+        selectedValue: '{{ selected | replace("'", "\\'") }}', 
+        selectedLabel: '{{ _js_str(current_label) }}'
      }"
      x-effect="
         const item = $el.closest('.arranger-item');
@@ -36,8 +38,8 @@
      <div class="px-3 py-2 cursor-pointer transition-colors duration-150 {{ extra_classes }}"
           {% if not loop.first %}style="border-top: 1px solid var(--border);"{% endif %}
           @click="
-            selectedValue = '{{ opt.value }}';
-            selectedLabel = '{{ opt.label | replace("'", "\\'") }}';
+            selectedValue = '{{ opt.value | replace("'", "\\'") }}';
+            selectedLabel = '{{ _js_str(opt.label) }}';
             open = false;
             $nextTick(() => {
                 const el = document.getElementById('{{ id }}');

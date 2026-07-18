@@ -24,7 +24,7 @@ class GoogleAIStudioProvider(GoogleProviderBase):
         return models
 
     def _build_config(self, merged: dict, system_instruction: str | None) -> types.GenerateContentConfig:
-        include_reasoning = merged.get("include_reasoning", False)
+        include_reasoning = merged.get("include_reasoning", None)
         reasoning_effort = merged.get("reasoning_effort", None)
 
         config_kwargs = {

@@ -75,7 +75,7 @@ class GoogleVertexProvider(GoogleProviderBase):
         top_p = merged.pop("top_p", None)
         top_k = merged.pop("top_k", None)
         stop = merged.pop("stop", None)
-        include_reasoning = merged.pop("include_reasoning", False)
+        include_reasoning = merged.pop("include_reasoning", None)
         reasoning_effort = merged.pop("reasoning_effort", None)
 
         config_args: dict = {

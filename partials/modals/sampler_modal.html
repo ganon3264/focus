@@ -624,8 +624,8 @@
             payload.top_k = this.samplers.top_k;
             payload.min_p = this.samplers.min_p;
             payload.repetition_penalty = this.samplers.repetition_penalty;
+            payload.include_reasoning = this.samplers.include_reasoning;
             if (this.samplers.include_reasoning) {
-              payload.include_reasoning = true;
               payload.reasoning_effort = this.samplers.reasoning_effort;
               payload.thinking_budget = this.samplers.thinking_budget;
             }
@@ -639,14 +639,18 @@
           ) {
             payload.frequency_penalty = this.samplers.frequency_penalty;
             payload.presence_penalty = this.samplers.presence_penalty;
+            payload.include_reasoning = this.samplers.include_reasoning;
+            if (this.samplers.include_reasoning && this.providerType !== 'moonshot') {
+              payload.reasoning_effort = this.samplers.reasoning_effort;
+            }
           } else if (
             this.providerType === 'google_vertex' ||
             this.providerType === 'google_aistudio'
           ) {
             payload.top_k = this.samplers.top_k;
             payload.send_reasoning_history = this.samplers.send_reasoning_history;
+            payload.include_reasoning = this.samplers.include_reasoning;
             if (this.samplers.include_reasoning) {
-              payload.include_reasoning = true;
               payload.reasoning_effort = this.samplers.reasoning_effort;
             }
           }
