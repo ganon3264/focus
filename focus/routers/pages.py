@@ -11,6 +11,7 @@ from focus.core.database import get_db
 from focus.core.macros import apply_macros, build_base_macros
 from focus.core.utils import variable_group_name
 from focus.prompt_chain import partition_blocks, resolve_variable_blocks
+from focus.core.logger import DEBUG_MODE
 
 router = APIRouter()
 
@@ -36,6 +37,7 @@ def _resolve_macros_for_display(messages, char, persona, preset_blocks=None):
 templates = Jinja2Templates(directory="templates")
 if isinstance(templates.env.loader, FileSystemLoader):
     templates.env.loader.searchpath.append(str(Path("partials").resolve()))
+templates.env.globals["debug"] = DEBUG_MODE
 
 
 @router.get("/chat", response_class=HTMLResponse)

@@ -146,6 +146,10 @@ async def get_prompt_context(
 
     Returns dict with keys: messages, asst_msg_id, next_variant_index, user_msg_id.
     """
+    logger.debug(
+        "get_prompt_context: chat_id=%s regenerate=%s user_message=%r attachment_ids=%s persist=%s",
+        chat_id, regenerate, user_message, attachment_ids, persist,
+    )
     async with db.execute("SELECT * FROM chats WHERE id = ?", (chat_id,)) as cur:
         chat = await cur.fetchone()
     if not chat:
@@ -201,6 +205,10 @@ async def get_prompt_context(
             preset_blocks = [dict(r) for r in await cur.fetchall()]
 
     history, asst_msg_id, next_variant_index = await _get_history(db, chat_id, regenerate)
+    logger.debug(
+        "get_prompt_context: history loaded: %d messages, asst_msg_id=%s, next_variant_index=%d",
+        len(history), asst_msg_id, next_variant_index,
+    )
 
     # If regenerate was requested but there's no non-greeting assistant to
     # target (e.g. after a failed first message was rolled back), create a
@@ -235,6 +243,11 @@ async def get_prompt_context(
                         (user_variant_id, user_msg_id, 0, user_message, now),
                     )
 
+                    logger.debug(
+                        "get_prompt_context: created user msg id=%s variant_id=%s next_pos=%d",
+                        user_msg_id, user_variant_id, next_pos,
+                    )
+
                     # Bind any attached files to the newly created user message
                     if attachment_ids:
                         placeholders = ",".join("?" * len(attachment_ids))
@@ -248,14 +261,26 @@ async def get_prompt_context(
                             attachment_ids,
                         ) as cur:
                             new_attachments = [dict(r) for r in await cur.fetchall()]
+                        logger.debug(
+                            "get_prompt_context: bound %d attachments to user msg, fetched %d attachment rows",
+                            len(attachment_ids), len(new_attachments),
+                        )
                     else:
                         new_attachments = []
 
-                        history.append({"role": "user", "content": await _build_content(user_message, new_attachments)})
-                        next_pos += 1
+                    history.append({"role": "user", "content": await _build_content(user_message, new_attachments)})
+                    logger.debug(
+                        "get_prompt_context: appended user msg to history, history now has %d messages",
+                        len(history),
+                    )
+                    next_pos += 1
 
                     # Create assistant message slot
                 asst_msg_id = await _make_assistant_slot(db, chat_id)
+                logger.debug(
+                    "get_prompt_context: created assistant slot id=%s",
+                    asst_msg_id,
+                )
                 next_variant_index = 0
         else:
             # Read-only path (itemizer): just append to history in memory
@@ -268,7 +293,7 @@ async def get_prompt_context(
                         attachment_ids,
                     ) as cur:
                         new_attachments = [dict(r) for r in await cur.fetchall()]
-                    history.append({"role": "user", "content": await _build_content(user_message, new_attachments)})
+                history.append({"role": "user", "content": await _build_content(user_message, new_attachments)})
 
     all_block_ids = [b["id"] for b in preset_blocks] + [b["id"] for b in char_own_blocks]
     if chat["character_id"]:
@@ -291,6 +316,23 @@ async def get_prompt_context(
         history[0]["_greeting"] = True
 
     messages = await assemble_prompt(preset_blocks, history, char_data, char_own_blocks, macros, block_images)
+
+    # Quick log of assembled message roles and whether they contain images
+    for i, m in enumerate(messages):
+        content = m.get("content")
+        has_img = isinstance(content, list) and any(p.get("type") == "image_url" for p in content)
+        has_audio = isinstance(content, list) and any(p.get("type") == "input_audio" for p in content)
+        if has_img or has_audio:
+            logger.debug(
+                "get_prompt_context: assembled msg[%d] role=%s %s (len=%s)",
+                i, m["role"], "has_image" if has_img else "has_audio",
+                len(content) if isinstance(content, list) else len(str(content)),
+            )
+
+    logger.debug(
+        "get_prompt_context: returning asst_msg_id=%s user_msg_id=%s next_variant_index=%d total_messages=%d",
+        asst_msg_id, user_msg_id, next_variant_index, len(messages),
+    )
 
     return {
         "messages": messages,

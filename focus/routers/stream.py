@@ -60,6 +60,12 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
 
     provider = create_provider(prov_dict)
 
+    logger.debug(
+        "stream: chat_id=%s provider=%s model=%s regenerate=%s user_message=%r attachment_ids=%s",
+        body.chat_id, prov_dict["name"], prov_dict.get("model", "?"),
+        body.regenerate, body.user_message, body.attachment_ids,
+    )
+
     ctx = await get_prompt_context(
         db, body.chat_id, body.regenerate, body.user_message, body.attachment_ids, persist=True
     )
@@ -67,6 +73,11 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
     asst_msg_id = ctx["asst_msg_id"]
     next_variant_index = ctx["next_variant_index"]
     user_msg_id = ctx["user_msg_id"]
+
+    logger.debug(
+        "stream: ctx returned asst_msg_id=%s user_msg_id=%s next_variant_index=%d messages=%d",
+        asst_msg_id, user_msg_id, next_variant_index, len(messages),
+    )
 
     # Continue: update the current variant in-place instead of creating a new swipe
     if body.continue_text and body.regenerate and asst_msg_id:
@@ -280,6 +291,10 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
                         break
             except Exception as e:
                 logger.exception("Stream exception for chat_id=%s", body.chat_id)
+                logger.debug(
+                    "stream: error state: iter_collected=%d final_text=%d regenerate=%s asst_msg_id=%s",
+                    len(iter_collected), len(final_text), body.regenerate, final_asst_msg_id,
+                )
                 if iter_collected:
                     await _upsert_variant(
                         body.chat_id, final_asst_msg_id, next_variant_index,
@@ -316,6 +331,10 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
         if body.continue_text and not full.startswith(body.continue_text):
             full = body.continue_text + full
 
+        logger.debug(
+            "stream: saving variant asst_msg_id=%s variant_index=%d full_length=%d",
+            final_asst_msg_id, next_variant_index, len(full),
+        )
         try:
             await _upsert_variant(
                 body.chat_id, final_asst_msg_id, next_variant_index,
@@ -323,6 +342,7 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
                 variant_id=stream_variant_id,
             )
             variant_saved = True
+            logger.debug("stream: variant saved successfully")
         except Exception as e:
             logger.exception("Failed to save stream result for chat_id=%s", body.chat_id)
             if not body.regenerate:
@@ -332,7 +352,7 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
             return
 
         yield f"data: {json.dumps({'done': True, 'message_id': final_asst_msg_id, 'variant_index': next_variant_index})}\n\n"
-        logger.info("Stream completed for chat_id=%s", body.chat_id)
+        logger.info("Stream completed for chat_id=%s variant_saved=%s", body.chat_id, variant_saved)
 
     return StreamingResponse(
         generate(),

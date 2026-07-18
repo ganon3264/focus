@@ -1,4 +1,6 @@
 (function () {
+  function dbg(...args) { if (window.DEBUG) console.log('[stream]', ...args); }
+
   let currentController = null;
   const sendBtn = document.getElementById('send-btn');
   const stopBtn = document.getElementById('stop-btn');
@@ -216,12 +218,18 @@
         if (uploadRes.ok) {
           const data = await uploadRes.json();
           attachmentIds = data.attachments.map((a) => a.id);
+          dbg('Uploaded %d attachments, ids=%o', attachmentIds.length, attachmentIds);
+        } else {
+          console.error('[stream] Upload failed with status', uploadRes.status);
         }
       } catch (e) {
-        console.error('Upload failed', e);
+        console.error('[stream] Upload failed', e);
       }
       if (window.clearUploadedFiles) window.clearUploadedFiles(filesToUpload);
     }
+
+    dbg('Request body: user_message=%s, regenerate=%s, attachment_ids=%o, stagedFiles=%d',
+      window._tempUserMessage || '', isRegen, attachmentIds, window.stagedFiles ? window.stagedFiles.length : 0);
 
     const body = {
       chat_id: chatId,
@@ -323,6 +331,9 @@
             userMessageId = json.user_message_id;
             prefillMode = json.prefill_mode || false;
 
+            dbg('SSE start: message_id=%s, user_message_id=%s, prefill=%s',
+              messageId, userMessageId, prefillMode);
+
             if (userMessageId && !isRegen) {
               const tempUserMsg = document.getElementById('temp-user-msg');
               if (tempUserMsg) {
@@ -353,6 +364,7 @@
             throw new Error(json.error);
           } else if (json.done) {
             messageId = json.message_id;
+            dbg('SSE done: message_id=%s', messageId);
           }
         }
       }
@@ -371,6 +383,8 @@
         asstDiv.dataset.messageId = messageId;
       }
 
+      dbg('Refreshing messages: chatId=%s, userMsgId=%s, asstMsgId=%s',
+        chatId, userMessageId, messageId);
       await window.refreshMessagesAfterStream(chatId, userMessageId, messageId);
 
       if (window.updateClaudeCache && window.APP_PROVIDERS) {
@@ -380,6 +394,8 @@
         }
       }
     } catch (err) {
+      console.error('[stream] Error: name=%s, message=%s, fullText.length=%d, messageId=%s',
+        err.name, err.message, fullText.length, messageId);
       if (err.name !== 'AbortError') {
         window.showErrorToast(err.message);
         if (asstDiv && asstDiv.parentNode) asstDiv.remove();

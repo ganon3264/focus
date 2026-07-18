@@ -549,6 +549,12 @@
     color: var(--text);
     line-height: 1.5;
   }
+  .reasoning-content pre {
+    background: var(--surface);
+    border-color: var(--border);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
   .reasoning-content p {
     margin: 0.25rem 0;
   }
