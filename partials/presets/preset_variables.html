@@ -1,15 +1,18 @@
 <div id="preset-variables-container-{{ preset_id }}" data-preset-id="{{ preset_id }}" style="display: flex; flex-direction: column; flex: 1; min-height: 0;">
   {% from "macros.html" import icon_edit, icon_plus, icon_close, icon_chevron_right %}
+  <div style="padding-right: 0.5rem;">
+    <button type="button" class="btn btn-secondary w-full text-xs mb-2 flex-shrink-0" onclick="openVarEditModal(this)">{{ icon_plus(14) }} Add Variable</button>
+  </div>
   {% if var_groups %}
-    <div class="flex flex-col gap-2 overflow-y-auto pr-2 scroll-fade" id="preset-variables-sortable-{{ preset_id }}" style="flex: 1; min-height: 0;">
+    <div class="flex flex-col gap-1.5 overflow-y-auto pr-2 scroll-fade" id="preset-variables-sortable-{{ preset_id }}" style="flex: 1; min-height: 0;">
     {% for vname, vblocks in var_groups.items() %}
       {% set selected = vblocks | selectattr("enabled", "equalto", 1) | first %}
-      <div class="arranger-item bg-role-system var-group-container" data-group-name="{{ vname }}" x-data="{ expanded: expandGet('varGroups', $el.dataset.groupName) }">
+      <div class="bg-role-system var-group-container" data-group-name="{{ vname }}" x-data="{ expanded: expandGet('varGroups', $el.dataset.groupName) }">
         <div class="hidden var-group-ids" data-ids="{{ vblocks | map(attribute='id') | join(',') }}"></div>
         <div class="arranger-header">
           <div class="arranger-title-group" @click="expanded = expandToggle('varGroups', $el.closest('.var-group-container').dataset.groupName)" role="button" tabindex="0" aria-expanded="false" style="cursor: pointer;">
             <span style="font-size: 0.8rem; color: var(--text-muted); width: 16px; text-align: center; display: inline-flex; align-items: center; justify-content: center; transition: rotate var(--transition);" :class="expanded ? 'rotate-90' : ''">{{ icon_chevron_right(12) }}</span>
-            <span class="arranger-input" style="cursor: pointer; font-weight: bold;">{{ vname }}</span>
+            <span style="cursor: pointer; font-size: 0.75rem; font-weight: 700; color: var(--text);">{{ vname }}</span>
           </div>
           <div class="arranger-actions" style="gap: 0.25rem; font-size: 0.75rem; color: var(--text-muted);">
             {% if selected %}
@@ -20,22 +23,22 @@
             {% endif %}
           </div>
         </div>
-        <div x-show="expanded" x-transition.opacity.duration.200ms style="margin-top: 0.5rem; display: none;">
-          <div class="flex flex-col gap-2 items-stretch w-full min-w-0 sortable-var-options">
+        <div x-show="expanded" x-transition.opacity.duration.200ms style="margin-top: 0.25rem; display: none;">
+          <div class="flex flex-col gap-1 items-stretch w-full min-w-0 sortable-var-options">
             {% for vb in vblocks %}
               {% set vlabel = vb.name.split(':', 1)[1] if ':' in vb.name else 'Option' %}
-              <div class="flex items-center gap-2 p-2 rounded w-full min-w-0 var-option-item" data-id="{{ vb.id }}" style="background: var(--surface-2); border: 1px solid var(--border);">
+              <div class="flex items-center gap-1 p-1.5 rounded w-full min-w-0 var-option-item" data-id="{{ vb.id }}" style="background: var(--surface-2); border: 1px solid var(--border);">
                 <div class="radio-switch {% if vb.enabled %}active{% endif %}" role="radio" tabindex="0" title="Select option"
                      data-var-id="{{ vb.id }}"
                      onclick="handleVarUpdate(this)">
                    <div class="radio-inner"></div>
                 </div>
-                <span class="text-sm font-semibold truncate cursor-pointer flex-1" style="min-width: 0;" data-var-id="{{ vb.id }}" data-var-name="{{ vname }}" data-var-label="{{ vlabel }}" onclick="openVarEditModal(this)" title="Edit: {{ vlabel }}">{{ vlabel }}</span>
+                 <span class="text-xs font-semibold truncate flex-1" style="min-width: 0; cursor: pointer;" onclick="this.closest('.var-option-item').querySelector('.radio-switch').click()">{{ vlabel }}</span>
                 <button type="button" class="action-icon" style="flex-shrink: 0;" title="Edit Option" aria-label="Edit option" data-var-id="{{ vb.id }}" data-var-name="{{ vname }}" data-var-label="{{ vlabel }}" onclick="openVarEditModal(this)">{{ icon_edit() }}</button>
                 <button type="button" class="action-icon danger" style="flex-shrink: 0;" title="Delete Option" aria-label="Delete option" data-var-id="{{ vb.id }}" onclick="window.customConfirm('Delete variable option?', function(){ handleVarDelete(this); }.bind(this))">{{ icon_close(16) }}</button>
               </div>
             {% endfor %}
-            <div class="flex items-center gap-2 p-2 rounded w-full min-w-0 radio-add-row" data-var-name="{{ vname }}" onclick="event.stopPropagation(); openVarEditModal(this)">
+            <div class="flex items-center gap-2 p-1.5 rounded w-full min-w-0 radio-add-row" data-var-name="{{ vname }}" onclick="event.stopPropagation(); openVarEditModal(this)">
               <span style="color: var(--text-muted); font-size: 0.8rem; display: flex; align-items: center; gap: 0.35rem; padding: 0.1rem 0;">
                 {{ icon_plus(14) }} Add Option
               </span>
@@ -50,8 +53,6 @@
       <div class="text-muted text-sm">No variables configured.</div>
     </div>
   {% endif %}
-  <button type="button" class="btn btn-secondary w-full text-xs mt-2" onclick="openVarEditModal(this)">{{ icon_plus(14) }} Add Variable</button>
-
   <script>
     setTimeout(() => {
       if (window.initVarSortables) window.initVarSortables('{{ preset_id }}');

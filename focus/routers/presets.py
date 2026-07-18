@@ -262,6 +262,22 @@ async def replace_blocks(
     return {"ok": True}
 
 
+@router.get("/{preset_id}/blocks/{block_id}")
+async def get_block(
+    preset_id: str,
+    block_id: str,
+    db: aiosqlite.Connection = Depends(get_db),
+):
+    async with db.execute(
+        "SELECT * FROM preset_blocks WHERE id = ? AND preset_id = ?",
+        (block_id, preset_id),
+    ) as cur:
+        row = await cur.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Block not found")
+    return dict(row)
+
+
 @router.patch("/{preset_id}/blocks/{block_id}")
 async def patch_block(
     preset_id: str,

@@ -977,13 +977,26 @@
     background: var(--accent-faint);
   }
 
-  /* Variable group containers — override arranger-item hover lift */
+  /* Variable group containers — compact card */
+  .var-group-container {
+    padding: 0.375rem 0.75rem !important;
+    border-radius: var(--radius-sm) !important;
+    box-shadow: none !important;
+    cursor: pointer;
+  }
   .var-group-container:hover {
     transform: none !important;
-    box-shadow: var(--shadow-sm) !important;
+    box-shadow: none !important;
+  }
+  .var-option-item {
+    padding: 0.375rem 0.5rem !important;
   }
   .var-option-item:hover {
     border-color: var(--border-hover) !important;
+  }
+  .var-option-item .action-icon {
+    width: 20px !important;
+    height: 20px !important;
   }
 
   /* Prompt Arranger Drag & Drop */
@@ -1156,11 +1169,13 @@
     color: var(--danger);
   }
 
-  .arranger-item.bg-role-system {
+  .arranger-item.bg-role-system,
+  .var-group-container.bg-role-system {
     background: var(--active-bg);
     border-color: var(--active-border);
   }
-  .arranger-item.bg-role-system:hover {
+  .arranger-item.bg-role-system:hover,
+  .var-group-container.bg-role-system:hover {
     border-color: var(--active-border);
   }
   .arranger-item.bg-role-user {
