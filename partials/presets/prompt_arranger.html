@@ -129,27 +129,6 @@ overlay_close=true) %}
 
   if (!window._arrangerScriptsLoaded) {
     window._arrangerScriptsLoaded = true;
-    window._expandedArrangerBlocks = new Set();
-
-    window.getArrangerContainerId = function (presetId) {
-      const list = document.getElementById('arranger-list-' + presetId);
-      return list && list.parentElement && list.parentElement.id
-        ? list.parentElement.id
-        : 'arranger-modal-body';
-    };
-
-    window.reloadPromptArranger = function (presetId, targetId) {
-      let url = '/partials/prompt-arranger/' + presetId;
-      const params = new URLSearchParams();
-      if (StateManager.get('character_id'))
-        params.append('character_id', StateManager.get('character_id'));
-      if (StateManager.get('persona_id'))
-        params.append('persona_id', StateManager.get('persona_id'));
-      const query = params.toString();
-      if (query) url += '?' + query;
-
-      htmx.ajax('GET', url, { target: '#' + targetId, swap: 'innerHTML' });
-    };
 
     window.addBlock = function (pid, type, btn, nameOverride = null, contentOverride = '') {
       if (!pid) return;

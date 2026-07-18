@@ -22,7 +22,7 @@
     <div style="width:220px;flex-shrink:0;" class="flex flex-col gap-1">
       {% for p in presets %}
       <div class="sidebar-item" :class="{'active': activePreset === '{{ p.id }}'}"
-        @click="activePreset = '{{ p.id }}'; document.getElementById('preset-editor-panel').dataset.activePreset = '{{ p.id }}'; htmx.ajax('GET', '/partials/preset-editor/{{ p.id }}', {target:'#preset-editor', swap:'innerHTML'})"
+        @click="activePreset = '{{ p.id }}'; htmx.ajax('GET', '/partials/preset-editor/{{ p.id }}', {target:'#preset-editor', swap:'innerHTML'})"
       >
         <div class="text-sm truncate flex-1">{{ p.name }}</div>
         <button class="btn btn-danger btn-sm" style="margin-left:auto;" onclick="event.stopPropagation(); promptDeletePreset('{{ p.id }}', '{{ p.name | escape }}')" aria-label="Delete preset">{{ icon_trash() }}</button>

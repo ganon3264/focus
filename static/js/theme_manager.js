@@ -108,7 +108,8 @@ function applyPresetTheme(presetName) {
 function resetThemePreview() {
   const stored = localStorage.getItem('focus-custom-theme');
   if (stored) {
-    const theme = JSON.parse(stored);
+    var theme;
+    try { theme = JSON.parse(stored); } catch(e) { theme = {}; }
     for (const key in theme) document.documentElement.style.setProperty(key, theme[key]);
   } else {
     const vars = ['--accent', '--accent-hover', '--accent-dim', '--accent-faint'];

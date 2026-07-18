@@ -93,7 +93,7 @@
       hx-post="/api/chats/{{ chat_id }}/messages/{{ message.id }}/swipe"
       hx-vals='{"direction":"next"}'
       hx-swap="none"
-      hx-on:htmx:after-request="let res = JSON.parse(event.detail.xhr.response); if(res.needs_generation) { const asstDiv = document.getElementById('message-{{ message.id }}'); window.triggerGeneration('{{ chat_id }}', asstDiv, true); } else { htmx.ajax('GET', '/partials/message-list/{{ chat_id }}', {target:'#message-list', swap:'innerHTML'}); }"
+      hx-on:htmx:after-request="try { var res = JSON.parse(event.detail.xhr.response); if(res.needs_generation) { var asstDiv = document.getElementById('message-{{ message.id }}'); window.triggerGeneration('{{ chat_id }}', asstDiv, true); } else { htmx.ajax('GET', '/partials/message-list/{{ chat_id }}', {target:'#message-list', swap:'innerHTML'}); } } catch(e) { htmx.ajax('GET', '/partials/message-list/{{ chat_id }}', {target:'#message-list', swap:'innerHTML'}); }"
     >
       {{ icon_chevron_right() }}
     </button>

@@ -72,7 +72,7 @@
       :disabled="!selectedId"
     >{{ icon_edit() }}</button>
     <button class="btn btn-danger btn-sm flex-1" title="Delete preset" aria-label="Delete preset"
-      onclick="deletePreset(this)"
+      onclick="deletePreset()"
     >{{ icon_trash() }}</button>
   </div>
 
@@ -97,12 +97,12 @@
 </div>
 <script>
 function confirmRename(){
-  const pid = document.getElementById('hidden-preset-id').value;
-  const newName = document.querySelector('#preset-selector-wrapper [x-model="renameValue"]').value;
+  const state = Alpine.$data(document.getElementById('preset-selector-wrapper'));
+  const pid = state.selectedId;
+  const newName = state.renameValue;
   if(!pid || !newName || !newName.trim()) return;
   const trimmed = newName.trim();
-  const currentName = document.getElementById('hidden-preset-name').value;
-  if(trimmed === currentName) return;
+  if(trimmed === state.selectedName) return;
   fetch('/api/presets/' + pid, {
     method: 'PATCH',
     headers: {'Content-Type': 'application/json'},
@@ -122,8 +122,9 @@ function importPreset(file){
       else r.text().then(t => alert('Import failed: ' + t));
     });
 }
-function deletePreset(btn){
-  const pid = document.getElementById('hidden-preset-id').value;
+function deletePreset(){
+  const state = Alpine.$data(document.getElementById('preset-selector-wrapper'));
+  const pid = state.selectedId;
   if(!pid) return;
   let fallbackItem = null;
   const items = document.querySelectorAll('#preset-selector-wrapper [data-preset-id]');

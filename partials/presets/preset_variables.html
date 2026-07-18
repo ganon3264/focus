@@ -3,10 +3,10 @@
   {% if var_groups %}
     <div class="flex flex-col gap-2" id="preset-variables-sortable-{{ preset_id }}">
     {% for vname, vblocks in var_groups.items() %}
-      <div class="arranger-item bg-role-system var-group-container" x-data="{ expanded: (window._expandedVarGroups || new Set()).has('{{ vname }}') }">
+      <div class="arranger-item bg-role-system var-group-container" x-data="{ expanded: expandGet('varGroups', '{{ vname }}') }">
         <div class="hidden var-group-ids" data-ids="{{ vblocks | map(attribute='id') | join(',') }}"></div>
         <div class="arranger-header">
-          <div class="arranger-title-group" @click="expanded = !expanded; expanded ? (window._expandedVarGroups = window._expandedVarGroups || new Set()).add('{{ vname }}') : (window._expandedVarGroups || new Set()).delete('{{ vname }}')" role="button" tabindex="0" aria-expanded="false" style="cursor: pointer;">
+          <div class="arranger-title-group" @click="expanded = expandToggle('varGroups', '{{ vname }}')" role="button" tabindex="0" aria-expanded="false" style="cursor: pointer;">
             <span style="font-size: 0.8rem; color: var(--text-muted); width: 16px; text-align: center; display: inline-flex; align-items: center; justify-content: center;" :class="expanded ? 'rotate-90' : ''">{{ icon_chevron_right(12) }}</span>
             <span class="arranger-input" style="cursor: pointer; font-weight: bold;">{{ vname }}</span>
           </div>

@@ -4,13 +4,13 @@ media_thumbnail %}
   class="arranger-item {% if not block.enabled %}disabled{% endif %} {% if block.block_type != 'chat_history' and block.block_type != 'char_blocks' %}bg-role-{{ block.role }}{% endif %}"
   data-block-id="{{ block.id }}"
   data-block-content="{{ block.content }}"
-  x-data="{ expanded: (window._expandedArrangerBlocks || new Set()).has('{{ block.id }}') }"
+  x-data="{ expanded: expandGet('arrangerBlocks', '{{ block.id }}') }"
 >
   <div class="arranger-header">
     <div class="arranger-handle" title="Drag to reorder"></div>
     <div
       class="arranger-title-group"
-      @click="expanded = !expanded; expanded ? (window._expandedArrangerBlocks = window._expandedArrangerBlocks || new Set()).add('{{ block.id }}') : (window._expandedArrangerBlocks || new Set()).delete('{{ block.id }}')"
+      @click="expanded = expandToggle('arrangerBlocks', '{{ block.id }}')"
       role="button"
       tabindex="0"
       aria-expanded="false"

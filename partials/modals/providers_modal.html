@@ -175,11 +175,8 @@
          No models found or available. You may need to manually input the model ID.
        </div>
         <template x-for="model in models.filter(m => (m.name||'').toLowerCase().includes(search.toLowerCase()) || (m.id||'').toLowerCase().includes(search.toLowerCase()))" :key="model.id">
-          <div class="p-3 mb-1 cursor-pointer rounded-md transition-colors"
-               style="border: 1px solid transparent;"
-               @mouseover="$el.style.background='var(--surface-3)'; $el.style.borderColor='var(--border)'"
-               @mouseout="$el.style.background='transparent'; $el.style.borderColor='transparent'"
-               @click="selectFetchedModel(model.id, model.name)">
+           <div class="model-item p-3 mb-1 cursor-pointer rounded-md transition-colors"
+                @click="selectFetchedModel(model.id, model.name)">
             <div class="flex justify-between items-start mb-1">
               <div class="font-bold text-sm text-light" x-text="model.name || model.id"></div>
               <div class="text-xs text-muted font-mono px-1.5 py-0.5 rounded" style="background: rgba(0,0,0,0.3);" x-show="model.pricing">
@@ -227,10 +224,7 @@
        <h4 class="text-sm font-bold mb-2">Saved Keys</h4>
        <div class="flex flex-col gap-2 mb-4 overflow-y-auto" style="max-height: 40vh;">
          <template x-for="sec in secrets" :key="sec.name">
-           <div class="flex justify-between items-center p-2 rounded-md transition-colors cursor-pointer"
-                style="border: 1px solid var(--border); background: var(--surface);"
-                 @mouseover="$el.style.borderColor='var(--active-text)'"
-                 @mouseout="$el.style.borderColor='var(--border)'"
+           <div class="secret-item flex justify-between items-center p-2 rounded-md transition-colors cursor-pointer"
                 @click="selectSecret(sec.name)">
              <div>
                <div class="font-bold text-sm" x-text="sec.name"></div>
@@ -287,4 +281,11 @@
   </div>
 </div>
 
+<style>
+.model-item { border: 1px solid transparent; }
+.model-item:hover { background: var(--surface-3); border-color: var(--border); }
+
+.secret-item { border: 1px solid var(--border); background: var(--surface); }
+.secret-item:hover { border-color: var(--active-text); }
+</style>
 <script src="/static/js/modal_providers.js"></script>

@@ -75,6 +75,39 @@
     </div>
     <!-- ── inline scripts ──────────────────────────────────────────────── -->
     <script>
+      window._expandSets = window._expandSets || {};
+
+      window.expandGet = function (setName, key) {
+        window._expandSets[setName] = window._expandSets[setName] || new Set();
+        return window._expandSets[setName].has(key);
+      };
+
+      window.expandToggle = function (setName, key) {
+        window._expandSets[setName] = window._expandSets[setName] || new Set();
+        var set = window._expandSets[setName];
+        if (set.has(key)) { set.delete(key); return false; }
+        else { set.add(key); return true; }
+      };
+
+      window.getArrangerContainerId = function (presetId) {
+        var list = document.getElementById('arranger-list-' + presetId);
+        return list && list.parentElement && list.parentElement.id
+          ? list.parentElement.id
+          : 'arranger-modal-body';
+      };
+
+      window.reloadPromptArranger = function (presetId, targetId) {
+        var url = '/partials/prompt-arranger/' + presetId;
+        var params = new URLSearchParams();
+        if (StateManager.get('character_id'))
+          params.append('character_id', StateManager.get('character_id'));
+        if (StateManager.get('persona_id'))
+          params.append('persona_id', StateManager.get('persona_id'));
+        var query = params.toString();
+        if (query) url += '?' + query;
+        htmx.ajax('GET', url, { target: '#' + targetId, swap: 'innerHTML' });
+      };
+
       window.getSvgSprite = function (name, size) {
         var el = document.querySelector('#svg-sprite svg[data-svg-icon="' + name + '"]');
         if (!el) return '';
