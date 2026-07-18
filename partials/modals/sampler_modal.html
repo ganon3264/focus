@@ -18,6 +18,19 @@
     background: var(--accent, #6366f1);
     cursor: pointer;
   }
+  .sampler-input {
+    width: 64px;
+    padding: 1px 4px;
+    height: auto;
+    text-align: center;
+    -moz-appearance: textfield;
+  }
+  .sampler-input::-webkit-inner-spin-button,
+  .sampler-input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
   .styled-slider::-moz-range-thumb {
     width: 16px;
     height: 16px;
@@ -25,6 +38,25 @@
     background: var(--accent, #6366f1);
     cursor: pointer;
     border: none;
+  }
+
+  .tree-child {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    padding-left: 12px;
+  }
+  .tree-child > .tree-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    flex-shrink: 0;
+    margin-top: 5px;
+  }
+  .tree-child > :last-child {
+    flex: 1;
+    min-width: 0;
   }
 </style>
 
@@ -51,96 +83,72 @@
   <div x-show="tab === 'standard'" class="flex flex-col gap-3 overflow-y-auto pr-2 pb-2">
     <!-- ── Universal sliders ── -->
     <div class="form-group mb-0">
-      <label class="flex justify-between text-xs mb-1"
-        ><span>Temperature</span> <span x-text="samplers.temperature"></span
-      ></label>
-      <input
-        type="range"
-        min="0"
-        max="2"
-        step="0.01"
-        x-model.number="samplers.temperature"
-        @change="saveStandard()"
-        class="styled-slider"
-      />
+      <label class="flex justify-between text-xs mb-1">
+        <span>Temperature</span>
+        <input type="text" inputmode="decimal"
+          x-model.number="samplers.temperature"
+          @change="saveStandard()"
+          @blur="$el.value = fmt(parseFloat($el.value) || 0, 2)"
+          class="form-control text-xs sampler-input" data-dec="2" />
+      </label>
+      <input type="range" min="0" max="2" step="0.01"
+        x-model.number="samplers.temperature" @change="saveStandard()"
+        class="styled-slider" />
     </div>
     <div class="form-group mb-0">
-      <label class="flex justify-between text-xs mb-1"
-        ><span>Max Tokens</span> <span x-text="samplers.max_tokens"></span
-      ></label>
-      <input
-        type="number"
-        min="1"
-        max="128000"
-        x-model.number="samplers.max_tokens"
-        @change="saveStandard()"
-        class="form-control text-sm w-full"
-      />
+      <label class="flex justify-between text-xs mb-1">
+        <span>Max Tokens</span>
+        <input type="text" inputmode="numeric"
+          x-model.number="samplers.max_tokens"
+          @change="saveStandard()"
+          @blur="$el.value = fmt(parseFloat($el.value) || 0, 0)"
+          class="form-control text-xs sampler-input" data-dec="0" />
+      </label>
+      <input type="range" min="1" max="128000" step="1"
+        x-model.number="samplers.max_tokens" @change="saveStandard()"
+        class="styled-slider" />
     </div>
     <div class="form-group mb-0">
-      <label class="flex justify-between text-xs mb-1"
-        ><span>Top P</span> <span x-text="samplers.top_p"></span
-      ></label>
-      <input
-        type="range"
-        min="0"
-        max="1"
-        step="0.01"
-        x-model.number="samplers.top_p"
-        @change="saveStandard()"
-        class="styled-slider"
-      />
+      <label class="flex justify-between text-xs mb-1">
+        <span>Top P</span>
+        <input type="text" inputmode="decimal"
+          x-model.number="samplers.top_p"
+          @change="saveStandard()"
+          @blur="$el.value = fmt(parseFloat($el.value) || 0, 2)"
+          class="form-control text-xs sampler-input" data-dec="2" />
+      </label>
+      <input type="range" min="0" max="1" step="0.01"
+        x-model.number="samplers.top_p" @change="saveStandard()"
+        class="styled-slider" />
     </div>
 
     <!-- ── Provider-specific sliders ── -->
-    <template x-if="providerType === 'openrouter'">
-      <div class="flex flex-col gap-3">
-        <div class="form-group mb-0">
-          <label class="flex justify-between text-xs mb-1"
-            ><span>Top K</span> <span x-text="samplers.top_k"></span
-          ></label>
-          <input
-            type="range"
-            min="0"
-            max="100"
-            step="1"
-            x-model.number="samplers.top_k"
-            @change="saveStandard()"
-            class="styled-slider"
-          />
-        </div>
-        <div class="form-group mb-0">
-          <label class="flex justify-between text-xs mb-1"
-            ><span>Min P</span> <span x-text="samplers.min_p"></span
-          ></label>
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.01"
-            x-model.number="samplers.min_p"
-            @change="saveStandard()"
-            class="styled-slider"
-          />
-        </div>
-      </div>
-    </template>
-    <template x-if="providerType === 'google_vertex' || providerType === 'google_aistudio'">
-      <div class="form-group mb-0">
-        <label class="flex justify-between text-xs mb-1"
-          ><span>Top K</span> <span x-text="samplers.top_k"></span
-        ></label>
-        <input
-          type="range"
-          min="0"
-          max="100"
-          step="1"
+    <div class="form-group mb-0" x-show="showTopK">
+      <label class="flex justify-between text-xs mb-1">
+        <span>Top K</span>
+        <input type="text" inputmode="numeric"
           x-model.number="samplers.top_k"
           @change="saveStandard()"
-          class="styled-slider"
-        />
-      </div>
-    </template>
+          @blur="$el.value = fmt(parseFloat($el.value) || 0, 0)"
+          class="form-control text-xs sampler-input" data-dec="0" />
+      </label>
+      <input type="range" min="0" max="100" step="1"
+        x-model.number="samplers.top_k" @change="saveStandard()"
+        class="styled-slider" />
+    </div>
+    <div class="form-group mb-0" x-show="showMinP">
+      <label class="flex justify-between text-xs mb-1">
+        <span>Min P</span>
+        <input type="text" inputmode="decimal"
+          x-model.number="samplers.min_p"
+          @change="saveStandard()"
+          @blur="$el.value = fmt(parseFloat($el.value) || 0, 2)"
+          class="form-control text-xs sampler-input" data-dec="2" />
+      </label>
+      <input type="range" min="0" max="1" step="0.01"
+        x-model.number="samplers.min_p" @change="saveStandard()"
+        class="styled-slider" />
+    </div>
 
     <!-- ── Universal toggles ── -->
     <div class="form-group mb-0 flex items-center justify-between mt-2">
@@ -173,28 +181,29 @@
     </div>
 
     <!-- ── Provider-specific toggles ── -->
-    <template x-if="providerType === 'openrouter'">
-      <div class="flex flex-col gap-3">
-        <div class="form-group mb-0 flex items-center justify-between mt-2">
-          <label
-            class="text-xs mb-0 cursor-pointer"
-            @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()"
-            >Include Reasoning</label
-          >
-          <div
-            class="arranger-toggle"
-            role="switch"
-            tabindex="0"
-            :class="{ 'active': samplers.include_reasoning }"
-            @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()"
-          ></div>
-        </div>
-        <div
-          x-show="samplers.include_reasoning"
-          x-transition.opacity.duration.200ms
-          class="flex flex-col gap-2"
-          style="display: none"
+    <div x-show="providerType === 'openrouter'" class="flex flex-col gap-3">
+      <div class="form-group mb-0 flex items-center justify-between mt-2">
+        <label
+          class="text-xs mb-0 cursor-pointer"
+          @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()"
+          >Include Reasoning</label
         >
+        <div
+          class="arranger-toggle"
+          role="switch"
+          tabindex="0"
+          :class="{ 'active': samplers.include_reasoning }"
+          @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()"
+        ></div>
+      </div>
+      <div
+        x-show="samplers.include_reasoning"
+        x-transition.opacity.duration.200ms
+        class="flex flex-col gap-2"
+        style="display: none"
+      >
+        <div class="tree-child">
+          <span class="tree-dot"></span>
           <div class="form-group mb-0">
             <label class="flex justify-between text-xs mb-2"><span>Reasoning Effort</span></label>
             <div class="flex gap-2 flex-wrap">
@@ -217,31 +226,31 @@
           </div>
         </div>
       </div>
-    </template>
-    <template
-      x-if="providerType === 'openai_compat' || providerType === 'deepseek' || providerType === 'moonshot'"
-    >
-      <div class="flex flex-col gap-3">
-        <div class="form-group mb-0 flex items-center justify-between mt-2">
-          <label
-            class="text-xs mb-0 cursor-pointer"
-            @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()"
-            >Enable Thinking / Reasoning</label
-          >
-          <div
-            class="arranger-toggle"
-            role="switch"
-            tabindex="0"
-            :class="{ 'active': samplers.include_reasoning }"
-            @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()"
-          ></div>
-        </div>
-        <div
-          class="form-group mb-0"
-          x-show="samplers.include_reasoning && providerType !== 'moonshot'"
-          x-transition.opacity.duration.200ms
-          style="display: none"
+    </div>
+    <div x-show="showReasoningToggle" class="flex flex-col gap-3">
+      <div class="form-group mb-0 flex items-center justify-between mt-2">
+        <label
+          class="text-xs mb-0 cursor-pointer"
+          @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()"
+          >Enable Thinking / Reasoning</label
         >
+        <div
+          class="arranger-toggle"
+          role="switch"
+          tabindex="0"
+          :class="{ 'active': samplers.include_reasoning }"
+          @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()"
+        ></div>
+      </div>
+    </div>
+    <div
+      x-show="showReasoningEffort"
+      x-transition.opacity.duration.200ms
+      style="display: none"
+    >
+      <div class="tree-child">
+        <span class="tree-dot"></span>
+        <div class="form-group mb-0">
           <label class="flex justify-between text-xs mb-2"><span>Reasoning Effort</span></label>
           <div class="flex gap-2 flex-wrap">
             <button
@@ -262,158 +271,163 @@
           </div>
         </div>
       </div>
-    </template>
-    <template x-if="providerType === 'google_vertex' || providerType === 'google_aistudio'">
-      <div class="flex flex-col gap-3">
-        <div class="form-group mb-0 flex items-center justify-between mt-2">
+    </div>
+    <div
+      x-show="showPreserveThinking"
+      x-transition.opacity.duration.200ms
+      style="display: none"
+    >
+      <div class="tree-child">
+        <span class="tree-dot"></span>
+        <div class="form-group mb-0 flex items-center justify-between">
           <label
             class="text-xs mb-0 cursor-pointer"
-            @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()"
-            >Enable Thinking</label
+            @click="samplers.preserve_thinking = !samplers.preserve_thinking; saveStandard()"
+            >Preserve Thinking (multi-turn)</label
           >
           <div
             class="arranger-toggle"
             role="switch"
             tabindex="0"
-            :class="{ 'active': samplers.include_reasoning }"
-            @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()"
+            :class="{ 'active': samplers.preserve_thinking }"
+            @click="samplers.preserve_thinking = !samplers.preserve_thinking; saveStandard()"
           ></div>
         </div>
-        <div
-          class="form-group mb-0"
-          x-show="samplers.include_reasoning"
-          x-transition.opacity.duration.200ms
-          style="display: none"
+      </div>
+    </div>
+    <div x-show="showGoogleReasoning" class="flex flex-col gap-3">
+      <div class="form-group mb-0 flex items-center justify-between mt-2">
+        <label
+          class="text-xs mb-0 cursor-pointer"
+          @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()"
+          >Enable Thinking</label
         >
-          <label class="flex justify-between text-xs mb-2"><span>Thinking Level</span></label>
-          <div class="flex gap-2 flex-wrap">
-            <button
-              class="btn-tag"
-              :class="!samplers.reasoning_effort ? 'active' : ''"
-              @click.stop="samplers.reasoning_effort = ''; saveStandard()"
-            >
-              Default
-            </button>
-            <template x-for="opt in effortOptions" :key="opt.value">
+        <div
+          class="arranger-toggle"
+          role="switch"
+          tabindex="0"
+          :class="{ 'active': samplers.include_reasoning }"
+          @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()"
+        ></div>
+      </div>
+      <div
+        x-show="samplers.include_reasoning"
+        x-transition.opacity.duration.200ms
+        style="display: none"
+      >
+        <div class="tree-child">
+          <span class="tree-dot"></span>
+          <div class="form-group mb-0">
+            <label class="flex justify-between text-xs mb-2"><span>Thinking Level</span></label>
+            <div class="flex gap-2 flex-wrap">
               <button
                 class="btn-tag"
-                :class="samplers.reasoning_effort === opt.value ? 'active' : ''"
-                @click.stop="samplers.reasoning_effort = opt.value; saveStandard()"
-                x-text="opt.label"
-              ></button>
-            </template>
+                :class="!samplers.reasoning_effort ? 'active' : ''"
+                @click.stop="samplers.reasoning_effort = ''; saveStandard()"
+              >
+                Default
+              </button>
+              <template x-for="opt in effortOptions" :key="opt.value">
+                <button
+                  class="btn-tag"
+                  :class="samplers.reasoning_effort === opt.value ? 'active' : ''"
+                  @click.stop="samplers.reasoning_effort = opt.value; saveStandard()"
+                  x-text="opt.label"
+                ></button>
+              </template>
+            </div>
           </div>
         </div>
       </div>
-    </template>
+    </div>
   </div>
 
   <!-- Advanced Tab -->
   <div x-show="tab === 'advanced'" class="flex flex-col gap-3 overflow-y-auto pr-2 pb-2">
-    <template
-      x-if="providerType === 'openai_compat' || providerType === 'moonshot'"
-    >
-      <div class="flex flex-col gap-3">
-        <div class="form-group mb-0">
-          <label class="flex justify-between text-xs mb-1"
-            ><span>Frequency Penalty</span> <span x-text="samplers.frequency_penalty"></span
-          ></label>
-          <input
-            type="range"
-            min="-2"
-            max="2"
-            step="0.01"
+    <div x-show="showFrequencyPenalty" class="flex flex-col gap-3">
+      <div class="form-group mb-0">
+        <label class="flex justify-between text-xs mb-1">
+          <span>Frequency Penalty</span>
+          <input type="text" inputmode="decimal"
             x-model.number="samplers.frequency_penalty"
             @change="saveStandard()"
-            class="styled-slider"
-          />
-        </div>
-        <div class="form-group mb-0">
-          <label class="flex justify-between text-xs mb-1"
-            ><span>Presence Penalty</span> <span x-text="samplers.presence_penalty"></span
-          ></label>
-          <input
-            type="range"
-            min="-2"
-            max="2"
-            step="0.01"
+            @blur="$el.value = fmt(parseFloat($el.value) || 0, 2)"
+            class="form-control text-xs sampler-input" data-dec="2" />
+        </label>
+        <input type="range" min="-2" max="2" step="0.01"
+          x-model.number="samplers.frequency_penalty" @change="saveStandard()"
+          class="styled-slider" />
+      </div>
+      <div class="form-group mb-0">
+        <label class="flex justify-between text-xs mb-1">
+          <span>Presence Penalty</span>
+          <input type="text" inputmode="decimal"
             x-model.number="samplers.presence_penalty"
             @change="saveStandard()"
-            class="styled-slider"
-          />
-        </div>
+            @blur="$el.value = fmt(parseFloat($el.value) || 0, 2)"
+            class="form-control text-xs sampler-input" data-dec="2" />
+        </label>
+        <input type="range" min="-2" max="2" step="0.01"
+          x-model.number="samplers.presence_penalty" @change="saveStandard()"
+          class="styled-slider" />
       </div>
-    </template>
-    <template x-if="providerType === 'openrouter'">
-      <div class="flex flex-col gap-3">
-        <div class="form-group mb-0">
-          <label class="flex justify-between text-xs mb-1"
-            ><span>Repetition Penalty</span> <span x-text="samplers.repetition_penalty"></span
-          ></label>
-          <input
-            type="range"
-            min="0"
-            max="2"
-            step="0.01"
-            x-model.number="samplers.repetition_penalty"
-            @change="saveStandard()"
-            class="styled-slider"
-          />
-        </div>
-        <div
-          class="form-group mb-0"
-          x-show="samplers.include_reasoning"
-          x-transition.opacity.duration.200ms
-          style="display: none"
-        >
-          <label class="flex justify-between text-xs mb-1"
-            ><span>Thinking Budget</span> <span x-text="samplers.thinking_budget || 'auto'"></span
-          ></label>
-          <input
-            type="number"
-            min="0"
-            max="128000"
-            step="1"
+    </div>
+    <div class="form-group mb-0" x-show="showRepetitionPenalty">
+      <label class="flex justify-between text-xs mb-1">
+        <span>Repetition Penalty</span>
+        <input type="text" inputmode="decimal"
+          x-model.number="samplers.repetition_penalty"
+          @change="saveStandard()"
+          @blur="$el.value = fmt(parseFloat($el.value) || 0, 2)"
+            class="form-control text-xs sampler-input" data-dec="2" />
+        </label>
+        <input type="range" min="0" max="2" step="0.01"
+          x-model.number="samplers.repetition_penalty" @change="saveStandard()"
+          class="styled-slider" />
+    </div>
+    <div
+      x-show="showThinkingBudget"
+      x-transition.opacity.duration.200ms
+      style="display: none"
+    >
+      <div class="form-group mb-0">
+        <label class="flex justify-between text-xs mb-1">
+          <span>Thinking Budget</span>
+          <input type="text" inputmode="numeric"
             x-model.number="samplers.thinking_budget"
             @change="saveStandard()"
-            class="form-control text-sm w-full"
-            placeholder="0 = use effort or default 2048"
-          />
-        </div>
-        <div class="form-group mb-0 flex items-center justify-between mt-2">
-          <label
-            class="text-xs mb-0 cursor-pointer"
-            @click="samplers.cache_enabled = !samplers.cache_enabled; saveStandard()"
-            >Prompt Caching</label
-          >
-          <div
-            class="arranger-toggle"
-            role="switch"
-            tabindex="0"
-            :class="{ 'active': samplers.cache_enabled }"
-            @click="samplers.cache_enabled = !samplers.cache_enabled; saveStandard()"
-          ></div>
-        </div>
-        <div
-          x-show="samplers.cache_enabled"
-          x-transition.opacity.duration.200ms
-          class="flex flex-col gap-2"
-          style="display: none"
+            @blur="$el.value = parseFloat($el.value) ? fmt(parseFloat($el.value), 0) : 'auto'"
+            class="form-control text-xs sampler-input" data-dec="0" data-auto="1"
+            placeholder="0 = auto" />
+        </label>
+        <input type="range" min="0" max="128000" step="1"
+          x-model.number="samplers.thinking_budget" @change="saveStandard()"
+          class="styled-slider" />
+      </div>
+    </div>
+    <div x-show="showCacheConfig" class="flex flex-col gap-3">
+      <div class="form-group mb-0 flex items-center justify-between mt-2">
+        <label
+          class="text-xs mb-0 cursor-pointer"
+          @click="samplers.cache_enabled = !samplers.cache_enabled; saveStandard()"
+          >Prompt Caching</label
         >
-          <div class="form-group mb-0">
-            <label class="flex justify-between text-xs mb-1"
-              ><span>Depth of Turns</span> <span x-text="samplers.cache_depth"></span
-            ></label>
-            <input
-              type="number"
-              min="1"
-              max="50"
-              step="1"
-              x-model.number="samplers.cache_depth"
-              @change="saveStandard()"
-              class="form-control text-sm w-full"
-            />
-          </div>
+        <div
+          class="arranger-toggle"
+          role="switch"
+          tabindex="0"
+          :class="{ 'active': samplers.cache_enabled }"
+          @click="samplers.cache_enabled = !samplers.cache_enabled; saveStandard()"
+        ></div>
+      </div>
+      <div
+        x-show="samplers.cache_enabled"
+        x-transition.opacity.duration.200ms
+        class="flex flex-col gap-2"
+        style="display: none"
+      >
+        <div class="tree-child">
+          <span class="tree-dot"></span>
           <div class="form-group mb-0 flex items-center justify-between">
             <label
               class="text-xs mb-0 cursor-pointer"
@@ -429,24 +443,39 @@
             ></div>
           </div>
         </div>
+        <div class="tree-child">
+          <span class="tree-dot"></span>
+          <div class="form-group mb-0">
+            <label class="flex justify-between text-xs mb-1"
+              ><span>Depth of Turns</span> <span x-text="samplers.cache_depth"></span
+            ></label>
+            <input
+              type="number"
+              min="1"
+              max="50"
+              step="1"
+              x-model.number="samplers.cache_depth"
+              @change="saveStandard()"
+              class="form-control text-sm w-full"
+            />
+          </div>
+        </div>
       </div>
-    </template>
-    <template x-if="providerType === 'google_vertex' || providerType === 'google_aistudio'">
-      <div class="form-group mb-0 flex items-center justify-between mt-2">
-        <label
-          class="text-xs mb-0 cursor-pointer"
-          @click="samplers.send_reasoning_history = !samplers.send_reasoning_history; saveStandard()"
-          >Send Reasoning History</label
-        >
-        <div
-          class="arranger-toggle"
-          role="switch"
-          tabindex="0"
-          :class="{ 'active': samplers.send_reasoning_history }"
-          @click="samplers.send_reasoning_history = !samplers.send_reasoning_history; saveStandard()"
-        ></div>
-      </div>
-    </template>
+    </div>
+    <div x-show="showSendReasoningHistory" class="form-group mb-0 flex items-center justify-between mt-2">
+      <label
+        class="text-xs mb-0 cursor-pointer"
+        @click="samplers.send_reasoning_history = !samplers.send_reasoning_history; saveStandard()"
+        >Send Reasoning History</label
+      >
+      <div
+        class="arranger-toggle"
+        role="switch"
+        tabindex="0"
+        :class="{ 'active': samplers.send_reasoning_history }"
+        @click="samplers.send_reasoning_history = !samplers.send_reasoning_history; saveStandard()"
+      ></div>
+    </div>
   </div>
 
   <!-- Custom Tab -->
@@ -512,6 +541,78 @@
 </div>
 
 <script>
+const PROVIDER_SAMPLERS = {
+  openai_compat: {
+    defaults: {},
+    build(s) {
+      return {
+        frequency_penalty: s.frequency_penalty,
+        presence_penalty: s.presence_penalty,
+        include_reasoning: s.include_reasoning,
+        ...(s.include_reasoning && s.reasoning_effort ? { reasoning_effort: s.reasoning_effort } : {}),
+      };
+    },
+  },
+  deepseek: {
+    defaults: {},
+    build(s) {
+      return { include_reasoning: s.include_reasoning };
+    },
+  },
+  moonshot: {
+    defaults: { preserve_thinking: false },
+    build(s) {
+      return {
+        frequency_penalty: s.frequency_penalty,
+        presence_penalty: s.presence_penalty,
+        include_reasoning: s.include_reasoning,
+        ...(s.include_reasoning ? { preserve_thinking: s.preserve_thinking } : {}),
+      };
+    },
+  },
+  openrouter: {
+    defaults: { top_k: 0, min_p: 0, repetition_penalty: 1.0 },
+    build(s) {
+      const p = {
+        top_k: s.top_k,
+        min_p: s.min_p,
+        repetition_penalty: s.repetition_penalty,
+        include_reasoning: s.include_reasoning,
+      };
+      if (s.include_reasoning) {
+        p.reasoning_effort = s.reasoning_effort;
+        p.thinking_budget = s.thinking_budget;
+      }
+      p.cache_enabled = s.cache_enabled;
+      p.cache_ttl = s.cache_ttl;
+      p.cache_depth = s.cache_depth;
+      return p;
+    },
+  },
+  google_vertex: {
+    defaults: {},
+    build(s) {
+      return {
+        top_k: s.top_k,
+        send_reasoning_history: s.send_reasoning_history,
+        include_reasoning: s.include_reasoning,
+        ...(s.include_reasoning ? { reasoning_effort: s.reasoning_effort } : {}),
+      };
+    },
+  },
+  google_aistudio: {
+    defaults: {},
+    build(s) {
+      return {
+        top_k: s.top_k,
+        send_reasoning_history: s.send_reasoning_history,
+        include_reasoning: s.include_reasoning,
+        ...(s.include_reasoning ? { reasoning_effort: s.reasoning_effort } : {}),
+      };
+    },
+  },
+};
+
   document.addEventListener('alpine:init', () => {
     Alpine.data('samplerModal', () => ({
       tab: 'standard',
@@ -523,7 +624,7 @@
       customFields: [],
 
       defaultSamplers() {
-        return {
+        const base = {
           temperature: 1.0,
           max_tokens: 8192,
           top_p: 0.95,
@@ -542,6 +643,8 @@
           cache_ttl: 'ephemeral',
           cache_depth: 5,
         };
+        const provider = PROVIDER_SAMPLERS[this.providerType];
+        return { ...base, ...provider?.defaults };
       },
 
       async loadStandard() {
@@ -644,67 +747,61 @@
         return map[this.providerType] || map.openai_compat;
       },
 
+      get showTopK() { return ['openrouter', 'google_vertex', 'google_aistudio'].includes(this.providerType); },
+      get showMinP() { return this.providerType === 'openrouter'; },
+      get showFrequencyPenalty() { return ['openai_compat', 'moonshot'].includes(this.providerType); },
+      get showRepetitionPenalty() { return this.providerType === 'openrouter'; },
+      get showThinkingBudget() { return this.providerType === 'openrouter' && this.samplers.include_reasoning; },
+      get showCacheConfig() { return this.providerType === 'openrouter'; },
+      get showReasoningToggle() { return ['openai_compat', 'deepseek', 'moonshot'].includes(this.providerType); },
+      get showReasoningEffort() { return this.samplers.include_reasoning && ['openai_compat', 'deepseek'].includes(this.providerType); },
+      get showPreserveThinking() { return this.providerType === 'moonshot' && this.samplers.include_reasoning; },
+      get showGoogleReasoning() { return ['google_vertex', 'google_aistudio'].includes(this.providerType); },
+      get showSendReasoningHistory() { return ['google_vertex', 'google_aistudio'].includes(this.providerType); },
+
       init() {
         this.loadStandard();
         this.loadCustom();
 
+        // Format sampler-inputs on model changes (slider sync, etc.)
+        this.$watch('samplers', () => {
+          this.$nextTick(() => {
+            this.$el.querySelectorAll('.sampler-input').forEach(el => {
+              if (document.activeElement !== el) {
+                const dec = parseInt(el.dataset.dec ?? '0');
+                const v = parseFloat(el.value);
+                if (!isNaN(v)) {
+                  el.value = el.dataset.auto && !v ? 'auto' : this.fmt(v, dec);
+                }
+              }
+            });
+          });
+        }, { deep: true });
+
         // Make global function to retrieve payload
         window.getActiveSamplers = () => {
-          let payload = {
+          const payload = {
             temperature: this.samplers.temperature,
             max_tokens: this.samplers.max_tokens,
             top_p: this.samplers.top_p,
             stream_enabled: this.samplers.stream_enabled,
           };
 
-          if (this.providerType === 'openrouter') {
-            payload.top_k = this.samplers.top_k;
-            payload.min_p = this.samplers.min_p;
-            payload.repetition_penalty = this.samplers.repetition_penalty;
-            payload.include_reasoning = this.samplers.include_reasoning;
-            if (this.samplers.include_reasoning) {
-              payload.reasoning_effort = this.samplers.reasoning_effort;
-              payload.thinking_budget = this.samplers.thinking_budget;
-            }
-            payload.cache_enabled = this.samplers.cache_enabled;
-            payload.cache_ttl = this.samplers.cache_ttl;
-            payload.cache_depth = this.samplers.cache_depth;
-          } else if (
-            this.providerType === 'openai_compat' ||
-            this.providerType === 'moonshot'
-          ) {
-            payload.frequency_penalty = this.samplers.frequency_penalty;
-            payload.presence_penalty = this.samplers.presence_penalty;
-            payload.include_reasoning = this.samplers.include_reasoning;
-            if (this.samplers.include_reasoning && this.providerType !== 'moonshot') {
-              payload.reasoning_effort = this.samplers.reasoning_effort;
-            }
-          } else if (
-            this.providerType === 'google_vertex' ||
-            this.providerType === 'google_aistudio'
-          ) {
-            payload.top_k = this.samplers.top_k;
-            payload.send_reasoning_history = this.samplers.send_reasoning_history;
-            payload.include_reasoning = this.samplers.include_reasoning;
-            if (this.samplers.include_reasoning) {
-              payload.reasoning_effort = this.samplers.reasoning_effort;
-            }
-          }
+          const provider = PROVIDER_SAMPLERS[this.providerType];
+          if (provider) Object.assign(payload, provider.build(this.samplers));
 
           if (!this.samplers.enable_multimodal) {
             payload.disable_multimodal = true;
           }
 
           // Add enabled custom fields
-          for (let item of this.customFields) {
+          for (const item of this.customFields) {
             if (item.enabled && item.key) {
               let val = item.value;
               if (item.type === 'number') val = Number(val);
               else if (item.type === 'boolean') val = val === 'true';
               else if (item.type === 'json') {
-                try {
-                  val = JSON.parse(val);
-                } catch (e) {}
+                try { val = JSON.parse(val); } catch (e) {}
               }
               payload[item.key] = val;
             }
@@ -785,6 +882,8 @@
           this.loadCustom();
         }
       },
+
+      fmt(v, d) { return Number(v ?? 0).toFixed(d); },
 
       addCustom() {
         this.customFields.push({ enabled: true, key: '', type: 'string', value: '' });

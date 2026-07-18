@@ -7,12 +7,18 @@ class MoonshotProvider(OpenAICompatProvider):
         super().__init__(base_url, api_key, model, params)
 
     async def stream_complete(self, messages: list[dict], **kwargs):
-        # Kimi-specific extension: the thinking parameter needs to be passed via the SDK's extra_body
-        include_reasoning = kwargs.pop("include_reasoning", False)
+        include_reasoning = kwargs.pop("include_reasoning", None)
+        preserve_thinking = kwargs.pop("preserve_thinking", False)
 
         extra_body = kwargs.get("extra_body", {})
-        if include_reasoning:
-            extra_body["thinking"] = True
+
+        if include_reasoning is False:
+            extra_body["thinking"] = {"type": "disabled"}
+        elif include_reasoning is True:
+            thinking = {"type": "enabled"}
+            if preserve_thinking:
+                thinking["keep"] = "all"
+            extra_body["thinking"] = thinking
 
         kwargs["extra_body"] = extra_body
 
