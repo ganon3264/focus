@@ -30,11 +30,11 @@
 
   function scrollToBottom() {
     var navEntries = performance.getEntriesByType('navigation');
-    if (navEntries.length > 0 && navEntries[0].type === 'navigate') {
+    if (navEntries.length > 0) {
       requestAnimationFrame(function () {
         requestAnimationFrame(function () {
           var s = document.getElementById('scroll-sentinel');
-          if (s) s.scrollIntoView({ block: 'end' });
+          if (s) s.scrollIntoView({ block: 'end', behavior: 'instant' });
         });
       });
     }

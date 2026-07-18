@@ -284,7 +284,7 @@
               if (window._updateReasoningButton) window._updateReasoningButton(contentDiv);
 
               if (window.autoScroll && window.scrollSentinel) {
-                window.scrollSentinel.scrollIntoView({ behavior: 'instant' });
+                window.scrollSentinel.scrollIntoView({ behavior: 'smooth' });
               }
             }
           } else if (json.error) {
@@ -401,6 +401,7 @@
     const charImagePath = dataList ? dataList.getAttribute('data-char-image') : '';
     const asstDiv = createAssistantSkeleton(charName, charImagePath);
     messageList.insertBefore(asstDiv, window.scrollSentinel);
+    asstDiv.scrollIntoView({ behavior: 'smooth' });
 
     window._tempUserMessage = text;
 

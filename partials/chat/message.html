@@ -39,7 +39,9 @@
           <div class="text-xs text-muted flex items-center gap-1.5 flex-wrap mt-0.5">
             {% if message.model_name %}
             <span>{{ message.model_name }}</span>
+            {% if message.position != 0 and '<think>' in message.content %}
             <span class="text-muted">·</span>
+            {% endif %}
             {% endif %}
             {% if message.position != 0 and '<think>' in message.content %}
             <button
