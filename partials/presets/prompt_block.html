@@ -1,5 +1,5 @@
 {% from "macros.html" import custom_select, icon_plus, icon_close, icon_chevron_right,
-media_thumbnail %}
+media_thumbnail, hint_tooltip %}
 <div
   class="arranger-item {% if not block.enabled %}disabled{% endif %} {% if block.block_type != 'chat_history' and block.block_type != 'char_blocks' %}bg-role-{{ block.role }}{% endif %}"
   data-block-id="{{ block.id }}"
@@ -96,7 +96,10 @@ media_thumbnail %}
     <!-- In-Chat Injection Controls -->
     <div class="flex items-center gap-3 mt-3 pt-2" style="border-top: 1px solid var(--border)">
       <div class="flex items-center gap-2">
-        <span class="text-xs text-muted select-none">In-Chat</span>
+        <span class="flex items-center gap-1 text-xs text-muted select-none">
+          In-Chat
+          {{ hint_tooltip('Injects this block into the conversation at a specific position instead of at the prompt start.') }}
+        </span>
         <div
           class="arranger-toggle {% if block.injection_depth is not none %}active{% endif %}"
           role="switch"
@@ -109,6 +112,7 @@ media_thumbnail %}
       <div class="flex items-center gap-3">
         <label class="flex items-center gap-1 text-xs text-muted">
           Depth
+          {{ hint_tooltip('Position from the latest message. 0 = after the most recent message.') }}
           <input
             type="number"
             min="0"
@@ -120,6 +124,7 @@ media_thumbnail %}
         </label>
         <label class="flex items-center gap-1 text-xs text-muted">
           Order
+          {{ hint_tooltip('Sort order for blocks at the same depth. Lower values come first.') }}
           <input
             type="number"
             min="0"
@@ -179,7 +184,10 @@ media_thumbnail %}
     <!-- In-Chat Injection Controls -->
     <div class="flex items-center gap-3 mt-3 pt-2" style="border-top: 1px solid var(--border)">
       <div class="flex items-center gap-2">
-        <span class="text-xs text-muted select-none">In-Chat</span>
+        <span class="flex items-center gap-1 text-xs text-muted select-none">
+          In-Chat
+          {{ hint_tooltip('Injects this block into the conversation at a specific position instead of at the prompt start.') }}
+        </span>
         <div
           class="arranger-toggle {% if block.injection_depth is not none %}active{% endif %}"
           role="switch"
@@ -192,6 +200,7 @@ media_thumbnail %}
       <div class="flex items-center gap-3">
         <label class="flex items-center gap-1 text-xs text-muted">
           Depth
+          {{ hint_tooltip('Position from the latest message. 0 = after the most recent message.') }}
           <input
             type="number"
             min="0"
@@ -203,6 +212,7 @@ media_thumbnail %}
         </label>
         <label class="flex items-center gap-1 text-xs text-muted">
           Order
+          {{ hint_tooltip('Sort order for blocks at the same depth. Lower values come first.') }}
           <input
             type="number"
             min="0"

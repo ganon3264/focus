@@ -225,11 +225,7 @@
 {% endmacro %}
 
 {% macro hint_tooltip(text) %}
-<span class="hint-wrapper"
-  x-data="{ show: false, style: {} }"
-  @mouseenter="const r=$el.querySelector('.hint-icon').getBoundingClientRect();style={position:'fixed',left:(r.left+r.width/2)+'px',top:(r.bottom+4)+'px',transform:'translateX(-50%)'};show=true"
-  @mouseleave="show=false">
+<span class="hint-wrapper" data-hint="{{ text }}" onmouseenter="showHint(this)" onmouseleave="hideHint()">
   <span class="hint-icon">{{ icon_help(14) }}</span>
-  <div class="hint-tooltip" x-show="show" :style="style">{{ text }}</div>
 </span>
 {% endmacro %}

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import icon_expand, icon_plus, icon_close, icon_chevron_left, icon_chevron_down, media_thumbnail %}
+{% from "macros.html" import icon_expand, icon_plus, icon_close, icon_chevron_left, icon_chevron_down, media_thumbnail, hint_tooltip %}
 {% block title %}Characters - Focus{% endblock %}
 {% block content %}
 <div class="p-3 flex flex-col h-full" x-data="charEditor()">
@@ -105,7 +105,10 @@
             
             <!-- Character Reference Media -->
             <div class="form-group w-full mb-0 mt-2">
-              <label class="text-sm font-semibold text-muted block mb-1">Reference Media</label>
+              <div class="flex items-center gap-1 mb-1">
+                <label class="text-sm font-semibold text-muted block">Reference Media</label>
+                {{ hint_tooltip('Images or audio attached here are sent to the model as context. Reference them in your prompt blocks using <code>{{ media::x }}</code> where x is the 1-based position in the list.') }}
+              </div>
               <div class="char-block-media-section" id="media-section-char-{{ char.id }}" style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
                 {% for img in char.images %}
                 {{ media_thumbnail(img, "deleteCharMedia('" + char.id + "', '" + img.id + "')", ' id="char-media-' + img.id + '"') }}
@@ -183,7 +186,10 @@
           <!-- RIGHT COLUMN: Custom Blocks -->
           <div class="flex flex-col h-full pl-2">
             <div class="flex items-center justify-between mb-4">
-              <h3 class="sidebar-title m-0">Custom Logic Blocks</h3>
+              <div class="flex items-center gap-1">
+                <h3 class="sidebar-title m-0">Custom Logic Blocks</h3>
+                {{ hint_tooltip('Extra prompt blocks injected alongside the character card. Each block can have media attachments, referenced via <code>{{ media::1 }}</code>, <code>{{ media::2 }}</code>, etc. in the block content.') }}
+              </div>
               <button class="btn btn-secondary btn-sm" onclick="addBlock('{{ char.id }}')">{{ icon_plus(14) }} Add Block</button>
             </div>
             

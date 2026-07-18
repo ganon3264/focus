@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import icon_edit, icon_trash, icon_refresh, icon_music, icon_key, icon_search, icon_folder, icon_paperclip, icon_plus, icon_stop, icon_send, icon_chat, icon_close, icon_chevron_left, icon_chevron_right %}
+{% from "macros.html" import icon_edit, icon_trash, icon_refresh, icon_music, icon_key, icon_search, icon_folder, icon_paperclip, icon_plus, icon_stop, icon_send, icon_chat, icon_close, icon_chevron_left, icon_chevron_right, hint_tooltip %}
 {% from "modal_shell.html" import modal_shell %}
 {% block title %}Chat - Focus{% endblock %}
 {% block content %}
@@ -208,6 +208,10 @@
 <!-- PROMPT ARRANGER MODAL -->
 {% call modal_shell('modal-arranger', 'Prompt Arranger', max_width='600px', width='90vw', content_style='display:flex;flex-direction:column;height:85vh;padding:1.5rem 1.5rem 0 1.5rem;') %}
 <div id="arranger-modal-body" style="flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 0.5rem 1rem 1rem 1rem;">
+  <div class="flex items-center gap-1 mb-2 text-xs text-muted">
+    Arrange and configure prompt blocks that make up your preset.
+    {{ hint_tooltip('Text blocks are fully custom written content. Sentinel types (Character Description, Personality, User Persona, Chat History, Character Blocks) auto-populate from the active character or persona card.') }}
+  </div>
   {% if preset %}
     {% with preset_id = preset.id, blocks = preset_blocks %}
       {% include "presets/prompt_arranger.html" %}
@@ -222,19 +226,25 @@
 {% call modal_shell('var-edit-modal', 'Edit Variable Option', max_width='500px', width='90vw', z_index='1000', close_fn='closeVarModal', overlay_close=true) %}
 <div class="flex flex-col gap-3">
   <div>
-    <label class="text-xs font-bold text-muted mb-1 block">Variable Group Name</label>
-    <input type="text" id="var-modal-group" class="form-control" placeholder="e.g. Tense" onkeyup="updateVarHint(this.value)">
+    <div class="flex items-center gap-1 mb-1">
+      <label class="text-xs font-bold text-muted block">Variable Group Name</label>
+      {{ hint_tooltip('Groups related options together (e.g. Tense). Referenced in prompt blocks via <code>{{ getvar::Name }}</code>.') }}
+    </div>
+    <input type="text" id="var-modal-group" class="form-control" placeholder="e.g. Tense">
   </div>
   <div>
-    <label class="text-xs font-bold text-muted mb-1 block">Option Label</label>
+    <div class="flex items-center gap-1 mb-1">
+      <label class="text-xs font-bold text-muted block">Option Label</label>
+      {{ hint_tooltip('The display name for this specific option (e.g. Past Tense).') }}
+    </div>
     <input type="text" id="var-modal-label" class="form-control" placeholder="e.g. First Person">
   </div>
   <div>
-    <label class="text-xs font-bold text-muted mb-1 block">Value to Inject</label>
-    <textarea id="var-modal-content" rows="6" class="form-control" style="resize:vertical;" placeholder="Enter the text to inject..."></textarea>
-    <div id="var-modal-hint" class="text-xs text-muted mt-2">
-      Use <code class="bg-(--surface-3) px-1 rounded">{% raw %}{{ getvar::{% endraw %}name{% raw %} }}{% endraw %}</code> in your prompt blocks to insert this value.
+    <div class="flex items-center gap-1 mb-1">
+      <label class="text-xs font-bold text-muted block">Value to Inject</label>
+      {{ hint_tooltip('The actual text inserted into the prompt when this option is selected. Use <code>{{ getvar::Name }}</code> in your prompt blocks to reference this variable group.') }}
     </div>
+    <textarea id="var-modal-content" rows="6" class="form-control" style="resize:vertical;" placeholder="Enter the text to inject..."></textarea>
   </div>
   <div class="flex justify-end gap-2 mt-2">
     <button type="button" class="btn btn-secondary" onclick="closeVarModal()">Cancel</button>
@@ -355,12 +365,6 @@ if (!window._varScriptsLoaded) {
     });
   };
 
-  window.updateVarHint = function(groupName) {
-    const name = groupName.trim() || 'name';
-    const rawHtml = `Use <code class="bg-(--surface-3) px-1 rounded">{% raw %}{{ getvar::{% endraw %}${name}{% raw %} }}{% endraw %}</code> in your prompt blocks to insert this value.`;
-    document.getElementById('var-modal-hint').innerHTML = rawHtml;
-  };
-
   window.openVarEditModal = function(blockId, presetId, groupName, optionLabel, content) {
     _currentVarBlockId = blockId;
     _currentPresetId = presetId;
@@ -368,7 +372,6 @@ if (!window._varScriptsLoaded) {
     document.getElementById('var-modal-group').value = groupName || '';
     document.getElementById('var-modal-label').value = optionLabel || '';
     document.getElementById('var-modal-content').value = content || '';
-    updateVarHint(groupName || '');
     document.getElementById('var-edit-modal').classList.remove('hidden');
   };
 

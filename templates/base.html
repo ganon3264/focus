@@ -138,6 +138,24 @@
       document.addEventListener('htmx:load', function (e) {
         e.detail.elt.querySelectorAll('.scroll-fade').forEach(window.initScrollFade);
       });
+
+      /* ── Hint tooltip helpers ──────────────────────────────── */
+      window.showHint = function (el) {
+        var icon = el.querySelector('.hint-icon');
+        if (!icon) return;
+        var tip = document.getElementById('hint-tooltip');
+        if (!tip) return;
+        var r = icon.getBoundingClientRect();
+        tip.textContent = el.getAttribute('data-hint') || '';
+        tip.style.left = (r.left + r.width / 2) + 'px';
+        tip.style.top = (r.bottom + 4) + 'px';
+        tip.style.transform = 'translateX(-50%)';
+        tip.style.display = 'block';
+      };
+      window.hideHint = function () {
+        var tip = document.getElementById('hint-tooltip');
+        if (tip) tip.style.display = 'none';
+      };
     </script>
     <!-- / inline scripts ───────────────────────────────────────────────── -->
     <script src="/static/js/ui/media_utils.js"></script>
@@ -236,5 +254,6 @@
     <script src="/static/js/messages/reasoning_utils.js"></script>
     <script src="/static/js/messages/message_refresh.js"></script>
     <script src="/static/js/core/chat_stream.js"></script>
+    <div id="hint-tooltip" class="hint-tooltip"></div>
   </body>
 </html>

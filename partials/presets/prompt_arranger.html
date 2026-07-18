@@ -142,8 +142,8 @@ overlay_close=true) %}
           if (!newBlock) return;
           var oldBlock = document.querySelector('.arranger-item[data-block-id="' + blockId + '"]');
           if (oldBlock && oldBlock.parentNode) {
-            oldBlock.parentNode.replaceChild(newBlock, oldBlock);
-            htmx.process(newBlock);
+        oldBlock.parentNode.replaceChild(newBlock, oldBlock);
+        htmx.process(newBlock);
           }
         });
     };

@@ -1368,7 +1368,9 @@
   color: var(--text-muted);
   background: var(--surface-3);
 }
-.hint-tooltip {
+#hint-tooltip {
+  position: fixed;
+  display: none;
   background: var(--surface-2);
   border: 1px solid var(--border);
   color: var(--text-muted);
@@ -1383,9 +1385,6 @@
   box-shadow: var(--shadow-md);
   z-index: calc(var(--z-overlay) + 1);
   font-weight: 400;
-}
-.hint-wrapper:hover .hint-tooltip {
-  opacity: 1;
 }
 
 @keyframes slide-up {

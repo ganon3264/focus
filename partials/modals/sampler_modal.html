@@ -166,11 +166,14 @@
       ></div>
     </div>
     <div class="form-group mb-0 flex items-center justify-between mt-2">
-      <label
-        class="text-xs mb-0 cursor-pointer"
-        @click="samplers.enable_multimodal = !samplers.enable_multimodal; saveStandard()"
-        >Enable Multimodal</label
-      >
+      <div class="flex items-center gap-1">
+        <label
+          class="text-xs mb-0 cursor-pointer"
+          @click="samplers.enable_multimodal = !samplers.enable_multimodal; saveStandard()"
+          >Enable Multimodal</label
+        >
+        {{ hint_tooltip('Allows sending images and audio to the model as prompt context. Disable if your provider does not support multimodal inputs.') }}
+      </div>
       <div
         class="arranger-toggle"
         role="switch"
