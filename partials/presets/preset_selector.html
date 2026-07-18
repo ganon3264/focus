@@ -1,5 +1,5 @@
 {% set current_preset_list = presets | selectattr('id', 'equalto', current_preset_id) | list %}
-  {% from "macros.html" import icon_edit, icon_trash, icon_plus, icon_upload, icon_close, icon_chevron_down %}
+{% from "macros.html" import icon_edit, icon_trash, icon_plus, icon_upload, icon_close, icon_chevron_down %}
 {% set current_preset = current_preset_list[0] if current_preset_list else none %}
 {% set current_preset_name = current_preset.name if current_preset else '— Select Preset —' %}
 
@@ -9,7 +9,8 @@
         selectedId: '{{ current_preset_id or '' }}', 
         selectedName: '{{ current_preset_name | replace("'", "\\'") }}',
         renaming: false,
-        renameValue: ''
+        renameValue: '',
+        renameTargetId: ''
      }">
   
   <input type="hidden" id="hidden-preset-id" :value="selectedId">
@@ -25,62 +26,73 @@
          class="absolute top-full left-0 right-0 mt-1 z-50 max-h-60 overflow-y-auto"
          style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); display: none;">
        
-       <div class="px-3 py-2 cursor-pointer text-sm text-muted"
-            onmouseover="this.style.background='var(--surface-3)'"
-            onmouseout="this.style.background='transparent'"
-              @click="
-                selectedId = '';
-                selectedName = '— Select Preset —';
-                open = false;
-                StateManager.setPreset(null);
-              "
-       >
-         — Select Preset —
-       </div>
+      <!-- Add + Import icon buttons -->
+      <div class="flex gap-1 px-2 py-1.5" style="border-bottom: 1px solid var(--border);">
+        <button type="button" class="btn btn-secondary btn-sm flex-1" title="New preset"
+          @click="open = false"
+          hx-post="/api/presets"
+          hx-vals='{"name":"New Preset"}'
+          hx-swap="none"
+          hx-on:htmx:after-request="handlePresetCreated(event)"
+        >{{ icon_plus(14) }}</button>
+        <button type="button" class="btn btn-secondary btn-sm flex-1" title="Import preset"
+          @click="
+            open = false;
+            document.getElementById('preset-import-file').click();
+          "
+        >{{ icon_upload(14) }}</button>
+      </div>
 
-        {% for p in presets %}
-        <div class="px-3 py-2 cursor-pointer text-sm transition-colors duration-150"
-             style="border-top: 1px solid var(--border);"
-             data-preset-id="{{ p.id }}"
-             onmouseover="this.style.background='var(--surface-3)'"
-             onmouseout="this.style.background='transparent'"
-              @click="
-                selectedId = '{{ p.id }}';
-                selectedName = '{{ p.name | replace("'", "\\'") }}';
-                open = false;
-                StateManager.setPreset('{{ p.id }}');
-              "
-        >
-          {{ p.name }}
+      <!-- Deselect option -->
+      <div class="px-3 py-2 cursor-pointer text-sm text-muted text-center"
+           onmouseover="this.style.background='var(--surface-3)'"
+           onmouseout="this.style.background='transparent'"
+            @click="
+              selectedId = '';
+              selectedName = '— Select Preset —';
+              open = false;
+              StateManager.setPreset(null);
+            "
+      >
+        — Select Preset —
+      </div>
+
+      {% for p in presets %}
+      <div class="px-3 py-2 cursor-pointer text-sm transition-colors duration-150 flex items-center justify-between gap-1"
+           style="border-top: 1px solid var(--border);"
+           data-preset-id="{{ p.id }}"
+           onmouseover="this.style.background='var(--surface-3)'"
+           onmouseout="this.style.background='transparent'"
+           @click="
+             selectedId = '{{ p.id }}';
+             selectedName = '{{ p.name | replace("'", "\\'") }}';
+             open = false;
+             StateManager.setPreset('{{ p.id }}');
+           "
+      >
+        <span class="truncate flex-1 preset-item-name">{{ p.name }}</span>
+        <div class="flex gap-1 shrink-0">
+          <button type="button" title="Rename"
+            style="background:var(--surface-2);border:none;cursor:pointer;padding:2px;color:var(--text-muted);border-radius:4px;display:inline-flex;align-items:center"
+            onclick="event.stopPropagation(); window.openRenameModal(this)"
+          >{{ icon_edit(14) }}</button>
+          <button type="button" title="Delete"
+            style="background:var(--surface-2);border:none;cursor:pointer;padding:2px;color:var(--danger);border-radius:4px;display:inline-flex;align-items:center"
+            onclick="event.stopPropagation(); window.deletePresetById(this.closest('[data-preset-id]').dataset.presetId)"
+          >{{ icon_trash(14) }}</button>
         </div>
-        {% endfor %}
+      </div>
+      {% endfor %}
+      
     </div>
   </div>
 
-  <div class="flex gap-1">
-    <button class="btn btn-secondary btn-sm flex-1" title="New preset" aria-label="New preset"
-      hx-post="/api/presets"
-      hx-vals='{"name":"New Preset"}'
-      hx-swap="none"
-      hx-on:htmx:after-request="handlePresetCreated(event)"
-    >{{ icon_plus() }}</button>
-    <button class="btn btn-secondary btn-sm flex-1" title="Import preset" aria-label="Import preset"
-      onclick="document.getElementById('preset-import-file').click()"
-    >{{ icon_upload() }}</button>
-    <button class="btn btn-secondary btn-sm flex-1" title="Rename preset" aria-label="Rename preset"
-      @click="renaming = true; renameValue = selectedName"
-      :disabled="!selectedId"
-    >{{ icon_edit() }}</button>
-    <button class="btn btn-danger btn-sm flex-1" title="Delete preset" aria-label="Delete preset"
-      onclick="deletePreset()"
-    >{{ icon_trash() }}</button>
-  </div>
-
-  <div class="modal-overlay hidden" role="dialog" aria-modal="true" aria-label="Rename preset" style="z-index: var(--z-modal-high);" x-show="renaming" x-transition.opacity @click.self="renaming = false">
+  <!-- Rename modal -->
+  <div class="modal-overlay" role="dialog" aria-modal="true" aria-label="Rename preset" style="z-index: var(--z-modal-high);" x-show="renaming" x-transition.opacity @click.self="renaming = false; renameTargetId = ''">
     <div class="modal-content" style="max-width:420px;width:90vw;">
       <div class="modal-header">
         <div class="modal-title">Rename Preset</div>
-        <button type="button" class="btn btn-secondary" aria-label="Close" @click="renaming = false">{{ icon_close(16) }}</button>
+        <button type="button" class="btn btn-secondary" aria-label="Close" @click="renaming = false; renameTargetId = ''">{{ icon_close(16) }}</button>
       </div>
       <div class="flex flex-col gap-3">
         <div>
@@ -88,35 +100,67 @@
           <input type="text" x-model="renameValue" class="form-control" @keydown.enter="confirmRename()">
         </div>
         <div class="flex justify-end gap-2 mt-2">
-          <button type="button" class="btn btn-secondary" @click="renaming = false">Cancel</button>
+          <button type="button" class="btn btn-secondary" @click="renaming = false; renameTargetId = ''">Cancel</button>
           <button type="button" class="btn btn-primary" @click="confirmRename()" :disabled="!renameValue.trim()">Save</button>
         </div>
       </div>
     </div>
   </div>
+
+  <!-- Hidden template for JS-cloned preset items -->
+  <div id="preset-item-template" class="hidden" style="display:none;">
+    <div class="px-3 py-2 cursor-pointer text-sm transition-colors duration-150 flex items-center justify-between gap-1"
+         style="border-top: 1px solid var(--border);"
+         data-preset-id="">
+      <span class="truncate flex-1 preset-item-name"></span>
+      <div class="flex gap-1 shrink-0">
+        <button type="button" title="Rename" class="preset-rename-btn"
+          style="background:var(--surface-2);border:none;cursor:pointer;padding:2px;color:var(--text-muted);border-radius:4px;display:inline-flex;align-items:center"
+        >{{ icon_edit(14) }}</button>
+        <button type="button" title="Delete" class="preset-delete-btn"
+          style="background:var(--surface-2);border:none;cursor:pointer;padding:2px;color:var(--danger);border-radius:4px;display:inline-flex;align-items:center"
+        >{{ icon_trash(14) }}</button>
+      </div>
+    </div>
+  </div>
 </div>
+
 <script>
 window.addAndSelectPreset = function(id, name) {
-  const wrapper = document.getElementById('preset-selector-wrapper');
+  var wrapper = document.getElementById('preset-selector-wrapper');
   if (!wrapper) return;
-  const state = Alpine.$data(wrapper);
-  const dropdown = wrapper.querySelector('[x-show="open"]');
+  var state = Alpine.$data(wrapper);
+  var dropdown = wrapper.querySelector('[x-show="open"]');
   if (dropdown) {
-    const item = document.createElement('div');
-    item.className = 'px-3 py-2 cursor-pointer text-sm transition-colors duration-150';
-    item.style.cssText = 'border-top: 1px solid var(--border);';
+    var template = document.getElementById('preset-item-template');
+    var item = template.cloneNode(true);
+    item.removeAttribute('id');
+    item.classList.remove('hidden');
+    item.style.display = '';
     item.dataset.presetId = id;
+    item.querySelector('.preset-item-name').textContent = name;
+
     item.onmouseover = function() { this.style.background = 'var(--surface-3)'; };
     item.onmouseout = function() { this.style.background = 'transparent'; };
+
     item.onclick = function() {
-      const s = Alpine.$data(wrapper);
-      s.selectedId = id;
-      s.selectedName = name;
-      s.open = false;
+      state.selectedId = id;
+      state.selectedName = name;
+      state.open = false;
       StateManager.setPreset(id);
     };
-    item.textContent = name;
-    const firstItem = dropdown.querySelector('.px-3.py-2.cursor-pointer.text-sm.text-muted');
+
+    item.querySelector('.preset-rename-btn').onclick = function(e) {
+      e.stopPropagation();
+      openRenameModal(this);
+    };
+
+    item.querySelector('.preset-delete-btn').onclick = function(e) {
+      e.stopPropagation();
+      deletePresetById(this.closest('[data-preset-id]').dataset.presetId);
+    };
+
+    var firstItem = dropdown.querySelector('.px-3.py-2.cursor-pointer.text-sm.text-muted');
     dropdown.insertBefore(item, firstItem ? firstItem.nextSibling : null);
   }
   state.selectedId = id;
@@ -125,66 +169,85 @@ window.addAndSelectPreset = function(id, name) {
   StateManager.setPreset(id);
 };
 
+window.openRenameModal = function(btn) {
+  var item = btn.closest('[data-preset-id]');
+  var state = Alpine.$data(document.getElementById('preset-selector-wrapper'));
+  state.renameTargetId = item.dataset.presetId;
+  state.renameValue = item.querySelector('.preset-item-name').textContent;
+  state.renaming = true;
+  state.open = false;
+};
+
 window.handlePresetCreated = function(evt) {
   try {
-    const data = JSON.parse(evt.detail.xhr.response);
+    var data = JSON.parse(evt.detail.xhr.response);
     addAndSelectPreset(data.id, 'New Preset');
   } catch(e) { window.location.reload(); }
 };
 
 function confirmRename(){
-  const state = Alpine.$data(document.getElementById('preset-selector-wrapper'));
-  const pid = state.selectedId;
-  const newName = state.renameValue;
-  if(!pid || !newName || !newName.trim()) return;
-  const trimmed = newName.trim();
-  if(trimmed === state.selectedName) return;
+  var state = Alpine.$data(document.getElementById('preset-selector-wrapper'));
+  var pid = state.renameTargetId;
+  var newName = state.renameValue;
+  if (!pid || !newName || !newName.trim()) return;
+  var trimmed = newName.trim();
   fetch('/api/presets/' + pid, {
     method: 'PATCH',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({name: trimmed})
   }).then(function(r){
-    if(r.ok) {
+    if (r.ok) {
       state.renaming = false;
-      state.selectedName = trimmed;
+      state.renameTargetId = '';
       document.querySelectorAll('#preset-selector-wrapper [data-preset-id="' + pid + '"]').forEach(function(el) {
-        if (el.textContent !== '— Select Preset —') el.textContent = trimmed;
+        var nameSpan = el.querySelector('.preset-item-name');
+        if (nameSpan) nameSpan.textContent = trimmed;
       });
+      if (state.selectedId === pid) {
+        state.selectedName = trimmed;
+      }
     } else alert('Failed to rename preset');
   });
 }
+
 function importPreset(file){
-  if(!file) return;
-  const formData = new FormData();
+  if (!file) return;
+  var formData = new FormData();
   formData.append('file', file);
   fetch('/api/presets/import', {method: 'POST', body: formData})
-    .then(r => {
-      if(r.ok) return r.json();
-      else r.text().then(t => alert('Import failed: ' + t));
+    .then(function(r) {
+      if (r.ok) return r.json();
+      else r.text().then(function(t) { alert('Import failed: ' + t); });
     })
-    .then(data => {
+    .then(function(data) {
       if (data && data.id) addAndSelectPreset(data.id, data.name);
     });
 }
-function deletePreset(){
-  const state = Alpine.$data(document.getElementById('preset-selector-wrapper'));
-  const pid = state.selectedId;
-  if(!pid) return;
-  let fallbackItem = null;
-  const items = document.querySelectorAll('#preset-selector-wrapper [data-preset-id]');
-  for (const item of items) {
-    if (item.dataset.presetId !== pid) { fallbackItem = item; break; }
+
+window.deletePresetById = function(id) {
+  var fallbackItem = null;
+  var items = document.querySelectorAll('#preset-selector-wrapper [data-preset-id]');
+  for (var i = 0; i < items.length; i++) {
+    if (items[i].dataset.presetId && items[i].dataset.presetId !== id) {
+      fallbackItem = items[i];
+      break;
+    }
   }
   window.customConfirm('Delete this preset?', function() {
-    fetch('/api/presets/' + pid, {method: 'DELETE'})
+    fetch('/api/presets/' + id, {method: 'DELETE'})
       .then(function(r){
-        if(!r.ok) { alert('Failed to delete preset'); return; }
-        if (fallbackItem) {
-          fallbackItem.click();
-        } else {
-          StateManager.setPreset(null);
+        if (!r.ok) { alert('Failed to delete preset'); return; }
+        var state = Alpine.$data(document.getElementById('preset-selector-wrapper'));
+        if (state.selectedId === id) {
+          if (fallbackItem) {
+            fallbackItem.click();
+          } else {
+            StateManager.setPreset(null);
+            state.selectedId = '';
+            state.selectedName = '— Select Preset —';
+          }
         }
-        const deletedEl = document.querySelector('#preset-selector-wrapper [data-preset-id="' + pid + '"]');
+        var deletedEl = document.querySelector('#preset-selector-wrapper [data-preset-id="' + id + '"]');
         if (deletedEl) deletedEl.remove();
       });
   });
