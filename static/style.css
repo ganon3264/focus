@@ -1226,6 +1226,20 @@
     opacity: 1;
   }
 }
+@keyframes gen-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+.gen-pulse {
+  display: inline-block;
+  width: 6px;
+  height: 14px;
+  background: var(--accent);
+  margin-left: 3px;
+  vertical-align: middle;
+  border-radius: 2px;
+  animation: gen-pulse 1s ease-in-out infinite;
+}
 @keyframes slide-up {
   from {
     opacity: 0;

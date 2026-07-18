@@ -131,6 +131,8 @@ class StreamRequest(BaseModel):
     samplers: dict[str, Any] = Field(default_factory=dict)
     # For swipe/regen: regenerate the last assistant turn instead of appending
     regenerate: bool = False
+    # For Continue: prefill the assistant response with existing partial text
+    continue_text: str | None = None
     # Attachment IDs to bind to the new user message
     attachment_ids: list[str] = Field(default_factory=list)
 

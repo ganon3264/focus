@@ -155,7 +155,7 @@
 
   window.refreshSingleMessage = refreshSingleMessage;
 
-  window.triggerGeneration = async function (chatId, asstDiv, isRegen = false) {
+  window.triggerGeneration = async function (chatId, asstDiv, isRegen = false, continueText = null) {
     const providerId = sendBtn.dataset.providerId;
     if (!providerId) {
       alert('No provider configured. Add one in Providers.');
@@ -175,13 +175,21 @@
     const fileUpload = document.getElementById('file-upload');
     if (fileUpload) fileUpload.disabled = true;
 
-    const contentDiv = asstDiv.querySelector('.message-content');
-    if (contentDiv) {
-      contentDiv.innerHTML = '<div class="message-spinner"></div>';
+    if (!continueText) {
+      const contentDiv = asstDiv.querySelector('.message-content');
+      if (contentDiv) {
+        contentDiv.innerHTML = '<div class="message-spinner"></div>';
+      }
+      const reasoningBtn = asstDiv.querySelector('.reasoning-toggle-btn');
+      if (reasoningBtn) reasoningBtn.classList.add('hidden');
+    } else {
+      const contentDiv = asstDiv.querySelector('.message-content');
+      if (contentDiv) {
+        const pulse = document.createElement('span');
+        pulse.className = 'gen-pulse';
+        contentDiv.appendChild(pulse);
+      }
     }
-
-    const reasoningBtn = asstDiv.querySelector('.reasoning-toggle-btn');
-    if (reasoningBtn) reasoningBtn.classList.add('hidden');
 
     currentController = new AbortController();
     const signal = currentController.signal;
@@ -214,6 +222,7 @@
       regenerate: isRegen,
       attachment_ids: attachmentIds,
     };
+    if (continueText) body.continue_text = continueText;
 
     window._tempUserMessage = '';
 
@@ -361,6 +370,20 @@
           });
         } else if (asstDiv && asstDiv.parentNode) {
           asstDiv.remove();
+        }
+      } else if (messageId) {
+        const partialText = fullText;
+        await refreshMessagesAfterStream(chatId, userMessageId, messageId);
+        if (partialText) {
+          const restoredDiv = document.getElementById('message-' + messageId);
+          if (restoredDiv) {
+            restoredDiv.dataset.rawContent = partialText;
+            const restoredContent = restoredDiv.querySelector('.message-content');
+            if (restoredContent) {
+              restoredContent.innerHTML = window.renderMessage(partialText);
+              _updateReasoningButton(restoredContent);
+            }
+          }
         }
       }
     } finally {

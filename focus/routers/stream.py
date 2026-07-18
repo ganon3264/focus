@@ -87,6 +87,10 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
             msg.pop("thought_signature", None)
             msg.pop("reasoning", None)
 
+    # ── Continue generation: append assistant prefill ──────────────────────────
+    if body.continue_text and body.regenerate:
+        messages.append({"role": "assistant", "content": body.continue_text})
+
     # ── Gen params ────────────────────────────────────────────────────────────
     gen_kwargs: dict = {}
     use_stream = True
@@ -178,50 +182,53 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
 
     async def generate():
         yield f"data: {json.dumps({'type': 'start', 'message_id': final_asst_msg_id, 'user_message_id': user_msg_id if not body.regenerate else None})}\n\n"
-        _completed = False
-        _handled = False
+        _saved = False
         try:
-            try:
-                logger.debug(f"Starting generation stream for chat_id={body.chat_id} provider={prov_dict['name']}")
-                async for token in provider.stream_complete(messages, **gen_kwargs):
-                    collected.append(token)
-                    yield f"data: {json.dumps({'token': token})}\n\n"
-            except Exception as e:
-                _handled = True
-                logger.exception("Stream exception for chat_id=%s", body.chat_id)
-                if not body.regenerate:
-                    await _rollback_assistant(final_asst_msg_id)
-                err_msg = str(e)
-                if not err_msg or err_msg == "()":
-                    err_msg = repr(e)
-                yield f"data: {json.dumps({'error': err_msg})}\n\n"
-                return
-
-            full = "".join(collected)
-
-            try:
-                await _save_assistant_variant(
-                    body.chat_id,
-                    final_asst_msg_id,
-                    next_variant_index,
-                    full,
-                    body.regenerate,
-                    prov_dict.get("model", ""),
+            logger.debug(f"Starting generation stream for chat_id={body.chat_id} provider={prov_dict['name']}")
+            async for token in provider.stream_complete(messages, **gen_kwargs):
+                collected.append(token)
+                yield f"data: {json.dumps({'token': token})}\n\n"
+                if len(collected) % 5 == 0:
+                    await _upsert_variant(
+                        body.chat_id, final_asst_msg_id, next_variant_index,
+                        "".join(collected), body.regenerate, prov_dict.get("model", ""),
+                    )
+                    _saved = True
+        except Exception as e:
+            logger.exception("Stream exception for chat_id=%s", body.chat_id)
+            if collected:
+                await _upsert_variant(
+                    body.chat_id, final_asst_msg_id, next_variant_index,
+                    "".join(collected), body.regenerate, prov_dict.get("model", ""),
                 )
-            except Exception as e:
-                _handled = True
-                logger.exception("Failed to save stream result for chat_id=%s", body.chat_id)
-                if not body.regenerate:
-                    await _rollback_assistant(final_asst_msg_id)
-                err_msg = str(e) or repr(e)
-                yield f"data: {json.dumps({'error': f'Generation succeeded but save failed: {err_msg}'})}\n\n"
-                return
+                _saved = True
+            elif not body.regenerate:
+                await _rollback_assistant(final_asst_msg_id)
+            err_msg = str(e)
+            if not err_msg or err_msg == "()":
+                err_msg = repr(e)
+            logger.info("Stream terminated (error) for chat_id=%s", body.chat_id)
+            yield f"data: {json.dumps({'error': err_msg})}\n\n"
+            return
 
-            yield f"data: {json.dumps({'done': True, 'message_id': final_asst_msg_id, 'variant_index': next_variant_index})}\n\n"
-            _completed = True
-        finally:
-            if not _completed and not _handled:
-                logger.info("Client disconnected, stream terminated for chat_id=%s", body.chat_id)
+        full = "".join(collected)
+
+        try:
+            await _upsert_variant(
+                body.chat_id, final_asst_msg_id, next_variant_index,
+                full, body.regenerate, prov_dict.get("model", ""),
+            )
+            _saved = True
+        except Exception as e:
+            logger.exception("Failed to save stream result for chat_id=%s", body.chat_id)
+            if not body.regenerate:
+                await _rollback_assistant(final_asst_msg_id)
+            err_msg = str(e) or repr(e)
+            yield f"data: {json.dumps({'error': f'Generation succeeded but save failed: {err_msg}'})}\n\n"
+            return
+
+        yield f"data: {json.dumps({'done': True, 'message_id': final_asst_msg_id, 'variant_index': next_variant_index})}\n\n"
+        logger.info("Stream completed for chat_id=%s", body.chat_id)
 
     return StreamingResponse(
         generate(),
@@ -279,7 +286,60 @@ async def _save_assistant_variant(
         await save_db.execute("UPDATE chats SET updated_at = ? WHERE id = ?", (save_now, chat_id))
         await save_db.commit()
 
-    return new_variant_id
+
+async def _upsert_variant(
+    chat_id: str,
+    asst_msg_id: str,
+    variant_index: int,
+    content: str,
+    regenerate: bool,
+    model_name: str = "",
+) -> None:
+    """Insert or update a variant. Safer than _save_assistant_variant for
+    repeated calls (during streaming) — updates content in-place instead of
+    creating duplicate rows."""
+    save_now = now_iso()
+
+    async with aiosqlite.connect(DB_PATH) as save_db:
+        await save_db.execute("PRAGMA foreign_keys=ON")
+        cur = await save_db.execute(
+            "SELECT id FROM message_variants WHERE message_id = ? AND variant_index = ?",
+            (asst_msg_id, variant_index),
+        )
+        existing = await cur.fetchone()
+
+        if existing:
+            await save_db.execute(
+                "UPDATE message_variants SET content = ?, model_name = ?, created_at = ? WHERE id = ?",
+                (content, model_name or None, save_now, existing[0]),
+            )
+        else:
+            new_id = str(uuid.uuid4())
+            await save_db.execute(
+                "INSERT INTO message_variants (id, message_id, variant_index, content, created_at, model_name) VALUES (?, ?, ?, ?, ?, ?)",
+                (new_id, asst_msg_id, variant_index, content, save_now, model_name or None),
+            )
+            if regenerate and variant_index > 0:
+                async with save_db.execute("SELECT active_index FROM messages WHERE id = ?", (asst_msg_id,)) as act:
+                    row = await act.fetchone()
+                if row:
+                    async with save_db.execute(
+                        "SELECT * FROM message_attachments WHERE variant_id = (SELECT id FROM message_variants WHERE message_id = ? AND variant_index = ?) ORDER BY created_at",
+                        (asst_msg_id, row[0]),
+                    ) as att_cur:
+                        old_attachments = [dict(r) for r in await att_cur.fetchall()]
+                    for att in old_attachments:
+                        await save_db.execute(
+                            "INSERT INTO message_attachments (id, chat_id, message_id, variant_id, file_path, mime_type, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                            (str(uuid.uuid4()), chat_id, asst_msg_id, new_id, att["file_path"], att["mime_type"], save_now),
+                        )
+
+        await save_db.execute(
+            "UPDATE messages SET active_index = ? WHERE id = ?",
+            (variant_index, asst_msg_id),
+        )
+        await save_db.execute("UPDATE chats SET updated_at = ? WHERE id = ?", (save_now, chat_id))
+        await save_db.commit()
 
 
 async def _rollback_assistant(asst_msg_id: str | None):

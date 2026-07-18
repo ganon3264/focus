@@ -1,6 +1,6 @@
-<div class="message relative msg" id="message-{{ message.id }}" data-message-id="{{ message.id }}">
+<div class="message relative msg" id="message-{{ message.id }}" data-message-id="{{ message.id }}" data-raw-content="{{ message.content }}">
   {% from "macros.html" import icon_edit, icon_refresh, icon_trash, icon_music, icon_branch,
-  icon_chevron_left, icon_chevron_right %}
+  icon_chevron_left, icon_chevron_right, icon_forward %}
   <div class="delete-mode-checkbox hidden absolute -left-12 top-4">
     <input
       type="checkbox"
@@ -82,7 +82,7 @@
         >
           {{ icon_chevron_left() }}
         </button>
-        <span class="text-xs" style="display:flex;align-items:center;color:var(--text-faint)">{{ message.active_index + 1 }}/{{ message.variant_count }}</span>
+        <span class="text-xs swipe-counter" style="display:flex;align-items:center;color:var(--text-faint)">{{ message.active_index + 1 }}/{{ message.variant_count }}</span>
         <button
           class="action-btn"
           title="Next variant"
@@ -90,7 +90,7 @@
           hx-post="/api/chats/{{ chat_id }}/messages/{{ message.id }}/swipe"
           hx-vals='{"direction":"next"}'
           hx-swap="none"
-          hx-on:htmx:after-request="try { var res = JSON.parse(event.detail.xhr.response); if(res.needs_generation) { var asstDiv = document.getElementById('message-{{ message.id }}'); window.triggerGeneration('{{ chat_id }}', asstDiv, true); } else { refreshSingleMessage('{{ chat_id }}', '{{ message.id }}'); } } catch(e) { refreshSingleMessage('{{ chat_id }}', '{{ message.id }}'); }"
+          hx-on:htmx:after-request="try { var res = JSON.parse(event.detail.xhr.response); if(res.needs_generation) { var sb = document.getElementById('message-{{ message.id }}'); var ct = sb.querySelector('.swipe-counter'); if (ct) ct.textContent = (res.next_variant_index + 1) + '/' + (res.next_variant_index + 1); window.triggerGeneration('{{ chat_id }}', sb, true); } else { refreshSingleMessage('{{ chat_id }}', '{{ message.id }}'); } } catch(e) { refreshSingleMessage('{{ chat_id }}', '{{ message.id }}'); }"
         >
           {{ icon_chevron_right() }}
         </button>
@@ -104,6 +104,14 @@
           onclick="const asstDiv = document.getElementById('message-{{ message.id }}'); window.triggerGeneration('{{ chat_id }}', asstDiv, true);"
         >
           {{ icon_refresh() }}
+        </button>
+        <button
+          class="action-btn"
+          title="Continue"
+          aria-label="Continue"
+          onclick="const d=document.getElementById('message-{{ message.id }}');window.triggerGeneration('{{ chat_id }}',d,true,d?d.dataset.rawContent||'':'');"
+        >
+          {{ icon_forward() }}
         </button>
         {% endif %}
         <button
