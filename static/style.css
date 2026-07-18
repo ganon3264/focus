@@ -82,7 +82,7 @@ input[type="color"]:hover { border-color: var(--border-hover); box-shadow: var(-
 .right-sidebar { width: 280px; background: var(--surface); border-left: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; z-index: 10; transition: width var(--transition); box-shadow: -2px 0 10px rgba(0,0,0,0.05); }
 
 /* Sidebar Sections */
-.sidebar-section { padding: 1.25rem; display: flex; flex-direction: column; min-height: 0; border-bottom: 1px solid var(--border); }
+.sidebar-section { padding: 1.25rem; display: flex; flex-direction: column; min-height: 0; border-bottom: 1px solid var(--border); scrollbar-gutter: stable; }
 .sidebar-section:last-child { border-bottom: none; }
 .sidebar-title { font-size: 0.7rem; text-transform: uppercase; font-weight: 700; color: var(--text-muted); letter-spacing: 0.05em; margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: space-between; }
 .sidebar-list { display: flex; flex-direction: column; gap: 0.25rem; overflow-y: auto; min-height: 0; margin: 0 -0.5rem; padding: 0 0.5rem; }
