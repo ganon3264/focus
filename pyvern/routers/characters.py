@@ -197,6 +197,61 @@ async def delete_character(char_id: str, db: aiosqlite.Connection = Depends(get_
     await db.commit()
 
 
+@router.post("/{char_id}/images", status_code=201)
+async def add_char_image(
+    char_id: str,
+    file: UploadFile = File(...),
+    db: aiosqlite.Connection = Depends(get_db),
+):
+    async with db.execute("SELECT id FROM characters WHERE id = ?", (char_id,)) as cur:
+        if not await cur.fetchone():
+            raise HTTPException(404, "Character not found")
+
+    async with db.execute(
+        "SELECT COALESCE(MAX(position), -1) FROM block_images WHERE block_id = ?", (char_id,)
+    ) as cur:
+        row = await cur.fetchone()
+    next_pos = row[0] + 1
+
+    image_id = str(uuid.uuid4())
+    suffix = Path(file.filename).suffix.lower() or ".png"
+    mime = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
+            ".gif": "image/gif", ".webp": "image/webp", ".mp3": "audio/mpeg", 
+            ".wav": "audio/wav", ".ogg": "audio/ogg"}.get(suffix, "application/octet-stream")
+
+    if mime == "application/octet-stream" and file.content_type:
+        mime = file.content_type
+
+    blocks_dir = Path("assets/blocks")
+    blocks_dir.mkdir(parents=True, exist_ok=True)
+    image_path = str(blocks_dir / f"{image_id}{suffix}")
+    Path(image_path).write_bytes(await file.read())
+
+    await db.execute(
+        "INSERT INTO block_images (id, block_id, block_source, image_path, mime_type, position, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (image_id, char_id, "char", image_path, mime, next_pos, _now()),
+    )
+    await db.commit()
+    return {"id": image_id, "position": next_pos, "image_path": image_path, "mime_type": mime}
+
+
+@router.delete("/{char_id}/images/{image_id}", status_code=204)
+async def delete_char_image(
+    char_id: str,
+    image_id: str,
+    db: aiosqlite.Connection = Depends(get_db),
+):
+    async with db.execute(
+        "SELECT image_path FROM block_images WHERE id = ? AND block_id = ?", (image_id, char_id)
+    ) as cur:
+        row = await cur.fetchone()
+    if not row:
+        raise HTTPException(404, "Image not found")
+    Path(row["image_path"]).unlink(missing_ok=True)
+    await db.execute("DELETE FROM block_images WHERE id = ?", (image_id,))
+    await db.commit()
+
+
 # ── Character-exclusive blocks ────────────────────────────────────────────────
 
 @router.get("/{char_id}/blocks")
@@ -289,7 +344,7 @@ async def add_char_block_image(
         (image_id, block_id, "char", image_path, mime, next_pos, _now()),
     )
     await db.commit()
-    return {"id": image_id, "position": next_pos}
+    return {"id": image_id, "position": next_pos, "image_path": image_path, "mime_type": mime}
 
 
 @router.delete("/{char_id}/blocks/{block_id}/images/{image_id}", status_code=204)

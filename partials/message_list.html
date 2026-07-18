@@ -1,3 +1,8 @@
+<div id="message-list-data" 
+  data-last-role="{{ messages[-1].role if messages else '' }}"
+  data-char-name="{{ character.name if character else 'Assistant' }}"
+  data-char-image="{{ character.image_path if character and character.image_path else '' }}"
+  style="display: none;"></div>
 {% for message in messages %}
   {% set is_latest = loop.last %}
   {% include "message.html" %}

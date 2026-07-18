@@ -27,6 +27,7 @@
                   data-persona-name="{{ p.name }}" 
                   data-persona-desc="{{ p.description or '' }}" 
                   data-persona-image="{{ p.avatar_path or '' }}"
+                  data-persona-media="{{ p.images | tojson | forceescape }}"
                   onclick="event.stopPropagation(); openEditPersonaModal(this)">✎</button>
           {% if p.name != 'User' %}
           <button class="btn btn-danger btn-sm" hx-delete="/api/personas/{{ p.id }}" hx-confirm="Delete persona?" hx-on::after-request="htmx.ajax('GET','/partials/personas-modal',{target:'#personas-modal-body',swap:'innerHTML'})" onclick="event.stopPropagation()">×</button>

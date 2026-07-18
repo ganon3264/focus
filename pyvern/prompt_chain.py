@@ -128,20 +128,24 @@ def assemble_prompt(
                 target.append({"role": block["role"], "content": content})
 
         elif btype == "char_description":
+            char_images = block_images.get(char_data.get("id"), [])
             text = apply_macros(char_data.get("description", ""), macros).strip()
-            content = _build_content(text, images)
+            content = _build_content(text, char_images)
             if content:
                 target.append({"role": block["role"], "content": content})
 
         elif btype == "char_personality":
+            char_images = block_images.get(char_data.get("id"), [])
             text = apply_macros(char_data.get("personality", ""), macros).strip()
-            content = _build_content(text, images)
+            content = _build_content(text, char_images)
             if content:
                 target.append({"role": block["role"], "content": content})
 
         elif btype == "user_persona":
+            persona_id = macros.get("persona_id", "")
+            persona_images = block_images.get(persona_id, []) if persona_id else []
             text = macros.get("persona", "").strip()
-            content = _build_content(text, images)
+            content = _build_content(text, persona_images)
             if content:
                 target.append({"role": block["role"], "content": content})
 

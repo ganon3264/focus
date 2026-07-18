@@ -1,17 +1,24 @@
 {% macro custom_select(name, id, options, selected, on_change="", extra_classes="") %}
-{% set current_label = "— Select —" %}
-{% for opt in options %}
-  {% if opt.value == selected %}
-    {% set current_label = opt.label %}
-  {% endif %}
-{% endfor %}
+{% set found = options | selectattr('value', 'equalto', selected) | list %}
+{% set current_label = found[0].label if found else "— Select —" %}
 
 <div class="relative w-full" 
      x-data="{ 
         open: false, 
         selectedValue: '{{ selected }}', 
         selectedLabel: '{{ current_label | replace("'", "\\'") }}'
-     }">
+     }"
+     x-effect="
+        const item = $el.closest('.arranger-item');
+        if (item) {
+            if (open) {
+                item.style.position = 'relative';
+                item.style.zIndex = '50';
+            } else {
+                item.style.zIndex = '';
+            }
+        }
+     ">
   
   <input type="hidden" name="{{ name }}" id="{{ id }}" :value="selectedValue" 
          @change.stop="{{ on_change }}">
@@ -28,8 +35,6 @@
      {% for opt in options %}
      <div class="px-3 py-2 cursor-pointer transition-colors duration-150 {{ extra_classes }}"
           {% if not loop.first %}style="border-top: 1px solid var(--border);"{% endif %}
-          onmouseover="this.style.background='var(--surface-3)'"
-          onmouseout="this.style.background='transparent'"
           @click="
             selectedValue = '{{ opt.value }}';
             selectedLabel = '{{ opt.label | replace("'", "\\'") }}';

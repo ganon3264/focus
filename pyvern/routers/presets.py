@@ -230,7 +230,7 @@ async def add_block_image(
         (image_id, block_id, "preset", image_path, mime, next_pos, _now()),
     )
     await db.commit()
-    return {"id": image_id, "position": next_pos}
+    return {"id": image_id, "position": next_pos, "image_path": image_path, "mime_type": mime}
 
 
 @router.delete("/{preset_id}/blocks/{block_id}/images/{image_id}", status_code=204)

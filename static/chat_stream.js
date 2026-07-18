@@ -33,6 +33,11 @@
       `;
       stagingArea.appendChild(el);
     });
+    
+    // Update button state whenever files are added/removed
+    if (typeof updateSendButtonState === 'function') {
+      updateSendButtonState();
+    }
   }
 
   window.removeStagedFile = function(idx) {
@@ -75,9 +80,35 @@
     el.style.overflowY = scrollHeight > 250 ? 'auto' : 'hidden';
   }
 
+  const sendIconPath = '<path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"></path>';
+  const regenIconPath = '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path>';
+
+  function updateSendButtonState() {
+    const text = input.value.trim();
+    const dataList = document.getElementById('message-list-data');
+    const lastRole = dataList ? dataList.getAttribute('data-last-role') : '';
+    const isRegenMode = !text && stagedFiles.length === 0 && lastRole === 'user';
+    
+    if (isRegenMode) {
+      sendBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><g>${regenIconPath}</g></svg>`;
+      sendBtn.title = "Regenerate";
+      sendBtn.dataset.mode = "regen";
+    } else {
+      sendBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><g>${sendIconPath}</g></svg>`;
+      sendBtn.title = "Send message";
+      sendBtn.dataset.mode = "send";
+    }
+  }
+
   input.addEventListener('input', function(){
     resizeTextarea(this);
+    updateSendButtonState();
   });
+
+  // Call on load to set initial state
+  if (sendBtn) {
+    updateSendButtonState();
+  }
 
   window.triggerGeneration = async function(chatId, asstDiv, isRegen = false) {
     const providerId = document.getElementById('stream-provider')?.value || sendBtn.dataset.providerId;
@@ -162,7 +193,21 @@
           } else if(json.token !== undefined){
             fullText += json.token;
             const contentDiv = asstDiv.querySelector('.message-content');
-            if(contentDiv) contentDiv.innerHTML = renderMessage(fullText);
+            if(contentDiv) {
+              // Preserve state of any opened reasoning blocks
+              const openStates = new Set();
+              contentDiv.querySelectorAll('details.reasoning[open]').forEach(d => {
+                if (d.dataset.thinkId) openStates.add(d.dataset.thinkId);
+              });
+              
+              contentDiv.innerHTML = renderMessage(fullText);
+              
+              // Restore open states
+              openStates.forEach(id => {
+                const el = contentDiv.querySelector(`details.reasoning[data-think-id="${id}"]`);
+                if (el) el.setAttribute('open', '');
+              });
+            }
           } else if(json.error){
             throw new Error(json.error);
           } else if(json.done){
@@ -173,7 +218,18 @@
 
       const contentDiv = asstDiv.querySelector('.message-content');
       if(contentDiv){
+        // Preserve state one last time for final render
+        const openStates = new Set();
+        contentDiv.querySelectorAll('details.reasoning[open]').forEach(d => {
+          if (d.dataset.thinkId) openStates.add(d.dataset.thinkId);
+        });
+        
         contentDiv.innerHTML = renderMessage(fullText);
+        
+        openStates.forEach(id => {
+          const el = contentDiv.querySelector(`details.reasoning[data-think-id="${id}"]`);
+          if (el) el.setAttribute('open', '');
+        });
       }
       if(messageId){
         asstDiv.id = 'message-' + messageId;
@@ -197,10 +253,36 @@
   };
 
   sendBtn.addEventListener('click', async function(){
-    const text = input.value.trim();
-    if(!text && stagedFiles.length === 0) return;
     const chatId = sendBtn.dataset.chatId;
     const providerId = document.getElementById('stream-provider')?.value || sendBtn.dataset.providerId;
+    
+    if (sendBtn.dataset.mode === 'regen') {
+      if(!providerId){ alert('No provider configured. Add one in Providers.'); return; }
+      
+      const dataList = document.getElementById('message-list-data');
+      const charName = dataList ? dataList.getAttribute('data-char-name') : 'Assistant';
+      const charImagePath = dataList ? dataList.getAttribute('data-char-image') : '';
+      const avatarHtml = charImagePath ? `<img src="/${charImagePath}" alt="">` : escapeHtml(charName[0] || 'A');
+
+      const asstDiv = document.createElement('div');
+      asstDiv.className = 'message';
+      asstDiv.id = 'streaming-message';
+      asstDiv.innerHTML = `
+        <div class="message-avatar">${avatarHtml}</div>
+        <div class="message-body">
+          <div class="message-header">${escapeHtml(charName)}</div>
+          <div class="message-content markdown-content"></div>
+        </div>
+      `;
+      messageList.appendChild(asstDiv);
+      asstDiv.scrollIntoView({behavior:'smooth'});
+
+      window.triggerGeneration(chatId, asstDiv, false); // pass false so we create a NEW message, not overwrite last
+      return;
+    }
+
+    const text = input.value.trim();
+    if(!text && stagedFiles.length === 0) return;
     if(!providerId){ alert('No provider configured. Add one in Providers.'); return; }
 
     const personaNameEl = document.querySelector('#persona-selector .sidebar-item.active');
@@ -231,13 +313,16 @@
     input.value = '';
     resizeTextarea(input);
 
-    const charNameEl = document.querySelector('#char-selector .sidebar-item.active');
-    const charName = charNameEl ? charNameEl.textContent.trim() : 'Assistant';
+    const dataList = document.getElementById('message-list-data');
+    const charName = dataList ? dataList.getAttribute('data-char-name') : 'Assistant';
+    const charImagePath = dataList ? dataList.getAttribute('data-char-image') : '';
+    const avatarHtml = charImagePath ? `<img src="/${charImagePath}" alt="">` : escapeHtml(charName[0] || 'A');
+
     const asstDiv = document.createElement('div');
     asstDiv.className = 'message';
     asstDiv.id = 'streaming-message';
     asstDiv.innerHTML = `
-      <div class="message-avatar">${escapeHtml(charName[0] || 'A')}</div>
+      <div class="message-avatar">${avatarHtml}</div>
       <div class="message-body">
         <div class="message-header">${escapeHtml(charName)}</div>
         <div class="message-content markdown-content"></div>
@@ -282,7 +367,8 @@
       const t = thoughts[i];
       // Escape HTML entities, then replace \n with <br> to preserve line breaks exactly
       const safeInner = escapeHtml(t.content).trim().replace(/\n/g, '<br>');
-      const detailsHtml = `<details class="reasoning" ${t.isClosed ? '' : 'open'}><summary>Thought Process</summary><div class="reasoning-content">${safeInner}</div></details>`;
+      // Use a custom attribute to track if the user has manually opened it during streaming
+      const detailsHtml = `<details class="reasoning" data-think-id="${i}"><summary>Thought Process</summary><div class="reasoning-content">${safeInner}</div></details>`;
       
       // DOMPurify + marked might wrap the placeholder in <p> tags, so we catch them
       const regex = new RegExp(`<p>%%%THINK_BLOCK_${i}%%%<\\/p>|%%%THINK_BLOCK_${i}%%%`, 'g');
@@ -387,6 +473,29 @@
         const sendBtn = document.getElementById('send-btn');
         if(sendBtn) sendBtn.dataset.providerId = savedProvider;
       }
+    }
+  });
+
+  // Global event delegation to handle details toggle via mousedown
+  // This bypasses the click event cancellation caused by rapid innerHTML updates during streaming
+  document.addEventListener('mousedown', function(e) {
+    if (e.target && e.target.tagName === 'SUMMARY') {
+      const details = e.target.closest('details.reasoning');
+      if (details) {
+        e.preventDefault();
+        if (details.hasAttribute('open')) {
+          details.removeAttribute('open');
+        } else {
+          details.setAttribute('open', '');
+        }
+      }
+    }
+  });
+
+  // Prevent default click behavior on summary to avoid double-toggling if a click does go through
+  document.addEventListener('click', function(e) {
+    if (e.target && e.target.tagName === 'SUMMARY' && e.target.closest('details.reasoning')) {
+      e.preventDefault();
     }
   });
 

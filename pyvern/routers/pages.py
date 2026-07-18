@@ -17,6 +17,22 @@ templates = Jinja2Templates(directory="templates")
 if isinstance(templates.env.loader, FileSystemLoader):
     templates.env.loader.searchpath.append(str(Path("partials").resolve()))
 
+async def _attach_images(blocks: list[dict], db: aiosqlite.Connection) -> list[dict]:
+    if not blocks:
+        return blocks
+    ids = [b["id"] for b in blocks]
+    placeholders = ",".join("?" * len(ids))
+    async with db.execute(
+        f"SELECT id, block_id, image_path, mime_type, position FROM block_images WHERE block_id IN ({placeholders}) ORDER BY position",
+        ids,
+    ) as cur:
+        rows = await cur.fetchall()
+    images_by_block: dict[str, list] = {}
+    for r in rows:
+        images_by_block.setdefault(r["block_id"], []).append(dict(r))
+    for b in blocks:
+        b["images"] = images_by_block.get(b["id"], [])
+    return blocks
 
 @router.get("/chat", response_class=HTMLResponse)
 async def chat_redirect(request: Request, character_id: str = Query(None), db: aiosqlite.Connection = Depends(get_db)):
@@ -60,6 +76,7 @@ async def chat_redirect(request: Request, character_id: str = Query(None), db: a
     if preset:
         async with db.execute("SELECT * FROM preset_blocks WHERE preset_id = ? ORDER BY position, rowid", (preset["id"],)) as cur:
             preset_blocks = [dict(r) for r in await cur.fetchall()]
+        await _attach_images(preset_blocks, db)
 
     return templates.TemplateResponse(request, "chat.html", {
         "chat": None,
@@ -145,6 +162,7 @@ async def chat_page(request: Request, chat_id: str, db: aiosqlite.Connection = D
                 (preset["id"],)
             ) as cur:
                 preset_blocks = [dict(r) for r in await cur.fetchall()]
+            await _attach_images(preset_blocks, db)
 
     async with db.execute("SELECT * FROM presets ORDER BY created_at DESC") as cur:
         presets = [dict(r) for r in await cur.fetchall()]
@@ -206,7 +224,10 @@ async def characters_page(request: Request, db: aiosqlite.Connection = Depends(g
                 (r["id"],)
             ) as bcur:
                 c["blocks"] = [dict(b) for b in await bcur.fetchall()]
+            await _attach_images(c["blocks"], db)
             characters.append(c)
+    
+    await _attach_images(characters, db)
 
     return templates.TemplateResponse(request, "characters.html", {
         "characters": characters,
@@ -223,6 +244,7 @@ async def presets_page(request: Request, db: aiosqlite.Connection = Depends(get_
             (p["id"],)
         ) as cur:
             p["blocks"] = [dict(r) for r in await cur.fetchall()]
+        await _attach_images(p["blocks"], db)
 
     return templates.TemplateResponse(request, "presets.html", {
         "presets": presets,
@@ -242,6 +264,7 @@ async def providers_page(request: Request, db: aiosqlite.Connection = Depends(ge
 async def personas_page(request: Request, db: aiosqlite.Connection = Depends(get_db)):
     async with db.execute("SELECT * FROM personas ORDER BY created_at DESC") as cur:
         personas = [dict(r) for r in await cur.fetchall()]
+    await _attach_images(personas, db)
     return templates.TemplateResponse(request, "personas.html", {
         "personas": personas,
     })
@@ -395,6 +418,7 @@ async def prompt_arranger_partial(request: Request, preset_id: str, db: aiosqlit
         (preset_id,)
     ) as cur:
         blocks = [dict(r) for r in await cur.fetchall()]
+    await _attach_images(blocks, db)
     return templates.TemplateResponse(request, "prompt_arranger.html", {
         "blocks": blocks,
         "preset_id": preset_id,
@@ -448,7 +472,9 @@ async def characters_modal_partial(request: Request, db: aiosqlite.Connection = 
                 (r["id"],)
             ) as bcur:
                 c["blocks"] = [dict(b) for b in await bcur.fetchall()]
+            await _attach_images(c["blocks"], db)
             characters.append(c)
+    await _attach_images(characters, db)
     return templates.TemplateResponse(request, "characters_modal.html", {
         "request": request,
         "characters": characters,
@@ -465,6 +491,7 @@ async def presets_modal_partial(request: Request, db: aiosqlite.Connection = Dep
             (p["id"],)
         ) as cur:
             p["blocks"] = [dict(r) for r in await cur.fetchall()]
+        await _attach_images(p["blocks"], db)
     return templates.TemplateResponse(request, "presets_modal.html", {
         "request": request,
         "presets": presets,
@@ -475,6 +502,7 @@ async def presets_modal_partial(request: Request, db: aiosqlite.Connection = Dep
 async def personas_modal_partial(request: Request, db: aiosqlite.Connection = Depends(get_db)):
     async with db.execute("SELECT * FROM personas ORDER BY created_at DESC") as cur:
         personas = [dict(r) for r in await cur.fetchall()]
+    await _attach_images(personas, db)
     return templates.TemplateResponse(request, "personas_modal.html", {
         "request": request,
         "personas": personas,

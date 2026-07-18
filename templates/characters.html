@@ -102,6 +102,30 @@
               </div>
             </div>
             
+            <!-- Character Reference Media -->
+            <div class="form-group w-full mb-0 mt-2">
+              <label class="text-sm font-semibold text-muted block mb-1">Reference Media</label>
+              <div class="char-block-media-section" id="media-section-char-{{ char.id }}" style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+                {% for img in char.images %}
+                <div class="relative group" style="width: 48px; height: 48px; border-radius: 4px; overflow: hidden; border: 1px solid var(--border); flex-shrink: 0;" id="char-media-{{ img.id }}">
+                  {% if img.mime_type.startswith('audio/') %}
+                  <div style="width: 100%; height: 100%; background: var(--surface-3); display: grid; place-items: center; font-size: 1.2rem;" title="Audio Attachment">🎵</div>
+                  {% else %}
+                  <img src="/{{ img.image_path }}" style="width: 100%; height: 100%; object-fit: cover;">
+                  {% endif %}
+                  <button class="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" onclick="deleteCharMedia('{{ char.id }}', '{{ img.id }}')">×</button>
+                </div>
+                {% endfor %}
+                <label class="btn btn-secondary btn-sm block-media-btn" style="height: 48px; padding: 0 0.5rem; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 4px; border-style: dashed; flex-shrink: 0; margin: 0;" title="Add Image or Audio">
+                  <span class="text-muted text-xl">+</span>
+                  <input type="file" accept="image/*,audio/*" class="hidden block-media-input" onchange="uploadCharMedia('{{ char.id }}', this)">
+                </label>
+                {% if not char.images %}
+                <span class="text-xs text-muted block-media-placeholder">Add reference image or audio</span>
+                {% endif %}
+              </div>
+            </div>
+            
             <div class="form-group w-full mb-0">
               <label class="text-sm font-semibold text-muted block mb-1">First Message</label>
               <div class="textarea-wrapper">
@@ -189,6 +213,26 @@
                   >{{ block.content }}</textarea>
                   <button type="button" class="expand-btn" onclick="openTextExpander(this.previousElementSibling, 'Edit Custom Block')">⤢</button>
                 </div>
+                
+                <div class="char-block-media-section" id="media-section-{{ block.id }}" style="margin-top: 0.5rem; display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+                  {% for img in block.images %}
+                  <div class="relative group" style="width: 48px; height: 48px; border-radius: 4px; overflow: hidden; border: 1px solid var(--border); flex-shrink: 0;" id="media-{{ img.id }}">
+                    {% if img.mime_type.startswith('audio/') %}
+                    <div style="width: 100%; height: 100%; background: var(--surface-3); display: grid; place-items: center; font-size: 1.2rem;" title="Audio Attachment">🎵</div>
+                    {% else %}
+                    <img src="/{{ img.image_path }}" style="width: 100%; height: 100%; object-fit: cover;">
+                    {% endif %}
+                    <button class="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" onclick="deleteCharBlockMedia('{{ char.id }}', '{{ block.id }}', '{{ img.id }}')">×</button>
+                  </div>
+                  {% endfor %}
+                  <label class="btn btn-secondary btn-sm" style="height: 48px; padding: 0 0.5rem; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 4px; border-style: dashed; flex-shrink: 0; margin: 0;" title="Add Image or Audio">
+                    <span class="text-muted text-xl">+</span>
+                    <input type="file" accept="image/*,audio/*" class="hidden" onchange="uploadCharBlockMedia('{{ char.id }}', '{{ block.id }}', this)">
+                  </label>
+                  {% if not block.images %}
+                  <span class="text-xs text-muted block-media-placeholder">Add reference image or audio</span>
+                  {% endif %}
+                </div>
               </div>
               {% endfor %}
               
@@ -231,6 +275,14 @@
     <div class="textarea-wrapper">
       <textarea class="form-control text-sm w-full block-content" rows="4" placeholder="Block Content"></textarea>
       <button type="button" class="expand-btn" onclick="openTextExpander(this.previousElementSibling, 'Edit Custom Block')">⤢</button>
+    </div>
+    
+    <div class="char-block-media-section" style="margin-top: 0.5rem; display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+      <label class="btn btn-secondary btn-sm block-media-btn" style="height: 48px; padding: 0 0.5rem; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 4px; border-style: dashed; flex-shrink: 0; margin: 0;" title="Add Image or Audio">
+        <span class="text-muted text-xl">+</span>
+        <input type="file" accept="image/*,audio/*" class="hidden block-media-input">
+      </label>
+      <span class="text-xs text-muted block-media-placeholder">Add reference image or audio</span>
     </div>
   </div>
 </template>
@@ -419,8 +471,124 @@ function addBlock(charId) {
     const deleteBtn = wrapper.querySelector('.block-delete');
     deleteBtn.onclick = () => deleteBlock(charId, blockId);
     
+    // Wire up media input
+    const mediaSection = wrapper.querySelector('.char-block-media-section');
+    mediaSection.id = `media-section-${blockId}`;
+    const mediaInput = wrapper.querySelector('.block-media-input');
+    mediaInput.onchange = (e) => uploadCharBlockMedia(charId, blockId, e.target);
+    
     // Add to top of list
     container.insertBefore(clone, container.firstChild);
+  });
+}
+
+function uploadCharMedia(charId, input) {
+  if (!input.files || !input.files[0]) return;
+  const formData = new FormData();
+  formData.append('file', input.files[0]);
+  fetch(`/api/characters/${charId}/images`, {
+    method: 'POST',
+    body: formData
+  }).then(r => r.json()).then(data => {
+    const mediaSection = document.getElementById(`media-section-char-${charId}`);
+    if(!mediaSection) return;
+    
+    const div = document.createElement('div');
+    div.className = 'relative group';
+    div.style.width = '48px';
+    div.style.height = '48px';
+    div.style.borderRadius = '4px';
+    div.style.overflow = 'hidden';
+    div.style.border = '1px solid var(--border)';
+    div.style.flexShrink = '0';
+    div.id = `char-media-${data.id}`;
+    
+    if (data.mime_type && data.mime_type.startsWith('audio/')) {
+        div.innerHTML = `<div style="width: 100%; height: 100%; background: var(--surface-3); display: grid; place-items: center; font-size: 1.2rem;" title="Audio Attachment">🎵</div>`;
+    } else {
+        div.innerHTML = `<img src="/${data.image_path}" style="width: 100%; height: 100%; object-fit: cover;">`;
+    }
+    
+    const btn = document.createElement('button');
+    btn.className = 'absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity';
+    btn.innerHTML = '×';
+    btn.onclick = () => deleteCharMedia(charId, data.id);
+    div.appendChild(btn);
+    
+    mediaSection.insertBefore(div, mediaSection.lastElementChild.previousElementSibling);
+    
+    const placeholder = mediaSection.querySelector('.block-media-placeholder');
+    if (placeholder) placeholder.remove();
+    
+    input.value = '';
+  });
+}
+
+function deleteCharMedia(charId, imageId) {
+  fetch(`/api/characters/${charId}/images/${imageId}`, {
+    method: 'DELETE'
+  }).then(r => {
+    if(r.ok) {
+      const el = document.getElementById(`char-media-${imageId}`);
+      if(el) el.remove();
+    }
+  });
+}
+
+function uploadCharBlockMedia(charId, blockId, input) {
+  if (!input.files || !input.files[0]) return;
+  const formData = new FormData();
+  formData.append('file', input.files[0]);
+  fetch(`/api/characters/${charId}/blocks/${blockId}/images`, {
+    method: 'POST',
+    body: formData
+  }).then(r => r.json()).then(data => {
+    const mediaSection = document.getElementById(`media-section-${blockId}`);
+    if(!mediaSection) return;
+    
+    // Build thumbnail element
+    const div = document.createElement('div');
+    div.className = 'relative group';
+    div.style.width = '48px';
+    div.style.height = '48px';
+    div.style.borderRadius = '4px';
+    div.style.overflow = 'hidden';
+    div.style.border = '1px solid var(--border)';
+    div.style.flexShrink = '0';
+    div.id = `media-${data.id}`;
+    
+    if (data.mime_type && data.mime_type.startsWith('audio/')) {
+        div.innerHTML = `<div style="width: 100%; height: 100%; background: var(--surface-3); display: grid; place-items: center; font-size: 1.2rem;" title="Audio Attachment">🎵</div>`;
+    } else {
+        div.innerHTML = `<img src="/${data.image_path}" style="width: 100%; height: 100%; object-fit: cover;">`;
+    }
+    
+    const btn = document.createElement('button');
+    btn.className = 'absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity';
+    btn.innerHTML = '×';
+    btn.onclick = () => deleteCharBlockMedia(charId, blockId, data.id);
+    div.appendChild(btn);
+    
+    // Insert before the upload button
+    mediaSection.insertBefore(div, mediaSection.lastElementChild);
+    
+    // Remove placeholder if it exists
+    const placeholder = mediaSection.querySelector('.block-media-placeholder');
+    if (placeholder) placeholder.remove();
+    
+    // Clear input
+    input.value = '';
+  });
+}
+
+function deleteCharBlockMedia(charId, blockId, imageId) {
+  fetch(`/api/characters/${charId}/blocks/${blockId}/images/${imageId}`, {
+    method: 'DELETE'
+  }).then(r => {
+    if(r.ok) {
+      const el = document.getElementById(`media-${imageId}`);
+      if(el) el.remove();
+    }
   });
 }
 </script>

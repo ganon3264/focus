@@ -117,4 +117,24 @@ document.getElementById('block-modal-save').addEventListener('click', function()
     htmx.ajax('GET', '/partials/prompt-arranger/' + _currentPresetId, {target: '#prompt-arranger', swap:'innerHTML'});
   });
 });
+
+function uploadBlockMedia(presetId, blockId, input) {
+  if (!input.files || !input.files[0]) return;
+  const formData = new FormData();
+  formData.append('file', input.files[0]);
+  fetch('/api/presets/' + presetId + '/blocks/' + blockId + '/images', {
+    method: 'POST',
+    body: formData
+  }).then(function(){
+    htmx.ajax('GET', '/partials/prompt-arranger/' + presetId, {target: '#prompt-arranger', swap:'innerHTML'});
+  });
+}
+
+function deleteBlockMedia(presetId, blockId, imageId) {
+  fetch('/api/presets/' + presetId + '/blocks/' + blockId + '/images/' + imageId, {
+    method: 'DELETE'
+  }).then(function(){
+    htmx.ajax('GET', '/partials/prompt-arranger/' + presetId, {target: '#prompt-arranger', swap:'innerHTML'});
+  });
+}
 </script>

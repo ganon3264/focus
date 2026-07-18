@@ -24,6 +24,7 @@ def _build_macros(card: dict, persona: dict | None = None) -> dict:
         "char":        card.get("name", "Assistant"),
         "user":        persona["name"] if persona else "User",
         "persona":     persona["description"] if persona else "",
+        "persona_id":  persona["id"] if persona else "",
         "description": card.get("description", ""),
         "personality": card.get("personality", ""),
         "scenario":    card.get("scenario", ""),
@@ -66,12 +67,14 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
     char_own_blocks: list[dict] = []
 
     if chat["character_id"]:
+        char_data["id"] = chat["character_id"]
         async with db.execute(
             "SELECT card_json FROM characters WHERE id = ?", (chat["character_id"],)
         ) as cur:
             char_row = await cur.fetchone()
         if char_row:
-            char_data = normalise_card(json.loads(char_row["card_json"]))
+            card_json = normalise_card(json.loads(char_row["card_json"]))
+            char_data.update(card_json)
 
         async with db.execute(
             "SELECT * FROM char_blocks WHERE character_id = ? ORDER BY position, rowid",
@@ -174,46 +177,54 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
             pos_row = await cur.fetchone()
         next_pos = (pos_row[0] if pos_row[0] is not None else -1) + 1
 
-        user_msg_id = str(uuid.uuid4())
-        await db.execute(
-            "INSERT INTO messages (id, chat_id, role, position, active_index, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-            (user_msg_id, body.chat_id, "user", next_pos, 0, now),
-        )
-        await db.execute(
-            "INSERT INTO message_variants (id, message_id, variant_index, content, created_at) VALUES (?, ?, ?, ?, ?)",
-            (str(uuid.uuid4()), user_msg_id, 0, body.user_message, now),
-        )
-
-        # Bind any attached files to the newly created user message
-        if body.attachment_ids:
-            placeholders = ",".join("?" * len(body.attachment_ids))
+        # Only create a user message if there's actual text or attachments
+        if body.user_message.strip() or body.attachment_ids:
+            user_msg_id = str(uuid.uuid4())
             await db.execute(
-                f"UPDATE message_attachments SET message_id = ? WHERE id IN ({placeholders})",
-                [user_msg_id] + body.attachment_ids
+                "INSERT INTO messages (id, chat_id, role, position, active_index, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+                (user_msg_id, body.chat_id, "user", next_pos, 0, now),
             )
-            
-            async with db.execute(
-                f"SELECT * FROM message_attachments WHERE id IN ({placeholders}) ORDER BY created_at",
-                body.attachment_ids
-            ) as cur:
-                new_attachments = [dict(r) for r in await cur.fetchall()]
-        else:
-            new_attachments = []
+            await db.execute(
+                "INSERT INTO message_variants (id, message_id, variant_index, content, created_at) VALUES (?, ?, ?, ?, ?)",
+                (str(uuid.uuid4()), user_msg_id, 0, body.user_message, now),
+            )
+
+            # Bind any attached files to the newly created user message
+            if body.attachment_ids:
+                placeholders = ",".join("?" * len(body.attachment_ids))
+                await db.execute(
+                    f"UPDATE message_attachments SET message_id = ? WHERE id IN ({placeholders})",
+                    [user_msg_id] + body.attachment_ids
+                )
+                
+                async with db.execute(
+                    f"SELECT * FROM message_attachments WHERE id IN ({placeholders}) ORDER BY created_at",
+                    body.attachment_ids
+                ) as cur:
+                    new_attachments = [dict(r) for r in await cur.fetchall()]
+            else:
+                new_attachments = []
+                
+            history.append({"role": "user", "content": _build_content(body.user_message, new_attachments)})
+            next_pos += 1 # advance position for assistant message
 
         # Create assistant message slot
         asst_msg_id = str(uuid.uuid4())
         await db.execute(
             "INSERT INTO messages (id, chat_id, role, position, active_index, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-            (asst_msg_id, body.chat_id, "assistant", next_pos + 1, 0, now),
+            (asst_msg_id, body.chat_id, "assistant", next_pos, 0, now),
         )
         next_variant_index = 0
-
-        history.append({"role": "user", "content": _build_content(body.user_message, new_attachments)})
 
     await db.commit()
 
     # ── Block images ──────────────────────────────────────────────────────────
     all_block_ids = [b["id"] for b in preset_blocks] + [b["id"] for b in char_own_blocks]
+    if chat["character_id"]:
+        all_block_ids.append(chat["character_id"])
+    if chat["persona_id"]:
+        all_block_ids.append(chat["persona_id"])
+        
     block_images: dict[str, list[dict]] = {}
     if all_block_ids:
         placeholders = ",".join("?" * len(all_block_ids))

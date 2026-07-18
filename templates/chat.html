@@ -47,7 +47,7 @@
   <main class="main-content">
     {% if chat_id %}
     <div class="chat-center">
-      <div class="message-list" id="message-list">
+      <div class="message-list" id="message-list" data-last-role="{{ messages[-1].role if messages else '' }}">
         {% include "message_list.html" %}
       </div>
     </div>
@@ -175,6 +175,20 @@
           <button type="button" class="expand-btn" onclick="openTextExpander(document.getElementById('edit-char-desc'), 'Edit Character Description')">⤢</button>
         </div>
       </div>
+      
+      <!-- Character Reference Media -->
+      <div class="form-group mb-0 mt-2">
+        <label class="text-sm font-semibold text-muted block mb-1">Reference Media</label>
+        <div class="char-block-media-section" id="edit-char-media-section" style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+          <!-- Dynamically populated via JS -->
+          <label class="btn btn-secondary btn-sm block-media-btn" style="height: 48px; padding: 0 0.5rem; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 4px; border-style: dashed; flex-shrink: 0; margin: 0;" title="Add Image or Audio">
+            <span class="text-muted text-xl">+</span>
+            <input type="file" accept="image/*,audio/*" class="hidden block-media-input" onchange="uploadCharModalMedia(this)">
+          </label>
+          <span class="text-xs text-muted block-media-placeholder">Add reference image or audio</span>
+        </div>
+      </div>
+      
       <div class="flex gap-2 mt-4 justify-end pt-4" style="border-top: 1px solid var(--border);">
         <button class="btn btn-secondary" style="width: 100px;" type="button" onclick="closeModal('modal-edit-character')">Cancel</button>
         <button class="btn btn-primary" style="width: 100px;" type="submit">Save</button>
@@ -225,6 +239,20 @@
           <button type="button" class="expand-btn" onclick="openTextExpander(document.getElementById('edit-persona-desc'), 'Edit Persona Description')">⤢</button>
         </div>
       </div>
+      
+      <!-- Persona Reference Media -->
+      <div class="form-group mb-0 mt-2">
+        <label class="text-sm font-semibold text-muted block mb-1">Reference Media</label>
+        <div class="char-block-media-section" id="edit-persona-media-section" style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+          <!-- Dynamically populated via JS -->
+          <label class="btn btn-secondary btn-sm block-media-btn" style="height: 48px; padding: 0 0.5rem; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 4px; border-style: dashed; flex-shrink: 0; margin: 0;" title="Add Image or Audio">
+            <span class="text-muted text-xl">+</span>
+            <input type="file" accept="image/*,audio/*" class="hidden block-media-input" onchange="uploadPersonaMedia(this)">
+          </label>
+          <span class="text-xs text-muted block-media-placeholder">Add reference image or audio</span>
+        </div>
+      </div>
+      
       <div class="flex gap-2 mt-4 justify-end pt-4" style="border-top: 1px solid var(--border);">
         <button class="btn btn-secondary" style="width: 100px;" type="button" onclick="closeModal('modal-edit-persona')">Cancel</button>
         <button class="btn btn-primary" style="width: 100px;" type="submit">Save</button>
@@ -346,8 +374,124 @@ function openEditCharacterModal(btnElement) {
     placeholder.innerText = name ? name.charAt(0).toUpperCase() : '?';
     placeholder.style.display = 'block';
   }
+  
+  // Populate reference media
+  const mediaSection = document.getElementById('edit-char-media-section');
+  Array.from(mediaSection.children).forEach(el => {
+      if (!el.classList.contains('block-media-btn') && !el.classList.contains('block-media-placeholder')) {
+          el.remove();
+      }
+  });
+  
+  const placeholderText = mediaSection.querySelector('.block-media-placeholder');
+  let mediaList = [];
+  try {
+      mediaList = JSON.parse(btnElement.dataset.charMedia || '[]');
+  } catch (e) {
+      console.error(e);
+  }
+  
+  if (mediaList.length > 0 && placeholderText) {
+      placeholderText.style.display = 'none';
+  } else if (mediaList.length === 0 && placeholderText) {
+      placeholderText.style.display = 'block';
+  }
+  
+  mediaList.forEach(img => {
+      const div = document.createElement('div');
+      div.className = 'relative group';
+      div.style.width = '48px';
+      div.style.height = '48px';
+      div.style.borderRadius = '4px';
+      div.style.overflow = 'hidden';
+      div.style.border = '1px solid var(--border)';
+      div.style.flexShrink = '0';
+      div.id = `char-modal-media-${img.id}`;
+      
+      if (img.mime_type && img.mime_type.startsWith('audio/')) {
+          div.innerHTML = `<div style="width: 100%; height: 100%; background: var(--surface-3); display: grid; place-items: center; font-size: 1.2rem;" title="Audio Attachment">🎵</div>`;
+      } else {
+          div.innerHTML = `<img src="/${img.image_path}" style="width: 100%; height: 100%; object-fit: cover;">`;
+      }
+      
+      const btn = document.createElement('button');
+      btn.className = 'absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity';
+      btn.innerHTML = '×';
+      btn.type = 'button';
+      btn.onclick = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          deleteCharModalMedia(img.id);
+      };
+      div.appendChild(btn);
+      
+      mediaSection.insertBefore(div, mediaSection.lastElementChild.previousElementSibling);
+  });
 
   document.getElementById('modal-edit-character').style.display = 'grid';
+}
+
+function uploadCharModalMedia(input) {
+  if (!input.files || !input.files[0]) return;
+  const id = document.getElementById('edit-char-id').value;
+  const formData = new FormData();
+  formData.append('file', input.files[0]);
+  
+  fetch('/api/characters/' + id + '/images', {
+    method: 'POST',
+    body: formData
+  }).then(r => r.json()).then(data => {
+    const mediaSection = document.getElementById('edit-char-media-section');
+    if(!mediaSection) return;
+    
+    const div = document.createElement('div');
+    div.className = 'relative group';
+    div.style.width = '48px';
+    div.style.height = '48px';
+    div.style.borderRadius = '4px';
+    div.style.overflow = 'hidden';
+    div.style.border = '1px solid var(--border)';
+    div.style.flexShrink = '0';
+    div.id = `char-modal-media-${data.id}`;
+    
+    if (data.mime_type && data.mime_type.startsWith('audio/')) {
+        div.innerHTML = `<div style="width: 100%; height: 100%; background: var(--surface-3); display: grid; place-items: center; font-size: 1.2rem;" title="Audio Attachment">🎵</div>`;
+    } else {
+        div.innerHTML = `<img src="/${data.image_path}" style="width: 100%; height: 100%; object-fit: cover;">`;
+    }
+    
+    const btn = document.createElement('button');
+    btn.className = 'absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity';
+    btn.innerHTML = '×';
+    btn.type = 'button';
+    btn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        deleteCharModalMedia(data.id);
+    };
+    div.appendChild(btn);
+    
+    mediaSection.insertBefore(div, mediaSection.lastElementChild.previousElementSibling);
+    
+    const placeholder = mediaSection.querySelector('.block-media-placeholder');
+    if (placeholder) placeholder.style.display = 'none';
+    
+    input.value = '';
+    htmx.ajax('GET','/partials/characters-modal',{target:'#characters-modal-body',swap:'innerHTML'});
+  });
+}
+
+function deleteCharModalMedia(imageId) {
+  const charId = document.getElementById('edit-char-id').value;
+  fetch(`/api/characters/${charId}/images/${imageId}`, {
+    method: 'DELETE'
+  }).then(r => {
+    if(r.ok) {
+      const el = document.getElementById(`char-modal-media-${imageId}`);
+      if(el) el.remove();
+      htmx.ajax('GET','/partials/characters-modal',{target:'#characters-modal-body',swap:'innerHTML'});
+    }
+  });
 }
 
 function uploadCharacterAvatar(input) {
@@ -411,8 +555,125 @@ function openEditPersonaModal(btnElement) {
     placeholder.innerText = name ? name.charAt(0).toUpperCase() : '?';
     placeholder.style.display = 'block';
   }
+  
+  // Populate reference media
+  const mediaSection = document.getElementById('edit-persona-media-section');
+  // Clear existing non-upload button elements
+  Array.from(mediaSection.children).forEach(el => {
+      if (!el.classList.contains('block-media-btn') && !el.classList.contains('block-media-placeholder')) {
+          el.remove();
+      }
+  });
+  
+  const placeholderText = mediaSection.querySelector('.block-media-placeholder');
+  let mediaList = [];
+  try {
+      mediaList = JSON.parse(btnElement.dataset.personaMedia || '[]');
+  } catch (e) {
+      console.error(e);
+  }
+  
+  if (mediaList.length > 0 && placeholderText) {
+      placeholderText.style.display = 'none';
+  } else if (mediaList.length === 0 && placeholderText) {
+      placeholderText.style.display = 'block';
+  }
+  
+  mediaList.forEach(img => {
+      const div = document.createElement('div');
+      div.className = 'relative group';
+      div.style.width = '48px';
+      div.style.height = '48px';
+      div.style.borderRadius = '4px';
+      div.style.overflow = 'hidden';
+      div.style.border = '1px solid var(--border)';
+      div.style.flexShrink = '0';
+      div.id = `persona-media-${img.id}`;
+      
+      if (img.mime_type && img.mime_type.startsWith('audio/')) {
+          div.innerHTML = `<div style="width: 100%; height: 100%; background: var(--surface-3); display: grid; place-items: center; font-size: 1.2rem;" title="Audio Attachment">🎵</div>`;
+      } else {
+          div.innerHTML = `<img src="/${img.image_path}" style="width: 100%; height: 100%; object-fit: cover;">`;
+      }
+      
+      const btn = document.createElement('button');
+      btn.className = 'absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity';
+      btn.innerHTML = '×';
+      btn.type = 'button';
+      btn.onclick = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          deletePersonaMedia(img.id);
+      };
+      div.appendChild(btn);
+      
+      mediaSection.insertBefore(div, mediaSection.lastElementChild.previousElementSibling);
+  });
 
   document.getElementById('modal-edit-persona').style.display = 'grid';
+}
+
+function uploadPersonaMedia(input) {
+  if (!input.files || !input.files[0]) return;
+  const id = document.getElementById('edit-persona-id').value;
+  const formData = new FormData();
+  formData.append('file', input.files[0]);
+  
+  fetch('/api/personas/' + id + '/images', {
+    method: 'POST',
+    body: formData
+  }).then(r => r.json()).then(data => {
+    const mediaSection = document.getElementById('edit-persona-media-section');
+    if(!mediaSection) return;
+    
+    const div = document.createElement('div');
+    div.className = 'relative group';
+    div.style.width = '48px';
+    div.style.height = '48px';
+    div.style.borderRadius = '4px';
+    div.style.overflow = 'hidden';
+    div.style.border = '1px solid var(--border)';
+    div.style.flexShrink = '0';
+    div.id = `persona-media-${data.id}`;
+    
+    if (data.mime_type && data.mime_type.startsWith('audio/')) {
+        div.innerHTML = `<div style="width: 100%; height: 100%; background: var(--surface-3); display: grid; place-items: center; font-size: 1.2rem;" title="Audio Attachment">🎵</div>`;
+    } else {
+        div.innerHTML = `<img src="/${data.image_path}" style="width: 100%; height: 100%; object-fit: cover;">`;
+    }
+    
+    const btn = document.createElement('button');
+    btn.className = 'absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity';
+    btn.innerHTML = '×';
+    btn.type = 'button';
+    btn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        deletePersonaMedia(data.id);
+    };
+    div.appendChild(btn);
+    
+    mediaSection.insertBefore(div, mediaSection.lastElementChild.previousElementSibling);
+    
+    const placeholder = mediaSection.querySelector('.block-media-placeholder');
+    if (placeholder) placeholder.style.display = 'none';
+    
+    input.value = '';
+    htmx.ajax('GET','/partials/personas-modal',{target:'#personas-modal-body',swap:'innerHTML'});
+  });
+}
+
+function deletePersonaMedia(imageId) {
+  const personaId = document.getElementById('edit-persona-id').value;
+  fetch(`/api/personas/${personaId}/images/${imageId}`, {
+    method: 'DELETE'
+  }).then(r => {
+    if(r.ok) {
+      const el = document.getElementById(`persona-media-${imageId}`);
+      if(el) el.remove();
+      htmx.ajax('GET','/partials/personas-modal',{target:'#personas-modal-body',swap:'innerHTML'});
+    }
+  });
 }
 
 function uploadPersonaAvatar(input) {

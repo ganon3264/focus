@@ -216,10 +216,12 @@ details.reasoning[open] > summary {
 .action-icon.active { color: var(--accent-hover); }
 .action-icon.danger:hover { background: var(--danger-dim); color: var(--danger); }
 
-.role-indicator { width: 24px; height: 24px; border-radius: 4px; display: grid; place-items: center; font-size: 0.75rem; font-weight: 700; flex-shrink: 0; background: var(--surface-3); color: var(--text-muted); cursor: default; }
-.role-system { background: rgba(99, 102, 241, 0.15); color: #818cf8; }
-.role-user { background: rgba(16, 185, 129, 0.15); color: #34d399; }
-.role-assistant { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+.arranger-item.bg-role-system { background: rgba(99, 102, 241, 0.08); border-color: rgba(99, 102, 241, 0.25); }
+.arranger-item.bg-role-system:hover { border-color: rgba(99, 102, 241, 0.5); }
+.arranger-item.bg-role-user { background: rgba(16, 185, 129, 0.08); border-color: rgba(16, 185, 129, 0.25); }
+.arranger-item.bg-role-user:hover { border-color: rgba(16, 185, 129, 0.5); }
+.arranger-item.bg-role-assistant { background: rgba(245, 158, 11, 0.08); border-color: rgba(245, 158, 11, 0.25); }
+.arranger-item.bg-role-assistant:hover { border-color: rgba(245, 158, 11, 0.5); }
 
 .arranger-body { display: flex; align-items: center; gap: 0.5rem; }
 .arranger-select { background: var(--surface-3); border: 1px solid var(--border); color: var(--text); border-radius: 4px; padding: 0.2rem 0.4rem; font-size: 0.75rem; outline: none; cursor: pointer; transition: all var(--transition); }
@@ -260,3 +262,4 @@ details.reasoning[open] > summary {
 
 .mt-auto { margin-top: auto; }
 .max-w-\[130px\] { max-width: 130px; }
+.arranger-select > div:hover { background: var(--surface-3); }

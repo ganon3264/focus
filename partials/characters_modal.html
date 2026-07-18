@@ -37,6 +37,7 @@
                   data-char-name="{{ char.name }}" 
                   data-char-desc="{{ char.card.get('description','') }}" 
                   data-char-image="{{ char.image_path or '' }}"
+                  data-char-media="{{ char.images | tojson | forceescape }}"
                   onclick="event.stopPropagation(); openEditCharacterModal(this)">✎</button>
           <button class="btn btn-danger btn-sm" hx-delete="/api/characters/{{ char.id }}" hx-confirm="Delete character?" hx-on::after-request="htmx.ajax('GET','/partials/characters-modal',{target:'#characters-modal-body',swap:'innerHTML'})" onclick="event.stopPropagation()">×</button>
         </div>
