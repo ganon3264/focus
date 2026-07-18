@@ -165,7 +165,7 @@
     chats: false,
     providers: false,
     secrets: false,
-    selChars: {},
+    selCharacters: {},
     selPersonas: {},
     selPresets: {},
   };

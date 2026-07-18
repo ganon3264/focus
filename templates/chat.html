@@ -420,6 +420,18 @@ function toggleRightBar(){
   document.getElementById('right-sidebar').classList.toggle('hidden');
   document.getElementById('right-tab').classList.toggle('hidden');
 }
+window.toggleReasoning = function(btn) {
+  const msg = btn.closest('.msg');
+  if (!msg) return;
+  const details = msg.querySelector('details.reasoning');
+  if (!details) return;
+  if (details.hasAttribute('open')) {
+    details.removeAttribute('open');
+  } else {
+    details.setAttribute('open', '');
+  }
+  msg.classList.toggle('reasoning-open');
+};
 function toggleLeftBar(){
   document.getElementById('left-sidebar').classList.toggle('hidden');
   document.getElementById('left-tab').classList.toggle('hidden');

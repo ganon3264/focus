@@ -48,7 +48,7 @@ global.window.dispatchEvent = function(ev) { global._dispatchedEvents.push(ev); 
 
 // Load StateManager
 var fs = require('fs'), path = require('path');
-eval(fs.readFileSync(path.join(__dirname, '..', 'static', 'js', 'state_manager.js'), 'utf8'));
+eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'state_manager.js'), 'utf8'));
 
 function reset() {
   storage = {};
@@ -223,7 +223,110 @@ function reset() {
   assertEqual(calls, 1, 'listener does not fire after off');
 })();
 
+// ── setPreset with same value — still fires (StateManager always does) ──
+(function() {
+  reset();
+  StateManager.init({ preset_id: 'same' }, 'chat6');
+  var calls = 0;
+  StateManager.on('preset-changed', function() { calls++; });
+  StateManager.setPreset('same');
+  assertEqual(calls, 1, 'setPreset(same) still fires callback');
+  assertEqual(StateManager.get('preset_id'), 'same', 'setPreset(same) keeps value');
+})();
+
+// ── setCharacter with null clears ──
+(function() {
+  reset();
+  StateManager.init({ character_id: 'c1' }, 'chat7');
+  var events = [];
+  StateManager.on('character-changed', function(e) { events.push(e); });
+  StateManager.setCharacter(null);
+  assertEqual(StateManager.get('character_id'), null, 'setCharacter(null) clears');
+  assertEqual(events[0].prev, 'c1', 'setCharacter(null) prev is old id');
+  assertEqual(events[0].value, null, 'setCharacter(null) value is null');
+  assertEqual(JSON.parse(global._lastFetch.opts.body).character_id, null, 'fetch body has null character_id');
+})();
+
+// ── setPersona with null clears ──
+(function() {
+  reset();
+  StateManager.init({ persona_id: 'p1' }, 'chat8');
+  StateManager.setPersona(null);
+  assertEqual(StateManager.get('persona_id'), null, 'setPersona(null) clears');
+})();
+
+// ── Multiple callbacks on same event ──
+(function() {
+  reset();
+  StateManager.init({ preset_id: null }, 'chat9');
+  var count = 0;
+  StateManager.on('preset-changed', function() { count++; });
+  StateManager.on('preset-changed', function() { count++; });
+  StateManager.setPreset('multi');
+  assertEqual(count, 2, 'multiple callbacks both fire');
+})();
+
+// ── setCharacter PATCH body shape ──
+(function() {
+  reset();
+  StateManager.init({ character_id: 'old' }, 'chat10');
+  StateManager.setCharacter('newChar');
+  var body = JSON.parse(global._lastFetch.opts.body);
+  assertEqual(body.character_id, 'newChar', 'setCharacter PATCH body has character_id');
+  assert(!body.hasOwnProperty('preset_id'), 'setCharacter PATCH body does not include preset_id');
+  assert(!body.hasOwnProperty('persona_id'), 'setCharacter PATCH body does not include persona_id');
+})();
+
+// ── setPersona PATCH body shape ──
+(function() {
+  reset();
+  StateManager.init({ persona_id: null }, 'chat11');
+  StateManager.setPersona('newPersona');
+  var body = JSON.parse(global._lastFetch.opts.body);
+  assertEqual(body.persona_id, 'newPersona', 'setPersona PATCH body has persona_id');
+  assert(!body.hasOwnProperty('character_id'), 'setPersona PATCH body does not include character_id');
+})();
+
+// ── get() on unknown key returns undefined ──
+(function() {
+  reset();
+  StateManager.init({}, null);
+  assertEqual(StateManager.get('nonexistent'), undefined, 'get(unknown) returns undefined');
+})();
+
+// ── init() with null chatId — no fetch on set ──
+(function() {
+  reset();
+  StateManager.init({ character_id: null, persona_id: null, preset_id: null }, null);
+  StateManager.setCharacter('c99');
+  assertEqual(global._lastFetch, null, 'no chatId: setCharacter does not fetch');
+  StateManager.setPersona('p99');
+  assertEqual(global._lastFetch, null, 'no chatId: setPersona does not fetch');
+})();
+
+// ── Provider: setProvider with previous values ──
+(function() {
+  reset();
+  localStorage.setItem('focus-provider-id', 'oldId');
+  localStorage.setItem('focus-provider-type', 'oldType');
+  StateManager.init({}, null);
+  var events = [];
+  StateManager.on('provider-changed', function(e) { events.push(e); });
+  StateManager.setProvider('newId', 'newType');
+  assertEqual(events[0].prevId, 'oldId', 'provider prevId from localStorage');
+  assertEqual(events[0].prevType, 'oldType', 'provider prevType from localStorage');
+  assertEqual(localStorage.getItem('focus-provider-id'), 'newId', 'provider persists new id');
+  assertEqual(localStorage.getItem('focus-provider-type'), 'newType', 'provider persists new type');
+})();
+
+// ── off() on non-registered listener — no crash ──
+(function() {
+  reset();
+  StateManager.init({}, null);
+  StateManager.off('preset-changed', function() {});
+  assert(true, 'off(non-registered) does not throw');
+})();
+
 // ── Result ──
-console.log('');
-console.log(tests + ' tests, ' + failures + ' failures');
+console.log('\n' + tests + ' tests, ' + failures + ' failures');
 process.exit(failures > 0 ? 1 : 0);

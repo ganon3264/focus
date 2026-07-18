@@ -4,7 +4,7 @@ import json
 from io import BytesIO
 from zipfile import ZipFile
 
-from tests.conftest import create_character, create_chat, create_persona, create_preset
+from tests.helpers import create_character, create_chat, create_persona, create_preset
 
 
 def _extract_database_from_zip(zip_bytes: bytes) -> dict:

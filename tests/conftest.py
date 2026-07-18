@@ -1,6 +1,7 @@
 import os
 import shutil
-import tempfile
+import uuid
+from pathlib import Path
 
 import aiosqlite
 import httpx
@@ -8,12 +9,20 @@ import pytest
 
 
 @pytest.fixture
-async def client():
+def tmp_test_dir():
+    path = Path("tests/tmp") / f"test_{uuid.uuid4().hex[:8]}"
+    path.mkdir(parents=True, exist_ok=True)
+    yield str(path)
+    shutil.rmtree(path, ignore_errors=True)
+
+
+@pytest.fixture
+async def client(tmp_test_dir):
     """Create an async HTTP client with a fresh isolated database per test."""
-    tmpdir = tempfile.mkdtemp()
-    path = os.path.join(tmpdir, "test.db")
-    backups_dir = os.path.join(tmpdir, "backups")
+    path = os.path.join(tmp_test_dir, "test.db")
+    backups_dir = os.path.join(tmp_test_dir, "backups")
     os.makedirs(backups_dir, exist_ok=True)
+    old_backups = os.environ.get("FOCUS_BACKUPS_DIR")
     os.environ["FOCUS_BACKUPS_DIR"] = backups_dir
 
     from focus.core.database import SCHEMA
@@ -38,43 +47,7 @@ async def client():
         yield c
 
     app.dependency_overrides.clear()
-    shutil.rmtree(tmpdir, ignore_errors=True)
-
-
-async def create_character(client, name="Test Char", **overrides):
-    body = {
-        "name": name,
-        "description": "Desc",
-        "personality": "Neutral",
-        "scenario": "Test",
-        **overrides,
-    }
-    resp = await client.post("/api/characters/", json=body)
-    assert resp.status_code == 201
-    return resp.json()
-
-
-async def create_persona(client, name="Test Persona", **overrides):
-    body = {"name": name, "description": "A persona", **overrides}
-    resp = await client.post("/api/personas/", json=body)
-    assert resp.status_code == 201
-    return resp.json()
-
-
-async def create_preset(client, name="Test Preset"):
-    resp = await client.post("/api/presets/", data={"name": name})
-    assert resp.status_code == 201
-    return resp.json()
-
-
-async def create_chat(client, character_id=None, persona_id=None, preset_id=None, title="Test Chat"):
-    body = {"title": title}
-    if character_id:
-        body["character_id"] = character_id
-    if persona_id:
-        body["persona_id"] = persona_id
-    if preset_id:
-        body["preset_id"] = preset_id
-    resp = await client.post("/api/chats/", json=body)
-    assert resp.status_code == 201
-    return resp.json()
+    if old_backups is None:
+        os.environ.pop("FOCUS_BACKUPS_DIR", None)
+    else:
+        os.environ["FOCUS_BACKUPS_DIR"] = old_backups

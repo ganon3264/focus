@@ -1,16 +1,19 @@
 import logging
+import os
 from pathlib import Path
 
 import aiosqlite
 
-from focus.core.paths import BACKUPS_DIR
 from focus.core.utils import now_iso
 
 logger = logging.getLogger("focus.backup")
 
 
 def get_backups_dir(backups_root: str | None = None) -> Path:
-    d = Path(backups_root) if backups_root else BACKUPS_DIR
+    if backups_root:
+        d = Path(backups_root)
+    else:
+        d = Path(os.environ.get("FOCUS_BACKUPS_DIR", "data/backups"))
     d.mkdir(parents=True, exist_ok=True)
     return d
 

@@ -9,3 +9,4 @@ bin/tailwindcss-linux-x64
 static/tailwind.css
 static/vendor/
 .opencode/
+tests/tmp/

@@ -1,4 +1,4 @@
-<div class="message relative" id="message-{{ message.id }}" data-message-id="{{ message.id }}">
+<div class="message relative msg" id="message-{{ message.id }}" data-message-id="{{ message.id }}">
   {% from "macros.html" import icon_edit, icon_refresh, icon_trash, icon_music, icon_branch,
   icon_chevron_left, icon_chevron_right %}
   <div class="delete-mode-checkbox hidden absolute -left-12 top-4">
@@ -9,37 +9,69 @@
       onchange="updateDeleteSelection()"
     />
   </div>
-  <div class="message-avatar">
-    {% if message.role == 'user' %} {% if persona and persona.avatar_path %}
-    <img
-      src="/{{ persona.avatar_path }}"
-      alt="{{ persona.name if persona else 'User' }} avatar"
-      class="cursor-pointer"
-      onclick="openLightbox(this.src)"
-    />
-    {% else %} {{ persona.name[:1] if persona else 'U' }} {% endif %} {% else %} {% if character and
-    character.image_path %}
-    <img
-      src="/{{ character.image_path }}"
-      alt="{{ character.name if character else 'Assistant' }} avatar"
-      class="cursor-pointer"
-      onclick="openLightbox(this.src)"
-    />
-    {% else %} {{ character.name[:1] if character else 'A' }} {% endif %} {% endif %}
-  </div>
   <div class="message-body">
-    <div class="flex justify-between items-start mb-1">
-      <div class="min-w-0">
-        <span>{{ character.name if message.role == 'assistant' and character else (persona.name if message.role == 'user' and persona else message.role) }}</span>
-        <div class="text-xs text-muted">
-          {{ message.created_at[:10] if message.created_at else '' }} {{ message.created_at[11:16] if message.created_at else '' }} {% if message.role == 'assistant' and message.model_name %} · {{ message.model_name }} {% endif %}
+    <div class="flex items-start justify-between relative">
+      <!-- Left: avatar + name/info -->
+      <div class="flex items-start gap-3 min-w-0">
+        <div class="message-avatar">
+          {% if message.role == 'user' %} {% if persona and persona.avatar_path %}
+          <img
+            src="/{{ persona.avatar_path }}"
+            alt="{{ persona.name if persona else 'User' }} avatar"
+            class="cursor-pointer"
+            onclick="openLightbox(this.src)"
+          />
+          {% else %} {{ persona.name[:1] if persona else 'U' }} {% endif %} {% else %} {% if character and
+          character.image_path %}
+          <img
+            src="/{{ character.image_path }}"
+            alt="{{ character.name if character else 'Assistant' }} avatar"
+            class="cursor-pointer"
+            onclick="openLightbox(this.src)"
+          />
+          {% else %} {{ character.name[:1] if character else 'A' }} {% endif %} {% endif %}
+        </div>
+        <div class="min-w-0">
+          <div class="text-sm font-medium" style="color: var(--text)">
+            {{ character.name if message.role == 'assistant' and character else (persona.name if message.role == 'user' and persona else message.role) }}
+          </div>
+          {% if message.role == 'assistant' %}
+          <div class="text-xs text-muted flex items-center gap-1.5 flex-wrap mt-0.5">
+            {% if message.model_name %}
+            <span>{{ message.model_name }}</span>
+            <span class="text-muted">·</span>
+            {% endif %}
+            <button
+              onclick="toggleReasoning(this)"
+              class="inline-flex items-center gap-1 text-muted hover:text-[--text] transition-colors cursor-pointer"
+              style="background:none;border:none;padding:0;font:inherit"
+              aria-label="Toggle reasoning"
+            >
+              <svg class="w-3 h-3 reasoning-chevron" style="color:var(--text-faint);transition:transform 0.2s ease" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+              <span>Reasoning</span>
+            </button>
+          </div>
+          {% else %}
+          <div class="text-xs text-muted mt-0.5">brain-100t-it</div>
+          {% endif %}
         </div>
       </div>
-      <div class="message-actions normal-mode-actions flex items-center gap-1 shrink-0" style="position:static;transform:none;background:none;border:none;box-shadow:none;padding:0">
+
+      <!-- Right: meta-right + toolbar overlay -->
+      <div class="relative shrink-0" style="margin-left:1rem">
+        <div class="meta-right flex items-center gap-3 mt-0.5" style="transition:opacity 0.18s ease,transform 0.18s ease">
+          <div class="text-xs text-right leading-tight shrink-0">
+            <div class="text-muted">{{ message.created_at[:10] if message.created_at else '' }}</div>
+            <div style="color:var(--text-faint)">{{ message.created_at[11:16] if message.created_at else '' }}</div>
+          </div>
+          <div class="text-[1.75rem] font-bold leading-none select-none shrink-0" style="color:var(--text-faint)">#{{ msg_index }}</div>
+        </div>
+
+        <div class="toolbar normal-mode-actions items-center gap-0.5">
         {% if message.variant_count > 1 or (is_latest and message.role == 'assistant') %}
         <button
           class="action-btn"
-          title="Swipe left"
+          title="Previous variant"
           aria-label="Previous variant"
           hx-post="/api/chats/{{ chat_id }}/messages/{{ message.id }}/swipe"
           hx-vals='{"direction":"prev"}'
@@ -48,10 +80,10 @@
         >
           {{ icon_chevron_left() }}
         </button>
-        <span class="text-xs text-muted" style="display: flex; align-items: center">{{ message.active_index + 1 }}/{{ message.variant_count }}</span>
+        <span class="text-xs" style="display:flex;align-items:center;color:var(--text-faint)">{{ message.active_index + 1 }}/{{ message.variant_count }}</span>
         <button
           class="action-btn"
-          title="Swipe right"
+          title="Next variant"
           aria-label="Next variant"
           hx-post="/api/chats/{{ chat_id }}/messages/{{ message.id }}/swipe"
           hx-vals='{"direction":"next"}'
@@ -60,7 +92,9 @@
         >
           {{ icon_chevron_right() }}
         </button>
-        {% endif %} {% if is_latest and message.role == 'assistant' and message.position != 0 %}
+        <div class="w-px h-4" style="background:var(--border);margin:0 2px"></div>
+        {% endif %}
+        {% if is_latest and message.role == 'assistant' and message.position != 0 %}
         <button
           class="action-btn"
           title="Regenerate"
@@ -88,7 +122,7 @@
         </button>
         <button
           class="action-btn text-danger"
-          title="Delete Mode"
+          title="Delete mode"
           aria-label="Delete messages"
           onclick="enterDeleteMode('{{ message.id }}')"
         >
@@ -96,9 +130,10 @@
         </button>
       </div>
     </div>
+    </div>
 
     {% if message.attachments %}
-    <div class="flex gap-2 flex-wrap mb-2">
+    <div class="flex gap-2 flex-wrap mb-2" style="padding-left:3rem">
       {% for att in message.attachments %} {% if att.mime_type.startswith('image/') %}
       <div class="relative group">
         <img
@@ -121,10 +156,7 @@
       </div>
       {% endif %} {% endfor %}
     </div>
-    {% endif %} {% if message.role == 'assistant' %}
-    <div class="message-content markdown-content">{{ message.content }}</div>
-    {% else %}
-    <div class="message-content markdown-content">{{ message.content }}</div>
     {% endif %}
+    <div class="message-content markdown-content" style="padding-left:3rem">{{ message.content }}</div>
   </div>
 </div>
