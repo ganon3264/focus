@@ -536,6 +536,18 @@
     }
   };
 
+  window._postSwapProcess = function (container) {
+    if (!container) return;
+    container.querySelectorAll('.markdown-content:not(.processed)').forEach(function (el) {
+      el.innerHTML = window.renderMessage(el.textContent || '');
+      el.classList.add('processed');
+    });
+    if (window.syncReasoningButtons) window.syncReasoningButtons(container);
+    if (typeof updateSendButtonState === 'function') updateSendButtonState();
+    if (typeof updateContinueButtons === 'function') updateContinueButtons();
+    window.ensureSentinelAndObserver();
+  };
+
   document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('.markdown-content').forEach(function (el) {
       const raw = el.textContent || '';
@@ -555,20 +567,7 @@
 
   document.body.addEventListener('htmx:afterSwap', function (evt) {
     if (evt.detail.target.id === 'message-list') {
-      evt.detail.target.querySelectorAll('.markdown-content').forEach(function (el) {
-        const raw = el.textContent || '';
-        el.innerHTML = window.renderMessage(raw);
-        el.classList.add('processed');
-      });
-      if (window.syncReasoningButtons) window.syncReasoningButtons(evt.detail.target);
-      if (typeof updateSendButtonState === 'function') {
-        updateSendButtonState();
-      }
-      if (typeof updateContinueButtons === 'function') {
-        updateContinueButtons();
-      }
-
-      window.ensureSentinelAndObserver();
+      window._postSwapProcess(evt.detail.target);
     }
   });
 })();

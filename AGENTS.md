@@ -9,11 +9,25 @@
 | Frontend | HTMX 2.x + Alpine.js 3.x (hypermedia SPA) |
 | CSS | Tailwind CSS v4 (`tailwind-input.css` → `tailwind.css`) + custom `style.css` |
 | Build / Pkg | `uv` + `hatchling` |
-| Tests | `pytest` + `pytest-asyncio` + Node.js for JS tests → `uv run pytest tests/ -v` |
+| Tests | `pytest` + `pytest-asyncio` + Node.js for JS tests → `./test.sh` |
 | Tailwind compile | `./bin/tailwindcss-linux-x64 -i static/tailwind-input.css -o static/tailwind.css --minify` (USER must run — agent env can't) |
 | Vendor sync | `./vendor-sync.py` — downloads all third-party JS/CSS from CDN (no npm) |
 | Start | `./start.sh` (vendor-sync → tailwind → uv run main.py) |
 | Test runner | `./test.sh` — runs `uv run pytest tests/ -v` |
+
+### Venv / musl note
+
+The opencode container runs on Alpine (musl libc). The host that creates the container may be glibc. This means the venv symlinks to system Python break when moving between environments. If `uv run` fails with "Broken symlink" or "Failed to inspect Python interpreter", just re-run — `uv` will recreate the venv automatically.
+
+### Test dependencies
+
+`cssutils` is declared as an optional test dependency in `pyproject.toml` (`[project.optional-dependencies] test`). `uv run pytest` does NOT install optional deps automatically. If you get `ModuleNotFoundError: No module named 'cssutils'`, run:
+
+```
+uv pip install cssutils
+```
+
+Or use `uv sync --extra test` to install all test deps at once. The `test.sh` script doesn't handle this — it just runs `uv run pytest`.
 
 ## Project structure
 
@@ -488,6 +502,8 @@ Tests are organized into 3 directories with 23 test source files:
     - **Tailwind v4 preflight** sets `padding: 0; margin: 0` on `*, :before, :after`. This nukes browser defaults including `<pre>` element padding.
     - **Jinja2 template whitespace** between HTML tags creates text nodes. If a container has `white-space: pre-wrap`, those whitespace text nodes (newlines + indentation between e.g. `<div>` and `<pre>`) render as visible blank lines. Fix: either compact the template to one line, or remove `white-space: pre-wrap` from the container (when the inner element already handles its own whitespace, e.g. `<pre>`).
     - **Child margin leakage**: When a container has padding but no `overflow: hidden` / `display: flow-root`, the last child's `margin-bottom` extends past the container's padding-box, stacking with `padding-bottom`. The visible gap becomes `padding + margin` instead of just `padding`. Fix: add `> :last-child { margin-bottom: 0 }` to the container.
+
+22. **`:last-of-type` in `querySelector` is not "last with this class"** — The CSS pseudo-class `:last-of-type` checks whether an element is the last sibling of its *tag type*, not its class. `querySelector('.message:last-of-type')` on `#message-list` returns `null` because `#scroll-sentinel` (also a `<div>`) is the last `<div>` child, and it doesn't have class `message`. Use `querySelectorAll('.message')` and take the last element of the NodeList instead: `msgs[msgs.length - 1]`.
 
 ## File naming conventions
 

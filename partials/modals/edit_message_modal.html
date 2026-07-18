@@ -14,64 +14,32 @@ content_style='display:flex;flex-direction:column;max-height:85vh;', z_index='10
   <input type="hidden" id="edit-msg-id" />
   <input type="hidden" id="edit-msg-chat-id" />
 
-  <div id="edit-msg-thought-container" style="display: none">
-    <label class="text-sm font-bold text-muted mb-1 block">Thought Process (Reasoning)</label>
-    <textarea
-      id="edit-msg-thought"
-      class="w-full p-2"
-      rows="6"
-      style="
-        background: var(--surface-3);
-        border: 1px solid var(--border);
-        color: var(--text);
-        border-radius: 6px;
-        font-family: inherit;
-        resize: vertical;
-      "
-    ></textarea>
-  </div>
+  <div id="edit-msg-blocks" style="display:flex;flex-direction:column;gap:0.75rem"></div>
+</div>
 
-  <div>
-    <label class="text-sm font-bold text-muted mb-1 block">Message Content</label>
-    <textarea
-      id="edit-msg-content"
-      class="w-full p-2"
-      rows="8"
-      style="
-        background: var(--surface-2);
-        border: 1px solid var(--border);
-        color: var(--text);
-        border-radius: 6px;
-        font-family: inherit;
-        resize: vertical;
-      "
-    ></textarea>
+<div style="flex-shrink:0">
+  <div class="flex justify-between items-center mb-1">
+    <label class="text-sm font-bold text-muted">Attachments</label>
+    <button
+      class="btn btn-secondary btn-sm"
+      onclick="document.getElementById('edit-msg-attach-input').click()"
+    >
+      {{ icon_plus(14) }} Add Media
+    </button>
+    <input
+      type="file"
+      id="edit-msg-attach-input"
+      class="hidden"
+      multiple
+      accept="image/*,audio/*"
+      onchange="uploadMessageAttachment(this)"
+    />
   </div>
-
-  <div>
-    <div class="flex justify-between items-center mb-1">
-      <label class="text-sm font-bold text-muted">Attachments</label>
-      <button
-        class="btn btn-secondary btn-sm"
-        onclick="document.getElementById('edit-msg-attach-input').click()"
-      >
-        {{ icon_plus(14) }} Add Media
-      </button>
-      <input
-        type="file"
-        id="edit-msg-attach-input"
-        class="hidden"
-        multiple
-        accept="image/*,audio/*"
-        onchange="uploadMessageAttachment(this)"
-      />
-    </div>
-    <div
-      id="edit-msg-attachments"
-      class="flex gap-2 flex-wrap empty:hidden p-2 rounded"
-      style="background: var(--surface-2); border: 1px solid var(--border); min-height: 2.5rem"
-    ></div>
-  </div>
+  <div
+    id="edit-msg-attachments"
+    class="flex gap-2 flex-wrap empty:hidden p-2 rounded"
+    style="background: var(--surface-2); border: 1px solid var(--border); min-height: 2.5rem"
+  ></div>
 </div>
 <div class="flex gap-2 mt-4 pt-4" style="border-top: 1px solid var(--border)">
   <button class="btn btn-primary" style="width: 100px" onclick="saveMessageEdit()">Save</button>

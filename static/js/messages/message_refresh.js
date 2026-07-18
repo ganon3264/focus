@@ -38,7 +38,8 @@
     if (existingMsg && msgIds.length === 1) {
       var msgIndex = parseInt(existingMsg.getAttribute('data-msg-index')) || 1;
       var msgList = document.getElementById('message-list');
-      var isLatest = msgList ? existingMsg === msgList.querySelector('.message:last-of-type') : false;
+      var msgs = msgList ? msgList.querySelectorAll('.message') : [];
+      var isLatest = msgs.length > 0 ? existingMsg === msgs[msgs.length - 1] : false;
       var url = '/partials/message/' + chatId + '/' + msgIds[0] + '?msg_index=' + msgIndex + '&is_latest=' + isLatest;
       var resp = await fetch(url);
       if (!resp.ok) return;
@@ -60,12 +61,11 @@
     }
 
     _refreshChatList(chatId);
-    window.ensureSentinelAndObserver();
+    if (window._postSwapProcess) window._postSwapProcess(document.getElementById('message-list'));
   }
 
   async function refreshMessagesAfterStream(chatId, userMsgId, asstMsgId) {
     await _refreshMessageNodes(chatId, [userMsgId, asstMsgId].filter(Boolean));
-    if (typeof updateSendButtonState === 'function') updateSendButtonState();
   }
   window.refreshMessagesAfterStream = refreshMessagesAfterStream;
 

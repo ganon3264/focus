@@ -165,7 +165,26 @@ async def get_message(chat_id: str, message_id: str, db: aiosqlite.Connection = 
     ) as cur:
         attachments = [dict(r) for r in await cur.fetchall()]
 
-    return {"content": row["content"], "attachments": attachments}
+    async with db.execute(
+        "SELECT * FROM tool_calls WHERE variant_id = ? ORDER BY created_at",
+        (row["variant_id"],),
+    ) as cur:
+        tool_calls_rows = await cur.fetchall()
+
+    tool_calls = []
+    for tc in tool_calls_rows:
+        tool_calls.append({
+            "id": tc["id"],
+            "type": "function",
+            "function": {
+                "name": tc["tool_name"],
+                "arguments": tc["arguments"],
+            },
+            "result": tc["result"],
+            "is_error": bool(tc["is_error"]),
+        })
+
+    return {"content": row["content"], "attachments": attachments, "tool_calls": tool_calls}
 
 
 @router.delete("/{chat_id}/messages/{message_id}", status_code=204)
