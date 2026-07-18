@@ -255,7 +255,10 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
                 collected.append(token)
                 yield f"data: {json.dumps({'token': token})}\n\n"
         except Exception as e:
-            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+            err_msg = str(e)
+            if not err_msg or err_msg == "()":
+                err_msg = repr(e)
+            yield f"data: {json.dumps({'error': err_msg})}\n\n"
             return
 
         full = "".join(collected)

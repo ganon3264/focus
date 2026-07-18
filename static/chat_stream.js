@@ -347,16 +347,43 @@
     return div.innerHTML;
   }
 
-  function renderMessage(text) {
-    if (!text) return "";
+  function extractThoughtsSafely(text) {
+    const codeBlocks = [];
+    let processed = text.replace(/```[\s\S]*?(?:```|$)/g, match => {
+      codeBlocks.push(match);
+      return `%%%PYVERN_CODE_${codeBlocks.length - 1}%%%`;
+    });
     
-    // 1. Extract and protect thinking blocks
+    processed = processed.replace(/`[^`\n]*`/g, match => {
+      codeBlocks.push(match);
+      return `%%%PYVERN_CODE_${codeBlocks.length - 1}%%%`;
+    });
+    
     const thoughts = [];
-    let processed = text.replace(/<think>([\s\S]*?)(?:<\/think>|$)/g, function(match, p1) {
+    processed = processed.replace(/<think>([\s\S]*?)(?:<\/think>|$)/g, function(match, p1) {
       const isClosed = match.includes('</think>');
       thoughts.push({ content: p1, isClosed: isClosed });
       return `\n\n%%%THINK_BLOCK_${thoughts.length - 1}%%%\n\n`;
     });
+    
+    for (let j = 0; j < codeBlocks.length; j++) {
+      const marker = `%%%PYVERN_CODE_${j}%%%`;
+      processed = processed.split(marker).join(codeBlocks[j]);
+      for (let t of thoughts) {
+          t.content = t.content.split(marker).join(codeBlocks[j]);
+      }
+    }
+    
+    return { thoughts, processed };
+  }
+
+  function renderMessage(text) {
+    if (!text) return "";
+    
+    // 1. Extract and protect thinking blocks avoiding code blocks
+    const extracted = extractThoughtsSafely(text);
+    const thoughts = extracted.thoughts;
+    let processed = extracted.processed;
     
     // 2. Parse Markdown and Sanitize the rest
     marked.use({ breaks: true });
@@ -372,7 +399,7 @@
       
       // DOMPurify + marked might wrap the placeholder in <p> tags, so we catch them
       const regex = new RegExp(`<p>%%%THINK_BLOCK_${i}%%%<\\/p>|%%%THINK_BLOCK_${i}%%%`, 'g');
-      html = html.replace(regex, detailsHtml);
+      html = html.replace(regex, () => detailsHtml);
     }
     
     return html;
@@ -385,24 +412,15 @@
       const data = await res.json();
       const rawText = data.content;
 
-      // Extract thought process if it exists
-      let thoughtText = "";
-      let messageText = rawText;
-
-      const thinkRegex = /<think>([\s\S]*?)<\/think>/;
-      const match = rawText.match(thinkRegex);
-      if (match) {
-        thoughtText = match[1].trim();
-        messageText = rawText.replace(thinkRegex, '').trim();
+      // Extract thought process safely
+      const extracted = extractThoughtsSafely(rawText);
+      let thoughtText = extracted.thoughts.map(t => t.content.trim()).join('\n\n');
+      
+      let messageText = extracted.processed;
+      for (let i = 0; i < extracted.thoughts.length; i++) {
+         messageText = messageText.replace(new RegExp(`\\s*%%%THINK_BLOCK_${i}%%%\\s*`), '\n\n');
       }
-
-      // We might have an unclosed think tag if it was interrupted
-      const unclosedThinkRegex = /<think>([\s\S]*)$/;
-      if (!match && rawText.match(unclosedThinkRegex)) {
-        const unclosedMatch = rawText.match(unclosedThinkRegex);
-        thoughtText = unclosedMatch[1].trim();
-        messageText = rawText.replace(unclosedThinkRegex, '').trim();
-      }
+      messageText = messageText.trim();
 
       document.getElementById('edit-msg-id').value = messageId;
       document.getElementById('edit-msg-chat-id').value = chatId;

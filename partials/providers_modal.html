@@ -80,11 +80,16 @@
         <!-- Vertex Dynamic Fields -->
         <div id="new-prov-vertex-fields" class="hidden flex-col gap-3">
           <div class="form-group mb-0">
+            <label>Project ID</label>
+            <input type="text" name="vertex_project_id" id="new-prov-vertex-project-id" placeholder="Optional (Uses ADC if blank)" class="text-sm form-control w-full">
+          </div>
+          <div class="form-group mb-0">
             <label>Region</label>
             {{ custom_select(
                  name="vertex_region",
                  id="new-prov-vertex-region",
                  options=[
+                   {"value": "global", "label": "Global"},
                    {"value": "us-central1", "label": "us-central1 (Iowa)"},
                    {"value": "us-east4", "label": "us-east4 (N. Virginia)"},
                    {"value": "us-west1", "label": "us-west1 (Oregon)"},
@@ -98,7 +103,7 @@
                    {"value": "asia-northeast3", "label": "asia-northeast3 (Seoul)"},
                    {"value": "asia-southeast1", "label": "asia-southeast1 (Singapore)"}
                  ],
-                 selected="us-central1",
+                 selected="global",
                  extra_classes="form-control text-sm w-full"
                )
             }}
@@ -162,11 +167,16 @@
           
           {% if prov.type == 'google_vertex' %}
           <div class="form-group mb-0">
+            <label class="text-xs">Project ID</label>
+            <input type="text" name="vertex_project_id" id="edit-prov-vertex-project-id-{{ prov.id }}" value="{{ params.get('vertex_project_id', '') }}" class="text-sm form-control w-full" placeholder="Optional (Uses ADC if blank)">
+          </div>
+          <div class="form-group mb-0">
             <label class="text-xs">Region</label>
             {{ custom_select(
                  name="vertex_region",
                  id="edit-prov-vertex-region-" ~ prov.id,
                  options=[
+                   {"value": "global", "label": "Global"},
                    {"value": "us-central1", "label": "us-central1 (Iowa)"},
                    {"value": "us-east4", "label": "us-east4 (N. Virginia)"},
                    {"value": "us-west1", "label": "us-west1 (Oregon)"},
@@ -180,7 +190,7 @@
                    {"value": "asia-northeast3", "label": "asia-northeast3 (Seoul)"},
                    {"value": "asia-southeast1", "label": "asia-southeast1 (Singapore)"}
                  ],
-                 selected=params.get('vertex_region', 'us-central1'),
+                 selected=params.get('vertex_region', 'global'),
                  extra_classes="form-control text-sm w-full"
                )
             }}
@@ -454,8 +464,12 @@ async function forceFetchModels() {
   let params = {};
   if (type === 'google_vertex') {
     const regionInput = document.getElementById('edit-prov-vertex-region-' + prefix) || document.getElementById('new-prov-vertex-region');
+    const projectInput = document.getElementById('edit-prov-vertex-project-id-' + prefix) || document.getElementById('new-prov-vertex-project-id');
     if (regionInput) {
        params.vertex_region = regionInput.value;
+    }
+    if (projectInput) {
+       params.vertex_project_id = projectInput.value;
     }
   }
 
@@ -679,7 +693,7 @@ function toggleProviderEdit(id){
 
 function extractData(form) {
   const data = Object.fromEntries(new FormData(form));
-  if(data.api_key === '__HIDDEN__') delete data.api_key;
+  if(data.api_key === '__HIDDEN__' || data.api_key === '') delete data.api_key;
   
   const type = data.type || form.querySelector('input[name="type"]').value;
   
@@ -705,6 +719,7 @@ function extractData(form) {
     let params = {};
     try { params = JSON.parse(data.params || '{}'); } catch(e){}
     if (data.vertex_region) params.vertex_region = data.vertex_region;
+    if (data.vertex_project_id) params.vertex_project_id = data.vertex_project_id;
     data.params = params;
     data.base_url = '';
   } else if (type === 'google_aistudio' || type === 'deepseek' || type === 'moonshot') {
@@ -718,6 +733,7 @@ function extractData(form) {
   delete data.or_route;
   delete data.or_quant;
   delete data.vertex_region;
+  delete data.vertex_project_id;
   
   return data;
 }

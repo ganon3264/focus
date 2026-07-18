@@ -56,6 +56,11 @@ async def update_provider(
 ):
     allowed = {"name", "base_url", "api_key", "model", "params_json"}
     updates = {k: v for k, v in body.items() if k in allowed}
+    
+    # Don't overwrite api_key with empty string (unless explicitly clearing it, which the UI doesn't support for existing keys)
+    if "api_key" in updates and not updates["api_key"]:
+        del updates["api_key"]
+        
     if "params" in body:
         updates["params_json"] = json.dumps(body["params"])
     if not updates:
@@ -128,44 +133,62 @@ async def fetch_models(body: FetchModelsRequest, db: aiosqlite.Connection = Depe
         if body.type == "openrouter":
             url = "https://openrouter.ai/api/v1/models"
             headers = {}
-        else:
-            url = f"{base_url}/models"
-            headers = provider._extra_headers()
-            if api_key and "Authorization" not in headers:
-                headers["Authorization"] = f"Bearer {api_key}"
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(url, headers=headers, timeout=10.0)
+                resp.raise_for_status()
+                data = resp.json()
                 
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(url, headers=headers, timeout=10.0)
-            resp.raise_for_status()
-            data = resp.json()
-            
-            # Normalize response
             models = []
             if "data" in data and isinstance(data["data"], list):
                 models = data["data"]
             elif isinstance(data, list):
                 models = data
-            else:
-                # Attempt to extract anything that looks like a model ID
-                models = []
+
+        elif body.type == "google_vertex":
+            vertex_models = await provider.client.aio.models.list()
+            models = []
+            async for m in vertex_models:
+                # Filter for relevant models if desired, or return all
+                model_id = m.name.split("/")[-1] if "/" in m.name else m.name
+                models.append({"id": model_id, "name": model_id})
+
+        else:
+            url = f"{base_url}/models"
+            headers = provider._build_headers()
+            if hasattr(provider, "_extra_headers"):
+                headers.update(provider._extra_headers())
                 
-            # Filter and simplify for frontend
-            simplified_models = []
-            for m in models:
-                if isinstance(m, dict) and "id" in m:
-                    simplified_models.append({
-                        "id": m["id"],
-                        "name": m.get("name", m["id"]),
-                        "context_length": m.get("context_length", None),
-                        "pricing": m.get("pricing", None)
-                    })
-            
-            # Sort alphabetically by name or ID
-            simplified_models.sort(key=lambda x: x["name"].lower() if x["name"] else x["id"].lower())
-            
-            _MODELS_CACHE[cache_key] = simplified_models
-            _MODELS_CACHE_TIME[cache_key] = now
-            return {"data": simplified_models}
+            if api_key and "Authorization" not in headers:
+                headers["Authorization"] = f"Bearer {api_key}"
+                
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(url, headers=headers, timeout=10.0)
+                resp.raise_for_status()
+                data = resp.json()
+                
+            models = []
+            if "data" in data and isinstance(data["data"], list):
+                models = data["data"]
+            elif isinstance(data, list):
+                models = data
+
+        # Filter and simplify for frontend
+        simplified_models = []
+        for m in models:
+            if isinstance(m, dict) and "id" in m:
+                simplified_models.append({
+                    "id": m["id"],
+                    "name": m.get("name", m["id"]),
+                    "context_length": m.get("context_length", None),
+                    "pricing": m.get("pricing", None)
+                })
+        
+        # Sort alphabetically by name or ID
+        simplified_models.sort(key=lambda x: x["name"].lower() if x["name"] else x["id"].lower())
+        
+        _MODELS_CACHE[cache_key] = simplified_models
+        _MODELS_CACHE_TIME[cache_key] = now
+        return {"data": simplified_models}
             
     except Exception as e:
         raise HTTPException(500, f"Failed to fetch models: {str(e)}")
