@@ -90,6 +90,7 @@ def check() -> int:
 
 def sync() -> int:
     VENDOR_DIR.mkdir(parents=True, exist_ok=True)
+    BIN_DIR.mkdir(parents=True, exist_ok=True)
 
     print(f"Vendor directory: {VENDOR_DIR}")
     print()
