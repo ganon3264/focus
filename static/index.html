@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pyvern</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #1a1a1f;
+      --surface:  #24242b;
+      --border:   #35353f;
+      --text:     #d4d4dc;
+      --muted:    #7a7a8c;
+      --accent:   #7c6af7;
+      --user-bg:  #2b2b38;
+      --asst-bg:  #1f1f28;
+      --danger:   #c0392b;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, sans-serif;
+      font-size: 14px;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── Sidebar ── */
+    #sidebar {
+      width: 260px;
+      min-width: 260px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    #sidebar header {
+      padding: 16px;
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--accent);
+      border-bottom: 1px solid var(--border);
+      letter-spacing: 0.05em;
+    }
+
+    .sidebar-section {
+      padding: 10px 12px 6px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+    }
+
+    .sidebar-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 4px 8px;
+    }
+
+    .sidebar-item {
+      padding: 8px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: background 0.1s;
+    }
+    .sidebar-item:hover { background: var(--border); }
+    .sidebar-item.active { background: var(--accent); color: #fff; }
+
+    .sidebar-item img {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: var(--border);
+    }
+
+    .sidebar-actions {
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ── Buttons / inputs ── */
+    button, select, input, textarea {
+      font-family: inherit;
+      font-size: 13px;
+      color: var(--text);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 10px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    button { cursor: pointer; }
+    button:hover { border-color: var(--accent); }
+    button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    button.primary:hover { opacity: 0.9; }
+    button.danger { border-color: var(--danger); color: var(--danger); }
+    button.danger:hover { background: var(--danger); color: #fff; }
+    input:focus, textarea:focus, select:focus { border-color: var(--accent); }
+    select option { background: var(--surface); }
+
+    /* ── Main area ── */
+    #main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    #topbar {
+      padding: 10px 16px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    #topbar select { flex: 0 0 auto; min-width: 160px; }
+    #topbar span { color: var(--muted); font-size: 12px; }
+
+    /* ── Chat ── */
+    #chat-log {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .msg {
+      max-width: 80%;
+      padding: 12px 16px;
+      border-radius: 10px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-word;
+      position: relative;
+    }
+    .msg.user     { background: var(--user-bg); align-self: flex-end; border: 1px solid var(--border); }
+    .msg.assistant { background: var(--asst-bg); align-self: flex-start; border: 1px solid var(--border); }
+    .msg.system   { background: transparent; align-self: center; color: var(--muted); font-size: 12px; font-style: italic; }
+
+    .msg-meta {
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    .msg-actions {
+      display: none;
+      gap: 6px;
+      margin-top: 6px;
+    }
+    .msg:hover .msg-actions { display: flex; }
+    .msg-actions button {
+      padding: 3px 8px;
+      font-size: 11px;
+      border-radius: 4px;
+    }
+
+    .swipe-info {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    /* ── Input area ── */
+    #input-area {
+      padding: 12px 16px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    #input-row {
+      display: flex;
+      gap: 8px;
+      align-items: flex-end;
+    }
+
+    #user-input {
+      flex: 1;
+      resize: none;
+      min-height: 44px;
+      max-height: 160px;
+      line-height: 1.5;
+    }
+
+    #send-btn { padding: 8px 18px; align-self: flex-end; }
+
+    /* ── Panels (config) ── */
+    #panel-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    #panel-overlay.open { display: flex; }
+
+    #panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+      width: min(480px, 95vw);
+      max-height: 80vh;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    #panel h2 { font-size: 16px; color: var(--accent); }
+
+    .form-group { display: flex; flex-direction: column; gap: 4px; }
+    .form-group label { font-size: 12px; color: var(--muted); }
+    .form-group input, .form-group select, .form-group textarea {
+      width: 100%;
+    }
+
+    .panel-btns { display: flex; gap: 8px; justify-content: flex-end; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<div id="sidebar">
+  <header>🐉 Pyvern</header>
+
+  <div class="sidebar-section">Chats</div>
+  <div class="sidebar-list" id="chat-list"></div>
+
+  <div class="sidebar-actions">
+    <button id="btn-new-chat">+ New Chat</button>
+    <button id="btn-import-char">Import Card (.png)</button>
+    <button id="btn-settings">⚙ Settings</button>
+  </div>
+</div>
+
+<!-- Main -->
+<div id="main">
+  <div id="topbar">
+    <select id="sel-provider"><option value="">— provider —</option></select>
+    <select id="sel-preset"><option value="">— no preset —</option></select>
+    <select id="sel-char"><option value="">— no character —</option></select>
+    <span id="topbar-info"></span>
+  </div>
+
+  <div id="chat-log">
+    <div class="msg system">Select or create a chat to begin.</div>
+  </div>
+
+  <div id="input-area">
+    <div id="input-row">
+      <textarea id="user-input" placeholder="Type a message…" rows="2"></textarea>
+      <button id="send-btn" class="primary">Send</button>
+    </div>
+  </div>
+</div>
+
+<!-- Panel overlay -->
+<div id="panel-overlay">
+  <div id="panel" id="panel-inner"></div>
+</div>
+
+<!-- Hidden file input -->
+<input type="file" id="file-import" accept=".png" style="display:none">
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+const state = {
+  chats: [],
+  characters: [],
+  presets: [],
+  providers: [],
+  activeChatId: null,
+  streaming: false,
+};
+
+// ── API helpers ───────────────────────────────────────────────────────────────
+async function api(method, path, body) {
+  const opts = { method, headers: { "Content-Type": "application/json" } };
+  if (body !== undefined) opts.body = JSON.stringify(body);
+  const r = await fetch("/api" + path, opts);
+  if (!r.ok) throw new Error(await r.text());
+  if (r.status === 204) return null;
+  return r.json();
+}
+
+// ── Bootstrap ─────────────────────────────────────────────────────────────────
+async function boot() {
+  await Promise.all([loadChats(), loadCharacters(), loadPresets(), loadProviders()]);
+}
+
+async function loadChats() {
+  state.chats = await api("GET", "/chats");
+  renderChatList();
+}
+
+async function loadCharacters() {
+  state.characters = await api("GET", "/characters");
+  renderCharSelect();
+}
+
+async function loadPresets() {
+  state.presets = await api("GET", "/presets");
+  renderPresetSelect();
+}
+
+async function loadProviders() {
+  state.providers = await api("GET", "/providers");
+  renderProviderSelect();
+}
+
+// ── Render helpers ────────────────────────────────────────────────────────────
+function renderChatList() {
+  const el = document.getElementById("chat-list");
+  el.innerHTML = "";
+  for (const c of state.chats) {
+    const char = state.characters.find(x => x.id === c.character_id);
+    const item = document.createElement("div");
+    item.className = "sidebar-item" + (c.id === state.activeChatId ? " active" : "");
+    item.dataset.id = c.id;
+    if (char?.image_path) {
+      const img = document.createElement("img");
+      img.src = "/" + char.image_path;
+      item.appendChild(img);
+    }
+    const name = document.createElement("span");
+    name.textContent = c.title || "New Chat";
+    item.appendChild(name);
+    item.addEventListener("click", () => openChat(c.id));
+    el.appendChild(item);
+  }
+}
+
+function renderCharSelect() {
+  const sel = document.getElementById("sel-char");
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— no character —</option>';
+  for (const c of state.characters) {
+    const o = document.createElement("option");
+    o.value = c.id;
+    o.textContent = c.name;
+    sel.appendChild(o);
+  }
+  if (cur) sel.value = cur;
+}
+
+function renderPresetSelect() {
+  const sel = document.getElementById("sel-preset");
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— no preset —</option>';
+  for (const p of state.presets) {
+    const o = document.createElement("option");
+    o.value = p.id;
+    o.textContent = p.name;
+    sel.appendChild(o);
+  }
+  if (cur) sel.value = cur;
+}
+
+function renderProviderSelect() {
+  const sel = document.getElementById("sel-provider");
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— provider —</option>';
+  for (const p of state.providers) {
+    const o = document.createElement("option");
+    o.value = p.id;
+    o.textContent = p.name;
+    sel.appendChild(o);
+  }
+  if (cur) sel.value = cur;
+}
+
+// ── Chat ──────────────────────────────────────────────────────────────────────
+async function openChat(id) {
+  state.activeChatId = id;
+  const chat = await api("GET", `/chats/${id}`);
+
+  // Sync topbar selects
+  document.getElementById("sel-char").value = chat.character_id || "";
+  document.getElementById("sel-preset").value = chat.preset_id || "";
+
+  renderChatList();
+  renderMessages(chat.messages);
+}
+
+function renderMessages(messages) {
+  const log = document.getElementById("chat-log");
+  log.innerHTML = "";
+  for (const m of messages) {
+    appendMessage(m);
+  }
+  log.scrollTop = log.scrollHeight;
+}
+
+function appendMessage(m) {
+  const log = document.getElementById("chat-log");
+  const wrap = document.createElement("div");
+  wrap.className = `msg ${m.role}`;
+  wrap.dataset.id = m.id;
+
+  const meta = document.createElement("div");
+  meta.className = "msg-meta";
+  meta.textContent = m.role === "user" ? "You" : (getCurrentCharName() || "Assistant");
+  wrap.appendChild(meta);
+
+  const body = document.createElement("div");
+  body.className = "msg-body";
+  body.textContent = m.content || "";
+  wrap.appendChild(body);
+
+  if (m.role === "assistant") {
+    const swipeInfo = document.createElement("div");
+    swipeInfo.className = "swipe-info";
+    swipeInfo.textContent = m.variant_count > 1 ? `variant ${(m.active_index || 0) + 1}/${m.variant_count}` : "";
+    wrap.appendChild(swipeInfo);
+  }
+
+  const actions = document.createElement("div");
+  actions.className = "msg-actions";
+
+  if (m.role === "assistant") {
+    const swipeL = makeBtn("◀", () => swipe(m.id, "prev", wrap));
+    const swipeR = makeBtn("▶", () => swipe(m.id, "next", wrap));
+    actions.appendChild(swipeL);
+    actions.appendChild(swipeR);
+  }
+
+  const editBtn = makeBtn("Edit", () => editMessage(m.id, wrap));
+  const delBtn  = makeBtn("Delete", async () => {
+    await api("DELETE", `/chats/${state.activeChatId}/messages/${m.id}`);
+    await openChat(state.activeChatId);
+  });
+  delBtn.classList.add("danger");
+  actions.appendChild(editBtn);
+  actions.appendChild(delBtn);
+  wrap.appendChild(actions);
+
+  log.appendChild(wrap);
+}
+
+function makeBtn(label, fn) {
+  const b = document.createElement("button");
+  b.textContent = label;
+  b.addEventListener("click", fn);
+  return b;
+}
+
+function getCurrentCharName() {
+  const id = document.getElementById("sel-char").value;
+  return state.characters.find(c => c.id === id)?.name || null;
+}
+
+async function swipe(msgId, direction, wrap) {
+  const res = await api("POST", `/chats/${state.activeChatId}/messages/${msgId}/swipe`, { direction });
+  if (res.needs_generation) {
+    // New swipe → regenerate
+    await sendMessage(null, msgId);
+    return;
+  }
+  wrap.querySelector(".msg-body").textContent = res.content;
+  const si = wrap.querySelector(".swipe-info");
+  if (si) si.textContent = `variant ${res.variant_index + 1}`;
+}
+
+async function editMessage(msgId, wrap) {
+  const current = wrap.querySelector(".msg-body").textContent;
+  const ta = document.createElement("textarea");
+  ta.value = current;
+  ta.style.cssText = "width:100%;min-height:80px;margin-top:6px;";
+  const saveBtn = makeBtn("Save", async () => {
+    await api("PATCH", `/chats/${state.activeChatId}/messages/${msgId}`, { content: ta.value });
+    wrap.querySelector(".msg-body").textContent = ta.value;
+    ta.remove(); saveBtn.remove(); cancelBtn.remove();
+  });
+  saveBtn.classList.add("primary");
+  const cancelBtn = makeBtn("Cancel", () => { ta.remove(); saveBtn.remove(); cancelBtn.remove(); });
+  wrap.appendChild(ta);
+  wrap.appendChild(saveBtn);
+  wrap.appendChild(cancelBtn);
+  ta.focus();
+}
+
+// ── Send ──────────────────────────────────────────────────────────────────────
+async function sendMessage(userText, regenMsgId = null) {
+  if (state.streaming) return;
+
+  const providerId = document.getElementById("sel-provider").value;
+  if (!providerId) { alert("Select a provider first."); return; }
+
+  if (!state.activeChatId) {
+    await createNewChat();
+  }
+
+  // Persist character/preset choice to chat
+  const charId   = document.getElementById("sel-char").value || null;
+  const presetId = document.getElementById("sel-preset").value || null;
+  await api("PATCH", `/chats/${state.activeChatId}`, { character_id: charId, preset_id: presetId });
+
+  if (userText) {
+    const fakeMeta = { id: "pending-user", role: "user", content: userText, active_index: 0, variant_count: 1 };
+    appendMessage(fakeMeta);
+    document.getElementById("chat-log").scrollTop = 9999;
+  }
+
+  // Streaming assistant bubble
+  const asstWrap = document.createElement("div");
+  asstWrap.className = "msg assistant";
+  const asstMeta = document.createElement("div");
+  asstMeta.className = "msg-meta";
+  asstMeta.textContent = getCurrentCharName() || "Assistant";
+  const asstBody = document.createElement("div");
+  asstBody.className = "msg-body";
+  asstBody.textContent = "…";
+  asstWrap.appendChild(asstMeta);
+  asstWrap.appendChild(asstBody);
+  document.getElementById("chat-log").appendChild(asstWrap);
+  document.getElementById("chat-log").scrollTop = 9999;
+
+  state.streaming = true;
+  document.getElementById("send-btn").disabled = true;
+
+  try {
+    const body = {
+      chat_id: state.activeChatId,
+      provider_id: providerId,
+      user_message: userText || "",
+      regenerate: !!regenMsgId,
+    };
+    const resp = await fetch("/api/stream", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+    const reader = resp.body.getReader();
+    const dec = new TextDecoder();
+    let buf = "";
+    asstBody.textContent = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      const lines = buf.split("\n");
+      buf = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        const ev = JSON.parse(line.slice(6));
+        if (ev.token) {
+          asstBody.textContent += ev.token;
+          document.getElementById("chat-log").scrollTop = 9999;
+        }
+        if (ev.done) {
+          asstWrap.dataset.id = ev.message_id;
+        }
+        if (ev.error) {
+          asstBody.textContent = `[Error: ${ev.error}]`;
+        }
+      }
+    }
+  } finally {
+    state.streaming = false;
+    document.getElementById("send-btn").disabled = false;
+  }
+}
+
+async function createNewChat() {
+  const charId   = document.getElementById("sel-char").value || null;
+  const presetId = document.getElementById("sel-preset").value || null;
+  const charName = getCurrentCharName();
+  const res = await api("POST", "/chats", {
+    character_id: charId,
+    preset_id: presetId,
+    title: charName ? `Chat with ${charName}` : "New Chat",
+  });
+  state.activeChatId = res.id;
+  await loadChats();
+}
+
+// ── New chat button ───────────────────────────────────────────────────────────
+document.getElementById("btn-new-chat").addEventListener("click", async () => {
+  await createNewChat();
+  document.getElementById("chat-log").innerHTML = "";
+});
+
+// ── Send on button / Ctrl+Enter ───────────────────────────────────────────────
+document.getElementById("send-btn").addEventListener("click", () => {
+  const text = document.getElementById("user-input").value.trim();
+  if (!text) return;
+  document.getElementById("user-input").value = "";
+  sendMessage(text);
+});
+
+document.getElementById("user-input").addEventListener("keydown", e => {
+  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    document.getElementById("send-btn").click();
+  }
+});
+
+// ── Card import ───────────────────────────────────────────────────────────────
+document.getElementById("btn-import-char").addEventListener("click", () => {
+  document.getElementById("file-import").click();
+});
+
+document.getElementById("file-import").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const fd = new FormData();
+  fd.append("file", file);
+  const r = await fetch("/api/characters/import", { method: "POST", body: fd });
+  if (!r.ok) { alert("Import failed: " + await r.text()); return; }
+  const c = await r.json();
+  alert(`Imported: ${c.name}`);
+  await loadCharacters();
+  e.target.value = "";
+});
+
+// ── Settings panel ────────────────────────────────────────────────────────────
+document.getElementById("btn-settings").addEventListener("click", () => openSettings());
+
+function openSettings() {
+  const panel = document.getElementById("panel");
+  panel.innerHTML = `
+    <h2>Settings</h2>
+    <div class="form-group">
+      <label>Add Provider</label>
+      <input id="prov-name" placeholder="Name (e.g. local llama.cpp)" />
+      <select id="prov-type">
+        <option value="openai_compat">OpenAI-compat</option>
+        <option value="openrouter">OpenRouter</option>
+      </select>
+      <input id="prov-url" placeholder="Base URL (e.g. http://localhost:8080/v1)" />
+      <input id="prov-key" placeholder="API key (optional for local)" type="password" />
+      <input id="prov-model" placeholder="Model name" />
+      <button class="primary" id="prov-save">Add Provider</button>
+    </div>
+    <hr style="border-color:var(--border)">
+    <div class="form-group">
+      <label>Add Preset</label>
+      <input id="preset-name" placeholder="Preset name" />
+      <button class="primary" id="preset-save">Create Preset</button>
+    </div>
+    <hr style="border-color:var(--border)">
+    <div id="prov-list"></div>
+    <div class="panel-btns"><button id="close-panel">Close</button></div>
+  `;
+
+  // Populate existing providers
+  const provList = panel.querySelector("#prov-list");
+  for (const p of state.providers) {
+    const row = document.createElement("div");
+    row.style.cssText = "display:flex;gap:8px;align-items:center;margin-bottom:6px;";
+    row.innerHTML = `<span style="flex:1">${p.name} <small style="color:var(--muted)">(${p.type})</small></span>`;
+    const del = makeBtn("Delete", async () => {
+      await api("DELETE", `/providers/${p.id}`);
+      await loadProviders();
+      row.remove();
+    });
+    del.classList.add("danger");
+    row.appendChild(del);
+    provList.appendChild(row);
+  }
+
+  panel.querySelector("#prov-save").addEventListener("click", async () => {
+    const body = {
+      name:     panel.querySelector("#prov-name").value.trim(),
+      type:     panel.querySelector("#prov-type").value,
+      base_url: panel.querySelector("#prov-url").value.trim() || null,
+      api_key:  panel.querySelector("#prov-key").value.trim() || null,
+      model:    panel.querySelector("#prov-model").value.trim(),
+    };
+    if (!body.name || !body.model) { alert("Name and model required."); return; }
+    await api("POST", "/providers", body);
+    await loadProviders();
+    alert("Provider added.");
+  });
+
+  panel.querySelector("#preset-save").addEventListener("click", async () => {
+    const name = panel.querySelector("#preset-name").value.trim();
+    if (!name) { alert("Enter a preset name."); return; }
+    await api("POST", "/presets", { name });
+    await loadPresets();
+    alert("Preset created.");
+  });
+
+  panel.querySelector("#close-panel").addEventListener("click", closePanel);
+  document.getElementById("panel-overlay").classList.add("open");
+}
+
+document.getElementById("panel-overlay").addEventListener("click", e => {
+  if (e.target === document.getElementById("panel-overlay")) closePanel();
+});
+
+function closePanel() {
+  document.getElementById("panel-overlay").classList.remove("open");
+}
+
+// ── Start ─────────────────────────────────────────────────────────────────────
+boot();
+</script>
+</body>
+</html>
