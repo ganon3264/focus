@@ -57,7 +57,8 @@ CREATE TABLE IF NOT EXISTS personas (
     name        TEXT NOT NULL,
     description TEXT NOT NULL DEFAULT '',
     avatar_path TEXT,
-    created_at  TEXT NOT NULL
+    created_at  TEXT NOT NULL,
+    is_deleted  INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS preset_blocks (
@@ -229,4 +230,11 @@ async def init_db():
                     PRIMARY KEY (preset_id, provider_id)
                 )
             """)
+
+        # v0.5: is_deleted for personas
+        cols = await db.execute("PRAGMA table_info(personas)")
+        col_names = {row[1] for row in await cols.fetchall()}
+        if "is_deleted" not in col_names:
+            await db.execute("ALTER TABLE personas ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0")
+
         await db.commit()

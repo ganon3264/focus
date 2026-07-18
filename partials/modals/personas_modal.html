@@ -1,5 +1,5 @@
 <div class="flex flex-col h-full">
-  {% from "macros.html" import icon_edit, icon_trash, icon_search, icon_plus, icon_grid %}
+  {% from "macros.html" import icon_edit, icon_trash, icon_search, icon_plus, icon_grid, icon_close %}
   <div class="flex flex-col gap-3 pb-4 border-b" style="border-color: var(--border)">
     <h3 class="sidebar-title mb-1">Tools</h3>
     <div class="flex gap-2 h-10">
@@ -69,8 +69,6 @@
   </div>
 
   <div class="flex-1 overflow-y-auto min-h-0 py-3">
-    <h3 class="sidebar-title mb-3">Select Persona</h3>
-
     {% if not personas %}
     <div
       class="text-muted text-center text-sm py-6 border border-dashed border-(--border) rounded-lg"
@@ -90,14 +88,43 @@
       {% endfor %}
     </div>
   </div>
+
+  <div class="flex justify-end pt-3 border-t" style="border-color: var(--border)">
+    <button class="btn btn-secondary btn-sm flex items-center gap-2" onclick="openPersonaTrashModal()">
+      <span>{{ icon_trash() }}</span> Trash Bin
+    </button>
+  </div>
 </div>
 
 <script>
   function promptDeletePersona(pid, pName) {
-    window.customConfirm(`Delete persona <strong>${pName}</strong>?`, function () {
-      fetch(`/api/personas/${pid}`, {
-        method: 'DELETE',
-      }).then((r) => {
+    const html = `
+    <div class="mb-4 text-sm" style="color:var(--text);">Delete persona <strong>${pName}</strong>?</div>
+    <div class="flex flex-col gap-3">
+      <label class="flex items-start gap-3 cursor-pointer p-3 rounded-lg hover:bg-(--surface-3) transition-colors border border-(--border)">
+        <div class="mt-0.5">
+          <input type="radio" name="persona_delete_option" value="soft" checked class="w-4 h-4 cursor-pointer" style="accent-color: var(--accent);">
+        </div>
+        <div class="flex flex-col">
+          <span class="text-sm font-bold" style="color:var(--text);">Move Persona to Trash</span>
+          <span class="text-xs text-muted">You can restore the persona later.</span>
+        </div>
+      </label>
+      <label class="flex items-start gap-3 cursor-pointer p-3 rounded-lg hover:bg-(--surface-3) transition-colors border border-(--border)">
+        <div class="mt-0.5">
+          <input type="radio" name="persona_delete_option" value="hard" class="w-4 h-4 cursor-pointer" style="accent-color: var(--accent);">
+        </div>
+        <div class="flex flex-col">
+          <span class="text-sm font-bold" style="color:var(--text);">Delete Forever</span>
+          <span class="text-xs text-muted">Permanently delete this persona. Cannot be undone.</span>
+        </div>
+      </label>
+    </div>
+  `;
+    window.customConfirm(html, function () {
+      const selected = document.querySelector('input[name="persona_delete_option"]:checked').value;
+      const url = selected === 'hard' ? `/api/personas/${pid}?hard=true` : `/api/personas/${pid}`;
+      fetch(url, { method: 'DELETE' }).then((r) => {
         if (r.ok) {
           var card = document.getElementById('persona-card-' + pid);
           if (card) card.remove();
@@ -109,6 +136,78 @@
       });
     });
   }
+
+  function openPersonaTrashModal() {
+    fetch('/api/personas/trash')
+      .then((r) => r.json())
+      .then((personas) => {
+        let html = `<div class="flex flex-col gap-2 max-h-[60vh] overflow-y-auto pr-1">`;
+        if (personas.length === 0) {
+          html += `<div class="text-muted text-center py-6 border border-dashed border-(--border) rounded-lg">Trash is empty.</div>`;
+        } else {
+          personas.forEach((p) => {
+            html += `
+            <div class="flex justify-between items-center p-3 border border-(--border) rounded-lg bg-(--surface-2)">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full overflow-hidden bg-(--surface-3) flex items-center justify-center border border-(--border)">
+                  ${p.avatar_path ? `<img src="/${p.avatar_path}" class="w-full h-full object-cover">` : `<span class="text-sm font-bold text-muted">${p.name.charAt(0)}</span>`}
+                </div>
+                <span class="font-bold text-sm" style="color:var(--text);">${p.name}</span>
+              </div>
+              <div class="flex gap-2">
+                <button class="btn btn-secondary btn-sm" onclick="restorePersona('${p.id}')">Restore</button>
+                <button class="btn btn-danger btn-sm" onclick="hardDeletePersona('${p.id}', '${p.name.replace(/'/g, "\\'")}')">Delete Forever</button>
+              </div>
+            </div>
+          `;
+          });
+        }
+        html += `</div>`;
+
+        const modalHtml = `
+        <div id="persona-trash-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Trash" style="z-index: var(--z-overlay);" onclick="if(event.target===this) this.remove()">
+          <div class="modal-content" style="max-width: 500px; width: 90vw;">
+            <div class="modal-header" style="margin-bottom: 1rem;">
+              <div class="modal-title">Trash Bin</div>
+               <button class="btn btn-secondary btn-sm" onclick="document.getElementById('persona-trash-modal').remove()" aria-label="Close">{{ icon_close(16) }}</button>
+            </div>
+            <div id="persona-trash-modal-body">
+              ${html}
+            </div>
+          </div>
+        </div>
+      `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+      });
+  }
+
+  window.restorePersona = function (personaId) {
+    fetch('/api/personas/' + personaId + '/restore', { method: 'POST' }).then((r) => {
+      if (r.ok) {
+        const modal = document.getElementById('persona-trash-modal');
+        if (modal) modal.remove();
+        htmx.ajax('GET', '/partials/personas-modal', {
+          target: '#personas-modal-body',
+          swap: 'innerHTML',
+        });
+      }
+    });
+  };
+
+  window.hardDeletePersona = function (personaId, personaName) {
+    window.customConfirm(
+      `Permanently delete <strong>${personaName}</strong>? This cannot be undone.`,
+      function () {
+        fetch('/api/personas/' + personaId + '?hard=true', { method: 'DELETE' }).then((r) => {
+          if (r.ok) {
+            const modal = document.getElementById('persona-trash-modal');
+            if (modal) modal.remove();
+            openPersonaTrashModal();
+          }
+        });
+      },
+    );
+  };
 
   function selectPersonaModal(pid, pname) {
     StateManager.setPersona(pid);

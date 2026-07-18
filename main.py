@@ -95,6 +95,7 @@ async def clean_database(db: aiosqlite.Connection = Depends(get_db)):
     counts = {}
     counts["chats"] = (await db.execute("DELETE FROM chats WHERE is_deleted = 1")).rowcount
     counts["characters"] = (await db.execute("DELETE FROM characters WHERE is_deleted = 1")).rowcount
+    counts["personas"] = (await db.execute("DELETE FROM personas WHERE is_deleted = 1")).rowcount
     counts["block_images"] = (
         await db.execute("""
         DELETE FROM block_images WHERE block_id NOT IN (

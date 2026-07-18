@@ -3,6 +3,13 @@ window.api = {
   chat: function (id) {
     return '/api/chats/' + id;
   },
+  chatDelete: function (id) {
+    return '/api/chats/' + id;
+  },
+  chatRestore: function (id) {
+    return '/api/chats/' + id + '/restore';
+  },
+  chatTrash: '/api/chats/trash',
   chatAttachments: function (chatId) {
     return '/api/chats/' + chatId + '/attachments';
   },
@@ -98,6 +105,9 @@ window.api = {
   providerORModels: '/api/providers/openrouter/models',
   providerOREndpoint: function (modelId) {
     return '/api/providers/openrouter/endpoints/' + encodeURIComponent(modelId);
+  },
+  providerBalance: function (id) {
+    return '/api/providers/' + id + '/balance';
   },
   providerSecrets: '/api/providers/secrets',
   providerSecret: function (name) {

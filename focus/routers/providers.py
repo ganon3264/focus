@@ -212,6 +212,62 @@ async def delete_secret(name: str, db: aiosqlite.Connection = Depends(get_db)):
     return {"ok": True}
 
 
+BALANCE_CONFIG = {
+    "openrouter": {
+        "url": "https://openrouter.ai/api/v1/credits",
+        "parse": lambda data: {
+            "balances": [{
+                "amount": data["data"]["total_credits"] - data["data"]["total_usage"],
+                "currency": "USD",
+            }]
+        },
+    },
+    "deepseek": {
+        "url": "https://api.deepseek.com/user/balance",
+        "parse": lambda data: {
+            "balances": [
+                {"amount": float(i["total_balance"]), "currency": i["currency"]}
+                for i in (data.get("balance_infos") or [])
+            ]
+        },
+    },
+    "moonshot": {
+        "url": "https://api.moonshot.ai/v1/users/me/balance",
+        "parse": lambda data: {
+            "balances": [{
+                "amount": data["data"]["available_balance"],
+                "currency": "USD",
+            }]
+        },
+    },
+}
+
+
+@router.get("/{provider_id}/balance")
+async def get_provider_balance(provider_id: str, db: aiosqlite.Connection = Depends(get_db)):
+    async with db.execute("SELECT * FROM providers WHERE id = ?", (provider_id,)) as cur:
+        row = await cur.fetchone()
+    if not row:
+        raise HTTPException(404, "Provider not found")
+
+    d = dict(row)
+    cfg = BALANCE_CONFIG.get(d["type"])
+    if not cfg:
+        raise HTTPException(400, f"Balance not supported for provider type: {d['type']}")
+
+    api_key = await resolve_secret_key(db, d.get("api_key") or "")
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            cfg["url"],
+            headers={"Authorization": f"Bearer {api_key}"},
+            timeout=10,
+        )
+        if resp.status_code == 401:
+            return {"balances": []}
+        resp.raise_for_status()
+        return cfg["parse"](resp.json())
+
+
 async def get_openrouter_model_modalities(model_id: str) -> list[str] | None:
     """Look up input_modalities for an OpenRouter model from the in-memory cache.
 

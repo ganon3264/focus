@@ -421,6 +421,39 @@ function submitProviderModal(e) {
   });
 }
 
+async function fetchProviderBalances() {
+  // Group provider cards by type to avoid hammering the same endpoint
+  const byType = {};
+  document.querySelectorAll('[id^="balance-"]').forEach(el => {
+    const providerId = el.id.replace('balance-', '');
+    const card = document.getElementById('prov-card-' + providerId);
+    const typeEl = card && card.querySelector('.provider-type');
+    const type = typeEl ? typeEl.textContent.trim() : '';
+    if (!byType[type]) byType[type] = [];
+    byType[type].push(providerId);
+  });
+
+  for (const [type, ids] of Object.entries(byType)) {
+    try {
+      const res = await fetch(api.providerBalance(ids[0]));
+      if (!res.ok) {
+        ids.forEach(id => { const el = document.getElementById('balance-' + id); if (el) el.textContent = 'Balance: error'; });
+        continue;
+      }
+      const data = await res.json();
+      const balances = data.balances || [];
+      if (balances.length === 0) {
+        ids.forEach(id => { const el = document.getElementById('balance-' + id); if (el) el.textContent = 'Balance: unavailable'; });
+        continue;
+      }
+      const text = 'Balance: ' + balances.map(b => '$' + Number(b.amount).toFixed(2) + ' ' + b.currency).join(', ');
+      ids.forEach(id => { const el = document.getElementById('balance-' + id); if (el) el.textContent = text; });
+    } catch (e) {
+      ids.forEach(id => { const el = document.getElementById('balance-' + id); if (el) el.textContent = 'Balance: unavailable'; });
+    }
+  }
+}
+
 // Initialization
 setTimeout(() => {
   const createRoute = document.getElementById('new-prov-or-route');
@@ -440,6 +473,7 @@ setTimeout(() => {
   const activeId = StateManager.get('provider_id');
   const activeType = StateManager.get('provider_type');
   if (activeId) setActiveProvider(activeId, '', activeType);
+  fetchProviderBalances();
 }, 100);
 
 window._currentSecretPrefix = null;

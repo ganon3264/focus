@@ -71,6 +71,7 @@ function updateCacheTimer() {
 
   if (!cacheTime) {
     cacheEl.textContent = '—';
+    cacheEl.style.color = 'var(--text-muted)';
     return;
   }
 

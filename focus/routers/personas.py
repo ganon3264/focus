@@ -25,7 +25,15 @@ class PersonaUpdate(BaseModel):
 
 @router.get("/")
 async def list_personas(db: aiosqlite.Connection = Depends(get_db)):
-    async with db.execute("SELECT * FROM personas ORDER BY name") as cur:
+    async with db.execute("SELECT * FROM personas WHERE is_deleted = 0 ORDER BY name") as cur:
+        return [dict(r) for r in await cur.fetchall()]
+
+
+@router.get("/trash")
+async def list_trashed_personas(db: aiosqlite.Connection = Depends(get_db)):
+    async with db.execute(
+        "SELECT id, name, avatar_path, created_at FROM personas WHERE is_deleted = 1 ORDER BY name"
+    ) as cur:
         return [dict(r) for r in await cur.fetchall()]
 
 
@@ -42,7 +50,7 @@ async def create_persona(body: PersonaCreate, db: aiosqlite.Connection = Depends
 
 @router.get("/{persona_id}")
 async def get_persona(persona_id: str, db: aiosqlite.Connection = Depends(get_db)):
-    async with db.execute("SELECT * FROM personas WHERE id = ?", (persona_id,)) as cur:
+    async with db.execute("SELECT * FROM personas WHERE id = ? AND is_deleted = 0", (persona_id,)) as cur:
         row = await cur.fetchone()
     if not row:
         raise HTTPException(404, "Persona not found")
@@ -95,7 +103,11 @@ async def upload_avatar(
 
 
 @router.delete("/{persona_id}", status_code=204)
-async def delete_persona(persona_id: str, db: aiosqlite.Connection = Depends(get_db)):
+async def delete_persona(
+    persona_id: str,
+    hard: bool = False,
+    db: aiosqlite.Connection = Depends(get_db),
+):
     async with db.execute("SELECT avatar_path, name FROM personas WHERE id = ?", (persona_id,)) as cur:
         row = await cur.fetchone()
     if not row:
@@ -103,11 +115,23 @@ async def delete_persona(persona_id: str, db: aiosqlite.Connection = Depends(get
     if row["name"] == "User":
         raise HTTPException(400, "Cannot delete the default persona")
 
-    if row["avatar_path"]:
-        Path(row["avatar_path"]).unlink(missing_ok=True)
-
-    await db.execute("DELETE FROM personas WHERE id = ?", (persona_id,))
+    if hard:
+        if row["avatar_path"]:
+            Path(row["avatar_path"]).unlink(missing_ok=True)
+        await db.execute("DELETE FROM personas WHERE id = ?", (persona_id,))
+    else:
+        await db.execute("UPDATE personas SET is_deleted = 1 WHERE id = ?", (persona_id,))
     await db.commit()
+
+
+@router.post("/{persona_id}/restore", status_code=200)
+async def restore_persona(persona_id: str, db: aiosqlite.Connection = Depends(get_db)):
+    async with db.execute("SELECT id FROM personas WHERE id = ?", (persona_id,)) as cur:
+        if not await cur.fetchone():
+            raise HTTPException(404, "Persona not found")
+    await db.execute("UPDATE personas SET is_deleted = 0 WHERE id = ?", (persona_id,))
+    await db.commit()
+    return {"ok": True}
 
 
 @router.post("/{persona_id}/images", status_code=201)

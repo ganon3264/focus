@@ -69,7 +69,28 @@ async def list_chats(db: aiosqlite.Connection = Depends(get_db)):
                 JOIN message_variants mv ON m.id = mv.message_id AND m.active_index = mv.variant_index
                 WHERE m.chat_id = c.id
                 ORDER BY m.position DESC LIMIT 1) as last_message
-        FROM chats c ORDER BY c.updated_at DESC
+        FROM chats c WHERE c.is_deleted = 0 ORDER BY c.updated_at DESC
+    """
+    async with db.execute(query) as cur:
+        return [dict(r) for r in await cur.fetchall()]
+
+
+@router.get("/trash")
+async def list_trashed_chats(db: aiosqlite.Connection = Depends(get_db)):
+    query = """
+        SELECT c.*,
+               ch.name as character_name,
+               ch.image_path as character_image,
+               p.name as persona_name,
+               (SELECT mv.content
+                FROM messages m
+                JOIN message_variants mv ON m.id = mv.message_id AND m.active_index = mv.variant_index
+                WHERE m.chat_id = c.id
+                ORDER BY m.position DESC LIMIT 1) as last_message
+        FROM chats c
+        LEFT JOIN characters ch ON ch.id = c.character_id
+        LEFT JOIN personas p ON p.id = c.persona_id
+        WHERE c.is_deleted = 1 ORDER BY c.updated_at DESC
     """
     async with db.execute(query) as cur:
         return [dict(r) for r in await cur.fetchall()]
@@ -77,7 +98,7 @@ async def list_chats(db: aiosqlite.Connection = Depends(get_db)):
 
 @router.get("/{chat_id}")
 async def get_chat(chat_id: str, db: aiosqlite.Connection = Depends(get_db)):
-    async with db.execute("SELECT * FROM chats WHERE id = ?", (chat_id,)) as cur:
+    async with db.execute("SELECT * FROM chats WHERE id = ? AND is_deleted = 0", (chat_id,)) as cur:
         chat = await cur.fetchone()
     if not chat:
         raise HTTPException(404, "Chat not found")
@@ -105,9 +126,26 @@ async def update_chat(chat_id: str, body: dict, db: aiosqlite.Connection = Depen
 
 
 @router.delete("/{chat_id}", status_code=204)
-async def delete_chat(chat_id: str, db: aiosqlite.Connection = Depends(get_db)):
-    await db.execute("DELETE FROM chats WHERE id = ?", (chat_id,))
+async def delete_chat(
+    chat_id: str,
+    hard: bool = False,
+    db: aiosqlite.Connection = Depends(get_db),
+):
+    if hard:
+        await db.execute("DELETE FROM chats WHERE id = ?", (chat_id,))
+    else:
+        await db.execute("UPDATE chats SET is_deleted = 1 WHERE id = ?", (chat_id,))
     await db.commit()
+
+
+@router.post("/{chat_id}/restore", status_code=200)
+async def restore_chat(chat_id: str, db: aiosqlite.Connection = Depends(get_db)):
+    async with db.execute("SELECT id FROM chats WHERE id = ?", (chat_id,)) as cur:
+        if not await cur.fetchone():
+            raise HTTPException(404, "Chat not found")
+    await db.execute("UPDATE chats SET is_deleted = 0 WHERE id = ?", (chat_id,))
+    await db.commit()
+    return {"ok": True}
 
 
 @router.get("/{chat_id}/messages/{message_id}")

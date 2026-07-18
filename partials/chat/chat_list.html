@@ -1,4 +1,6 @@
-{% from "macros.html" import icon_close %} {% if not chats %}
+{% from "macros.html" import icon_close %}
+<div class="flex-1 overflow-y-auto">
+{% if not chats %}
 <div
   class="text-muted text-center text-sm py-4 border border-dashed border-(--border) rounded-lg mt-2"
 >
@@ -13,7 +15,7 @@
     <span class="truncate font-bold text-sm leading-tight mb-1"
       >{{ chat.last_message or chat.title }}</span
     >
-    <span class="text-xs text-muted">{{ chat.updated_at[:10] }} {{ chat.updated_at[11:16] }}</span>
+    <span class="text-xs text-muted">{{ chat.updated_at[:10] }} {{ chat.updated_at[11:16] }}{% if chat.persona_name %} · {{ chat.persona_name }}{% endif %}</span>
   </a>
   <button
     class="btn btn-danger action-btn shrink-0"
@@ -27,6 +29,7 @@
   </button>
 </div>
 {% endfor %}
+</div>
 <style>
   .sidebar-item:hover .action-btn {
     opacity: 1 !important;
@@ -51,4 +54,77 @@
         });
     });
   }
+
+  function openChatTrashModal() {
+    fetch('/api/chats/trash')
+      .then((r) => r.json())
+      .then((chats) => {
+        let html = `<div class="flex flex-col gap-2 max-h-[60vh] overflow-y-auto pr-1">`;
+        if (chats.length === 0) {
+          html += `<div class="text-muted text-center py-6 border border-dashed border-(--border) rounded-lg">Trash is empty.</div>`;
+        } else {
+          chats.forEach((c) => {
+            const initial = (c.character_name || '?')[0];
+            const preview = c.last_message || c.title || 'New Chat';
+            html += `
+            <div class="flex items-center gap-3 p-3 border border-(--border) rounded-lg bg-(--surface-2)">
+              <div class="w-10 h-10 rounded-full overflow-hidden shrink-0 border border-(--border) flex items-center justify-center" style="background: var(--surface-3);">
+                ${c.character_image ? `<img src="/${c.character_image}" class="w-full h-full object-cover" />` : `<span class="text-sm font-bold text-muted">${initial}</span>`}
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="font-bold text-sm truncate">${c.character_name || 'General'}</div>
+                <div class="text-xs truncate text-muted">${preview}</div>
+                <div class="text-xs text-muted">${c.updated_at ? c.updated_at.slice(0, 10) : ''}${c.persona_name ? ' · ' + c.persona_name : ''}</div>
+              </div>
+              <div class="flex gap-2 shrink-0">
+                <button class="btn btn-secondary btn-sm" onclick="restoreChat('${c.id}')">Restore</button>
+                <button class="btn btn-danger btn-sm" onclick="hardDeleteChat('${c.id}')">Delete Forever</button>
+              </div>
+            </div>
+          `;
+          });
+        }
+        html += `</div>`;
+
+        const modalHtml = `
+        <div id="chat-trash-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Trash" style="z-index: var(--z-overlay);" onclick="if(event.target===this) this.remove()">
+          <div class="modal-content" style="max-width: 500px; width: 90vw;">
+            <div class="modal-header" style="margin-bottom: 1rem;">
+              <div class="modal-title">Trash Bin</div>
+               <button class="btn btn-secondary btn-sm" onclick="document.getElementById('chat-trash-modal').remove()" aria-label="Close">{{ icon_close(16) }}</button>
+            </div>
+            <div id="chat-trash-modal-body">
+              ${html}
+            </div>
+          </div>
+        </div>
+      `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+      });
+  }
+
+  window.restoreChat = function (chatId) {
+    fetch('/api/chats/' + chatId + '/restore', { method: 'POST' }).then((r) => {
+      if (r.ok) {
+        const modal = document.getElementById('chat-trash-modal');
+        if (modal) modal.remove();
+        htmx.ajax('GET', '/partials/chat-list', {
+          target: '#chat-list',
+          swap: 'innerHTML',
+        });
+      }
+    });
+  };
+
+  window.hardDeleteChat = function (chatId) {
+    window.customConfirm('Permanently delete this chat? This cannot be undone.', function () {
+      fetch('/api/chats/' + chatId + '?hard=true', { method: 'DELETE' }).then((r) => {
+        if (r.ok) {
+          const modal = document.getElementById('chat-trash-modal');
+          if (modal) modal.remove();
+          openChatTrashModal();
+        }
+      });
+    });
+  };
 </script>

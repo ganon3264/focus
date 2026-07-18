@@ -196,8 +196,9 @@ async def get_providers(db: aiosqlite.Connection) -> list[dict]:
         return [dict(r) for r in await cur.fetchall()]
 
 
-async def get_personas(db: aiosqlite.Connection) -> list[dict]:
-    async with db.execute("SELECT * FROM personas ORDER BY created_at DESC") as cur:
+async def get_personas(db: aiosqlite.Connection, include_deleted: bool = False) -> list[dict]:
+    where = "" if include_deleted else "WHERE is_deleted = 0"
+    async with db.execute(f"SELECT * FROM personas {where} ORDER BY created_at DESC") as cur:
         personas = [dict(r) for r in await cur.fetchall()]
     await attach_images(personas, db)
     return personas
@@ -260,23 +261,26 @@ async def get_chat_messages(db: aiosqlite.Connection, chat_id: str) -> list[dict
 async def get_chats_sidebar(db: aiosqlite.Connection, character_id: str = None) -> list[dict]:
     query_base = """
         SELECT c.*,
+               p.name as persona_name,
+               p.avatar_path as persona_avatar,
                (SELECT mv.content
                 FROM messages m
                 JOIN message_variants mv ON m.id = mv.message_id AND m.active_index = mv.variant_index
                 WHERE m.chat_id = c.id
                 ORDER BY m.position DESC LIMIT 1) as last_message
         FROM chats c
+        LEFT JOIN personas p ON p.id = c.persona_id
     """
 
     chats = []
     if character_id:
         async with db.execute(
-            f"{query_base} WHERE character_id = ? AND is_deleted = 0 ORDER BY updated_at DESC",
+            f"{query_base} WHERE c.character_id = ? AND c.is_deleted = 0 ORDER BY c.updated_at DESC",
             (character_id,),
         ) as cur:
             chats = [dict(r) for r in await cur.fetchall()]
     else:
-        async with db.execute(f"{query_base} WHERE is_deleted = 0 ORDER BY updated_at DESC") as cur:
+        async with db.execute(f"{query_base} WHERE c.is_deleted = 0 ORDER BY c.updated_at DESC") as cur:
             chats = [dict(r) for r in await cur.fetchall()]
 
     for chat in chats:
