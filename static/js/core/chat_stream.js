@@ -240,6 +240,7 @@
       let buffer = '';
       let messageId = null;
       let userMessageId = null;
+      let prefillMode = false;
       fullText = '';
 
       while (true) {
@@ -262,6 +263,7 @@
             messageId = json.message_id;
             window._streamingMessageId = messageId;
             userMessageId = json.user_message_id;
+            prefillMode = json.prefill_mode || false;
 
             if (userMessageId && !isRegen) {
               const tempUserMsg = document.getElementById('temp-user-msg');
@@ -272,9 +274,13 @@
             }
           } else if (json.token !== undefined) {
             fullText += json.token;
+            let displayText = fullText;
+            if (continueText && prefillMode) {
+              displayText = continueText + fullText;
+            }
             const contentDiv = asstDiv.querySelector('.message-content');
             if (contentDiv) {
-              window.preserveOpenStates(contentDiv, () => window.renderMessage(fullText));
+              window.preserveOpenStates(contentDiv, () => window.renderMessage(displayText));
               if (window._updateReasoningButton) window._updateReasoningButton(contentDiv);
 
               if (window.autoScroll && window.scrollSentinel) {
@@ -289,9 +295,13 @@
         }
       }
 
+      let displayText = fullText;
+      if (continueText && prefillMode) {
+        displayText = continueText + fullText;
+      }
       const contentDiv = asstDiv.querySelector('.message-content');
       if (contentDiv) {
-        window.preserveOpenStates(contentDiv, () => window.renderMessage(fullText));
+        window.preserveOpenStates(contentDiv, () => window.renderMessage(displayText));
         if (window._updateReasoningButton) window._updateReasoningButton(contentDiv);
       }
       if (messageId) {
@@ -445,6 +455,9 @@
       if (window.syncReasoningButtons) window.syncReasoningButtons(evt.detail.target);
       if (typeof updateSendButtonState === 'function') {
         updateSendButtonState();
+      }
+      if (typeof updateContinueButtons === 'function') {
+        updateContinueButtons();
       }
 
       window.ensureSentinelAndObserver();

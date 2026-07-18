@@ -2,6 +2,8 @@ from .openai_compat import OpenAICompatProvider
 
 
 class MoonshotProvider(OpenAICompatProvider):
+    echoes_prefill = False
+
     def __init__(self, api_key: str, model: str, params: dict):
         base_url = "https://api.moonshot.ai/v1"
         super().__init__(base_url, api_key, model, params)
@@ -21,6 +23,9 @@ class MoonshotProvider(OpenAICompatProvider):
             extra_body["thinking"] = thinking
 
         kwargs["extra_body"] = extra_body
+
+        if messages and messages[-1].get("role") == "assistant":
+            messages[-1]["partial"] = True
 
         async for chunk in super().stream_complete(messages, **kwargs):
             yield chunk

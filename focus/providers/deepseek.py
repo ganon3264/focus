@@ -5,6 +5,8 @@ logger = get_logger("providers.deepseek")
 
 
 class DeepseekProvider(OpenAICompatProvider):
+    echoes_prefill = False
+
     def __init__(self, api_key: str, model: str, params: dict):
         base_url = "https://api.deepseek.com/beta"
         super().__init__(base_url, api_key, model, params)

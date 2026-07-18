@@ -17,6 +17,21 @@ logger = logging.getLogger("focus.routers.stream_utils")
 _chat_locks: dict[str, asyncio.Lock] = {}
 
 
+async def _make_assistant_slot(db: aiosqlite.Connection, chat_id: str) -> str:
+    """Insert a new assistant message row and return its id."""
+    now = now_iso()
+    async with db.execute("SELECT MAX(position) FROM messages WHERE chat_id = ?", (chat_id,)) as cur:
+        pos_row = await cur.fetchone()
+    next_pos = (pos_row[0] if pos_row[0] is not None else -1) + 1
+    asst_id = str(uuid.uuid4())
+    await db.execute(
+        "INSERT INTO messages (id, chat_id, role, position, active_index, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+        (asst_id, chat_id, "assistant", next_pos, 0, now),
+    )
+    await db.commit()
+    return asst_id
+
+
 async def _get_history(db: aiosqlite.Connection, chat_id: str, regenerate: bool):
     """Load message history and message attachments for a chat."""
     msg_attachments: dict[str, list[dict]] = {}
@@ -33,7 +48,7 @@ async def _get_history(db: aiosqlite.Connection, chat_id: str, regenerate: bool)
         last_asst_id = None
         last_asst_variant_count = 0
         for r in reversed(all_rows):
-            if r["role"] == "assistant":
+            if r["role"] == "assistant" and r["position"] > 0:
                 last_asst_id = r["id"]
                 last_asst_variant_count = r["variant_count"]
                 break
@@ -140,6 +155,13 @@ async def get_prompt_context(
 
     history, asst_msg_id, next_variant_index = await _get_history(db, chat_id, regenerate)
 
+    # If regenerate was requested but there's no non-greeting assistant to
+    # target (e.g. after a failed first message was rolled back), create a
+    # fresh slot so the response has a home without corrupting the greeting.
+    if regenerate and asst_msg_id is None and persist:
+        asst_msg_id = await _make_assistant_slot(db, chat_id)
+        next_variant_index = 0
+
     user_msg_id = None
     if not regenerate:
         if persist:
@@ -183,13 +205,8 @@ async def get_prompt_context(
                     next_pos += 1
 
                 # Create assistant message slot
-                asst_msg_id = str(uuid.uuid4())
-                await db.execute(
-                    "INSERT INTO messages (id, chat_id, role, position, active_index, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-                    (asst_msg_id, chat_id, "assistant", next_pos, 0, now),
-                )
+                asst_msg_id = await _make_assistant_slot(db, chat_id)
                 next_variant_index = 0
-                await db.commit()
         else:
             # Read-only path (itemizer): just append to history in memory
             if user_message.strip() or attachment_ids:

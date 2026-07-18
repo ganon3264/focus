@@ -43,6 +43,19 @@ class BaseProvider(ABC):
             return data
         return []
 
+    # ── Prefill / Continue support ──────────────────────────────────────────
+    # Whether the provider supports sending an assistant message as a prefill
+    # (used by the "Continue" feature). False for providers whose API doesn't
+    # allow a trailing assistant/model turn (e.g. Google Gemini).
+    supports_prefill: bool = True
+
+    # Whether the provider echoes the prefill text back in the streaming
+    # response.  False for providers that set prefix/partial flags and return
+    # only the *new* continuation tokens (DeepSeek, Moonshot).  Controls the
+    # SSE prefill_mode flag so the frontend can display correctly during
+    # streaming.
+    echoes_prefill: bool = True
+
     @abstractmethod
     async def stream_complete(
         self,

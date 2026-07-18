@@ -427,6 +427,18 @@ setTimeout(() => {
 
 <script src="/static/js/ui/theme_manager.js"></script>
 <script>
+window.updateContinueButtons = function() {
+  var type = StateManager.get('provider_type');
+  var isGoogle = type === 'google_aistudio' || type === 'google_vertex';
+  document.querySelectorAll('.continue-btn').forEach(function(btn) {
+    btn.classList.toggle('hidden', isGoogle);
+  });
+};
+
+StateManager.on('provider-changed', function() {
+  if (window.updateContinueButtons) window.updateContinueButtons();
+});
+
 // State manager init + callbacks
 StateManager.init({
   character_id: '{{ current_character_id or "" }}' || null,

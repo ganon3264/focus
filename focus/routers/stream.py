@@ -54,6 +54,13 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
     next_variant_index = ctx["next_variant_index"]
     user_msg_id = ctx["user_msg_id"]
 
+    # Continue: update the current variant in-place instead of creating a new swipe
+    if body.continue_text and body.regenerate and asst_msg_id:
+        async with db.execute("SELECT active_index FROM messages WHERE id = ?", (asst_msg_id,)) as cur:
+            row = await cur.fetchone()
+        if row is not None:
+            next_variant_index = row[0]
+
     s = dict(body.samplers) if body.samplers else {}
     if s.pop("disable_multimodal", False):
         messages = filter_unsupported_modalities(messages, ["text"])
@@ -82,7 +89,7 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
             msg.pop("thought_signature", None)
             msg.pop("reasoning", None)
 
-    if body.continue_text and body.regenerate:
+    if body.continue_text and body.regenerate and provider.supports_prefill:
         messages.append({"role": "assistant", "content": body.continue_text})
 
     gen_kwargs: dict = {}
@@ -115,6 +122,8 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
             raise HTTPException(500, str(e) or repr(e))
 
         full = "".join(collected)
+        if body.continue_text and not full.startswith(body.continue_text):
+            full = body.continue_text + full
 
         try:
             await _save_assistant_variant(
@@ -169,7 +178,7 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
         logger.debug("==========================================")
 
     async def generate():
-        yield f"data: {json.dumps({'type': 'start', 'message_id': final_asst_msg_id, 'user_message_id': user_msg_id if not body.regenerate else None})}\n\n"
+        yield f"data: {json.dumps({'type': 'start', 'message_id': final_asst_msg_id, 'user_message_id': user_msg_id if not body.regenerate else None, 'prefill_mode': not provider.echoes_prefill})}\n\n"
         try:
             logger.debug(f"Starting generation stream for chat_id={body.chat_id} provider={prov_dict['name']}")
             async for token in provider.stream_complete(messages, **gen_kwargs):
@@ -197,6 +206,8 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
             return
 
         full = "".join(collected)
+        if body.continue_text and not full.startswith(body.continue_text):
+            full = body.continue_text + full
 
         try:
             await _upsert_variant(

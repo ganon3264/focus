@@ -36,6 +36,8 @@ AI_STUDIO_SAFETY_OFF = [
 
 
 class GoogleProviderBase(BaseProvider):
+    supports_prefill = False
+
     def __init__(self, api_key: str, model: str, params: dict):
         super().__init__("", api_key, model, params)
 

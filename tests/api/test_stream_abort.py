@@ -97,6 +97,9 @@ class _FailingProvider:
     """A provider that raises an exception before yielding, simulating
     a stream failure / abort before any tokens are produced."""
 
+    supports_prefill = True
+    echoes_prefill = True
+
     def __init__(self, *args, **kwargs):
         pass
 
