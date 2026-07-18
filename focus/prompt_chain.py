@@ -149,7 +149,9 @@ def _build_content(text: str, images: list[dict]) -> str | list:
     last_end = 0
 
     for match in matches:
-        text_before = text[last_end : match.start()]
+        raw_before = text[last_end : match.start()]
+        # Strip artifact newline that placed the marker on its own line
+        text_before = raw_before.rstrip("\n") if images else raw_before
         if text_before:
             parts.append({"type": "text", "text": text_before})
 
@@ -164,7 +166,8 @@ def _build_content(text: str, images: list[dict]) -> str | list:
 
         last_end = match.end()
 
-    text_after = text[last_end:]
+    raw_after = text[last_end:]
+    text_after = raw_after.lstrip("\n") if images else raw_after
     if text_after:
         parts.append({"type": "text", "text": text_after})
 

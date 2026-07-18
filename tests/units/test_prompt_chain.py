@@ -104,6 +104,16 @@ class TestBuildContent:
         result = apply_macros("before {{media::2}} after", {})
         assert result == "before {{media::2}} after"
 
+    def test_structural_newlines_stripped_around_marker(self, monkeypatch):
+        """Artifact newlines from the marker being on its own line are removed."""
+        monkeypatch.setattr("focus.prompt_chain._load_media", self._mock_load_media)
+        images = [{"id": "img", "image_path": "/fake/x.png", "mime_type": "image/png"}]
+        result = _build_content("before\n{{media::1}}\nafter", images)
+        assert len(result) == 3
+        assert result[0] == {"type": "text", "text": "before"}
+        assert result[1]["image_url"]["url"].endswith("img")
+        assert result[2] == {"type": "text", "text": "after"}
+
 
 class TestMergeConsecutive:
     def test_same_role_merged(self):
