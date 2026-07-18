@@ -58,6 +58,36 @@
     updateSendButtonState();
   }
 
+  function _replaceMessageNode(doc, msgId, inDeleteMode) {
+    const newMsg = doc.getElementById('message-' + msgId);
+    if (!newMsg) return;
+
+    let oldMsg = document.getElementById('message-' + msgId);
+    if (!oldMsg) {
+      const ph = document.querySelector('.message-placeholder[data-msg-id="' + msgId + '"]');
+      if (ph) oldMsg = ph;
+    }
+
+    if (!oldMsg) return;
+
+    newMsg.style.setProperty('animation', 'none', 'important');
+    oldMsg.replaceWith(newMsg);
+    htmx.process(newMsg);
+    newMsg.querySelectorAll('.markdown-content:not(.processed)').forEach(function (el) {
+      el.innerHTML = window.renderMessage(el.textContent || '');
+      el.classList.add('processed');
+    });
+    if (inDeleteMode) {
+      const cb = newMsg.querySelector('.delete-mode-checkbox');
+      if (cb) cb.classList.remove('hidden');
+      const actions = newMsg.querySelector('.normal-mode-actions');
+      if (actions) actions.classList.add('hidden');
+    }
+    if (window._isMessagePruned && window._isMessagePruned(msgId)) {
+      window._unpruneMessage(msgId);
+    }
+  }
+
   async function refreshMessagesAfterStream(chatId, userMsgId, asstMsgId) {
     const resp = await fetch(api.partials.messageList(chatId));
     if (!resp.ok) return;
@@ -75,23 +105,7 @@
 
     const ids = [userMsgId, asstMsgId].filter(Boolean);
     for (const id of ids) {
-      const newMsg = doc.getElementById('message-' + id);
-      const oldMsg = document.getElementById('message-' + id);
-      if (newMsg && oldMsg) {
-        newMsg.style.setProperty('animation', 'none', 'important');
-        oldMsg.replaceWith(newMsg);
-        htmx.process(newMsg);
-        newMsg.querySelectorAll('.markdown-content:not(.processed)').forEach(function (el) {
-          el.innerHTML = window.renderMessage(el.textContent || '');
-          el.classList.add('processed');
-        });
-        if (inDeleteMode) {
-          const cb = newMsg.querySelector('.delete-mode-checkbox');
-          if (cb) cb.classList.remove('hidden');
-          const actions = newMsg.querySelector('.normal-mode-actions');
-          if (actions) actions.classList.add('hidden');
-        }
-      }
+      _replaceMessageNode(doc, id, inDeleteMode);
     }
 
     if (typeof updateSendButtonState === 'function') {
@@ -100,6 +114,28 @@
 
     window.ensureSentinelAndObserver();
   }
+
+  async function refreshSingleMessage(chatId, messageId) {
+    const resp = await fetch(api.partials.messageList(chatId));
+    if (!resp.ok) return;
+    const html = await resp.text();
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+
+    const newSentinel = doc.getElementById('message-list-data');
+    const oldSentinel = document.getElementById('message-list-data');
+    if (newSentinel && oldSentinel) {
+      oldSentinel.replaceWith(newSentinel);
+    }
+
+    const toolbar = document.getElementById('delete-toolbar');
+    const inDeleteMode = toolbar && !toolbar.classList.contains('hidden');
+
+    _replaceMessageNode(doc, messageId, inDeleteMode);
+
+    window.ensureSentinelAndObserver();
+  }
+
+  window.refreshSingleMessage = refreshSingleMessage;
 
   window.triggerGeneration = async function (chatId, asstDiv, isRegen = false) {
     const providerId = sendBtn.dataset.providerId;

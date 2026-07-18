@@ -100,10 +100,14 @@
       if (window.closeModal) window.closeModal('modal-edit-message');
       else document.getElementById('modal-edit-message').classList.add('hidden');
 
-      htmx.ajax('GET', window.api.partials.messageList(chatId), {
-        target: '#message-list',
-        swap: 'innerHTML',
-      });
+      if (typeof refreshSingleMessage === 'function') {
+        refreshSingleMessage(chatId, messageId);
+      } else {
+        htmx.ajax('GET', window.api.partials.messageList(chatId), {
+          target: '#message-list',
+          swap: 'innerHTML',
+        });
+      }
     } catch (err) {
       alert('Failed to save edit: ' + err.message);
     }
