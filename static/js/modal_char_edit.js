@@ -49,9 +49,14 @@ function openEditCharacterModal(btnElement) {
 
 function uploadCharModalMedia(input) {
   if (!input.files || !input.files[0]) return;
+  uploadCharModalMediaFile(input.files[0]);
+  input.value = '';
+}
+
+function uploadCharModalMediaFile(file) {
   const id = document.getElementById('edit-char-id').value;
   const formData = new FormData();
-  formData.append('file', input.files[0]);
+  formData.append('file', file);
 
   fetch(api.charImages(id), {
     method: 'POST',
@@ -67,14 +72,14 @@ function uploadCharModalMedia(input) {
     const placeholder = mediaSection.querySelector('.block-media-placeholder');
     if (placeholder) placeholder.style.display = 'none';
 
-    input.value = '';
-    htmx.ajax('GET',api.partials.charactersModal,{target:'#characters-modal-body',swap:'innerHTML'});
     if (window.CURRENT_CHAT_STATE && window.CURRENT_CHAT_STATE.character_id === id && window.reloadPromptArranger) {
       const presetId = window.CURRENT_CHAT_STATE.preset_id || (document.getElementById('prompt-arranger') && document.querySelector('#prompt-arranger .arranger-list') ? document.querySelector('#prompt-arranger .arranger-list').id.replace('arranger-list-', '') : null);
       if (presetId) reloadPromptArranger(presetId, 'prompt-arranger');
     }
   });
 }
+
+setupDropZone('#edit-char-media-section', function(files) { files.forEach(uploadCharModalMediaFile); });
 
 function deleteCharModalMedia(imageId) {
   const charId = document.getElementById('edit-char-id').value;
@@ -84,7 +89,6 @@ function deleteCharModalMedia(imageId) {
     if(r.ok) {
       const el = document.getElementById(`char-modal-media-${imageId}`);
       if(el) el.remove();
-      htmx.ajax('GET',api.partials.charactersModal,{target:'#characters-modal-body',swap:'innerHTML'});
       if (window.CURRENT_CHAT_STATE && window.CURRENT_CHAT_STATE.character_id === charId && window.reloadPromptArranger) {
         const presetId = window.CURRENT_CHAT_STATE.preset_id || (document.getElementById('prompt-arranger') && document.querySelector('#prompt-arranger .arranger-list') ? document.querySelector('#prompt-arranger .arranger-list').id.replace('arranger-list-', '') : null);
         if (presetId) reloadPromptArranger(presetId, 'prompt-arranger');
@@ -110,8 +114,6 @@ function uploadCharacterAvatar(input) {
       preview.src = '/' + data.avatar_path + '?t=' + new Date().getTime();
       preview.style.display = 'block';
       placeholder.style.display = 'none';
-
-      htmx.ajax('GET',api.partials.charactersModal,{target:'#characters-modal-body',swap:'innerHTML'});
     });
   });
   input.value = '';
@@ -125,10 +127,9 @@ function submitEditCharacter(e) {
     method: 'PATCH',
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify(data)
-  }).then(function(r){
-    if(r.ok) {
-      closeModal('modal-edit-character');
-      htmx.ajax('GET',api.partials.charactersModal,{target:'#characters-modal-body',swap:'innerHTML'});
-    }
+  }).then(async function(r){
+    if(!r.ok) return;
+    closeModal('modal-edit-character');
+    htmx.ajax('GET', api.partials.charactersModal, {target:'#characters-modal-body', swap:'innerHTML'});
   });
 }

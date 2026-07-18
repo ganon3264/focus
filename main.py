@@ -9,6 +9,13 @@ from pyvern.routers import characters, chats, presets, providers, stream, person
 from pyvern.logger import get_logger, DEBUG_MODE
 import time
 
+
+class CachedStaticFiles(StaticFiles):
+    async def get_response(self, path: str, scope):
+        response = await super().get_response(path, scope)
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        return response
+
 # Ensure directories exist before mounting static files
 init_directories()
 
@@ -42,7 +49,7 @@ app.include_router(personas.router,   prefix="/api/personas",    tags=["personas
 app.include_router(stream.router,     prefix="/api",             tags=["stream"])
 app.include_router(pages.router)
 
-app.mount("/assets",  StaticFiles(directory="assets"),  name="assets")
+app.mount("/assets",  CachedStaticFiles(directory="assets"),  name="assets")
 app.mount("/static",  StaticFiles(directory="static"),  name="static")
 
 

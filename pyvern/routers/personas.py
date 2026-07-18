@@ -40,6 +40,15 @@ async def create_persona(body: PersonaCreate, db: aiosqlite.Connection = Depends
     return {"id": persona_id}
 
 
+@router.get("/{persona_id}")
+async def get_persona(persona_id: str, db: aiosqlite.Connection = Depends(get_db)):
+    async with db.execute("SELECT * FROM personas WHERE id = ?", (persona_id,)) as cur:
+        row = await cur.fetchone()
+    if not row:
+        raise HTTPException(404, "Persona not found")
+    return dict(row)
+
+
 @router.patch("/{persona_id}")
 async def update_persona(
     persona_id: str,

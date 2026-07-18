@@ -49,9 +49,14 @@ function openEditPersonaModal(btnElement) {
 
 function uploadPersonaMedia(input) {
   if (!input.files || !input.files[0]) return;
+  uploadPersonaMediaFile(input.files[0]);
+  input.value = '';
+}
+
+function uploadPersonaMediaFile(file) {
   const id = document.getElementById('edit-persona-id').value;
   const formData = new FormData();
-  formData.append('file', input.files[0]);
+  formData.append('file', file);
 
   fetch(api.personaImages(id), {
     method: 'POST',
@@ -67,14 +72,14 @@ function uploadPersonaMedia(input) {
     const placeholder = mediaSection.querySelector('.block-media-placeholder');
     if (placeholder) placeholder.style.display = 'none';
 
-    input.value = '';
-    htmx.ajax('GET',api.partials.personasModal,{target:'#personas-modal-body',swap:'innerHTML'});
     if (window.CURRENT_CHAT_STATE && window.CURRENT_CHAT_STATE.persona_id === id && window.reloadPromptArranger) {
       const presetId = window.CURRENT_CHAT_STATE.preset_id || (document.getElementById('prompt-arranger') && document.querySelector('#prompt-arranger .arranger-list') ? document.querySelector('#prompt-arranger .arranger-list').id.replace('arranger-list-', '') : null);
       if (presetId) reloadPromptArranger(presetId, 'prompt-arranger');
     }
   });
 }
+
+setupDropZone('#edit-persona-media-section', function(files) { files.forEach(uploadPersonaMediaFile); });
 
 function deletePersonaMedia(imageId) {
   const personaId = document.getElementById('edit-persona-id').value;
@@ -84,7 +89,6 @@ function deletePersonaMedia(imageId) {
     if(r.ok) {
       const el = document.getElementById(`persona-media-${imageId}`);
       if(el) el.remove();
-      htmx.ajax('GET',api.partials.personasModal,{target:'#personas-modal-body',swap:'innerHTML'});
       if (window.CURRENT_CHAT_STATE && window.CURRENT_CHAT_STATE.persona_id === personaId && window.reloadPromptArranger) {
         const presetId = window.CURRENT_CHAT_STATE.preset_id || (document.getElementById('prompt-arranger') && document.querySelector('#prompt-arranger .arranger-list') ? document.querySelector('#prompt-arranger .arranger-list').id.replace('arranger-list-', '') : null);
         if (presetId) reloadPromptArranger(presetId, 'prompt-arranger');
@@ -110,8 +114,6 @@ function uploadPersonaAvatar(input) {
       preview.src = '/' + data.avatar_path + '?t=' + new Date().getTime();
       preview.style.display = 'block';
       placeholder.style.display = 'none';
-
-      htmx.ajax('GET',api.partials.personasModal,{target:'#personas-modal-body',swap:'innerHTML'});
     });
   });
   input.value = '';
@@ -125,10 +127,9 @@ function submitEditPersona(e) {
     method: 'PATCH',
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify(data)
-  }).then(function(r){
-    if(r.ok) {
-      closeModal('modal-edit-persona');
-      htmx.ajax('GET',api.partials.personasModal,{target:'#personas-modal-body',swap:'innerHTML'});
-    }
+  }).then(async function(r){
+    if(!r.ok) return;
+    closeModal('modal-edit-persona');
+    htmx.ajax('GET', api.partials.personasModal, {target:'#personas-modal-body', swap:'innerHTML'});
   });
 }

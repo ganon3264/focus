@@ -128,6 +128,19 @@
 
       return div;
     };
+
+    window.setupDropZone = function(el, onDrop) {
+      var container = typeof el === 'string' ? document.querySelector(el) : el;
+      if (!container || container.dataset.dropReady) return;
+      container.dataset.dropReady = 'true';
+      container.addEventListener('dragover', function(e) { e.preventDefault(); e.stopPropagation(); container.classList.add('drag-over'); });
+      container.addEventListener('dragleave', function(e) { e.preventDefault(); e.stopPropagation(); container.classList.remove('drag-over'); });
+      container.addEventListener('drop', function(e) {
+        e.preventDefault(); e.stopPropagation();
+        container.classList.remove('drag-over');
+        if (e.dataTransfer.files && e.dataTransfer.files.length) onDrop(Array.from(e.dataTransfer.files));
+      });
+    };
     </script>
     {% block content %}{% endblock %}
     {% include "confirm_modal.html" %}

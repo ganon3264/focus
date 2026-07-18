@@ -350,9 +350,11 @@ async def providers_modal_partial(request: Request, db: aiosqlite.Connection = D
 @router.get("/partials/characters-modal", response_class=HTMLResponse)
 async def characters_modal_partial(request: Request, db: aiosqlite.Connection = Depends(get_db)):
     characters = await crud.get_characters(db)
+    compact_view = request.cookies.get("pyvern_view_char") == "compact"
     return templates.TemplateResponse(request, "characters_modal.html", {
         "request": request,
         "characters": characters,
+        "compact_view": compact_view,
     })
 
 
@@ -368,9 +370,11 @@ async def presets_modal_partial(request: Request, db: aiosqlite.Connection = Dep
 @router.get("/partials/personas-modal", response_class=HTMLResponse)
 async def personas_modal_partial(request: Request, db: aiosqlite.Connection = Depends(get_db)):
     personas = await crud.get_personas(db)
+    compact_view = request.cookies.get("pyvern_view_persona") == "compact"
     return templates.TemplateResponse(request, "personas_modal.html", {
         "request": request,
         "personas": personas,
+        "compact_view": compact_view,
     })
 
 # Add json filter to jinja

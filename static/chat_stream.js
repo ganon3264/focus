@@ -838,11 +838,17 @@
   // --- EXISTING MESSAGE ATTACHMENTS ---
   window.uploadMessageAttachment = async function(inputEl) {
       if (!inputEl.files.length) return;
+      await uploadMessageAttachmentFiles(Array.from(inputEl.files));
+      inputEl.value = '';
+  };
+
+  window.uploadMessageAttachmentFiles = async function(files) {
+      if (!files.length) return;
       const chatId = document.getElementById('edit-msg-chat-id').value;
       if (!chatId) return;
       
       const formData = new FormData();
-      Array.from(inputEl.files).forEach(f => formData.append('files', f));
+      files.forEach(f => formData.append('files', f));
       
       try {
           const res = await fetch(api.chatAttachments(chatId), {
@@ -858,10 +864,10 @@
           }
       } catch(err) {
           console.error(err);
-      } finally {
-          inputEl.value = ''; // Reset file input
       }
   };
+
+  setupDropZone('#edit-msg-attachments', window.uploadMessageAttachmentFiles);
 
   window.deleteModalAttachment = function(idx) {
       window.currentEditAttachments.splice(idx, 1);

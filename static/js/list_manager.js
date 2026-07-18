@@ -31,12 +31,17 @@ window.ListManager = {
       document.getElementById(cfg.sortSelectId).value = mode;
     };
 
+    function setViewCookie(view) {
+      if (cfg.cookieKey) document.cookie = cfg.cookieKey + '=' + view + '; path=/; max-age=31536000';
+    }
+
     window[cfg.applyCompactFn] = function(compact) {
       var grid = document.getElementById(cfg.gridId);
       if (!grid) return;
-      grid.dataset.view = compact ? 'compact' : 'full';
+      var view = compact ? 'compact' : 'full';
+      grid.dataset.view = view;
       grid.style.gridTemplateColumns = compact
-        ? 'repeat(auto-fill, minmax(200px, 1fr))'
+        ? 'repeat(3, minmax(200px, 1fr))'
         : 'repeat(auto-fill, minmax(160px, 1fr))';
       grid.querySelectorAll('.card').forEach(function(card) {
         var fullEl = card.querySelector('.' + cfg.viewFullClass);
@@ -49,6 +54,8 @@ window.ListManager = {
           compactEl.style.display = 'none';
         }
       });
+      localStorage.setItem(cfg.viewStorageKey, view);
+      setViewCookie(view);
     };
 
     window[cfg.toggleCompactFn] = function() {
@@ -56,7 +63,6 @@ window.ListManager = {
       if (!grid) return;
       var compact = grid.dataset.view !== 'compact';
       window[cfg.applyCompactFn](compact);
-      localStorage.setItem(cfg.viewStorageKey, compact ? 'compact' : 'full');
     };
 
     window[cfg.newItemFn] = function() {
@@ -90,10 +96,10 @@ window.ListManager = {
     // Restore saved view/sort state
     (function() {
       var view = localStorage.getItem(cfg.viewStorageKey);
-      var sortVal = localStorage.getItem(cfg.sortStorageKey);
       if (view === 'compact') {
         window[cfg.applyCompactFn](true);
       }
+      var sortVal = localStorage.getItem(cfg.sortStorageKey);
       if (sortVal) {
         window[cfg.sortFn](sortVal);
       }
