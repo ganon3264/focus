@@ -146,6 +146,47 @@
     updateSendButtonState();
   }
 
+  async function refreshMessagesAfterStream(chatId, userMsgId, asstMsgId) {
+    const resp = await fetch('/partials/message-list/' + chatId);
+    if (!resp.ok) return;
+    const html = await resp.text();
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+
+    const newSentinel = doc.getElementById('message-list-data');
+    const oldSentinel = document.getElementById('message-list-data');
+    if (newSentinel && oldSentinel) {
+      oldSentinel.replaceWith(newSentinel);
+    }
+
+    const toolbar = document.getElementById('delete-toolbar');
+    const inDeleteMode = toolbar && !toolbar.classList.contains('hidden');
+
+    const ids = [userMsgId, asstMsgId].filter(Boolean);
+    for (const id of ids) {
+      const newMsg = doc.getElementById('message-' + id);
+      const oldMsg = document.getElementById('message-' + id);
+      if (newMsg && oldMsg) {
+        newMsg.style.setProperty('animation', 'none', 'important');
+        oldMsg.replaceWith(newMsg);
+        htmx.process(newMsg);
+        newMsg.querySelectorAll('.markdown-content:not(.processed)').forEach(function(el) {
+          el.innerHTML = renderMessage(el.textContent || '');
+          el.classList.add('processed');
+        });
+        if (inDeleteMode) {
+          const cb = newMsg.querySelector('.delete-mode-checkbox');
+          if (cb) cb.classList.remove('hidden');
+          const actions = newMsg.querySelector('.normal-mode-actions');
+          if (actions) actions.classList.add('hidden');
+        }
+      }
+    }
+
+    if (typeof updateSendButtonState === 'function') {
+      updateSendButtonState();
+    }
+  }
+
   window.triggerGeneration = async function(chatId, asstDiv, isRegen = false) {
     const providerId = sendBtn.dataset.providerId;
     if(!providerId){ alert('No provider configured. Add one in Providers.'); return; }
@@ -161,6 +202,11 @@
 
     sendBtn.classList.add('hidden');
     stopBtn.classList.remove('hidden');
+
+    const contentDiv = asstDiv.querySelector('.message-content');
+    if (contentDiv) {
+      contentDiv.innerHTML = '<div class="message-spinner"></div>';
+    }
 
     currentController = new AbortController();
     const signal = currentController.signal;
@@ -215,6 +261,7 @@
       const decoder = new TextDecoder();
       let buffer = '';
       let messageId = null;
+      let userMessageId = null;
       let fullText = '';
 
       while(true){
@@ -231,6 +278,7 @@
           try{ json = JSON.parse(data); }catch(e){ continue; }
           if(json.type === 'start'){
             messageId = json.message_id;
+            userMessageId = json.user_message_id;
             // Set user message div ID so the OOB swap can match it
             if(json.user_message_id){
               const userDiv = asstDiv.previousElementSibling;
@@ -284,7 +332,7 @@
         asstDiv.dataset.messageId = messageId;
       }
 
-      htmx.ajax('GET', '/partials/message-list/' + chatId, {target:'#message-list', swap:'innerHTML'});
+      await refreshMessagesAfterStream(chatId, userMessageId, messageId);
 
     } catch(err){
       if(err.name !== 'AbortError'){
@@ -302,7 +350,7 @@
         }
 
         // Force a re-fetch of the message list so the last-role syncs with the DB (user message was saved)
-        htmx.ajax('GET', '/partials/message-list/' + chatId, {target:'#message-list', swap:'innerHTML'});
+        await refreshMessagesAfterStream(chatId, userMessageId, messageId);
       }
     } finally {
       currentController = null;

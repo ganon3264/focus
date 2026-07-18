@@ -81,7 +81,7 @@
     >{{ icon_trash() }}</button>
   </div>
 
-  <div class="modal-overlay" style="z-index: 1000;" x-show="renaming" x-transition.opacity @click.self="renaming = false">
+  <div class="modal-overlay" style="display: none; z-index: 1000;" x-show="renaming" x-transition.opacity @click.self="renaming = false">
     <div class="modal-content" style="max-width:420px;width:90vw;">
       <div class="modal-header">
         <div class="modal-title">Rename Preset</div>
