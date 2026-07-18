@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+import asyncio
 import json
 import uuid
 
@@ -78,12 +79,14 @@ async def delete_provider(provider_id: str, db: aiosqlite.Connection = Depends(g
 
 _OPENROUTER_CACHE = None
 _OPENROUTER_CACHE_TIME = 0
+_openrouter_cache_lock = asyncio.Lock()
 
 
 from pyvern.providers import create_provider
 
 _MODELS_CACHE = {}
 _MODELS_CACHE_TIME = {}
+_models_cache_lock = asyncio.Lock()
 
 class FetchModelsRequest(BaseModel):
     type: str
@@ -110,8 +113,9 @@ async def fetch_models(body: FetchModelsRequest, db: aiosqlite.Connection = Depe
                 
     # Cache key based on provider type and api key hash (to avoid caching across different keys)
     cache_key = f"{body.type}_{hash(api_key)}"
-    if cache_key in _MODELS_CACHE and now - _MODELS_CACHE_TIME.get(cache_key, 0) < 300:
-        return {"data": _MODELS_CACHE[cache_key]}
+    async with _models_cache_lock:
+        if cache_key in _MODELS_CACHE and now - _MODELS_CACHE_TIME.get(cache_key, 0) < 300:
+            return {"data": _MODELS_CACHE[cache_key]}
 
     try:
         # Create a dummy provider to get the properly constructed headers and base URL
@@ -184,8 +188,9 @@ async def fetch_models(body: FetchModelsRequest, db: aiosqlite.Connection = Depe
         # Sort alphabetically by name or ID
         simplified_models.sort(key=lambda x: x["name"].lower() if x["name"] else x["id"].lower())
         
-        _MODELS_CACHE[cache_key] = simplified_models
-        _MODELS_CACHE_TIME[cache_key] = now
+        async with _models_cache_lock:
+            _MODELS_CACHE[cache_key] = simplified_models
+            _MODELS_CACHE_TIME[cache_key] = now
         return {"data": simplified_models}
             
     except Exception as e:
@@ -197,16 +202,18 @@ async def get_openrouter_models():
     global _OPENROUTER_CACHE, _OPENROUTER_CACHE_TIME
     import time
     now = time.time()
-    if _OPENROUTER_CACHE and now - _OPENROUTER_CACHE_TIME < 300:
-        return _OPENROUTER_CACHE
+    async with _openrouter_cache_lock:
+        if _OPENROUTER_CACHE and now - _OPENROUTER_CACHE_TIME < 300:
+            return _OPENROUTER_CACHE
 
     try:
         async with httpx.AsyncClient() as client:
             resp = await client.get("https://openrouter.ai/api/v1/models")
             resp.raise_for_status()
             data = resp.json()
-            _OPENROUTER_CACHE = data
-            _OPENROUTER_CACHE_TIME = now
+            async with _openrouter_cache_lock:
+                _OPENROUTER_CACHE = data
+                _OPENROUTER_CACHE_TIME = now
             return data
     except Exception as e:
         logger.exception("Failed to fetch openrouter models")

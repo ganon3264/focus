@@ -7,8 +7,16 @@ from .google_vertex import GoogleVertexProvider
 from .deepseek import DeepseekProvider
 from .moonshot import MoonshotProvider
 
+from ..logger import get_logger
+
+logger = get_logger("providers")
+
 def create_provider(row: dict) -> BaseProvider:
-    params = json.loads(row.get("params_json") or "{}")
+    try:
+        params = json.loads(row.get("params_json") or "{}")
+    except json.JSONDecodeError:
+        logger.error("Corrupted params_json for provider %s, using empty dict", row.get("id", "?"))
+        params = {}
     ptype = row["type"]
 
     if ptype == "openai_compat":

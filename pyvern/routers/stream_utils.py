@@ -1,3 +1,4 @@
+import asyncio
 import json
 import uuid
 import aiosqlite
@@ -6,6 +7,8 @@ from pyvern.prompt_chain import assemble_prompt, _build_content
 from pyvern.card_parser import normalise_card
 from pyvern.macros import build_base_macros
 from pyvern.utils import now_iso
+
+_chat_locks: dict[str, asyncio.Lock] = {}
 
 async def _get_history(db: aiosqlite.Connection, chat_id: str, regenerate: bool):
     """Load message history and message attachments for a chat."""
@@ -133,53 +136,55 @@ async def get_prompt_context(
     user_msg_id = None
     if not regenerate:
         if persist:
-            now = now_iso()
-            async with db.execute(
-                "SELECT MAX(position) FROM messages WHERE chat_id = ?", (chat_id,)
-            ) as cur:
-                pos_row = await cur.fetchone()
-            next_pos = (pos_row[0] if pos_row[0] is not None else -1) + 1
+            lock = _chat_locks.setdefault(chat_id, asyncio.Lock())
+            async with lock:
+                now = now_iso()
+                async with db.execute(
+                    "SELECT MAX(position) FROM messages WHERE chat_id = ?", (chat_id,)
+                ) as cur:
+                    pos_row = await cur.fetchone()
+                next_pos = (pos_row[0] if pos_row[0] is not None else -1) + 1
 
-            # Only create a user message if there's actual text or attachments
-            if user_message.strip() or attachment_ids:
-                user_msg_id = str(uuid.uuid4())
-                user_variant_id = str(uuid.uuid4())
-                await db.execute(
-                    "INSERT INTO messages (id, chat_id, role, position, active_index, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-                    (user_msg_id, chat_id, "user", next_pos, 0, now),
-                )
-                await db.execute(
-                    "INSERT INTO message_variants (id, message_id, variant_index, content, created_at) VALUES (?, ?, ?, ?, ?)",
-                    (user_variant_id, user_msg_id, 0, user_message, now),
-                )
-
-                # Bind any attached files to the newly created user message
-                if attachment_ids:
-                    placeholders = ",".join("?" * len(attachment_ids))
+                # Only create a user message if there's actual text or attachments
+                if user_message.strip() or attachment_ids:
+                    user_msg_id = str(uuid.uuid4())
+                    user_variant_id = str(uuid.uuid4())
                     await db.execute(
-                        f"UPDATE message_attachments SET message_id = ?, variant_id = ? WHERE id IN ({placeholders})",
-                        [user_msg_id, user_variant_id] + attachment_ids
+                        "INSERT INTO messages (id, chat_id, role, position, active_index, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+                        (user_msg_id, chat_id, "user", next_pos, 0, now),
+                    )
+                    await db.execute(
+                        "INSERT INTO message_variants (id, message_id, variant_index, content, created_at) VALUES (?, ?, ?, ?, ?)",
+                        (user_variant_id, user_msg_id, 0, user_message, now),
                     )
 
-                    async with db.execute(
-                        f"SELECT * FROM message_attachments WHERE id IN ({placeholders}) ORDER BY created_at",
-                        attachment_ids
-                    ) as cur:
-                        new_attachments = [dict(r) for r in await cur.fetchall()]
-                else:
-                    new_attachments = []
+                    # Bind any attached files to the newly created user message
+                    if attachment_ids:
+                        placeholders = ",".join("?" * len(attachment_ids))
+                        await db.execute(
+                            f"UPDATE message_attachments SET message_id = ?, variant_id = ? WHERE id IN ({placeholders})",
+                            [user_msg_id, user_variant_id] + attachment_ids
+                        )
 
-                history.append({"role": "user", "content": _build_content(user_message, new_attachments)})
-                next_pos += 1
+                        async with db.execute(
+                            f"SELECT * FROM message_attachments WHERE id IN ({placeholders}) ORDER BY created_at",
+                            attachment_ids
+                        ) as cur:
+                            new_attachments = [dict(r) for r in await cur.fetchall()]
+                    else:
+                        new_attachments = []
 
-            # Create assistant message slot
-            asst_msg_id = str(uuid.uuid4())
-            await db.execute(
-                "INSERT INTO messages (id, chat_id, role, position, active_index, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-                (asst_msg_id, chat_id, "assistant", next_pos, 0, now),
-            )
-            next_variant_index = 0
-            await db.commit()
+                    history.append({"role": "user", "content": _build_content(user_message, new_attachments)})
+                    next_pos += 1
+
+                # Create assistant message slot
+                asst_msg_id = str(uuid.uuid4())
+                await db.execute(
+                    "INSERT INTO messages (id, chat_id, role, position, active_index, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+                    (asst_msg_id, chat_id, "assistant", next_pos, 0, now),
+                )
+                next_variant_index = 0
+                await db.commit()
         else:
             # Read-only path (itemizer): just append to history in memory
             if user_message.strip() or attachment_ids:

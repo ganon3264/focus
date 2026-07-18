@@ -22,8 +22,8 @@ class OpenRouterProvider(OpenAICompatProvider):
     def _get_provider_preferences(self) -> dict:
         prefs = {}
         # OpenRouter-specific routing params injected into extra_body
-        or_route = self.params.pop("or_route", None)
-        or_quant = self.params.pop("or_quant", None)
+        or_route = self.params.get("or_route")
+        or_quant = self.params.get("or_quant")
         
         provider_config = {}
         if or_route:

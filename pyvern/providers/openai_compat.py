@@ -70,7 +70,7 @@ class OpenAICompatProvider(BaseProvider):
             request_params["max_tokens"] = max_tokens
             request_params["temperature"] = temperature
 
-        self._in_reasoning = False
+        in_reasoning = False
 
         logger.debug(f"OpenAI compat request: model={self.model}, base_url={self.base_url}, is_o_model={is_o_model}, temperature={temperature}")
 
@@ -89,13 +89,13 @@ class OpenAICompatProvider(BaseProvider):
                     reasoning = delta_obj.model_extra.get("reasoning_content") or delta_obj.model_extra.get("reasoning")
 
                 if reasoning:
-                    if not self._in_reasoning:
-                        self._in_reasoning = True
+                    if not in_reasoning:
+                        in_reasoning = True
                         yield "<think>\n"
                     yield reasoning
                 
                 if delta:
-                    if self._in_reasoning:
-                        self._in_reasoning = False
+                    if in_reasoning:
+                        in_reasoning = False
                         yield "\n</think>\n\n"
                     yield delta
