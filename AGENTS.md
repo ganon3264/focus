@@ -284,6 +284,37 @@ Always prefer CSS variables over hardcoded colors/radii in inline styles.
 - **HTMX + Alpine coordination** — StateManager dispatches `window.CustomEvent`; Alpine components listen via `@preset-changed.window` / `@provider-changed.window`
 - **HTMX for partial content** — message list, chat list, preset variables, prompt arranger, modal bodies all loaded via `htmx.ajax`
 
+## Data-action event dispatch system
+
+**Central dispatcher:** `static/js/core/actions.js`
+
+All `data-action` attributes on elements are handled by 4 delegated event listeners on `document`:
+
+| Listener | Fires when | Form guard? |
+|---|---|---|
+| `click` | Any click on a `[data-action]` element or its descendants | ✅ Skips `<form>` |
+| `submit` | Form submission | ❌ No guard (only correct path for form actions) |
+| `change` | Change event (blur for text inputs, immediate for selects/checkboxes) | ✅ Skips `<form>` |
+| `input` | Every keystroke (real-time) | ✅ Skips `<form>` |
+
+**Form guard rule:** Every listener except `submit` has `if (el.tagName === 'FORM') return;`. This prevents arbitrary clicks/keystrokes inside a `<form data-action="...">` from triggering the form's action handler. Form actions only fire on actual `submit` events (clicking a submit button, pressing Enter in an input).
+
+**Resolution:** `_resolveAction(name)` looks up the function on `window`:
+- Simple names: `window[name]` (e.g. `data-action="deleteBlockMedia"` → `window.deleteBlockMedia`)
+- Dotted names: traverses `window` object path (e.g. `data-action="BackupManager.doExport"` → `window.BackupManager.doExport`)
+
+**Shared helper:** `window.resolveFormFromEvent(e)` (`actions.js:23`) — safely extracts the `<form>` element from any event, handling both click events (where `e.target` may be a child button) and submit events (where `e.target` IS the form):
+```javascript
+window.resolveFormFromEvent = function (e) {
+  return e.target.tagName === 'FORM' ? e.target : (e.target.form || e.target.closest('form'));
+};
+```
+
+**Requirements for `data-action` functions:**
+- The function MUST be accessible on `window` (either assigned directly: `window.fn = function...`, or a plain declaration inside an IIFE that doesn't scope it locally).
+- The function receives `(el, e)` where `el` is the element with `data-action` (found via `closest()`) and `e` is the raw event.
+- For action wrappers that bridge to internal functions, see the `/* ── Action wrappers ── */` section in `actions.js`.
+
 ## Handling provider state
 
 - `setActiveProvider(id, name, type)` in `modal_providers.js` calls `StateManager.setProvider(id, type)`
@@ -408,7 +439,7 @@ Tests are organized into 3 directories with 23 test source files:
 
 1. **Don't reload the preset selector via HTMX outerHTML swap** after state changes. It races with the DB PATCH. The `@click` handlers update Alpine state synchronously; the PATCH fires async for persistence only. Delete operations should click the fallback item (which calls `StateManager.setPreset`) then remove the deleted DOM node.
 
-2. **`reloadPromptArranger` must always be defined** (unconditionally in base.html). If it's inside `{% if preset %}`, it won't exist when the page loads with no preset selected, breaking the preset selector dropdown.
+2. **`reloadPromptArranger`** is defined in `edit_entity_modal.js` (unconditionally). It now checks `if (!document.getElementById(targetId)) return;` before making the HTMX call, so it's safe to call even when the arranger isn't loaded yet.
 
 3. **`createEditModalHandlers`** (base.html) uses `cfg.stateKey` to find the current entity from StateManager. When reloading modal bodies after edits, always pass `?current_${stateKey}=...` so the active card highlight doesn't vanish.
 
@@ -424,17 +455,19 @@ Tests are organized into 3 directories with 23 test source files:
 
 9. **Message pruning DOM virtualization** — `message_pruner.js` replaces off-screen `.message` nodes with height placeholders (`<div class="message-placeholder" style="height:...px">`). After any HTMX swap affecting messages, call `window.pruneMessages()` or `schedule()`. Always check `window._isMessagePruned(msgId)` before operating on a message DOM node. The streaming message (`window._streamingMessageId`) is excluded from pruning.
 
-10. **Send/regen mode** — The send button shows a send icon when textarea has content, and a regen icon when textarea is empty + last message role is user. `updateSendButtonState()` handles this. When in regen mode, clicking sends an empty `user_message` with `regenerate: true`.
+10. **Never put `data-action` on a `<form>` element** — The form guard in `actions.js` (`if (el.tagName === 'FORM') return;` on click/change/input) means form actions only fire via the `submit` event listener. Use `onsubmit="fn(event)"` or put `data-action` on the submit button itself. The guard prevents random clicks/keystrokes inside the form from triggering the action and closing modals.
 
-11. **`ListManager.setup()`** — Config-driven factory that generates named global functions (filter, sort, compact toggle, new item). Don't create separate handlers per entity type. Call it once per modal with the appropriate `cfg` object.
+11. **Send/regen mode** — The send button shows a send icon when textarea has content, and a regen icon when textarea is empty + last message role is user. `updateSendButtonState()` handles this. When in regen mode, clicking sends an empty `user_message` with `regenerate: true`.
 
-12. **Editor modal z-index** — `var-edit-modal`, `block-edit-modal`, and the preset rename modal all use `--z-modal-high: 1000`. When adding new editor/inline modals, use the same z-index. Sub-modals within provider management use `--z-modal-sub: 100`.
+12. **`ListManager.setup()`** — Config-driven factory that generates named global functions (filter, sort, compact toggle, new item). Don't create separate handlers per entity type. Call it once per modal with the appropriate `cfg` object.
 
-13. **Variables management scripts** — Defined in `chat.html` with a `!_varScriptsLoaded` guard: `updateVarPositions`, `initVarSortables`, `reloadPresetVariables`, `handleVarUpdate`, `handleVarDelete`, `openVarEditModal`, `closeVarModal`, `saveVarModal`. These survive HTMX re-renders of the variable groups partial.
+13. **Editor modal z-index** — `var-edit-modal`, `block-edit-modal`, and the preset rename modal all use `--z-modal-high: 1000`. When adding new editor/inline modals, use the same z-index. Sub-modals within provider management use `--z-modal-sub: 100`.
 
-14. **SVG sprite system** — SVG icon macros are defined in `macros.html` (`icon_plus`, `icon_trash`, `icon_close`, etc.). The `#svg-sprite` div in `base.html` renders them into a sprite sheet, accessed via `window.getSvgSprite(name, size)`. Don't add inline SVGs — add macros to `macros.html` and reference them via the sprite.
+14. **Variables management scripts** — Defined in `chat.html` with a `!_varScriptsLoaded` guard: `updateVarPositions`, `initVarSortables`, `reloadPresetVariables`, `handleVarUpdate`, `handleVarDelete`, `openVarEditModal`, `closeVarModal`, `saveVarModal`. These survive HTMX re-renders of the variable groups partial.
 
-15. **Hint tooltip system** — A reusable `hint_tooltip(text)` macro in `macros.html` renders a `?` icon. Text is stored in a `data-hint` attribute. On hover, `showHint(el)` in `base.html`'s inline script positions a single global `#hint-tooltip` element (`body` child, `position: fixed`) using `getBoundingClientRect()`. `hideHint()` hides it on leave. No Alpine dependency. CSS selectors: `.hint-wrapper` (relative inline-flex), `.hint-icon` (16x16 circle, cursor:help), `#hint-tooltip` (surface-2 background, border, shadow, z-index overlay+1, font-weight 400). To add a hint: `{{ hint_tooltip('Your explanation here.') }}`. Import: `{% from "macros.html" import hint_tooltip %}`. Example in `sampler_modal.html` lines 477, 502, 519.
+15. **SVG sprite system** — SVG icon macros are defined in `macros.html` (`icon_plus`, `icon_trash`, `icon_close`, etc.). The `#svg-sprite` div in `base.html` renders them into a sprite sheet, accessed via `window.getSvgSprite(name, size)`. Don't add inline SVGs — add macros to `macros.html` and reference them via the sprite.
+
+16. **Hint tooltip system** — A reusable `hint_tooltip(text)` macro in `macros.html` renders a `?` icon. Text is stored in a `data-hint` attribute. On hover, `showHint(el)` in `base.html`'s inline script positions a single global `#hint-tooltip` element (`body` child, `position: fixed`) using `getBoundingClientRect()`. `hideHint()` hides it on leave. No Alpine dependency. CSS selectors: `.hint-wrapper` (relative inline-flex), `.hint-icon` (16x16 circle, cursor:help), `#hint-tooltip` (surface-2 background, border, shadow, z-index overlay+1, font-weight 400). To add a hint: `{{ hint_tooltip('Your explanation here.') }}`. Import: `{% from "macros.html" import hint_tooltip %}`. Example in `sampler_modal.html` lines 477, 502, 519.
 
 ## File naming conventions
 

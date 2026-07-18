@@ -145,7 +145,7 @@ async def add_persona_image(
     try:
         return await crud.upload_block_image(
             db,
-            block_id,
+            persona_id,
             "persona",
             await read_upload(file),
             file.filename,

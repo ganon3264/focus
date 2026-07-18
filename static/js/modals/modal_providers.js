@@ -385,7 +385,9 @@ function saveProviderModal(e, id) {
   e.preventDefault();
   let data;
   try {
-    data = extractData(e.target);
+    var form = window.resolveFormFromEvent(e);
+    if (!form) return;
+    data = extractData(form);
   } catch (err) {
     return;
   }

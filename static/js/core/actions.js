@@ -15,9 +15,14 @@
   document.addEventListener("click", function (e) {
     var el = e.target.closest("[data-action]");
     if (!el) return;
+    if (el.tagName === 'FORM') return;
     var fn = _resolveAction(el.dataset.action);
     if (fn) fn(el, e);
   });
+
+  window.resolveFormFromEvent = function (e) {
+    return e.target.tagName === 'FORM' ? e.target : (e.target.form || e.target.closest('form'));
+  };
 
   document.addEventListener("submit", function (e) {
     var el = e.target.closest("[data-action]");
@@ -29,6 +34,15 @@
   document.addEventListener("change", function (e) {
     var el = e.target.closest("[data-action]");
     if (!el) return;
+    if (el.tagName === 'FORM') return;
+    var fn = _resolveAction(el.dataset.action);
+    if (fn) fn(el, e);
+  });
+
+  document.addEventListener("input", function (e) {
+    var el = e.target.closest("[data-action]");
+    if (!el) return;
+    if (el.tagName === 'FORM') return;
     var fn = _resolveAction(el.dataset.action);
     if (fn) fn(el, e);
   });

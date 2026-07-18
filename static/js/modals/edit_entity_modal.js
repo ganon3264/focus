@@ -1,5 +1,6 @@
 (function () {
   window.reloadPromptArranger = function (presetId, targetId) {
+    if (!document.getElementById(targetId)) return;
     var url = '/partials/prompt-arranger/' + presetId;
     var params = new URLSearchParams();
     if (StateManager.get('character_id'))
@@ -178,7 +179,9 @@
       e.preventDefault();
       var id = eid('-id').value;
       if (!id) return;
-      var data = Object.fromEntries(new FormData(e.target));
+      var form = window.resolveFormFromEvent(e);
+      if (!form) return;
+      var data = Object.fromEntries(new FormData(form));
       fetch(cfg.apiGet(id), {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },

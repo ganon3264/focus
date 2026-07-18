@@ -241,7 +241,7 @@ function uploadCharMedia(input) {
     });
 }
 
-function deleteCharMedia(el) {
+window.deleteCharMedia = function (el) {
   const container = el.closest ? el.closest('[data-image-id]') : el;
   const imageId = container ? container.dataset.imageId : '';
   const mediaSection = container ? container.closest('.char-block-media-section') : null;
@@ -285,7 +285,7 @@ function uploadCharBlockMedia(input) {
     });
 }
 
-function deleteCharBlockMedia(el) {
+window.deleteCharBlockMedia = function (el) {
   const container = el.closest ? el.closest('[data-image-id]') : el;
   const imageId = container ? container.dataset.imageId : '';
   const blockItem = container ? container.closest('.block-item') : null;
