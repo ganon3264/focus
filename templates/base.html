@@ -122,7 +122,7 @@
         var btn = document.createElement('button');
         btn.className = 'absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity';
         btn.type = 'button';
-        btn.innerHTML = '×';
+        btn.innerHTML = getSvgSprite('close', 12);
         btn.onclick = function(e) { e.preventDefault(); e.stopPropagation(); onDelete(e); };
         div.appendChild(btn);
       }
@@ -264,7 +264,7 @@
     
     <!-- Global Lightbox for Images -->
      <div id="lightbox" class="fixed inset-0 z-[9999] bg-black/90 hidden flex-col items-center justify-center backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Image lightbox" onclick="closeLightbox(event)">
-       <button id="lightbox-close" class="absolute top-4 right-4 text-white/50 hover:text-white bg-black/50 hover:bg-black/75 rounded-full w-10 h-10 flex items-center justify-center transition-colors text-xl font-bold cursor-pointer focus:outline-none z-50" onclick="closeLightbox(event)" title="Close" aria-label="Close lightbox">×</button>
+       <button id="lightbox-close" class="absolute top-4 right-4 text-white/50 hover:text-white bg-black/50 hover:bg-black/75 rounded-full w-10 h-10 flex items-center justify-center transition-colors text-xl font-bold cursor-pointer focus:outline-none z-50" onclick="closeLightbox(event)" title="Close" aria-label="Close lightbox">{{ icon_close(24) }}</button>
        <img id="lightbox-img" src="" alt="Enlarged image" class="max-w-[95vw] max-h-[95vh] object-contain rounded shadow-2xl" onclick="event.stopPropagation()">
     </div>
 

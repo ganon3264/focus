@@ -1,3 +1,4 @@
+{% from "macros.html" import icon_close %}
 {% extends "base.html" %}
 {% block title %}Providers - Pyvern{% endblock %}
 {% block content %}
@@ -8,7 +9,7 @@
     <div class="p-3" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;">
       <div class="flex justify-between items-center mb-1">
         <strong>{{ prov.name }}</strong>
-        <button class="btn btn-danger btn-sm" hx-delete="/api/providers/{{ prov.id }}" hx-confirm="Delete?" hx-target="closest div" hx-swap="delete" aria-label="Delete provider">×</button>
+        <button class="btn btn-danger btn-sm" hx-delete="/api/providers/{{ prov.id }}" hx-confirm="Delete?" hx-target="closest div" hx-swap="delete" aria-label="Delete provider">{{ icon_close(16) }}</button>
       </div>
       <div class="text-sm text-muted">{{ prov.type }} • {{ prov.model }}</div>
       <div class="text-sm text-muted truncate">{{ prov.base_url or '' }}</div>

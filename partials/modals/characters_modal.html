@@ -1,5 +1,5 @@
 <div class="mb-5 flex flex-col gap-3">
-  {% from "macros.html" import icon_edit, icon_trash, icon_search, icon_plus, icon_upload, icon_grid %}
+  {% from "macros.html" import icon_edit, icon_trash, icon_search, icon_plus, icon_upload, icon_grid, icon_close %}
   <h3 class="sidebar-title mb-1">Tools</h3>
   <div class="flex gap-2 h-10">
     <form onsubmit="importCharModal(event)" class="flex-1 h-full">
@@ -172,7 +172,7 @@ function openTrashModal() {
           <div class="modal-content" style="max-width: 500px; width: 90vw;">
             <div class="modal-header mb-4">
               <div class="modal-title text-xl font-bold">Trash Bin</div>
-              <button class="btn btn-secondary btn-sm" onclick="document.getElementById('trash-modal').remove()" aria-label="Close">×</button>
+               <button class="btn btn-secondary btn-sm" onclick="document.getElementById('trash-modal').remove()" aria-label="Close">{{ icon_close(16) }}</button>
             </div>
             <div id="trash-modal-body">
               ${html}

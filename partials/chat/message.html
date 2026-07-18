@@ -1,5 +1,5 @@
 <div class="message relative" id="message-{{ message.id }}" data-message-id="{{ message.id }}">
-  {% from "macros.html" import icon_edit, icon_refresh, icon_trash, icon_music, icon_branch %}
+  {% from "macros.html" import icon_edit, icon_refresh, icon_trash, icon_music, icon_branch, icon_chevron_left, icon_chevron_right %}
   <div class="delete-mode-checkbox hidden absolute -left-12 top-4">
     <input type="checkbox" class="w-5 h-5 accent-[var(--accent)] rounded border-[var(--border)] cursor-pointer msg-select-checkbox" value="{{ message.id }}" onchange="updateDeleteSelection()">
   </div>
@@ -57,14 +57,14 @@
       hx-vals='{"direction":"prev"}'
       hx-swap="none"
       hx-on:htmx:after-request="htmx.ajax('GET', '/partials/message-list/{{ chat_id }}', {target:'#message-list', swap:'innerHTML'})"
-    >←</button>
+    >{{ icon_chevron_left() }}</button>
     <span class="text-xs text-muted" style="display:flex;align-items:center;">{{ message.active_index + 1 }}/{{ message.variant_count }}</span>
     <button class="action-btn" title="Swipe right" aria-label="Next variant"
       hx-post="/api/chats/{{ chat_id }}/messages/{{ message.id }}/swipe"
       hx-vals='{"direction":"next"}'
       hx-swap="none"
       hx-on:htmx:after-request="let res = JSON.parse(event.detail.xhr.response); if(res.needs_generation) { const asstDiv = document.getElementById('message-{{ message.id }}'); window.triggerGeneration('{{ chat_id }}', asstDiv, true); } else { htmx.ajax('GET', '/partials/message-list/{{ chat_id }}', {target:'#message-list', swap:'innerHTML'}); }"
-    >→</button>
+    >{{ icon_chevron_right() }}</button>
     {% endif %}
     {% if is_latest and message.role == 'assistant' and message.position != 0 %}
     <button class="action-btn" title="Regenerate" aria-label="Regenerate"

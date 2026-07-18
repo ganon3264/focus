@@ -1,3 +1,4 @@
+{% from "macros.html" import icon_chevron_right %}
 <div x-data="itemizerModal()" @itemizer-open.window="load()" class="flex flex-col h-full">
   <div class="flex justify-between items-center mb-4 pb-2 border-b" style="border-color: var(--border);">
     <div class="text-xs text-muted">Visualize and estimate tokens for the outbound prompt.</div>
@@ -25,7 +26,7 @@
                      msg.role === 'user' ? 'background: var(--surface-2);' : 
                      'background: rgba(16, 185, 129, 0.1); color: #10b981;'">
           <div class="flex items-center gap-2">
-            <span class="transform transition-transform duration-200 inline-block w-4 text-center" :class="expanded ? 'rotate-90' : ''">▶</span>
+            <span class="transform transition-transform duration-200 inline-block w-4 text-center" :class="expanded ? 'rotate-90' : ''">{{ icon_chevron_right(12) }}</span>
             <span x-text="msg.role"></span>
           </div>
           <span class="font-mono text-[var(--text)] opacity-70" x-text="msg.tokens + ' tk'"></span>

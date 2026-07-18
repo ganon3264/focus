@@ -1,5 +1,5 @@
 <div id="preset-variables-container-{{ preset_id }}">
-  {% from "macros.html" import icon_edit %}
+  {% from "macros.html" import icon_edit, icon_plus, icon_close, icon_chevron_right %}
   {% if var_groups %}
     <div class="flex flex-col gap-2" id="preset-variables-sortable-{{ preset_id }}">
     {% for vname, vblocks in var_groups.items() %}
@@ -7,12 +7,12 @@
         <div class="hidden var-group-ids" data-ids="{{ vblocks | map(attribute='id') | join(',') }}"></div>
         <div class="arranger-header">
           <div class="arranger-title-group" @click="expanded = !expanded; expanded ? (window._expandedVarGroups = window._expandedVarGroups || new Set()).add('{{ vname }}') : (window._expandedVarGroups || new Set()).delete('{{ vname }}')" role="button" tabindex="0" aria-expanded="false" style="cursor: pointer;">
-            <span style="font-size: 0.8rem; color: var(--text-muted); width: 16px; text-align: center;" x-text="expanded ? '▼' : '▶'"></span>
+            <span style="font-size: 0.8rem; color: var(--text-muted); width: 16px; text-align: center; display: inline-flex; align-items: center; justify-content: center;" :class="expanded ? 'rotate-90' : ''">{{ icon_chevron_right(12) }}</span>
             <span class="arranger-badge" style="background: var(--surface-3); border: 1px solid var(--border); color: var(--text-muted);">VAR</span>
             <span class="arranger-input" style="cursor: pointer; font-weight: bold;">{{ vname }}</span>
           </div>
           <div class="arranger-actions">
-            <button type="button" class="action-icon" title="Add Option" aria-label="Add option" onclick="event.stopPropagation(); openVarEditModal(null, '{{ preset_id }}', '{{ vname }}', '', '')">+</button>
+            <button type="button" class="action-icon" title="Add Option" aria-label="Add option" onclick="event.stopPropagation(); openVarEditModal(null, '{{ preset_id }}', '{{ vname }}', '', '')">{{ icon_plus(16) }}</button>
           </div>
         </div>
         <div x-show="expanded" x-transition.opacity.duration.200ms style="margin-top: 0.5rem; display: none;">
@@ -25,7 +25,7 @@
                 <span class="text-sm font-semibold truncate cursor-pointer" style="width: 130px; flex-shrink: 0;" onclick="handleVarUpdate('{{ preset_id }}', '{{ vb.id }}', {enabled:{{ 0 if vb.enabled else 1 }}})" title="{{ vlabel }}">{{ vlabel }}</span>
                 <span class="text-xs text-muted truncate flex-1" style="min-width: 0;" title="{{ vb.content }}">{{ vb.content }}</span>
                 <button type="button" class="action-icon" style="flex-shrink: 0;" title="Edit Option" aria-label="Edit option" onclick="openVarEditModal('{{ vb.id }}', '{{ preset_id }}', '{{ vname }}', '{{ vlabel }}', '{{ vb.content | replace('\n', '\\n') | replace('\'', '\\\'') | replace('"', '\\"') }}')">{{ icon_edit() }}</button>
-                <button type="button" class="action-icon danger" style="flex-shrink: 0;" title="Delete Option" aria-label="Delete option" onclick="window.customConfirm('Delete variable option?', function(){ handleVarDelete('{{ preset_id }}', '{{ vb.id }}'); })">×</button>
+                <button type="button" class="action-icon danger" style="flex-shrink: 0;" title="Delete Option" aria-label="Delete option" onclick="window.customConfirm('Delete variable option?', function(){ handleVarDelete('{{ preset_id }}', '{{ vb.id }}'); })">{{ icon_close(16) }}</button>
               </div>
             {% endfor %}
           </div>
@@ -36,7 +36,7 @@
   {% else %}
     <div class="text-muted text-sm mb-2">No variables configured.</div>
   {% endif %}
-  <button type="button" class="btn btn-secondary w-full text-xs mt-2" onclick="openVarEditModal(null, '{{ preset_id }}', '', '', '')">+ Add Variable</button>
+  <button type="button" class="btn btn-secondary w-full text-xs mt-2" onclick="openVarEditModal(null, '{{ preset_id }}', '', '', '')">{{ icon_plus(14) }} Add Variable</button>
 
   <!-- Variable Edit Modal -->
   {% from "modal_shell.html" import modal_shell %}

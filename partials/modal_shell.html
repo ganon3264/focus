@@ -1,9 +1,10 @@
+{% from "macros.html" import icon_close %}
 {% macro modal_shell(id, title, max_width='600px', width='95vw', content_style='display:flex;flex-direction:column;', z_index='', role='dialog', close_fn='closeModal', overlay_close=true) %}
 <div id="{{ id }}" class="modal-overlay" role="{{ role }}" aria-modal="true" style="display:none;{% if z_index %} z-index:{{ z_index }};{% endif %}"{% if overlay_close %} onclick="if(event.target===this){{ close_fn }}('{{ id }}')"{% endif %}>
   <div class="modal-content" style="max-width:{{ max_width }};width:{{ width }};{{ content_style }}">
     <div class="modal-header">
       <div class="modal-title">{{ title }}</div>
-      <button class="btn btn-secondary" aria-label="Close" onclick="{{ close_fn }}('{{ id }}')">×</button>
+      <button class="btn btn-secondary" aria-label="Close" onclick="{{ close_fn }}('{{ id }}')">{{ icon_close(16) }}</button>
     </div>
     {{ caller() }}
   </div>

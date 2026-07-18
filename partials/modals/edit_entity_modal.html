@@ -1,4 +1,4 @@
-{% from "macros.html" import icon_expand %}
+{% from "macros.html" import icon_expand, icon_plus %}
 {% from "modal_shell.html" import modal_shell %}
 {% call modal_shell(modal_id, 'Edit ' ~ entity_name, z_index='100') %}
 <form id="edit-{{ prefix }}-form" class="flex flex-col gap-4 flex-1" onsubmit="{{ submit_fn }}(event)">
@@ -32,7 +32,7 @@
     <label class="text-sm font-semibold text-muted block mb-1">Reference Media</label>
     <div class="char-block-media-section" id="edit-{{ prefix }}-media-section" style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
       <label class="btn btn-secondary btn-sm block-media-btn" style="height: 48px; padding: 0 0.5rem; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 4px; border-style: dashed; flex-shrink: 0; margin: 0;" title="Add Image or Audio">
-        <span class="text-muted text-xl">+</span>
+        {{ icon_plus(20) }}
         <input type="file" accept="image/*,audio/*" class="hidden block-media-input" onchange="{{ upload_fn }}(this)">
       </label>
       <span class="text-xs text-muted block-media-placeholder">Add reference image or audio</span>

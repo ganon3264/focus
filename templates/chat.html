@@ -1,13 +1,16 @@
 {% extends "base.html" %}
-{% from "macros.html" import icon_edit, icon_expand, icon_trash, icon_refresh, icon_music, icon_key, icon_search, icon_folder, icon_paperclip, icon_stop, icon_send, icon_chat %}
+{% from "macros.html" import icon_edit, icon_expand, icon_trash, icon_refresh, icon_music, icon_key, icon_search, icon_folder, icon_paperclip, icon_plus, icon_stop, icon_send, icon_chat, icon_close, icon_chevron_left, icon_chevron_right %}
 {% from "modal_shell.html" import modal_shell %}
 {% block title %}Chat - Pyvern{% endblock %}
 {% block content %}
 <div class="app-shell">
   <!-- Left Sidebar -->
-  <aside class="left-sidebar">
+  <aside class="left-sidebar" id="left-sidebar">
     <div class="sidebar-section">
-      <div class="sidebar-title">Preset</div>
+      <div class="sidebar-title">
+        <span>Preset</span>
+        <button class="action-icon" onclick="toggleLeftBar()" title="Collapse" style="margin-top: -0.3rem;" aria-label="Toggle sidebar">{{ icon_chevron_left() }}</button>
+      </div>
       <div id="preset-selector">
         {% include "presets/preset_selector.html" %}
       </div>
@@ -48,6 +51,11 @@
     </div>
   </aside>
 
+  <!-- Collapsed left tab -->
+  <div id="left-tab" class="left-tab hidden" onclick="toggleLeftBar()" role="button" tabindex="0">
+    <div class="sidebar-title" style="writing-mode: vertical-rl; padding: 0.5rem 0; cursor: pointer; color: var(--text);">{{ icon_chevron_left() }} Preset</div>
+  </div>
+
   <!-- Center -->
   <main class="main-content">
     {% if chat_id %}
@@ -61,7 +69,7 @@
         <div id="error-toast-text" class="flex-1 font-mono break-all whitespace-pre-wrap max-h-[200px] overflow-y-auto"></div>
         <div class="flex gap-2 flex-shrink-0">
           <button class="btn btn-secondary btn-sm" onclick="navigator.clipboard.writeText(document.getElementById('error-toast-text').innerText); this.textContent='Copied!'; setTimeout(()=>this.textContent='Copy', 2000);">Copy</button>
-           <button class="btn btn-secondary btn-sm" aria-label="Close error" onclick="document.getElementById('error-toast').classList.add('hidden')">×</button>
+           <button class="btn btn-secondary btn-sm" aria-label="Close error" onclick="document.getElementById('error-toast').classList.add('hidden')">{{ icon_close(16) }}</button>
         </div>
       </div>
       <div id="staging-area" class="w-full max-w-[820px] flex gap-2 overflow-x-auto empty:hidden pointer-events-auto" style="min-height: 0;"></div>
@@ -130,14 +138,14 @@
   <aside class="right-sidebar" id="right-sidebar">
     <div class="sidebar-section flex-1 overflow-auto">
       <div class="sidebar-title flex justify-between items-center">
+        <button class="action-icon" onclick="toggleRightBar()" title="Collapse" style="margin-top: -0.3rem;" aria-label="Toggle sidebar">{{ icon_chevron_right() }}</button>
         <span>Chats</span>
-         <button class="action-icon" onclick="toggleRightBar()" title="Collapse" style="margin-top: -0.3rem;" aria-label="Toggle sidebar">→</button>
       </div>
       
       {% if has_characters %}
-        <button class="btn btn-primary btn-sm w-full mb-3 mt-1" onclick="newChat()">+ New Chat</button>
+        <button class="btn btn-primary btn-sm w-full mb-3 mt-1" onclick="newChat()">{{ icon_plus(14) }} New Chat</button>
       {% else %}
-        <button class="btn btn-primary btn-sm w-full mb-3 mt-1" onclick="openModal('modal-characters')">+ Add Character</button>
+        <button class="btn btn-primary btn-sm w-full mb-3 mt-1" onclick="openModal('modal-characters')">{{ icon_plus(14) }} Add Character</button>
       {% endif %}
 
       <div id="chat-list" class="sidebar-list">
@@ -148,7 +156,7 @@
 
   <!-- Collapsed right tab -->
    <div id="right-tab" class="right-tab hidden" onclick="toggleRightBar()" role="button" tabindex="0">
-    <div class="sidebar-title" style="writing-mode: vertical-rl; padding: 0.5rem 0; cursor: pointer; color: var(--text);">Chats →</div>
+    <div class="sidebar-title" style="writing-mode: vertical-rl; padding: 0.5rem 0; cursor: pointer; color: var(--text);">Chats {{ icon_chevron_right() }}</div>
   </div>
 </div>
 
@@ -227,6 +235,10 @@ function closeModal(id){ document.getElementById(id).style.display = 'none'; }
 function toggleRightBar(){
   document.getElementById('right-sidebar').classList.toggle('hidden');
   document.getElementById('right-tab').classList.toggle('hidden');
+}
+function toggleLeftBar(){
+  document.getElementById('left-sidebar').classList.toggle('hidden');
+  document.getElementById('left-tab').classList.toggle('hidden');
 }
 </script>
 

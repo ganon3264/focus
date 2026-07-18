@@ -56,3 +56,13 @@ app.mount("/static",  StaticFiles(directory="static"),  name="static")
 @app.get("/", include_in_schema=False)
 async def root():
     return FileResponse("static/index.html")
+
+
+if __name__ == "__main__":
+    import argparse
+    import uvicorn
+    parser = argparse.ArgumentParser(description="Pyvern")
+    parser.add_argument("--host", default="127.0.0.1", help="Bind address")
+    parser.add_argument("--port", type=int, default=8000, help="Bind port")
+    args = parser.parse_args()
+    uvicorn.run("main:app", host=args.host, port=args.port)

@@ -1,3 +1,4 @@
+{% from "macros.html" import icon_plus %}
 <div class="arranger-list" id="arranger-list-{{ preset_id }}"
   hx-put="/api/presets/{{ preset_id }}/blocks"
   hx-trigger="sortEnd"
@@ -12,7 +13,7 @@
 
 <div x-data="{ open: false }" style="position: relative; margin-top: 0.5rem;">
   <button type="button" class="btn btn-secondary w-full" @click="open = !open">
-    + Add Block
+    {{ icon_plus(14) }} Add Block
   </button>
   
   <div x-show="open" @click.away="open = false" x-transition.opacity.duration.200ms

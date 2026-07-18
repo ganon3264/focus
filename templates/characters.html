@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% from "macros.html" import icon_expand, icon_music, icon_close, media_thumbnail %}
+{% from "macros.html" import icon_expand, icon_music, icon_plus, icon_close, icon_chevron_left, icon_chevron_down, media_thumbnail %}
 {% block title %}Characters - Pyvern{% endblock %}
 {% block content %}
 <div class="p-3 flex flex-col h-full" x-data="charEditor()">
   <div class="flex justify-between items-center mb-3 flex-shrink-0">
     <div class="flex items-center gap-3">
-      <a href="/chat" class="btn btn-secondary text-decoration-none">← Back to Chat</a>
+      <a href="/chat" class="btn btn-secondary text-decoration-none">{{ icon_chevron_left() }} Back to Chat</a>
     </div>
     <form onsubmit="importCharPage(event)">
       <label class="btn btn-primary" style="cursor:pointer">
@@ -38,7 +38,7 @@
           <span class="text-muted">Choose a character...</span>
         </template>
       </div>
-      <span class="text-muted text-xs">▼</span>
+      <span class="text-muted text-xs" style="display: inline-flex;">{{ icon_chevron_down(12) }}</span>
     </button>
     
     <!-- Dropdown Menu -->
@@ -111,7 +111,7 @@
                 {{ media_thumbnail(img, "deleteCharMedia('" + char.id + "', '" + img.id + "')", ' id="char-media-' + img.id + '"') }}
                 {% endfor %}
                 <label class="btn btn-secondary btn-sm block-media-btn" style="height: 48px; padding: 0 0.5rem; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 4px; border-style: dashed; flex-shrink: 0; margin: 0;" title="Add Image or Audio">
-                  <span class="text-muted text-xl">+</span>
+                  {{ icon_plus(20) }}
                   <input type="file" accept="image/*,audio/*" class="hidden block-media-input" onchange="uploadCharMedia('{{ char.id }}', this)">
                 </label>
                 {% if not char.images %}
@@ -132,7 +132,7 @@
             <div class="w-full" id="greetings-container-{{ char.id }}">
               <div class="flex items-center justify-between mb-2">
                 <label class="text-sm font-semibold text-muted">Alternate Greetings</label>
-                <button class="btn btn-secondary btn-sm" onclick="addGreeting('{{ char.id }}')">+ Add Greeting</button>
+                <button class="btn btn-secondary btn-sm" onclick="addGreeting('{{ char.id }}')">{{ icon_plus(14) }} Add Greeting</button>
               </div>
               
               <div class="flex flex-col gap-3" id="greetings-list-{{ char.id }}">
@@ -150,7 +150,7 @@
             <div x-data="{ showAdvanced: false }" class="mt-4 pt-4 border-t border-dashed border-[var(--border)] w-full">
               <button class="btn btn-secondary w-full flex items-center justify-between" @click="showAdvanced = !showAdvanced">
                 <span x-text="showAdvanced ? 'Hide Advanced Text Fields' : 'Show Advanced Fields (Personality, Scenario, Example)'"></span>
-                <span x-text="showAdvanced ? '▲' : '▼'" class="text-xs"></span>
+                <span :class="showAdvanced ? 'rotate-180' : ''" style="display: inline-flex;" class="text-xs">{{ icon_chevron_down(12) }}</span>
               </button>
               
               <div x-show="showAdvanced" x-collapse class="flex flex-col gap-4 mt-4">
@@ -184,7 +184,7 @@
           <div class="flex flex-col h-full pl-2">
             <div class="flex items-center justify-between mb-4">
               <h3 class="sidebar-title m-0">Custom Logic Blocks</h3>
-              <button class="btn btn-secondary btn-sm" onclick="addBlock('{{ char.id }}')">+ Add Block</button>
+              <button class="btn btn-secondary btn-sm" onclick="addBlock('{{ char.id }}')">{{ icon_plus(14) }} Add Block</button>
             </div>
             
             <div class="flex flex-col gap-4 overflow-y-auto pr-2" id="blocks-container-{{ char.id }}" style="max-height: 800px;">
@@ -199,7 +199,7 @@
                     <option value="user" {% if block.role == 'user' %}selected{% endif %}>User</option>
                     <option value="assistant" {% if block.role == 'assistant' %}selected{% endif %}>Assistant</option>
                   </select>
-                  <button class="btn btn-danger btn-sm" title="Delete Block" onclick="deleteBlock('{{ char.id }}', '{{ block.id }}')" aria-label="Delete block">×</button>
+                  <button class="btn btn-danger btn-sm" title="Delete Block" onclick="deleteBlock('{{ char.id }}', '{{ block.id }}')" aria-label="Delete block">{{ icon_close(16) }}</button>
                 </div>
                 <div class="textarea-wrapper">
                   <textarea class="form-control text-sm w-full" rows="4" placeholder="Block Content"
@@ -213,7 +213,7 @@
                   {{ media_thumbnail(img, "deleteCharBlockMedia('" + char.id + "', '" + block.id + "', '" + img.id + "')", ' id="media-' + img.id + '"') }}
                   {% endfor %}
                   <label class="btn btn-secondary btn-sm" style="height: 48px; padding: 0 0.5rem; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 4px; border-style: dashed; flex-shrink: 0; margin: 0;" title="Add Image or Audio">
-                    <span class="text-muted text-xl">+</span>
+                    {{ icon_plus(20) }}
                     <input type="file" accept="image/*,audio/*" class="hidden" onchange="uploadCharBlockMedia('{{ char.id }}', '{{ block.id }}', this)">
                   </label>
                   {% if not block.images %}
@@ -257,7 +257,7 @@
         <option value="user">User</option>
         <option value="assistant">Assistant</option>
       </select>
-      <button class="btn btn-danger btn-sm block-delete" title="Delete Block" aria-label="Delete block">×</button>
+      <button class="btn btn-danger btn-sm block-delete" title="Delete Block" aria-label="Delete block">{{ icon_close(16) }}</button>
     </div>
     <div class="textarea-wrapper">
       <textarea class="form-control text-sm w-full block-content" rows="4" placeholder="Block Content"></textarea>
@@ -266,7 +266,7 @@
     
     <div class="char-block-media-section" style="margin-top: 0.5rem; display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
       <label class="btn btn-secondary btn-sm block-media-btn" style="height: 48px; padding: 0 0.5rem; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 4px; border-style: dashed; flex-shrink: 0; margin: 0;" title="Add Image or Audio">
-        <span class="text-muted text-xl">+</span>
+        {{ icon_plus(20) }}
         <input type="file" accept="image/*,audio/*" class="hidden block-media-input">
       </label>
       <span class="text-xs text-muted block-media-placeholder">Add reference image or audio</span>

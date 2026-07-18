@@ -1,4 +1,4 @@
-{% from "macros.html" import custom_select, icon_edit, icon_search, icon_refresh, icon_folder, icon_plus %}
+{% from "macros.html" import custom_select, icon_edit, icon_search, icon_refresh, icon_folder, icon_plus, icon_close %}
 <div class="flex flex-col h-full overflow-y-auto">
   <div class="flex justify-between items-center mb-3" style="border-bottom: 1px solid var(--border); padding-bottom: 0.75rem;">
     <h3 class="sidebar-title mb-0">Select Active Provider</h3>
@@ -21,7 +21,7 @@
             <strong class="text-sm">{{ prov.name }}</strong>
             <div class="flex gap-1" onclick="event.stopPropagation()">
               <button class="btn btn-secondary btn-sm" onclick="toggleProviderEdit('{{ prov.id }}')" aria-label="Edit provider">{{ icon_edit() }}</button>
-              <button class="btn btn-danger btn-sm" hx-delete="/api/providers/{{ prov.id }}" hx-confirm="Delete?" hx-on:htmx:after-request="htmx.ajax('GET','/partials/providers-modal',{target:'#providers-modal-body',swap:'innerHTML'})" aria-label="Delete provider">×</button>
+              <button class="btn btn-danger btn-sm" hx-delete="/api/providers/{{ prov.id }}" hx-confirm="Delete?" hx-on:htmx:after-request="htmx.ajax('GET','/partials/providers-modal',{target:'#providers-modal-body',swap:'innerHTML'})" aria-label="Delete provider">{{ icon_close(16) }}</button>
             </div>
           </div>
           <div class="text-xs text-muted">{{ prov.type }} • <span class="truncate" style="display:inline-block; max-width: 150px; vertical-align:bottom;">{{ prov.model }}</span></div>
@@ -147,7 +147,7 @@
   <div class="modal-content flex flex-col p-0" style="max-width: 800px; width: 95vw; height: 80vh; overflow: hidden; background: var(--surface);">
     <div class="modal-header p-4 mb-0" style="border-bottom: 1px solid var(--border);">
       <div class="modal-title">Select Model</div>
-      <button class="btn btn-secondary" onclick="document.getElementById('modal-fetch-models').style.display='none'" aria-label="Close">×</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('modal-fetch-models').style.display='none'" aria-label="Close">{{ icon_close(16) }}</button>
     </div>
     
     <div class="p-4" style="background: var(--surface-2); border-bottom: 1px solid var(--border);">
@@ -211,7 +211,7 @@
   <div class="modal-content flex flex-col p-0" style="max-width: 800px; width: 95vw; height: 75vh; overflow: hidden; background: var(--surface);">
     <div class="modal-header p-4 mb-0" style="border-bottom: 1px solid var(--border);">
       <div class="modal-title">Select API Key</div>
-      <button class="btn btn-secondary" onclick="document.getElementById('modal-secrets').style.display='none'" aria-label="Close">×</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('modal-secrets').style.display='none'" aria-label="Close">{{ icon_close(16) }}</button>
     </div>
     
     <div class="p-4" style="background: var(--surface-2); border-bottom: 1px solid var(--border);">
@@ -229,7 +229,7 @@
              </div>
              <div class="flex gap-2">
                <button type="button" class="btn btn-primary btn-sm" @click.stop="selectSecret(sec.name)">Select</button>
-               <button type="button" class="btn btn-danger btn-sm" @click.stop="deleteSecret(sec.name)" aria-label="Delete secret">×</button>
+               <button type="button" class="btn btn-danger btn-sm" @click.stop="deleteSecret(sec.name)" aria-label="Delete secret">{{ icon_close(16) }}</button>
              </div>
            </div>
          </template>
