@@ -93,14 +93,36 @@ class TestApplyClaudeCaching:
     def test_sliding_breakpoint(self):
         msgs = [
             {"role": "assistant", "content": "greeting", "_greeting": True},
-            {"role": "user", "content": "a"},
+            {"role": "user", "content": "a"},       # 3rd user from end
             {"role": "assistant", "content": "b"},
-            {"role": "user", "content": "c"},
+            {"role": "user", "content": "c"},       # 2nd user from end
             {"role": "assistant", "content": "d"},
-            {"role": "user", "content": "e"},
+            {"role": "user", "content": "e"},       # 1st user from end (current)
             {"role": "assistant", "content": "f"},
         ]
         result = apply_claude_caching(msgs, cache_enabled=True, cache_depth=2)
-        # static on greeting (idx 0), sliding on idx 5 (len=7, cache_depth=2)
+        # static on greeting (idx 0), sliding on user "a" (idx 1)
         assert "cache_control" in result[0]["content"][0]
-        assert "cache_control" in result[5]["content"][0]
+        assert "cache_control" in result[1]["content"][0]
+
+    def test_no_sliding_when_conversation_too_short(self):
+        msgs = [
+            {"role": "assistant", "content": "greeting", "_greeting": True},
+            {"role": "user", "content": "a"},
+        ]
+        result = apply_claude_caching(msgs, cache_enabled=True, cache_depth=5)
+        # Only one user message, not enough for cache_depth+1 → no sliding
+        assert "cache_control" in result[0]["content"][0]
+        assert "cache_control" not in result[1].get("content", "")
+
+    def test_strips_old_cache_control(self):
+        msgs = [
+            {"role": "assistant", "content": [
+                {"type": "text", "text": "greeting", "cache_control": {"type": "ephemeral"}},
+            ], "_greeting": True},
+            {"role": "user", "content": "hi"},
+            {"role": "assistant", "content": "ok"},
+        ]
+        # Stale cache_control on first block should be stripped, then re-added
+        result = apply_claude_caching(msgs, cache_enabled=True)
+        assert "cache_control" in result[0]["content"][0]

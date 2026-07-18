@@ -4,12 +4,43 @@ import logging
 import re
 from pathlib import Path
 from typing import Any
+from io import BytesIO
 
+from PIL import Image
 
 from focus.macros import apply_macros
 from focus.utils import variable_group_name, MACRO_MAX_PASSES
 
 logger = logging.getLogger("focus.prompt_chain")
+
+MAX_IMAGE_B64 = 5 * 1024 * 1024  # 5 MB provider limit on base64 payload
+
+
+def _compress_image(data: bytes, mime: str) -> tuple[str, str]:
+    """Downscale image until its base64 payload fits under MAX_IMAGE_B64."""
+    img = Image.open(BytesIO(data))
+    b64 = base64.b64encode(data).decode()
+
+    if len(b64) <= MAX_IMAGE_B64:
+        return b64, mime
+
+    scale = 1.0
+    while len(b64) > MAX_IMAGE_B64 and scale > 0.05:
+        scale *= 0.8
+        new_w = max(1, int(img.width * scale))
+        new_h = max(1, int(img.height * scale))
+        resized = img.resize((new_w, new_h), Image.LANCZOS)
+        buf = BytesIO()
+        if resized.mode in ("RGBA", "LA", "P"):
+            resized = resized.convert("RGB")
+        resized.save(buf, format="JPEG", quality=85)
+        b64 = base64.b64encode(buf.getvalue()).decode()
+        if len(b64) > MAX_IMAGE_B64:
+            buf = BytesIO()
+            resized.save(buf, format="JPEG", quality=65)
+            b64 = base64.b64encode(buf.getvalue()).decode()
+
+    return b64, "image/jpeg"
 
 
 def _load_media(media_row: dict) -> dict | None:
@@ -25,7 +56,7 @@ def _load_media(media_row: dict) -> dict | None:
         return None
     b64 = base64.b64encode(data).decode()
     mime = media_row.get("mime_type", "image/png")
-    
+
     if mime.startswith("audio/"):
         # Format might be extracted from mime type, e.g. audio/mpeg -> mp3
         fmt = mime.split("/")[-1].replace("mpeg", "mp3")
@@ -36,7 +67,10 @@ def _load_media(media_row: dict) -> dict | None:
                 "format": fmt
             }
         }
-    
+
+    # Compress oversized images to stay under provider limits
+    b64, mime = _compress_image(data, mime)
+
     return {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64}"}}
 
 

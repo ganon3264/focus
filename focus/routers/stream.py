@@ -45,6 +45,11 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
     next_variant_index = ctx["next_variant_index"]
     user_msg_id = ctx["user_msg_id"]
 
+    # ── User-controlled multimodal disable ──────────────────────────────────────
+    s = dict(body.samplers) if body.samplers else {}
+    if s.pop("disable_multimodal", False):
+        messages = filter_unsupported_modalities(messages, ["text"])
+
     # ── OpenRouter modality filter ─────────────────────────────────────────────
     if prov_dict.get("type") == "openrouter":
         from focus.routers.providers import get_openrouter_model_modalities
@@ -63,12 +68,17 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
                 s.pop("cache_depth", 5),
             )
 
+    # Strip internal metadata tags — set by get_prompt_context / assemble_prompt
+    for msg in messages:
+        msg.pop("_greeting", None)
+
     # ── Gen params ────────────────────────────────────────────────────────────
     gen_kwargs: dict = {}
     use_stream = True
     if body.samplers:
         s = dict(body.samplers)
         use_stream = s.pop("stream_enabled", True)
+        s.pop("disable_multimodal", None)
         s.pop("cache_enabled", None)
         s.pop("cache_ttl", None)
         s.pop("cache_depth", None)

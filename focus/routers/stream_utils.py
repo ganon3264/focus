@@ -269,13 +269,23 @@ def apply_claude_caching(messages: list[dict], cache_enabled: bool, cache_ttl: s
     """Inject cache_control breakpoints for Claude prompt caching on OpenRouter.
 
     Static breakpoint covers all preset blocks + the character greeting (if present).
-    Sliding breakpoint sits on a user message *cache_depth* turns before the latest,
-    counting only turns that occur *after* the static cut-off.
+    Sliding breakpoint covers *all but* the most recent `cache_depth` user-assistant
+    exchanges, placed on the user message that far back.
+
+    Enforces Anthropic's 4-breakpoint limit by stripping any existing cache_control
+    markers before adding the two new ones.
     """
     if not cache_enabled or not messages:
         return messages
 
     cc: dict = {"type": "1h"} if cache_ttl == "1h" else {"type": "ephemeral"}
+
+    # ── Strip any existing cache_control to enforce the 4-breakpoint limit ──
+    for msg in messages:
+        content = msg.get("content")
+        if isinstance(content, list):
+            for part in content:
+                part.pop("cache_control", None)
 
     def _inject_cache(msg: dict) -> bool:
         content = msg.get("content")
@@ -284,7 +294,7 @@ def apply_claude_caching(messages: list[dict], cache_enabled: bool, cache_ttl: s
             return True
         if isinstance(content, list):
             for part in reversed(content):
-                if part.get("type") == "text" and "cache_control" not in part:
+                if part.get("type") == "text":
                     part["cache_control"] = cc
                     return True
             content.append({"type": "text", "text": "", "cache_control": cc})
@@ -309,7 +319,16 @@ def apply_claude_caching(messages: list[dict], cache_enabled: bool, cache_ttl: s
     _inject_cache(messages[static_idx])
 
     # ── Sliding breakpoint ─────────────────────────────────────────────────
-    bp_idx = len(messages) - cache_depth
+    # Count user-role messages from the end; place breakpoint cache_depth
+    # exchanges before the current query (cache_depth+1th user from end).
+    user_count = 0
+    bp_idx = -1
+    for i in range(len(messages) - 1, -1, -1):
+        if messages[i].get("role") == "user":
+            user_count += 1
+            if user_count == cache_depth + 1:
+                bp_idx = i
+                break
     if bp_idx > static_idx:
         _inject_cache(messages[bp_idx])
 

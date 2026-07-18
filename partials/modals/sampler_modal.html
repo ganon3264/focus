@@ -28,32 +28,31 @@
 }
 </style>
 
-<div x-data="samplerModal()" @provider-changed.window="onProviderChanged($event.detail)" class="flex flex-col h-full">
+<div x-data="samplerModal()" @provider-changed.window="onProviderChanged($event.detail)" @preset-changed.window="onPresetChanged($event.detail)" class="flex flex-col h-full">
   <!-- Tabs -->
   <div class="flex mb-4" style="border-bottom: 1px solid var(--border);">
     <button class="tab-btn" :class="{'active': tab === 'standard'}" @click="tab = 'standard'">Standard</button>
+    <button class="tab-btn" :class="{'active': tab === 'advanced'}" @click="tab = 'advanced'">Advanced</button>
     <button class="tab-btn" :class="{'active': tab === 'custom'}" @click="tab = 'custom'">Custom Body</button>
   </div>
 
   <!-- Standard Tab -->
   <div x-show="tab === 'standard'" class="flex flex-col gap-3 overflow-y-auto pr-2 pb-2">
-    <!-- Always visible -->
+    <!-- ── Universal sliders ── -->
     <div class="form-group mb-0">
       <label class="flex justify-between text-xs mb-1"><span>Temperature</span> <span x-text="samplers.temperature"></span></label>
       <input type="range" min="0" max="2" step="0.01" x-model.number="samplers.temperature" @change="saveStandard()" class="styled-slider">
     </div>
-    
     <div class="form-group mb-0">
       <label class="flex justify-between text-xs mb-1"><span>Max Tokens</span> <span x-text="samplers.max_tokens"></span></label>
       <input type="number" min="1" max="128000" x-model.number="samplers.max_tokens" @change="saveStandard()" class="form-control text-sm w-full">
     </div>
-
     <div class="form-group mb-0">
       <label class="flex justify-between text-xs mb-1"><span>Top P</span> <span x-text="samplers.top_p"></span></label>
       <input type="range" min="0" max="1" step="0.01" x-model.number="samplers.top_p" @change="saveStandard()" class="styled-slider">
     </div>
 
-    <!-- OpenRouter Specific -->
+    <!-- ── Provider-specific sliders ── -->
     <template x-if="providerType === 'openrouter'">
       <div class="flex flex-col gap-3">
         <div class="form-group mb-0">
@@ -64,14 +63,28 @@
           <label class="flex justify-between text-xs mb-1"><span>Min P</span> <span x-text="samplers.min_p"></span></label>
           <input type="range" min="0" max="1" step="0.01" x-model.number="samplers.min_p" @change="saveStandard()" class="styled-slider">
         </div>
-        <div class="form-group mb-0">
-          <label class="flex justify-between text-xs mb-1"><span>Repetition Penalty</span> <span x-text="samplers.repetition_penalty"></span></label>
-          <input type="range" min="0" max="2" step="0.01" x-model.number="samplers.repetition_penalty" @change="saveStandard()" class="styled-slider">
-        </div>
-        <div class="form-group mb-0 flex items-center justify-between mt-2">
-          <label class="text-xs mb-0 cursor-pointer" @click="samplers.stream_enabled = !samplers.stream_enabled; saveStandard()">Streaming</label>
-          <div class="arranger-toggle" role="switch" tabindex="0" :class="{ 'active': samplers.stream_enabled }" @click="samplers.stream_enabled = !samplers.stream_enabled; saveStandard()"></div>
-        </div>
+      </div>
+    </template>
+    <template x-if="providerType === 'google_vertex' || providerType === 'google_aistudio'">
+      <div class="form-group mb-0">
+        <label class="flex justify-between text-xs mb-1"><span>Top K</span> <span x-text="samplers.top_k"></span></label>
+        <input type="range" min="0" max="100" step="1" x-model.number="samplers.top_k" @change="saveStandard()" class="styled-slider">
+      </div>
+    </template>
+
+    <!-- ── Universal toggles ── -->
+    <div class="form-group mb-0 flex items-center justify-between mt-2">
+      <label class="text-xs mb-0 cursor-pointer" @click="samplers.stream_enabled = !samplers.stream_enabled; saveStandard()">Streaming</label>
+      <div class="arranger-toggle" role="switch" tabindex="0" :class="{ 'active': samplers.stream_enabled }" @click="samplers.stream_enabled = !samplers.stream_enabled; saveStandard()"></div>
+    </div>
+    <div class="form-group mb-0 flex items-center justify-between mt-2">
+      <label class="text-xs mb-0 cursor-pointer" @click="samplers.enable_multimodal = !samplers.enable_multimodal; saveStandard()">Enable Multimodal</label>
+      <div class="arranger-toggle" role="switch" tabindex="0" :class="{ 'active': samplers.enable_multimodal }" @click="samplers.enable_multimodal = !samplers.enable_multimodal; saveStandard()"></div>
+    </div>
+
+    <!-- ── Provider-specific toggles ── -->
+    <template x-if="providerType === 'openrouter'">
+      <div class="flex flex-col gap-3">
         <div class="form-group mb-0 flex items-center justify-between mt-2">
           <label class="text-xs mb-0 cursor-pointer" @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()">Include Reasoning</label>
           <div class="arranger-toggle" role="switch" tabindex="0" :class="{ 'active': samplers.include_reasoning }" @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()"></div>
@@ -81,18 +94,74 @@
             <label class="flex justify-between text-xs mb-2"><span>Reasoning Effort</span></label>
             <div class="flex gap-2 flex-wrap">
               <button class="btn-tag" :class="!samplers.reasoning_effort ? 'active' : ''" @click.stop="samplers.reasoning_effort = ''; saveStandard()">Default</button>
-              <button class="btn-tag" :class="samplers.reasoning_effort === 'low' ? 'active' : ''" @click.stop="samplers.reasoning_effort = 'low'; saveStandard()">Low</button>
-              <button class="btn-tag" :class="samplers.reasoning_effort === 'medium' ? 'active' : ''" @click.stop="samplers.reasoning_effort = 'medium'; saveStandard()">Medium</button>
-              <button class="btn-tag" :class="samplers.reasoning_effort === 'high' ? 'active' : ''" @click.stop="samplers.reasoning_effort = 'high'; saveStandard()">High</button>
+              <template x-for="opt in effortOptions" :key="opt.value">
+                <button class="btn-tag" :class="samplers.reasoning_effort === opt.value ? 'active' : ''" @click.stop="samplers.reasoning_effort = opt.value; saveStandard()" x-text="opt.label"></button>
+              </template>
             </div>
           </div>
-          <div class="form-group mb-0">
-            <label class="flex justify-between text-xs mb-1"><span>Thinking Budget</span> <span x-text="samplers.thinking_budget || 'auto'"></span></label>
-            <input type="number" min="0" max="128000" step="1" x-model.number="samplers.thinking_budget" @change="saveStandard()" class="form-control text-sm w-full" placeholder="0 = use effort or default 2048">
-          </div>
         </div>
+      </div>
+    </template>
+    <template x-if="providerType === 'openai_compat' || providerType === 'deepseek' || providerType === 'moonshot'">
+      <div class="flex flex-col gap-3">
+        <div class="form-group mb-0 flex items-center justify-between mt-2">
+          <label class="text-xs mb-0 cursor-pointer" @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()">Enable Thinking / Reasoning</label>
+          <div class="arranger-toggle" role="switch" tabindex="0" :class="{ 'active': samplers.include_reasoning }" @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()"></div>
+        </div>
+        <div class="form-group mb-0" x-show="samplers.include_reasoning && providerType !== 'moonshot'" x-transition.opacity.duration.200ms style="display: none;">
+          <label class="flex justify-between text-xs mb-2"><span>Reasoning Effort</span></label>
+            <div class="flex gap-2 flex-wrap">
+              <button class="btn-tag" :class="!samplers.reasoning_effort ? 'active' : ''" @click.stop="samplers.reasoning_effort = ''; saveStandard()">Default</button>
+              <template x-for="opt in effortOptions" :key="opt.value">
+                <button class="btn-tag" :class="samplers.reasoning_effort === opt.value ? 'active' : ''" @click.stop="samplers.reasoning_effort = opt.value; saveStandard()" x-text="opt.label"></button>
+              </template>
+            </div>
+        </div>
+      </div>
+    </template>
+    <template x-if="providerType === 'google_vertex' || providerType === 'google_aistudio'">
+      <div class="flex flex-col gap-3">
+        <div class="form-group mb-0 flex items-center justify-between mt-2">
+          <label class="text-xs mb-0 cursor-pointer" @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()">Enable Thinking</label>
+          <div class="arranger-toggle" role="switch" tabindex="0" :class="{ 'active': samplers.include_reasoning }" @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()"></div>
+        </div>
+        <div class="form-group mb-0" x-show="samplers.include_reasoning" x-transition.opacity.duration.200ms style="display: none;">
+          <label class="flex justify-between text-xs mb-2"><span>Thinking Level</span></label>
+            <div class="flex gap-2 flex-wrap">
+                <button class="btn-tag" :class="!samplers.reasoning_effort ? 'active' : ''" @click.stop="samplers.reasoning_effort = ''; saveStandard()">Default</button>
+              <template x-for="opt in effortOptions" :key="opt.value">
+                <button class="btn-tag" :class="samplers.reasoning_effort === opt.value ? 'active' : ''" @click.stop="samplers.reasoning_effort = opt.value; saveStandard()" x-text="opt.label"></button>
+              </template>
+            </div>
+        </div>
+      </div>
+    </template>
+  </div>
 
-        <!-- Claude Caching -->
+  <!-- Advanced Tab -->
+  <div x-show="tab === 'advanced'" class="flex flex-col gap-3 overflow-y-auto pr-2 pb-2">
+    <template x-if="providerType === 'openai_compat' || providerType === 'deepseek' || providerType === 'moonshot'">
+      <div class="flex flex-col gap-3">
+        <div class="form-group mb-0">
+          <label class="flex justify-between text-xs mb-1"><span>Frequency Penalty</span> <span x-text="samplers.frequency_penalty"></span></label>
+          <input type="range" min="-2" max="2" step="0.01" x-model.number="samplers.frequency_penalty" @change="saveStandard()" class="styled-slider">
+        </div>
+        <div class="form-group mb-0">
+          <label class="flex justify-between text-xs mb-1"><span>Presence Penalty</span> <span x-text="samplers.presence_penalty"></span></label>
+          <input type="range" min="-2" max="2" step="0.01" x-model.number="samplers.presence_penalty" @change="saveStandard()" class="styled-slider">
+        </div>
+      </div>
+    </template>
+    <template x-if="providerType === 'openrouter'">
+      <div class="flex flex-col gap-3">
+        <div class="form-group mb-0">
+          <label class="flex justify-between text-xs mb-1"><span>Repetition Penalty</span> <span x-text="samplers.repetition_penalty"></span></label>
+          <input type="range" min="0" max="2" step="0.01" x-model.number="samplers.repetition_penalty" @change="saveStandard()" class="styled-slider">
+        </div>
+        <div class="form-group mb-0" x-show="samplers.include_reasoning" x-transition.opacity.duration.200ms style="display: none;">
+          <label class="flex justify-between text-xs mb-1"><span>Thinking Budget</span> <span x-text="samplers.thinking_budget || 'auto'"></span></label>
+          <input type="number" min="0" max="128000" step="1" x-model.number="samplers.thinking_budget" @change="saveStandard()" class="form-control text-sm w-full" placeholder="0 = use effort or default 2048">
+        </div>
         <div class="form-group mb-0 flex items-center justify-between mt-2">
           <label class="text-xs mb-0 cursor-pointer" @click="samplers.cache_enabled = !samplers.cache_enabled; saveStandard()">Prompt Caching</label>
           <div class="arranger-toggle" role="switch" tabindex="0" :class="{ 'active': samplers.cache_enabled }" @click="samplers.cache_enabled = !samplers.cache_enabled; saveStandard()"></div>
@@ -109,68 +178,10 @@
         </div>
       </div>
     </template>
-
-    <!-- OpenAI Compat Specific -->
-    <template x-if="providerType === 'openai_compat' || providerType === 'deepseek' || providerType === 'moonshot'">
-      <div class="flex flex-col gap-3">
-        <div class="form-group mb-0">
-          <label class="flex justify-between text-xs mb-1"><span>Frequency Penalty</span> <span x-text="samplers.frequency_penalty"></span></label>
-          <input type="range" min="-2" max="2" step="0.01" x-model.number="samplers.frequency_penalty" @change="saveStandard()" class="styled-slider">
-        </div>
-        <div class="form-group mb-0">
-          <label class="flex justify-between text-xs mb-1"><span>Presence Penalty</span> <span x-text="samplers.presence_penalty"></span></label>
-          <input type="range" min="-2" max="2" step="0.01" x-model.number="samplers.presence_penalty" @change="saveStandard()" class="styled-slider">
-        </div>
-        <div class="form-group mb-0 flex items-center justify-between mt-2">
-          <label class="text-xs mb-0 cursor-pointer" @click="samplers.stream_enabled = !samplers.stream_enabled; saveStandard()">Streaming</label>
-          <div class="arranger-toggle" role="switch" tabindex="0" :class="{ 'active': samplers.stream_enabled }" @click="samplers.stream_enabled = !samplers.stream_enabled; saveStandard()"></div>
-        </div>
-        <div class="form-group mb-0 flex items-center justify-between mt-2">
-          <label class="text-xs mb-0 cursor-pointer" @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()">Enable Thinking / Reasoning</label>
-          <div class="arranger-toggle" role="switch" tabindex="0" :class="{ 'active': samplers.include_reasoning }" @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()"></div>
-        </div>
-        <div class="form-group mb-0" x-show="samplers.include_reasoning" x-transition.opacity.duration.200ms style="display: none;">
-          <label class="flex justify-between text-xs mb-2"><span>Reasoning Effort</span></label>
-            <div class="flex gap-2 flex-wrap">
-              <button class="btn-tag" :class="!samplers.reasoning_effort ? 'active' : ''" @click.stop="samplers.reasoning_effort = ''; saveStandard()">Default</button>
-              <button class="btn-tag" :class="samplers.reasoning_effort === 'low' ? 'active' : ''" @click.stop="samplers.reasoning_effort = 'low'; saveStandard()">Low</button>
-              <button class="btn-tag" :class="samplers.reasoning_effort === 'medium' ? 'active' : ''" @click.stop="samplers.reasoning_effort = 'medium'; saveStandard()">Medium</button>
-              <button class="btn-tag" :class="samplers.reasoning_effort === 'high' ? 'active' : ''" @click.stop="samplers.reasoning_effort = 'high'; saveStandard()">High</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </template>
-
-    <!-- Google Specific -->
     <template x-if="providerType === 'google_vertex' || providerType === 'google_aistudio'">
-      <div class="flex flex-col gap-3">
-        <div class="form-group mb-0">
-          <label class="flex justify-between text-xs mb-1"><span>Top K</span> <span x-text="samplers.top_k"></span></label>
-          <input type="range" min="0" max="100" step="1" x-model.number="samplers.top_k" @change="saveStandard()" class="styled-slider">
-        </div>
-        <div class="form-group mb-0 flex items-center justify-between mt-2">
-          <label class="text-xs mb-0 cursor-pointer" @click="samplers.stream_enabled = !samplers.stream_enabled; saveStandard()">Streaming</label>
-          <div class="arranger-toggle" role="switch" tabindex="0" :class="{ 'active': samplers.stream_enabled }" @click="samplers.stream_enabled = !samplers.stream_enabled; saveStandard()"></div>
-        </div>
-        <div class="form-group mb-0 flex items-center justify-between mt-2">
-          <label class="text-xs mb-0 cursor-pointer" @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()">Enable Thinking</label>
-          <div class="arranger-toggle" role="switch" tabindex="0" :class="{ 'active': samplers.include_reasoning }" @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()"></div>
-        </div>
-        <div class="form-group mb-0" x-show="samplers.include_reasoning" x-transition.opacity.duration.200ms style="display: none;">
-          <label class="flex justify-between text-xs mb-2"><span>Thinking Level</span></label>
-            <div class="flex gap-2 flex-wrap">
-              <button class="btn-tag" :class="!samplers.reasoning_effort ? 'active' : ''" @click.stop="samplers.reasoning_effort = ''; saveStandard()">Default</button>
-              <button class="btn-tag" :class="samplers.reasoning_effort === 'MINIMAL' ? 'active' : ''" @click.stop="samplers.reasoning_effort = 'MINIMAL'; saveStandard()">Min</button>
-              <button class="btn-tag" :class="samplers.reasoning_effort === 'LOW' ? 'active' : ''" @click.stop="samplers.reasoning_effort = 'LOW'; saveStandard()">Low</button>
-              <button class="btn-tag" :class="samplers.reasoning_effort === 'MEDIUM' ? 'active' : ''" @click.stop="samplers.reasoning_effort = 'MEDIUM'; saveStandard()">Med</button>
-              <button class="btn-tag" :class="samplers.reasoning_effort === 'HIGH' ? 'active' : ''" @click.stop="samplers.reasoning_effort = 'HIGH'; saveStandard()">High</button>
-            </div>
-        </div>
-        <div class="form-group mb-0 flex items-center justify-between mt-2">
-          <label class="text-xs mb-0 cursor-pointer" @click="samplers.send_reasoning_history = !samplers.send_reasoning_history; saveStandard()">Send Reasoning History</label>
-          <div class="arranger-toggle" role="switch" tabindex="0" :class="{ 'active': samplers.send_reasoning_history }" @click="samplers.send_reasoning_history = !samplers.send_reasoning_history; saveStandard()"></div>
-        </div>
+      <div class="form-group mb-0 flex items-center justify-between mt-2">
+        <label class="text-xs mb-0 cursor-pointer" @click="samplers.send_reasoning_history = !samplers.send_reasoning_history; saveStandard()">Send Reasoning History</label>
+        <div class="arranger-toggle" role="switch" tabindex="0" :class="{ 'active': samplers.send_reasoning_history }" @click="samplers.send_reasoning_history = !samplers.send_reasoning_history; saveStandard()"></div>
       </div>
     </template>
   </div>
@@ -207,6 +218,8 @@ document.addEventListener('alpine:init', () => {
   Alpine.data('samplerModal', () => ({
     tab: 'standard',
     providerType: StateManager.get('provider_type') || 'openai_compat',
+    providerId: StateManager.get('provider_id'),
+    presetId: StateManager.get('preset_id'),
 
     samplers: {},
     customFields: [],
@@ -226,22 +239,25 @@ document.addEventListener('alpine:init', () => {
         reasoning_effort: '',
         thinking_budget: 0,
         stream_enabled: true,
+        enable_multimodal: true,
         cache_enabled: false,
         cache_ttl: 'ephemeral',
         cache_depth: 5,
       };
     },
 
-    storageKey(type) {
-      return `focus-samplers-${type}`;
+    storageKey(type, id) {
+      const suffix = id || type || 'unknown';
+      return this.presetId ? `focus-samplers-${this.presetId}-${suffix}` : `focus-samplers-${suffix}`;
     },
 
-    customStorageKey(type) {
-      return `focus-custom-samplers-${type}`;
+    customStorageKey(type, id) {
+      const suffix = id || type || 'unknown';
+      return this.presetId ? `focus-custom-samplers-${this.presetId}-${suffix}` : `focus-custom-samplers-${suffix}`;
     },
 
     loadStandard() {
-      const key = this.storageKey(this.providerType);
+      const key = this.storageKey(this.providerType, this.providerId);
       const saved = localStorage.getItem(key);
       this.samplers = saved
         ? { ...this.defaultSamplers(), ...JSON.parse(saved) }
@@ -249,9 +265,44 @@ document.addEventListener('alpine:init', () => {
     },
 
     loadCustom() {
-      const key = this.customStorageKey(this.providerType);
+      const key = this.customStorageKey(this.providerType, this.providerId);
       const saved = localStorage.getItem(key);
       this.customFields = saved ? JSON.parse(saved) : [];
+    },
+
+    get effortOptions() {
+      const map = {
+        openrouter: [
+          { value: 'minimal', label: 'Minimal' },
+          { value: 'low', label: 'Low' },
+          { value: 'medium', label: 'Medium' },
+          { value: 'high', label: 'High' },
+          { value: 'xhigh', label: 'X-High' },
+          { value: 'max', label: 'Max' },
+        ],
+        openai_compat: [
+          { value: 'low', label: 'Low' },
+          { value: 'medium', label: 'Medium' },
+          { value: 'high', label: 'High' },
+        ],
+        deepseek: [
+          { value: 'high', label: 'High' },
+          { value: 'max', label: 'Max' },
+        ],
+        google_vertex: [
+          { value: 'MINIMAL', label: 'Min' },
+          { value: 'LOW', label: 'Low' },
+          { value: 'MEDIUM', label: 'Med' },
+          { value: 'HIGH', label: 'High' },
+        ],
+        google_aistudio: [
+          { value: 'MINIMAL', label: 'Min' },
+          { value: 'LOW', label: 'Low' },
+          { value: 'MEDIUM', label: 'Med' },
+          { value: 'HIGH', label: 'High' },
+        ],
+      };
+      return map[this.providerType] || map.openai_compat;
     },
 
     init() {
@@ -291,6 +342,10 @@ document.addEventListener('alpine:init', () => {
           }
         }
 
+        if (!this.samplers.enable_multimodal) {
+          payload.disable_multimodal = true;
+        }
+
         // Add enabled custom fields
         for (let item of this.customFields) {
           if (item.enabled && item.key) {
@@ -309,20 +364,38 @@ document.addEventListener('alpine:init', () => {
     },
 
     saveStandard() {
-      localStorage.setItem(this.storageKey(this.providerType), JSON.stringify(this.samplers));
+      localStorage.setItem(this.storageKey(this.providerType, this.providerId), JSON.stringify(this.samplers));
     },
 
     saveCustom() {
-      localStorage.setItem(this.customStorageKey(this.providerType), JSON.stringify(this.customFields));
+      localStorage.setItem(this.customStorageKey(this.providerType, this.providerId), JSON.stringify(this.customFields));
     },
 
-    onProviderChanged(newType) {
-      if (newType === this.providerType) return;
+    onProviderChanged(detail) {
+      const newType = detail && typeof detail === 'object' ? detail.type : detail;
+      const newId = detail && typeof detail === 'object' ? detail.id : null;
+      if (newType === this.providerType && newId === this.providerId) return;
+      const oldKey = this.storageKey(this.providerType, this.providerId);
       this.saveStandard();
       this.saveCustom();
       this.providerType = newType;
-      this.loadStandard();
-      this.loadCustom();
+      this.providerId = newId;
+      if (oldKey !== this.storageKey(newType, newId)) {
+        this.loadStandard();
+        this.loadCustom();
+      }
+    },
+
+    onPresetChanged(e) {
+      const newId = e && e.value !== undefined ? e.value : e;
+      const oldPreset = this.presetId;
+      this.saveStandard();
+      this.saveCustom();
+      this.presetId = newId;
+      if (this.presetId !== oldPreset) {
+        this.loadStandard();
+        this.loadCustom();
+      }
     },
 
     addCustom() {

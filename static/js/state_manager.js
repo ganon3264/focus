@@ -77,6 +77,7 @@
       STATE.preset_id = id || null;
       this._persist({ preset_id: STATE.preset_id });
       emit('preset-changed', { prev: prev, value: STATE.preset_id });
+      window.dispatchEvent(new CustomEvent('preset-changed', { detail: { prev: prev, value: STATE.preset_id } }));
     },
 
     setProvider: function(id, type) {
@@ -86,7 +87,7 @@
       STATE.provider_type = type || null;
       this._persistProvider(STATE.provider_id, STATE.provider_type);
       emit('provider-changed', { prevId: prevId, prevType: prevType, id: STATE.provider_id, type: STATE.provider_type });
-      if (type) window.dispatchEvent(new CustomEvent('provider-changed', { detail: type }));
+      if (type) window.dispatchEvent(new CustomEvent('provider-changed', { detail: { id: STATE.provider_id, type: STATE.provider_type } }));
     }
   };
 })();

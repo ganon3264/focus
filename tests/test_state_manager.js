@@ -161,7 +161,7 @@ function reset() {
   assertEqual(cb[0].type, 'openai_compat', 'type is set');
   assertEqual(global._dispatchedEvents.length, 1, 'dispatches window CustomEvent');
   assertEqual(global._dispatchedEvents[0].type, 'provider-changed', 'CustomEvent type');
-  assertEqual(global._dispatchedEvents[0].detail, 'openai_compat', 'CustomEvent detail');
+  assertDeepEqual(global._dispatchedEvents[0].detail, { id: 'prov1', type: 'openai_compat' }, 'CustomEvent detail');
 
   StateManager.setProvider('prov2', 'google_aistudio');
   assertEqual(cb.length, 2, 'second setProvider fires callback');
