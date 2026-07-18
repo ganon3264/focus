@@ -348,7 +348,7 @@ input[type=range]::-webkit-slider-thumb {
 .modal-footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
 .modal-section-label {
   font-size: 11px; font-weight: 600; color: var(--text);
-  letter-spacing: .05em; margin-bottom: -4px;
+  letter-spacing: .05em; margin-top: 4px;
 }
 
 .form-row { display: flex; flex-direction: column; gap: 4px; }
@@ -378,7 +378,7 @@ input[type=range]::-webkit-slider-thumb {
 }
 .block-enabled { width: 15px; height: 15px; cursor: pointer; accent-color: var(--accent); flex-shrink: 0; }
 .block-move, .block-del { padding: 3px 7px; font-size: 11px; flex-shrink: 0; }
-.block-row-body { padding: 0 10px 10px; display: flex; flex-direction: column; gap: 6px; }
+.block-row-body { padding: 0 10px 10px; display: flex; flex-direction: column; gap: 8px; }
 .block-row-body textarea { width: 100%; min-height: 70px; resize: vertical; font-size: 12px; }
 .block-role-select { width: auto; font-size: 12px; }
 
@@ -398,17 +398,6 @@ input[type=range]::-webkit-slider-thumb {
 }
 .avatar-preview img { width: 100%; height: 100%; object-fit: cover; }
 
-/* Tabs */
-.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); }
-.tab-btn {
-  padding: 6px 14px; background: none; border: none;
-  border-bottom: 2px solid transparent; color: var(--muted);
-  border-radius: 0; margin-bottom: -1px; cursor: pointer;
-}
-.tab-btn:hover { color: var(--text); border-color: transparent; }
-.tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
-.tab-pane { display: none; flex-direction: column; gap: 10px; padding-top: 10px; }
-.tab-pane.active { display: flex; }
 
 /* Greeting list */
 .greeting-item { display: flex; gap: 6px; align-items: flex-start; }
@@ -1008,25 +997,6 @@ function inp(type, val = '', ph = '') {
                                   : Object.assign(document.createElement('input'), { type });
   el.value = val; el.placeholder = ph; return el;
 }
-function makeTabs(tabs) {
-  const wrap = document.createElement('div');
-  const bar  = document.createElement('div'); bar.className = 'tabs';
-  const panes = {};
-  tabs.forEach(([label, key], i) => {
-    const btn = mkBtn(label, () => {
-      bar.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-      Object.values(panes).forEach(p => p.classList.remove('active'));
-      btn.classList.add('active'); panes[key].classList.add('active');
-    });
-    btn.className = 'tab-btn' + (i === 0 ? ' active' : '');
-    bar.appendChild(btn);
-    const pane = document.createElement('div');
-    pane.className = 'tab-pane' + (i === 0 ? ' active' : '');
-    panes[key] = pane; wrap.appendChild(pane);
-  });
-  wrap.insertBefore(bar, wrap.firstChild);
-  return { wrap, panes };
-}
 
 // ── Settings modal ────────────────────────────────────────────────────────────
 document.getElementById('btn-settings').addEventListener('click', openSettings);
@@ -1114,6 +1084,8 @@ async function openArranger() {
   const preset = await api('GET', `/presets/${S.activePresetId}`);
   let blocks = [...preset.blocks].sort((a, b) => a.position - b.position);
 
+  const ROLE_EDITABLE = ['char_description', 'char_personality', 'user_persona'];
+
   const div = document.createElement('div');
   div.appendChild(modalHeader(`Prompt Arranger — ${preset.name}`));
 
@@ -1161,6 +1133,14 @@ async function openArranger() {
         });
         rs.addEventListener('change', e => { b.role = e.target.value; });
         body.appendChild(ta); body.appendChild(rs); row.appendChild(body);
+      } else if (ROLE_EDITABLE.includes(b.block_type)) {
+        const body = document.createElement('div'); body.className = 'block-row-body';
+        const rs = document.createElement('select'); rs.className = 'block-role-select';
+        ['system','user','assistant'].forEach(r => {
+          const o = new Option(r,r); if (b.role === r) o.selected = true; rs.appendChild(o);
+        });
+        rs.addEventListener('change', e => { b.role = e.target.value; });
+        body.appendChild(rs); row.appendChild(body);
       }
       list.appendChild(row);
     });
@@ -1178,8 +1158,9 @@ async function openArranger() {
   const save = mkBtn('Save', async () => {
     const reordered = blocks.map((b, i) => ({ ...b, position: i }));
     for (const s of reordered.filter(b => b.block_type !== 'text' && b.id)) {
-      await api('PATCH', `/presets/${S.activePresetId}/blocks/${s.id}`,
-        { position: s.position, enabled: s.enabled ? 1 : 0 });
+      const update = { position: s.position, enabled: s.enabled ? 1 : 0 };
+      if (ROLE_EDITABLE.includes(s.block_type)) update.role = s.role;
+      await api('PATCH', `/presets/${S.activePresetId}/blocks/${s.id}`, update);
     }
     await api('PUT', `/presets/${S.activePresetId}/blocks`,
       { blocks: reordered.filter(b => b.block_type === 'text') });
@@ -1198,6 +1179,7 @@ async function openCharEditor(charId) {
   let existing = null;
   if (charId) existing = await api('GET', `/characters/${charId}`);
   const card = existing?.card || existing || {};
+  let cblocks = [], deletedCBIds = [];
 
   const div = document.createElement('div');
   div.appendChild(modalHeader(charId ? `Edit — ${existing?.name || card.name}` : 'New Character'));
@@ -1228,21 +1210,15 @@ async function openCharEditor(charId) {
   avRow.appendChild(avPrev); avRow.appendChild(avBtns);
   div.appendChild(avRow);
 
-  const { wrap: tabWrap, panes } = makeTabs([['Info', 'info'], ['Greetings', 'greet']]);
-
-  // Info tab
   const nameIn = inp('text',     card.name        || '', 'Character name');
-  const descIn = inp('textarea', card.description || '', 'Description'); descIn.rows = 4;
-  const perIn  = inp('textarea', card.personality || '', 'Personality');  perIn.rows = 3;
-  const scIn   = inp('textarea', card.scenario    || '', 'Scenario');      scIn.rows = 3;
-  const exIn   = inp('textarea', card.mes_example || '', 'Example messages'); exIn.rows = 3;
-  panes.info.appendChild(frow('Name', nameIn));
-  panes.info.appendChild(frow('Description', descIn));
-  panes.info.appendChild(frow('Personality', perIn));
-  panes.info.appendChild(frow('Scenario', scIn));
-  panes.info.appendChild(frow('Example Messages', exIn));
+  const descIn = inp('textarea', card.description || '', 'Description'); descIn.rows = 5;
+  div.appendChild(frow('Name', nameIn));
+  div.appendChild(frow('Description', descIn));
 
-  // Greetings tab
+  // Greetings
+  const greetingsLabel = document.createElement('div'); greetingsLabel.className = 'modal-section-label';
+  greetingsLabel.textContent = 'Greetings'; div.appendChild(greetingsLabel);
+
   const greets = [];
   if (card.first_mes) greets.push(card.first_mes);
   (card.alternate_greetings || []).forEach(g => greets.push(g));
@@ -1254,7 +1230,7 @@ async function openCharEditor(charId) {
     greetList.innerHTML = '';
     greets.forEach((g, i) => {
       const item = document.createElement('div'); item.className = 'greeting-item';
-      const ta = inp('textarea', g, 'Greeting…'); ta.rows = 3;
+      const ta = inp('textarea', g, 'Greeting…'); ta.rows = 4;
       ta.addEventListener('input', e => { greets[i] = e.target.value; });
       const del = mkBtn('✕', () => { if (greets.length > 1) { greets.splice(i, 1); renderGreets(); } });
       del.classList.add('danger');
@@ -1263,20 +1239,76 @@ async function openCharEditor(charId) {
   }
   renderGreets();
   const addGBtn = mkBtn('+ Add Greeting', () => { greets.push(''); renderGreets(); });
-  panes.greet.appendChild(greetList); panes.greet.appendChild(addGBtn);
+  div.appendChild(greetList); div.appendChild(addGBtn);
 
-  div.appendChild(tabWrap);
+  // Character blocks (existing chars only)
+  if (charId) {
+    const rawBlocks = await api('GET', `/characters/${charId}/blocks`);
+    cblocks = [...rawBlocks].sort((a, b) => a.position - b.position);
+
+    const cbLabel = document.createElement('div'); cbLabel.className = 'modal-section-label';
+    cbLabel.textContent = 'Character Blocks'; div.appendChild(cbLabel);
+
+    const cbList = document.createElement('div');
+    cbList.style.cssText = 'display:flex;flex-direction:column;gap:6px;';
+
+    function renderCBlocks() {
+      cbList.innerHTML = '';
+      cblocks.forEach((b, i) => {
+        const row = document.createElement('div'); row.className = 'block-row';
+        const hdr = document.createElement('div'); hdr.className = 'block-row-header';
+
+        const nameIn = document.createElement('input');
+        nameIn.className = 'block-name-input'; nameIn.value = b.name;
+        nameIn.addEventListener('input', e => { b.name = e.target.value; });
+
+        const tog = document.createElement('input');
+        tog.type = 'checkbox'; tog.className = 'block-enabled'; tog.checked = !!b.enabled;
+        tog.addEventListener('change', e => { b.enabled = e.target.checked; });
+
+        const up = mkBtn('↑', () => { if (i > 0) { [cblocks[i], cblocks[i-1]] = [cblocks[i-1], cblocks[i]]; renderCBlocks(); } });
+        const dn = mkBtn('↓', () => { if (i < cblocks.length-1) { [cblocks[i], cblocks[i+1]] = [cblocks[i+1], cblocks[i]]; renderCBlocks(); } });
+        const dl = mkBtn('✕', () => { if (b.id) deletedCBIds.push(b.id); cblocks.splice(i, 1); renderCBlocks(); });
+        up.className = dn.className = 'block-move'; dl.className = 'block-del danger';
+        hdr.appendChild(nameIn); hdr.appendChild(tog); hdr.appendChild(up); hdr.appendChild(dn); hdr.appendChild(dl);
+        row.appendChild(hdr);
+
+        const body = document.createElement('div'); body.className = 'block-row-body';
+        const ta = document.createElement('textarea'); ta.value = b.content; ta.rows = 3;
+        ta.addEventListener('input', e => { b.content = e.target.value; });
+        const rs = document.createElement('select'); rs.className = 'block-role-select';
+        ['system','user','assistant'].forEach(r => {
+          const o = new Option(r, r); if (b.role === r) o.selected = true; rs.appendChild(o);
+        });
+        rs.addEventListener('change', e => { b.role = e.target.value; });
+        body.appendChild(ta); body.appendChild(rs); row.appendChild(body);
+        cbList.appendChild(row);
+      });
+    }
+    renderCBlocks();
+
+    const addCBBtn = mkBtn('+ Add Block', () => {
+      cblocks.push({ id: null, name: 'New Block', content: '', role: 'system', enabled: true });
+      renderCBlocks();
+    });
+    div.appendChild(cbList); div.appendChild(addCBBtn);
+  }
 
   const footer = document.createElement('div'); footer.className = 'modal-footer';
   const saveBtn = mkBtn(charId ? 'Save' : 'Create', async () => {
     if (!nameIn.value.trim()) { alert('Name required.'); return; }
     const payload = {
       name: nameIn.value.trim(), description: descIn.value,
-      personality: perIn.value, scenario: scIn.value, mes_example: exIn.value,
       first_mes: greets[0] || '', alternate_greetings: greets.slice(1),
     };
     if (charId) {
       await api('PATCH', `/characters/${charId}`, payload);
+      for (const id of deletedCBIds) await api('DELETE', `/characters/${charId}/blocks/${id}`);
+      for (const [i, b] of cblocks.entries()) {
+        const bp = { name: b.name, content: b.content, role: b.role, enabled: b.enabled, position: i };
+        if (b.id) await api('PATCH', `/characters/${charId}/blocks/${b.id}`, bp);
+        else       await api('POST',  `/characters/${charId}/blocks`, bp);
+      }
     } else {
       const res = await api('POST', '/characters', payload);
       S.pendingAvatarFor = { type: 'char', id: res.id };
@@ -1313,8 +1345,6 @@ async function openCharEditor(charId) {
     const imported = await api('GET', `/characters/${res.id}`);
     const ic = imported?.card || imported || {};
     nameIn.value = ic.name || ''; descIn.value = ic.description || '';
-    perIn.value  = ic.personality || ''; scIn.value = ic.scenario || '';
-    exIn.value   = ic.mes_example || '';
     greets.length = 0;
     if (ic.first_mes) greets.push(ic.first_mes);
     (ic.alternate_greetings || []).forEach(g => greets.push(g));
