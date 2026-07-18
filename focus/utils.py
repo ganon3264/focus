@@ -9,7 +9,7 @@ from io import BytesIO
 import aiosqlite
 from PIL import Image
 
-logger = logging.getLogger("pyvern.utils")
+logger = logging.getLogger("focus.utils")
 
 SUFFIX_MIME_MAP = {
     ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
@@ -27,7 +27,7 @@ THOUGHT_SIGNATURE_CLOSE = "</thought_signature>"
 DEFAULT_OPENAI_COMPAT_BASE_URL = "http://localhost:8080/v1"
 
 # ── Provider defaults ────────────────────────────────────────────────────────
-DEFAULT_MAX_TOKENS = 1024
+DEFAULT_MAX_TOKENS = 8192
 DEFAULT_TEMPERATURE = 1.0
 OPENAI_HTTP_TIMEOUT = 120.0
 GOOGLE_VERTEX_HTTP_TIMEOUT = 300.0

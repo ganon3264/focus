@@ -5,10 +5,10 @@ from pathlib import Path
 import aiosqlite
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 
-import pyvern.crud as crud
-from pyvern.database import get_db
-from pyvern.models import PresetCreate, PresetUpdate, PresetBlockCreate, PresetBlockBulkUpdate
-from pyvern.utils import now_iso, variable_group_name
+import focus.crud as crud
+from focus.database import get_db
+from focus.models import PresetCreate, PresetUpdate, PresetBlockCreate, PresetBlockBulkUpdate
+from focus.utils import now_iso, variable_group_name
 
 router = APIRouter()
 

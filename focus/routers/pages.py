@@ -5,11 +5,11 @@ from fastapi.templating import Jinja2Templates
 from jinja2 import FileSystemLoader
 import aiosqlite
 
-from pyvern.database import get_db
-from pyvern.utils import variable_group_name
-from pyvern.macros import build_base_macros, apply_macros
-from pyvern.prompt_chain import partition_blocks, resolve_variable_blocks
-import pyvern.crud as crud
+from focus.database import get_db
+from focus.utils import variable_group_name
+from focus.macros import build_base_macros, apply_macros
+from focus.prompt_chain import partition_blocks, resolve_variable_blocks
+import focus.crud as crud
 
 router = APIRouter()
 
@@ -350,7 +350,7 @@ async def providers_modal_partial(request: Request, db: aiosqlite.Connection = D
 @router.get("/partials/characters-modal", response_class=HTMLResponse)
 async def characters_modal_partial(request: Request, current_character_id: str = "", db: aiosqlite.Connection = Depends(get_db)):
     characters = await crud.get_characters(db)
-    compact_view = request.cookies.get("pyvern_view_char") == "compact"
+    compact_view = request.cookies.get("focus_view_char") == "compact"
     return templates.TemplateResponse(request, "modals/characters_modal.html", {
         "request": request,
         "characters": characters,
@@ -371,7 +371,7 @@ async def presets_modal_partial(request: Request, db: aiosqlite.Connection = Dep
 @router.get("/partials/personas-modal", response_class=HTMLResponse)
 async def personas_modal_partial(request: Request, current_persona_id: str = "", db: aiosqlite.Connection = Depends(get_db)):
     personas = await crud.get_personas(db)
-    compact_view = request.cookies.get("pyvern_view_persona") == "compact"
+    compact_view = request.cookies.get("focus_view_persona") == "compact"
     return templates.TemplateResponse(request, "modals/personas_modal.html", {
         "request": request,
         "personas": personas,

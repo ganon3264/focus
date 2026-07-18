@@ -351,7 +351,7 @@
 
     document.getElementById('message-list')?.classList.add('ready');
 
-    const savedProvider = localStorage.getItem('pyvern-provider-id');
+    const savedProvider = localStorage.getItem('focus-provider-id');
     if (savedProvider) {
       const sendBtn = document.getElementById('send-btn');
       if(sendBtn) sendBtn.dataset.providerId = savedProvider;

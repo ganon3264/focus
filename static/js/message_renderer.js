@@ -12,12 +12,12 @@ window.extractThoughtsSafely = function(text) {
   const codeBlocks = [];
   let processed = text.replace(/```[\s\S]*?(?:```|$)/g, match => {
     codeBlocks.push(match);
-    return `%%%PYVERN_CODE_${codeBlocks.length - 1}%%%`;
+    return `%%%FOCUS_CODE_${codeBlocks.length - 1}%%%`;
   });
 
   processed = processed.replace(/`[^`\n]*`/g, match => {
     codeBlocks.push(match);
-    return `%%%PYVERN_CODE_${codeBlocks.length - 1}%%%`;
+    return `%%%FOCUS_CODE_${codeBlocks.length - 1}%%%`;
   });
 
   processed = processed.replace(/<thought_signature>([\s\S]*?)(?:<\/thought_signature>|$)/g, '');
@@ -30,7 +30,7 @@ window.extractThoughtsSafely = function(text) {
   });
 
   for (let j = 0; j < codeBlocks.length; j++) {
-    const marker = `%%%PYVERN_CODE_${j}%%%`;
+    const marker = `%%%FOCUS_CODE_${j}%%%`;
     processed = processed.split(marker).join(codeBlocks[j]);
     for (let t of thoughts) {
       t.content = t.content.split(marker).join(codeBlocks[j]);

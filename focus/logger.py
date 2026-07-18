@@ -3,7 +3,7 @@ import os
 import sys
 
 # Define the log level based on the environment variable
-DEBUG_MODE = os.environ.get("PYVERN_DEBUG", "0") in ("1", "true", "True", "yes")
+DEBUG_MODE = os.environ.get("FOCUS_DEBUG", "0") in ("1", "true", "True", "yes")
 
 LOG_LEVEL = logging.DEBUG if DEBUG_MODE else logging.INFO
 
@@ -31,7 +31,7 @@ console_handler = logging.StreamHandler(sys.stdout)
 console_handler.setFormatter(UvicornFormatter())
 
 # Configure the root logger
-root_logger = logging.getLogger("pyvern")
+root_logger = logging.getLogger("focus")
 root_logger.setLevel(LOG_LEVEL)
 root_logger.addHandler(console_handler)
 # Prevent duplicate logs if uvicorn or others try to hijack it
@@ -39,4 +39,4 @@ root_logger.propagate = False
 
 def get_logger(name: str) -> logging.Logger:
     """Returns a logger for the given module name."""
-    return logging.getLogger(f"pyvern.{name}")
+    return logging.getLogger(f"focus.{name}")

@@ -4,9 +4,9 @@ from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from pyvern.database import init_db, init_directories
-from pyvern.routers import characters, chats, presets, providers, stream, personas, pages
-from pyvern.logger import get_logger, DEBUG_MODE
+from focus.database import init_db, init_directories
+from focus.routers import characters, chats, presets, providers, stream, personas, pages
+from focus.logger import get_logger, DEBUG_MODE
 import time
 
 
@@ -25,12 +25,12 @@ logger = get_logger("main")
 async def lifespan(app: FastAPI):
     logger.info("Initializing database...")
     await init_db()
-    logger.info("Database initialized. Pyvern is ready.")
+    logger.info("Database initialized. Focus is ready.")
     yield
-    logger.info("Pyvern shutting down.")
+    logger.info("Focus shutting down.")
 
 
-app = FastAPI(title="Pyvern", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="Focus", version="0.1.0", lifespan=lifespan)
 
 if DEBUG_MODE:
     @app.middleware("http")
@@ -65,7 +65,7 @@ async def favicon():
 if __name__ == "__main__":
     import argparse
     import uvicorn
-    parser = argparse.ArgumentParser(description="Pyvern")
+    parser = argparse.ArgumentParser(description="Focus")
     parser.add_argument("--host", default="127.0.0.1", help="Bind address")
     parser.add_argument("--port", type=int, default=8000, help="Bind port")
     args = parser.parse_args()

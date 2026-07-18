@@ -5,10 +5,10 @@ from pathlib import Path
 
 import aiosqlite
 
-from pyvern.card_parser import safe_load_card
-from pyvern.utils import now_iso, SUFFIX_MIME_MAP, SUFFIX_MIME_MAP_IMAGES_ONLY
+from focus.card_parser import safe_load_card
+from focus.utils import now_iso, SUFFIX_MIME_MAP, SUFFIX_MIME_MAP_IMAGES_ONLY
 
-logger = logging.getLogger("pyvern.crud")
+logger = logging.getLogger("focus.crud")
 
 def _strip_think_tags(text: str | None) -> str | None:
     if not text:

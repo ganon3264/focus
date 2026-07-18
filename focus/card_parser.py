@@ -14,7 +14,7 @@ import logging
 import struct
 import zlib
 
-logger = logging.getLogger("pyvern.card_parser")
+logger = logging.getLogger("focus.card_parser")
 
 
 def _iter_chunks(data: bytes):

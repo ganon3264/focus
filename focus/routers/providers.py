@@ -6,10 +6,10 @@ import aiosqlite
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
 
-from pyvern.database import get_db
-from pyvern.models import ProviderCreate
-from pyvern.logger import get_logger
-from pyvern.utils import now_iso, resolve_secret_key, MODEL_FETCH_HTTP_TIMEOUT, TTLCache
+from focus.database import get_db
+from focus.models import ProviderCreate
+from focus.logger import get_logger
+from focus.utils import now_iso, resolve_secret_key, MODEL_FETCH_HTTP_TIMEOUT, TTLCache
 
 router = APIRouter()
 logger = get_logger("routers.providers")
@@ -77,7 +77,7 @@ async def delete_provider(provider_id: str, db: aiosqlite.Connection = Depends(g
 
 
 
-from pyvern.providers import create_provider
+from focus.providers import create_provider
 
 # ── Caches ───────────────────────────────────────────────────────────────────
 _model_cache = TTLCache()

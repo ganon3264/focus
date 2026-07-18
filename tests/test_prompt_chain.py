@@ -1,6 +1,6 @@
 import pytest
 
-from pyvern.prompt_chain import (
+from focus.prompt_chain import (
     _merge_consecutive,
     partition_blocks,
     resolve_variable_blocks,

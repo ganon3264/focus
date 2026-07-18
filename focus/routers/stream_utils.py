@@ -3,13 +3,13 @@ import logging
 import uuid
 import aiosqlite
 from fastapi import HTTPException
-from pyvern.prompt_chain import assemble_prompt, _build_content
-from pyvern.card_parser import safe_load_card
-from pyvern.macros import build_base_macros
-from pyvern.utils import now_iso
-import pyvern.crud as crud
+from focus.prompt_chain import assemble_prompt, _build_content
+from focus.card_parser import safe_load_card
+from focus.macros import build_base_macros
+from focus.utils import now_iso
+import focus.crud as crud
 
-logger = logging.getLogger("pyvern.routers.stream_utils")
+logger = logging.getLogger("focus.routers.stream_utils")
 
 _chat_locks: dict[str, asyncio.Lock] = {}
 

@@ -1,5 +1,5 @@
 function updateStatusPanel() {
-  const activeId = localStorage.getItem('pyvern-provider-id');
+  const activeId = localStorage.getItem('focus-provider-id');
   const providerEl = document.getElementById('status-provider');
   const presetEl = document.getElementById('status-preset');
   const modelEl = document.getElementById('status-model');

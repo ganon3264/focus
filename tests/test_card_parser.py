@@ -5,7 +5,7 @@ import zlib
 
 import pytest
 
-from pyvern.card_parser import (
+from focus.card_parser import (
     _iter_chunks,
     _parse_text_chunk,
     _parse_itxt_chunk,

@@ -1,6 +1,6 @@
 import pytest
 
-from pyvern.macros import apply_macros, build_base_macros, extract_setvars
+from focus.macros import apply_macros, build_base_macros, extract_setvars
 
 
 class TestBuildBaseMacros:
@@ -31,7 +31,7 @@ class TestBuildBaseMacros:
 
     def test_time_of_day_classification(self, monkeypatch):
         from datetime import datetime
-        import pyvern.macros as m
+        import focus.macros as m
 
         test_cases = [(6, "morning"), (11, "morning"), (12, "afternoon"),
                       (16, "afternoon"), (17, "evening"), (20, "evening"),
@@ -138,7 +138,7 @@ class TestApplyMacros:
         assert result == ""
 
     def test_max_passes_prevents_infinite_loop(self, monkeypatch):
-        import pyvern.macros as m
+        import focus.macros as m
         monkeypatch.setattr(m, "MACRO_MAX_PASSES", 2)
         macros = {"a": "{{a}}"}
         result = apply_macros("{{a}}", macros, 2)

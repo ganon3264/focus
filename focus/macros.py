@@ -1,7 +1,7 @@
 import re
 from datetime import datetime
 
-from pyvern.utils import MACRO_MAX_PASSES
+from focus.utils import MACRO_MAX_PASSES
 
 def build_base_macros(card: dict, persona: dict | None = None) -> dict[str, str]:
     now = datetime.now()

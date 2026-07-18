@@ -1,7 +1,7 @@
 import os
 import aiosqlite
 
-DB_PATH = os.environ.get("PYVERN_DB", "data/pyvern.db")
+DB_PATH = os.environ.get("FOCUS_DB", "data/focus.db")
 
 SCHEMA = """
 PRAGMA journal_mode=WAL;

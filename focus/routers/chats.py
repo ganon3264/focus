@@ -5,11 +5,11 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
 from pathlib import Path
 
-from pyvern.database import get_db
-from pyvern.models import ChatCreate, MessageEdit, SwipeRequest
-from pyvern.card_parser import safe_load_card
-import pyvern.crud as crud
-from pyvern.utils import now_iso
+from focus.database import get_db
+from focus.models import ChatCreate, MessageEdit, SwipeRequest
+from focus.card_parser import safe_load_card
+import focus.crud as crud
+from focus.utils import now_iso
 
 router = APIRouter()
 

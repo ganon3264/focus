@@ -7,12 +7,12 @@ import tiktoken
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse, JSONResponse
 
-from pyvern.database import get_db, DB_PATH
-from pyvern.models import StreamRequest, ItemizerRequest
-from pyvern.providers import create_provider
-from pyvern.logger import get_logger
-from pyvern.utils import now_iso, resolve_secret_key, estimate_image_tokens, _image_dims_from_data_url, AUDIO_TOKEN_ESTIMATE
-from pyvern.routers.stream_utils import get_prompt_context, filter_unsupported_modalities, apply_claude_caching
+from focus.database import get_db, DB_PATH
+from focus.models import StreamRequest, ItemizerRequest
+from focus.providers import create_provider
+from focus.logger import get_logger
+from focus.utils import now_iso, resolve_secret_key, estimate_image_tokens, _image_dims_from_data_url, AUDIO_TOKEN_ESTIMATE
+from focus.routers.stream_utils import get_prompt_context, filter_unsupported_modalities, apply_claude_caching
 
 router = APIRouter()
 logger = get_logger("routers.stream")
@@ -47,7 +47,7 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
 
     # ── OpenRouter modality filter ─────────────────────────────────────────────
     if prov_dict.get("type") == "openrouter":
-        from pyvern.routers.providers import get_openrouter_model_modalities
+        from focus.routers.providers import get_openrouter_model_modalities
 
         modalities = await get_openrouter_model_modalities(prov_dict.get("model", ""))
         if modalities:

@@ -6,14 +6,14 @@ from pathlib import Path
 import aiosqlite
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 
-import pyvern.crud as crud
-from pyvern.database import get_db
-from pyvern.card_parser import extract_card_json, normalise_card
-from pyvern.models import CharBlockCreate, CharBlockUpdate, CharacterCreate, CharacterUpdate
-from pyvern.utils import now_iso
+import focus.crud as crud
+from focus.database import get_db
+from focus.card_parser import extract_card_json, normalise_card
+from focus.models import CharBlockCreate, CharBlockUpdate, CharacterCreate, CharacterUpdate
+from focus.utils import now_iso
 
 router = APIRouter()
-logger = logging.getLogger("pyvern.routers.characters")
+logger = logging.getLogger("focus.routers.characters")
 
 
 # ── Import ────────────────────────────────────────────────────────────────────

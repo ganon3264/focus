@@ -1,6 +1,6 @@
 import pytest
 
-from pyvern.utils import (
+from focus.utils import (
     _image_dims_from_data_url,
     estimate_image_tokens,
     variable_group_name,

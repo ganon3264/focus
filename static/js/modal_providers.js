@@ -235,9 +235,9 @@ function setActiveProvider(id, name, type) {
   
   const sendBtn = document.getElementById('send-btn');
   if(sendBtn) sendBtn.dataset.providerId = id;
-  localStorage.setItem('pyvern-provider-id', id);
+  localStorage.setItem('focus-provider-id', id);
   if (type) {
-    localStorage.setItem('pyvern-provider-type', type);
+    localStorage.setItem('focus-provider-type', type);
     window.dispatchEvent(new CustomEvent('provider-changed', { detail: type }));
   }
 }
@@ -337,8 +337,8 @@ function submitProviderModal(e){
 
 // Initialization
 setTimeout(() => {
-  const activeId = localStorage.getItem('pyvern-provider-id');
-  const activeType = localStorage.getItem('pyvern-provider-type');
+  const activeId = localStorage.getItem('focus-provider-id');
+  const activeType = localStorage.getItem('focus-provider-type');
   if (activeId) setActiveProvider(activeId, '', activeType);
 }, 100);
 

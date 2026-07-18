@@ -206,7 +206,7 @@
 document.addEventListener('alpine:init', () => {
   Alpine.data('samplerModal', () => ({
     tab: 'standard',
-    providerType: localStorage.getItem('pyvern-provider-type') || 'openai_compat',
+    providerType: localStorage.getItem('focus-provider-type') || 'openai_compat',
 
     samplers: {},
     customFields: [],
@@ -214,7 +214,7 @@ document.addEventListener('alpine:init', () => {
     defaultSamplers() {
       return {
         temperature: 1.0,
-        max_tokens: 1024,
+        max_tokens: 8192,
         top_p: 0.95,
         top_k: 40,
         min_p: 0.05,
@@ -233,11 +233,11 @@ document.addEventListener('alpine:init', () => {
     },
 
     storageKey(type) {
-      return `pyvern-samplers-${type}`;
+      return `focus-samplers-${type}`;
     },
 
     customStorageKey(type) {
-      return `pyvern-custom-samplers-${type}`;
+      return `focus-custom-samplers-${type}`;
     },
 
     loadStandard() {

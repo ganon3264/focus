@@ -13,14 +13,14 @@ async def client():
     tmpdir = tempfile.mkdtemp()
     path = os.path.join(tmpdir, "test.db")
 
-    from pyvern.database import SCHEMA
+    from focus.database import SCHEMA
 
     async with aiosqlite.connect(path) as db:
         db.row_factory = aiosqlite.Row
         await db.executescript(SCHEMA)
 
     from main import app
-    from pyvern.database import get_db
+    from focus.database import get_db
 
     async def override_get_db():
         async with aiosqlite.connect(path) as conn:

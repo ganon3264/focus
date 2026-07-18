@@ -1,6 +1,6 @@
 import pytest
 
-from pyvern.routers.stream_utils import filter_unsupported_modalities, apply_claude_caching
+from focus.routers.stream_utils import filter_unsupported_modalities, apply_claude_caching
 
 
 class TestFilterUnsupportedModalities:

@@ -73,7 +73,7 @@ function applyPresetTheme(presetName) {
   if (accent) {
     Object.assign(theme, computeAccentDerivatives(accent));
   }
-  localStorage.setItem('pyvern-custom-theme', JSON.stringify(theme));
+  localStorage.setItem('focus-custom-theme', JSON.stringify(theme));
   for (const [key, value] of Object.entries(theme)) {
     document.documentElement.style.setProperty(key, value);
     const input = document.querySelector(`input[data-var="${key}"]`);
@@ -82,7 +82,7 @@ function applyPresetTheme(presetName) {
 }
 
 function resetThemePreview() {
-  const stored = localStorage.getItem('pyvern-custom-theme');
+  const stored = localStorage.getItem('focus-custom-theme');
   if (stored) {
     const theme = JSON.parse(stored);
     for (const key in theme) document.documentElement.style.setProperty(key, theme[key]);
@@ -108,6 +108,6 @@ function saveCustomTheme() {
   for (const [key, value] of Object.entries(newTheme)) {
     document.documentElement.style.setProperty(key, value);
   }
-  localStorage.setItem('pyvern-custom-theme', JSON.stringify(newTheme));
+  localStorage.setItem('focus-custom-theme', JSON.stringify(newTheme));
   closeModal('modal-themes');
 }

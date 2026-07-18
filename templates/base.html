@@ -4,12 +4,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Pyvern{% endblock %}</title>
+    <title>{% block title %}Focus{% endblock %}</title>
 
     <script>
       (function() {
         try {
-          const stored = localStorage.getItem('pyvern-custom-theme');
+          const stored = localStorage.getItem('focus-custom-theme');
           if (stored) {
             const theme = JSON.parse(stored);
             if (theme['--accent'] && !theme['--accent-hover']) {

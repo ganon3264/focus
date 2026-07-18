@@ -6,10 +6,10 @@ from pathlib import Path
 from typing import Any
 
 
-from pyvern.macros import apply_macros
-from pyvern.utils import variable_group_name, MACRO_MAX_PASSES
+from focus.macros import apply_macros
+from focus.utils import variable_group_name, MACRO_MAX_PASSES
 
-logger = logging.getLogger("pyvern.prompt_chain")
+logger = logging.getLogger("focus.prompt_chain")
 
 
 def _load_media(media_row: dict) -> dict | None:

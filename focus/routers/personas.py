@@ -6,9 +6,9 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from pydantic import BaseModel
 from typing import Optional
 
-import pyvern.crud as crud
-from pyvern.database import get_db
-from pyvern.utils import now_iso
+import focus.crud as crud
+from focus.database import get_db
+from focus.utils import now_iso
 
 router = APIRouter()
 
