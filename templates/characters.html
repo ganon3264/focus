@@ -99,7 +99,7 @@
               <label class="text-sm font-semibold text-muted block mb-1">Description</label>
               <div class="textarea-wrapper">
                 <textarea class="form-control w-full" id="char-desc-{{ char.id }}" rows="5">{{ char.card.get('description','') }}</textarea>
-                <button type="button" class="expand-btn" data-target-id="char-desc-{{ char.id }}" data-expander-title="Edit Description" onclick="openTextExpander(this.dataset.targetId, this.dataset.expanderTitle)" aria-label="Expand text area">{{ icon_expand(18) }}</button>
+                <button type="button" class="expand-btn" data-target-id="char-desc-{{ char.id }}" data-expander-title="Edit Description" onclick="openTextExpander(document.getElementById(this.dataset.targetId), this.dataset.expanderTitle)" aria-label="Expand text area">{{ icon_expand(18) }}</button>
               </div>
             </div>
             
@@ -127,7 +127,7 @@
               <label class="text-sm font-semibold text-muted block mb-1">First Message</label>
               <div class="textarea-wrapper">
                 <textarea class="form-control w-full" id="char-first-{{ char.id }}" rows="4">{{ char.card.get('first_mes','') }}</textarea>
-                <button type="button" class="expand-btn" data-target-id="char-first-{{ char.id }}" data-expander-title="Edit First Message" onclick="openTextExpander(this.dataset.targetId, this.dataset.expanderTitle)" aria-label="Expand text area">{{ icon_expand(18) }}</button>
+                <button type="button" class="expand-btn" data-target-id="char-first-{{ char.id }}" data-expander-title="Edit First Message" onclick="openTextExpander(document.getElementById(this.dataset.targetId), this.dataset.expanderTitle)" aria-label="Expand text area">{{ icon_expand(18) }}</button>
               </div>
             </div>
 
@@ -142,7 +142,7 @@
                 {% for greeting in char.card.get('alternate_greetings', []) %}
                 <div class="relative group greeting-item textarea-wrapper">
                   <textarea class="form-control w-full text-sm" rows="3" placeholder="Greeting content">{{ greeting }}</textarea>
-                  <button type="button" class="expand-btn" onclick="openTextExpander(this.previousElementSibling.id || this.previousElementSibling, 'Edit Alternate Greeting')" aria-label="Expand text area">{{ icon_expand(18) }}</button>
+                  <button type="button" class="expand-btn" onclick="openTextExpander(this.previousElementSibling, 'Edit Alternate Greeting')" aria-label="Expand text area">{{ icon_expand(18) }}</button>
                   <button class="absolute bottom-2 right-2 btn btn-danger btn-sm opacity-0 group-hover:opacity-100 transition-opacity" style="z-index: 10;" onclick="this.closest('.greeting-item').remove()">Delete</button>
                 </div>
                 {% endfor %}
@@ -161,21 +161,21 @@
                   <label class="text-sm font-semibold text-muted block mb-1">Personality</label>
                   <div class="textarea-wrapper">
                     <textarea class="form-control w-full" id="char-personality-{{ char.id }}" rows="4">{{ char.card.get('personality','') }}</textarea>
-                    <button type="button" class="expand-btn" data-target-id="char-personality-{{ char.id }}" data-expander-title="Edit Personality" onclick="openTextExpander(this.dataset.targetId, this.dataset.expanderTitle)" aria-label="Expand text area">{{ icon_expand(18) }}</button>
+                    <button type="button" class="expand-btn" data-target-id="char-personality-{{ char.id }}" data-expander-title="Edit Personality" onclick="openTextExpander(document.getElementById(this.dataset.targetId), this.dataset.expanderTitle)" aria-label="Expand text area">{{ icon_expand(18) }}</button>
                   </div>
                 </div>
                 <div class="form-group">
                   <label class="text-sm font-semibold text-muted block mb-1">Scenario</label>
                   <div class="textarea-wrapper">
                     <textarea class="form-control w-full" id="char-scenario-{{ char.id }}" rows="4">{{ char.card.get('scenario','') }}</textarea>
-                    <button type="button" class="expand-btn" data-target-id="char-scenario-{{ char.id }}" data-expander-title="Edit Scenario" onclick="openTextExpander(this.dataset.targetId, this.dataset.expanderTitle)" aria-label="Expand text area">{{ icon_expand(18) }}</button>
+                    <button type="button" class="expand-btn" data-target-id="char-scenario-{{ char.id }}" data-expander-title="Edit Scenario" onclick="openTextExpander(document.getElementById(this.dataset.targetId), this.dataset.expanderTitle)" aria-label="Expand text area">{{ icon_expand(18) }}</button>
                   </div>
                 </div>
                 <div class="form-group">
                   <label class="text-sm font-semibold text-muted block mb-1">Mes Example</label>
                   <div class="textarea-wrapper">
                     <textarea class="form-control w-full" id="char-example-{{ char.id }}" rows="6">{{ char.card.get('mes_example','') }}</textarea>
-                    <button type="button" class="expand-btn" data-target-id="char-example-{{ char.id }}" data-expander-title="Edit Mes Example" onclick="openTextExpander(this.dataset.targetId, this.dataset.expanderTitle)" aria-label="Expand text area">{{ icon_expand(18) }}</button>
+                    <button type="button" class="expand-btn" data-target-id="char-example-{{ char.id }}" data-expander-title="Edit Mes Example" onclick="openTextExpander(document.getElementById(this.dataset.targetId), this.dataset.expanderTitle)" aria-label="Expand text area">{{ icon_expand(18) }}</button>
                   </div>
                 </div>
               </div>
@@ -213,7 +213,7 @@
                     data-char-id="{{ char.id }}" data-block-id="{{ block.id }}"
                     onchange="updateBlock(this, {content: this.value})"
                   >{{ block.content }}</textarea>
-                  <button type="button" class="expand-btn" onclick="openTextExpander(this.previousElementSibling.id || this.previousElementSibling, 'Edit Custom Block')" aria-label="Expand text area">{{ icon_expand(18) }}</button>
+                  <button type="button" class="expand-btn" onclick="openTextExpander(this.previousElementSibling, 'Edit Custom Block')" aria-label="Expand text area">{{ icon_expand(18) }}</button>
                 </div>
                 
                 <div class="char-block-media-section" id="media-section-{{ block.id }}" style="margin-top: 0.5rem; display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
