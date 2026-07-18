@@ -112,13 +112,17 @@ class GoogleProviderBase(BaseProvider):
                 import json as _json
                 contents_dump = [c.model_dump(exclude_none=True) for c in contents]
                 config_dump = config.model_dump(exclude_none=True) if config else {}
-                # Truncate base64 blobs
-                for c in contents_dump:
-                    for p in c.get("parts", []):
-                        if "inline_data" in p:
-                            inl = p["inline_data"]
-                            if "data" in inl:
-                                inl["data"] = "<truncated>"
+                def _sanitize(o):
+                    if isinstance(o, dict):
+                        return {k: _sanitize(v) for k, v in o.items()}
+                    if isinstance(o, list):
+                        return [_sanitize(v) for v in o]
+                    if isinstance(o, bytes):
+                        return f"<bytes len={len(o)}>"
+                    return o
+
+                contents_dump = _sanitize(contents_dump)
+                config_dump = _sanitize(config_dump)
                 logger.debug(
                     "GOOGLE RAW PAYLOAD:\nmodel=%s\ncontents=\n%s\nconfig=\n%s",
                     self.model,
