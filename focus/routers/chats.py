@@ -110,7 +110,7 @@ async def get_chat(chat_id: str, db: aiosqlite.Connection = Depends(get_db)):
 
 @router.patch("/{chat_id}")
 async def update_chat(chat_id: str, body: dict, db: aiosqlite.Connection = Depends(get_db)):
-    allowed = {"title", "preset_id", "character_id", "persona_id"}
+    allowed = {"title", "preset_id", "character_id", "persona_id", "tool_calls_enabled", "tool_read_only"}
     updates = {k: v for k, v in body.items() if k in allowed}
     if updates:
         cols = ", ".join(f"{k} = ?" for k in updates)
@@ -398,6 +398,24 @@ async def branch_chat(
                         new_variant_id,
                         att["file_path"],
                         att["mime_type"],
+                        now,
+                    ),
+                )
+
+            async with db.execute("SELECT * FROM tool_calls WHERE variant_id = ?", (v["id"],)) as cur4:
+                old_tool_calls = [dict(r) for r in await cur4.fetchall()]
+            for tc in old_tool_calls:
+                await db.execute(
+                    "INSERT INTO tool_calls (id, chat_id, message_id, variant_id, tool_name, arguments, result, is_error, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (
+                        str(uuid.uuid4()),
+                        new_chat_id,
+                        new_msg_id,
+                        new_variant_id,
+                        tc["tool_name"],
+                        tc["arguments"],
+                        tc["result"],
+                        tc["is_error"],
                         now,
                     ),
                 )

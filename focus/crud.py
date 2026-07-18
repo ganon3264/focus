@@ -243,6 +243,7 @@ async def fetch_active_variants(db: aiosqlite.Connection, chat_id: str, extra_co
     """
     cols = (
         "m.id, m.role, m.position, m.active_index, "
+        "m.is_internal, "
         "mv.content, mv.variant_index, mv.id as variant_id, "
         "mv.created_at, mv.model_name, "
         "(SELECT COUNT(*) FROM message_variants WHERE message_id = m.id) as variant_count"
@@ -273,8 +274,37 @@ async def get_chat_messages(db: aiosqlite.Connection, chat_id: str) -> list[dict
     for a in attachments:
         attachments_by_variant.setdefault(a["variant_id"], []).append(dict(a))
 
+    # Load tool_calls for each message, keyed by variant_id
+    async with db.execute(
+        "SELECT * FROM tool_calls WHERE chat_id = ? AND variant_id IS NOT NULL ORDER BY created_at",
+        (chat_id,),
+    ) as cur:
+        tool_calls_rows = await cur.fetchall()
+
+    tool_calls_by_variant: dict[str, list[dict]] = {}
+    for tc in tool_calls_rows:
+        tool_calls_by_variant.setdefault(tc["variant_id"], []).append(dict(tc))
+
+    from focus.core.message_render import render_message_segments
+
     for m in messages:
         m["attachments"] = attachments_by_variant.get(m["variant_id"], [])
+        m["segments"] = render_message_segments(m["content"])
+        tcs = tool_calls_by_variant.get(m["variant_id"], [])
+        if tcs:
+            m["tool_calls"] = [
+                {
+                    "id": tc["id"],
+                    "type": "function",
+                    "function": {
+                        "name": tc["tool_name"],
+                        "arguments": tc["arguments"],
+                    },
+                    "result": tc["result"],
+                    "is_error": bool(tc["is_error"]),
+                }
+                for tc in tcs
+            ]
 
     return messages
 
@@ -345,6 +375,22 @@ async def get_counts(db: aiosqlite.Connection, character_id: str | None, persona
             counts["persona_attachments"] += row[0] if row else 0
 
     return counts
+
+
+async def get_chat_tool_calls(db: aiosqlite.Connection, chat_id: str) -> list[dict]:
+    async with db.execute(
+        "SELECT * FROM tool_calls WHERE chat_id = ? ORDER BY created_at",
+        (chat_id,),
+    ) as cur:
+        return [dict(r) for r in await cur.fetchall()]
+
+
+async def get_message_tool_calls(db: aiosqlite.Connection, message_id: str) -> list[dict]:
+    async with db.execute(
+        "SELECT * FROM tool_calls WHERE message_id = ? ORDER BY created_at",
+        (message_id,),
+    ) as cur:
+        return [dict(r) for r in await cur.fetchall()]
 
 
 async def get_active_provider(db: aiosqlite.Connection) -> dict:

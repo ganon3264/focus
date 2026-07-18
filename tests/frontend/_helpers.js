@@ -236,9 +236,9 @@ function makeElement(tag) {
 }
 
 function _matchesSimple(el, sel) {
-  if (sel[0] === '.' && !/[\[ :#]/.test(sel)) return el.classList.contains(sel.slice(1));
-  if (sel[0] === '#' && sel.indexOf('[') === -1) return el.id === sel.slice(1);
-  return null; // not a simple selector
+  if (sel[0] === '.' && !/[\[ :#]/.test(sel) && sel.indexOf('.', 1) === -1) return el.classList.contains(sel.slice(1));
+  if (sel[0] === '#' && sel.indexOf('[') === -1 && sel.indexOf('.') === -1) return el.id === sel.slice(1);
+  return null;
 }
 
 function matches(el, sel) {
@@ -288,7 +288,9 @@ function matches(el, sel) {
     return true;
   }
   var parts = sel.split(/(?=[#.])/);
-  var tag = parts[0];
+  // When the selector starts with . or #, the split may drop the leading empty
+  // string (Node v24+), so parts[0] would be ".cls" instead of "".  Detect this.
+  var tag = (parts[0] && parts[0][0] !== '.' && parts[0][0] !== '#') ? parts[0] : '';
   if (tag && tag !== el.tagName.toLowerCase() && tag !== el.tagName) return false;
   for (var i = 1; i < parts.length; i++) {
     if (parts[i][0] === '.') {

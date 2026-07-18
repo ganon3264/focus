@@ -38,9 +38,9 @@ function makeMessage(opts) {
   var content = makeElement('div');
   content.classList.add('message-content');
   if (opts.withReasoning) {
-    var details = makeElement('details');
-    details.classList.add('reasoning');
-    content.appendChild(details);
+    var block = makeElement('div');
+    block.classList.add('reasoning-block');
+    content.appendChild(block);
   }
   msg.appendChild(content);
 
@@ -54,13 +54,13 @@ function makeMessage(opts) {
   var msg1 = makeMessage({ withReasoning: false });
   window._updateReasoningButton(msg1.querySelector('.message-content'));
   assert(msg1.querySelector('.reasoning-toggle-btn').classList.contains('hidden'),
-    'Button hidden when content has no details.reasoning');
+    'Button hidden when content has no reasoning-block');
 
   // 2. Button is shown when reasoning exists
   var msg2 = makeMessage({ withReasoning: true });
   window._updateReasoningButton(msg2.querySelector('.message-content'));
   assert(!msg2.querySelector('.reasoning-toggle-btn').classList.contains('hidden'),
-    'Button shown when content has details.reasoning');
+    'Button shown when content has reasoning-block');
 
   // 3. syncReasoningButtons toggles every message
   var m1 = makeMessage({ withReasoning: false });
@@ -94,19 +94,19 @@ function makeMessage(opts) {
   // 6. preserveOpenStates — with open state preserved
   (function () {
     var container3 = makeElement('div');
-    var msg = makeMessage({ withReasoning: true });
-    var details = msg.querySelector('details.reasoning');
-    details.setAttribute('open', '');
-    details.dataset.thinkId = 'think-0';
-    container3.appendChild(msg);
+    var block = makeElement('div');
+    block.classList.add('reasoning-block');
+    block.classList.add('open');
+    block.dataset.thinkId = 'think-0';
+    container3.appendChild(block);
 
     window.preserveOpenStates(container3, function () {
-      return '<div class="message"><div class="message-content"><details class="reasoning" data-think-id="think-0">content</details></div></div>';
+      return '<div class="reasoning-block" data-think-id="think-0"></div>';
     });
 
-    var restoredDetails = container3.querySelector('details.reasoning');
-    assert(restoredDetails && restoredDetails.hasAttribute('open'),
-      'preserveOpenStates: restores open attribute on matching thinkId');
+    var restoredBlock = container3.querySelector('.reasoning-block');
+    assert(restoredBlock && restoredBlock.classList.contains('open'),
+      'preserveOpenStates: restores open class on matching thinkId');
   })();
 })();
 

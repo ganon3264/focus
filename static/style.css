@@ -496,29 +496,51 @@
   }
 
   /* Reasoning / Thought Process */
-  details.reasoning {
+  .reasoning-block {
     font-size: 0.85rem;
     color: var(--text-faint);
-  }
-  details.reasoning:not([open]) {
     margin: 0.15rem 0;
   }
-  details.reasoning[open] {
+  .reasoning-block.open {
     margin: 0.75rem 0;
-    background: var(--surface-3);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    padding: 0.75rem;
   }
-  details.reasoning > summary {
-    display: none;
+  .reasoning-summary {
+    cursor: pointer;
+    user-select: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: none;
+    border: none;
+    padding: 0;
+    font: inherit;
+    color: var(--text-muted);
   }
-  .reasoning-content {
+  .reasoning-summary:hover {
+    color: var(--text);
+  }
+  .reasoning-summary .reasoning-chevron {
+    transition: transform 0.2s ease;
+  }
+  .reasoning-block.open .reasoning-summary {
+    margin-bottom: 0.35rem;
+  }
+  .reasoning-block .reasoning-content {
     white-space: pre-wrap;
     word-wrap: break-word;
     overflow-wrap: break-word;
   }
-  .reasoning-open .reasoning-chevron {
+  .reasoning-block.open .reasoning-content {
+    padding: 0.75rem;
+    background: var(--surface-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+  }
+  .reasoning-block:not(.open) .reasoning-content.hidden {
+    display: none;
+  }
+  .reasoning-open .reasoning-chevron,
+  .reasoning-block.open .reasoning-summary .reasoning-chevron {
     transform: rotate(90deg);
   }
   .markdown-content blockquote {

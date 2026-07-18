@@ -34,7 +34,11 @@ async def _make_assistant_slot(db: aiosqlite.Connection, chat_id: str) -> str:
 
 
 async def _get_history(db: aiosqlite.Connection, chat_id: str, regenerate: bool):
-    """Load message history and message attachments for a chat."""
+    """Load message history and message attachments for a chat.
+
+    Also loads tool_calls and attaches them to assistant messages that
+    triggered them, inserting synthetic tool-role messages afterwards.
+    """
     msg_attachments: dict[str, list[dict]] = {}
     async with db.execute(
         "SELECT * FROM message_attachments WHERE chat_id = ? AND variant_id IS NOT NULL ORDER BY created_at",
@@ -42,6 +46,15 @@ async def _get_history(db: aiosqlite.Connection, chat_id: str, regenerate: bool)
     ) as cur:
         for r in await cur.fetchall():
             msg_attachments.setdefault(r["variant_id"], []).append(dict(r))
+
+    # Load all tool_calls for this chat, grouped by variant_id
+    tool_calls_by_variant: dict[str, list[dict]] = {}
+    async with db.execute(
+        "SELECT * FROM tool_calls WHERE chat_id = ? AND variant_id IS NOT NULL ORDER BY created_at",
+        (chat_id,),
+    ) as cur:
+        for tc in await cur.fetchall():
+            tool_calls_by_variant.setdefault(tc["variant_id"], []).append(dict(tc))
 
     if regenerate:
         all_rows = await crud.fetch_active_variants(db, chat_id)
@@ -57,28 +70,65 @@ async def _get_history(db: aiosqlite.Connection, chat_id: str, regenerate: bool)
         history = []
         for r in all_rows:
             if r["id"] != last_asst_id:
-                content_text = (
-                    re.sub(r"<think>.*?</think>", "", r["content"], flags=re.DOTALL).strip()
-                    if r["role"] == "assistant" else r["content"]
+                await _append_history_with_tool_calls(
+                    history, r, msg_attachments, tool_calls_by_variant,
                 )
-                history.append({
-                    "role": r["role"],
-                    "content": await _build_content(content_text, msg_attachments.get(r["variant_id"], [])),
-                })
         return history, last_asst_id, last_asst_variant_count
     else:
         history_rows = await crud.fetch_active_variants(db, chat_id)
         history = []
         for r in history_rows:
-            content_text = (
-                re.sub(r"<think>.*?</think>", "", r["content"], flags=re.DOTALL).strip()
-                if r["role"] == "assistant" else r["content"]
+            await _append_history_with_tool_calls(
+                history, r, msg_attachments, tool_calls_by_variant,
             )
-            history.append({
-                "role": r["role"],
-                "content": await _build_content(content_text, msg_attachments.get(r["variant_id"], [])),
-            })
         return history, None, 0
+
+
+async def _append_history_with_tool_calls(
+    history: list,
+    row: dict,
+    msg_attachments: dict,
+    tool_calls_by_variant: dict,
+):
+    """Append a history entry for *row*, potentially followed by synthetic
+    tool-role messages if the original assistant message had tool_calls."""
+    content_text = row["content"]
+    if row["role"] == "assistant":
+        content_text = re.sub(r"<think>.*?</think>", "", content_text, flags=re.DOTALL).strip()
+    content_text = content_text.replace("%%%TOOL_BOUNDARY%%%", "").strip()
+    content = await _build_content(content_text, msg_attachments.get(row["variant_id"], []))
+
+    entry: dict = {
+        "role": row["role"],
+        "content": content,
+    }
+
+    # Attach tool_calls if this assistant message had them (keyed by variant_id)
+    tcs = tool_calls_by_variant.get(row["variant_id"], [])
+    if tcs and row["role"] == "assistant":
+        entry["tool_calls"] = [
+            {
+                "id": tc["id"],
+                "type": "function",
+                "function": {
+                    "name": tc["tool_name"],
+                    "arguments": tc["arguments"],
+                },
+                "result": tc["result"],
+                "is_error": bool(tc["is_error"]),
+            }
+            for tc in tcs
+        ]
+
+    history.append(entry)
+
+    # Insert synthetic tool-role messages after the assistant message
+    for tc in tcs:
+        history.append({
+            "role": "tool",
+            "tool_call_id": tc["id"],
+            "content": tc["result"] or "",
+        })
 
 
 async def get_prompt_context(

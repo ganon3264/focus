@@ -76,14 +76,16 @@ CREATE TABLE IF NOT EXISTS preset_blocks (
 );
 
 CREATE TABLE IF NOT EXISTS chats (
-    id           TEXT PRIMARY KEY,
-    title        TEXT NOT NULL DEFAULT 'New Chat',
-    character_id TEXT REFERENCES characters(id) ON DELETE SET NULL,
-    persona_id   TEXT REFERENCES personas(id) ON DELETE SET NULL,
-    preset_id    TEXT REFERENCES presets(id) ON DELETE SET NULL,
-    created_at   TEXT NOT NULL,
-    updated_at   TEXT NOT NULL,
-    is_deleted   INTEGER NOT NULL DEFAULT 0
+    id                 TEXT PRIMARY KEY,
+    title              TEXT NOT NULL DEFAULT 'New Chat',
+    character_id       TEXT REFERENCES characters(id) ON DELETE SET NULL,
+    persona_id         TEXT REFERENCES personas(id) ON DELETE SET NULL,
+    preset_id          TEXT REFERENCES presets(id) ON DELETE SET NULL,
+    created_at         TEXT NOT NULL,
+    updated_at         TEXT NOT NULL,
+    is_deleted         INTEGER NOT NULL DEFAULT 0,
+    tool_calls_enabled INTEGER NOT NULL DEFAULT 0,
+    tool_read_only     INTEGER NOT NULL DEFAULT 1
 );
 
 CREATE TABLE IF NOT EXISTS messages (
@@ -92,7 +94,8 @@ CREATE TABLE IF NOT EXISTS messages (
     role         TEXT NOT NULL,
     position     INTEGER NOT NULL,
     active_index INTEGER NOT NULL DEFAULT 0,
-    created_at   TEXT NOT NULL
+    created_at   TEXT NOT NULL,
+    is_internal  INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS message_variants (
@@ -134,12 +137,26 @@ CREATE TABLE IF NOT EXISTS settings (
     value TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS tool_calls (
+    id          TEXT PRIMARY KEY,
+    chat_id     TEXT NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
+    message_id  TEXT NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+    variant_id  TEXT REFERENCES message_variants(id) ON DELETE SET NULL,
+    tool_name   TEXT NOT NULL,
+    arguments   TEXT NOT NULL,
+    result      TEXT,
+    is_error    INTEGER NOT NULL DEFAULT 0,
+    created_at  TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_block_images_block ON block_images(block_id, position);
 CREATE INDEX IF NOT EXISTS idx_message_attachments_msg ON message_attachments(message_id);
 
 CREATE INDEX IF NOT EXISTS idx_preset_blocks_pos     ON preset_blocks(preset_id, position);
 CREATE INDEX IF NOT EXISTS idx_char_blocks_char      ON char_blocks(character_id, position);
 CREATE INDEX IF NOT EXISTS idx_message_variants_msg  ON message_variants(message_id, variant_index);
+CREATE INDEX IF NOT EXISTS idx_tool_calls_message ON tool_calls(message_id);
+CREATE INDEX IF NOT EXISTS idx_tool_calls_chat    ON tool_calls(chat_id);
 """
 
 
@@ -208,5 +225,17 @@ async def init_db():
         col_names = {row[1] for row in await cols.fetchall()}
         if "is_deleted" not in col_names:
             await db.execute("ALTER TABLE personas ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0")
+
+        cols = await db.execute("PRAGMA table_info(chats)")
+        col_names = {row[1] for row in await cols.fetchall()}
+        if "tool_calls_enabled" not in col_names:
+            await db.execute("ALTER TABLE chats ADD COLUMN tool_calls_enabled INTEGER NOT NULL DEFAULT 0")
+        if "tool_read_only" not in col_names:
+            await db.execute("ALTER TABLE chats ADD COLUMN tool_read_only INTEGER NOT NULL DEFAULT 1")
+
+        cols = await db.execute("PRAGMA table_info(messages)")
+        col_names = {row[1] for row in await cols.fetchall()}
+        if "is_internal" not in col_names:
+            await db.execute("ALTER TABLE messages ADD COLUMN is_internal INTEGER NOT NULL DEFAULT 0")
 
         await db.commit()

@@ -28,6 +28,7 @@ EXPORT_TABLES = [
     "message_variants",
     "block_images",
     "message_attachments",
+    "tool_calls",
     "settings",
 ]
 
@@ -45,6 +46,7 @@ INSERT_ORDER = [
     "message_variants",
     "block_images",
     "message_attachments",
+    "tool_calls",
     "settings",
 ]
 
@@ -65,6 +67,9 @@ FK_RULES = [
     ("block_images", "block_id", "characters"),
     ("block_images", "block_id", "personas"),
     ("block_images", "block_id", "presets"),
+    ("tool_calls", "chat_id", "chats"),
+    ("tool_calls", "message_id", "messages"),
+    ("tool_calls", "variant_id", "message_variants"),
 ]
 
 PATH_FIELDS = [
@@ -116,6 +121,7 @@ def _build_id_map(database: dict[str, list[dict]]) -> dict[str, str]:
         "message_variants": "id",
         "block_images": "id",
         "message_attachments": "id",
+        "tool_calls": "id",
     }
     for table, id_col in id_columns.items():
         for row in database.get(table, []):
@@ -264,6 +270,7 @@ async def export_data(db: aiosqlite.Connection, req: ExportRequest) -> bytes:
         "message_variants": await _query_table(db, "message_variants", "id", variant_ids),
         "block_images": block_image_rows,
         "message_attachments": attachment_rows,
+        "tool_calls": await _query_table(db, "tool_calls", "chat_id", chat_ids),
         "settings": await _query_table_all(db, "settings"),
     }
 
@@ -289,6 +296,7 @@ async def export_data(db: aiosqlite.Connection, req: ExportRequest) -> bytes:
                 "message_variants": len(database["message_variants"]),
                 "block_images": len(database["block_images"]),
                 "message_attachments": len(database["message_attachments"]),
+                "tool_calls": len(database.get("tool_calls", [])),
                 "settings": len(database.get("settings", [])),
             },
         }

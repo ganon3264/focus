@@ -34,6 +34,7 @@ focus/
     logger.py               # Colored console logging, FOCUS_DEBUG env var, get_logger() helper
     macros.py               # Template macro engine (build_base_macros, apply_macros, extract_setvars)
     card_parser.py          # PNG character card parser (v1/v2 spec, chara chunk extraction)
+    message_render.py       # Server-side message segmentation: render_message_segments() splits content into text/reasoning/tool_boundary typed segments for Jinja2 rendering
   providers/
     __init__.py             # create_provider(row) factory — dispatches by row["type"]
     base.py                 # Abstract BaseProvider — __init__, _build_headers(), fetch_models(), abstract stream_complete()
@@ -71,7 +72,7 @@ partials/                   # HTMX partial templates
   modal_shell.html          # Shared modal macro: modal_shell() + modal_footer() — defines overlay/content/header/footer structure
   chat/
     message_list.html        # Message list wrapper with hidden data div, iteration over messages, #scroll-sentinel
-    message.html             # Single message: avatar, name, model, toolbar (swipe/regen/branch/edit/delete), attachments, markdown content, reasoning toggle, delete checkbox
+    message.html             # Single message: avatar, name, model, toolbar (swipe/regen/branch/edit/delete), attachments, segment-based content (text/reasoning/tool-calls with inline rendering), delete checkbox
     char_selector.html       # Character list for left sidebar — HTMX click filters chat list
     persona_selector.html    # Persona list for sidebar — click calls StateManager.setPersona()
     chat_list.html           # Chat list for right sidebar — links to /chat/{id}, delete with customConfirm
@@ -104,7 +105,7 @@ partials/                   # HTMX partial templates
 
 static/
   chat_stream.js            # Core SSE streaming engine: triggerGeneration, AbortController, branchFromMessage, send/regen mode, file upload before generation, updateSendButtonState, resizeTextarea, DOMContentLoaded/afterSwap init (static/js/core/chat_stream.js)
-  reasoning_utils.js         # Reasoning toggle visibility, syncReasoningButtons, preserveOpenStates, event handlers (static/js/messages/reasoning_utils.js)
+  reasoning_utils.js         # Reasoning toggle visibility, syncReasoningButtons, preserveOpenStates, toggleReasoningBlock (static/js/messages/reasoning_utils.js)
   message_refresh.js         # Message DOM refresh: _refreshMessageNodes (internal strategy selector), refreshMessagesAfterStream, refreshSingleMessage, _refreshChatList, _replaceMessageNode (static/js/messages/message_refresh.js)
   favicon.svg               # SVG favicon (lightning bolt)
   style.css                 # Design system: CSS vars, @layer base/components/utilities — all visual classes
@@ -115,7 +116,7 @@ static/
     api_paths.js            # API route builders (window.api) — all endpoint paths as functions/properties
     status_panel.js         # Bottom status bar: provider/preset/model display, Claude cache countdown timer, newChat()
     scroll_manager.js       # Auto-scroll via IntersectionObserver, scroll sentinel, RAF-based scrollToBottom
-    message_renderer.js     # Message rendering: escapeHtml, extractThoughtsSafely, renderMessage (marked + DOMPurify + code copy buttons + accent-quote + reasoning details)
+    message_renderer.js     # Client-side message rendering: escapeHtml, extractThoughtsSafely, renderMessage (marked + DOMPurify + code copy buttons + accent-quote + reasoning block generation)
     msg_dom.js              # DOM builders: createUserMessageDiv (with attachment previews), createAssistantPlaceholderDiv (with reasoning toggle)
     chat_stream.js          # Core streaming engine — see core/chat_stream.js
     file_staging.js         # File staging area: drag/paste/upload pipeline, image crop before send, preview rendering
@@ -266,7 +267,8 @@ Always prefer CSS variables over hardcoded colors/radii in inline styles.
 - Glassmorphic input bar via `backdrop-filter: blur(16px)` + `color-mix()`
 - Hover-reveal toolbars (`.message:hover .toolbar`)
 - Code copy buttons (`.copy-btn` absolutely positioned in `<pre>`)
-- Reasoning collapsible (`.details.reasoning` with custom click handling)
+- Reasoning blocks (`.reasoning-block` + `.reasoning-summary` button + `.reasoning-content` — first block uses message-level toggle, subsequent blocks have individual `.reasoning-summary` buttons)
+- Tool call sections (`.tool-calls-section` with `.details.tool-call` — collapsed by default, rendered inline between text segments)
 - Markdown processing gate (`.markdown-content:not(.processed)` hidden until marked.js renders)
 - Auto-grow grid (`.grid` with `repeat(auto-fill, minmax(180px, 1fr))`)
 
@@ -449,7 +451,7 @@ Tests are organized into 3 directories with 23 test source files:
 
 6. **Path references:** Jinja `{% include %}` paths are relative to templates/partials dirs. Static files are served from `/static/`. API endpoints are in `window.api` (see `api_paths.js`).
 
-7. **`preserveOpenStates` pattern** — When streaming tokens replaces message content, use `preserveOpenStates(container, renderFn)` to keep `<details.reasoning>` blocks open. Never directly set `innerHTML` on message content during streaming.
+7. **`preserveOpenStates` pattern** — When streaming tokens replaces message content, use `preserveOpenStates(container, renderFn)` to keep reasoning blocks open (`open` class on `.reasoning-block`). Never directly set `innerHTML` on message content during streaming.
 
 8. **AbortController for stream cancellation** — Each generation creates a new `AbortController`. The stop button calls `.abort()`. Canceled streams with no visible text clean up the assistant placeholder div; partial text is preserved.
 
@@ -468,6 +470,12 @@ Tests are organized into 3 directories with 23 test source files:
 15. **SVG sprite system** — SVG icon macros are defined in `macros.html` (`icon_plus`, `icon_trash`, `icon_close`, etc.). The `#svg-sprite` div in `base.html` renders them into a sprite sheet, accessed via `window.getSvgSprite(name, size)`. Don't add inline SVGs — add macros to `macros.html` and reference them via the sprite.
 
 16. **Hint tooltip system** — A reusable `hint_tooltip(text)` macro in `macros.html` renders a `?` icon. Text is stored in a `data-hint` attribute. On hover, `showHint(el)` in `base.html`'s inline script positions a single global `#hint-tooltip` element (`body` child, `position: fixed`) using `getBoundingClientRect()`. `hideHint()` hides it on leave. No Alpine dependency. CSS selectors: `.hint-wrapper` (relative inline-flex), `.hint-icon` (16x16 circle, cursor:help), `#hint-tooltip` (surface-2 background, border, shadow, z-index overlay+1, font-weight 400). To add a hint: `{{ hint_tooltip('Your explanation here.') }}`. Import: `{% from "macros.html" import hint_tooltip %}`. Example in `sampler_modal.html` lines 477, 502, 519.
+
+17. **Server-side message segmentation** — Messages are pre-processed into typed segments by `focus/core/message_render.py:render_message_segments()`. Called in `crud.py:get_chat_messages()`, so every server-rendered message has `.segments`. Three segment types: `text` (raw content, processed by JS `marked`), `reasoning` (pre-escaped HTML, rendered as `.reasoning-block`), `tool_boundary` (insertion point for tool calls). The first reasoning block (index 0) has no toggle button — it's controlled by the message-level `.reasoning-toggle-btn`. Subsequent blocks get individual `.reasoning-summary` buttons calling `toggleReasoningBlock(this)`. Tool call `<details>` elements start collapsed (no `open`). Template renders tool calls only at first boundary (`ns.tool_rendered` flag).
+
+18. **Tool call boundary markers** — During streaming, `stream.py` inserts `%%%TOOL_BOUNDARY%%%` between iteration texts when the model makes tool calls. Stored in variant content. `render_message_segments` splits on this marker and inserts `tool_boundary` segments. The streaming frontend's `_renderToolCalls` omits `open` attribute and label. Stale `.tool-calls-stream` removed at start of `triggerGeneration`.
+
+19. **`_updateReasoningButton` scope change** — Looks for `.reasoning-block` via `msg.querySelector('.reasoning-block')` (within the whole message), not within `.message-content`. This is necessary because server-rendered segments put `.reasoning-block` as a sibling of `.message-content`, not a child. The JS streaming path still puts them inside `.message-content` (via `renderMessage` html), but the server-rendered refresh path uses the sibling layout.
 
 ## File naming conventions
 

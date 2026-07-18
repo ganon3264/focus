@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 import uuid
 
 import aiosqlite
@@ -18,10 +19,23 @@ from focus.core.utils import (
     resolve_secret_key,
 )
 from focus.providers import create_provider
+from focus.providers.openai_compat import OpenAICompatProvider
 from focus.routers.stream_utils import (
     apply_claude_caching,
     filter_unsupported_modalities,
     get_prompt_context,
+)
+from focus.tools import (
+    MAX_TOOL_ITERATIONS,
+    ToolCall,
+    ToolResult,
+    active_tools,
+    build_tool_result,
+)
+from focus.tools.builtin import ALL_TOOLS
+from focus.tools.provider_adapter import (
+    to_provider_tools,
+    to_provider_tool_results,
 )
 
 router = APIRouter()
@@ -34,6 +48,7 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
 
     Loads the provider config, resolves secrets, builds the prompt context,
     streams tokens via SSE, and persists the result as a message variant.
+    Supports an iterative tool-calling loop when tools_enabled=True.
     """
     # ── Provider ─────────────────────────────────────────────────────────────
     async with db.execute("SELECT * FROM providers WHERE id = ?", (body.provider_id,)) as cur:
@@ -107,19 +122,86 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
     if prov_dict.get("type") == "openrouter":
         gen_kwargs["session_id"] = body.chat_id
 
+    # ── Tool calling setup ─────────────────────────────────────────────────
+    tools_enabled = body.tools_enabled
+    tool_read_only = body.tool_read_only
+
+    # Disable tools for providers that don't support them
+    if tools_enabled and not provider.supports_tools:
+        tools_enabled = False
+        logger.debug("Tools disabled: provider %s does not support tool calling", prov_dict.get("type"))
+
+    if tools_enabled:
+        cur_tools = active_tools(ALL_TOOLS, tool_read_only)
+        tools_payload = to_provider_tools(cur_tools)
+        tools_by_name = {t.name: t for t in cur_tools}
+        if tools_payload:
+            gen_kwargs["tools"] = tools_payload
+            gen_kwargs["tool_choice"] = "auto"
+    else:
+        cur_tools = []
+        tools_payload = []
+        tools_by_name = {}
+
     if not use_stream:
         collected: list[str] = []
         final_asst_msg_id = asst_msg_id
+        loop_messages = list(messages)
+        variant_id = str(uuid.uuid4())
 
-        try:
-            logger.debug(f"Starting non-stream completion for chat_id={body.chat_id} provider={prov_dict['name']}")
-            async for token in provider.stream_complete(messages, **gen_kwargs):
-                collected.append(token)
-        except Exception as e:
-            logger.exception("Non-stream completion failed for chat_id=%s", body.chat_id)
-            if not body.regenerate:
-                await _rollback_assistant(final_asst_msg_id)
-            raise HTTPException(500, str(e) or repr(e))
+        for _iteration in range(MAX_TOOL_ITERATIONS if tools_enabled else 1):
+            iter_collected: list[str] = []
+            tool_calls_list: list | None = None
+
+            try:
+                logger.debug(
+                    "Non-stream iteration for chat_id=%s provider=%s",
+                    body.chat_id, prov_dict["name"],
+                )
+                async for event in provider.stream_complete(loop_messages, **gen_kwargs):
+                    if event["type"] == "token":
+                        iter_collected.append(event["text"])
+                    elif event["type"] == "tool_calls":
+                        tool_calls_list = event["calls"]
+                        break
+                    elif event["type"] == "done":
+                        tool_calls_list = None
+                        break
+            except Exception as e:
+                logger.exception("Non-stream completion failed for chat_id=%s", body.chat_id)
+                if not body.regenerate:
+                    await _rollback_assistant(final_asst_msg_id)
+                raise HTTPException(500, str(e) or repr(e))
+
+            if not tool_calls_list:
+                collected.extend(iter_collected)
+                break
+
+            collected.extend(iter_collected)
+            collected.append("%%%TOOL_BOUNDARY%%%")
+            tool_calls_list = list(tool_calls_list)
+            logger.debug(
+                "Tool round (%d calls) for chat_id=%s",
+                len(tool_calls_list), body.chat_id,
+            )
+
+            asst_text = re.sub(r"<think>.*?</think>", "", "".join(iter_collected), flags=re.DOTALL).strip()
+            asst_msg: dict = {"role": "assistant", "content": asst_text or None}
+            asst_msg["tool_calls"] = [
+                {"id": tc.id, "type": "function",
+                 "function": {"name": tc.name, "arguments": json.dumps(tc.arguments)}}
+                for tc in tool_calls_list
+            ]
+            loop_messages.append(asst_msg)
+
+            results = await _execute_tool_round(
+                tool_calls_list, tools_by_name, tool_read_only,
+                body.chat_id, final_asst_msg_id, variant_id,
+            )
+            loop_messages.extend(to_provider_tool_results(results))
+            for r in results:
+                if r.extra_message is not None:
+                    loop_messages.append(r.extra_message)
 
         full = "".join(collected)
         if body.continue_text and not full.startswith(body.continue_text):
@@ -133,6 +215,7 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
                 full,
                 body.regenerate,
                 prov_dict.get("model", ""),
+                variant_id=variant_id,
             )
         except Exception as e:
             logger.exception("Failed to save non-stream result for chat_id=%s", body.chat_id)
@@ -179,33 +262,86 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
 
     async def generate():
         yield f"data: {json.dumps({'type': 'start', 'message_id': final_asst_msg_id, 'user_message_id': user_msg_id if not body.regenerate else None, 'prefill_mode': not provider.echoes_prefill})}\n\n"
-        try:
-            logger.debug(f"Starting generation stream for chat_id={body.chat_id} provider={prov_dict['name']}")
-            async for token in provider.stream_complete(messages, **gen_kwargs):
-                collected.append(token)
-                yield f"data: {json.dumps({'token': token})}\n\n"
-                if len(collected) % 5 == 0:
+
+        loop_messages = list(messages)
+        variant_saved = False
+        final_text: list[str] = []
+        stream_variant_id = str(uuid.uuid4())
+
+        for _iteration in range(MAX_TOOL_ITERATIONS if tools_enabled else 1):
+            iter_collected: list[str] = []
+            tool_calls_list: list | None = None
+
+            try:
+                logger.debug(
+                    "Stream iteration %d for chat_id=%s provider=%s",
+                    _iteration + 1, body.chat_id, prov_dict["name"],
+                )
+                async for event in provider.stream_complete(loop_messages, **gen_kwargs):
+                    if event["type"] == "token":
+                        iter_collected.append(event["text"])
+                        yield f"data: {json.dumps({'token': event['text']})}\n\n"
+                        if len(iter_collected) % 5 == 0:
+                            await _upsert_variant(
+                                body.chat_id, final_asst_msg_id, next_variant_index,
+                                "".join(iter_collected), body.regenerate, prov_dict.get("model", ""),
+                                variant_id=stream_variant_id,
+                            )
+                    elif event["type"] == "tool_calls":
+                        tool_calls_list = event["calls"]
+                        yield f"data: {json.dumps({'type': 'tool_calls', 'calls': [{'id': tc.id, 'name': tc.name, 'arguments': tc.arguments} for tc in event['calls']]})}\n\n"
+                        break
+                    elif event["type"] == "done":
+                        tool_calls_list = None
+                        break
+            except Exception as e:
+                logger.exception("Stream exception for chat_id=%s", body.chat_id)
+                if iter_collected:
                     await _upsert_variant(
                         body.chat_id, final_asst_msg_id, next_variant_index,
-                        "".join(collected), body.regenerate, prov_dict.get("model", ""),
+                        "".join(iter_collected), body.regenerate, prov_dict.get("model", ""),
+                        variant_id=stream_variant_id,
                     )
-        except Exception as e:
-            logger.exception("Stream exception for chat_id=%s", body.chat_id)
-            if collected:
-                await _upsert_variant(
-                    body.chat_id, final_asst_msg_id, next_variant_index,
-                    "".join(collected), body.regenerate, prov_dict.get("model", ""),
-                )
-            elif not body.regenerate:
-                await _rollback_assistant(final_asst_msg_id)
-            err_msg = str(e)
-            if not err_msg or err_msg == "()":
-                err_msg = repr(e)
-            logger.info("Stream terminated (error) for chat_id=%s", body.chat_id)
-            yield f"data: {json.dumps({'error': err_msg})}\n\n"
-            return
+                elif not body.regenerate and not final_text:
+                    await _rollback_assistant(final_asst_msg_id)
+                err_msg = str(e)
+                if not err_msg or err_msg == "()":
+                    err_msg = repr(e)
+                logger.info("Stream terminated (error) for chat_id=%s", body.chat_id)
+                yield f"data: {json.dumps({'error': err_msg})}\n\n"
+                return
 
-        full = "".join(collected)
+            if not tool_calls_list:
+                final_text.extend(iter_collected)
+                break
+
+            final_text.extend(iter_collected)
+            final_text.append("%%%TOOL_BOUNDARY%%%")
+
+            # Execute tools and append results to loop_messages
+            tool_calls_list = list(tool_calls_list)
+
+            asst_text = re.sub(r"<think>.*?</think>", "", "".join(iter_collected), flags=re.DOTALL).strip()
+            asst_msg: dict = {"role": "assistant", "content": asst_text or None}
+            asst_msg["tool_calls"] = [
+                {"id": tc.id, "type": "function",
+                 "function": {"name": tc.name, "arguments": json.dumps(tc.arguments)}}
+                for tc in tool_calls_list
+            ]
+            loop_messages.append(asst_msg)
+
+            results = await _execute_tool_round(
+                tool_calls_list, tools_by_name, tool_read_only,
+                body.chat_id, final_asst_msg_id, stream_variant_id,
+            )
+            loop_messages.extend(to_provider_tool_results(results))
+
+            for r in results:
+                yield f"data: {json.dumps({'type': 'tool_result', 'call_id': r.call_id, 'name': next((tc.name for tc in tool_calls_list if tc.id == r.call_id), ''), 'result': r.content, 'is_error': r.is_error})}\n\n"
+                if r.extra_message is not None:
+                    loop_messages.append(r.extra_message)
+
+        full = "".join(final_text)
         if body.continue_text and not full.startswith(body.continue_text):
             full = body.continue_text + full
 
@@ -213,7 +349,9 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
             await _upsert_variant(
                 body.chat_id, final_asst_msg_id, next_variant_index,
                 full, body.regenerate, prov_dict.get("model", ""),
+                variant_id=stream_variant_id,
             )
+            variant_saved = True
         except Exception as e:
             logger.exception("Failed to save stream result for chat_id=%s", body.chat_id)
             if not body.regenerate:
@@ -232,6 +370,66 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
     )
 
 
+async def _execute_tool_round(
+    tool_calls_list: list,
+    tools_by_name: dict,
+    read_only: bool,
+    chat_id: str,
+    asst_msg_id: str,
+    variant_id: str | None,
+) -> list:
+    """Execute a list of ToolCall objects and return ToolResult list.
+
+    Also persists each call to the tool_calls table.
+    """
+    results: list = []
+
+    for call in tool_calls_list:
+        tool = tools_by_name.get(call.name)
+        if tool is None or (read_only and tool.writes):
+            msg = "tool unavailable in read-only mode" if read_only else f"unknown tool: {call.name}"
+            result = ToolResult(call.id, msg, is_error=True)
+            results.append(result)
+            logger.warning("Tool call blocked: %s (%s)", call.name, msg)
+            continue
+        try:
+            logger.debug("Executing tool: %s args=%s", call.name, call.arguments)
+            output = tool.handler(**call.arguments)
+            if hasattr(output, "__await__"):
+                output = await output
+            result = build_tool_result(call.id, call.name, output)
+            results.append(result)
+        except Exception as e:
+            logger.exception("Tool execution failed: %s", call.name)
+            results.append(ToolResult(call.id, f"error: {e}", is_error=True))
+
+    # Persist to tool_calls table
+    if results:
+        save_now = now_iso()
+        async with aiosqlite.connect(DB_PATH) as save_db:
+            await save_db.execute("PRAGMA foreign_keys=ON")
+            for call, result in zip(tool_calls_list, results):
+                await save_db.execute(
+                    """INSERT INTO tool_calls
+                       (id, chat_id, message_id, variant_id, tool_name, arguments, result, is_error, created_at)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (
+                        str(uuid.uuid4()),
+                        chat_id,
+                        asst_msg_id,
+                        variant_id,
+                        call.name,
+                        json.dumps(call.arguments),
+                        result.content,
+                        int(result.is_error),
+                        save_now,
+                    ),
+                )
+            await save_db.commit()
+
+    return results
+
+
 async def _save_assistant_variant(
     chat_id: str,
     asst_msg_id: str,
@@ -239,8 +437,9 @@ async def _save_assistant_variant(
     content: str,
     regenerate: bool,
     model_name: str = "",
+    variant_id: str | None = None,
 ) -> str:
-    new_variant_id = str(uuid.uuid4())
+    new_variant_id = variant_id or str(uuid.uuid4())
     save_now = now_iso()
 
     async with aiosqlite.connect(DB_PATH) as save_db:
@@ -289,10 +488,11 @@ async def _upsert_variant(
     content: str,
     regenerate: bool,
     model_name: str = "",
-) -> None:
+    variant_id: str | None = None,
+) -> str:
     """Insert or update a variant. Safer than _save_assistant_variant for
     repeated calls (during streaming) — updates content in-place instead of
-    creating duplicate rows."""
+    creating duplicate rows. Returns the variant id."""
     save_now = now_iso()
 
     async with aiosqlite.connect(DB_PATH) as save_db:
@@ -304,15 +504,16 @@ async def _upsert_variant(
         existing = await cur.fetchone()
 
         if existing:
+            vid = existing[0]
             await save_db.execute(
                 "UPDATE message_variants SET content = ?, model_name = ?, created_at = ? WHERE id = ?",
-                (content, model_name or None, save_now, existing[0]),
+                (content, model_name or None, save_now, vid),
             )
         else:
-            new_id = str(uuid.uuid4())
+            vid = variant_id or str(uuid.uuid4())
             await save_db.execute(
                 "INSERT INTO message_variants (id, message_id, variant_index, content, created_at, model_name) VALUES (?, ?, ?, ?, ?, ?)",
-                (new_id, asst_msg_id, variant_index, content, save_now, model_name or None),
+                (vid, asst_msg_id, variant_index, content, save_now, model_name or None),
             )
             if regenerate and variant_index > 0:
                 async with save_db.execute("SELECT active_index FROM messages WHERE id = ?", (asst_msg_id,)) as act:
@@ -326,7 +527,7 @@ async def _upsert_variant(
                     for att in old_attachments:
                         await save_db.execute(
                             "INSERT INTO message_attachments (id, chat_id, message_id, variant_id, file_path, mime_type, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                            (str(uuid.uuid4()), chat_id, asst_msg_id, new_id, att["file_path"], att["mime_type"], save_now),
+                            (str(uuid.uuid4()), chat_id, asst_msg_id, vid, att["file_path"], att["mime_type"], save_now),
                         )
 
         await save_db.execute(
@@ -335,6 +536,8 @@ async def _upsert_variant(
         )
         await save_db.execute("UPDATE chats SET updated_at = ? WHERE id = ?", (save_now, chat_id))
         await save_db.commit()
+
+    return vid
 
 
 async def _rollback_assistant(asst_msg_id: str | None):

@@ -14,6 +14,7 @@ from ..core.utils import (
     THINK_CLOSE,
     THINK_OPEN,
 )
+from ..tools import ToolCall
 from .base import BaseProvider
 
 logger = get_logger("providers.openai")
@@ -35,11 +36,13 @@ class OpenAICompatProvider(BaseProvider):
         self,
         messages: list[dict],
         **kwargs,
-    ) -> AsyncIterator[str]:
+    ) -> AsyncIterator[dict]:
         """Stream tokens from an OpenAI-compatible provider.
 
-        Handles reasoning models (o1/o3), extra body passthrough,
-        and wraps reasoning content in <think> tags.
+        Yields dict events:
+          {"type": "token", "text": str}
+          {"type": "tool_calls", "calls": [ToolCall, ...]}
+          {"type": "done"}
         """
         merged = {**self.params, **kwargs}  # stored defaults, per-request wins
 
@@ -91,7 +94,6 @@ class OpenAICompatProvider(BaseProvider):
 
         if is_o_model:
             request_params["max_completion_tokens"] = max_tokens
-            # O models usually reject temperature
             request_params.pop("temperature", None)
         else:
             request_params["max_tokens"] = max_tokens
@@ -114,6 +116,9 @@ class OpenAICompatProvider(BaseProvider):
                             p["input_audio"]["data"] = "<truncated>"
             logger.debug("RAW PAYLOAD:\n%s", _json.dumps(dump, indent=2, ensure_ascii=False))
 
+        # Accumulate tool calls across streaming chunks
+        tool_calls_acc: dict[int, dict] = {}
+
         async with self._get_client() as client:
             stream = await client.chat.completions.create(**request_params)
             async for chunk in stream:
@@ -127,14 +132,52 @@ class OpenAICompatProvider(BaseProvider):
                 if not reasoning and hasattr(delta_obj, "model_extra") and delta_obj.model_extra:
                     reasoning = delta_obj.model_extra.get("reasoning_content") or delta_obj.model_extra.get("reasoning")
 
+                # Accumulate tool call deltas
+                raw_tool_calls = getattr(delta_obj, "tool_calls", None)
+                if raw_tool_calls:
+                    for tc in raw_tool_calls:
+                        idx = tc.index
+                        if idx not in tool_calls_acc:
+                            tool_calls_acc[idx] = {"id": tc.id, "name": None, "args_parts": []}
+                        if tc.id:
+                            tool_calls_acc[idx]["id"] = tc.id
+                        if tc.function:
+                            if tc.function.name:
+                                tool_calls_acc[idx]["name"] = tc.function.name
+                            if tc.function.arguments:
+                                tool_calls_acc[idx]["args_parts"].append(tc.function.arguments)
+
                 if reasoning:
                     if not in_reasoning:
                         in_reasoning = True
-                        yield THINK_OPEN
-                    yield reasoning
+                        yield {"type": "token", "text": THINK_OPEN}
+                    yield {"type": "token", "text": reasoning}
 
                 if delta:
                     if in_reasoning:
                         in_reasoning = False
-                        yield THINK_CLOSE
-                    yield delta
+                        yield {"type": "token", "text": THINK_CLOSE}
+                    yield {"type": "token", "text": delta}
+
+        # After stream ends: emit tool_calls or done
+        if tool_calls_acc:
+            calls = []
+            for idx in sorted(tool_calls_acc.keys()):
+                tc = tool_calls_acc[idx]
+                args_str = "".join(tc["args_parts"])
+                arguments: dict = {}
+                if args_str.strip():
+                    try:
+                        arguments = _json.loads(args_str)
+                    except _json.JSONDecodeError:
+                        arguments = {"_raw": args_str}
+                calls.append(
+                    ToolCall(
+                        id=tc["id"] or "",
+                        name=tc["name"] or "",
+                        arguments=arguments,
+                    )
+                )
+            yield {"type": "tool_calls", "calls": calls}
+        else:
+            yield {"type": "done"}

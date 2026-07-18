@@ -7,6 +7,6 @@
   data-persona-avatar="{{ persona.avatar_path if persona and persona.avatar_path else '' }}"
   style="display: none"
 ></div>
-{% for message in messages %} {% set is_latest = loop.last %} {% set msg_index = loop.index %} {% include "chat/message.html" %} {%
+{% for message in messages %} {% if not message.is_internal %} {% set is_latest = loop.last %} {% set msg_index = loop.index %} {% include "chat/message.html" %} {% endif %} {%
 endfor %}
 <div id="scroll-sentinel" style="height: 1px"></div>

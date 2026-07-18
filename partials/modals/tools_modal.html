@@ -1,0 +1,173 @@
+{% from "macros.html" import hint_tooltip %}
+<div x-data="toolsModal()" class="flex flex-col gap-4">
+
+  <!-- Enable Tool Calls toggle -->
+  <div class="form-group mb-0 flex items-center justify-between">
+    <div class="flex items-center gap-1">
+      <label
+        class="text-xs mb-0 cursor-pointer"
+        @click="toggleEnabled()"
+      >Enable Tool Calls</label>
+      {{ hint_tooltip('Allow the assistant to call filesystem tools. Tools execute locally without sandboxing. Be cautious with full-access mode.') }}
+    </div>
+    <div
+      class="arranger-toggle"
+      role="switch"
+      tabindex="0"
+      :class="{ 'active': enabled }"
+      @click="toggleEnabled()"
+    ></div>
+  </div>
+
+  <!-- Read-only Mode toggle (shown when enabled) -->
+  <div
+    x-show="enabled"
+    x-transition.opacity.duration.200ms
+    class="form-group mb-0 flex items-center justify-between"
+  >
+    <div class="flex items-center gap-1">
+      <label
+        class="text-xs mb-0 cursor-pointer"
+        @click="toggleReadOnly()"
+      >Read-Only Mode</label>
+      {{ hint_tooltip('When enabled, write/execute-capable tools (shell commands) are hidden from the model entirely. The model cannot create, modify, or delete files.') }}
+    </div>
+    <div
+      class="arranger-toggle"
+      role="switch"
+      tabindex="0"
+      :class="{ 'active': readOnly }"
+      @click="toggleReadOnly()"
+    ></div>
+  </div>
+
+  <!-- Provider notice for non-supporting providers -->
+  <div
+    x-show="enabled && !providerSupportsTools"
+    class="text-xs p-2 rounded"
+    style="background:var(--danger-dim);border:1px solid var(--danger);color:var(--danger)"
+  >
+    Tool calls are not supported by the current provider type ({{ providerType }}). They will be automatically disabled during generation.
+  </div>
+
+  <!-- Available Tools List -->
+  <div x-show="enabled && providerSupportsTools">
+    <div class="text-xs font-bold text-muted mb-2">Available Tools</div>
+    <template x-for="tool in tools" :key="tool.name">
+      <div
+        class="p-3 rounded-md mb-2"
+        style="background:var(--surface-2);border:1px solid var(--border)"
+      >
+        <div class="flex items-center justify-between mb-1">
+          <code class="text-sm font-bold" x-text="tool.name"></code>
+          <span
+            class="text-xs px-1.5 py-0.5 rounded"
+            :style="tool.writes
+              ? 'background:var(--danger-dim);color:var(--danger)'
+              : 'background:var(--accent-faint);color:var(--accent)'"
+            x-text="tool.writes ? 'writes' : 'read-only'"
+          ></span>
+        </div>
+        <div class="text-xs text-muted" x-text="tool.description"></div>
+        <div class="text-xs text-faint mt-1" x-show="tool.params.length">
+          Args:
+          <span x-text="tool.params.map(function(p) { return p.name + ': ' + p.type; }).join(', ')"></span>
+        </div>
+      </div>
+    </template>
+  </div>
+</div>
+
+<script>
+document.addEventListener('alpine:init', function () {
+  Alpine.data('toolsModal', function () {
+    return {
+      enabled: false,
+      readOnly: true,
+      providerType: (StateManager && StateManager.get('provider_type')) || 'openai_compat',
+
+      tools: [
+        {
+          name: 'read_file',
+          description: 'Read a text file from the local filesystem. Returns file contents (truncated at ~8000 tokens).',
+          params: [{ name: 'path', type: 'string' }],
+          writes: false,
+        },
+        {
+          name: 'list_dir',
+          description: 'List files and directories at a given path. Returns names with a type indicator.',
+          params: [{ name: 'path', type: 'string' }],
+          writes: false,
+        },
+        {
+          name: 'read_image',
+          description: 'Read an image file. The image is base64-encoded and sent to the model for visual analysis.',
+          params: [{ name: 'path', type: 'string' }],
+          writes: false,
+        },
+        {
+          name: 'execute_shell',
+          description: 'Execute an arbitrary shell command. Can read, write, or delete files. Disabled in read-only mode.',
+          params: [
+            { name: 'command', type: 'string' },
+            { name: 'timeout_s', type: 'integer' },
+          ],
+          writes: true,
+        },
+      ],
+
+      get providerSupportsTools() {
+        return !['google_aistudio', 'google_vertex'].includes(this.providerType);
+      },
+
+      init: function () {
+        var chatId = document.getElementById('send-btn')
+          ? document.getElementById('send-btn').dataset.chatId
+          : null;
+        if (chatId) {
+          var self = this;
+          fetch('/api/chats/' + chatId)
+            .then(function (r) { return r.json(); })
+            .then(function (chat) {
+              self.enabled = chat.tool_calls_enabled === 1 || chat.tool_calls_enabled === true;
+              self.readOnly = chat.tool_read_only !== 0 && chat.tool_read_only !== false;
+              self._expose();
+            })
+            .catch(function () {});
+        }
+      },
+
+      toggleEnabled: function () {
+        this.enabled = !this.enabled;
+        this._save();
+      },
+
+      toggleReadOnly: function () {
+        this.readOnly = !this.readOnly;
+        this._save();
+      },
+
+      _save: function () {
+        var chatId = document.getElementById('send-btn')
+          ? document.getElementById('send-btn').dataset.chatId
+          : null;
+        if (chatId) {
+          fetch('/api/chats/' + chatId, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              tool_calls_enabled: this.enabled,
+              tool_read_only: this.readOnly,
+            }),
+          });
+        }
+        this._expose();
+      },
+
+      _expose: function () {
+        window._toolConfig = { enabled: this.enabled, read_only: this.readOnly };
+      },
+    };
+  });
+});
+</script>

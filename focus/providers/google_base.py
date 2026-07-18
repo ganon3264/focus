@@ -37,6 +37,7 @@ AI_STUDIO_SAFETY_OFF = [
 
 class GoogleProviderBase(BaseProvider):
     supports_prefill = False
+    supports_tools = False
 
     def __init__(self, api_key: str, model: str, params: dict):
         super().__init__("", api_key, model, params)
@@ -153,7 +154,7 @@ class GoogleProviderBase(BaseProvider):
         async for chunk in stream:
             if not chunk.candidates or not chunk.candidates[0].content or not chunk.candidates[0].content.parts:
                 if chunk.text:
-                    yield chunk.text
+                    yield {"type": "token", "text": chunk.text}
                 continue
 
             for part in chunk.candidates[0].content.parts:
@@ -165,26 +166,26 @@ class GoogleProviderBase(BaseProvider):
                 if is_thought:
                     if not in_reasoning:
                         in_reasoning = True
-                        yield THINK_OPEN
+                        yield {"type": "token", "text": THINK_OPEN}
 
-                    clean_text = part.text.replace("THOUGHT:", "") if part.text else ""
+                    clean_text = part.text.replace("THOUGTH:", "") if part.text else ""
 
                     if clean_text:
-                        yield clean_text
+                        yield {"type": "token", "text": clean_text}
                 else:
                     if in_reasoning:
                         in_reasoning = False
-                        yield THINK_CLOSE
+                        yield {"type": "token", "text": THINK_CLOSE}
 
                     if part.text:
-                        yield part.text
+                        yield {"type": "token", "text": part.text}
 
         if in_reasoning:
             in_reasoning = False
-            yield THINK_CLOSE
+            yield {"type": "token", "text": THINK_CLOSE}
 
         if thought_signature_b64:
-            yield f"\n{THOUGHT_SIGNATURE_OPEN}{thought_signature_b64}{THOUGHT_SIGNATURE_CLOSE}"
+            yield {"type": "token", "text": f"\n{THOUGHT_SIGNATURE_OPEN}{thought_signature_b64}{THOUGHT_SIGNATURE_CLOSE}"}
 
     async def stream_complete(self, messages: list[dict], **kwargs):
         """Stream tokens from a Google Gemini model.
@@ -209,6 +210,8 @@ class GoogleProviderBase(BaseProvider):
                     yield chunk
             else:
                 raise
+
+        yield {"type": "done"}
 
     def _build_config(self, merged: dict, system_instruction: str | None) -> types.GenerateContentConfig:
         raise NotImplementedError

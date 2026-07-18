@@ -32,6 +32,7 @@
       <div class="sidebar-title">Tools</div>
       <div class="grid-cols-2">
         <button class="btn btn-secondary w-full text-xs" onclick="openModal('modal-sampler')">Samplers</button>
+        <button class="btn btn-secondary w-full text-xs" onclick="openModal('modal-tools')">Tool Calls</button>
         <button class="btn btn-secondary w-full text-xs" onclick="openModal('modal-providers')">Providers</button>
         <button class="btn btn-secondary w-full text-xs" onclick="openModal('modal-personas')">Personas</button>
         <button class="btn btn-secondary w-full text-xs" onclick="openModal('modal-characters')">Characters</button>
@@ -173,6 +174,12 @@
 {% call modal_shell('modal-sampler', 'Generation Parameters', max_width='550px', content_style='display:flex;flex-direction:column;min-height:400px;') %}
 <div class="flex-1 overflow-y-auto">
   {% include "modals/sampler_modal.html" %}
+</div>
+{% endcall %}
+
+{% call modal_shell('modal-tools', 'Tool Calls', max_width='550px', content_style='display:flex;flex-direction:column;') %}
+<div class="flex-1 overflow-y-auto">
+  {% include "modals/tools_modal.html" %}
 </div>
 {% endcall %}
 
@@ -534,12 +541,19 @@ window.handleSwipeNext = function(event, msgId) {
 window.toggleReasoning = function(btn) {
   const msg = btn.closest('.msg') || btn.closest('.message');
   if (!msg) return;
-  const details = msg.querySelector('details.reasoning');
-  if (!details) return;
-  if (details.hasAttribute('open')) {
-    details.removeAttribute('open');
+  const block = msg.querySelector('.reasoning-block');
+  if (!block) return;
+  const content = block.querySelector('.reasoning-content');
+  const sumBtn = block.querySelector('.reasoning-summary');
+  const currentlyOpen = block.classList.contains('open');
+  if (currentlyOpen) {
+    block.classList.remove('open');
+    if (content) content.classList.add('hidden');
+    if (sumBtn) sumBtn.setAttribute('aria-expanded', 'false');
   } else {
-    details.setAttribute('open', '');
+    block.classList.add('open');
+    if (content) content.classList.remove('hidden');
+    if (sumBtn) sumBtn.setAttribute('aria-expanded', 'true');
   }
   msg.classList.toggle('reasoning-open');
 };

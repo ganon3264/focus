@@ -110,14 +110,16 @@ eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'messages'
   assertEqual(window.renderMessage(undefined), '', 'renderMessage: undefined returns empty');
 })();
 
-// ── renderMessage — think block produces details.reasoning ──
+// ── renderMessage — think block produces .reasoning-block ──
 (function () {
   var html = window.renderMessage('hello<think>hidden</think>world');
-  assertIncludes(html, '<details class="reasoning"', 'renderMessage: think becomes details.reasoning');
-  assertIncludes(html, '<summary>', 'renderMessage: details has summary');
+  assertIncludes(html, 'class="reasoning-block"', 'renderMessage: think becomes reasoning-block');
   assertIncludes(html, 'hidden', 'renderMessage: think content in output');
   assertIncludes(html, 'hello', 'renderMessage: text before think preserved');
   assertIncludes(html, 'world', 'renderMessage: text after think preserved');
+
+  var html2 = window.renderMessage('a<think>first</think>b<think>second</think>c');
+  assertIncludes(html2, 'class="reasoning-summary"', 'renderMessage: second block has summary button');
 })();
 
 // ── renderMessage — code block gets copy button ──

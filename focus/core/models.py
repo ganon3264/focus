@@ -10,6 +10,7 @@ class Role(StrEnum):
     system = "system"
     user = "user"
     assistant = "assistant"
+    tool = "tool"
 
 
 class ProviderType(StrEnum):
@@ -135,6 +136,9 @@ class StreamRequest(BaseModel):
     continue_text: str | None = None
     # Attachment IDs to bind to the new user message
     attachment_ids: list[str] = Field(default_factory=list)
+    # Tool calling configuration
+    tools_enabled: bool = False
+    tool_read_only: bool = True
 
 
 class ItemizerRequest(BaseModel):

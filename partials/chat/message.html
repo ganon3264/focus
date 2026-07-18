@@ -37,13 +37,14 @@
           </div>
           {% if message.role == 'assistant' %}
           <div class="text-xs text-muted flex items-center gap-1.5 flex-wrap mt-0.5">
+            {% set has_reasoning = message.segments and message.segments|selectattr("type", "equalto", "reasoning")|list|length > 0 %}
             {% if message.model_name %}
             <span>{{ message.model_name }}</span>
-            {% if message.position != 0 and '<think>' in message.content %}
+            {% if message.position != 0 and has_reasoning %}
             <span class="text-muted">·</span>
             {% endif %}
             {% endif %}
-            {% if message.position != 0 and '<think>' in message.content %}
+            {% if message.position != 0 and has_reasoning %}
             <button
               onclick="toggleReasoning(this)"
               class="reasoning-toggle-btn inline-flex items-center gap-1 text-muted hover:text-[--text] transition-colors cursor-pointer"
@@ -167,6 +168,59 @@
       {% endif %} {% endfor %}
     </div>
     {% endif %}
+    {% if message.is_internal %}
+    <!-- internal message hidden from display -->
+    {% elif message.segments %}
+    {% set ns = namespace(tool_rendered=false) %}
+    {% for seg in message.segments %}
+    {% if seg.type == 'text' and seg.content.strip() %}
+    <div class="message-content markdown-content" style="padding-left:3rem">{{ seg.content }}</div>
+    {% elif seg.type == 'reasoning' %}
+    <div class="reasoning-block" data-think-id="{{ seg.index }}" style="padding-left:3rem">
+      {% if seg.index > 0 %}
+      <button class="reasoning-summary" onclick="toggleReasoningBlock(this)" aria-expanded="false">
+        <svg class="w-3 h-3 reasoning-chevron" style="transition:transform 0.2s ease" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+        Reasoning
+      </button>
+      {% endif %}
+      <div class="reasoning-content hidden">{{ seg.html | safe }}</div>
+    </div>
+    {% elif seg.type == 'tool_boundary' and message.tool_calls and not ns.tool_rendered %}
+    {% set ns.tool_rendered = true %}
+    <div class="tool-calls-section" style="padding-left:3rem;margin-top:0.5rem">
+      {% for tc in message.tool_calls %}
+      <details class="details tool-call">
+        <summary class="flex items-center gap-2 cursor-pointer py-1 px-2 rounded" style="background:var(--surface-2);border:1px solid var(--border)">
+          <svg class="w-3 h-3 chevron" style="color:var(--text-faint);transition:transform 0.2s ease" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+          <code class="text-xs font-bold">{{ tc.function.name }}</code>
+          <span class="text-xs text-muted truncate max-w-[300px]">{{ tc.function.arguments }}</span>
+        </summary>
+        <div class="text-xs p-2 rounded mt-1" style="background:var(--surface-3)">
+          <pre class="whitespace-pre-wrap break-all">{{ tc.result or '' }}</pre>
+        </div>
+      </details>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% endfor %}
+    {% else %}
     <div class="message-content markdown-content" style="padding-left:3rem">{{ message.content }}</div>
+    {% if message.tool_calls %}
+    <div class="tool-calls-section" style="padding-left:3rem;margin-top:0.5rem">
+      {% for tc in message.tool_calls %}
+      <details class="details tool-call">
+        <summary class="flex items-center gap-2 cursor-pointer py-1 px-2 rounded" style="background:var(--surface-2);border:1px solid var(--border)">
+          <svg class="w-3 h-3 chevron" style="color:var(--text-faint);transition:transform 0.2s ease" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+          <code class="text-xs font-bold">{{ tc.function.name }}</code>
+          <span class="text-xs text-muted truncate max-w-[300px]">{{ tc.function.arguments }}</span>
+        </summary>
+        <div class="text-xs p-2 rounded mt-1" style="background:var(--surface-3)">
+          <pre class="whitespace-pre-wrap break-all">{{ tc.result or '' }}</pre>
+        </div>
+      </details>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% endif %}
   </div>
 </div>

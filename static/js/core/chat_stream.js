@@ -36,6 +36,60 @@
 
 
 
+  window._renderToolCalls = function (container, calls) {
+    var section = container.querySelector('.tool-calls-stream');
+    if (!section) {
+      section = document.createElement('div');
+      section.className = 'tool-calls-stream';
+      section.style.cssText = 'padding-left:3rem;margin-top:0.5rem';
+      var bodyEl = container.querySelector('.message-body') || container;
+      var contentEl = container.querySelector('.message-content');
+      if (contentEl && contentEl.parentNode) {
+        contentEl.parentNode.insertBefore(section, contentEl.nextSibling);
+      } else {
+        bodyEl.appendChild(section);
+      }
+    }
+    calls.forEach(function (call) {
+      var existing = section.querySelector('[data-call-id="' + call.id + '"]');
+      if (existing) return;
+      var card = document.createElement('details');
+      card.className = 'details tool-call';
+      card.setAttribute('data-call-id', call.id);
+      card.innerHTML =
+        '<summary class="flex items-center gap-2 cursor-pointer py-1 px-2 rounded" style="background:var(--surface-2);border:1px solid var(--border)">' +
+        '<svg class="w-3 h-3 chevron" style="color:var(--text-faint);transition:transform 0.2s ease" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>' +
+        '<code class="text-xs font-bold">' + window.escapeHtml(call.name) + '</code>' +
+        '<span class="text-xs text-muted truncate max-w-[300px]">' + window.escapeHtml(JSON.stringify(call.arguments)) + '</span>' +
+        '</summary>' +
+        '<div class="text-xs p-2 rounded mt-1 tool-result-body" style="background:var(--surface-3);display:none">' +
+        '<pre class="whitespace-pre-wrap break-all"></pre>' +
+        '</div>';
+      section.appendChild(card);
+    });
+  };
+
+  window._updateToolResult = function (container, callId, name, result, isError) {
+    var section = container.querySelector('.tool-calls-stream');
+    if (!section) return;
+    var card = section.querySelector('[data-call-id="' + callId + '"]');
+    if (!card) return;
+    var label = card.querySelector('.executing-label');
+    if (label) {
+      label.textContent = isError ? '(error)' : '(done)';
+      label.style.color = isError ? 'var(--danger)' : 'var(--accent)';
+    }
+    var body = card.querySelector('.tool-result-body');
+    if (body) {
+      body.style.display = 'block';
+      var pre = body.querySelector('pre');
+      if (pre) {
+        pre.textContent = isError ? '(error) ' + result : result;
+        pre.style.color = isError ? 'var(--danger)' : '';
+      }
+    }
+  };
+
   function _createAttachmentPreview(file) {
     var wrapper = document.createElement('div');
     wrapper.className = 'relative group';
@@ -129,6 +183,8 @@
     if (fileUpload) fileUpload.disabled = true;
 
     if (asstDiv) {
+      var staleCalls = asstDiv.querySelector('.tool-calls-stream');
+      if (staleCalls) staleCalls.remove();
       if (!continueText) {
         const contentDiv = asstDiv.querySelector('.message-content');
         if (contentDiv) contentDiv.innerHTML = '<div class="message-spinner"></div>';
@@ -174,6 +230,8 @@
       samplers: window.getActiveSamplers ? window.getActiveSamplers() : {},
       regenerate: isRegen,
       attachment_ids: attachmentIds,
+      tools_enabled: window._toolConfig ? window._toolConfig.enabled : false,
+      tool_read_only: window._toolConfig ? window._toolConfig.read_only : true,
     };
     if (continueText) body.continue_text = continueText;
 
@@ -272,6 +330,10 @@
                 tempUserMsg.dataset.messageId = userMessageId;
               }
             }
+          } else if (json.type === 'tool_calls') {
+            window._renderToolCalls(asstDiv, json.calls);
+          } else if (json.type === 'tool_result') {
+            window._updateToolResult(asstDiv, json.call_id, json.name, json.result, json.is_error);
           } else if (json.token !== undefined) {
             fullText += json.token;
             let displayText = fullText;

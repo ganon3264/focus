@@ -207,6 +207,14 @@ def _merge_consecutive(messages: list[dict]) -> list[dict]:
     for msg in messages[1:]:
         last = result[-1]
         if msg["role"] == last["role"]:
+            # Never merge assistant messages that have tool_calls
+            if msg.get("tool_calls") or last.get("tool_calls"):
+                result.append(dict(msg))
+                continue
+            # Never merge tool-role messages (they have distinct tool_call_ids)
+            if msg.get("role") == "tool" or last.get("role") == "tool":
+                result.append(dict(msg))
+                continue
             merged_extra = {}
             for k, v in last.items():
                 if k not in ("role", "content"):
