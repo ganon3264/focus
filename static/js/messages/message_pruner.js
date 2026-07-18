@@ -26,7 +26,7 @@
     for (var i = 0; i < msgs.length; i++) {
       var msg = msgs[i];
       var id = msg.id;
-      if (!id || _pruned.has(id) || id === streamId) continue;
+      if (!id || _pruned.has(id) || id === streamId || id === 'streaming-message') continue;
       var rect = msg.getBoundingClientRect();
       var msgTop = rect.top + st;
       var msgBot = rect.bottom + st;

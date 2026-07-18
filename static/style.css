@@ -549,6 +549,9 @@
     color: var(--text);
     line-height: 1.5;
   }
+  .reasoning-content.markdown-content:not(.processed) {
+    opacity: 1;
+  }
   .reasoning-content pre {
     background: var(--surface);
     border-color: var(--border);
@@ -562,7 +565,6 @@
   /* ── First reasoning block (index 0) — div-based, no details marker ── */
   .reasoning-block:not(.details) {
     margin: 0;
-    padding-left: 3rem;
   }
   .reasoning-block:not(.details) .reasoning-content.hidden {
     display: none;

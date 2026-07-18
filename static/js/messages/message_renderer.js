@@ -36,11 +36,88 @@ window.extractThoughtsSafely = function (text) {
   return { thoughts, processed };
 };
 
+window.closeMarkdown = function (text) {
+  if (!text) return text;
+  var stack = [];
+  var inFence = false;
+  var inCode = false;
+  var i = 0;
+  while (i < text.length) {
+    var ch = text[i];
+    if (ch === '\\' && i + 1 < text.length) {
+      i += 2;
+      continue;
+    }
+    if (text.slice(i, i + 3) === '```') {
+      if (inFence) {
+        inFence = false;
+        stack.pop();
+      } else {
+        inFence = true;
+        stack.push('fence');
+      }
+      i += 3;
+      continue;
+    }
+    if (inFence) {
+      i++;
+      continue;
+    }
+    if (inCode) {
+      if (ch === '`') {
+        inCode = false;
+        stack.pop();
+      }
+      i++;
+      continue;
+    }
+    if (ch === '`') {
+      inCode = true;
+      stack.push('code');
+      i++;
+      continue;
+    }
+    if (text.slice(i, i + 2) === '**') {
+      var top = stack[stack.length - 1];
+      if (top === 'bold') {
+        stack.pop();
+      } else {
+        stack.push('bold');
+      }
+      i += 2;
+      continue;
+    }
+    if (ch === '*' && text[i + 1] !== '*') {
+      var top = stack[stack.length - 1];
+      if (top === 'italic') {
+        stack.pop();
+      } else {
+        stack.push('italic');
+      }
+      i++;
+      continue;
+    }
+    i++;
+  }
+  if (stack.length === 0) return text;
+  var suffix = '';
+  for (var j = stack.length - 1; j >= 0; j--) {
+    switch (stack[j]) {
+      case 'fence': suffix += '\n```'; break;
+      case 'code': suffix += '`'; break;
+      case 'bold': suffix += '**'; break;
+      case 'italic': suffix += '*'; break;
+    }
+  }
+  return text + suffix;
+};
+
 marked.use({ breaks: true });
 
 window.renderMessage = function (text) {
   if (!text) return '';
 
+  text = window.closeMarkdown(text);
   const extracted = window.extractThoughtsSafely(text);
   const thoughts = extracted.thoughts;
   let processed = extracted.processed;

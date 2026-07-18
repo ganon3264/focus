@@ -155,5 +155,64 @@ eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'messages'
   assertIncludes(html, '<pre>', 'renderMessage: code block preserved as pre');
 })();
 
+// ── closeMarkdown — no-op for plain text ──
+(function () {
+  assertEqual(window.closeMarkdown(''), '', 'closeMarkdown: empty string');
+  assertEqual(window.closeMarkdown('hello world'), 'hello world', 'closeMarkdown: plain text unchanged');
+  assertEqual(window.closeMarkdown('Normal text with nothing open'), 'Normal text with nothing open', 'closeMarkdown: normal text');
+})();
+
+// ── closeMarkdown — unclosed code fence ──
+(function () {
+  assertEqual(window.closeMarkdown('```python\nprint("hi")'), '```python\nprint("hi")\n```', 'closeMarkdown: unclosed code fence gets closing fence');
+  assertEqual(window.closeMarkdown('```\ncode\n```'), '```\ncode\n```', 'closeMarkdown: already closed fence unchanged');
+})();
+
+// ── closeMarkdown — unclosed inline code ──
+(function () {
+  assertEqual(window.closeMarkdown('text `code'), 'text `code`', 'closeMarkdown: unclosed inline code gets closing backtick');
+})();
+
+// ── closeMarkdown — unclosed bold/italic ──
+(function () {
+  assertEqual(window.closeMarkdown('**bold text'), '**bold text**', 'closeMarkdown: unclosed bold');
+  assertEqual(window.closeMarkdown('*italic text'), '*italic text*', 'closeMarkdown: unclosed italic');
+})();
+
+// ── closeMarkdown — markdown inside code fence is ignored ──
+(function () {
+  assertEqual(window.closeMarkdown('```\n**not bold**\n```'), '```\n**not bold**\n```', 'closeMarkdown: bold inside fence not tracked');
+})();
+
+// ── closeMarkdown — constructs inside inline code are ignored ──
+(function () {
+  assertEqual(window.closeMarkdown('`code **not bold**`'), '`code **not bold**`', 'closeMarkdown: bold inside inline code ignored');
+})();
+
+// ── closeMarkdown — multiple unclosed constructs ──
+(function () {
+  var result = window.closeMarkdown('**bold and `code');
+  assert(result.indexOf('`') > 0, 'closeMarkdown: multiple unclosed — backtick added');
+  assert(result.lastIndexOf('**') > result.lastIndexOf('`'), 'closeMarkdown: multiple unclosed — bold added after backtick (LIFO)');
+})();
+
+// ── closeMarkdown — escaped chars skip markdown detection ──
+(function () {
+  assertEqual(window.closeMarkdown('\\*not italic\\*'), '\\*not italic\\*', 'closeMarkdown: escaped asterisks not tracked');
+  assertEqual(window.closeMarkdown('\\`not code\\`'), '\\`not code\\`', 'closeMarkdown: escaped backtick not tracked');
+})();
+
+// ── closeMarkdown — *** bold+italic ──
+(function () {
+  var result = window.closeMarkdown('***everything');
+  assertEqual(result, '***everything***', 'closeMarkdown: *** unclosed bold+italic');
+})();
+
+// ── closeMarkdown — fence then inline code after fence closed ──
+(function () {
+  var result = window.closeMarkdown('```\ncode\n``` `unclosed');
+  assertEqual(result, '```\ncode\n``` `unclosed`', 'closeMarkdown: inline code after closed fence');
+})();
+
 // ── Result ──
 h.printSummary();
