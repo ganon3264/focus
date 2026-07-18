@@ -306,5 +306,22 @@
       .finally(() => { btn.disabled = false; btn.textContent = 'Export'; });
   };
 
+  M.cleanDatabase = function () {
+    window.customConfirm(
+      '<div class="text-sm" style="color:var(--text);"><strong>Clean Database?</strong></div>' +
+      '<div class="text-sm mt-2" style="color:var(--text-muted);">Permanently deletes trashed characters, chats, and orphaned data. This cannot be undone.</div>',
+      function () {
+        fetch(window.api.cleanDb, { method: 'POST' })
+          .then(r => r.json())
+          .then(d => {
+            const parts = [];
+            for (var k in d) parts.push(k + ': ' + d[k]);
+            setStatus(document.getElementById('backup-status'), 'Cleaned: ' + parts.join(', '));
+          })
+          .catch(() => setStatus(document.getElementById('backup-status'), 'Clean failed.', true));
+      }
+    );
+  };
+
   window.BackupManager = M;
 })();

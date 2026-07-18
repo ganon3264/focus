@@ -1,4 +1,4 @@
-{% from "macros.html" import custom_select, icon_edit, icon_search, icon_refresh, icon_folder, icon_plus, icon_close %}
+{% from "macros.html" import custom_select, icon_key, icon_edit, icon_search, icon_refresh, icon_folder, icon_plus, icon_close %}
 <div class="flex flex-col h-full overflow-y-auto">
   <div class="flex justify-between items-center mb-3" style="border-bottom: 1px solid var(--border); padding-bottom: 0.75rem;">
     <h3 class="sidebar-title mb-0">Select Active Provider</h3>
@@ -117,7 +117,11 @@
 
           <div class="form-group mb-0">
             <label class="text-xs">API Key</label>
-            <input type="password" name="api_key" value="" class="text-sm form-control w-full" placeholder="(blank = unchanged)">
+            <input type="hidden" name="api_key" id="api-key-input-{{ prov.id }}" value="">
+            <button type="button" class="form-control text-sm w-full flex justify-between items-center cursor-pointer" onclick="openSecretsModal('{{ prov.id }}')">
+              <span id="api-key-display-{{ prov.id }}" class="truncate text-muted">Select API Key...</span>
+              <span class="opacity-50">{{ icon_key() }}</span>
+            </button>
           </div>
           
           <div class="form-group mb-0 hidden">

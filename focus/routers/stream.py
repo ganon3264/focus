@@ -84,6 +84,9 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
         s.pop("cache_depth", None)
         gen_kwargs.update(s)
 
+    # OpenRouter sticky routing: pin requests to the same endpoint for cache warmth
+    gen_kwargs["session_id"] = body.chat_id
+
     # ── Non-streaming path ─────────────────────────────────────────────────────
     if not use_stream:
         collected: list[str] = []

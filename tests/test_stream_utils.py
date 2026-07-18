@@ -65,7 +65,7 @@ class TestApplyClaudeCaching:
     def test_empty_messages(self):
         assert apply_claude_caching([], cache_enabled=True) == []
 
-    def test_injects_cache_on_greeting(self):
+    def test_always_caches_messages_0(self):
         msgs = [
             {"role": "assistant", "content": "greeting", "_greeting": True},
             {"role": "user", "content": "hi"},
@@ -73,15 +73,20 @@ class TestApplyClaudeCaching:
         result = apply_claude_caching(msgs, cache_enabled=True)
         assert "_greeting" not in result[0]
         assert "cache_control" in result[0]["content"][0]
+        assert "cache_control" not in result[1].get("content", {})
 
-    def test_injects_cache_on_fallback(self):
+    def test_static_cache_without_sliding_when_too_shallow(self):
         msgs = [
-            {"role": "assistant", "content": "first"},
+            {"role": "system", "content": "system instructions"},
             {"role": "user", "content": "hi"},
             {"role": "assistant", "content": "hello"},
         ]
         result = apply_claude_caching(msgs, cache_enabled=True, cache_depth=5)
+        # messages[0] always gets static cache
         assert "cache_control" in result[0]["content"][0]
+        # only 1 user, not enough for sliding at depth=5
+        assert "cache_control" not in result[1].get("content", {})
+        assert "cache_control" not in result[2].get("content", {})
 
     def test_cleans_up_greeting_tag(self):
         msgs = [
@@ -89,10 +94,11 @@ class TestApplyClaudeCaching:
         ]
         result = apply_claude_caching(msgs, cache_enabled=True)
         assert "_greeting" not in result[0]
+        assert "cache_control" in result[0]["content"][0]
 
     def test_sliding_breakpoint(self):
         msgs = [
-            {"role": "assistant", "content": "greeting", "_greeting": True},
+            {"role": "system", "content": "system instructions"},
             {"role": "user", "content": "a"},       # 3rd user from end
             {"role": "assistant", "content": "b"},
             {"role": "user", "content": "c"},       # 2nd user from end
@@ -101,28 +107,43 @@ class TestApplyClaudeCaching:
             {"role": "assistant", "content": "f"},
         ]
         result = apply_claude_caching(msgs, cache_enabled=True, cache_depth=2)
-        # static on greeting (idx 0), sliding on user "a" (idx 1)
+        # static on messages[0], sliding on user "a" (idx 1)
         assert "cache_control" in result[0]["content"][0]
         assert "cache_control" in result[1]["content"][0]
 
-    def test_no_sliding_when_conversation_too_short(self):
+    def test_sliding_uses_second_to_last_fallback(self):
         msgs = [
-            {"role": "assistant", "content": "greeting", "_greeting": True},
-            {"role": "user", "content": "a"},
+            {"role": "system", "content": "instructions"},
+            {"role": "user", "content": "first msg"},
+            {"role": "assistant", "content": "ok"},
+            {"role": "user", "content": "second msg"},
+            {"role": "assistant", "content": "done"},
         ]
         result = apply_claude_caching(msgs, cache_enabled=True, cache_depth=5)
-        # Only one user message, not enough for cache_depth+1 → no sliding
+        # 2 users, not enough for cache_depth+1=6, but >1 so second-to-last user gets cache
+        assert "cache_control" in result[0]["content"][0]
+        assert "cache_control" in result[1]["content"][0]
+
+    def test_no_sliding_when_only_one_user(self):
+        msgs = [
+            {"role": "system", "content": "instructions"},
+            {"role": "user", "content": "a"},
+            {"role": "assistant", "content": "b"},
+        ]
+        result = apply_claude_caching(msgs, cache_enabled=True, cache_depth=5)
+        # only messages[0] gets static cache, no sliding
         assert "cache_control" in result[0]["content"][0]
         assert "cache_control" not in result[1].get("content", "")
+        assert "cache_control" not in result[2].get("content", "")
 
-    def test_strips_old_cache_control(self):
+    def test_strips_old_cache_control_and_readds_on_messages_0(self):
         msgs = [
-            {"role": "assistant", "content": [
-                {"type": "text", "text": "greeting", "cache_control": {"type": "ephemeral"}},
-            ], "_greeting": True},
+            {"role": "system", "content": [
+                {"type": "text", "text": "instructions", "cache_control": {"type": "ephemeral"}},
+            ]},
             {"role": "user", "content": "hi"},
             {"role": "assistant", "content": "ok"},
         ]
-        # Stale cache_control on first block should be stripped, then re-added
         result = apply_claude_caching(msgs, cache_enabled=True)
+        # Old cache_control stripped, new one added on messages[0]
         assert "cache_control" in result[0]["content"][0]

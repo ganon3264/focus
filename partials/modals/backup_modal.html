@@ -29,6 +29,14 @@
 
     <span id="backup-status" class="text-xs"></span>
 
+    <div class="flex gap-2">
+      <button type="button"
+              class="btn btn-danger flex-1 text-sm flex items-center justify-center gap-1.5"
+              onclick="BackupManager.cleanDatabase()">
+        Clean DB
+      </button>
+    </div>
+
     {# ── Backups list ── #}
     <div>
       <h3 class="sidebar-title mb-2">Previous Backups</h3>

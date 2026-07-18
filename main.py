@@ -4,7 +4,9 @@ from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from focus.database import init_db, init_directories
+import aiosqlite
+from fastapi import Depends
+from focus.database import init_db, init_directories, get_db
 from focus.routers import characters, chats, presets, providers, stream, personas, pages, backup, exchange
 from focus.logger import get_logger
 import time
@@ -63,6 +65,30 @@ async def root():
 @app.get("/favicon.ico", include_in_schema=False)
 async def favicon():
     return FileResponse("static/favicon.svg")
+
+
+@app.post("/api/db/clean")
+async def clean_database(db: aiosqlite.Connection = Depends(get_db)):
+    counts = {}
+    counts["chats"] = (await db.execute("DELETE FROM chats WHERE is_deleted = 1")).rowcount
+    counts["characters"] = (await db.execute("DELETE FROM characters WHERE is_deleted = 1")).rowcount
+    counts["block_images"] = (await db.execute("""
+        DELETE FROM block_images WHERE block_id NOT IN (
+            SELECT id FROM preset_blocks
+        ) AND block_id NOT IN (
+            SELECT id FROM char_blocks
+        ) AND block_id NOT IN (
+            SELECT id FROM characters
+        ) AND block_id NOT IN (
+            SELECT id FROM personas
+        )
+    """)).rowcount
+    counts["attachments"] = (await db.execute(
+        "DELETE FROM message_attachments WHERE message_id IS NULL"
+    )).rowcount
+    await db.commit()
+    await db.execute("VACUUM")
+    return counts
 
 
 if __name__ == "__main__":

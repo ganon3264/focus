@@ -266,21 +266,12 @@ def filter_unsupported_modalities(messages: list[dict], supported_modalities: li
 
 
 def apply_claude_caching(messages: list[dict], cache_enabled: bool, cache_ttl: str = "ephemeral", cache_depth: int = 5) -> list[dict]:
-    """Inject cache_control breakpoints for Claude prompt caching on OpenRouter.
-
-    Static breakpoint covers all preset blocks + the character greeting (if present).
-    Sliding breakpoint covers *all but* the most recent `cache_depth` user-assistant
-    exchanges, placed on the user message that far back.
-
-    Enforces Anthropic's 4-breakpoint limit by stripping any existing cache_control
-    markers before adding the two new ones.
-    """
     if not cache_enabled or not messages:
         return messages
 
     cc: dict = {"type": "1h"} if cache_ttl == "1h" else {"type": "ephemeral"}
 
-    # ── Strip any existing cache_control to enforce the 4-breakpoint limit ──
+    # Strip existing cache control to stay under the 4-breakpoint limit
     for msg in messages:
         content = msg.get("content")
         if isinstance(content, list):
@@ -301,38 +292,23 @@ def apply_claude_caching(messages: list[dict], cache_enabled: bool, cache_ttl: s
             return True
         return False
 
-    # ── Static breakpoint ──────────────────────────────────────────────────
-    static_idx = 0
+    # 1. Always cache the system/character instructions at the very beginning (usually messages[0])
+    if messages:
+        _inject_cache(messages[0])
 
-    # Preferred: explicit greeting tag placed by get_prompt_context()
-    for i, msg in enumerate(messages):
-        if msg.get("_greeting"):
-            static_idx = i
-            break
-    else:
-        # Fallback: last message before the first user message
-        for i, msg in enumerate(messages):
-            if msg.get("role") == "user":
-                static_idx = max(0, i - 1)
-                break
+    # 2. Find the sliding breakpoint (cache_depth + 1 user messages back)
+    user_indices = [i for i, msg in enumerate(messages) if msg.get("role") == "user"]
 
-    _inject_cache(messages[static_idx])
-
-    # ── Sliding breakpoint ─────────────────────────────────────────────────
-    # Count user-role messages from the end; place breakpoint cache_depth
-    # exchanges before the current query (cache_depth+1th user from end).
-    user_count = 0
-    bp_idx = -1
-    for i in range(len(messages) - 1, -1, -1):
-        if messages[i].get("role") == "user":
-            user_count += 1
-            if user_count == cache_depth + 1:
-                bp_idx = i
-                break
-    if bp_idx > static_idx:
+    if len(user_indices) >= cache_depth + 1:
+        # Conversation is long enough; place a sliding breakpoint
+        bp_idx = user_indices[-(cache_depth + 1)]
+        _inject_cache(messages[bp_idx])
+    elif len(user_indices) > 1:
+        # Chat is short, but we can still cache the growing conversation up to the second-to-last turn
+        bp_idx = user_indices[-2]
         _inject_cache(messages[bp_idx])
 
-    # ── Clean up metadata tags ─────────────────────────────────────────────
+    # Clean up metadata tags
     for msg in messages:
         msg.pop("_greeting", None)
 

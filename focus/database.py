@@ -168,4 +168,6 @@ async def init_db():
             await db.execute("ALTER TABLE preset_blocks ADD COLUMN injection_depth INTEGER DEFAULT NULL")
         if "injection_order" not in col_names:
             await db.execute("ALTER TABLE preset_blocks ADD COLUMN injection_order INTEGER DEFAULT 0")
+        if "cache_control" in col_names:
+            await db.execute("ALTER TABLE preset_blocks DROP COLUMN cache_control")
         await db.commit()

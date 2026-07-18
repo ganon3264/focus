@@ -47,6 +47,7 @@ window.api = {
   stream: '/api/stream',
   itemize: '/api/itemize',
 
+  cleanDb: '/api/db/clean',
   backups: '/api/backups',
   backupRestore: function(id) { return '/api/backups/' + id + '/restore'; },
   backupDelete: function(id) { return '/api/backups/' + id; },

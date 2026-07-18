@@ -27,7 +27,8 @@ function deleteChat(chatId, btn){
         if(row) row.remove();
         const currentChatId = '{{ current_chat_id }}';
         if(chatId === currentChatId){
-          window.location.href = '/chat';
+          var cid = StateManager.get('character_id');
+          window.location.href = cid ? '/chat?character_id=' + encodeURIComponent(cid) : '/chat';
         }
       }).catch(function(e){
         alert(e.message);
