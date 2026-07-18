@@ -1,49 +1,23 @@
 (function () {
-  function dbg(...args) { if (window.DEBUG) console.log('[stream]', ...args); }
+  function dbg() {
+    if (window.DEBUG) console.log('[stream]', Array.prototype.slice.call(arguments));
+  }
 
-  let currentController = null;
-  const sendBtn = document.getElementById('send-btn');
-  const stopBtn = document.getElementById('stop-btn');
-  const input = document.getElementById('chat-input');
-  const messageList = document.getElementById('message-list');
+  var currentController = null;
+  var sendBtn = document.getElementById('send-btn');
+  var stopBtn = document.getElementById('stop-btn');
+  var input = document.getElementById('chat-input');
+  var messageList = document.getElementById('message-list');
 
   if (!sendBtn || !input || !messageList) return;
 
-  function createAssistantSkeleton(charName, charImagePath) {
-    const asstDiv = document.createElement('div');
-    asstDiv.className = 'message msg';
-    asstDiv.id = 'streaming-message';
-    const avatarHtml = charImagePath
-      ? `<img src="/${charImagePath}" alt="" class="cursor-pointer" onclick="openLightbox(this.src)">`
-      : window.escapeHtml((charName || 'A')[0]);
-    asstDiv.innerHTML = `
-      <div class="message-body">
-        <div class="flex items-start gap-3 min-w-0">
-          <div class="message-avatar">${avatarHtml}</div>
-          <div class="min-w-0">
-            <div class="text-sm font-medium" style="color:var(--text)">${window.escapeHtml(charName)}</div>
-            <div class="text-xs text-muted flex items-center gap-1.5 flex-wrap mt-0.5">
-              <button class="reasoning-toggle-btn hidden" onclick="toggleReasoning(this)" aria-label="Toggle reasoning" style="background:none;border:none;padding:0;font:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:0.25rem">
-                <svg class="w-3 h-3 reasoning-chevron" style="color:var(--text-faint);transition:transform 0.2s ease" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
-                <span>Reasoning</span>
-              </button>
-            </div>
-          </div>
-        </div>
-        <div class="message-content markdown-content processed" style="padding-left:3rem"></div>
-      </div>
-    `;
-    return asstDiv;
-  }
-
-
+  /* ── Tool call rendering ── */
 
   window._renderToolCalls = function (container, calls) {
     var section = container.querySelector('.tool-calls-stream');
     if (!section) {
       section = document.createElement('div');
-      section.className = 'tool-calls-stream';
-      section.style.cssText = 'padding-left:3rem';
+      section.className = 'tool-calls-stream pl-stream';
       var bodyEl = container.querySelector('.message-body') || container;
       var contentEl = container.querySelector('.message-content');
       if (contentEl && contentEl.parentNode) {
@@ -55,19 +29,7 @@
     calls.forEach(function (call) {
       var existing = section.querySelector('[data-call-id="' + call.id + '"]');
       if (existing) return;
-      var card = document.createElement('details');
-      card.className = 'details tool-call';
-      card.setAttribute('data-call-id', call.id);
-      card.innerHTML =
-        '<summary>' +
-        '<svg class="w-3 h-3 chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>' +
-        '<code class="font-bold">' + window.escapeHtml(call.name) + '</code>' +
-        '<span class="truncate max-w-[300px]">' + window.escapeHtml(JSON.stringify(call.arguments)) + '</span>' +
-        '</summary>' +
-        '<div class="tool-result-body" style="display:none">' +
-        '<pre class="whitespace-pre-wrap break-all"></pre>' +
-        '</div>';
-      section.appendChild(card);
+      section.appendChild(window.buildToolCallCard(call));
     });
   };
 
@@ -92,87 +54,161 @@
     }
   };
 
-  function _createAttachmentPreview(file) {
-    var wrapper = document.createElement('div');
-    wrapper.className = 'relative group';
+  /* ── UI state helpers ── */
 
-    if (file.type.startsWith('image/')) {
-      var img = document.createElement('img');
-      img.className = 'h-24 rounded object-cover border border-border cursor-pointer hover:opacity-90 transition-opacity';
-      img.src = URL.createObjectURL(file);
-      img.alt = 'attachment';
-      img.onclick = function () { openLightbox(this.src); };
-      wrapper.appendChild(img);
+  function _setGeneratingUI(generating) {
+    if (generating) {
+      sendBtn.classList.add('hidden');
+      stopBtn.classList.remove('hidden');
+      var fu = document.getElementById('file-upload');
+      if (fu) fu.disabled = true;
     } else {
-      wrapper.className = 'h-16 bg-surface-3 px-3 rounded border border-border flex items-center gap-2 text-sm';
-      wrapper.innerHTML = '<span>' + (window.getSvgSprite ? window.getSvgSprite('music', 18) : '') + '</span>';
-      var audio = document.createElement('audio');
-      audio.controls = true;
-      audio.className = 'h-8 max-w-[200px]';
-      audio.style.cssText = 'filter: contrast(0.8) grayscale(1)';
-      var source = document.createElement('source');
-      source.src = URL.createObjectURL(file);
-      source.type = file.type;
-      audio.appendChild(source);
-      wrapper.appendChild(audio);
+      window._generating = false;
+      window._streamingMessageId = null;
+      currentController = null;
+      sendBtn.classList.remove('hidden');
+      stopBtn.classList.add('hidden');
+      var fu = document.getElementById('file-upload');
+      if (fu) fu.disabled = false;
     }
-
-    return wrapper;
   }
 
-  function createUserMessageDiv(text) {
-    const dataList = document.getElementById('message-list-data');
-    const personaName = dataList ? dataList.getAttribute('data-persona-name') || 'You' : 'You';
-    const personaAvatar = dataList ? dataList.getAttribute('data-persona-avatar') : '';
+  function _clearStaleContent(asstDiv, continueText, continueReasoning) {
+    if (!asstDiv) return;
+    var staleCalls = asstDiv.querySelector('.tool-calls-stream');
+    if (staleCalls) staleCalls.remove();
+    var staleSection = asstDiv.querySelector('.tool-calls-section');
+    if (staleSection) staleSection.remove();
 
-    const div = document.createElement('div');
-    div.className = 'message relative msg';
-    div.id = 'temp-user-msg';
+    if (!continueText && !continueReasoning) {
+      var contentDivs = asstDiv.querySelectorAll('.message-content');
+      for (var j = 0; j < contentDivs.length; j++) {
+        contentDivs[j].innerHTML = j === 0 ? '<div class="message-spinner"></div>' : '';
+      }
+      var reasoningBtn = asstDiv.querySelector('.reasoning-toggle-btn');
+      if (reasoningBtn) reasoningBtn.classList.add('hidden');
+      asstDiv.classList.remove('reasoning-open');
+      var staleBlocks = asstDiv.querySelectorAll('.reasoning-block');
+      for (var k = 0; k < staleBlocks.length; k++) staleBlocks[k].remove();
+    } else {
+      var contentDiv = asstDiv.querySelector('.message-content');
+      var pulse = document.createElement('span');
+      pulse.className = 'gen-pulse';
+      contentDiv.appendChild(pulse);
+    }
+  }
 
-    div.innerHTML = [
-      '<div class="message-body">',
-      '<div class="flex items-start gap-3 min-w-0">',
-      '<div class="message-avatar">',
-      personaAvatar
-        ? '<img src="/' + personaAvatar + '" alt="" class="cursor-pointer" onclick="openLightbox(this.src)">'
-        : window.escapeHtml((personaName || 'Y')[0]),
-      '</div>',
-      '<div class="min-w-0">',
-      '<div class="text-sm font-medium" style="color:var(--text)">' + window.escapeHtml(personaName) + '</div>',
-      '</div>',
-      '</div>',
-      '<div class="message-content markdown-content" style="padding-left:3rem"></div>',
-      '</div>',
-    ].join('');
+  /* ── Attachment upload ── */
 
-    var staged = window.stagedFiles;
-    if (staged && staged.length > 0) {
-      var attContainer = document.createElement('div');
-      attContainer.className = 'flex gap-2 flex-wrap mb-2';
-      attContainer.style.cssText = 'padding-left:3rem';
-      staged.forEach(function (f) { attContainer.appendChild(_createAttachmentPreview(f)); });
-      var bodyDiv = div.querySelector('.message-body');
-      var contentEl = div.querySelector('.message-content');
-      if (bodyDiv && contentEl) bodyDiv.insertBefore(attContainer, contentEl);
+  async function _uploadAttachments(chatId, isRegen) {
+    if (isRegen || !window.stagedFiles || window.stagedFiles.length === 0) return [];
+    var filesToUpload = Array.prototype.slice.call(window.stagedFiles);
+    var formData = new FormData();
+    filesToUpload.forEach(function (f) { formData.append('files', f); });
+    try {
+      var res = await fetch(window.api.chatAttachments(chatId), { method: 'POST', body: formData });
+      if (res.ok) {
+        var data = await res.json();
+        dbg('Uploaded %d attachments, ids=%o', data.attachments.length, data.attachments);
+        if (window.clearUploadedFiles) window.clearUploadedFiles(filesToUpload);
+        return data.attachments.map(function (a) { return a.id; });
+      }
+      console.error('[stream] Upload failed with status', res.status);
+    } catch (e) {
+      console.error('[stream] Upload failed', e);
+    }
+    if (window.clearUploadedFiles) window.clearUploadedFiles(filesToUpload);
+    return [];
+  }
+
+  /* ── Non-stream response handler ── */
+
+  async function _handleNonStream(json, state) {
+    state.fullText = json.full_text || '';
+    state.fullReasoning = json.full_reasoning || '';
+    state.messageId = json.message_id;
+    state.userMessageId = json.user_message_id;
+
+    if (state.userMessageId && !state.isRegen) {
+      var tempUserMsg = document.getElementById('temp-user-msg');
+      if (tempUserMsg) {
+        tempUserMsg.id = 'message-' + state.userMessageId;
+        tempUserMsg.dataset.messageId = state.userMessageId;
+      }
     }
 
-    var contentDiv = div.querySelector('.message-content');
+    if (!state.asstDiv) {
+      var dataList = document.getElementById('message-list-data');
+      state.asstDiv = window.buildAssistantSkeleton(
+        dataList ? dataList.getAttribute('data-char-name') : 'Assistant',
+        dataList ? dataList.getAttribute('data-char-image') : '',
+      );
+      state.asstDiv.id = 'streaming-message';
+      messageList.insertBefore(state.asstDiv, window.scrollSentinel);
+    }
+
+    var contentDiv = state.asstDiv.querySelector('.message-content');
     if (contentDiv) {
-      contentDiv.innerHTML = window.renderMessage(text);
-      contentDiv.classList.add('processed');
+      contentDiv.innerHTML = window.renderMessage(state.fullText, 0, state.fullReasoning);
+      if (window._updateReasoningButton) window._updateReasoningButton(contentDiv);
     }
-
-    return div;
+    if (state.messageId) {
+      state.asstDiv.id = 'message-' + state.messageId;
+      state.asstDiv.dataset.messageId = state.messageId;
+      window._streamingMessageId = state.messageId;
+    }
+    await window.refreshMessagesAfterStream(state.chatId, state.userMessageId, state.messageId);
+    window._streamingMessageId = null;
   }
 
-  window.triggerGeneration = async function (chatId, asstDiv, isRegen = false, continueText = null, continueReasoning = null) {
+  /* ── Stream error handler ── */
+
+  async function _handleStreamError(err, state) {
+    console.error('[stream] Error: name=%s, message=%s, fullText.length=%d, messageId=%s',
+      err.name, err.message, state.fullText.length, state.messageId);
+
+    if (err.name !== 'AbortError') {
+      window.showErrorToast(err.message);
+      if (state.asstDiv && state.asstDiv.parentNode) state.asstDiv.remove();
+      htmx.ajax('GET', window.api.partials.messageList(state.chatId), {
+        target: '#message-list',
+        swap: 'innerHTML',
+      });
+    } else if (!state.fullText) {
+      if (state.isRegen) {
+        htmx.ajax('GET', window.api.partials.messageList(state.chatId), {
+          target: '#message-list',
+          swap: 'innerHTML',
+        });
+      } else if (state.asstDiv && state.asstDiv.parentNode) {
+        state.asstDiv.remove();
+      }
+    } else if (state.messageId) {
+      var partialText = state.fullText;
+      state.asstDiv.id = 'message-' + state.messageId;
+      state.asstDiv.dataset.messageId = state.messageId;
+      await window.refreshMessagesAfterStream(state.chatId, state.userMessageId, state.messageId);
+      if (partialText) {
+        var restoredDiv = document.getElementById('message-' + state.messageId);
+        if (restoredDiv) {
+          restoredDiv.dataset.rawContent = partialText;
+          var restoredContent = restoredDiv.querySelector('.message-content');
+          if (restoredContent) {
+            restoredContent.innerHTML = window.renderMessage(partialText, 0, state.fullReasoning);
+            if (window._updateReasoningButton) window._updateReasoningButton(restoredContent);
+          }
+        }
+      }
+    }
+  }
+
+  /* ── Main generation orchestrator ── */
+
+  window.triggerGeneration = async function (chatId, asstDiv, isRegen, continueText, continueReasoning) {
     if (window._generating) return;
     window._generating = true;
 
-    let textSegments = [];
-    let currentTextDiv = null;
-
-    const providerId = sendBtn.dataset.providerId;
+    var providerId = sendBtn.dataset.providerId;
     if (!providerId) {
       alert('No provider configured. Add one in Providers.');
       window._generating = false;
@@ -186,355 +222,158 @@
       currentController = null;
     }
 
-    sendBtn.classList.add('hidden');
-    stopBtn.classList.remove('hidden');
-    const fileUpload = document.getElementById('file-upload');
-    if (fileUpload) fileUpload.disabled = true;
+    _setGeneratingUI(true);
+    _clearStaleContent(asstDiv, continueText, continueReasoning);
 
-    if (asstDiv) {
-      textSegments = [];
-      currentTextDiv = null;
-      var staleCalls = asstDiv.querySelector('.tool-calls-stream');
-      if (staleCalls) staleCalls.remove();
-      var staleSection = asstDiv.querySelector('.tool-calls-section');
-      if (staleSection) staleSection.remove();
-      if (!continueText && !continueReasoning) {
-        var contentDivs = asstDiv.querySelectorAll('.message-content');
-        for (var j = 0; j < contentDivs.length; j++) {
-          contentDivs[j].innerHTML = (j === 0) ? '<div class="message-spinner"></div>' : '';
-        }
-        const reasoningBtn = asstDiv.querySelector('.reasoning-toggle-btn');
-        if (reasoningBtn) reasoningBtn.classList.add('hidden');
-        asstDiv.classList.remove('reasoning-open');
-        var staleBlocks = asstDiv.querySelectorAll('.reasoning-block');
-        for (var k = 0; k < staleBlocks.length; k++) staleBlocks[k].remove();
-      } else {
-        const contentDiv = asstDiv.querySelector('.message-content');
-        const pulse = document.createElement('span');
-        pulse.className = 'gen-pulse';
-        contentDiv.appendChild(pulse);
-      }
-    }
+    var state = new window.StreamState(chatId, asstDiv, isRegen, continueText, continueReasoning);
+    currentController = state.controller;
+    var signal = state.controller.signal;
 
-    currentController = new AbortController();
-    const signal = currentController.signal;
+    state.fullText = '';
+    state.fullReasoning = '';
 
-    let attachmentIds = [];
-    if (!isRegen && window.stagedFiles && window.stagedFiles.length > 0) {
-      const filesToUpload = [...window.stagedFiles];
-      const formData = new FormData();
-      filesToUpload.forEach((f) => formData.append('files', f));
-      try {
-        const uploadRes = await fetch(window.api.chatAttachments(chatId), {
-          method: 'POST',
-          body: formData,
-        });
-        if (uploadRes.ok) {
-          const data = await uploadRes.json();
-          attachmentIds = data.attachments.map((a) => a.id);
-          dbg('Uploaded %d attachments, ids=%o', attachmentIds.length, attachmentIds);
-        } else {
-          console.error('[stream] Upload failed with status', uploadRes.status);
-        }
-      } catch (e) {
-        console.error('[stream] Upload failed', e);
-      }
-      if (window.clearUploadedFiles) window.clearUploadedFiles(filesToUpload);
-    }
-
-    dbg('Request body: user_message=%s, regenerate=%s, attachment_ids=%o, stagedFiles=%d',
-      window._tempUserMessage || '', isRegen, attachmentIds, window.stagedFiles ? window.stagedFiles.length : 0);
-
-    const body = {
-      chat_id: chatId,
-      provider_id: providerId,
-      user_message: window._tempUserMessage || '',
-      samplers: window.getActiveSamplers ? window.getActiveSamplers() : {},
-      regenerate: isRegen,
-      attachment_ids: attachmentIds,
-      tools_enabled: window._toolConfig ? window._toolConfig.enabled : false,
-      tool_read_only: window._toolConfig ? window._toolConfig.read_only : true,
-    };
-    if (continueText || continueReasoning) {
-      body.continue_text = continueText || '';
-      body.continue_reasoning = continueReasoning;
-    }
-
-    window._tempUserMessage = '';
-
-    const useStream = body.samplers.stream_enabled !== false;
-
-    let fullText = '';
-    let fullReasoning = '';
-    let messageId = null;
-    let userMessageId = null;
+    var attachmentIds = [];
 
     try {
-      const res = await fetch(window.api.stream, {
+      attachmentIds = await _uploadAttachments(chatId, isRegen);
+
+      dbg('Request body: user_message=%s, regenerate=%s, attachment_ids=%o, stagedFiles=%d',
+        window._tempUserMessage || '', isRegen, attachmentIds, window.stagedFiles ? window.stagedFiles.length : 0);
+
+      var body = {
+        chat_id: chatId,
+        provider_id: providerId,
+        user_message: window._tempUserMessage || '',
+        samplers: window.getActiveSamplers ? window.getActiveSamplers() : {},
+        regenerate: isRegen,
+        attachment_ids: attachmentIds,
+        tools_enabled: window._toolConfig ? window._toolConfig.enabled : false,
+        tool_read_only: window._toolConfig ? window._toolConfig.read_only : true,
+      };
+      if (continueText || continueReasoning) {
+        body.continue_text = continueText || '';
+        body.continue_reasoning = continueReasoning;
+      }
+
+      window._tempUserMessage = '';
+
+      var useStream = body.samplers.stream_enabled !== false;
+
+      var res = await fetch(window.api.stream, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
-        signal,
+        signal: signal,
       });
 
       if (!res.ok) {
-        const errText = await res.text();
+        var errText = await res.text();
         throw new Error(errText || 'Stream request failed');
       }
 
       if (!useStream) {
-        const json = await res.json();
-        fullText = json.full_text || '';
-        fullReasoning = json.full_reasoning || '';
-        messageId = json.message_id;
-        userMessageId = json.user_message_id;
-
-        if (userMessageId && !isRegen) {
-          const tempUserMsg = document.getElementById('temp-user-msg');
-          if (tempUserMsg) {
-            tempUserMsg.id = 'message-' + userMessageId;
-            tempUserMsg.dataset.messageId = userMessageId;
-          }
-        }
-
-        if (!asstDiv) {
-          const dataList = document.getElementById('message-list-data');
-          asstDiv = createAssistantSkeleton(
-            dataList ? dataList.getAttribute('data-char-name') : 'Assistant',
-            dataList ? dataList.getAttribute('data-char-image') : '',
-          );
-          asstDiv.id = 'streaming-message';
-          messageList.insertBefore(asstDiv, window.scrollSentinel);
-        }
-
-        const contentDiv = asstDiv.querySelector('.message-content');
-        if (contentDiv) {
-          contentDiv.innerHTML = window.renderMessage(fullText, 0, fullReasoning);
-          if (window._updateReasoningButton) window._updateReasoningButton(contentDiv);
-        }
-        if (messageId) {
-          asstDiv.id = 'message-' + messageId;
-          asstDiv.dataset.messageId = messageId;
-          window._streamingMessageId = messageId;
-        }
-        await window.refreshMessagesAfterStream(chatId, userMessageId, messageId);
-        window._streamingMessageId = null;
+        var json = await res.json();
+        await _handleNonStream(json, state);
+        _setGeneratingUI(false);
         return;
       }
 
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-      fullText = '';
+      var reader = res.body.getReader();
+      var decoder = new TextDecoder();
+      var buffer = '';
 
       while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
+        var result = await reader.read();
+        if (result.done) break;
+        buffer += decoder.decode(result.value, { stream: true });
+        var lines = buffer.split('\n');
         buffer = lines.pop();
-        for (const line of lines) {
+        for (var i = 0; i < lines.length; i++) {
+          var line = lines[i];
           if (!line.startsWith('data: ')) continue;
-          const data = line.slice(6).trim();
-          if (!data) continue;
-          let json;
+          var raw = line.slice(6).trim();
+          if (!raw) continue;
+          var parsed;
           try {
-            json = JSON.parse(data);
+            parsed = JSON.parse(raw);
           } catch (e) {
             continue;
           }
-          if (json.type === 'start') {
-            messageId = json.message_id;
-            window._streamingMessageId = messageId;
-            userMessageId = json.user_message_id;
-
-            dbg('SSE start: message_id=%s, user_message_id=%s',
-              messageId, userMessageId);
-
-            if (userMessageId && !isRegen) {
-              const tempUserMsg = document.getElementById('temp-user-msg');
-              if (tempUserMsg) {
-                tempUserMsg.id = 'message-' + userMessageId;
-                tempUserMsg.dataset.messageId = userMessageId;
-              }
-            }
-          } else if (json.type === 'tool_calls') {
-            window._renderToolCalls(asstDiv, json.calls);
-            var toolSection = asstDiv.querySelector('.tool-calls-stream');
-            var contDiv = document.createElement('div');
-            contDiv.className = 'message-content markdown-content processed';
-            contDiv.style.cssText = 'padding-left:3rem';
-            toolSection.parentNode.insertBefore(contDiv, toolSection.nextSibling);
-            currentTextDiv = contDiv;
-            textSegments.push({ div: contDiv, text: '' });
-          } else if (json.type === 'tool_result') {
-            window._updateToolResult(asstDiv, json.call_id, json.name, json.result, json.is_error);
-          } else if (json.type === 'reasoning') {
-            fullReasoning += json.text || '';
-            if (asstDiv) {
-              var rb = asstDiv.querySelector('.reasoning-block');
-              if (!rb) {
-                rb = document.createElement('div');
-                rb.className = 'reasoning-block';
-                rb.setAttribute('data-think-id', '0');
-                rb.style.cssText = 'padding-left:3rem';
-                rb.innerHTML = '<div class="reasoning-content markdown-content hidden" style="white-space:pre-wrap"></div>';
-                var bodyEl = asstDiv.querySelector('.message-body');
-                var contentEl = asstDiv.querySelector('.message-content');
-                if (bodyEl && contentEl) bodyEl.insertBefore(rb, contentEl);
-                else if (bodyEl) bodyEl.appendChild(rb);
-              }
-              var rc = rb.querySelector('.reasoning-content');
-              if (rc) rc.textContent = fullReasoning;
-              if (window._updateReasoningButton) window._updateReasoningButton(contentEl || asstDiv);
-            }
-          } else if (json.token !== undefined) {
-            fullText += json.token;
-            if (!currentTextDiv) {
-              currentTextDiv = asstDiv.querySelector('.message-content');
-              if (!currentTextDiv) {
-                currentTextDiv = document.createElement('div');
-                currentTextDiv.className = 'message-content markdown-content processed';
-                var bodyEl = asstDiv.querySelector('.message-body');
-                if (bodyEl) bodyEl.appendChild(currentTextDiv);
-              }
-              textSegments.push({ div: currentTextDiv, text: '' });
-            }
-            var seg = textSegments[textSegments.length - 1];
-            seg.text += json.token;
-            window.preserveOpenStates(currentTextDiv, () => window.renderMessage(seg.text));
-            if (window._updateReasoningButton) window._updateReasoningButton(currentTextDiv);
-            if (window.autoScroll && window.scrollSentinel) {
-              window.scrollSentinel.scrollIntoView({ behavior: 'smooth' });
-            }
-          } else if (json.error) {
-            throw new Error(json.error);
-          } else if (json.done) {
-            messageId = json.message_id;
-            dbg('SSE done: message_id=%s', messageId);
-          }
+          window.dispatchStreamEvent(state, parsed);
         }
       }
 
-      if (textSegments.length > 0) {
-        for (var si = 0; si < textSegments.length; si++) {
-          var seg = textSegments[si];
-          var segReasoning = si === 0 ? fullReasoning : null;
-          window.preserveOpenStates(seg.div, () => window.renderMessage(seg.text, 0, segReasoning));
-        }
-        if (window._updateReasoningButton) window._updateReasoningButton(asstDiv.querySelector('.message-content'));
-      }
-      if (messageId) {
-        asstDiv.id = 'message-' + messageId;
-        asstDiv.dataset.messageId = messageId;
-      }
+      window.finalizeStreamRender(state);
 
       dbg('Refreshing messages: chatId=%s, userMsgId=%s, asstMsgId=%s',
-        chatId, userMessageId, messageId);
-      await window.refreshMessagesAfterStream(chatId, userMessageId, messageId);
+        chatId, state.userMessageId, state.messageId);
+      await window.refreshMessagesAfterStream(chatId, state.userMessageId, state.messageId);
 
       if (window.updateClaudeCache && window.APP_PROVIDERS) {
-        const doneProvider = window.APP_PROVIDERS.find(function (p) { return p.id === providerId; });
+        var doneProvider = window.APP_PROVIDERS.find(function (p) { return p.id === providerId; });
         if (window.isClaudeProvider(doneProvider)) {
           window.updateClaudeCache(providerId, body.samplers);
         }
       }
     } catch (err) {
-      console.error('[stream] Error: name=%s, message=%s, fullText.length=%d, messageId=%s',
-        err.name, err.message, fullText.length, messageId);
-      if (err.name !== 'AbortError') {
-        window.showErrorToast(err.message);
-        if (asstDiv && asstDiv.parentNode) asstDiv.remove();
-        htmx.ajax('GET', window.api.partials.messageList(chatId), {
-          target: '#message-list',
-          swap: 'innerHTML',
-        });
-      } else if (!fullText) {
-        if (isRegen) {
-          htmx.ajax('GET', window.api.partials.messageList(chatId), {
-            target: '#message-list',
-            swap: 'innerHTML',
-          });
-        } else if (asstDiv && asstDiv.parentNode) {
-          asstDiv.remove();
-        }
-      } else if (messageId) {
-        const partialText = fullText;
-        asstDiv.id = 'message-' + messageId;
-        asstDiv.dataset.messageId = messageId;
-        await window.refreshMessagesAfterStream(chatId, userMessageId, messageId);
-        if (partialText) {
-          const restoredDiv = document.getElementById('message-' + messageId);
-          if (restoredDiv) {
-            restoredDiv.dataset.rawContent = partialText;
-            const restoredContent = restoredDiv.querySelector('.message-content');
-            if (restoredContent) {
-              restoredContent.innerHTML = window.renderMessage(partialText, 0, fullReasoning);
-              if (window._updateReasoningButton) window._updateReasoningButton(restoredContent);
-            }
-          }
-        }
-      }
+      await _handleStreamError(err, state);
     } finally {
-      window._generating = false;
-      window._streamingMessageId = null;
-      currentController = null;
-      sendBtn.classList.remove('hidden');
-      stopBtn.classList.add('hidden');
-      const fileUpload = document.getElementById('file-upload');
-      if (fileUpload) fileUpload.disabled = false;
+      _setGeneratingUI(false);
     }
   };
 
+  /* ── Send button ── */
+
   sendBtn.addEventListener('click', async function () {
-    const chatId = sendBtn.dataset.chatId;
-    const providerId = sendBtn.dataset.providerId;
+    var chatId = sendBtn.dataset.chatId;
+    var providerId = sendBtn.dataset.providerId;
 
     if (sendBtn.dataset.mode === 'regen') {
       if (!providerId) {
         alert('No provider configured. Add one in Providers.');
         return;
       }
-
-      const dataList = document.getElementById('message-list-data');
-      const charName = dataList ? dataList.getAttribute('data-char-name') : 'Assistant';
-      const charImagePath = dataList ? dataList.getAttribute('data-char-image') : '';
-
-      const asstDiv = createAssistantSkeleton(charName, charImagePath);
+      var dataList = document.getElementById('message-list-data');
+      var charName = dataList ? dataList.getAttribute('data-char-name') : 'Assistant';
+      var charImagePath = dataList ? dataList.getAttribute('data-char-image') : '';
+      var asstDiv = window.buildAssistantSkeleton(charName, charImagePath);
       messageList.insertBefore(asstDiv, window.scrollSentinel);
       asstDiv.scrollIntoView({ behavior: 'smooth' });
-
       window.triggerGeneration(chatId, asstDiv, true);
       return;
     }
 
-    const text = input.value.trim();
+    var text = input.value.trim();
     if (!text && (!window.stagedFiles || window.stagedFiles.length === 0)) return;
     if (!providerId) {
       alert('No provider configured. Add one in Providers.');
       return;
     }
 
-    const existingTemp = document.getElementById('temp-user-msg');
+    var existingTemp = document.getElementById('temp-user-msg');
     if (existingTemp) existingTemp.remove();
 
-    const userDiv = createUserMessageDiv(text);
+    var dataList = document.getElementById('message-list-data');
+    var personaName = dataList ? dataList.getAttribute('data-persona-name') || 'You' : 'You';
+    var personaAvatar = dataList ? dataList.getAttribute('data-persona-avatar') : '';
+    var charName = dataList ? dataList.getAttribute('data-char-name') : 'Assistant';
+    var charImagePath = dataList ? dataList.getAttribute('data-char-image') : '';
+
+    var userDiv = window.buildUserMessageDiv(text, personaName, personaAvatar, window.stagedFiles);
     messageList.insertBefore(userDiv, window.scrollSentinel);
 
-    const dataList = document.getElementById('message-list-data');
-    const charName = dataList ? dataList.getAttribute('data-char-name') : 'Assistant';
-    const charImagePath = dataList ? dataList.getAttribute('data-char-image') : '';
-    const asstDiv = createAssistantSkeleton(charName, charImagePath);
+    var asstDiv = window.buildAssistantSkeleton(charName, charImagePath);
     messageList.insertBefore(asstDiv, window.scrollSentinel);
     asstDiv.scrollIntoView({ behavior: 'smooth' });
 
     window._tempUserMessage = text;
-
     input.value = '';
     if (window.resizeTextarea) window.resizeTextarea(input);
 
     window.triggerGeneration(chatId, asstDiv, false);
   });
+
+  /* ── Stop button ── */
 
   stopBtn.addEventListener('click', function () {
     if (currentController) {
@@ -543,16 +382,20 @@
     }
   });
 
+  /* ── Branch ── */
+
   window.branchFromMessage = async function (messageId, chatId) {
     try {
-      const r = await fetch(window.api.chatBranch(chatId, messageId), { method: 'POST' });
+      var r = await fetch(window.api.chatBranch(chatId, messageId), { method: 'POST' });
       if (!r.ok) throw new Error('Branch failed');
-      const d = await r.json();
+      var d = await r.json();
       window.location.href = '/chat/' + d.id;
     } catch (e) {
       alert(e.message);
     }
   };
+
+  /* ── Post-swap processing ── */
 
   window._postSwapProcess = function (container) {
     if (!container) return;
@@ -566,20 +409,24 @@
     window.ensureSentinelAndObserver();
   };
 
+  /* ── Init ── */
+
   document.addEventListener('DOMContentLoaded', function () {
-    document.querySelectorAll('.markdown-content').forEach(function (el) {
-      const raw = el.textContent || '';
+    var els = document.querySelectorAll('.markdown-content');
+    for (var i = 0; i < els.length; i++) {
+      var el = els[i];
+      var raw = el.textContent || '';
       el.innerHTML = window.renderMessage(raw);
       el.classList.add('processed');
-    });
+    }
     if (window.syncReasoningButtons) window.syncReasoningButtons(document);
 
-    document.getElementById('message-list')?.classList.add('ready');
+    var ml = document.getElementById('message-list');
+    if (ml) ml.classList.add('ready');
 
-    const savedProvider = StateManager.get('provider_id');
+    var savedProvider = StateManager.get('provider_id');
     if (savedProvider) {
-      const sendBtn = document.getElementById('send-btn');
-      if (sendBtn) sendBtn.dataset.providerId = savedProvider;
+      sendBtn.dataset.providerId = savedProvider;
     }
   });
 

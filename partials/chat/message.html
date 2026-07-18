@@ -144,7 +144,7 @@
     </div>
 
     {% if message.attachments %}
-    <div class="flex gap-2 flex-wrap mb-2" style="padding-left:3rem">
+    <div class="flex gap-2 flex-wrap mb-2 pl-stream">
       {% for att in message.attachments %} {% if att.mime_type.startswith('image/') %}
       <div class="relative group">
         <img
@@ -172,10 +172,10 @@
     {% set ns = namespace(tool_rendered=false) %}
     {% for seg in message.segments %}
     {% if seg.type == 'text' and seg.content.strip() %}
-    <div class="message-content markdown-content" style="padding-left:3rem">{{ seg.content }}</div>
+    <div class="message-content markdown-content pl-stream">{{ seg.content }}</div>
     {% elif seg.type == 'reasoning' %}
     {% if seg.index > 0 %}
-    <details class="details reasoning-block" data-think-id="{{ seg.index }}" style="padding-left:3rem">
+    <details class="details reasoning-block pl-stream" data-think-id="{{ seg.index }}">
       <summary>
         <svg class="w-3 h-3 chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
         Reasoning
@@ -183,13 +183,13 @@
       <div class="reasoning-content markdown-content processed">{{ seg.html | safe }}</div>
     </details>
     {% else %}
-    <div class="reasoning-block" data-think-id="0" style="padding-left:3rem">
+    <div class="reasoning-block pl-stream" data-think-id="0">
       <div class="reasoning-content markdown-content processed hidden">{{ seg.html | safe }}</div>
     </div>
     {% endif %}
     {% elif seg.type == 'tool_boundary' and message.get('tool_calls') and not ns.tool_rendered %}
     {% set ns.tool_rendered = true %}
-    <div class="tool-calls-section" style="padding-left:3rem">
+    <div class="tool-calls-section pl-stream">
       {% for tc in message.get('tool_calls') %}
       {{ tool_call_card(tc) }}
       {% endfor %}
@@ -197,12 +197,12 @@
     {% endif %}
     {% endfor %}
     {% if not (message.segments | selectattr("type", "equalto", "text") | list) and message.get('reasoning') %}
-    <div class="message-content markdown-content" style="padding-left:3rem"></div>
+    <div class="message-content markdown-content pl-stream"></div>
     {% endif %}
         {% else %}
-        <div class="message-content markdown-content" style="padding-left:3rem">{{ message.content }}</div>
+        <div class="message-content markdown-content pl-stream">{{ message.content }}</div>
         {% if message.get('tool_calls') %}
-    <div class="tool-calls-section" style="padding-left:3rem">
+    <div class="tool-calls-section pl-stream">
       {% for tc in message.get('tool_calls') %}
       {{ tool_call_card(tc) }}
       {% endfor %}

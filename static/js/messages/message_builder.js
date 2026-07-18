@@ -1,0 +1,228 @@
+(function () {
+  /* ── SVG helpers ── */
+
+  function _chevronSvg() {
+    var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('class', 'w-3 h-3 reasoning-chevron');
+    svg.style.cssText = 'color:var(--text-faint);transition:transform 0.2s ease';
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('stroke', 'currentColor');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('stroke-linecap', 'round');
+    path.setAttribute('stroke-linejoin', 'round');
+    path.setAttribute('stroke-width', '2');
+    path.setAttribute('d', 'M9 5l7 7-7 7');
+    svg.appendChild(path);
+    return svg;
+  }
+
+  function _summaryChevronSvg() {
+    var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('class', 'w-3 h-3 chevron');
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('stroke', 'currentColor');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('stroke-linecap', 'round');
+    path.setAttribute('stroke-linejoin', 'round');
+    path.setAttribute('stroke-width', '2');
+    path.setAttribute('d', 'M9 5l7 7-7 7');
+    svg.appendChild(path);
+    return svg;
+  }
+
+  /* ── Builder: assistant streaming skeleton ── */
+
+  window.buildAssistantSkeleton = function (charName, charImagePath) {
+    var div = document.createElement('div');
+    div.className = 'message msg';
+    div.id = 'streaming-message';
+
+    var body = document.createElement('div');
+    body.className = 'message-body';
+    div.appendChild(body);
+
+    var flex = document.createElement('div');
+    flex.className = 'flex items-start gap-3 min-w-0';
+    body.appendChild(flex);
+
+    var avatar = document.createElement('div');
+    avatar.className = 'message-avatar';
+    if (charImagePath) {
+      var img = document.createElement('img');
+      img.src = '/' + charImagePath;
+      img.alt = '';
+      img.className = 'cursor-pointer';
+      img.addEventListener('click', function () { window.openLightbox(img.src); });
+      avatar.appendChild(img);
+    } else {
+      avatar.textContent = window.escapeHtml((charName || 'A')[0]);
+    }
+    flex.appendChild(avatar);
+
+    var col = document.createElement('div');
+    col.className = 'min-w-0';
+    flex.appendChild(col);
+
+    var nameEl = document.createElement('div');
+    nameEl.className = 'text-sm font-medium';
+    nameEl.style.cssText = 'color:var(--text)';
+    nameEl.textContent = window.escapeHtml(charName);
+    col.appendChild(nameEl);
+
+    var meta = document.createElement('div');
+    meta.className = 'text-xs text-muted flex items-center gap-1.5 flex-wrap mt-0.5';
+    col.appendChild(meta);
+
+    var toggleBtn = document.createElement('button');
+    toggleBtn.className = 'reasoning-toggle-btn hidden';
+    toggleBtn.setAttribute('aria-label', 'Toggle reasoning');
+    toggleBtn.addEventListener('click', function () { window.toggleReasoning(toggleBtn); });
+    toggleBtn.appendChild(_chevronSvg());
+    var toggleSpan = document.createElement('span');
+    toggleSpan.textContent = 'Reasoning';
+    toggleBtn.appendChild(toggleSpan);
+    meta.appendChild(toggleBtn);
+
+    var content = document.createElement('div');
+    content.className = 'message-content markdown-content processed pl-stream';
+    body.appendChild(content);
+
+    return div;
+  };
+
+  /* ── Builder: user message div (temp) ── */
+
+  window.buildUserMessageDiv = function (text, personaName, personaAvatar, stagedFiles) {
+    var div = document.createElement('div');
+    div.className = 'message relative msg';
+    div.id = 'temp-user-msg';
+
+    var body = document.createElement('div');
+    body.className = 'message-body';
+    div.appendChild(body);
+
+    var flex = document.createElement('div');
+    flex.className = 'flex items-start gap-3 min-w-0';
+    body.appendChild(flex);
+
+    var avatar = document.createElement('div');
+    avatar.className = 'message-avatar';
+    if (personaAvatar) {
+      var img = document.createElement('img');
+      img.src = '/' + personaAvatar;
+      img.alt = '';
+      img.className = 'cursor-pointer';
+      img.addEventListener('click', function () { window.openLightbox(img.src); });
+      avatar.appendChild(img);
+    } else {
+      avatar.textContent = window.escapeHtml((personaName || 'Y')[0]);
+    }
+    flex.appendChild(avatar);
+
+    var col = document.createElement('div');
+    col.className = 'min-w-0';
+    flex.appendChild(col);
+
+    var nameEl = document.createElement('div');
+    nameEl.className = 'text-sm font-medium';
+    nameEl.style.cssText = 'color:var(--text)';
+    nameEl.textContent = window.escapeHtml(personaName);
+    col.appendChild(nameEl);
+
+    if (stagedFiles && stagedFiles.length > 0) {
+      var attContainer = document.createElement('div');
+      attContainer.className = 'flex gap-2 flex-wrap mb-2 pl-stream';
+      stagedFiles.forEach(function (f) { attContainer.appendChild(window.buildAttachmentPreview(f)); });
+      body.insertBefore(attContainer, null);
+    }
+
+    var content = document.createElement('div');
+    content.className = 'message-content markdown-content pl-stream';
+    content.innerHTML = window.renderMessage(text);
+    content.classList.add('processed');
+    body.appendChild(content);
+
+    return div;
+  };
+
+  /* ── Builder: attachment preview ── */
+
+  window.buildAttachmentPreview = function (file) {
+    var wrapper = document.createElement('div');
+    wrapper.className = 'relative group';
+
+    if (file.type.startsWith('image/')) {
+      var img = document.createElement('img');
+      img.className = 'h-24 rounded object-cover border border-border cursor-pointer hover:opacity-90 transition-opacity';
+      img.src = URL.createObjectURL(file);
+      img.alt = 'attachment';
+      img.addEventListener('click', function () { window.openLightbox(img.src); });
+      wrapper.appendChild(img);
+    } else {
+      wrapper.className = 'h-16 bg-surface-3 px-3 rounded border border-border flex items-center gap-2 text-sm';
+      var iconSpan = document.createElement('span');
+      iconSpan.innerHTML = window.getSvgSprite ? window.getSvgSprite('music', 18) : '';
+      wrapper.appendChild(iconSpan);
+      var audio = document.createElement('audio');
+      audio.controls = true;
+      audio.className = 'h-8 max-w-[200px]';
+      audio.style.cssText = 'filter: contrast(0.8) grayscale(1)';
+      var source = document.createElement('source');
+      source.src = URL.createObjectURL(file);
+      source.type = file.type;
+      audio.appendChild(source);
+      wrapper.appendChild(audio);
+    }
+
+    return wrapper;
+  };
+
+  /* ── Builder: tool call card ── */
+
+  window.buildToolCallCard = function (call) {
+    var details = document.createElement('details');
+    details.className = 'details tool-call';
+    details.setAttribute('data-call-id', call.id);
+
+    var summary = document.createElement('summary');
+    summary.appendChild(_summaryChevronSvg());
+
+    var code = document.createElement('code');
+    code.className = 'font-bold';
+    code.textContent = window.escapeHtml(call.name);
+    summary.appendChild(code);
+
+    var argSpan = document.createElement('span');
+    argSpan.className = 'truncate max-w-[300px]';
+    argSpan.textContent = window.escapeHtml(JSON.stringify(call.arguments));
+    summary.appendChild(argSpan);
+
+    details.appendChild(summary);
+
+    var resultBody = document.createElement('div');
+    resultBody.className = 'tool-result-body';
+    resultBody.style.display = 'none';
+
+    var pre = document.createElement('pre');
+    pre.className = 'whitespace-pre-wrap break-all';
+    resultBody.appendChild(pre);
+    details.appendChild(resultBody);
+
+    return details;
+  };
+
+  /* ── Builder: reasoning block (think-id=0, used during streaming) ── */
+
+  window.buildReasoningBlock = function () {
+    var rb = document.createElement('div');
+    rb.className = 'reasoning-block pl-stream';
+    rb.setAttribute('data-think-id', '0');
+    var rc = document.createElement('div');
+    rc.className = 'reasoning-content markdown-content hidden';
+    rc.style.whiteSpace = 'pre-wrap';
+    rb.appendChild(rc);
+    return rb;
+  };
+})();
