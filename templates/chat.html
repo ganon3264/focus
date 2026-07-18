@@ -177,8 +177,8 @@
   </div>
 </div>
 
-<!-- EDIT CHARACTER MODAL -->
-{% include "edit_character_modal.html" %}
+{% set prefix = 'char' %}{% set modal_id = 'modal-edit-character' %}{% set entity_name = 'Character' %}{% set upload_fn = 'uploadCharModalMedia' %}{% set avatar_fn = 'uploadCharacterAvatar' %}{% set submit_fn = 'submitEditCharacter' %}
+{% include "edit_entity_modal.html" %}
 
 <div id="modal-personas" class="modal-overlay" role="dialog" aria-modal="true" style="display:none;" onclick="if(event.target===this)closeModal('modal-personas')">
   <div class="modal-content" style="max-width:800px; width: 95vw;">
@@ -187,8 +187,8 @@
   </div>
 </div>
 
-<!-- EDIT PERSONA MODAL -->
-{% include "edit_persona_modal.html" %}
+{% set prefix = 'persona' %}{% set modal_id = 'modal-edit-persona' %}{% set entity_name = 'Persona' %}{% set upload_fn = 'uploadPersonaMedia' %}{% set avatar_fn = 'uploadPersonaAvatar' %}{% set submit_fn = 'submitEditPersona' %}
+{% include "edit_entity_modal.html" %}
 
 <div id="modal-providers" class="modal-overlay" role="dialog" aria-modal="true" style="display:none;" onclick="if(event.target===this)closeModal('modal-providers')">
   <div class="modal-content" style="max-width:1000px; width: 95vw; max-height:85vh; display: flex; flex-direction: column;">

@@ -21,18 +21,6 @@ function computeAccentDerivatives(hex) {
   };
 }
 
-(function fixMissingDerivatives() {
-  const root = document.documentElement;
-  const accent = root.style.getPropertyValue('--accent');
-  if (!accent) return;
-  const hover = root.style.getPropertyValue('--accent-hover');
-  if (hover) return;
-  const derivatives = computeAccentDerivatives(accent);
-  for (const [key, val] of Object.entries(derivatives)) {
-    root.style.setProperty(key, val);
-  }
-})();
-
 const PRESET_THEMES = {
   default: {
     '--bg': '#0b0d10', '--surface': '#13151a', '--surface-2': '#1c1f26', '--surface-3': '#2b303b',

@@ -132,41 +132,6 @@ function selectFetchedModel(id, name) {
 function openORModelModal(prefix) {
   openFetchModelModal(prefix);
 }
-/*
-  window._currentORPrefix = prefix;
-  document.getElementById('modal-or-models').style.display = 'grid';
-  if (!window._OR_MODELS_CACHE || window._OR_MODELS_CACHE.length === 0) {
-    forceFetchORModels();
-  }
-}
-
-async function forceFetchORModels() {
-  try {
-    const res = await fetch('/api/providers/openrouter/models');
-    if (!res.ok) throw new Error('Failed to fetch');
-    const data = await res.json();
-    window._OR_MODELS_CACHE = data.data;
-    window.dispatchEvent(new CustomEvent('or-models-loaded'));
-  } catch (err) {
-    console.error(err);
-  }
-}
-
-function selectORModel(id, name) {
-  const prefix = window._currentORPrefix;
-  if (!prefix) return;
-  const input = document.getElementById('or-model-input-' + prefix);
-  if (input) {
-    input.value = id;
-    const display = document.getElementById('or-model-display-' + prefix);
-    display.textContent = name || id;
-    display.classList.remove('text-muted');
-  }
-  document.getElementById('modal-or-models').style.display = 'none';
-  updateOpenRouterOptions(prefix, id);
-}
-
-*/
 function renderMacroSelect(name, id, options, selectedValue) {
   // Finds the selected label
   let selectedLabel = "— Select —";
@@ -276,9 +241,7 @@ function setActiveProvider(id, name, type) {
   
   const sendBtn = document.getElementById('send-btn');
   if(sendBtn) sendBtn.dataset.providerId = id;
-  if (window.saveSampler) {
-    window.saveSampler('pyvern-provider-id', id);
-  }
+  localStorage.setItem('pyvern-provider-id', id);
   if (type) {
     localStorage.setItem('pyvern-provider-type', type);
     window.dispatchEvent(new CustomEvent('provider-changed', { detail: type }));

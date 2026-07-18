@@ -739,10 +739,6 @@
     }
   });
 
-  window.saveSampler = function(key, value) {
-    localStorage.setItem(key, value);
-  };
-
   document.body.addEventListener('htmx:afterSwap', function(evt){
     if(evt.detail.target.id === 'message-list'){
       evt.detail.target.querySelectorAll('.markdown-content').forEach(function(el){
