@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 import uuid
 import aiosqlite
 from fastapi import HTTPException
@@ -7,6 +8,8 @@ from pyvern.prompt_chain import assemble_prompt, _build_content
 from pyvern.card_parser import normalise_card
 from pyvern.macros import build_base_macros
 from pyvern.utils import now_iso
+
+logger = logging.getLogger("pyvern.routers.stream_utils")
 
 _chat_locks: dict[str, asyncio.Lock] = {}
 
@@ -92,7 +95,11 @@ async def get_prompt_context(
         ) as cur:
             char_row = await cur.fetchone()
         if char_row:
-            card_json = normalise_card(json.loads(char_row["card_json"]))
+            try:
+                card_json = normalise_card(json.loads(char_row["card_json"]))
+            except (json.JSONDecodeError, TypeError, ValueError) as e:
+                logger.warning("Corrupted card_json for character %s: %s", chat["character_id"], e)
+                card_json = {}
             char_data.update(card_json)
 
         async with db.execute(

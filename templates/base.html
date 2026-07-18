@@ -7,7 +7,6 @@
     <title>{% block title %}Pyvern{% endblock %}</title>
 
     <script>
-      window.SVG_MUSIC = '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>';
       (function() {
         try {
           const stored = localStorage.getItem('pyvern-custom-theme');
@@ -75,6 +74,50 @@
     {% block head %}{% endblock %}
 </head>
 <body class="bg-dark text-light" hx-ext="json-enc">
+    {% from "macros.html" import icon_close, icon_music, icon_send, icon_regen, icon_crop %}
+    <div style="display:none" aria-hidden="true" id="svg-sprite">
+      <svg data-svg-icon="close" data-svg-size="16">{{ icon_close(16) }}</svg>
+      <svg data-svg-icon="music" data-svg-size="24">{{ icon_music(24) }}</svg>
+      <svg data-svg-icon="send" data-svg-size="18">{{ icon_send() }}</svg>
+      <svg data-svg-icon="regen" data-svg-size="18">{{ icon_regen() }}</svg>
+      <svg data-svg-icon="crop" data-svg-size="12">{{ icon_crop(12) }}</svg>
+    </div>
+    <script>
+    window.getSvgSprite = function(name, size) {
+      var el = document.querySelector('#svg-sprite svg[data-svg-icon="' + name + '"]');
+      if (!el) return '';
+      var clone = el.cloneNode(true);
+      if (size) { clone.setAttribute('width', size); clone.setAttribute('height', size); }
+      return clone.outerHTML;
+    };
+
+    window.buildMediaThumbnail = function(img, onDelete, idPrefix) {
+      var div = document.createElement('div');
+      div.className = 'relative group';
+      Object.assign(div.style, {
+        width: '48px', height: '48px', borderRadius: '4px', overflow: 'hidden',
+        border: '1px solid var(--border)', flexShrink: '0'
+      });
+      if (idPrefix) div.id = idPrefix + '-' + img.id;
+
+      if (img.mime_type && img.mime_type.startsWith('audio/')) {
+        div.innerHTML = '<div style="width:100%;height:100%;background:var(--surface-3);display:grid;place-items:center;" title="Audio Attachment">' + getSvgSprite('music', 24) + '</div>';
+      } else {
+        div.innerHTML = '<img src="/' + (img.image_path || '') + '" style="width:100%;height:100%;object-fit:cover;">';
+      }
+
+      if (onDelete) {
+        var btn = document.createElement('button');
+        btn.className = 'absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity';
+        btn.type = 'button';
+        btn.innerHTML = '×';
+        btn.onclick = function(e) { e.preventDefault(); e.stopPropagation(); onDelete(e); };
+        div.appendChild(btn);
+      }
+
+      return div;
+    };
+    </script>
     {% block content %}{% endblock %}
     {% include "confirm_modal.html" %}
     
@@ -216,6 +259,7 @@
       }
     </script>
     
+    <script src="/static/js/list_manager.js"></script>
     <script src="/static/chat_stream.js"></script>
 </body>
 </html>

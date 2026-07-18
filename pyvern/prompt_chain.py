@@ -1,5 +1,6 @@
 from __future__ import annotations
 import base64
+import logging
 import re
 from pathlib import Path
 from typing import Any
@@ -7,11 +8,20 @@ from typing import Any
 
 from pyvern.macros import apply_macros
 
+logger = logging.getLogger("pyvern.prompt_chain")
 
-def _load_media(media_row: dict) -> dict:
+
+def _load_media(media_row: dict) -> dict | None:
     """Read a media file from disk and return an OpenAI-format block."""
     path = media_row.get("image_path") or media_row.get("file_path")
-    data = Path(path).read_bytes()
+    if not path:
+        logger.warning("_load_media: no path in media_row %r", media_row.get("id"))
+        return None
+    try:
+        data = Path(path).read_bytes()
+    except (FileNotFoundError, PermissionError, OSError) as e:
+        logger.warning("_load_media: cannot read %s: %s", path, e)
+        return None
     b64 = base64.b64encode(data).decode()
     mime = media_row.get("mime_type", "image/png")
     
@@ -39,7 +49,7 @@ def _build_content(text: str, images: list[dict]) -> str | list:
     parts: list[dict] = []
     if text:
         parts.append({"type": "text", "text": text})
-    parts.extend(_load_media(img) for img in images)
+    parts.extend(m for img in images if (m := _load_media(img)) is not None)
     return parts
 
 

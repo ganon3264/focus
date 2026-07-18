@@ -1,5 +1,4 @@
 (function(){
-  const SVG_CLOSE = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
   let currentController = null;
   const sendBtn = document.getElementById('send-btn');
   const stopBtn = document.getElementById('stop-btn');
@@ -26,8 +25,7 @@
       let preview = '';
       if (f.type.startsWith('image/')) {
         const url = URL.createObjectURL(f);
-        const cropSvg = `<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.13 1L6 16a2 2 0 0 0 2 2h15"></path><path d="M1 6.13L16 6a2 2 0 0 1 2 2v15"></path></svg>`;
-        const cropBtn = `<button class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black/70 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:bg-black/90" onclick="cropStagedImage(${idx})" title="Crop">${cropSvg}</button>`;
+        const cropBtn = `<button class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black/70 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:bg-black/90" onclick="cropStagedImage(${idx})" title="Crop">${getSvgSprite('crop', 12)}</button>`;
         
         preview = `
           <div class="relative h-8 w-8 flex-shrink-0">
@@ -36,13 +34,13 @@
           </div>
         `;
       } else {
-        preview = `<div class="h-8 w-8 bg-surface-3 flex items-center justify-center rounded flex-shrink-0">${SVG_MUSIC}</div>`;
+        preview = `<div class="h-8 w-8 bg-surface-3 flex items-center justify-center rounded flex-shrink-0">${getSvgSprite('music', 24)}</div>`;
       }
 
       el.innerHTML = `
         ${preview}
         <span class="max-w-[100px] truncate" title="${f.name}">${f.name}</span>
-        <button class="text-danger hover:text-white hover:bg-danger rounded w-5 h-5 flex items-center justify-center ml-1 transition-colors z-20" onclick="removeStagedFile(${idx})" title="Remove">${SVG_CLOSE}</button>
+        <button class="text-danger hover:text-white hover:bg-danger rounded w-5 h-5 flex items-center justify-center ml-1 transition-colors z-20" onclick="removeStagedFile(${idx})" title="Remove">${getSvgSprite('close', 16)}</button>
       `;
       stagingArea.appendChild(el);
     });
@@ -119,9 +117,6 @@
     el.style.overflowY = scrollHeight > 250 ? 'auto' : 'hidden';
   }
 
-  const sendIconPath = '<path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"></path>';
-  const regenIconPath = '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path>';
-
   function updateSendButtonState() {
     const text = input.value.trim();
     const dataList = document.getElementById('message-list-data');
@@ -129,11 +124,11 @@
     const isRegenMode = !text && stagedFiles.length === 0 && lastRole === 'user';
     
     if (isRegenMode) {
-      sendBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><g>${regenIconPath}</g></svg>`;
+      sendBtn.innerHTML = getSvgSprite('regen', 18);
       sendBtn.title = "Regenerate";
       sendBtn.dataset.mode = "regen";
     } else {
-      sendBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><g>${sendIconPath}</g></svg>`;
+      sendBtn.innerHTML = getSvgSprite('send', 18);
       sendBtn.title = "Send message";
       sendBtn.dataset.mode = "send";
     }
@@ -411,7 +406,7 @@
     if (stagedFiles.length > 0) {
       attachPreview = '<div class="flex gap-2 flex-wrap mb-2">' + stagedFiles.map(f => {
         if (f.type.startsWith('image/')) return `<img src="${URL.createObjectURL(f)}" class="h-24 rounded object-cover border border-border cursor-pointer" onclick="openLightbox(this.src)">`;
-        return `<div class="h-16 bg-surface-3 px-2 rounded flex items-center text-xs">${SVG_MUSIC} ${f.name}</div>`;
+        return `<div class="h-16 bg-surface-3 px-2 rounded flex items-center text-xs">${getSvgSprite('music', 24)} ${f.name}</div>`;
       }).join('') + '</div>';
     }
 
@@ -585,12 +580,12 @@
           if (att.mime_type.startsWith('image/')) {
               el.innerHTML = `
                   <img src="/${att.file_path}" class="h-16 w-16 rounded object-cover border border-border" alt="attachment">
-                  <button class="absolute -top-2 -right-2 bg-danger text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] hidden group-hover:flex z-10" onclick="deleteModalAttachment(${idx})" title="Delete">${SVG_CLOSE}</button>
+                  <button class="absolute -top-2 -right-2 bg-danger text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] hidden group-hover:flex z-10" onclick="deleteModalAttachment(${idx})" title="Delete">${getSvgSprite('close', 16)}</button>
               `;
           } else {
               el.innerHTML = `
-                  <div class="h-16 w-16 bg-surface-3 rounded border border-border flex items-center justify-center">${SVG_MUSIC}</div>
-                  <button class="absolute -top-2 -right-2 bg-danger text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] hidden group-hover:flex z-10" onclick="deleteModalAttachment(${idx})" title="Delete">${SVG_CLOSE}</button>
+                  <div class="h-16 w-16 bg-surface-3 rounded border border-border flex items-center justify-center">${getSvgSprite('music', 24)}</div>
+                  <button class="absolute -top-2 -right-2 bg-danger text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] hidden group-hover:flex z-10" onclick="deleteModalAttachment(${idx})" title="Delete">${getSvgSprite('close', 16)}</button>
               `;
           }
           container.appendChild(el);

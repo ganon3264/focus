@@ -1,4 +1,4 @@
-{% from "macros.html" import custom_select, icon_music %}
+{% from "macros.html" import custom_select, icon_music, media_thumbnail %}
 <div class="arranger-item {% if not block.enabled %}disabled{% endif %} {% if block.block_type != 'chat_history' and block.block_type != 'char_blocks' %}bg-role-{{ block.role }}{% endif %}" data-block-id="{{ block.id }}" data-block-content="{{ block.content | replace('"', '&quot;') }}" x-data="{ expanded: (window._expandedArrangerBlocks || new Set()).has('{{ block.id }}') }">
   <div class="arranger-header">
       <div class="arranger-title-group" @click="expanded = !expanded; expanded ? (window._expandedArrangerBlocks = window._expandedArrangerBlocks || new Set()).add('{{ block.id }}') : (window._expandedArrangerBlocks || new Set()).delete('{{ block.id }}')" style="cursor: pointer;">
@@ -156,14 +156,7 @@
     {% if block.block_type not in ['chat_history', 'char_blocks', 'char_description', 'char_personality', 'user_persona'] %}
     <div class="arranger-media-section" style="margin-top: 0.5rem; display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
       {% for img in block.images %}
-      <div class="relative group" style="width: 48px; height: 48px; border-radius: 4px; overflow: hidden; border: 1px solid var(--border); flex-shrink: 0;" data-image-id="{{ img.id }}">
-        {% if img.mime_type.startswith('audio/') %}
-        <div style="width: 100%; height: 100%; background: var(--surface-3); display: grid; place-items: center;" title="Audio Attachment">{{ icon_music(24) }}</div>
-        {% else %}
-        <img src="/{{ img.image_path }}" style="width: 100%; height: 100%; object-fit: cover;">
-        {% endif %}
-        <button type="button" class="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" onclick="deleteBlockMedia('{{ preset_id }}', '{{ block.id }}', '{{ img.id }}')">×</button>
-      </div>
+      {{ media_thumbnail(img, "deleteBlockMedia('" + preset_id + "', '" + block.id + "', '" + img.id + "')", ' data-image-id="' + img.id + '"') }}
       {% endfor %}
       
       <label class="btn btn-secondary btn-sm" style="height: 48px; padding: 0 0.5rem; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 4px; border-style: dashed; flex-shrink: 0; margin: 0;" title="Add Image or Audio">

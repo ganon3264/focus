@@ -128,101 +128,24 @@ function selectPersonaModal(pid){
   }
 }
 
-function filterPersonas(query) {
-  const q = query.toLowerCase();
-  document.querySelectorAll('#persona-modal-grid .card').forEach(function(card) {
-    var name = card.getAttribute('data-persona-name') || '';
-    card.style.display = name.indexOf(q) !== -1 ? '' : 'none';
-  });
-}
-
-function sortPersonas(mode) {
-  localStorage.setItem('pyvern_persona_sort', mode);
-  var grid = document.getElementById('persona-modal-grid');
-  if (!grid) return;
-  var cards = Array.from(grid.querySelectorAll('.card'));
-  cards.sort(function(a, b) {
-    var aName = a.getAttribute('data-persona-name') || '';
-    var bName = b.getAttribute('data-persona-name') || '';
-    var aCreated = a.getAttribute('data-persona-created') || '';
-    var bCreated = b.getAttribute('data-persona-created') || '';
-    if (mode === 'az') return aName.localeCompare(bName);
-    if (mode === 'za') return bName.localeCompare(aName);
-    if (mode === 'oldest') return aCreated.localeCompare(bCreated);
-    return bCreated.localeCompare(aCreated);
-  });
-  cards.forEach(function(card) { grid.appendChild(card); });
-  document.getElementById('persona-sort-select').value = mode;
-}
-
-function applyPersonaCompactView(compact) {
-  var grid = document.getElementById('persona-modal-grid');
-  if (!grid) return;
-  grid.dataset.view = compact ? 'compact' : 'full';
-  grid.style.gridTemplateColumns = compact
-    ? 'repeat(auto-fill, minmax(200px, 1fr))'
-    : 'repeat(auto-fill, minmax(160px, 1fr))';
-  grid.querySelectorAll('.card').forEach(function(card) {
-    var fullEl = card.querySelector('.persona-view-full');
-    var compactEl = card.querySelector('.persona-view-compact');
-    if (compact) {
-      fullEl.style.display = 'none';
-      compactEl.style.display = 'block';
-    } else {
-      fullEl.style.display = 'flex';
-      compactEl.style.display = 'none';
-    }
-  });
-}
-
-function togglePersonaCompactView() {
-  var grid = document.getElementById('persona-modal-grid');
-  if (!grid) return;
-  var compact = grid.dataset.view !== 'compact';
-  applyPersonaCompactView(compact);
-  localStorage.setItem('pyvern_persona_view', compact ? 'compact' : 'full');
-}
-
-function openNewPersonaPopup() {
-  var html = `
-    <div class="mb-4">
-      <label class="text-xs font-bold text-muted block mb-2 uppercase tracking-wider">Persona Name</label>
-      <input type="text" id="new-persona-name-input" class="form-control" placeholder="Enter name..." required>
-    </div>
-  `;
-  window.customConfirm(html, function() {
-    var name = document.getElementById('new-persona-name-input').value.trim();
-    if (!name) return;
-    fetch('/api/personas', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({name: name})
-    }).then(function(r){
-      if(r.ok) htmx.ajax('GET','/partials/personas-modal',{target:'#personas-modal-body',swap:'innerHTML'});
-      else r.text().then(function(t){ alert('Create failed: ' + t); });
-    });
-  });
-  setTimeout(function() {
-    var input = document.getElementById('new-persona-name-input');
-    if (input) {
-      input.focus();
-      input.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') document.getElementById('global-confirm-btn').click();
-      });
-    }
-  }, 100);
-}
-
-(function restorePersonaState() {
-  var view = localStorage.getItem('pyvern_persona_view');
-  var sort = localStorage.getItem('pyvern_persona_sort');
-
-  if (view === 'compact') {
-    applyPersonaCompactView(true);
-  }
-
-  if (sort) {
-    sortPersonas(sort);
-  }
-})();
+ListManager.setup({
+  filterFn: 'filterPersonas',
+  sortFn: 'sortPersonas',
+  applyCompactFn: 'applyPersonaCompactView',
+  toggleCompactFn: 'togglePersonaCompactView',
+  newItemFn: 'openNewPersonaPopup',
+  gridId: 'persona-modal-grid',
+  dataNameAttr: 'data-persona-name',
+  dataCreatedAttr: 'data-persona-created',
+  sortSelectId: 'persona-sort-select',
+  sortStorageKey: 'pyvern_persona_sort',
+  viewFullClass: 'persona-view-full',
+  viewCompactClass: 'persona-view-compact',
+  viewStorageKey: 'pyvern_persona_view',
+  newItemLabel: 'Persona Name',
+  newItemInputId: 'new-persona-name-input',
+  apiEndpoint: '/api/personas',
+  hxRoute: '/partials/personas-modal',
+  hxTarget: '#personas-modal-body'
+});
 </script>

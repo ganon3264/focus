@@ -11,7 +11,7 @@ from pyvern.database import get_db, DB_PATH
 from pyvern.models import StreamRequest, ItemizerRequest
 from pyvern.providers import create_provider
 from pyvern.logger import get_logger
-from pyvern.utils import now_iso
+from pyvern.utils import now_iso, resolve_secret_key
 from pyvern.routers.stream_utils import get_prompt_context
 
 router = APIRouter()
@@ -27,16 +27,7 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
         raise HTTPException(404, "Provider not found")
 
     prov_dict = dict(prov_row)
-
-    api_key = prov_dict.get("api_key") or ""
-    if api_key.startswith("SECRET:"):
-        secret_name = api_key[7:]
-        async with db.execute("SELECT value FROM secrets WHERE name = ?", (secret_name,)) as cur:
-            secret_row = await cur.fetchone()
-            if secret_row:
-                prov_dict["api_key"] = secret_row["value"]
-            else:
-                prov_dict["api_key"] = ""
+    prov_dict["api_key"] = await resolve_secret_key(db, prov_dict.get("api_key") or "")
 
     provider = create_provider(prov_dict)
 
@@ -102,40 +93,45 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
         save_now = now_iso()
         new_variant_id = str(uuid.uuid4())
 
-        async with aiosqlite.connect(DB_PATH) as save_db:
-            await save_db.execute("PRAGMA foreign_keys=ON")
-            await save_db.execute(
-                "INSERT INTO message_variants (id, message_id, variant_index, content, created_at) VALUES (?, ?, ?, ?, ?)",
-                (new_variant_id, final_asst_msg_id, next_variant_index, full, save_now),
-            )
+        try:
+            async with aiosqlite.connect(DB_PATH) as save_db:
+                await save_db.execute("PRAGMA foreign_keys=ON")
+                await save_db.execute(
+                    "INSERT INTO message_variants (id, message_id, variant_index, content, created_at) VALUES (?, ?, ?, ?, ?)",
+                    (new_variant_id, final_asst_msg_id, next_variant_index, full, save_now),
+                )
 
-            # If this is a regeneration, duplicate the attachments from the previous active variant
-            if body.regenerate and next_variant_index > 0:
-                async with save_db.execute(
-                    "SELECT active_index FROM messages WHERE id = ?", (final_asst_msg_id,)
-                ) as cur:
-                    row = await cur.fetchone()
-                    if row:
-                        async with save_db.execute(
-                            "SELECT * FROM message_attachments WHERE variant_id = (SELECT id FROM message_variants WHERE message_id = ? AND variant_index = ?) ORDER BY created_at",
-                            (final_asst_msg_id, row[0])
-                        ) as att_cur:
-                            old_attachments = [dict(r) for r in await att_cur.fetchall()]
+                if body.regenerate and next_variant_index > 0:
+                    async with save_db.execute(
+                        "SELECT active_index FROM messages WHERE id = ?", (final_asst_msg_id,)
+                    ) as cur:
+                        row = await cur.fetchone()
+                        if row:
+                            async with save_db.execute(
+                                "SELECT * FROM message_attachments WHERE variant_id = (SELECT id FROM message_variants WHERE message_id = ? AND variant_index = ?) ORDER BY created_at",
+                                (final_asst_msg_id, row[0])
+                            ) as att_cur:
+                                old_attachments = [dict(r) for r in await att_cur.fetchall()]
 
-                        for att in old_attachments:
-                            await save_db.execute(
-                                "INSERT INTO message_attachments (id, chat_id, message_id, variant_id, file_path, mime_type, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                                (str(uuid.uuid4()), body.chat_id, final_asst_msg_id, new_variant_id, att["file_path"], att["mime_type"], save_now),
-                            )
+                            for att in old_attachments:
+                                await save_db.execute(
+                                    "INSERT INTO message_attachments (id, chat_id, message_id, variant_id, file_path, mime_type, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                                    (str(uuid.uuid4()), body.chat_id, final_asst_msg_id, new_variant_id, att["file_path"], att["mime_type"], save_now),
+                                )
 
-            await save_db.execute(
-                "UPDATE messages SET active_index = ? WHERE id = ?",
-                (next_variant_index, final_asst_msg_id),
-            )
-            await save_db.execute(
-                "UPDATE chats SET updated_at = ? WHERE id = ?", (save_now, body.chat_id)
-            )
-            await save_db.commit()
+                await save_db.execute(
+                    "UPDATE messages SET active_index = ? WHERE id = ?",
+                    (next_variant_index, final_asst_msg_id),
+                )
+                await save_db.execute(
+                    "UPDATE chats SET updated_at = ? WHERE id = ?", (save_now, body.chat_id)
+                )
+                await save_db.commit()
+        except Exception as e:
+            logger.exception(f"Failed to save stream result for chat_id={body.chat_id}")
+            err_msg = str(e) or repr(e)
+            yield f"data: {json.dumps({'error': f'Generation succeeded but save failed: {err_msg}'})}\n\n"
+            return
 
         yield f"data: {json.dumps({'done': True, 'message_id': final_asst_msg_id, 'variant_index': next_variant_index})}\n\n"
 

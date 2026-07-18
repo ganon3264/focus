@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import icon_edit, icon_expand, icon_close, icon_trash, icon_refresh, icon_music, icon_key, icon_search, icon_folder %}
+{% from "macros.html" import icon_edit, icon_expand, icon_close, icon_trash, icon_refresh, icon_music, icon_key, icon_search, icon_folder, icon_paperclip, icon_stop, icon_send, icon_chat %}
 {% block title %}Chat - Pyvern{% endblock %}
 {% block content %}
 <div class="app-shell">
@@ -69,14 +69,14 @@
       <div id="standard-input-container" class="input-wrapper relative w-full">
         <input type="file" id="file-upload" class="hidden" multiple accept="image/*,audio/*">
         <button class="btn btn-secondary !px-2" style="border: none; background: transparent; color: var(--text-muted);" onclick="document.getElementById('file-upload').click()" title="Attach files">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+          {{ icon_paperclip(20) }}
         </button>
         <textarea id="chat-input" placeholder="Type a message…" onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();document.getElementById('send-btn').click()}"></textarea>
         <button id="send-btn" class="send-btn" data-chat-id="{{ chat_id }}" data-provider-id="{{ providers[0].id if providers else '' }}">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22,2 15,22 11,13 2,9 22,2"></polygon></svg>
+          {{ icon_send() }}
         </button>
         <button id="stop-btn" class="send-btn stop-btn hidden">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12"></rect></svg>
+          {{ icon_stop() }}
         </button>
       </div>
 
@@ -111,7 +111,7 @@
       </button>
       {% else %}
       <div style="width: 80px; height: 80px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-xl); display: grid; place-items: center; margin-bottom: 1.5rem; box-shadow: var(--shadow-sm);">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 40px; height: 40px; color: var(--accent);"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+        {{ icon_chat(40) }}
       </div>
       <h1 class="text-2xl font-bold mb-2">Welcome to Pyvern</h1>
       <p class="text-muted max-w-md mb-6 leading-relaxed">
@@ -344,20 +344,7 @@
   </div>
 </div>
 
-<!-- TEXT EXPANDER MODAL -->
-<div id="modal-text-expander" class="modal-overlay" style="display:none; z-index: 999;" onclick="if(event.target===this)closeTextExpander()">
-  <div class="modal-content" style="max-width: 800px; width: 95vw; height: 85vh; display: flex; flex-direction: column;">
-    <div class="modal-header" style="margin-bottom: 1rem;">
-      <div class="modal-title" id="text-expander-title">Edit Text</div>
-      <button class="btn btn-secondary" onclick="closeTextExpander()">×</button>
-    </div>
-    <textarea id="text-expander-input" class="form-control w-full flex-1" style="resize:none; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);"></textarea>
-    <div class="flex justify-end gap-3 mt-4">
-      <button class="btn btn-secondary" onclick="closeTextExpander()" style="min-width: 100px;">Cancel</button>
-      <button class="btn btn-primary" onclick="saveTextExpander()" style="min-width: 100px;">Save</button>
-    </div>
-  </div>
-</div>
+{% include 'text_expander.html' %}
 
 <!-- PROMPT ARRANGER MODAL -->
 <div id="modal-arranger" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeModal('modal-arranger')">
@@ -529,26 +516,6 @@ function toggleRightBar(){
   document.getElementById('right-tab').classList.toggle('hidden');
 }
 
-/* Text Expander Logic */
-let _expanderTarget = null;
-function openTextExpander(targetEl, title) {
-  _expanderTarget = targetEl;
-  document.getElementById('text-expander-title').innerText = title || 'Edit Text';
-  document.getElementById('text-expander-input').value = targetEl.value;
-  document.getElementById('modal-text-expander').style.display = 'grid';
-  document.getElementById('text-expander-input').focus();
-}
-function closeTextExpander() {
-  document.getElementById('modal-text-expander').style.display = 'none';
-  _expanderTarget = null;
-}
-function saveTextExpander() {
-  if (_expanderTarget) {
-    _expanderTarget.value = document.getElementById('text-expander-input').value;
-  }
-  closeTextExpander();
-}
-
 function openEditCharacterModal(btnElement) {
   document.getElementById('edit-char-id').value = btnElement.dataset.charId || '';
   const name = btnElement.dataset.charName || '';
@@ -592,33 +559,7 @@ function openEditCharacterModal(btnElement) {
   }
   
   mediaList.forEach(img => {
-      const div = document.createElement('div');
-      div.className = 'relative group';
-      div.style.width = '48px';
-      div.style.height = '48px';
-      div.style.borderRadius = '4px';
-      div.style.overflow = 'hidden';
-      div.style.border = '1px solid var(--border)';
-      div.style.flexShrink = '0';
-      div.id = `char-modal-media-${img.id}`;
-      
-      if (img.mime_type && img.mime_type.startsWith('audio/')) {
-          div.innerHTML = `<div style="width: 100%; height: 100%; background: var(--surface-3); display: grid; place-items: center;" title="Audio Attachment">${SVG_MUSIC}</div>`;
-      } else {
-          div.innerHTML = `<img src="/${img.image_path}" style="width: 100%; height: 100%; object-fit: cover;">`;
-      }
-      
-      const btn = document.createElement('button');
-      btn.className = 'absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity';
-      btn.innerHTML = '×';
-      btn.type = 'button';
-      btn.onclick = (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          deleteCharModalMedia(img.id);
-      };
-      div.appendChild(btn);
-      
+      const div = buildMediaThumbnail(img, (e) => deleteCharModalMedia(img.id), 'char-modal-media');
       mediaSection.insertBefore(div, mediaSection.lastElementChild.previousElementSibling);
   });
 
@@ -638,32 +579,7 @@ function uploadCharModalMedia(input) {
     const mediaSection = document.getElementById('edit-char-media-section');
     if(!mediaSection) return;
     
-    const div = document.createElement('div');
-    div.className = 'relative group';
-    div.style.width = '48px';
-    div.style.height = '48px';
-    div.style.borderRadius = '4px';
-    div.style.overflow = 'hidden';
-    div.style.border = '1px solid var(--border)';
-    div.style.flexShrink = '0';
-    div.id = `char-modal-media-${data.id}`;
-    
-    if (data.mime_type && data.mime_type.startsWith('audio/')) {
-        div.innerHTML = `<div style="width: 100%; height: 100%; background: var(--surface-3); display: grid; place-items: center;" title="Audio Attachment">${SVG_MUSIC}</div>`;
-    } else {
-        div.innerHTML = `<img src="/${data.image_path}" style="width: 100%; height: 100%; object-fit: cover;">`;
-    }
-    
-    const btn = document.createElement('button');
-    btn.className = 'absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity';
-    btn.innerHTML = '×';
-    btn.type = 'button';
-    btn.onclick = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        deleteCharModalMedia(data.id);
-    };
-    div.appendChild(btn);
+    const div = buildMediaThumbnail(data, (e) => deleteCharModalMedia(data.id), 'char-modal-media');
     
     mediaSection.insertBefore(div, mediaSection.lastElementChild.previousElementSibling);
     
@@ -782,33 +698,7 @@ function openEditPersonaModal(btnElement) {
   }
   
   mediaList.forEach(img => {
-      const div = document.createElement('div');
-      div.className = 'relative group';
-      div.style.width = '48px';
-      div.style.height = '48px';
-      div.style.borderRadius = '4px';
-      div.style.overflow = 'hidden';
-      div.style.border = '1px solid var(--border)';
-      div.style.flexShrink = '0';
-      div.id = `persona-media-${img.id}`;
-      
-      if (img.mime_type && img.mime_type.startsWith('audio/')) {
-          div.innerHTML = `<div style="width: 100%; height: 100%; background: var(--surface-3); display: grid; place-items: center;" title="Audio Attachment">${SVG_MUSIC}</div>`;
-      } else {
-          div.innerHTML = `<img src="/${img.image_path}" style="width: 100%; height: 100%; object-fit: cover;">`;
-      }
-      
-      const btn = document.createElement('button');
-      btn.className = 'absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity';
-      btn.innerHTML = '×';
-      btn.type = 'button';
-      btn.onclick = (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          deletePersonaMedia(img.id);
-      };
-      div.appendChild(btn);
-      
+      const div = buildMediaThumbnail(img, (e) => deletePersonaMedia(img.id), 'persona-media');
       mediaSection.insertBefore(div, mediaSection.lastElementChild.previousElementSibling);
   });
 
@@ -828,32 +718,7 @@ function uploadPersonaMedia(input) {
     const mediaSection = document.getElementById('edit-persona-media-section');
     if(!mediaSection) return;
     
-    const div = document.createElement('div');
-    div.className = 'relative group';
-    div.style.width = '48px';
-    div.style.height = '48px';
-    div.style.borderRadius = '4px';
-    div.style.overflow = 'hidden';
-    div.style.border = '1px solid var(--border)';
-    div.style.flexShrink = '0';
-    div.id = `persona-media-${data.id}`;
-    
-    if (data.mime_type && data.mime_type.startsWith('audio/')) {
-        div.innerHTML = `<div style="width: 100%; height: 100%; background: var(--surface-3); display: grid; place-items: center;" title="Audio Attachment">${SVG_MUSIC}</div>`;
-    } else {
-        div.innerHTML = `<img src="/${data.image_path}" style="width: 100%; height: 100%; object-fit: cover;">`;
-    }
-    
-    const btn = document.createElement('button');
-    btn.className = 'absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity';
-    btn.innerHTML = '×';
-    btn.type = 'button';
-    btn.onclick = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        deletePersonaMedia(data.id);
-    };
-    div.appendChild(btn);
+    const div = buildMediaThumbnail(data, (e) => deletePersonaMedia(data.id), 'persona-media');
     
     mediaSection.insertBefore(div, mediaSection.lastElementChild.previousElementSibling);
     

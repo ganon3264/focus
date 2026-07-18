@@ -10,8 +10,11 @@ re-encoding the image. We just scan chunks ourselves.
 
 import base64
 import json
+import logging
 import struct
 import zlib
+
+logger = logging.getLogger("pyvern.card_parser")
 
 
 def _iter_chunks(data: bytes):
@@ -56,7 +59,11 @@ def _parse_itxt_chunk(cdata: bytes) -> tuple[str, str] | None:
     n = rest.find(b"\x00")
     text_bytes = rest[n + 1 :]
     if compression_flag:
-        text_bytes = zlib.decompress(text_bytes)
+        try:
+            text_bytes = zlib.decompress(text_bytes)
+        except zlib.error as e:
+            logger.debug("zlib decompress failed for iTXt chunk: %s", e)
+            return None
     return keyword, text_bytes.decode("utf-8", errors="ignore")
 
 
@@ -77,11 +84,11 @@ def extract_card_json(png_bytes: bytes) -> dict:
             try:
                 return json.loads(base64.b64decode(raw.encode("latin-1")))
             except Exception:
-                # Some cards store raw JSON without base64 (non-standard)
+                logger.debug("chara chunk not valid base64, trying raw JSON", exc_info=True)
                 try:
                     return json.loads(raw)
                 except Exception:
-                    pass
+                    logger.debug("raw JSON parse also failed, skipping chunk", exc_info=True)
 
     raise ValueError("No 'chara' metadata found in PNG")
 

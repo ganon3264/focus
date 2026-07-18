@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import icon_expand, icon_music, icon_close %}
+{% from "macros.html" import icon_expand, icon_music, icon_close, media_thumbnail %}
 {% block title %}Characters - Pyvern{% endblock %}
 {% block content %}
 <div class="p-3 flex flex-col h-full" x-data="charEditor()">
@@ -108,14 +108,7 @@
               <label class="text-sm font-semibold text-muted block mb-1">Reference Media</label>
               <div class="char-block-media-section" id="media-section-char-{{ char.id }}" style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
                 {% for img in char.images %}
-                <div class="relative group" style="width: 48px; height: 48px; border-radius: 4px; overflow: hidden; border: 1px solid var(--border); flex-shrink: 0;" id="char-media-{{ img.id }}">
-                  {% if img.mime_type.startswith('audio/') %}
-                  <div style="width: 100%; height: 100%; background: var(--surface-3); display: grid; place-items: center;" title="Audio Attachment">{{ icon_music(24) }}</div>
-                  {% else %}
-                  <img src="/{{ img.image_path }}" style="width: 100%; height: 100%; object-fit: cover;">
-                  {% endif %}
-                  <button class="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" onclick="deleteCharMedia('{{ char.id }}', '{{ img.id }}')">×</button>
-                </div>
+                {{ media_thumbnail(img, "deleteCharMedia('" + char.id + "', '" + img.id + "')", ' id="char-media-' + img.id + '"') }}
                 {% endfor %}
                 <label class="btn btn-secondary btn-sm block-media-btn" style="height: 48px; padding: 0 0.5rem; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 4px; border-style: dashed; flex-shrink: 0; margin: 0;" title="Add Image or Audio">
                   <span class="text-muted text-xl">+</span>
@@ -217,14 +210,7 @@
                 
                 <div class="char-block-media-section" id="media-section-{{ block.id }}" style="margin-top: 0.5rem; display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
                   {% for img in block.images %}
-                  <div class="relative group" style="width: 48px; height: 48px; border-radius: 4px; overflow: hidden; border: 1px solid var(--border); flex-shrink: 0;" id="media-{{ img.id }}">
-                    {% if img.mime_type.startswith('audio/') %}
-<div style="width: 100%; height: 100%; background: var(--surface-3); display: grid; place-items: center;" title="Audio Attachment">{{ icon_music(24) }}</div>
-                    {% else %}
-                    <img src="/{{ img.image_path }}" style="width: 100%; height: 100%; object-fit: cover;">
-                    {% endif %}
-                    <button class="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" onclick="deleteCharBlockMedia('{{ char.id }}', '{{ block.id }}', '{{ img.id }}')">×</button>
-                  </div>
+                  {{ media_thumbnail(img, "deleteCharBlockMedia('" + char.id + "', '" + block.id + "', '" + img.id + "')", ' id="media-' + img.id + '"') }}
                   {% endfor %}
                   <label class="btn btn-secondary btn-sm" style="height: 48px; padding: 0 0.5rem; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 4px; border-style: dashed; flex-shrink: 0; margin: 0;" title="Add Image or Audio">
                     <span class="text-muted text-xl">+</span>
@@ -297,20 +283,7 @@
   </div>
 </template>
 
-<!-- TEXT EXPANDER MODAL -->
-<div id="modal-text-expander" class="modal-overlay" style="display:none; z-index: 999;" onclick="if(event.target===this)closeTextExpander()">
-  <div class="modal-content flex flex-col h-[85vh] max-w-4xl" style="padding: 1.25rem;">
-    <div class="modal-header shrink-0 mb-4 flex justify-between items-center w-full">
-      <div class="modal-title text-xl font-bold" id="text-expander-title">Edit Text</div>
-      <button class="btn btn-secondary w-8 h-8 rounded-full p-0 flex items-center justify-center" onclick="closeTextExpander()">{{ icon_close() }}</button>
-    </div>
-    <textarea id="text-expander-input" class="form-control w-full flex-1 mb-4" style="resize:none; font-family: ui-monospace, monospace; font-size: 0.9rem; line-height: 1.6;"></textarea>
-    <div class="flex justify-end gap-3 shrink-0">
-      <button class="btn btn-secondary" onclick="closeTextExpander()" style="min-width: 100px;">Cancel</button>
-      <button class="btn btn-primary" onclick="saveTextExpander()" style="min-width: 100px;">Save</button>
-    </div>
-  </div>
-</div>
+{% include 'text_expander.html' %}
 
 <script>
 function importCharPage(e) {
@@ -403,29 +376,6 @@ document.addEventListener('alpine:init', () => {
         }
     }))
 })
-
-/* Text Expander Logic */
-let _expanderTarget = null;
-function openTextExpander(targetEl, title) {
-  _expanderTarget = targetEl;
-  document.getElementById('text-expander-title').innerText = title || 'Edit Text';
-  document.getElementById('text-expander-input').value = targetEl.value;
-  document.getElementById('modal-text-expander').style.display = 'grid';
-  document.getElementById('text-expander-input').focus();
-}
-function closeTextExpander() {
-  document.getElementById('modal-text-expander').style.display = 'none';
-  _expanderTarget = null;
-}
-function saveTextExpander() {
-  if (_expanderTarget) {
-    _expanderTarget.value = document.getElementById('text-expander-input').value;
-    // Trigger onchange event so things like block updates fire
-    _expanderTarget.dispatchEvent(new Event('change'));
-  }
-  closeTextExpander();
-}
-
 
 function uploadAdvancedAvatar(input, charId) {
   handleAvatarUpload(input, '/api/characters/' + charId + '/avatar', (data) => {
@@ -552,27 +502,7 @@ function uploadCharMedia(charId, input) {
     const mediaSection = document.getElementById(`media-section-char-${charId}`);
     if(!mediaSection) return;
     
-    const div = document.createElement('div');
-    div.className = 'relative group';
-    div.style.width = '48px';
-    div.style.height = '48px';
-    div.style.borderRadius = '4px';
-    div.style.overflow = 'hidden';
-    div.style.border = '1px solid var(--border)';
-    div.style.flexShrink = '0';
-    div.id = `char-media-${data.id}`;
-    
-    if (data.mime_type && data.mime_type.startsWith('audio/')) {
-        div.innerHTML = `<div style="width: 100%; height: 100%; background: var(--surface-3); display: grid; place-items: center;" title="Audio Attachment">${SVG_MUSIC}</div>`;
-    } else {
-        div.innerHTML = `<img src="/${data.image_path}" style="width: 100%; height: 100%; object-fit: cover;">`;
-    }
-    
-    const btn = document.createElement('button');
-    btn.className = 'absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity';
-    btn.innerHTML = '×';
-    btn.onclick = () => deleteCharMedia(charId, data.id);
-    div.appendChild(btn);
+    const div = buildMediaThumbnail(data, (e) => deleteCharMedia(charId, data.id), 'char-media');
     
     mediaSection.insertBefore(div, mediaSection.lastElementChild.previousElementSibling);
     
@@ -605,28 +535,7 @@ function uploadCharBlockMedia(charId, blockId, input) {
     const mediaSection = document.getElementById(`media-section-${blockId}`);
     if(!mediaSection) return;
     
-    // Build thumbnail element
-    const div = document.createElement('div');
-    div.className = 'relative group';
-    div.style.width = '48px';
-    div.style.height = '48px';
-    div.style.borderRadius = '4px';
-    div.style.overflow = 'hidden';
-    div.style.border = '1px solid var(--border)';
-    div.style.flexShrink = '0';
-    div.id = `media-${data.id}`;
-    
-    if (data.mime_type && data.mime_type.startsWith('audio/')) {
-        div.innerHTML = `<div style="width: 100%; height: 100%; background: var(--surface-3); display: grid; place-items: center;" title="Audio Attachment">${SVG_MUSIC}</div>`;
-    } else {
-        div.innerHTML = `<img src="/${data.image_path}" style="width: 100%; height: 100%; object-fit: cover;">`;
-    }
-    
-    const btn = document.createElement('button');
-    btn.className = 'absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity';
-    btn.innerHTML = '×';
-    btn.onclick = () => deleteCharBlockMedia(charId, blockId, data.id);
-    div.appendChild(btn);
+    const div = buildMediaThumbnail(data, (e) => deleteCharBlockMedia(charId, blockId, data.id), 'media');
     
     // Insert before the upload button
     mediaSection.insertBefore(div, mediaSection.lastElementChild);

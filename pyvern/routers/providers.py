@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pyvern.database import get_db
 from pyvern.models import ProviderCreate
 from pyvern.logger import get_logger
-from pyvern.utils import now_iso
+from pyvern.utils import now_iso, resolve_secret_key
 
 router = APIRouter()
 logger = get_logger("routers.providers")
@@ -100,16 +100,7 @@ async def fetch_models(body: FetchModelsRequest, db: aiosqlite.Connection = Depe
     import time
     now = time.time()
     
-    # Resolve api key if it's a secret
-    api_key = body.api_key or ""
-    if api_key.startswith("SECRET:"):
-        secret_name = api_key[7:]
-        async with db.execute("SELECT value FROM secrets WHERE name = ?", (secret_name,)) as cur:
-            secret_row = await cur.fetchone()
-            if secret_row:
-                api_key = secret_row["value"]
-            else:
-                api_key = ""
+    api_key = await resolve_secret_key(db, body.api_key or "")
                 
     # Cache key based on provider type and api key hash (to avoid caching across different keys)
     cache_key = f"{body.type}_{hash(api_key)}"

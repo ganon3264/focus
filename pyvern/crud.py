@@ -1,17 +1,21 @@
 import json
+import logging
 import re
+import uuid
+from pathlib import Path
+
 import aiosqlite
 
 from pyvern.card_parser import normalise_card
+from pyvern.utils import now_iso, SUFFIX_MIME_MAP, SUFFIX_MIME_MAP_IMAGES_ONLY
+
+logger = logging.getLogger("pyvern.crud")
 
 def _strip_think_tags(text: str | None) -> str | None:
     if not text:
         return text
-    # Remove everything between <think> and </think> (including the tags)
     stripped = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL)
-    # Remove any standalone <think> tags if they were malformed
     stripped = re.sub(r'</?think>', '', stripped)
-    # Return stripped string if it's not empty after stripping, else return original
     return stripped.strip() if stripped.strip() else "New Chat"
 
 async def attach_images(blocks: list[dict], db: aiosqlite.Connection) -> list[dict]:
@@ -31,6 +35,64 @@ async def attach_images(blocks: list[dict], db: aiosqlite.Connection) -> list[di
         b["images"] = images_by_block.get(b["id"], [])
     return blocks
 
+
+async def upload_block_image(
+    db: aiosqlite.Connection,
+    block_id: str,
+    block_source: str,
+    file_data: bytes,
+    filename: str,
+    content_type: str | None,
+    storage_dir: str,
+    images_only: bool = False,
+) -> dict:
+    async with db.execute(
+        "SELECT COALESCE(MAX(position), -1) FROM block_images WHERE block_id = ?", (block_id,)
+    ) as cur:
+        row = await cur.fetchone()
+    next_pos = row[0] + 1
+
+    image_id = str(uuid.uuid4())
+    suffix = Path(filename).suffix.lower() if filename else ".png"
+    suffix = suffix or ".png"
+    mime_map = SUFFIX_MIME_MAP_IMAGES_ONLY if images_only else SUFFIX_MIME_MAP
+    mime = mime_map.get(suffix, "image/png" if images_only else "application/octet-stream")
+    if not images_only and mime == "application/octet-stream" and content_type:
+        mime = content_type
+
+    blocks_dir = Path(storage_dir)
+    blocks_dir.mkdir(parents=True, exist_ok=True)
+    image_path = str(blocks_dir / f"{image_id}{suffix}")
+    try:
+        Path(image_path).write_bytes(file_data)
+    except OSError as e:
+        raise OSError(f"Failed to write uploaded file to {image_path}: {e}")
+
+    await db.execute(
+        "INSERT INTO block_images (id, block_id, block_source, image_path, mime_type, position, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (image_id, block_id, block_source, image_path, mime, next_pos, now_iso()),
+    )
+    await db.commit()
+    return {"id": image_id, "position": next_pos, "image_path": image_path, "mime_type": mime}
+
+
+async def delete_block_image(
+    db: aiosqlite.Connection,
+    image_id: str,
+    block_id: str,
+) -> None:
+    async with db.execute(
+        "SELECT image_path FROM block_images WHERE id = ? AND block_id = ?", (image_id, block_id)
+    ) as cur:
+        row = await cur.fetchone()
+    if not row:
+        from fastapi import HTTPException
+        raise HTTPException(404, "Image not found")
+    Path(row["image_path"]).unlink(missing_ok=True)
+    await db.execute("DELETE FROM block_images WHERE id = ?", (image_id,))
+    await db.commit()
+
+
 async def has_characters(db: aiosqlite.Connection) -> bool:
     async with db.execute("SELECT 1 FROM characters WHERE is_deleted = 0 LIMIT 1") as cur:
         return await cur.fetchone() is not None
@@ -44,6 +106,7 @@ async def get_characters(db: aiosqlite.Connection) -> list[dict]:
             try:
                 c["card"] = normalise_card(json.loads(r["card_json"] or "{}"))
             except Exception:
+                logger.warning("Corrupted card_json for character %s (%s)", r.get("id"), r.get("name"), exc_info=True)
                 c["card"] = {}
             async with db.execute(
                 "SELECT * FROM char_blocks WHERE character_id = ? ORDER BY position, rowid",
@@ -66,6 +129,7 @@ async def get_character(db: aiosqlite.Connection, character_id: str) -> dict | N
     try:
         character["card"] = normalise_card(json.loads(row["card_json"] or "{}"))
     except Exception:
+        logger.warning("Corrupted card_json for character %s (%s)", row.get("id"), row.get("name"), exc_info=True)
         character["card"] = {}
     return character
 
@@ -132,14 +196,14 @@ async def get_chat_messages(db: aiosqlite.Connection, chat_id: str) -> list[dict
         (chat_id,)
     ) as cur:
         attachments = await cur.fetchall()
-        
+
     attachments_by_variant = {}
     for a in attachments:
         attachments_by_variant.setdefault(a["variant_id"], []).append(dict(a))
-        
+
     for m in messages:
         m["attachments"] = attachments_by_variant.get(m["variant_id"], [])
-        
+
     return messages
 
 async def get_chats_sidebar(db: aiosqlite.Connection, character_id: str = None) -> list[dict]:
@@ -152,7 +216,7 @@ async def get_chats_sidebar(db: aiosqlite.Connection, character_id: str = None) 
                 ORDER BY m.position DESC LIMIT 1) as last_message
         FROM chats c
     """
-    
+
     chats = []
     if character_id:
         async with db.execute(
@@ -163,11 +227,11 @@ async def get_chats_sidebar(db: aiosqlite.Connection, character_id: str = None) 
     else:
         async with db.execute(f"{query_base} WHERE is_deleted = 0 ORDER BY updated_at DESC") as cur:
             chats = [dict(r) for r in await cur.fetchall()]
-            
+
     for chat in chats:
         if chat.get("last_message"):
             chat["last_message"] = _strip_think_tags(chat["last_message"])
-            
+
     return chats
 
 

@@ -1,4 +1,5 @@
 import json
+import logging
 import uuid
 from pathlib import Path
 
@@ -12,6 +13,7 @@ from pyvern.models import CharBlockCreate, CharBlockUpdate, CharacterCreate, Cha
 from pyvern.utils import now_iso
 
 router = APIRouter()
+logger = logging.getLogger("pyvern.routers.characters")
 
 
 # ── Import ────────────────────────────────────────────────────────────────────
@@ -45,7 +47,10 @@ async def import_character(
         char_dir = Path(f"assets/characters/{char_id}")
         char_dir.mkdir(parents=True, exist_ok=True)
         avatar_path = str(char_dir / "avatar.png")
-        Path(avatar_path).write_bytes(data)
+        try:
+            Path(avatar_path).write_bytes(data)
+        except OSError as e:
+            raise HTTPException(500, f"Failed to save avatar: {e}")
 
         await db.execute(
             "INSERT INTO characters (id, name, image_path, card_json, created_at) VALUES (?, ?, ?, ?, ?)",
@@ -102,7 +107,11 @@ async def update_character(
     if not row:
         raise HTTPException(404, "Character not found")
 
-    card = json.loads(row["card_json"])
+    try:
+        card = json.loads(row["card_json"])
+    except (json.JSONDecodeError, TypeError, ValueError) as e:
+        logger.warning("Corrupted card_json for character %s: %s", char_id, e)
+        raise HTTPException(500, "Character card data is corrupt")
     data = card.get("data", card)
     updates = body.model_dump(exclude_none=True)
     data.update(updates)
@@ -142,7 +151,10 @@ async def upload_avatar(
     char_dir = Path(f"assets/characters/{char_id}")
     char_dir.mkdir(parents=True, exist_ok=True)
     avatar_path = str(char_dir / f"avatar{suffix}")
-    Path(avatar_path).write_bytes(await file.read())
+    try:
+        Path(avatar_path).write_bytes(await file.read())
+    except OSError as e:
+        raise HTTPException(500, f"Failed to save avatar: {e}")
 
     await db.execute("UPDATE characters SET image_path = ? WHERE id = ?", (avatar_path, char_id))
     await db.commit()
@@ -177,7 +189,11 @@ async def get_character(char_id: str, db: aiosqlite.Connection = Depends(get_db)
     await crud.attach_images(blocks, db)
 
     result = dict(row)
-    result["card"] = normalise_card(json.loads(result.pop("card_json")))
+    try:
+        result["card"] = normalise_card(json.loads(result.pop("card_json")))
+    except (json.JSONDecodeError, TypeError, ValueError) as e:
+        logger.warning("Corrupted card_json for character %s: %s", char_id, e)
+        result["card"] = {}
     result["blocks"] = blocks
     return result
 
@@ -218,32 +234,10 @@ async def add_char_image(
         if not await cur.fetchone():
             raise HTTPException(404, "Character not found")
 
-    async with db.execute(
-        "SELECT COALESCE(MAX(position), -1) FROM block_images WHERE block_id = ?", (char_id,)
-    ) as cur:
-        row = await cur.fetchone()
-    next_pos = row[0] + 1
-
-    image_id = str(uuid.uuid4())
-    suffix = Path(file.filename).suffix.lower() or ".png"
-    mime = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
-            ".gif": "image/gif", ".webp": "image/webp", ".mp3": "audio/mpeg", 
-            ".wav": "audio/wav", ".ogg": "audio/ogg"}.get(suffix, "application/octet-stream")
-
-    if mime == "application/octet-stream" and file.content_type:
-        mime = file.content_type
-
-    blocks_dir = Path("assets/blocks")
-    blocks_dir.mkdir(parents=True, exist_ok=True)
-    image_path = str(blocks_dir / f"{image_id}{suffix}")
-    Path(image_path).write_bytes(await file.read())
-
-    await db.execute(
-        "INSERT INTO block_images (id, block_id, block_source, image_path, mime_type, position, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (image_id, char_id, "char", image_path, mime, next_pos, now_iso()),
-    )
-    await db.commit()
-    return {"id": image_id, "position": next_pos, "image_path": image_path, "mime_type": mime}
+    try:
+        return await crud.upload_block_image(db, char_id, "char", await file.read(), file.filename, file.content_type, "assets/blocks", images_only=False)
+    except Exception as e:
+        raise HTTPException(500, f"Failed to save image: {str(e)}")
 
 
 @router.delete("/{char_id}/images/{image_id}", status_code=204)
@@ -252,15 +246,7 @@ async def delete_char_image(
     image_id: str,
     db: aiosqlite.Connection = Depends(get_db),
 ):
-    async with db.execute(
-        "SELECT image_path FROM block_images WHERE id = ? AND block_id = ?", (image_id, char_id)
-    ) as cur:
-        row = await cur.fetchone()
-    if not row:
-        raise HTTPException(404, "Image not found")
-    Path(row["image_path"]).unlink(missing_ok=True)
-    await db.execute("DELETE FROM block_images WHERE id = ?", (image_id,))
-    await db.commit()
+    await crud.delete_block_image(db, image_id, char_id)
 
 
 # ── Character-exclusive blocks ────────────────────────────────────────────────
@@ -335,27 +321,10 @@ async def add_char_block_image(
         if not await cur.fetchone():
             raise HTTPException(404, "Block not found")
 
-    async with db.execute(
-        "SELECT COALESCE(MAX(position), -1) FROM block_images WHERE block_id = ?", (block_id,)
-    ) as cur:
-        row = await cur.fetchone()
-    next_pos = row[0] + 1
-
-    image_id = str(uuid.uuid4())
-    suffix = Path(file.filename).suffix.lower() or ".png"
-    mime = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
-            ".gif": "image/gif", ".webp": "image/webp"}.get(suffix, "image/png")
-    blocks_dir = Path(f"assets/characters/{char_id}/blocks")
-    blocks_dir.mkdir(parents=True, exist_ok=True)
-    image_path = str(blocks_dir / f"{image_id}{suffix}")
-    Path(image_path).write_bytes(await file.read())
-
-    await db.execute(
-        "INSERT INTO block_images (id, block_id, block_source, image_path, mime_type, position, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (image_id, block_id, "char", image_path, mime, next_pos, now_iso()),
-    )
-    await db.commit()
-    return {"id": image_id, "position": next_pos, "image_path": image_path, "mime_type": mime}
+    try:
+        return await crud.upload_block_image(db, block_id, "char", await file.read(), file.filename, file.content_type, f"assets/characters/{char_id}/blocks", images_only=True)
+    except Exception as e:
+        raise HTTPException(500, f"Failed to save image: {str(e)}")
 
 
 @router.delete("/{char_id}/blocks/{block_id}/images/{image_id}", status_code=204)
@@ -365,12 +334,4 @@ async def delete_char_block_image(
     image_id: str,
     db: aiosqlite.Connection = Depends(get_db),
 ):
-    async with db.execute(
-        "SELECT image_path FROM block_images WHERE id = ? AND block_id = ?", (image_id, block_id)
-    ) as cur:
-        row = await cur.fetchone()
-    if not row:
-        raise HTTPException(404, "Image not found")
-    Path(row["image_path"]).unlink(missing_ok=True)
-    await db.execute("DELETE FROM block_images WHERE id = ?", (image_id,))
-    await db.commit()
+    await crud.delete_block_image(db, image_id, block_id)

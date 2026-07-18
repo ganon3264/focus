@@ -250,101 +250,24 @@ function importCharModal(e){
   });
 }
 
-function filterCharacters(query) {
-  const q = query.toLowerCase();
-  document.querySelectorAll('#char-modal-grid .card').forEach(function(card) {
-    var name = card.getAttribute('data-char-name') || '';
-    card.style.display = name.indexOf(q) !== -1 ? '' : 'none';
-  });
-}
-
-function sortCharacters(mode) {
-  localStorage.setItem('pyvern_char_sort', mode);
-  var grid = document.getElementById('char-modal-grid');
-  if (!grid) return;
-  var cards = Array.from(grid.querySelectorAll('.card'));
-  cards.sort(function(a, b) {
-    var aName = a.getAttribute('data-char-name') || '';
-    var bName = b.getAttribute('data-char-name') || '';
-    var aCreated = a.getAttribute('data-char-created') || '';
-    var bCreated = b.getAttribute('data-char-created') || '';
-    if (mode === 'az') return aName.localeCompare(bName);
-    if (mode === 'za') return bName.localeCompare(aName);
-    if (mode === 'oldest') return aCreated.localeCompare(bCreated);
-    return bCreated.localeCompare(aCreated);
-  });
-  cards.forEach(function(card) { grid.appendChild(card); });
-  document.getElementById('char-sort-select').value = mode;
-}
-
-function applyCompactView(compact) {
-  var grid = document.getElementById('char-modal-grid');
-  if (!grid) return;
-  grid.dataset.view = compact ? 'compact' : 'full';
-  grid.style.gridTemplateColumns = compact
-    ? 'repeat(auto-fill, minmax(200px, 1fr))'
-    : 'repeat(auto-fill, minmax(160px, 1fr))';
-  grid.querySelectorAll('.card').forEach(function(card) {
-    var fullEl = card.querySelector('.card-view-full');
-    var compactEl = card.querySelector('.card-view-compact');
-    if (compact) {
-      fullEl.style.display = 'none';
-      compactEl.style.display = 'block';
-    } else {
-      fullEl.style.display = 'flex';
-      compactEl.style.display = 'none';
-    }
-  });
-}
-
-function toggleCompactView() {
-  var grid = document.getElementById('char-modal-grid');
-  if (!grid) return;
-  var compact = grid.dataset.view !== 'compact';
-  applyCompactView(compact);
-  localStorage.setItem('pyvern_char_view', compact ? 'compact' : 'full');
-}
-
-function openNewCharPopup() {
-  var html = `
-    <div class="mb-4">
-      <label class="text-xs font-bold text-muted block mb-2 uppercase tracking-wider">Character Name</label>
-      <input type="text" id="new-char-name-input" class="form-control" placeholder="Enter name..." required>
-    </div>
-  `;
-  window.customConfirm(html, function() {
-    var name = document.getElementById('new-char-name-input').value.trim();
-    if (!name) return;
-    fetch('/api/characters', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({name: name})
-    }).then(function(r){
-      if(r.ok) htmx.ajax('GET','/partials/characters-modal',{target:'#characters-modal-body',swap:'innerHTML'});
-      else r.text().then(function(t){ alert('Create failed: ' + t); });
-    });
-  });
-  setTimeout(function() {
-    var input = document.getElementById('new-char-name-input');
-    if (input) {
-      input.focus();
-      input.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') document.getElementById('global-confirm-btn').click();
-      });
-    }
-  }, 100);
-}
-
-(function restoreState() {
-  var view = localStorage.getItem('pyvern_char_view');
-  var sort = localStorage.getItem('pyvern_char_sort');
-
-  if (view === 'compact') {
-    applyCompactView(true);
-  }
-
-  if (sort) {
-    sortCharacters(sort);
-  }
-})();
+ListManager.setup({
+  filterFn: 'filterCharacters',
+  sortFn: 'sortCharacters',
+  applyCompactFn: 'applyCompactView',
+  toggleCompactFn: 'toggleCompactView',
+  newItemFn: 'openNewCharPopup',
+  gridId: 'char-modal-grid',
+  dataNameAttr: 'data-char-name',
+  dataCreatedAttr: 'data-char-created',
+  sortSelectId: 'char-sort-select',
+  sortStorageKey: 'pyvern_char_sort',
+  viewFullClass: 'card-view-full',
+  viewCompactClass: 'card-view-compact',
+  viewStorageKey: 'pyvern_char_view',
+  newItemLabel: 'Character Name',
+  newItemInputId: 'new-char-name-input',
+  apiEndpoint: '/api/characters',
+  hxRoute: '/partials/characters-modal',
+  hxTarget: '#characters-modal-body'
+});
 </script>

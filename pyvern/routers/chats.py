@@ -26,10 +26,13 @@ async def create_chat(body: ChatCreate, db: aiosqlite.Connection = Depends(get_d
     pers_id = body.persona_id if body.persona_id else None
     pres_id = body.preset_id if body.preset_id else None
 
-    await db.execute(
-        "INSERT INTO chats (id, title, character_id, persona_id, preset_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (chat_id, body.title or "New Chat", char_id, pers_id, pres_id, now, now),
-    )
+    try:
+        await db.execute(
+            "INSERT INTO chats (id, title, character_id, persona_id, preset_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (chat_id, body.title or "New Chat", char_id, pers_id, pres_id, now, now),
+        )
+    except aiosqlite.IntegrityError as e:
+        raise HTTPException(400, f"Invalid reference: {e}")
 
     # Seed greeting variants from first_mes + alternate_greetings
     if body.character_id:
@@ -38,7 +41,12 @@ async def create_chat(body: ChatCreate, db: aiosqlite.Connection = Depends(get_d
         ) as cur:
             row = await cur.fetchone()
         if row:
-            card = normalise_card(json.loads(row["card_json"]))
+            try:
+                card = normalise_card(json.loads(row["card_json"]))
+            except (json.JSONDecodeError, TypeError, ValueError) as e:
+                logger = __import__("logging").getLogger("pyvern.routers.chats")
+                logger.warning("Corrupted card_json for character %s: %s", body.character_id, e)
+                card = {"first_mes": "", "alternate_greetings": []}
             greetings = []
             if card["first_mes"]:
                 greetings.append(card["first_mes"])
@@ -107,8 +115,11 @@ async def update_chat(chat_id: str, body: dict, db: aiosqlite.Connection = Depen
     if updates:
         cols = ", ".join(f"{k} = ?" for k in updates)
         vals = list(updates.values()) + [now_iso(), chat_id]
-        await db.execute(f"UPDATE chats SET {cols}, updated_at = ? WHERE id = ?", vals)
-        await db.commit()
+        try:
+            await db.execute(f"UPDATE chats SET {cols}, updated_at = ? WHERE id = ?", vals)
+            await db.commit()
+        except aiosqlite.IntegrityError as e:
+            raise HTTPException(400, f"Invalid reference: {e}")
     return {"ok": True}
 
 
@@ -321,7 +332,10 @@ async def upload_attachments(
         file_path = str(attachments_dir / f"{attachment_id}{suffix}")
         
         content = await file.read()
-        Path(file_path).write_bytes(content)
+        try:
+            Path(file_path).write_bytes(content)
+        except OSError as e:
+            raise HTTPException(500, f"Failed to save attachment {file.filename}: {e}")
         
         await db.execute(
             "INSERT INTO message_attachments (id, chat_id, message_id, variant_id, file_path, mime_type, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
