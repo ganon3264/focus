@@ -11,11 +11,24 @@ def apply_macros(text: str, macros: dict[str, str]) -> str:
     return text
 
 
-def _load_image(image_row: dict) -> dict:
-    """Read an image from disk and return an OpenAI-format image_url block."""
-    data = Path(image_row["image_path"]).read_bytes()
+def _load_media(media_row: dict) -> dict:
+    """Read a media file from disk and return an OpenAI-format block."""
+    path = media_row.get("image_path") or media_row.get("file_path")
+    data = Path(path).read_bytes()
     b64 = base64.b64encode(data).decode()
-    mime = image_row.get("mime_type", "image/png")
+    mime = media_row.get("mime_type", "image/png")
+    
+    if mime.startswith("audio/"):
+        # Format might be extracted from mime type, e.g. audio/mpeg -> mp3
+        fmt = mime.split("/")[-1].replace("mpeg", "mp3")
+        return {
+            "type": "input_audio",
+            "input_audio": {
+                "data": b64,
+                "format": fmt
+            }
+        }
+    
     return {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64}"}}
 
 
@@ -29,7 +42,7 @@ def _build_content(text: str, images: list[dict]) -> str | list:
     parts: list[dict] = []
     if text:
         parts.append({"type": "text", "text": text})
-    parts.extend(_load_image(img) for img in images)
+    parts.extend(_load_media(img) for img in images)
     return parts
 
 

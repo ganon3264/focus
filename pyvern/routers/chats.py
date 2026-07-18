@@ -3,7 +3,8 @@ import uuid
 from datetime import datetime, timezone
 
 import aiosqlite
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from pathlib import Path
 
 from pyvern.database import get_db
 from pyvern.models import ChatCreate, MessageEdit, SwipeRequest
@@ -255,3 +256,58 @@ async def swipe_message(
         "content": variant["content"] if variant else "",
         "is_last": new_index == max_index,
     }
+
+@router.post("/{chat_id}/attachments", status_code=201)
+async def upload_attachments(
+    chat_id: str,
+    files: list[UploadFile] = File(...),
+    db: aiosqlite.Connection = Depends(get_db),
+):
+    async with db.execute("SELECT id FROM chats WHERE id = ?", (chat_id,)) as cur:
+        if not await cur.fetchone():
+            raise HTTPException(404, "Chat not found")
+            
+    attachments_dir = Path("assets/attachments")
+    attachments_dir.mkdir(exist_ok=True)
+    
+    results = []
+    for file in files:
+        attachment_id = str(uuid.uuid4())
+        suffix = Path(file.filename).suffix.lower()
+        if not suffix:
+            suffix = ".bin"
+        
+        mime = file.content_type or "application/octet-stream"
+        file_path = str(attachments_dir / f"{attachment_id}{suffix}")
+        
+        content = await file.read()
+        Path(file_path).write_bytes(content)
+        
+        await db.execute(
+            "INSERT INTO message_attachments (id, chat_id, message_id, file_path, mime_type, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+            (attachment_id, chat_id, None, file_path, mime, _now()),
+        )
+        results.append({
+            "id": attachment_id,
+            "file_path": file_path,
+            "mime_type": mime,
+            "filename": file.filename
+        })
+        
+    await db.commit()
+    return {"attachments": results}
+
+@router.delete("/{chat_id}/attachments/{attachment_id}", status_code=204)
+async def delete_attachment(
+    chat_id: str,
+    attachment_id: str,
+    db: aiosqlite.Connection = Depends(get_db),
+):
+    async with db.execute("SELECT file_path FROM message_attachments WHERE id = ? AND chat_id = ?", (attachment_id, chat_id)) as cur:
+        row = await cur.fetchone()
+    if not row:
+        raise HTTPException(404, "Attachment not found")
+        
+    Path(row["file_path"]).unlink(missing_ok=True)
+    await db.execute("DELETE FROM message_attachments WHERE id = ?", (attachment_id,))
+    await db.commit()

@@ -99,12 +99,22 @@ CREATE TABLE IF NOT EXISTS block_images (
     created_at   TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS message_attachments (
+    id           TEXT PRIMARY KEY,
+    chat_id      TEXT NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
+    message_id   TEXT REFERENCES messages(id) ON DELETE CASCADE,
+    file_path    TEXT NOT NULL,
+    mime_type    TEXT NOT NULL,
+    created_at   TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS secrets (
     name  TEXT PRIMARY KEY,
     value TEXT NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_block_images_block ON block_images(block_id, position);
+CREATE INDEX IF NOT EXISTS idx_message_attachments_msg ON message_attachments(message_id);
 
 CREATE INDEX IF NOT EXISTS idx_preset_blocks_pos     ON preset_blocks(preset_id, position);
 CREATE INDEX IF NOT EXISTS idx_char_blocks_char      ON char_blocks(character_id, position);
@@ -124,6 +134,7 @@ async def init_db():
     os.makedirs("assets/characters", exist_ok=True)
     os.makedirs("assets/personas", exist_ok=True)
     os.makedirs("assets/presets", exist_ok=True)
+    os.makedirs("assets/attachments", exist_ok=True)
     async with aiosqlite.connect(DB_PATH) as db:
         await db.executescript(SCHEMA)
         # Seed default persona if none exist

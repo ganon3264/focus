@@ -1,9 +1,6 @@
-{% set current_preset_name = "— Select Preset —" %}
-{% for p in presets %}
-  {% if current_preset_id == p.id %}
-    {% set current_preset_name = p.name %}
-  {% endif %}
-{% endfor %}
+{% set current_preset_list = presets | selectattr('id', 'equalto', current_preset_id) | list %}
+{% set current_preset = current_preset_list[0] if current_preset_list else none %}
+{% set current_preset_name = current_preset.name if current_preset else '— Select Preset —' %}
 
 <div class="flex flex-col gap-2" id="preset-selector-wrapper"
      x-data="{ 

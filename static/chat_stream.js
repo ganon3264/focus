@@ -4,13 +4,79 @@
   const stopBtn = document.getElementById('stop-btn');
   const input = document.getElementById('chat-input');
   const messageList = document.getElementById('message-list');
+  const fileUpload = document.getElementById('file-upload');
+  const stagingArea = document.getElementById('staging-area');
+
+  let stagedFiles = [];
 
   if(!sendBtn || !input || !messageList) return;
 
+  function renderStagingArea() {
+    if (!stagingArea) return;
+    stagingArea.innerHTML = '';
+    stagedFiles.forEach((f, idx) => {
+      const el = document.createElement('div');
+      el.className = 'flex items-center gap-1 bg-surface-2 p-1 rounded border border-border text-xs relative group';
+      
+      let preview = '';
+      if (f.type.startsWith('image/')) {
+        const url = URL.createObjectURL(f);
+        preview = `<img src="${url}" class="h-8 w-8 object-cover rounded" onload="URL.revokeObjectURL(this.src)">`;
+      } else {
+        preview = `<div class="h-8 w-8 bg-surface-3 flex items-center justify-center rounded">🎵</div>`;
+      }
+
+      el.innerHTML = `
+        ${preview}
+        <span class="max-w-[100px] truncate" title="${f.name}">${f.name}</span>
+        <button class="absolute -top-2 -right-2 bg-danger text-white rounded-full w-4 h-4 flex items-center justify-center hidden group-hover:flex" onclick="removeStagedFile(${idx})">×</button>
+      `;
+      stagingArea.appendChild(el);
+    });
+  }
+
+  window.removeStagedFile = function(idx) {
+    stagedFiles.splice(idx, 1);
+    renderStagingArea();
+  };
+
+  if (fileUpload) {
+    fileUpload.addEventListener('change', function(e) {
+      if (e.target.files.length) {
+        stagedFiles.push(...Array.from(e.target.files));
+        renderStagingArea();
+        e.target.value = ''; // reset
+      }
+    });
+  }
+
+  // Drag and Drop
+  input.addEventListener('dragover', e => { e.preventDefault(); input.style.background = 'var(--surface-3)'; });
+  input.addEventListener('dragleave', e => { e.preventDefault(); input.style.background = ''; });
+  input.addEventListener('drop', e => {
+    e.preventDefault();
+    input.style.background = '';
+    if (e.dataTransfer.files && e.dataTransfer.files.length) {
+      stagedFiles.push(...Array.from(e.dataTransfer.files));
+      renderStagingArea();
+    }
+  });
+
+  function resizeTextarea(el) {
+    el.style.height = '44px';
+    if (el.value === '') {
+      el.style.overflowY = 'hidden';
+      return;
+    }
+    const scrollHeight = el.scrollHeight;
+    if (scrollHeight > 44) {
+      el.style.height = Math.min(250, scrollHeight) + 'px';
+    }
+    el.style.overflowY = scrollHeight > 250 ? 'auto' : 'hidden';
+  }
+
   input.addEventListener('input', function(){
-    this.rows = 1;
-    const newRows = Math.min(10, Math.ceil(this.scrollHeight / 24));
-    this.rows = Math.max(1, newRows);
+    resizeTextarea(this);
   });
 
   window.triggerGeneration = async function(chatId, asstDiv, isRegen = false) {
@@ -28,13 +94,37 @@
     currentController = new AbortController();
     const signal = currentController.signal;
 
+    // Handle file upload if any (only on first send, not on regen)
+    let attachmentIds = [];
+    if (!isRegen && stagedFiles.length > 0) {
+      const formData = new FormData();
+      stagedFiles.forEach(f => formData.append('files', f));
+      try {
+        const uploadRes = await fetch(`/api/chats/${chatId}/attachments`, {
+          method: 'POST',
+          body: formData
+        });
+        if (uploadRes.ok) {
+          const data = await uploadRes.json();
+          attachmentIds = data.attachments.map(a => a.id);
+        }
+      } catch (e) {
+        console.error("Upload failed", e);
+      }
+      stagedFiles = [];
+      renderStagingArea();
+    }
+
     const body = {
       chat_id: chatId,
       provider_id: providerId,
-      user_message: "", // empty because it's a swipe regen or the text was already sent
+      user_message: window._tempUserMessage || "", // passed explicitly
       samplers: window.getActiveSamplers ? window.getActiveSamplers() : {},
-      regenerate: isRegen
+      regenerate: isRegen,
+      attachment_ids: attachmentIds
     };
+    
+    window._tempUserMessage = ""; // clear
 
     try {
       const res = await fetch('/api/stream', {
@@ -108,7 +198,7 @@
 
   sendBtn.addEventListener('click', async function(){
     const text = input.value.trim();
-    if(!text) return;
+    if(!text && stagedFiles.length === 0) return;
     const chatId = sendBtn.dataset.chatId;
     const providerId = document.getElementById('stream-provider')?.value || sendBtn.dataset.providerId;
     if(!providerId){ alert('No provider configured. Add one in Providers.'); return; }
@@ -117,17 +207,29 @@
     const personaInitial = personaNameEl ? personaNameEl.textContent.trim()[0] : 'U';
     const userDiv = document.createElement('div');
     userDiv.className = 'message';
+    
+    // Quick preview of attachments
+    let attachPreview = '';
+    if (stagedFiles.length > 0) {
+      attachPreview = '<div class="flex gap-2 flex-wrap mb-2">' + stagedFiles.map(f => {
+        if (f.type.startsWith('image/')) return `<img src="${URL.createObjectURL(f)}" class="h-24 rounded object-cover border border-border cursor-pointer" onclick="openLightbox(this.src)">`;
+        return `<div class="h-16 bg-surface-3 px-2 rounded flex items-center text-xs">🎵 ${f.name}</div>`;
+      }).join('') + '</div>';
+    }
+
     userDiv.innerHTML = `
       <div class="message-avatar">${escapeHtml(personaInitial)}</div>
-      <div class="message-body"><div class="message-content">${escapeHtml(text)}</div></div>
+      <div class="message-body">
+        ${attachPreview}
+        <div class="message-content">${escapeHtml(text)}</div>
+      </div>
     `;
     messageList.appendChild(userDiv);
     
-    // Store text temporarily to pass it to the stream call later
-    const userMessageToSend = text;
+    window._tempUserMessage = text;
     
     input.value = '';
-    input.rows = 1;
+    resizeTextarea(input);
 
     const charNameEl = document.querySelector('#char-selector .sidebar-item.active');
     const charName = charNameEl ? charNameEl.textContent.trim() : 'Assistant';
@@ -144,75 +246,6 @@
     messageList.appendChild(asstDiv);
     asstDiv.scrollIntoView({behavior:'smooth'});
 
-    // Hack: Override the global triggerGeneration just for this turn to include the user message
-    const oldTrigger = window.triggerGeneration;
-    window.triggerGeneration = async function(cid, adiv, isRegen) {
-      if(currentController){
-        currentController.abort();
-        currentController = null;
-      }
-
-      sendBtn.classList.add('hidden');
-      stopBtn.classList.remove('hidden');
-
-      currentController = new AbortController();
-      const signal = currentController.signal;
-
-      const body = {
-        chat_id: cid,
-        provider_id: providerId,
-        user_message: userMessageToSend,
-        samplers: window.getActiveSamplers ? window.getActiveSamplers() : {},
-        regenerate: isRegen
-      };
-
-      try {
-        const res = await fetch('/api/stream', {
-          method: 'POST',
-          headers: {'Content-Type':'application/json'},
-          body: JSON.stringify(body),
-          signal
-        });
-        
-        if(!res.ok) throw new Error(await res.text());
-        
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = '';
-        let messageId = null;
-        let fullText = '';
-
-        while(true){
-          const {done, value} = await reader.read();
-          if(done) break;
-          buffer += decoder.decode(value, {stream:true});
-          const lines = buffer.split('\n');
-          buffer = lines.pop();
-          for(const line of lines){
-            if(!line.startsWith('data: ')) continue;
-            const data = line.slice(6).trim();
-            if(!data) continue;
-            let json;
-            try{ json = JSON.parse(data); }catch(e){ continue; }
-            if(json.type === 'start') messageId = json.message_id;
-            else if(json.token !== undefined) { fullText += json.token; adiv.querySelector('.message-content').innerHTML = renderMessage(fullText); }
-            else if(json.error) throw new Error(json.error);
-            else if(json.done) messageId = json.message_id;
-          }
-        }
-        adiv.querySelector('.message-content').innerHTML = renderMessage(fullText);
-        if(messageId) { adiv.id = 'message-' + messageId; adiv.dataset.messageId = messageId; }
-        htmx.ajax('GET', '/partials/message-list/' + cid, {target:'#message-list', swap:'innerHTML'});
-      } catch(err) {
-        if(err.name !== 'AbortError') adiv.querySelector('.message-content').innerHTML = '<span style="color:var(--danger)">Error: ' + escapeHtml(err.message) + '</span>';
-      } finally {
-        currentController = null;
-        sendBtn.classList.remove('hidden');
-        stopBtn.classList.add('hidden');
-        window.triggerGeneration = oldTrigger; // Restore
-      }
-    };
-    
     window.triggerGeneration(chatId, asstDiv, false);
   });
 

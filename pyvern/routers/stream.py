@@ -9,7 +9,7 @@ from fastapi.responses import StreamingResponse
 from pyvern.database import get_db, DB_PATH
 from pyvern.models import StreamRequest
 from pyvern.providers import create_provider
-from pyvern.prompt_chain import assemble_prompt
+from pyvern.prompt_chain import assemble_prompt, _build_content
 from pyvern.card_parser import normalise_card
 
 router = APIRouter()
@@ -107,6 +107,15 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
         ) as cur:
             preset_blocks = [dict(r) for r in await cur.fetchall()]
 
+    # ── Message Attachments ───────────────────────────────────────────────────
+    msg_attachments: dict[str, list[dict]] = {}
+    async with db.execute(
+        "SELECT * FROM message_attachments WHERE chat_id = ? AND message_id IS NOT NULL ORDER BY created_at",
+        (body.chat_id,),
+    ) as cur:
+        for r in await cur.fetchall():
+            msg_attachments.setdefault(r["message_id"], []).append(dict(r))
+
     # ── Existing history ──────────────────────────────────────────────────────
     if body.regenerate:
         # Drop the last assistant message from history — we'll create a new variant
@@ -135,7 +144,7 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
                 break
 
         history = [
-            {"role": r["role"], "content": r["content"]}
+            {"role": r["role"], "content": _build_content(r["content"], msg_attachments.get(r["id"], []))}
             for r in all_rows
             if r["id"] != last_asst_id
         ]
@@ -152,7 +161,7 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
             (body.chat_id,),
         ) as cur:
             history_rows = await cur.fetchall()
-        history = [{"role": r["role"], "content": r["content"]} for r in history_rows]
+        history = [{"role": r["role"], "content": _build_content(r["content"], msg_attachments.get(r["id"], []))} for r in history_rows]
         asst_msg_id = None
         next_variant_index = 0
 
@@ -175,6 +184,22 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
             (str(uuid.uuid4()), user_msg_id, 0, body.user_message, now),
         )
 
+        # Bind any attached files to the newly created user message
+        if body.attachment_ids:
+            placeholders = ",".join("?" * len(body.attachment_ids))
+            await db.execute(
+                f"UPDATE message_attachments SET message_id = ? WHERE id IN ({placeholders})",
+                [user_msg_id] + body.attachment_ids
+            )
+            
+            async with db.execute(
+                f"SELECT * FROM message_attachments WHERE id IN ({placeholders}) ORDER BY created_at",
+                body.attachment_ids
+            ) as cur:
+                new_attachments = [dict(r) for r in await cur.fetchall()]
+        else:
+            new_attachments = []
+
         # Create assistant message slot
         asst_msg_id = str(uuid.uuid4())
         await db.execute(
@@ -183,7 +208,7 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
         )
         next_variant_index = 0
 
-        history.append({"role": "user", "content": body.user_message})
+        history.append({"role": "user", "content": _build_content(body.user_message, new_attachments)})
 
     await db.commit()
 

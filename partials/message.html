@@ -16,6 +16,24 @@
   </div>
   <div class="message-body">
     <div class="message-header">{{ character.name if message.role == 'assistant' and character else (persona.name if message.role == 'user' and persona else message.role) }}</div>
+    
+    {% if message.attachments %}
+    <div class="flex gap-2 flex-wrap mb-2">
+      {% for att in message.attachments %}
+        {% if att.mime_type.startswith('image/') %}
+          <img src="/{{ att.file_path }}" class="h-24 rounded object-cover border border-border cursor-pointer hover:opacity-90 transition-opacity" alt="attachment" onclick="openLightbox(this.src)">
+        {% else %}
+          <div class="h-16 bg-surface-3 px-3 rounded border border-border flex items-center gap-2 text-sm">
+            <span>🎵</span>
+            <audio controls class="h-8 max-w-[200px]" style="filter: contrast(0.8) grayscale(1);">
+              <source src="/{{ att.file_path }}" type="{{ att.mime_type }}">
+            </audio>
+          </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+    {% endif %}
+
     {% if message.role == 'assistant' %}
       <div class="message-content markdown-content">{{ message.content }}</div>
     {% else %}

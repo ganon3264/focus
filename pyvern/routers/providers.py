@@ -233,3 +233,5 @@ async def delete_secret(name: str, db: aiosqlite.Connection = Depends(get_db)):
     await db.execute("DELETE FROM secrets WHERE name = ?", (name,))
     await db.commit()
     return {"ok": True}
+
+

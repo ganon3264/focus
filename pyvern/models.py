@@ -137,3 +137,5 @@ class StreamRequest(BaseModel):
     samplers: dict[str, Any] = Field(default_factory=dict)
     # For swipe/regen: regenerate the last assistant turn instead of appending
     regenerate: bool = False
+    # Attachment IDs to bind to the new user message
+    attachment_ids: list[str] = Field(default_factory=list)

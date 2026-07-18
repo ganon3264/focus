@@ -51,9 +51,14 @@
         {% include "message_list.html" %}
       </div>
     </div>
-    <div class="input-bar">
-      <div class="input-wrapper">
-        <textarea id="chat-input" rows="1" placeholder="Type a message…" onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();document.getElementById('send-btn').click()}"></textarea>
+    <div class="input-bar flex-col gap-2 items-center">
+      <div id="staging-area" class="w-full max-w-[820px] flex gap-2 overflow-x-auto empty:hidden pointer-events-auto" style="min-height: 0;"></div>
+      <div class="input-wrapper relative w-full">
+        <input type="file" id="file-upload" class="hidden" multiple accept="image/*,audio/*">
+        <button class="btn btn-secondary !px-2" style="border: none; background: transparent; color: var(--text-muted);" onclick="document.getElementById('file-upload').click()" title="Attach files">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+        </button>
+        <textarea id="chat-input" placeholder="Type a message…" onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();document.getElementById('send-btn').click()}"></textarea>
         <button id="send-btn" class="send-btn" data-chat-id="{{ chat_id }}" data-provider-id="{{ providers[0].id if providers else '' }}">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22,2 15,22 11,13 2,9 22,2"></polygon></svg>
         </button>

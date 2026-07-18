@@ -1,10 +1,12 @@
 {% extends "base.html" %}
 {% block title %}Characters - Pyvern{% endblock %}
 {% block content %}
-<div class="p-3" x-data="{ detailId: null }">
-  <div class="flex justify-between items-center mb-3">
-    <h1 class="text-xl font-bold">Characters</h1>
-    <form hx-post="/api/characters/import" hx-encoding="multipart/form-data" hx-target="#char-grid" hx-swap="beforeend" hx-indicator="#import-indicator">
+<div class="p-3 flex flex-col h-full" x-data="charEditor()">
+  <div class="flex justify-between items-center mb-3 flex-shrink-0">
+    <div class="flex items-center gap-3">
+      <a href="/chat" class="btn btn-secondary text-decoration-none">← Back to Chat</a>
+    </div>
+    <form hx-post="/api/characters/import" hx-encoding="multipart/form-data" hx-target="body" hx-swap="outerHTML" hx-indicator="#import-indicator">
       <label class="btn btn-primary" style="cursor:pointer">
         Import PNG
         <input type="file" name="file" accept="image/png" class="hidden" onchange="this.closest('form').requestSubmit()">
@@ -13,105 +15,403 @@
     <span id="import-indicator" class="hidden text-sm text-muted">Importing…</span>
   </div>
 
-  <div class="grid" id="char-grid">
-    {% for char in characters %}
-    <div class="card" @click="detailId = detailId === '{{ char.id }}' ? null : '{{ char.id }}'">
-      <div class="card-image">
-        {% if char.image_path %}
-          <img src="/{{ char.image_path }}" alt="">
-        {% else %}
-          <span class="text-2xl">{{ char.name[:1] }}</span>
-        {% endif %}
+  <!-- Fancy Character Selector Dropdown -->
+  <div class="relative w-full max-w-md mb-6" x-data="{ dropdownOpen: false }">
+    <label class="text-xs font-bold text-muted block mb-1 uppercase tracking-wider">Select Character</label>
+    <button @click="dropdownOpen = !dropdownOpen" @click.outside="dropdownOpen = false" class="w-full flex items-center justify-between form-control bg-[var(--surface-2)] hover:bg-[var(--surface-3)] transition-colors h-14">
+      <div class="flex items-center gap-3">
+        <template x-if="activeChar">
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-full bg-[var(--surface-3)] overflow-hidden flex items-center justify-center border border-[var(--border)]">
+              <template x-if="activeChar.image_path">
+                <img :src="'/' + activeChar.image_path" class="w-full h-full object-cover">
+              </template>
+              <template x-if="!activeChar.image_path">
+                <span class="text-sm font-bold text-muted" x-text="activeChar.name.charAt(0)"></span>
+              </template>
+            </div>
+            <span class="font-bold" x-text="activeChar.name"></span>
+          </div>
+        </template>
+        <template x-if="!activeChar">
+          <span class="text-muted">Choose a character...</span>
+        </template>
       </div>
-      <div class="card-body">
-        <div class="font-bold truncate">{{ char.name }}</div>
-        <div class="text-muted text-sm truncate">{{ char.card.get('description','')[:50] }}</div>
-      </div>
+      <span class="text-muted text-xs">▼</span>
+    </button>
+    
+    <!-- Dropdown Menu -->
+    <div x-show="dropdownOpen" x-transition.opacity.duration.200ms style="display:none;" class="absolute z-50 w-full mt-2 bg-[var(--surface-2)] border border-[var(--border)] rounded-lg shadow-xl overflow-hidden max-h-[50vh] overflow-y-auto flex flex-col">
+      <template x-for="char in charsList" :key="char.id">
+        <button @click="selectChar(char.id); dropdownOpen = false" class="flex items-center gap-3 p-3 w-full text-left hover:bg-[var(--surface-3)] transition-colors border-b border-[var(--border)] last:border-b-0">
+          <div class="w-10 h-10 rounded-full bg-[var(--surface-3)] overflow-hidden flex items-center justify-center flex-shrink-0">
+            <template x-if="char.image_path">
+              <img :src="'/' + char.image_path" class="w-full h-full object-cover">
+            </template>
+            <template x-if="!char.image_path">
+              <span class="text-sm font-bold text-muted" x-text="char.name.charAt(0)"></span>
+            </template>
+          </div>
+          <span class="font-bold flex-1 truncate" x-text="char.name" :class="detailId === char.id ? 'text-[var(--accent)]' : ''"></span>
+        </button>
+      </template>
     </div>
+  </div>
 
-    <div class="col-span-full" x-show="detailId === '{{ char.id }}'" x-cloak style="display:none;">
-      <div class="p-3 mb-3" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;">
-        <div class="flex justify-between items-center mb-2">
-          <h2 class="text-lg font-bold">{{ char.name }}</h2>
-          <div class="flex gap-2">
-            <button class="btn btn-primary btn-sm" onclick="saveCharCard('{{ char.id }}')">Save Card</button>
-            <button class="btn btn-danger btn-sm" hx-delete="/api/characters/{{ char.id }}" hx-confirm="Delete character?" hx-target="closest .col-span-full" hx-swap="delete">Delete</button>
-          </div>
-        </div>
-        <div class="grid gap-2 mb-3" style="grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));">
-          <div class="form-group">
-            <label>Name</label>
-            <input type="text" id="char-name-{{ char.id }}" value="{{ char.name }}">
-          </div>
-          <div class="form-group">
-            <label>Avatar</label>
-            <form hx-post="/api/characters/{{ char.id }}/avatar" hx-encoding="multipart/form-data" hx-swap="none">
-              <label class="btn btn-secondary btn-sm w-full" style="cursor:pointer">
-                Upload
-                <input type="file" name="file" class="hidden" onchange="this.closest('form').requestSubmit()">
-              </label>
-            </form>
-          </div>
-          <div class="form-group">
-            <label>Description</label>
-            <textarea id="char-desc-{{ char.id }}" rows="3">{{ char.card.get('description','') }}</textarea>
-          </div>
-          <div class="form-group">
-            <label>Personality</label>
-            <textarea id="char-personality-{{ char.id }}" rows="3">{{ char.card.get('personality','') }}</textarea>
-          </div>
-          <div class="form-group">
-            <label>Scenario</label>
-            <textarea id="char-scenario-{{ char.id }}" rows="3">{{ char.card.get('scenario','') }}</textarea>
-          </div>
-          <div class="form-group">
-            <label>First Message</label>
-            <textarea id="char-first-{{ char.id }}" rows="3">{{ char.card.get('first_mes','') }}</textarea>
-          </div>
-          <div class="form-group">
-            <label>Mes Example</label>
-            <textarea id="char-example-{{ char.id }}" rows="3">{{ char.card.get('mes_example','') }}</textarea>
-          </div>
+  <!-- Editor Area -->
+  <div class="flex-1 overflow-y-auto pb-10">
+    {% for char in characters %}
+    <div x-show="detailId === '{{ char.id }}'" x-cloak style="display:none;">
+      <div class="p-6 mb-4 shadow-lg flex flex-col gap-4" style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-xl);">
+        
+        <!-- Header Actions -->
+        <div class="flex justify-between items-center w-full border-b border-[var(--border)] pb-4 mb-2">
+           <h2 class="text-xl font-bold">Edit Character</h2>
+           <div class="flex gap-2">
+             <button class="btn btn-primary shadow-md" onclick="saveCharCard('{{ char.id }}')">Save Changes</button>
+             <button class="btn btn-danger" hx-delete="/api/characters/{{ char.id }}" hx-confirm="Delete character forever?" hx-target="body" hx-swap="outerHTML">Delete</button>
+           </div>
         </div>
 
-        <h3 class="sidebar-title mb-2">Blocks</h3>
-        <div class="flex flex-col gap-2 mb-2">
-          {% for block in char.blocks %}
-          <div class="flex gap-2 items-start">
-            <input type="text" class="flex-1 text-sm" value="{{ block.name }}" placeholder="Name"
-              onchange="fetch('/api/characters/{{ char.id }}/blocks/{{ block.id }}', {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name:this.value})})"
-            >
-            <textarea class="flex-[2] text-sm" rows="2" placeholder="Content"
-              onchange="fetch('/api/characters/{{ char.id }}/blocks/{{ block.id }}', {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({content:this.value})})"
-            >{{ block.content }}</textarea>
-            <button class="btn btn-danger btn-sm" title="Delete"
-              onclick="fetch('/api/characters/{{ char.id }}/blocks/{{ block.id }}', {method:'DELETE'}).then(()=>window.location.reload())"
-            >×</button>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          
+          <!-- LEFT COLUMN: Core Card Data -->
+          <div class="flex flex-col gap-5 border-r border-[var(--border)] pr-8">
+            
+            <div class="flex items-center gap-4 w-full">
+              <div class="relative group cursor-pointer w-20 h-20 rounded-full overflow-hidden border border-[var(--border)] flex-shrink-0 shadow-sm" style="background:var(--surface-3);">
+                {% if char.image_path %}
+                  <img src="/{{ char.image_path }}" class="w-full h-full object-cover" alt="Avatar">
+                {% else %}
+                  <div class="w-full h-full flex items-center justify-center text-3xl font-bold text-muted">{{ char.name[:1] }}</div>
+                {% endif %}
+                <div class="absolute inset-0 bg-black/60 hidden group-hover:flex items-center justify-center text-white text-xs font-bold transition-opacity">Edit</div>
+                <form hx-post="/api/characters/{{ char.id }}/avatar" hx-encoding="multipart/form-data" hx-target="body" hx-swap="outerHTML" class="absolute inset-0 opacity-0 cursor-pointer">
+                  <input type="file" name="file" class="w-full h-full cursor-pointer" onchange="this.closest('form').requestSubmit()">
+                </form>
+              </div>
+              <div class="flex-1 min-w-0">
+                <label class="text-xs font-bold text-muted block mb-1 uppercase tracking-wider">Character Name</label>
+                <input type="text" class="form-control text-lg font-bold w-full" style="padding: 0.5rem 0.75rem;" id="char-name-{{ char.id }}" value="{{ char.name }}">
+              </div>
+            </div>
+
+            <div class="form-group w-full">
+              <label class="text-sm font-semibold text-muted block mb-1">Description</label>
+              <div class="textarea-wrapper">
+                <textarea class="form-control w-full" id="char-desc-{{ char.id }}" rows="5">{{ char.card.get('description','') }}</textarea>
+                <button type="button" class="expand-btn" onclick="openTextExpander(document.getElementById('char-desc-{{ char.id }}'), 'Edit Description')">⤢</button>
+              </div>
+            </div>
+            
+            <div class="form-group w-full mb-0">
+              <label class="text-sm font-semibold text-muted block mb-1">First Message</label>
+              <div class="textarea-wrapper">
+                <textarea class="form-control w-full" id="char-first-{{ char.id }}" rows="4">{{ char.card.get('first_mes','') }}</textarea>
+                <button type="button" class="expand-btn" onclick="openTextExpander(document.getElementById('char-first-{{ char.id }}'), 'Edit First Message')">⤢</button>
+              </div>
+            </div>
+
+            <!-- Alternate Greetings Area -->
+            <div class="w-full" id="greetings-container-{{ char.id }}">
+              <div class="flex items-center justify-between mb-2">
+                <label class="text-sm font-semibold text-muted">Alternate Greetings</label>
+                <button class="btn btn-secondary btn-sm" onclick="addGreeting('{{ char.id }}')">+ Add Greeting</button>
+              </div>
+              
+              <div class="flex flex-col gap-3" id="greetings-list-{{ char.id }}">
+                {% for greeting in char.card.get('alternate_greetings', []) %}
+                <div class="relative group greeting-item textarea-wrapper">
+                  <textarea class="form-control w-full text-sm" rows="3" placeholder="Greeting content">{{ greeting }}</textarea>
+                  <button type="button" class="expand-btn" onclick="openTextExpander(this.previousElementSibling, 'Edit Alternate Greeting')">⤢</button>
+                  <button class="absolute bottom-2 right-2 btn btn-danger btn-sm opacity-0 group-hover:opacity-100 transition-opacity" style="z-index: 10;" onclick="this.closest('.greeting-item').remove()">Delete</button>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+
+            <!-- Advanced Fields Toggle -->
+            <div x-data="{ showAdvanced: false }" class="mt-4 pt-4 border-t border-dashed border-[var(--border)] w-full">
+              <button class="btn btn-secondary w-full flex items-center justify-between" @click="showAdvanced = !showAdvanced">
+                <span x-text="showAdvanced ? 'Hide Advanced Text Fields' : 'Show Advanced Fields (Personality, Scenario, Example)'"></span>
+                <span x-text="showAdvanced ? '▲' : '▼'" class="text-xs"></span>
+              </button>
+              
+              <div x-show="showAdvanced" x-collapse class="flex flex-col gap-4 mt-4">
+                <div class="form-group">
+                  <label class="text-sm font-semibold text-muted block mb-1">Personality</label>
+                  <div class="textarea-wrapper">
+                    <textarea class="form-control w-full" id="char-personality-{{ char.id }}" rows="4">{{ char.card.get('personality','') }}</textarea>
+                    <button type="button" class="expand-btn" onclick="openTextExpander(document.getElementById('char-personality-{{ char.id }}'), 'Edit Personality')">⤢</button>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label class="text-sm font-semibold text-muted block mb-1">Scenario</label>
+                  <div class="textarea-wrapper">
+                    <textarea class="form-control w-full" id="char-scenario-{{ char.id }}" rows="4">{{ char.card.get('scenario','') }}</textarea>
+                    <button type="button" class="expand-btn" onclick="openTextExpander(document.getElementById('char-scenario-{{ char.id }}'), 'Edit Scenario')">⤢</button>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label class="text-sm font-semibold text-muted block mb-1">Mes Example</label>
+                  <div class="textarea-wrapper">
+                    <textarea class="form-control w-full" id="char-example-{{ char.id }}" rows="6">{{ char.card.get('mes_example','') }}</textarea>
+                    <button type="button" class="expand-btn" onclick="openTextExpander(document.getElementById('char-example-{{ char.id }}'), 'Edit Mes Example')">⤢</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
           </div>
-          {% endfor %}
-          <button class="btn btn-secondary btn-sm w-full" onclick="fetch('/api/characters/{{ char.id }}/blocks', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name:'New Block',content:'',role:'system'})}).then(()=>window.location.reload())">+ Add Block</button>
-        </div>
+
+          <!-- RIGHT COLUMN: Custom Blocks -->
+          <div class="flex flex-col h-full pl-2">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="sidebar-title m-0">Custom Logic Blocks</h3>
+              <button class="btn btn-secondary btn-sm" onclick="addBlock('{{ char.id }}')">+ Add Block</button>
+            </div>
+            
+            <div class="flex flex-col gap-4 overflow-y-auto pr-2" id="blocks-container-{{ char.id }}" style="max-height: 800px;">
+              {% for block in char.blocks %}
+              <div class="p-3 block-item shadow-sm" id="block-{{ block.id }}" style="background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-md);">
+                <div class="flex justify-between items-center mb-2 gap-2">
+                  <input type="text" class="form-control text-sm font-bold flex-1" style="padding:0.3rem 0.5rem;" value="{{ block.name }}" placeholder="Block Name"
+                    onchange="updateBlock('{{ char.id }}', '{{ block.id }}', {name: this.value})"
+                  >
+                  <select class="form-control text-sm w-28" style="padding:0.3rem 0.5rem;" onchange="updateBlock('{{ char.id }}', '{{ block.id }}', {role: this.value})">
+                    <option value="system" {% if block.role == 'system' %}selected{% endif %}>System</option>
+                    <option value="user" {% if block.role == 'user' %}selected{% endif %}>User</option>
+                    <option value="assistant" {% if block.role == 'assistant' %}selected{% endif %}>Assistant</option>
+                  </select>
+                  <button class="btn btn-danger btn-sm" title="Delete Block" onclick="deleteBlock('{{ char.id }}', '{{ block.id }}')">×</button>
+                </div>
+                <div class="textarea-wrapper">
+                  <textarea class="form-control text-sm w-full" rows="4" placeholder="Block Content"
+                    onchange="updateBlock('{{ char.id }}', '{{ block.id }}', {content: this.value})"
+                  >{{ block.content }}</textarea>
+                  <button type="button" class="expand-btn" onclick="openTextExpander(this.previousElementSibling, 'Edit Custom Block')">⤢</button>
+                </div>
+              </div>
+              {% endfor %}
+              
+              {% if not char.blocks %}
+              <div class="text-center p-6 text-muted border border-dashed border-[var(--border)] rounded-xl" id="empty-blocks-msg-{{ char.id }}">
+                <div class="text-2xl mb-2">🧩</div>
+                <p class="text-sm">No custom logic blocks added.</p>
+                <p class="text-xs opacity-70">Add blocks to inject extra system instructions into the prompt.</p>
+              </div>
+              {% endif %}
+            </div>
+          </div>
+
+        </div> <!-- End Grid -->
       </div>
     </div>
     {% endfor %}
+    
+    <div x-show="!detailId" class="flex flex-col items-center justify-center h-64 text-muted border border-dashed border-[var(--border)] rounded-xl mt-4" style="background:var(--surface-2)">
+      <div class="text-4xl mb-2">🎭</div>
+      <div class="font-bold">Select a Character</div>
+      <div class="text-sm opacity-70">Use the dropdown above to choose a character to edit</div>
+    </div>
+
   </div>
 </div>
+
+<!-- Template for new blocks -->
+<template id="block-template">
+  <div class="p-3 block-item shadow-sm" style="background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-md);">
+    <div class="flex justify-between items-center mb-2 gap-2">
+      <input type="text" class="form-control text-sm font-bold flex-1 block-name" style="padding:0.3rem 0.5rem;" value="New Block" placeholder="Block Name">
+      <select class="form-control text-sm w-28 block-role" style="padding:0.3rem 0.5rem;">
+        <option value="system" selected>System</option>
+        <option value="user">User</option>
+        <option value="assistant">Assistant</option>
+      </select>
+      <button class="btn btn-danger btn-sm block-delete" title="Delete Block">×</button>
+    </div>
+    <div class="textarea-wrapper">
+      <textarea class="form-control text-sm w-full block-content" rows="4" placeholder="Block Content"></textarea>
+      <button type="button" class="expand-btn" onclick="openTextExpander(this.previousElementSibling, 'Edit Custom Block')">⤢</button>
+    </div>
+  </div>
+</template>
+
+<!-- Template for alternate greetings -->
+<template id="greeting-template">
+  <div class="relative group greeting-item textarea-wrapper">
+    <textarea class="form-control w-full text-sm" rows="3" placeholder="Greeting content"></textarea>
+    <button type="button" class="expand-btn" onclick="openTextExpander(this.previousElementSibling, 'Edit Alternate Greeting')">⤢</button>
+    <button class="absolute bottom-2 right-2 btn btn-danger btn-sm opacity-0 group-hover:opacity-100 transition-opacity" style="z-index: 10;" onclick="this.closest('.greeting-item').remove()">Delete</button>
+  </div>
+</template>
+
+<!-- TEXT EXPANDER MODAL -->
+<div id="modal-text-expander" class="modal-overlay" style="display:none; z-index: 999;" onclick="if(event.target===this)closeTextExpander()">
+  <div class="modal-content flex flex-col h-[85vh] max-w-4xl" style="padding: 1.25rem;">
+    <div class="modal-header shrink-0 mb-4 flex justify-between items-center w-full">
+      <div class="modal-title text-xl font-bold" id="text-expander-title">Edit Text</div>
+      <button class="btn btn-secondary w-8 h-8 rounded-full p-0 flex items-center justify-center" onclick="closeTextExpander()">✕</button>
+    </div>
+    <textarea id="text-expander-input" class="form-control w-full flex-1 mb-4" style="resize:none; font-family: ui-monospace, monospace; font-size: 0.9rem; line-height: 1.6;"></textarea>
+    <div class="flex justify-end gap-3 shrink-0">
+      <button class="btn btn-secondary" onclick="closeTextExpander()" style="min-width: 100px;">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTextExpander()" style="min-width: 100px;">Save</button>
+    </div>
+  </div>
+</div>
+
 <script>
+// Serialize character data to pass to Alpine safely
+const ALL_CHARS = [
+  {% for char in characters %}
+  { id: '{{ char.id }}', name: '{{ char.name | replace("'", "\\'") }}', image_path: '{{ char.image_path or "" }}' }{{ "," if not loop.last else "" }}
+  {% endfor %}
+];
+
+document.addEventListener('alpine:init', () => {
+    Alpine.data('charEditor', () => ({
+        detailId: null,
+        charsList: ALL_CHARS,
+        
+        get activeChar() {
+            if (!this.detailId) return null;
+            return this.charsList.find(c => c.id === this.detailId);
+        },
+        
+        selectChar(id) {
+            this.detailId = id;
+        },
+
+        init() {
+            // Auto-select first character if one exists
+            if (this.charsList.length > 0) {
+                this.detailId = this.charsList[0].id;
+            }
+        }
+    }))
+})
+
+/* Text Expander Logic */
+let _expanderTarget = null;
+function openTextExpander(targetEl, title) {
+  _expanderTarget = targetEl;
+  document.getElementById('text-expander-title').innerText = title || 'Edit Text';
+  document.getElementById('text-expander-input').value = targetEl.value;
+  document.getElementById('modal-text-expander').style.display = 'grid';
+  document.getElementById('text-expander-input').focus();
+}
+function closeTextExpander() {
+  document.getElementById('modal-text-expander').style.display = 'none';
+  _expanderTarget = null;
+}
+function saveTextExpander() {
+  if (_expanderTarget) {
+    _expanderTarget.value = document.getElementById('text-expander-input').value;
+    // Trigger onchange event so things like block updates fire
+    _expanderTarget.dispatchEvent(new Event('change'));
+  }
+  closeTextExpander();
+}
+
+
 function saveCharCard(charId){
+  // Collect alternate greetings
+  const greetingsContainer = document.getElementById('greetings-list-' + charId);
+  const textareas = greetingsContainer.querySelectorAll('textarea');
+  const alternateGreetings = Array.from(textareas)
+    .map(ta => ta.value)
+    .filter(val => val.trim() !== ''); // exclude empties
+
   const payload = {
     name: document.getElementById('char-name-'+charId).value,
     description: document.getElementById('char-desc-'+charId).value,
     personality: document.getElementById('char-personality-'+charId).value,
     scenario: document.getElementById('char-scenario-'+charId).value,
     first_mes: document.getElementById('char-first-'+charId).value,
-    mes_example: document.getElementById('char-example-'+charId).value
+    mes_example: document.getElementById('char-example-'+charId).value,
+    alternate_greetings: alternateGreetings
   };
+  
   fetch('/api/characters/'+charId, {
     method: 'PATCH',
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify(payload)
   }).then(function(r){
-    if(r.ok) alert('Saved');
+    if(r.ok) {
+        // Show a brief success flash effect on the button
+        const btn = event.target;
+        const originalText = btn.innerText;
+        btn.innerText = "Saved!";
+        btn.classList.add("bg-green-600", "border-green-600");
+        setTimeout(() => {
+            btn.innerText = originalText;
+            btn.classList.remove("bg-green-600", "border-green-600");
+        }, 1500);
+    }
+  });
+}
+
+function addGreeting(charId) {
+    const template = document.getElementById('greeting-template');
+    const container = document.getElementById(`greetings-list-${charId}`);
+    const clone = template.content.cloneNode(true);
+    
+    // Add to the top
+    container.insertBefore(clone, container.firstChild);
+}
+
+function updateBlock(charId, blockId, data) {
+  fetch(`/api/characters/${charId}/blocks/${blockId}`, {
+    method: 'PATCH',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(data)
+  });
+}
+
+function deleteBlock(charId, blockId) {
+  fetch(`/api/characters/${charId}/blocks/${blockId}`, {
+    method: 'DELETE'
+  }).then(r => {
+    if(r.ok) {
+      document.getElementById(`block-${blockId}`).remove();
+    }
+  });
+}
+
+function addBlock(charId) {
+  fetch(`/api/characters/${charId}/blocks`, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({name: 'New Block', content: '', role: 'system'})
+  }).then(r => r.json()).then(data => {
+    const blockId = data.id;
+    const template = document.getElementById('block-template');
+    const container = document.getElementById(`blocks-container-${charId}`);
+    
+    // Hide empty message if it exists
+    const emptyMsg = document.getElementById(`empty-blocks-msg-${charId}`);
+    if (emptyMsg) emptyMsg.style.display = 'none';
+    
+    const clone = template.content.cloneNode(true);
+    const wrapper = clone.querySelector('.block-item');
+    wrapper.id = `block-${blockId}`;
+    
+    // Wire up events
+    const nameInput = wrapper.querySelector('.block-name');
+    nameInput.onchange = (e) => updateBlock(charId, blockId, {name: e.target.value});
+    
+    const roleSelect = wrapper.querySelector('.block-role');
+    roleSelect.onchange = (e) => updateBlock(charId, blockId, {role: e.target.value});
+    
+    const contentTextarea = wrapper.querySelector('.block-content');
+    contentTextarea.onchange = (e) => updateBlock(charId, blockId, {content: e.target.value});
+    
+    const deleteBtn = wrapper.querySelector('.block-delete');
+    deleteBtn.onclick = () => deleteBlock(charId, blockId);
+    
+    // Add to top of list
+    container.insertBefore(clone, container.firstChild);
   });
 }
 </script>

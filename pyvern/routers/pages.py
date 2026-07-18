@@ -7,6 +7,7 @@ from jinja2 import FileSystemLoader
 import aiosqlite
 
 from pyvern.database import get_db
+from pyvern.card_parser import normalise_card
 
 router = APIRouter()
 
@@ -39,7 +40,7 @@ async def chat_redirect(request: Request, character_id: str = Query(None), db: a
         if char_row:
             character = dict(char_row)
             try:
-                character["card"] = json.loads(char_row["card_json"] or "{}")
+                character["card"] = normalise_card(json.loads(char_row["card_json"] or "{}"))
             except Exception:
                 character["card"] = {}
 
@@ -95,6 +96,19 @@ async def chat_page(request: Request, chat_id: str, db: aiosqlite.Connection = D
     """, (chat_id,)) as cur:
         messages = [dict(r) for r in await cur.fetchall()]
 
+    async with db.execute(
+        "SELECT id, message_id, file_path, mime_type FROM message_attachments WHERE chat_id = ? AND message_id IS NOT NULL",
+        (chat_id,)
+    ) as cur:
+        attachments = await cur.fetchall()
+        
+    attachments_by_msg = {}
+    for a in attachments:
+        attachments_by_msg.setdefault(a["message_id"], []).append(dict(a))
+        
+    for m in messages:
+        m["attachments"] = attachments_by_msg.get(m["id"], [])
+
     char = None
     if chat.get("character_id"):
         async with db.execute("SELECT * FROM characters WHERE id = ?", (chat["character_id"],)) as cur:
@@ -102,7 +116,7 @@ async def chat_page(request: Request, chat_id: str, db: aiosqlite.Connection = D
         if char_row:
             char = dict(char_row)
             try:
-                char["card"] = json.loads(char_row["card_json"] or "{}")
+                char["card"] = normalise_card(json.loads(char_row["card_json"] or "{}"))
             except Exception:
                 char["card"] = {}
 
@@ -184,7 +198,7 @@ async def characters_page(request: Request, db: aiosqlite.Connection = Depends(g
         for r in rows:
             c = dict(r)
             try:
-                c["card"] = json.loads(r["card_json"] or "{}")
+                c["card"] = normalise_card(json.loads(r["card_json"] or "{}"))
             except Exception:
                 c["card"] = {}
             async with db.execute(
@@ -247,6 +261,19 @@ async def message_list_partial(request: Request, chat_id: str, db: aiosqlite.Con
     """, (chat_id,)) as cur:
         messages = [dict(r) for r in await cur.fetchall()]
 
+    async with db.execute(
+        "SELECT id, message_id, file_path, mime_type FROM message_attachments WHERE chat_id = ? AND message_id IS NOT NULL",
+        (chat_id,)
+    ) as cur:
+        attachments = await cur.fetchall()
+        
+    attachments_by_msg = {}
+    for a in attachments:
+        attachments_by_msg.setdefault(a["message_id"], []).append(dict(a))
+        
+    for m in messages:
+        m["attachments"] = attachments_by_msg.get(m["id"], [])
+
     char = None
     persona = None
     async with db.execute("SELECT * FROM chats WHERE id = ?", (chat_id,)) as cur:
@@ -259,7 +286,7 @@ async def message_list_partial(request: Request, chat_id: str, db: aiosqlite.Con
                 if row:
                     char = dict(row)
                     try:
-                        char["card"] = json.loads(row["card_json"] or "{}")
+                        char["card"] = normalise_card(json.loads(row["card_json"] or "{}"))
                     except Exception:
                         char["card"] = {}
         if chat.get("persona_id"):
@@ -413,7 +440,7 @@ async def characters_modal_partial(request: Request, db: aiosqlite.Connection = 
         for r in rows:
             c = dict(r)
             try:
-                c["card"] = json.loads(r["card_json"] or "{}")
+                c["card"] = normalise_card(json.loads(r["card_json"] or "{}"))
             except Exception:
                 c["card"] = {}
             async with db.execute(

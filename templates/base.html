@@ -5,11 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Pyvern{% endblock %}</title>
 
-    <!-- New Google Fonts import -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/static/vendor/inter.css">
+    <script src="/static/vendor/tailwindcss.js"></script>
     <script>
       tailwind.config = {
         theme: {
@@ -50,17 +47,40 @@
       }
     </script>
     <link rel="stylesheet" href="/static/style.css">
-    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
-    <script src="https://unpkg.com/htmx.org@1.9.12/dist/ext/json-enc.js"></script>
-    <script defer src="https://unpkg.com/alpinejs@3.14.3/dist/cdn.min.js"></script>
-    <script src="https://unpkg.com/sortablejs@1.15.0/Sortable.min.js"></script>
-    <script src="https://unpkg.com/marked@12.0.2/lib/marked.umd.js"></script>
-    <script src="https://unpkg.com/dompurify@3.1.5/dist/purify.min.js"></script>
+    <script src="/static/vendor/htmx.min.js"></script>
+    <script src="/static/vendor/json-enc.js"></script>
+    <script defer src="/static/vendor/alpine.min.js"></script>
+    <script src="/static/vendor/sortable.min.js"></script>
+    <script src="/static/vendor/marked.umd.js"></script>
+    <script src="/static/vendor/purify.min.js"></script>
     {% block head %}{% endblock %}
 </head>
 <body class="bg-dark text-light" hx-ext="json-enc">
     {% block content %}{% endblock %}
     {% include "confirm_modal.html" %}
+    
+    <!-- Global Lightbox for Images -->
+    <div id="lightbox" class="fixed inset-0 z-[9999] bg-black/90 hidden flex-col items-center justify-center backdrop-blur-sm" onclick="closeLightbox(event)">
+      <button id="lightbox-close" class="absolute top-4 right-4 text-white/50 hover:text-white bg-black/50 hover:bg-black/75 rounded-full w-10 h-10 flex items-center justify-center transition-colors text-xl font-bold cursor-pointer focus:outline-none z-50" onclick="closeLightbox(event)" title="Close">×</button>
+      <img id="lightbox-img" src="" class="max-w-[95vw] max-h-[95vh] object-contain rounded shadow-2xl" onclick="event.stopPropagation()">
+    </div>
+
+    <script>
+      function openLightbox(src) {
+        const lb = document.getElementById('lightbox');
+        const img = document.getElementById('lightbox-img');
+        img.src = src;
+        lb.classList.remove('hidden');
+        lb.classList.add('flex');
+      }
+      function closeLightbox(e) {
+        const lb = document.getElementById('lightbox');
+        lb.classList.remove('flex');
+        lb.classList.add('hidden');
+        document.getElementById('lightbox-img').src = '';
+      }
+    </script>
+    
     <script src="/static/chat_stream.js"></script>
 </body>
 </html>

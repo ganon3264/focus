@@ -155,7 +155,7 @@ details.reasoning[open] > summary {
 .input-bar { padding: 1rem 1.5rem 1.5rem; display: flex; justify-content: center; position: absolute; bottom: 0; left: 0; right: 0; z-index: 20; pointer-events: none; background: linear-gradient(to top, var(--bg) 60%, transparent); }
 .input-wrapper { display: flex; gap: 0.5rem; align-items: center; background: rgba(19, 21, 26, 0.7); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid var(--border); border-radius: 24px; padding: 0.6rem; width: 100%; max-width: 820px; box-shadow: var(--shadow-lg); transition: border-color var(--transition), box-shadow var(--transition); pointer-events: auto; }
 .input-wrapper:focus-within { border-color: var(--accent); box-shadow: var(--shadow-glow); }
-.input-wrapper textarea { flex: 1; background: transparent; border: none; color: var(--text); padding: 0.65rem 1rem; resize: none; min-height: 44px; max-height: 250px; font-family: inherit; font-size: 0.95rem; line-height: 1.5; outline: none; }
+.input-wrapper textarea { flex: 1; background: transparent; border: none; color: var(--text); padding: 10px 1rem; resize: none; height: 44px; max-height: 250px; font-family: inherit; font-size: 1rem; line-height: 24px; outline: none; overflow-y: hidden; }
 .input-wrapper textarea::placeholder { color: var(--text-faint); }
 .send-btn { background: var(--accent); color: #fff; border: none; border-radius: 18px; width: 44px; height: 44px; cursor: pointer; display: grid; place-items: center; flex-shrink: 0; transition: all var(--transition); box-shadow: var(--shadow-sm); }
 .send-btn:hover { background: var(--accent-hover); transform: translateY(-1px); }
