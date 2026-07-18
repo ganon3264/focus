@@ -1,7 +1,7 @@
 // File staging area: drag/paste/upload, preview rendering, crop.
 // Depends on window.getSvgSprite, window.openCropModal
 
-(function(){
+(function () {
   window.stagedFiles = [];
 
   const fileUpload = document.getElementById('file-upload');
@@ -13,7 +13,8 @@
     stagingArea.innerHTML = '';
     window.stagedFiles.forEach((f, idx) => {
       const el = document.createElement('div');
-      el.className = 'flex items-center gap-1 bg-surface-2 p-1 rounded border border-border text-xs relative group';
+      el.className =
+        'flex items-center gap-1 bg-surface-2 p-1 rounded border border-border text-xs relative group';
 
       let preview = '';
       if (f.type.startsWith('image/')) {
@@ -43,30 +44,34 @@
     }
   }
 
-  window.removeStagedFile = function(idx) {
+  window.removeStagedFile = function (idx) {
     window.stagedFiles.splice(idx, 1);
     render();
   };
 
-  window.cropStagedImage = function(idx) {
+  window.cropStagedImage = function (idx) {
     const file = window.stagedFiles[idx];
     if (!file || !file.type.startsWith('image/')) return;
     if (typeof openCropModal !== 'function') return;
 
-    openCropModal(file, (croppedBlob) => {
-      const newFile = new File([croppedBlob], file.name, { type: 'image/png' });
-      window.stagedFiles[idx] = newFile;
-      render();
-    }, { aspectRatio: NaN });
+    openCropModal(
+      file,
+      (croppedBlob) => {
+        const newFile = new File([croppedBlob], file.name, { type: 'image/png' });
+        window.stagedFiles[idx] = newFile;
+        render();
+      },
+      { aspectRatio: NaN },
+    );
   };
 
-  window.clearUploadedFiles = function(uploadedFiles) {
-    window.stagedFiles = window.stagedFiles.filter(f => !uploadedFiles.includes(f));
+  window.clearUploadedFiles = function (uploadedFiles) {
+    window.stagedFiles = window.stagedFiles.filter((f) => !uploadedFiles.includes(f));
     render();
   };
 
   if (fileUpload) {
-    fileUpload.addEventListener('change', function(e) {
+    fileUpload.addEventListener('change', function (e) {
       if (e.target.files.length) {
         window.stagedFiles.push(...Array.from(e.target.files));
         render();
@@ -75,9 +80,9 @@
     });
   }
 
-  window.addEventListener('paste', e => {
+  window.addEventListener('paste', (e) => {
     if (e.clipboardData && e.clipboardData.files && e.clipboardData.files.length > 0) {
-      const newFiles = Array.from(e.clipboardData.files).filter(f => f.type.startsWith('image/'));
+      const newFiles = Array.from(e.clipboardData.files).filter((f) => f.type.startsWith('image/'));
       if (newFiles.length > 0) {
         window.stagedFiles.push(...newFiles);
         render();
@@ -87,9 +92,15 @@
   });
 
   if (input) {
-    input.addEventListener('dragover', e => { e.preventDefault(); input.style.background = 'var(--surface-3)'; });
-    input.addEventListener('dragleave', e => { e.preventDefault(); input.style.background = ''; });
-    input.addEventListener('drop', e => {
+    input.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      input.style.background = 'var(--surface-3)';
+    });
+    input.addEventListener('dragleave', (e) => {
+      e.preventDefault();
+      input.style.background = '';
+    });
+    input.addEventListener('drop', (e) => {
       e.preventDefault();
       input.style.background = '';
       if (e.dataTransfer.files && e.dataTransfer.files.length) {

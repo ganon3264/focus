@@ -8,7 +8,7 @@ function updateStatusPanel() {
     providerEl.textContent = 'None';
     modelEl.textContent = 'None';
   } else {
-    let provider = window.APP_PROVIDERS.find(p => p.id === activeId);
+    let provider = window.APP_PROVIDERS.find((p) => p.id === activeId);
 
     if (!provider) {
       const cardDisplay = document.getElementById('prov-display-' + activeId);
@@ -17,11 +17,11 @@ function updateStatusPanel() {
         const typeModelEl = cardDisplay.querySelector('.text-muted');
         if (nameEl && typeModelEl) {
           const text = typeModelEl.textContent;
-          const parts = text.split('•').map(s => s.trim());
+          const parts = text.split('•').map((s) => s.trim());
           provider = {
             name: nameEl.textContent,
             type: parts.length > 0 ? parts[0] : 'Unknown',
-            model: parts.length > 1 ? parts[1] : 'Unknown'
+            model: parts.length > 1 ? parts[1] : 'Unknown',
           };
         }
       }
@@ -51,8 +51,13 @@ function updateCacheTimer() {
   const cacheEl = document.getElementById('status-cache');
   if (!cacheRow || !cacheEl) return;
 
-  const provider = activeId && window.APP_PROVIDERS && window.APP_PROVIDERS.find(p => p.id === activeId);
-  const isClaude = provider && provider.type === 'openrouter' && provider.model && provider.model.startsWith('anthropic/claude');
+  const provider =
+    activeId && window.APP_PROVIDERS && window.APP_PROVIDERS.find((p) => p.id === activeId);
+  const isClaude =
+    provider &&
+    provider.type === 'openrouter' &&
+    provider.model &&
+    provider.model.startsWith('anthropic/claude');
 
   if (!isClaude) {
     cacheRow.classList.add('hidden');
@@ -70,7 +75,7 @@ function updateCacheTimer() {
   }
 
   const ttlMs = cacheTtl === '1h' ? 3600000 : 300000;
-  const remaining = (cacheTime + ttlMs) - Date.now();
+  const remaining = cacheTime + ttlMs - Date.now();
 
   if (remaining <= 0) {
     cacheEl.textContent = 'expired';
@@ -85,7 +90,7 @@ function updateCacheTimer() {
   cacheEl.textContent = min + 'm ' + (sec < 10 ? '0' : '') + sec + 's';
 }
 
-window.addEventListener('provider-changed', function() {
+window.addEventListener('provider-changed', function () {
   updateStatusPanel();
   updateCacheTimer();
 });
@@ -93,28 +98,34 @@ updateStatusPanel();
 updateCacheTimer();
 setInterval(updateCacheTimer, 1000);
 
-document.body.addEventListener('htmx:afterSwap', function(evt){
-  if(evt.detail.target.id === 'providers-modal-body'){
+document.body.addEventListener('htmx:afterSwap', function (evt) {
+  if (evt.detail.target.id === 'providers-modal-body') {
     setTimeout(updateStatusPanel, 50);
   }
 });
 
-document.addEventListener('DOMContentLoaded', function(){
+document.addEventListener('DOMContentLoaded', function () {
   const presetSelect = document.querySelector('#preset-selector select');
-  if(presetSelect && presetSelect.value){
-    htmx.ajax('GET', api.partials.promptArranger(presetSelect.value), {target:'#prompt-arranger', swap:'innerHTML'});
+  if (presetSelect && presetSelect.value) {
+    htmx.ajax('GET', api.partials.promptArranger(presetSelect.value), {
+      target: '#prompt-arranger',
+      swap: 'innerHTML',
+    });
   }
 });
 
-function newChat(){
+function newChat() {
   fetch(api.chats, {
     method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify(StateManager.getAll())
-  }).then(r => {
-    if(!r.ok) throw new Error('Failed to create chat');
-    return r.json();
-  }).then(data => {
-    window.location.href = '/chat/' + data.id;
-  }).catch(e => alert(e.message));
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(StateManager.getAll()),
+  })
+    .then((r) => {
+      if (!r.ok) throw new Error('Failed to create chat');
+      return r.json();
+    })
+    .then((data) => {
+      window.location.href = '/chat/' + data.id;
+    })
+    .catch((e) => alert(e.message));
 }

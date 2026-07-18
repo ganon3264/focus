@@ -69,7 +69,7 @@
         <div class="flex justify-between items-center w-full border-b border-(--border) pb-4 mb-2">
            <h2 class="text-xl font-bold">Edit Character</h2>
            <div class="flex gap-2">
-             <button class="btn btn-primary shadow-md" onclick="saveCharCard('{{ char.id }}')">Save Changes</button>
+             <button class="btn btn-primary shadow-md" onclick="saveCharCard('{{ char.id }}', this)">Save Changes</button>
              <button class="btn btn-danger" onclick="promptDeleteChar('{{ char.id }}', '{{ char.name | escape }}')">Delete</button>
            </div>
         </div>

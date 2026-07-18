@@ -2,20 +2,20 @@
 // markdown parsing, quoting, and thinking block rendering.
 // Depends on globals: marked, DOMPurify
 
-window.escapeHtml = function(text) {
+window.escapeHtml = function (text) {
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
 };
 
-window.extractThoughtsSafely = function(text) {
+window.extractThoughtsSafely = function (text) {
   const codeBlocks = [];
-  let processed = text.replace(/```[\s\S]*?(?:```|$)/g, match => {
+  let processed = text.replace(/```[\s\S]*?(?:```|$)/g, (match) => {
     codeBlocks.push(match);
     return `%%%FOCUS_CODE_${codeBlocks.length - 1}%%%`;
   });
 
-  processed = processed.replace(/`[^`\n]*`/g, match => {
+  processed = processed.replace(/`[^`\n]*`/g, (match) => {
     codeBlocks.push(match);
     return `%%%FOCUS_CODE_${codeBlocks.length - 1}%%%`;
   });
@@ -23,7 +23,7 @@ window.extractThoughtsSafely = function(text) {
   processed = processed.replace(/<thought_signature>([\s\S]*?)(?:<\/thought_signature>|$)/g, '');
 
   const thoughts = [];
-  processed = processed.replace(/<think>([\s\S]*?)(?:<\/think>|$)/g, function(match, p1) {
+  processed = processed.replace(/<think>([\s\S]*?)(?:<\/think>|$)/g, function (match, p1) {
     const isClosed = match.includes('</think>');
     thoughts.push({ content: p1, isClosed: isClosed });
     return `\n\n%%%THINK_BLOCK_${thoughts.length - 1}%%%\n\n`;
@@ -40,18 +40,18 @@ window.extractThoughtsSafely = function(text) {
   return { thoughts, processed };
 };
 
-window.renderMessage = function(text) {
-  if (!text) return "";
+marked.use({ breaks: true });
+
+window.renderMessage = function (text) {
+  if (!text) return '';
 
   const extracted = window.extractThoughtsSafely(text);
   const thoughts = extracted.thoughts;
   let processed = extracted.processed;
-
-  marked.use({ breaks: true });
   let html = DOMPurify.sanitize(marked.parse(processed));
 
   const codeStash = [];
-  html = html.replace(/<(code|pre)\b[^>]*>[\s\S]*?<\/\1>/g, m => {
+  html = html.replace(/<(code|pre)\b[^>]*>[\s\S]*?<\/\1>/g, (m) => {
     codeStash.push(m);
     return `%%%ACCENT_CODE_${codeStash.length - 1}%%%`;
   });
@@ -63,7 +63,10 @@ window.renderMessage = function(text) {
       const ch = html[pos];
       if (ch === '<') {
         const tagEnd = html.indexOf('>', pos);
-        if (tagEnd === -1) { result += ch; continue; }
+        if (tagEnd === -1) {
+          result += ch;
+          continue;
+        }
         const tag = html.slice(pos, tagEnd + 1);
 
         if (tag.startsWith('</')) {
@@ -76,7 +79,10 @@ window.renderMessage = function(text) {
               }
             }
           }
-        } else if (!tag.endsWith('/>') && !tag.match(/<(area|base|br|col|embed|hr|img|input|link|meta|param|source|track|wbr)\b/i)) {
+        } else if (
+          !tag.endsWith('/>') &&
+          !tag.match(/<(area|base|br|col|embed|hr|img|input|link|meta|param|source|track|wbr)\b/i)
+        ) {
           const tagName = tag.match(/<(\w+)/)?.[1];
           if (tagName) {
             tagStack.push({ name: tagName, styled: /style\s*=/i.test(tag) });
@@ -85,7 +91,7 @@ window.renderMessage = function(text) {
 
         result += tag;
         pos = tagEnd;
-      } else if (ch === '"' && !tagStack.some(t => t.styled)) {
+      } else if (ch === '"' && !tagStack.some((t) => t.styled)) {
         let end = pos + 1;
         while (end < html.length && html[end] !== '"') {
           if (html[end] === '<') {
@@ -110,7 +116,10 @@ window.renderMessage = function(text) {
   html = html.replace(/%%%ACCENT_CODE_(\d+)%%%/g, (_, i) => {
     const stashed = codeStash[+i];
     if (stashed.startsWith('<pre')) {
-      return stashed.replace('</pre>', `<button class="copy-btn" title="Copy code">${window.getSvgSprite('copy', 14)}</button></pre>`);
+      return stashed.replace(
+        '</pre>',
+        `<button class="copy-btn" title="Copy code">${window.getSvgSprite('copy', 14)}</button></pre>`,
+      );
     }
     return stashed;
   });
@@ -127,7 +136,7 @@ window.renderMessage = function(text) {
   return html;
 };
 
-document.addEventListener('click', function(e) {
+document.addEventListener('click', function (e) {
   const btn = e.target.closest('.copy-btn');
   if (!btn) return;
   const pre = btn.closest('pre');

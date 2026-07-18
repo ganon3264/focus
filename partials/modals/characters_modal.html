@@ -1,39 +1,86 @@
 <div class="flex flex-col h-full">
-  {% from "macros.html" import icon_edit, icon_trash, icon_search, icon_plus, icon_upload, icon_grid, icon_close %}
-  <div class="flex flex-col gap-3 pb-4 border-b" style="border-color:var(--border);">
+  {% from "macros.html" import icon_edit, icon_trash, icon_search, icon_plus, icon_upload,
+  icon_grid, icon_close %}
+  <div class="flex flex-col gap-3 pb-4 border-b" style="border-color: var(--border)">
     <h3 class="sidebar-title mb-1">Tools</h3>
     <div class="flex gap-2 h-10">
       <form onsubmit="importCharModal(event)" class="flex-1 h-full">
-        <label class="btn btn-secondary btn-sm w-full h-full flex items-center justify-center cursor-pointer m-0 gap-1.5">
+        <label
+          class="btn btn-secondary btn-sm w-full h-full flex items-center justify-center cursor-pointer m-0 gap-1.5"
+        >
           {{ icon_upload(size=14) }} Import
-          <input type="file" name="files" accept="image/png" class="hidden" multiple onchange="this.closest('form').requestSubmit()">
+          <input
+            type="file"
+            name="files"
+            accept="image/png"
+            class="hidden"
+            multiple
+            onchange="this.closest('form').requestSubmit()"
+          />
         </label>
       </form>
-      <button onclick="openNewCharPopup()" class="btn btn-secondary btn-sm flex-1 h-full flex items-center justify-center gap-1.5 cursor-pointer m-0">
+      <button
+        onclick="openNewCharPopup()"
+        class="btn btn-secondary btn-sm flex-1 h-full flex items-center justify-center gap-1.5 cursor-pointer m-0"
+      >
         {{ icon_plus(size=14) }} New
       </button>
-      <a href="/characters" class="btn btn-secondary btn-sm flex-1 flex items-center justify-center h-full text-decoration-none gap-1.5">{{ icon_edit(size=14) }} Editor</a>
+      <a
+        href="/characters"
+        class="btn btn-secondary btn-sm flex-1 flex items-center justify-center h-full text-decoration-none gap-1.5"
+        >{{ icon_edit(size=14) }} Editor</a
+      >
     </div>
     <div class="flex gap-2 items-center">
       <div class="flex-1 relative">
-        <span class="absolute left-2.5 top-1/2 -translate-y-1/2 flex" style="color:var(--text-muted); pointer-events:none;">{{ icon_search(size=14) }}</span>
-        <input type="text" placeholder="Search characters..."
-               oninput="filterCharacters(this.value)"
-               class="text-sm w-full"
-               style="padding-left:2rem; padding-right:0.5rem; padding-top:0.35rem; padding-bottom:0.35rem; background:var(--surface-2); border:1px solid var(--border); color:var(--text); border-radius:var(--radius-md);">
+        <span
+          class="absolute left-2.5 top-1/2 -translate-y-1/2 flex"
+          style="color: var(--text-muted); pointer-events: none"
+          >{{ icon_search(size=14) }}</span
+        >
+        <input
+          type="text"
+          placeholder="Search characters..."
+          oninput="filterCharacters(this.value)"
+          class="text-sm w-full"
+          style="
+            padding-left: 2rem;
+            padding-right: 0.5rem;
+            padding-top: 0.35rem;
+            padding-bottom: 0.35rem;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            color: var(--text);
+            border-radius: var(--radius-md);
+          "
+        />
       </div>
-      <select id="char-sort-select" onchange="sortCharacters(this.value)"
-              class="text-sm shrink-0"
-              style="background:var(--surface-2); border:1px solid var(--border); color:var(--text); border-radius:var(--radius-md); padding:0.35rem 0.4rem;">
+      <select
+        id="char-sort-select"
+        onchange="sortCharacters(this.value)"
+        class="text-sm shrink-0"
+        style="
+          background: var(--surface-2);
+          border: 1px solid var(--border);
+          color: var(--text);
+          border-radius: var(--radius-md);
+          padding: 0.35rem 0.4rem;
+        "
+      >
         <option value="newest">Newest</option>
         <option value="oldest">Oldest</option>
         <option value="az">A → Z</option>
         <option value="za">Z → A</option>
       </select>
-      <button onclick="toggleCompactView()"
-              class="btn btn-secondary btn-sm shrink-0"
-              id="view-toggle-btn"
-              title="Toggle compact view" aria-label="Toggle compact view">{{ icon_grid(size=14) }}</button>
+      <button
+        onclick="toggleCompactView()"
+        class="btn btn-secondary btn-sm shrink-0"
+        id="view-toggle-btn"
+        title="Toggle compact view"
+        aria-label="Toggle compact view"
+      >
+        {{ icon_grid(size=14) }}
+      </button>
     </div>
   </div>
 
@@ -41,58 +88,127 @@
     <h3 class="sidebar-title mb-3">Select Character</h3>
 
     {% if not characters %}
-      <div class="text-muted text-center text-sm py-6 border border-dashed border-(--border) rounded-lg">
-        No characters found. Create or import one to get started!
-      </div>
+    <div
+      class="text-muted text-center text-sm py-6 border border-dashed border-(--border) rounded-lg"
+    >
+      No characters found. Create or import one to get started!
+    </div>
     {% endif %}
 
-    <div class="grid" id="char-modal-grid" data-view="{{ 'compact' if compact_view else 'full' }}" style="grid-template-columns: {{ 'repeat(3, minmax(200px, 1fr))' if compact_view else 'repeat(auto-fill, minmax(160px, 1fr))' }}; gap: 1rem;">
+    <div
+      class="grid"
+      id="char-modal-grid"
+      data-view="{{ 'compact' if compact_view else 'full' }}"
+      style="grid-template-columns: {{ 'repeat(3, minmax(200px, 1fr))' if compact_view else 'repeat(auto-fill, minmax(160px, 1fr))' }}; gap: 1rem;"
+    >
       {% for char in characters %}
-      <div class="card{% if current_character_id == char.id %} active{% endif %}" id="char-card-{{ char.id }}" data-char-name="{{ char.name | lower }}" data-char-created="{{ char.created_at }}">
-        <div class="card-view-full h-full flex flex-col" style="display:{{ 'none' if compact_view else 'flex' }};">
-          <div class="card-image" style="aspect-ratio: 1/1; border-radius: 12px 12px 0 0; cursor:pointer;" role="button" tabindex="0" onclick="selectCharModal('{{ char.id }}', '{{ char.name }}')">
+      <div
+        class="card{% if current_character_id == char.id %} active{% endif %}"
+        id="char-card-{{ char.id }}"
+        data-char-name="{{ char.name | lower }}"
+        data-char-created="{{ char.created_at }}"
+      >
+        <div
+          class="card-view-full h-full flex flex-col"
+          style="display:{{ 'none' if compact_view else 'flex' }};"
+        >
+          <div
+            class="card-image"
+            style="aspect-ratio: 1/1; border-radius: 12px 12px 0 0; cursor: pointer"
+            role="button"
+            tabindex="0"
+            onclick="selectCharModal('{{ char.id }}', '{{ char.name }}')"
+          >
             {% if char.image_path %}
-              <img src="/{{ char.image_path }}" alt="{{ char.name }} avatar" style="border-radius: 12px 12px 0 0;">
+            <img
+              src="/{{ char.image_path }}"
+              alt="{{ char.name }} avatar"
+              style="border-radius: 12px 12px 0 0"
+            />
             {% else %}
-              <span class="text-3xl">{{ char.name[:1] }}</span>
+            <span class="text-3xl">{{ char.name[:1] }}</span>
             {% endif %}
           </div>
-          <div class="card-body" style="padding: 0.75rem;">
+          <div class="card-body" style="padding: 0.75rem">
             <div class="font-bold text-sm truncate mb-1">{{ char.name }}</div>
-            <div class="text-xs text-muted truncate mb-2">{{ char.card.get('description','')[:40] or 'No details' }}</div>
+            <div class="text-xs text-muted truncate mb-2">
+              {{ char.card.get('description','')[:40] or 'No details' }}
+            </div>
             <div class="flex gap-1 mt-auto">
-              <button class="btn btn-secondary btn-sm flex-1" 
-                      data-char-id="{{ char.id }}" 
-                      data-char-name="{{ char.name }}" 
-                      data-char-desc="{{ char.card.get('description','') }}" 
-                      data-char-image="{{ char.image_path or '' }}"
-                      data-char-media="{{ char.images | tojson | forceescape }}"
-                      onclick="event.stopPropagation(); openEditCharacterModal(this)" aria-label="Edit character">{{ icon_edit() }}</button>
-              <button class="btn btn-danger btn-sm" onclick="event.stopPropagation(); promptDeleteChar('{{ char.id }}', '{{ char.name | escape }}')" aria-label="Delete character">{{ icon_trash() }}</button>
+              <button
+                class="btn btn-secondary btn-sm flex-1"
+                data-char-id="{{ char.id }}"
+                data-char-name="{{ char.name }}"
+                data-char-desc="{{ char.card.get('description','') }}"
+                data-char-image="{{ char.image_path or '' }}"
+                data-char-media="{{ char.images | tojson | forceescape }}"
+                onclick="
+                  event.stopPropagation();
+                  openEditCharacterModal(this);
+                "
+                aria-label="Edit character"
+              >
+                {{ icon_edit() }}
+              </button>
+              <button
+                class="btn btn-danger btn-sm"
+                onclick="event.stopPropagation(); promptDeleteChar('{{ char.id }}', '{{ char.name | escape }}')"
+                aria-label="Delete character"
+              >
+                {{ icon_trash() }}
+              </button>
             </div>
           </div>
         </div>
         <div class="card-view-compact" style="display:{{ 'block' if compact_view else 'none' }};">
-          <div class="flex items-center gap-2.5 p-2.5 cursor-pointer" role="button" tabindex="0" onclick="selectCharModal('{{ char.id }}', '{{ char.name }}')">
-            <div class="w-10 h-10 rounded-full overflow-hidden shrink-0 border border-(--border) flex items-center justify-center" style="background:var(--surface-3);">
+          <div
+            class="flex items-center gap-2.5 p-2.5 cursor-pointer"
+            role="button"
+            tabindex="0"
+            onclick="selectCharModal('{{ char.id }}', '{{ char.name }}')"
+          >
+            <div
+              class="w-10 h-10 rounded-full overflow-hidden shrink-0 border border-(--border) flex items-center justify-center"
+              style="background: var(--surface-3)"
+            >
               {% if char.image_path %}
-                <img src="/{{ char.image_path }}" alt="{{ char.name }} avatar" class="w-full h-full object-cover">
+              <img
+                src="/{{ char.image_path }}"
+                alt="{{ char.name }} avatar"
+                class="w-full h-full object-cover"
+              />
               {% else %}
-                <span class="text-sm font-bold text-muted">{{ char.name[:1] }}</span>
+              <span class="text-sm font-bold text-muted">{{ char.name[:1] }}</span>
               {% endif %}
             </div>
             <div class="flex-1 min-w-0">
               <div class="font-bold text-sm truncate">{{ char.name }}</div>
             </div>
             <div class="flex flex-col gap-1 shrink-0" onclick="event.stopPropagation()">
-              <button class="btn btn-secondary btn-sm" style="padding:0.2rem 0.4rem; min-width:0;"
-                      data-char-id="{{ char.id }}" 
-                      data-char-name="{{ char.name }}" 
-                      data-char-desc="{{ char.card.get('description','') }}" 
-                      data-char-image="{{ char.image_path or '' }}"
-                      data-char-media="{{ char.images | tojson | forceescape }}"
-                      onclick="event.stopPropagation(); openEditCharacterModal(this)" aria-label="Edit character">{{ icon_edit(size=12) }}</button>
-              <button class="btn btn-danger btn-sm" style="padding:0.2rem 0.4rem; min-width:0;" onclick="event.stopPropagation(); promptDeleteChar('{{ char.id }}', '{{ char.name | escape }}')" aria-label="Delete character">{{ icon_trash(size=12) }}</button>
+              <button
+                class="btn btn-secondary btn-sm"
+                style="padding: 0.2rem 0.4rem; min-width: 0"
+                data-char-id="{{ char.id }}"
+                data-char-name="{{ char.name }}"
+                data-char-desc="{{ char.card.get('description','') }}"
+                data-char-image="{{ char.image_path or '' }}"
+                data-char-media="{{ char.images | tojson | forceescape }}"
+                onclick="
+                  event.stopPropagation();
+                  openEditCharacterModal(this);
+                "
+                aria-label="Edit character"
+              >
+                {{ icon_edit(size=12) }}
+              </button>
+              <button
+                class="btn btn-danger btn-sm"
+                style="padding: 0.2rem 0.4rem; min-width: 0"
+                onclick="event.stopPropagation(); promptDeleteChar('{{ char.id }}', '{{ char.name | escape }}')"
+                aria-label="Delete character"
+              >
+                {{ icon_trash(size=12) }}
+              </button>
             </div>
           </div>
         </div>
@@ -101,7 +217,7 @@
     </div>
   </div>
 
-  <div class="flex justify-end pt-3 border-t" style="border-color:var(--border);">
+  <div class="flex justify-end pt-3 border-t" style="border-color: var(--border)">
     <button class="btn btn-secondary btn-sm flex items-center gap-2" onclick="openTrashModal()">
       <span>{{ icon_trash() }}</span> Trash Bin
     </button>
@@ -109,8 +225,8 @@
 </div>
 
 <script>
-function promptDeleteChar(charId, charName) {
-  const html = `
+  function promptDeleteChar(charId, charName) {
+    const html = `
     <div class="mb-4 text-sm" style="color:var(--text);">Delete character <strong>${charName}</strong>?</div>
     <div class="flex flex-col gap-3">
       <label class="flex items-start gap-3 cursor-pointer p-3 rounded-lg hover:bg-(--surface-3) transition-colors border border-(--border) relative group">
@@ -133,27 +249,31 @@ function promptDeleteChar(charId, charName) {
       </label>
     </div>
   `;
-  window.customConfirm(html, function() {
-    const selected = document.querySelector('input[name="char_delete_option"]:checked').value;
-    const delChats = selected === 'soft_with_chats';
-    fetch(`/api/characters/${charId}?delete_chats=${delChats}`, {
-      method: 'DELETE'
-    }).then(r => {
-      if(r.ok) htmx.ajax('GET','/partials/characters-modal',{target:'#characters-modal-body',swap:'innerHTML'});
+    window.customConfirm(html, function () {
+      const selected = document.querySelector('input[name="char_delete_option"]:checked').value;
+      const delChats = selected === 'soft_with_chats';
+      fetch(`/api/characters/${charId}?delete_chats=${delChats}`, {
+        method: 'DELETE',
+      }).then((r) => {
+        if (r.ok)
+          htmx.ajax('GET', '/partials/characters-modal', {
+            target: '#characters-modal-body',
+            swap: 'innerHTML',
+          });
+      });
     });
-  });
-}
+  }
 
-function openTrashModal() {
-  fetch('/api/characters/trash')
-    .then(r => r.json())
-    .then(chars => {
-      let html = `<div class="flex flex-col gap-2 max-h-[60vh] overflow-y-auto pr-1">`;
-      if (chars.length === 0) {
-        html += `<div class="text-muted text-center py-6 border border-dashed border-(--border) rounded-lg">Trash is empty.</div>`;
-      } else {
-        chars.forEach(c => {
-          html += `
+  function openTrashModal() {
+    fetch('/api/characters/trash')
+      .then((r) => r.json())
+      .then((chars) => {
+        let html = `<div class="flex flex-col gap-2 max-h-[60vh] overflow-y-auto pr-1">`;
+        if (chars.length === 0) {
+          html += `<div class="text-muted text-center py-6 border border-dashed border-(--border) rounded-lg">Trash is empty.</div>`;
+        } else {
+          chars.forEach((c) => {
+            html += `
             <div class="flex justify-between items-center p-3 border border-(--border) rounded-lg bg-(--surface-2)">
               <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-full overflow-hidden bg-(--surface-3) flex items-center justify-center border border-(--border)">
@@ -167,11 +287,11 @@ function openTrashModal() {
               </div>
             </div>
           `;
-        });
-      }
-      html += `</div>`;
-      
-      const modalHtml = `
+          });
+        }
+        html += `</div>`;
+
+        const modalHtml = `
         <div id="trash-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Trash" style="z-index: var(--z-overlay);" onclick="if(event.target===this) this.remove()">
           <div class="modal-content" style="max-width: 500px; width: 90vw;">
             <div class="modal-header" style="margin-bottom: 1rem;">
@@ -184,12 +304,12 @@ function openTrashModal() {
           </div>
         </div>
       `;
-      document.body.insertAdjacentHTML('beforeend', modalHtml);
-    });
-}
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+      });
+  }
 
-window.restoreChar = function(charId) {
-  const html = `
+  window.restoreChar = function (charId) {
+    const html = `
     <div class="mb-4 text-sm" style="color:var(--text);">Restore character?</div>
     <label class="flex items-start gap-3 cursor-pointer p-3 rounded-lg hover:bg-(--surface-3) transition-colors border border-(--border)">
       <div class="mt-0.5">
@@ -201,75 +321,94 @@ window.restoreChar = function(charId) {
       </div>
     </label>
   `;
-  window.customConfirm(html, function() {
-    const restoreChats = document.getElementById('restore_chats_cb').checked;
-    fetch(`/api/characters/${charId}/restore?restore_chats=${restoreChats}`, {
-      method: 'POST'
-    }).then(r => {
-      if(r.ok) {
-        document.getElementById('trash-modal').remove();
-        htmx.ajax('GET','/partials/characters-modal',{target:'#characters-modal-body',swap:'innerHTML'});
+    window.customConfirm(html, function () {
+      const restoreChats = document.getElementById('restore_chats_cb').checked;
+      fetch(`/api/characters/${charId}/restore?restore_chats=${restoreChats}`, {
+        method: 'POST',
+      }).then((r) => {
+        if (r.ok) {
+          document.getElementById('trash-modal').remove();
+          htmx.ajax('GET', '/partials/characters-modal', {
+            target: '#characters-modal-body',
+            swap: 'innerHTML',
+          });
+        }
+      });
+    });
+  };
+
+  window.hardDeleteChar = function (charId, charName) {
+    window.customConfirm(
+      `Permanently delete <strong>${charName}</strong>? This cannot be undone.`,
+      function () {
+        fetch(`/api/characters/${charId}?hard=true`, {
+          method: 'DELETE',
+        }).then((r) => {
+          if (r.ok) {
+            document.getElementById('trash-modal').remove();
+            openTrashModal();
+          }
+        });
+      },
+    );
+  };
+
+  function selectCharModal(charId, charName) {
+    window.location.href = '/chat?character_id=' + charId;
+  }
+
+  function importCharModal(e) {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    fetch('/api/characters/import', {
+      method: 'POST',
+      body: formData,
+    }).then(async function (r) {
+      if (r.ok) {
+        const data = await r.json();
+        if (data.errors && data.errors.length) {
+          alert(
+            'Imported ' +
+              data.imported.length +
+              ' of ' +
+              data.total +
+              ' cards.\n\nErrors:\n' +
+              data.errors
+                .map(function (e) {
+                  return '• ' + e.filename + ': ' + e.error;
+                })
+                .join('\n'),
+          );
+        }
+        htmx.ajax('GET', '/partials/characters-modal', {
+          target: '#characters-modal-body',
+          swap: 'innerHTML',
+        });
+      } else {
+        r.text().then((t) => alert('Import failed: ' + t));
       }
     });
+  }
+
+  ListManager.setup({
+    filterFn: 'filterCharacters',
+    sortFn: 'sortCharacters',
+    applyCompactFn: 'applyCompactView',
+    toggleCompactFn: 'toggleCompactView',
+    newItemFn: 'openNewCharPopup',
+    gridId: 'char-modal-grid',
+    dataNameAttr: 'data-char-name',
+    dataCreatedAttr: 'data-char-created',
+    sortSelectId: 'char-sort-select',
+    sortStorageKey: 'focus_char_sort',
+    viewFullClass: 'card-view-full',
+    viewCompactClass: 'card-view-compact',
+    viewStorageKey: 'focus_char_view',
+    cookieKey: 'focus_view_char',
+    newItemLabel: 'Character Name',
+    newItemInputId: 'new-char-name-input',
+    apiEndpoint: '/api/characters',
+    hxRoute: '/partials/characters-modal',
+    hxTarget: '#characters-modal-body',
   });
-};
-
-window.hardDeleteChar = function(charId, charName) {
-  window.customConfirm(`Permanently delete <strong>${charName}</strong>? This cannot be undone.`, function() {
-    fetch(`/api/characters/${charId}?hard=true`, {
-      method: 'DELETE'
-    }).then(r => {
-      if(r.ok) {
-        document.getElementById('trash-modal').remove();
-        openTrashModal();
-      }
-    });
-  });
-};
-
-
-function selectCharModal(charId, charName){
-  window.location.href = '/chat?character_id=' + charId;
-}
-
-function importCharModal(e){
-  e.preventDefault();
-  const formData = new FormData(e.target);
-  fetch('/api/characters/import', {
-    method: 'POST',
-    body: formData
-  }).then(async function(r){
-    if(r.ok) {
-      const data = await r.json();
-      if(data.errors && data.errors.length) {
-        alert('Imported ' + data.imported.length + ' of ' + data.total + ' cards.\n\nErrors:\n' + data.errors.map(function(e){ return '• ' + e.filename + ': ' + e.error; }).join('\n'));
-      }
-      htmx.ajax('GET','/partials/characters-modal',{target:'#characters-modal-body',swap:'innerHTML'});
-    } else {
-      r.text().then(t => alert('Import failed: ' + t));
-    }
-  });
-}
-
-ListManager.setup({
-  filterFn: 'filterCharacters',
-  sortFn: 'sortCharacters',
-  applyCompactFn: 'applyCompactView',
-  toggleCompactFn: 'toggleCompactView',
-  newItemFn: 'openNewCharPopup',
-  gridId: 'char-modal-grid',
-  dataNameAttr: 'data-char-name',
-  dataCreatedAttr: 'data-char-created',
-  sortSelectId: 'char-sort-select',
-  sortStorageKey: 'focus_char_sort',
-  viewFullClass: 'card-view-full',
-  viewCompactClass: 'card-view-compact',
-  viewStorageKey: 'focus_char_view',
-  cookieKey: 'focus_view_char',
-  newItemLabel: 'Character Name',
-  newItemInputId: 'new-char-name-input',
-  apiEndpoint: '/api/characters',
-  hxRoute: '/partials/characters-modal',
-  hxTarget: '#characters-modal-body'
-});
 </script>

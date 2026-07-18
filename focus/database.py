@@ -1,7 +1,16 @@
 import os
+from datetime import UTC
+
 import aiosqlite
 
-from focus.paths import DB_PATH, CHARACTERS_DIR, PERSONAS_DIR, PRESETS_DIR, ATTACHMENTS_DIR, COMPRESSED_DIR
+from focus.paths import (
+    ATTACHMENTS_DIR,
+    CHARACTERS_DIR,
+    COMPRESSED_DIR,
+    DB_PATH,
+    PERSONAS_DIR,
+    PRESETS_DIR,
+)
 
 SCHEMA = """
 PRAGMA journal_mode=WAL;
@@ -127,7 +136,6 @@ CREATE INDEX IF NOT EXISTS idx_char_blocks_char      ON char_blocks(character_id
 CREATE INDEX IF NOT EXISTS idx_message_variants_msg  ON message_variants(message_id, variant_index);
 """
 
-
 async def get_db():
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
@@ -153,9 +161,11 @@ async def init_db():
         async with db.execute("SELECT COUNT(*) FROM personas") as cur:
             count = (await cur.fetchone())[0]
         if count == 0:
-            from datetime import datetime, timezone
-            now = datetime.now(timezone.utc).isoformat()
+            from datetime import datetime
+
+            now = datetime.now(UTC).isoformat()
             import uuid
+
             await db.execute(
                 "INSERT INTO personas (id, name, description, avatar_path, created_at) VALUES (?, ?, ?, ?, ?)",
                 (str(uuid.uuid4()), "User", "", None, now),
@@ -167,9 +177,13 @@ async def init_db():
         cols = await db.execute("PRAGMA table_info(preset_blocks)")
         col_names = {row[1] for row in await cols.fetchall()}
         if "injection_depth" not in col_names:
-            await db.execute("ALTER TABLE preset_blocks ADD COLUMN injection_depth INTEGER DEFAULT NULL")
+            await db.execute(
+                "ALTER TABLE preset_blocks ADD COLUMN injection_depth INTEGER DEFAULT NULL"
+            )
         if "injection_order" not in col_names:
-            await db.execute("ALTER TABLE preset_blocks ADD COLUMN injection_order INTEGER DEFAULT 0")
+            await db.execute(
+                "ALTER TABLE preset_blocks ADD COLUMN injection_order INTEGER DEFAULT 0"
+            )
         if "cache_control" in col_names:
             await db.execute("ALTER TABLE preset_blocks DROP COLUMN cache_control")
 

@@ -4,7 +4,7 @@ import tempfile
 import aiosqlite
 import pytest
 
-from focus.backup import create_backup, list_backups, restore_backup, delete_backup
+from focus.backup import create_backup, delete_backup, list_backups, restore_backup
 from focus.database import SCHEMA
 
 
@@ -36,7 +36,7 @@ class TestBackupFunctions:
 
             assert result["size_bytes"] > 0
             assert "id" in result
-            assert (os.path.join(backups_path, result["id"] + ".focus"))
+            assert os.path.join(backups_path, result["id"] + ".focus")
 
             backups = list_backups(backups_path=backups_path)
             assert len(backups) == 1
@@ -76,7 +76,13 @@ class TestBackupFunctions:
                 db.row_factory = aiosqlite.Row
                 await db.execute(
                     "INSERT INTO characters (id, name, image_path, card_json, created_at) VALUES (?, ?, ?, ?, ?)",
-                    ("aaa", "Alice", None, '{"data":{"name":"Alice"}}', "2024-01-01T00:00:00+00:00"),
+                    (
+                        "aaa",
+                        "Alice",
+                        None,
+                        '{"data":{"name":"Alice"}}',
+                        "2024-01-01T00:00:00+00:00",
+                    ),
                 )
                 await db.commit()
                 result = await create_backup(db, backups_path=backups_path)

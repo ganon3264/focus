@@ -1,23 +1,21 @@
 from __future__ import annotations
+
 import base64
 import logging
-import os
 import re
+from io import BytesIO
 from pathlib import Path
 from typing import Any
-from io import BytesIO
 
 from PIL import Image
 
 from focus.macros import apply_macros
-from focus.utils import variable_group_name, MACRO_MAX_PASSES
+from focus.paths import COMPRESSED_DIR
+from focus.utils import MACRO_MAX_PASSES, variable_group_name
 
 logger = logging.getLogger("focus.prompt_chain")
 
-from focus.paths import COMPRESSED_DIR
-
 MAX_IMAGE_B64 = 5 * 1024 * 1024  # 5 MB provider limit on base64 payload
-
 
 def _ensure_compressed(orig_path: str, mime: str) -> tuple[Path, str]:
     """Return (compressed_file_path, output_mime) from a disk cache.
@@ -86,7 +84,6 @@ def _ensure_compressed(orig_path: str, mime: str) -> tuple[Path, str]:
     jpg_cache.write_bytes(buf.getvalue())
     return jpg_cache, "image/jpeg"
 
-
 def _load_media(media_row: dict) -> dict | None:
     """Read a media file from disk and return an OpenAI-format block."""
     path = media_row.get("image_path") or media_row.get("file_path")
@@ -108,10 +105,7 @@ def _load_media(media_row: dict) -> dict | None:
         fmt = mime.split("/")[-1].replace("mpeg", "mp3")
         return {
             "type": "input_audio",
-            "input_audio": {
-                "data": base64.b64encode(data).decode(),
-                "format": fmt
-            }
+            "input_audio": {"data": base64.b64encode(data).decode(), "format": fmt},
         }
 
     try:
@@ -121,8 +115,10 @@ def _load_media(media_row: dict) -> dict | None:
         logger.warning("_load_media: compression failed for %s: %s", path, e)
         return None
 
-    return {"type": "image_url", "image_url": {"url": f"data:{out_mime};base64,{base64.b64encode(data).decode()}"}}
-
+    return {
+        "type": "image_url",
+        "image_url": {"url": f"data:{out_mime};base64,{base64.b64encode(data).decode()}"},
+    }
 
 def _build_content(text: str, images: list[dict]) -> str | list:
     """
@@ -136,7 +132,6 @@ def _build_content(text: str, images: list[dict]) -> str | list:
         parts.append({"type": "text", "text": text})
     parts.extend(m for img in images if (m := _load_media(img)) is not None)
     return parts
-
 
 def _merge_consecutive(messages: list[dict]) -> list[dict]:
     """
@@ -154,9 +149,7 @@ def _merge_consecutive(messages: list[dict]) -> list[dict]:
         return list(content)
 
     def merge_content(a, b):
-        all_text = (
-            isinstance(a, str) and isinstance(b, str)
-        )
+        all_text = isinstance(a, str) and isinstance(b, str)
         if all_text:
             sep = "\n" if a and b else ""
             return a + sep + b
@@ -183,7 +176,6 @@ def _merge_consecutive(messages: list[dict]) -> list[dict]:
             result.append(dict(msg))
     return result
 
-
 def partition_blocks(blocks: list[dict]) -> tuple[list[dict], list[dict], dict[str, list[dict]]]:
     """Split preset blocks into variable and non-variable buckets.
 
@@ -201,7 +193,6 @@ def partition_blocks(blocks: list[dict]) -> tuple[list[dict], list[dict], dict[s
         else:
             regular_blocks.append(b)
     return var_blocks, regular_blocks, var_groups
-
 
 def resolve_variable_blocks(variable_blocks: list[dict], macros: dict[str, str]) -> None:
     """Resolve {{macro}} references inside variable blocks, mutating `macros`.
@@ -227,7 +218,6 @@ def resolve_variable_blocks(variable_blocks: list[dict], macros: dict[str, str])
                 changed = True
         if not changed:
             break
-
 
 def assemble_prompt(
     preset_blocks: list[dict[str, Any]],
@@ -262,7 +252,7 @@ def assemble_prompt(
     active = [b for b in active if b["block_type"] != "variable"]
     resolve_variable_blocks(variables, macros)
 
-    pre_history:  list[dict] = []
+    pre_history: list[dict] = []
     post_history: list[dict] = []
     history_seen = False
 
@@ -323,27 +313,34 @@ def assemble_prompt(
             cleaned_msg["content"] = apply_macros(cleaned_msg["content"], macros)
         if cleaned_msg.get("role") == "assistant" and isinstance(cleaned_msg.get("content"), str):
             content = cleaned_msg["content"]
-            
+
             # Find thought signature
-            signature_match = re.search(r'<thought_signature>(.*?)</thought_signature>', content, flags=re.DOTALL)
+            signature_match = re.search(
+                r"<thought_signature>(.*?)</thought_signature>", content, flags=re.DOTALL
+            )
             if signature_match:
                 cleaned_msg["thought_signature"] = signature_match.group(1).strip()
-                content = re.sub(r'<thought_signature>.*?</thought_signature>', '', content, flags=re.DOTALL).strip()
-                
+                content = re.sub(
+                    r"<thought_signature>.*?</thought_signature>", "", content, flags=re.DOTALL
+                ).strip()
+
             # Find all think blocks
-            thoughts = re.findall(r'<think>(.*?)</think>', content, flags=re.DOTALL)
+            thoughts = re.findall(r"<think>(.*?)</think>", content, flags=re.DOTALL)
             if thoughts:
                 # Combine multiple blocks just in case, though usually there's only one
                 cleaned_msg["reasoning"] = "\n\n".join(t.strip() for t in thoughts if t.strip())
-            
+
             # Non-greedy match for <think> blocks across multiple lines to strip them
-            cleaned_msg["content"] = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL).strip()
-            
+            cleaned_msg["content"] = re.sub(
+                r"<think>.*?</think>", "", content, flags=re.DOTALL
+            ).strip()
+
         cleaned_history.append(cleaned_msg)
 
     # Inject in-chat blocks into cleaned_history at their specified depths
     if in_chat_blocks:
         from collections import defaultdict
+
         by_depth: dict[int, list] = defaultdict(list)
         for block in in_chat_blocks:
             if block["block_type"] == "text":

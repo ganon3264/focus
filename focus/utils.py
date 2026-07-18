@@ -3,7 +3,7 @@ import base64
 import logging
 import math
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from io import BytesIO
 
 import aiosqlite
@@ -12,9 +12,14 @@ from PIL import Image
 logger = logging.getLogger("focus.utils")
 
 SUFFIX_MIME_MAP = {
-    ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
-    ".gif": "image/gif", ".webp": "image/webp", ".mp3": "audio/mpeg",
-    ".wav": "audio/wav", ".ogg": "audio/ogg",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".gif": "image/gif",
+    ".webp": "image/webp",
+    ".mp3": "audio/mpeg",
+    ".wav": "audio/wav",
+    ".ogg": "audio/ogg",
 }
 
 SUFFIX_MIME_MAP_IMAGES_ONLY = {k: v for k, v in SUFFIX_MIME_MAP.items() if v.startswith("image/")}
@@ -26,7 +31,6 @@ THOUGHT_SIGNATURE_CLOSE = "</thought_signature>"
 
 DEFAULT_OPENAI_COMPAT_BASE_URL = "http://localhost:8080/v1"
 
-# ── Provider defaults ────────────────────────────────────────────────────────
 DEFAULT_MAX_TOKENS = 8192
 DEFAULT_TEMPERATURE = 1.0
 OPENAI_HTTP_TIMEOUT = 120.0
@@ -34,9 +38,7 @@ GOOGLE_VERTEX_HTTP_TIMEOUT = 300.0
 GOOGLE_VERTEX_HTTP_RETRIES = 3
 MODEL_FETCH_HTTP_TIMEOUT = 10.0
 
-# ── Caching ───────────────────────────────────────────────────────────────────
 MODEL_CACHE_TTL = 300
-
 
 class TTLCache:
     """Async-safe TTL cache with dict semantics.
@@ -82,7 +84,6 @@ class TTLCache:
             await self.set(key, new_value)
         return new_value
 
-# ── Token estimation ──────────────────────────────────────────────────────────
 AUDIO_TOKEN_ESTIMATE = 100
 
 def _image_dims_from_data_url(url: str) -> tuple[int, int] | None:
@@ -104,13 +105,10 @@ def estimate_image_tokens(width: int, height: int) -> int:
         return 258
     return math.ceil(width / 768) * math.ceil(height / 768) * 258
 
-# ── Macro resolution ──────────────────────────────────────────────────────────
 MACRO_MAX_PASSES = 10
 
-
 def now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
-
+    return datetime.now(UTC).isoformat()
 
 async def resolve_secret_key(db: aiosqlite.Connection, api_key: str) -> str:
     if not api_key or not api_key.startswith("SECRET:"):
@@ -123,7 +121,6 @@ async def resolve_secret_key(db: aiosqlite.Connection, api_key: str) -> str:
         logger.warning("Failed to resolve secret %s: %s", secret_name, e)
         return ""
     return row["value"] if row else ""
-
 
 def variable_group_name(block_name: str) -> str:
     return block_name.split(":")[0] if ":" in block_name else block_name

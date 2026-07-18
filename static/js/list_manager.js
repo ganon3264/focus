@@ -3,21 +3,21 @@
 // to create the expected-named global functions so existing onclick handlers keep working.
 
 window.ListManager = {
-  setup: function(cfg) {
-    window[cfg.filterFn] = function(query) {
+  setup: function (cfg) {
+    window[cfg.filterFn] = function (query) {
       var q = (query || '').toLowerCase();
-      document.querySelectorAll('#' + cfg.gridId + ' .card').forEach(function(card) {
+      document.querySelectorAll('#' + cfg.gridId + ' .card').forEach(function (card) {
         var name = card.getAttribute(cfg.dataNameAttr) || '';
         card.style.display = name.indexOf(q) !== -1 ? '' : 'none';
       });
     };
 
-    window[cfg.sortFn] = function(mode) {
+    window[cfg.sortFn] = function (mode) {
       localStorage.setItem(cfg.sortStorageKey, mode);
       var grid = document.getElementById(cfg.gridId);
       if (!grid) return;
       var cards = Array.from(grid.querySelectorAll('.card'));
-      cards.sort(function(a, b) {
+      cards.sort(function (a, b) {
         var aName = a.getAttribute(cfg.dataNameAttr) || '';
         var bName = b.getAttribute(cfg.dataNameAttr) || '';
         var aCreated = a.getAttribute(cfg.dataCreatedAttr) || '';
@@ -27,15 +27,18 @@ window.ListManager = {
         if (mode === 'oldest') return aCreated.localeCompare(bCreated);
         return bCreated.localeCompare(aCreated);
       });
-      cards.forEach(function(card) { grid.appendChild(card); });
+      cards.forEach(function (card) {
+        grid.appendChild(card);
+      });
       document.getElementById(cfg.sortSelectId).value = mode;
     };
 
     function setViewCookie(view) {
-      if (cfg.cookieKey) document.cookie = cfg.cookieKey + '=' + view + '; path=/; max-age=31536000';
+      if (cfg.cookieKey)
+        document.cookie = cfg.cookieKey + '=' + view + '; path=/; max-age=31536000';
     }
 
-    window[cfg.applyCompactFn] = function(compact) {
+    window[cfg.applyCompactFn] = function (compact) {
       var grid = document.getElementById(cfg.gridId);
       if (!grid) return;
       var view = compact ? 'compact' : 'full';
@@ -43,7 +46,7 @@ window.ListManager = {
       grid.style.gridTemplateColumns = compact
         ? 'repeat(3, minmax(200px, 1fr))'
         : 'repeat(auto-fill, minmax(160px, 1fr))';
-      grid.querySelectorAll('.card').forEach(function(card) {
+      grid.querySelectorAll('.card').forEach(function (card) {
         var fullEl = card.querySelector('.' + cfg.viewFullClass);
         var compactEl = card.querySelector('.' + cfg.viewCompactClass);
         if (compact) {
@@ -58,35 +61,43 @@ window.ListManager = {
       setViewCookie(view);
     };
 
-    window[cfg.toggleCompactFn] = function() {
+    window[cfg.toggleCompactFn] = function () {
       var grid = document.getElementById(cfg.gridId);
       if (!grid) return;
       var compact = grid.dataset.view !== 'compact';
       window[cfg.applyCompactFn](compact);
     };
 
-    window[cfg.newItemFn] = function() {
-      var html = '<div class="mb-4">' +
-        '<label class="text-xs font-bold text-muted block mb-2 uppercase tracking-wider">' + cfg.newItemLabel + '</label>' +
-        '<input type="text" id="' + cfg.newItemInputId + '" class="form-control" placeholder="Enter name..." required>' +
+    window[cfg.newItemFn] = function () {
+      var html =
+        '<div class="mb-4">' +
+        '<label class="text-xs font-bold text-muted block mb-2 uppercase tracking-wider">' +
+        cfg.newItemLabel +
+        '</label>' +
+        '<input type="text" id="' +
+        cfg.newItemInputId +
+        '" class="form-control" placeholder="Enter name..." required>' +
         '</div>';
-      window.customConfirm(html, function() {
+      window.customConfirm(html, function () {
         var name = document.getElementById(cfg.newItemInputId).value.trim();
         if (!name) return;
         fetch(cfg.apiEndpoint, {
           method: 'POST',
-          headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({name: name})
-        }).then(function(r) {
-          if (r.ok) htmx.ajax('GET', cfg.hxRoute, {target: cfg.hxTarget, swap:'innerHTML'});
-          else r.text().then(function(t) { alert('Create failed: ' + t); });
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: name }),
+        }).then(function (r) {
+          if (r.ok) htmx.ajax('GET', cfg.hxRoute, { target: cfg.hxTarget, swap: 'innerHTML' });
+          else
+            r.text().then(function (t) {
+              alert('Create failed: ' + t);
+            });
         });
       });
-      setTimeout(function() {
+      setTimeout(function () {
         var input = document.getElementById(cfg.newItemInputId);
         if (input) {
           input.focus();
-          input.addEventListener('keydown', function(e) {
+          input.addEventListener('keydown', function (e) {
             if (e.key === 'Enter') document.getElementById('global-confirm-btn').click();
           });
         }
@@ -94,7 +105,7 @@ window.ListManager = {
     };
 
     // Restore saved view/sort state
-    (function() {
+    (function () {
       var view = localStorage.getItem(cfg.viewStorageKey);
       if (view === 'compact') {
         window[cfg.applyCompactFn](true);
@@ -104,5 +115,5 @@ window.ListManager = {
         window[cfg.sortFn](sortVal);
       }
     })();
-  }
+  },
 };

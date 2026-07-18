@@ -1,9 +1,6 @@
 """Integration tests for the FastAPI endpoints using a test database."""
 
-from tests.conftest import create_character, create_persona, create_preset, create_chat
-
-
-# ── Characters ────────────────────────────────────────────────────────────────
+from tests.conftest import create_character, create_chat, create_persona, create_preset
 
 class TestCharacters:
     async def test_list_empty(self, client):
@@ -12,9 +9,14 @@ class TestCharacters:
         assert resp.json() == []
 
     async def test_create(self, client):
-        resp = await client.post("/api/characters/", json={
-            "name": "Sylvie", "description": "A fox", "personality": "Clever",
-        })
+        resp = await client.post(
+            "/api/characters/",
+            json={
+                "name": "Sylvie",
+                "description": "A fox",
+                "personality": "Clever",
+            },
+        )
         assert resp.status_code == 201
         data = resp.json()
         assert "id" in data
@@ -41,9 +43,13 @@ class TestCharacters:
 
     async def test_update(self, client):
         c = await create_character(client, "Original")
-        await client.patch(f"/api/characters/{c['id']}", json={
-            "name": "Renamed", "personality": "Grumpy",
-        })
+        await client.patch(
+            f"/api/characters/{c['id']}",
+            json={
+                "name": "Renamed",
+                "personality": "Grumpy",
+            },
+        )
         resp = await client.get(f"/api/characters/{c['id']}")
         card = resp.json()["card"]
         assert card["data"]["name"] == "Renamed"
@@ -75,9 +81,6 @@ class TestCharacters:
         resp = await client.get(f"/api/characters/{c['id']}")
         assert resp.status_code == 404
 
-
-# ── Personas ──────────────────────────────────────────────────────────────────
-
 class TestPersonas:
     async def test_list(self, client):
         resp = await client.get("/api/personas/")
@@ -85,9 +88,7 @@ class TestPersonas:
         assert isinstance(resp.json(), list)
 
     async def test_create(self, client):
-        resp = await client.post("/api/personas/", json={
-            "name": "Hero", "description": "Brave"
-        })
+        resp = await client.post("/api/personas/", json={"name": "Hero", "description": "Brave"})
         assert resp.status_code == 201
         assert "id" in resp.json()
 
@@ -113,9 +114,6 @@ class TestPersonas:
     async def test_get_not_found(self, client):
         resp = await client.get("/api/personas/nope")
         assert resp.status_code == 404
-
-
-# ── Presets ───────────────────────────────────────────────────────────────────
 
 class TestPresets:
     async def test_create(self, client):
@@ -157,9 +155,6 @@ class TestPresets:
         resp = await client.get(f"/api/presets/{p['id']}")
         assert resp.status_code == 404
 
-
-# ── Chats ─────────────────────────────────────────────────────────────────────
-
 class TestChats:
     async def test_create_empty(self, client):
         resp = await client.post("/api/chats/", json={"title": "Empty"})
@@ -170,11 +165,14 @@ class TestChats:
         c = await create_character(client, "Char")
         p = await create_persona(client, "Persona")
         pr = await create_preset(client, "Preset")
-        resp = await client.post("/api/chats/", json={
-            "character_id": c["id"],
-            "persona_id": p["id"],
-            "preset_id": pr["id"],
-        })
+        resp = await client.post(
+            "/api/chats/",
+            json={
+                "character_id": c["id"],
+                "persona_id": p["id"],
+                "preset_id": pr["id"],
+            },
+        )
         assert resp.status_code == 201
 
     async def test_list(self, client):
@@ -217,9 +215,6 @@ class TestChats:
         resp = await client.get(f"/api/chats/{ch['id']}")
         assert resp.json()["character_id"] == c2["id"]
 
-
-# ── Providers ─────────────────────────────────────────────────────────────────
-
 class TestProviders:
     async def test_list_empty(self, client):
         resp = await client.get("/api/providers/")
@@ -227,26 +222,41 @@ class TestProviders:
         assert resp.json() == []
 
     async def test_create(self, client):
-        resp = await client.post("/api/providers/", json={
-            "name": "Test", "type": "openai_compat",
-            "model": "gpt-4", "api_key": "sk-test",
-        })
+        resp = await client.post(
+            "/api/providers/",
+            json={
+                "name": "Test",
+                "type": "openai_compat",
+                "model": "gpt-4",
+                "api_key": "sk-test",
+            },
+        )
         assert resp.status_code == 201
         assert "id" in resp.json()
 
     async def test_list_single(self, client):
-        await client.post("/api/providers/", json={
-            "name": "P1", "type": "openai_compat", "model": "gpt-4",
-        })
+        await client.post(
+            "/api/providers/",
+            json={
+                "name": "P1",
+                "type": "openai_compat",
+                "model": "gpt-4",
+            },
+        )
         resp = await client.get("/api/providers/")
         providers = resp.json()
         assert len(providers) == 1
         assert providers[0]["name"] == "P1"
 
     async def test_update(self, client):
-        resp = await client.post("/api/providers/", json={
-            "name": "Old", "type": "openai_compat", "model": "gpt-4",
-        })
+        resp = await client.post(
+            "/api/providers/",
+            json={
+                "name": "Old",
+                "type": "openai_compat",
+                "model": "gpt-4",
+            },
+        )
         pid = resp.json()["id"]
 
         await client.patch(f"/api/providers/{pid}", json={"name": "New", "model": "gpt-4-turbo"})
@@ -256,17 +266,19 @@ class TestProviders:
         assert p["model"] == "gpt-4-turbo"
 
     async def test_delete(self, client):
-        resp = await client.post("/api/providers/", json={
-            "name": "Del", "type": "openai_compat", "model": "gpt-4",
-        })
+        resp = await client.post(
+            "/api/providers/",
+            json={
+                "name": "Del",
+                "type": "openai_compat",
+                "model": "gpt-4",
+            },
+        )
         pid = resp.json()["id"]
 
         await client.delete(f"/api/providers/{pid}")
         resp = await client.get("/api/providers/")
         assert resp.json() == []
-
-
-# ── Cross-entity ──────────────────────────────────────────────────────────────
 
 class TestCrossEntity:
     async def test_chat_with_character_no_greetings(self, client):

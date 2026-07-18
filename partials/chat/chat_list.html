@@ -1,38 +1,54 @@
-{% from "macros.html" import icon_close %}
-{% if not chats %}
-  <div class="text-muted text-center text-sm py-4 border border-dashed border-(--border) rounded-lg mt-2">
-    No chats found.
-  </div>
-{% endif %}
-
-{% for chat in chats %}
-<div class="sidebar-item group {% if current_chat_id == chat.id %}active{% endif %}" data-chat-id="{{ chat.id }}">
+{% from "macros.html" import icon_close %} {% if not chats %}
+<div
+  class="text-muted text-center text-sm py-4 border border-dashed border-(--border) rounded-lg mt-2"
+>
+  No chats found.
+</div>
+{% endif %} {% for chat in chats %}
+<div
+  class="sidebar-item group {% if current_chat_id == chat.id %}active{% endif %}"
+  data-chat-id="{{ chat.id }}"
+>
   <a href="/chat/{{ chat.id }}" class="min-w-0 flex-1 flex flex-col justify-center">
-    <span class="truncate font-bold text-sm leading-tight mb-1">{{ chat.last_message or chat.title }}</span>
+    <span class="truncate font-bold text-sm leading-tight mb-1"
+      >{{ chat.last_message or chat.title }}</span
+    >
     <span class="text-xs text-muted">{{ chat.updated_at[:10] }} {{ chat.updated_at[11:16] }}</span>
   </a>
-  <button class="btn btn-danger action-btn shrink-0" style="opacity: 0; padding: 0.1rem 0.4rem; font-size: 0.8rem;" onclick="event.preventDefault(); deleteChat('{{ chat.id }}', this)" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0'" aria-label="Delete chat">{{ icon_close(12) }}</button>
+  <button
+    class="btn btn-danger action-btn shrink-0"
+    style="opacity: 0; padding: 0.1rem 0.4rem; font-size: 0.8rem"
+    onclick="event.preventDefault(); deleteChat('{{ chat.id }}', this)"
+    onmouseover="this.style.opacity = '1'"
+    onmouseout="this.style.opacity = '0'"
+    aria-label="Delete chat"
+  >
+    {{ icon_close(12) }}
+  </button>
 </div>
 {% endfor %}
 <style>
-.sidebar-item:hover .action-btn { opacity: 1 !important; }
+  .sidebar-item:hover .action-btn {
+    opacity: 1 !important;
+  }
 </style>
 <script>
-function deleteChat(chatId, btn){
-  window.customConfirm('Delete this chat?', function() {
-    fetch('/api/chats/' + chatId, {method: 'DELETE'})
-      .then(function(r){
-        if(!r.ok) throw new Error('Failed to delete chat');
-        const row = btn.closest('.sidebar-item');
-        if(row) row.remove();
-        const currentChatId = '{{ current_chat_id }}';
-        if(chatId === currentChatId){
-          var cid = StateManager.get('character_id');
-          window.location.href = cid ? '/chat?character_id=' + encodeURIComponent(cid) : '/chat';
-        }
-      }).catch(function(e){
-        alert(e.message);
-      });
-  });
-}
+  function deleteChat(chatId, btn) {
+    window.customConfirm('Delete this chat?', function () {
+      fetch('/api/chats/' + chatId, { method: 'DELETE' })
+        .then(function (r) {
+          if (!r.ok) throw new Error('Failed to delete chat');
+          const row = btn.closest('.sidebar-item');
+          if (row) row.remove();
+          const currentChatId = '{{ current_chat_id }}';
+          if (chatId === currentChatId) {
+            var cid = StateManager.get('character_id');
+            window.location.href = cid ? '/chat?character_id=' + encodeURIComponent(cid) : '/chat';
+          }
+        })
+        .catch(function (e) {
+          alert(e.message);
+        });
+    });
+  }
 </script>

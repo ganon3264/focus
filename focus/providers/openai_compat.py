@@ -1,20 +1,25 @@
-from typing import AsyncIterator
+import copy
+import json as _json
 import logging
+from collections.abc import AsyncIterator
 
 from openai import AsyncOpenAI
 
-from .base import BaseProvider
 from ..logger import get_logger
-from ..utils import THINK_OPEN, THINK_CLOSE, DEFAULT_OPENAI_COMPAT_BASE_URL, DEFAULT_MAX_TOKENS, DEFAULT_TEMPERATURE, OPENAI_HTTP_TIMEOUT
-
-import json as _json
-import copy
+from ..utils import (
+    DEFAULT_MAX_TOKENS,
+    DEFAULT_OPENAI_COMPAT_BASE_URL,
+    DEFAULT_TEMPERATURE,
+    OPENAI_HTTP_TIMEOUT,
+    THINK_CLOSE,
+    THINK_OPEN,
+)
+from .base import BaseProvider
 
 logger = get_logger("providers.openai")
 
 
 class OpenAICompatProvider(BaseProvider):
-
     def _get_client(self) -> AsyncOpenAI:
         return AsyncOpenAI(
             base_url=self.base_url or DEFAULT_OPENAI_COMPAT_BASE_URL,
@@ -44,34 +49,47 @@ class OpenAICompatProvider(BaseProvider):
 
         # Handle o1/o3 reasoning model quirks
         is_o_model = self.model.startswith("o1") or self.model.startswith("o3")
-        
-        # Standard kwargs accepted by openai.AsyncOpenAI.chat.completions.create
-        STANDARD_KWARGS = {
-            "frequency_penalty", "logit_bias", "logprobs", "top_logprobs",
-            "max_tokens", "max_completion_tokens", "n", "presence_penalty",
-            "response_format", "seed", "stop", "stream", "stream_options",
-            "temperature", "top_p", "tools", "tool_choice", "user",
-            "function_call", "functions", "parallel_tool_calls",
-            "extra_headers", "extra_query", "extra_body", "timeout",
-            "reasoning_effort"
+
+        standard_kwargs = {
+            "frequency_penalty",
+            "logit_bias",
+            "logprobs",
+            "top_logprobs",
+            "max_tokens",
+            "max_completion_tokens",
+            "n",
+            "presence_penalty",
+            "response_format",
+            "seed",
+            "stop",
+            "stream",
+            "stream_options",
+            "temperature",
+            "top_p",
+            "tools",
+            "tool_choice",
+            "user",
+            "function_call",
+            "functions",
+            "parallel_tool_calls",
+            "extra_headers",
+            "extra_query",
+            "extra_body",
+            "timeout",
+            "reasoning_effort",
         }
-        
+
         extra_body = merged.pop("extra_body", {})
-        
-        keys_to_move = [k for k in merged.keys() if k not in STANDARD_KWARGS]
+
+        keys_to_move = [k for k in merged.keys() if k not in standard_kwargs]
         for k in keys_to_move:
             extra_body[k] = merged.pop(k)
 
-        request_params = {
-            "model": self.model,
-            "messages": messages,
-            "stream": True,
-            **merged
-        }
-        
+        request_params = {"model": self.model, "messages": messages, "stream": True, **merged}
+
         if extra_body:
             request_params["extra_body"] = extra_body
-        
+
         if is_o_model:
             request_params["max_completion_tokens"] = max_tokens
             # O models usually reject temperature
@@ -102,21 +120,25 @@ class OpenAICompatProvider(BaseProvider):
             async for chunk in stream:
                 if not chunk.choices:
                     continue
-                
+
                 delta_obj = chunk.choices[0].delta
                 delta = getattr(delta_obj, "content", None)
-                reasoning = getattr(delta_obj, "reasoning_content", None) or getattr(delta_obj, "reasoning", None)
-                
+                reasoning = getattr(delta_obj, "reasoning_content", None) or getattr(
+                    delta_obj, "reasoning", None
+                )
+
                 # Fallback to check model_extra for non-standard reasoning fields
                 if not reasoning and hasattr(delta_obj, "model_extra") and delta_obj.model_extra:
-                    reasoning = delta_obj.model_extra.get("reasoning_content") or delta_obj.model_extra.get("reasoning")
+                    reasoning = delta_obj.model_extra.get(
+                        "reasoning_content"
+                    ) or delta_obj.model_extra.get("reasoning")
 
                 if reasoning:
                     if not in_reasoning:
                         in_reasoning = True
                         yield THINK_OPEN
                     yield reasoning
-                
+
                 if delta:
                     if in_reasoning:
                         in_reasoning = False

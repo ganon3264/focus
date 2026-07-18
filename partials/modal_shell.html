@@ -1,16 +1,40 @@
-{% from "macros.html" import icon_close %}
-{% macro modal_shell(id, title, max_width='600px', width='95vw', content_style='display:flex;flex-direction:column;', z_index='', role='dialog', close_fn='closeModal', overlay_close=true, overlay_class='') %}
-<div id="{{ id }}" class="modal-overlay hidden {{ overlay_class }}" role="{{ role }}" aria-modal="true"{% if z_index %} style="z-index: {{ z_index }};"{% endif %}{% if overlay_close %} onclick="if(event.target===this){{ close_fn }}('{{ id }}')"{% endif %}>
-  <div class="modal-content" style="max-width:{{ max_width }};width:{{ width }};{{ content_style }}">
+{% from "macros.html" import icon_close %} {% macro modal_shell(id, title, max_width='600px',
+width='95vw', content_style='display:flex;flex-direction:column;', z_index='', role='dialog',
+close_fn='closeModal', overlay_close=true, overlay_class='') %}
+<div
+  id="{{ id }}"
+  class="modal-overlay hidden {{ overlay_class }}"
+  role="{{ role }}"
+  aria-modal="true"
+  {%
+  if
+  z_index
+  %}
+  style="z-index: {{ z_index }};"
+  {%
+  endif
+  %}{%
+  if
+  overlay_close
+  %}
+  onclick="if(event.target===this){{ close_fn }}('{{ id }}')"
+  {%
+  endif
+  %}
+>
+  <div
+    class="modal-content"
+    style="max-width:{{ max_width }};width:{{ width }};{{ content_style }}"
+  >
     <div class="modal-header">
       <div class="modal-title">{{ title }}</div>
-      <button class="btn btn-secondary" aria-label="Close" onclick="{{ close_fn }}('{{ id }}')">{{ icon_close(16) }}</button>
+      <button class="btn btn-secondary" aria-label="Close" onclick="{{ close_fn }}('{{ id }}')">
+        {{ icon_close(16) }}
+      </button>
     </div>
     {{ caller() }}
   </div>
 </div>
-{% endmacro %}
-
-{% macro modal_footer() %}
+{% endmacro %} {% macro modal_footer() %}
 <div class="modal-footer">{{ caller() }}</div>
 {% endmacro %}

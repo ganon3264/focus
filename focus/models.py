@@ -1,16 +1,16 @@
 from __future__ import annotations
+
+from enum import StrEnum
+from typing import Any
+
 from pydantic import BaseModel, Field
-from typing import Optional, Any
-from enum import Enum
 
-
-class Role(str, Enum):
+class Role(StrEnum):
     system = "system"
     user = "user"
     assistant = "assistant"
 
-
-class ProviderType(str, Enum):
+class ProviderType(StrEnum):
     openai_compat = "openai_compat"
     openrouter = "openrouter"
     google_aistudio = "google_aistudio"
@@ -18,14 +18,11 @@ class ProviderType(str, Enum):
     deepseek = "deepseek"
     moonshot = "moonshot"
 
-
-# ── Providers ────────────────────────────────────────────────────────────────
-
 class ProviderCreate(BaseModel):
     name: str
     type: ProviderType
-    base_url: Optional[str] = None
-    api_key: Optional[str] = None
+    base_url: str | None = None
+    api_key: str | None = None
     model: str
     params: dict[str, Any] = Field(default_factory=dict)
 
@@ -33,12 +30,9 @@ class ProviderOut(BaseModel):
     id: str
     name: str
     type: str
-    base_url: Optional[str]
+    base_url: str | None
     model: str
     created_at: str
-
-
-# ── Characters ───────────────────────────────────────────────────────────────
 
 class CharBlockCreate(BaseModel):
     name: str
@@ -48,11 +42,11 @@ class CharBlockCreate(BaseModel):
     position: float = 0.0
 
 class CharBlockUpdate(BaseModel):
-    name: Optional[str] = None
-    content: Optional[str] = None
-    role: Optional[Role] = None
-    enabled: Optional[bool] = None
-    position: Optional[float] = None
+    name: str | None = None
+    content: str | None = None
+    role: Role | None = None
+    enabled: bool | None = None
+    position: float | None = None
 
 class CharacterCreate(BaseModel):
     name: str
@@ -64,23 +58,22 @@ class CharacterCreate(BaseModel):
     alternate_greetings: list[str] = []
 
 class CharacterUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    personality: Optional[str] = None
-    scenario: Optional[str] = None
-    mes_example: Optional[str] = None
-    first_mes: Optional[str] = None
-    alternate_greetings: Optional[list[str]] = None
+    name: str | None = None
+    description: str | None = None
+    personality: str | None = None
+    scenario: str | None = None
+    mes_example: str | None = None
+    first_mes: str | None = None
+    alternate_greetings: list[str] | None = None
 
-
-class BlockType(str, Enum):
-    text             = "text"
-    chat_history     = "chat_history"
+class BlockType(StrEnum):
+    text = "text"
+    chat_history = "chat_history"
     char_description = "char_description"
     char_personality = "char_personality"
-    char_blocks      = "char_blocks"
-    user_persona     = "user_persona"
-    variable         = "variable"
+    char_blocks = "char_blocks"
+    user_persona = "user_persona"
+    variable = "variable"
 
 SENTINEL_TYPES = {
     BlockType.chat_history,
@@ -88,9 +81,6 @@ SENTINEL_TYPES = {
     BlockType.char_personality,
     BlockType.char_blocks,
 }
-
-
-# ── Presets ──────────────────────────────────────────────────────────────────
 
 class PresetCreate(BaseModel):
     name: str
@@ -104,34 +94,28 @@ class PresetBlockCreate(BaseModel):
     role: Role = Role.system
     enabled: bool = True
     block_type: BlockType = BlockType.text
-    injection_depth: Optional[int] = None
+    injection_depth: int | None = None
     injection_order: int = 0
 
 class PresetBlockBulkUpdate(BaseModel):
     blocks: list[dict[str, Any]]
 
-
-# ── Chats ────────────────────────────────────────────────────────────────────
-
 class ChatCreate(BaseModel):
-    character_id: Optional[str] = None
-    persona_id: Optional[str] = None
-    preset_id: Optional[str] = None
-    title: Optional[str] = None
+    character_id: str | None = None
+    persona_id: str | None = None
+    preset_id: str | None = None
+    title: str | None = None
 
 class MessageEdit(BaseModel):
     content: str
     attachment_ids: list[str] = Field(default_factory=list)
 
-class SwipeDirection(str, Enum):
+class SwipeDirection(StrEnum):
     prev = "prev"
     next = "next"
 
 class SwipeRequest(BaseModel):
     direction: SwipeDirection = SwipeDirection.next
-
-
-# ── Stream ───────────────────────────────────────────────────────────────────
 
 class StreamRequest(BaseModel):
     chat_id: str
@@ -149,9 +133,6 @@ class ItemizerRequest(BaseModel):
     user_message: str = ""
     attachment_ids: list[str] = Field(default_factory=list)
     regenerate: bool = False
-
-
-# ── Import / Export ───────────────────────────────────────────────────────────
 
 class ExportRequest(BaseModel):
     characters: list[str] = Field(default_factory=list)

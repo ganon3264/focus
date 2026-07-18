@@ -1,13 +1,13 @@
-<!DOCTYPE html>
+<!doctype html>
 {% from "macros.html" import icon_close, icon_expand %}
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{% block title %}Focus{% endblock %}</title>
 
     <script>
-      (function() {
+      (function () {
         try {
           const stored = localStorage.getItem('focus-custom-theme');
           if (stored) {
@@ -15,10 +15,23 @@
             if (theme['--accent'] && !theme['--accent-hover']) {
               var m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(theme['--accent']);
               if (m) {
-                var r = parseInt(m[1],16), g = parseInt(m[2],16), b = parseInt(m[3],16);
-                var f = 0.15, l = function(c) { return Math.round(c + (255 - c) * f); };
-                var r2 = l(r), g2 = l(g), b2 = l(b);
-                theme['--accent-hover'] = '#' + [r2,g2,b2].map(function(c) { return c.toString(16).padStart(2,'0'); }).join('');
+                var r = parseInt(m[1], 16),
+                  g = parseInt(m[2], 16),
+                  b = parseInt(m[3], 16);
+                var f = 0.15,
+                  l = function (c) {
+                    return Math.round(c + (255 - c) * f);
+                  };
+                var r2 = l(r),
+                  g2 = l(g),
+                  b2 = l(b);
+                theme['--accent-hover'] =
+                  '#' +
+                  [r2, g2, b2]
+                    .map(function (c) {
+                      return c.toString(16).padStart(2, '0');
+                    })
+                    .join('');
                 theme['--accent-dim'] = 'rgba(' + r + ',' + g + ',' + b + ',0.15)';
                 theme['--accent-faint'] = 'rgba(' + r + ',' + g + ',' + b + ',0.05)';
               }
@@ -27,14 +40,16 @@
               document.documentElement.style.setProperty(key, theme[key]);
             }
           }
-        } catch (e) { console.error('Error loading theme:', e); }
+        } catch (e) {
+          console.error('Error loading theme:', e);
+        }
       })();
     </script>
 
-    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
-    <link rel="stylesheet" href="/static/vendor/inter.css">
-    <link rel="stylesheet" href="/static/tailwind.css">
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
+    <link rel="stylesheet" href="/static/vendor/inter.css" />
+    <link rel="stylesheet" href="/static/tailwind.css" />
+    <link rel="stylesheet" href="/static/style.css" />
     <script src="/static/js/state_manager.js"></script>
     <script src="/static/vendor/htmx2.min.js"></script>
     <script src="/static/vendor/json-enc.js"></script>
@@ -45,10 +60,11 @@
     <script src="/static/vendor/purify.min.js"></script>
     <script src="/static/vendor/cropper.min.js"></script>
     {% block head %}{% endblock %}
-</head>
-<body class="bg-dark text-light" hx-ext="json-enc">
-    {% from "macros.html" import icon_close, icon_music, icon_send, icon_regen, icon_crop, icon_copy, icon_check %}
-    <div style="display:none" aria-hidden="true" id="svg-sprite">
+  </head>
+  <body class="bg-dark text-light" hx-ext="json-enc">
+    {% from "macros.html" import icon_close, icon_music, icon_send, icon_regen, icon_crop,
+    icon_copy, icon_check %}
+    <div style="display: none" aria-hidden="true" id="svg-sprite">
       <svg data-svg-icon="close" data-svg-size="16">{{ icon_close(16) }}</svg>
       <svg data-svg-icon="music" data-svg-size="24">{{ icon_music(24) }}</svg>
       <svg data-svg-icon="send" data-svg-size="18">{{ icon_send() }}</svg>
@@ -59,191 +75,332 @@
     </div>
     <!-- ── inline scripts ──────────────────────────────────────────────── -->
     <script>
-    window.getSvgSprite = function(name, size) {
-      var el = document.querySelector('#svg-sprite svg[data-svg-icon="' + name + '"]');
-      if (!el) return '';
-      var clone = el.cloneNode(true);
-      if (size) { clone.setAttribute('width', size); clone.setAttribute('height', size); }
-      return clone.outerHTML;
-    };
-
-    window.buildMediaThumbnail = function(img, onDelete, idPrefix) {
-      var div = document.createElement('div');
-      div.className = 'relative group';
-      Object.assign(div.style, {
-        width: '48px', height: '48px', borderRadius: '4px', overflow: 'hidden',
-        border: '1px solid var(--border)', flexShrink: '0'
-      });
-      if (idPrefix) div.id = idPrefix + '-' + img.id;
-
-      if (img.mime_type && img.mime_type.startsWith('audio/')) {
-        div.innerHTML = '<div style="width:100%;height:100%;background:var(--surface-3);display:grid;place-items:center;" title="Audio Attachment">' + getSvgSprite('music', 24) + '</div>';
-      } else {
-        div.innerHTML = '<img src="/' + (img.image_path || '') + '" style="width:100%;height:100%;object-fit:cover;">';
-      }
-
-      if (onDelete) {
-        var btn = document.createElement('button');
-        btn.className = 'absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity';
-        btn.type = 'button';
-        btn.innerHTML = getSvgSprite('close', 12);
-        btn.onclick = function(e) { e.preventDefault(); e.stopPropagation(); onDelete(e); };
-        div.appendChild(btn);
-      }
-
-      return div;
-    };
-
-    window.setupDropZone = function(el, onDrop) {
-      var container = typeof el === 'string' ? document.querySelector(el) : el;
-      if (!container || container.dataset.dropReady) return;
-      container.dataset.dropReady = 'true';
-      container.addEventListener('dragover', function(e) { e.preventDefault(); e.stopPropagation(); container.classList.add('drag-over'); });
-      container.addEventListener('dragleave', function(e) { e.preventDefault(); e.stopPropagation(); container.classList.remove('drag-over'); });
-      container.addEventListener('drop', function(e) {
-        e.preventDefault(); e.stopPropagation();
-        container.classList.remove('drag-over');
-        if (e.dataTransfer.files && e.dataTransfer.files.length) onDrop(Array.from(e.dataTransfer.files));
-      });
-    };
-
-    window.createEditModalHandlers = function(cfg) {
-      var P = cfg.dataPrefix;
-      var secId = cfg.mediaSectionId;
-      var sec = function() { return document.getElementById(secId); };
-      var eid = function(suf) { return document.getElementById(cfg.idPrefix + suf); };
-      var mid = cfg.modalId;
-
-      window[cfg.uploadFileFn] = function(file) {
-        var id = eid('-id').value;
-        if (!id) return;
-        var fd = new FormData();
-        fd.append('file', file);
-        fetch(cfg.apiImages(id), { method: 'POST', body: fd }).then(function(r) { return r.json(); }).then(function(data) {
-          var s = sec();
-          if (!s) return;
-          var div = buildMediaThumbnail(data, function(e) { window[cfg.deleteFn](data.id); }, cfg.mediaIdPrefix);
-          s.insertBefore(div, s.lastElementChild.previousElementSibling);
-          var ph = s.querySelector('.block-media-placeholder');
-          if (ph) ph.style.display = 'none';
-          if (window.StateManager && StateManager.get(cfg.stateKey) === id && window.reloadPromptArranger) {
-            var pid = StateManager.get('preset_id') || (document.getElementById('prompt-arranger') && document.querySelector('#prompt-arranger .arranger-list') ? document.querySelector('#prompt-arranger .arranger-list').id.replace('arranger-list-', '') : null);
-            if (pid) reloadPromptArranger(pid, 'prompt-arranger');
-          }
-        });
-      };
-
-      window[cfg.openFn] = function(btn) {
-        eid('-id').value = btn.dataset[P + 'Id'] || '';
-        var name = btn.dataset[P + 'Name'] || '';
-        eid('-name').value = name;
-        eid('-desc').value = btn.dataset[P + 'Desc'] || '';
-        var imgPath = btn.dataset[P + 'Image'];
-        var prev = eid('-image-preview');
-        var ph = eid('-image-placeholder');
-        if (imgPath) {
-          prev.src = '/' + imgPath + '?t=' + new Date().getTime();
-          prev.style.display = 'block';
-          ph.style.display = 'none';
-        } else {
-          prev.style.display = 'none';
-          ph.innerText = name ? name.charAt(0).toUpperCase() : '?';
-          ph.style.display = 'block';
+      window.getSvgSprite = function (name, size) {
+        var el = document.querySelector('#svg-sprite svg[data-svg-icon="' + name + '"]');
+        if (!el) return '';
+        var clone = el.cloneNode(true);
+        if (size) {
+          clone.setAttribute('width', size);
+          clone.setAttribute('height', size);
         }
-        var s = sec();
-        Array.from(s.children).forEach(function(el) {
-          if (!el.classList.contains('block-media-btn') && !el.classList.contains('block-media-placeholder')) el.remove();
-        });
-        var phText = s.querySelector('.block-media-placeholder');
-        var list = [];
-        try { list = JSON.parse(btn.dataset[P + 'Media'] || '[]'); } catch (e) { console.error(e); }
-        if (list.length > 0 && phText) { phText.style.display = 'none'; }
-        else if (list.length === 0 && phText) { phText.style.display = 'block'; }
-        list.forEach(function(img) {
-          s.insertBefore(buildMediaThumbnail(img, function(e) { window[cfg.deleteFn](img.id); }, cfg.mediaIdPrefix), s.lastElementChild.previousElementSibling);
-        });
-        document.getElementById(mid).classList.remove('hidden');
+        return clone.outerHTML;
       };
 
-      window[cfg.uploadFn] = function(input) {
-        if (!input.files || !input.files[0]) return;
-        window[cfg.uploadFileFn](input.files[0]);
-        input.value = '';
+      window.buildMediaThumbnail = function (img, onDelete, idPrefix) {
+        var div = document.createElement('div');
+        div.className = 'relative group';
+        Object.assign(div.style, {
+          width: '48px',
+          height: '48px',
+          borderRadius: '4px',
+          overflow: 'hidden',
+          border: '1px solid var(--border)',
+          flexShrink: '0',
+        });
+        if (idPrefix) div.id = idPrefix + '-' + img.id;
+
+        if (img.mime_type && img.mime_type.startsWith('audio/')) {
+          div.innerHTML =
+            '<div style="width:100%;height:100%;background:var(--surface-3);display:grid;place-items:center;" title="Audio Attachment">' +
+            getSvgSprite('music', 24) +
+            '</div>';
+        } else {
+          div.innerHTML =
+            '<img src="/' +
+            (img.image_path || '') +
+            '" style="width:100%;height:100%;object-fit:cover;">';
+        }
+
+        if (onDelete) {
+          var btn = document.createElement('button');
+          btn.className =
+            'absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity';
+          btn.type = 'button';
+          btn.innerHTML = getSvgSprite('close', 12);
+          btn.onclick = function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            onDelete(e);
+          };
+          div.appendChild(btn);
+        }
+
+        return div;
       };
 
-      window[cfg.deleteFn] = function(imageId) {
-        var id = eid('-id').value;
-        if (!id) return;
-        fetch(cfg.apiImage(id, imageId), { method: 'DELETE' }).then(function(r) {
-          if (!r.ok) return;
-          var el = document.getElementById(cfg.mediaIdPrefix + '-' + imageId);
-          if (el) el.remove();
-          if (window.StateManager && StateManager.get(cfg.stateKey) === id && window.reloadPromptArranger) {
-            var pid = StateManager.get('preset_id') || (document.getElementById('prompt-arranger') && document.querySelector('#prompt-arranger .arranger-list') ? document.querySelector('#prompt-arranger .arranger-list').id.replace('arranger-list-', '') : null);
-            if (pid) reloadPromptArranger(pid, 'prompt-arranger');
-          }
+      window.setupDropZone = function (el, onDrop) {
+        var container = typeof el === 'string' ? document.querySelector(el) : el;
+        if (!container || container.dataset.dropReady) return;
+        container.dataset.dropReady = 'true';
+        container.addEventListener('dragover', function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          container.classList.add('drag-over');
+        });
+        container.addEventListener('dragleave', function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          container.classList.remove('drag-over');
+        });
+        container.addEventListener('drop', function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          container.classList.remove('drag-over');
+          if (e.dataTransfer.files && e.dataTransfer.files.length)
+            onDrop(Array.from(e.dataTransfer.files));
         });
       };
 
-      window[cfg.avatarFn] = function(input) {
-        if (!input.files || !input.files[0]) return;
-        var id = eid('-id').value;
-        if (!id) return;
-        openCropModal(input.files[0], function(blob) {
+      window.createEditModalHandlers = function (cfg) {
+        var P = cfg.dataPrefix;
+        var secId = cfg.mediaSectionId;
+        var sec = function () {
+          return document.getElementById(secId);
+        };
+        var eid = function (suf) {
+          return document.getElementById(cfg.idPrefix + suf);
+        };
+        var mid = cfg.modalId;
+
+        window[cfg.uploadFileFn] = function (file) {
+          var id = eid('-id').value;
+          if (!id) return;
           var fd = new FormData();
-          fd.append('file', blob, 'avatar.png');
-          fetch(cfg.apiAvatar(id), { method: 'POST', body: fd }).then(function(r) { return r.json(); }).then(function(data) {
-            var prev = eid('-image-preview');
-            var ph = eid('-image-placeholder');
-            prev.src = '/' + data.avatar_path + '?t=' + new Date().getTime();
+          fd.append('file', file);
+          fetch(cfg.apiImages(id), { method: 'POST', body: fd })
+            .then(function (r) {
+              return r.json();
+            })
+            .then(function (data) {
+              var s = sec();
+              if (!s) return;
+              var div = buildMediaThumbnail(
+                data,
+                function (e) {
+                  window[cfg.deleteFn](data.id);
+                },
+                cfg.mediaIdPrefix,
+              );
+              s.insertBefore(div, s.lastElementChild.previousElementSibling);
+              var ph = s.querySelector('.block-media-placeholder');
+              if (ph) ph.style.display = 'none';
+              if (
+                window.StateManager &&
+                StateManager.get(cfg.stateKey) === id &&
+                window.reloadPromptArranger
+              ) {
+                var pid =
+                  StateManager.get('preset_id') ||
+                  (document.getElementById('prompt-arranger') &&
+                  document.querySelector('#prompt-arranger .arranger-list')
+                    ? document
+                        .querySelector('#prompt-arranger .arranger-list')
+                        .id.replace('arranger-list-', '')
+                    : null);
+                if (pid) reloadPromptArranger(pid, 'prompt-arranger');
+              }
+            });
+        };
+
+        window[cfg.openFn] = function (btn) {
+          eid('-id').value = btn.dataset[P + 'Id'] || '';
+          var name = btn.dataset[P + 'Name'] || '';
+          eid('-name').value = name;
+          eid('-desc').value = btn.dataset[P + 'Desc'] || '';
+          var imgPath = btn.dataset[P + 'Image'];
+          var prev = eid('-image-preview');
+          var ph = eid('-image-placeholder');
+          if (imgPath) {
+            prev.src = '/' + imgPath + '?t=' + new Date().getTime();
             prev.style.display = 'block';
             ph.style.display = 'none';
+          } else {
+            prev.style.display = 'none';
+            ph.innerText = name ? name.charAt(0).toUpperCase() : '?';
+            ph.style.display = 'block';
+          }
+          var s = sec();
+          Array.from(s.children).forEach(function (el) {
+            if (
+              !el.classList.contains('block-media-btn') &&
+              !el.classList.contains('block-media-placeholder')
+            )
+              el.remove();
           });
-        });
-        input.value = '';
-      };
+          var phText = s.querySelector('.block-media-placeholder');
+          var list = [];
+          try {
+            list = JSON.parse(btn.dataset[P + 'Media'] || '[]');
+          } catch (e) {
+            console.error(e);
+          }
+          if (list.length > 0 && phText) {
+            phText.style.display = 'none';
+          } else if (list.length === 0 && phText) {
+            phText.style.display = 'block';
+          }
+          list.forEach(function (img) {
+            s.insertBefore(
+              buildMediaThumbnail(
+                img,
+                function (e) {
+                  window[cfg.deleteFn](img.id);
+                },
+                cfg.mediaIdPrefix,
+              ),
+              s.lastElementChild.previousElementSibling,
+            );
+          });
+          document.getElementById(mid).classList.remove('hidden');
+        };
 
-      window[cfg.submitFn] = function(e) {
-        e.preventDefault();
-        var id = eid('-id').value;
-        if (!id) return;
-        var data = Object.fromEntries(new FormData(e.target));
-        fetch(cfg.apiGet(id), {
-          method: 'PATCH',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify(data)
-        }).then(async function(r) {
-          if (!r.ok) return;
-          closeModal(mid);
-          var url = cfg.modalBodyUrl;
-          var currentId = StateManager.get(cfg.stateKey);
-          if (currentId) url += '?current_' + cfg.stateKey + '=' + encodeURIComponent(currentId);
-          htmx.ajax('GET', url, {target: cfg.modalBodySelector, swap: 'innerHTML'});
+        window[cfg.uploadFn] = function (input) {
+          if (!input.files || !input.files[0]) return;
+          window[cfg.uploadFileFn](input.files[0]);
+          input.value = '';
+        };
+
+        window[cfg.deleteFn] = function (imageId) {
+          var id = eid('-id').value;
+          if (!id) return;
+          fetch(cfg.apiImage(id, imageId), { method: 'DELETE' }).then(function (r) {
+            if (!r.ok) return;
+            var el = document.getElementById(cfg.mediaIdPrefix + '-' + imageId);
+            if (el) el.remove();
+            if (
+              window.StateManager &&
+              StateManager.get(cfg.stateKey) === id &&
+              window.reloadPromptArranger
+            ) {
+              var pid =
+                StateManager.get('preset_id') ||
+                (document.getElementById('prompt-arranger') &&
+                document.querySelector('#prompt-arranger .arranger-list')
+                  ? document
+                      .querySelector('#prompt-arranger .arranger-list')
+                      .id.replace('arranger-list-', '')
+                  : null);
+              if (pid) reloadPromptArranger(pid, 'prompt-arranger');
+            }
+          });
+        };
+
+        window[cfg.avatarFn] = function (input) {
+          if (!input.files || !input.files[0]) return;
+          var id = eid('-id').value;
+          if (!id) return;
+          openCropModal(input.files[0], function (blob) {
+            var fd = new FormData();
+            fd.append('file', blob, 'avatar.png');
+            fetch(cfg.apiAvatar(id), { method: 'POST', body: fd })
+              .then(function (r) {
+                return r.json();
+              })
+              .then(function (data) {
+                var prev = eid('-image-preview');
+                var ph = eid('-image-placeholder');
+                prev.src = '/' + data.avatar_path + '?t=' + new Date().getTime();
+                prev.style.display = 'block';
+                ph.style.display = 'none';
+              });
+          });
+          input.value = '';
+        };
+
+        window[cfg.submitFn] = function (e) {
+          e.preventDefault();
+          var id = eid('-id').value;
+          if (!id) return;
+          var data = Object.fromEntries(new FormData(e.target));
+          fetch(cfg.apiGet(id), {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+          }).then(async function (r) {
+            if (!r.ok) return;
+            closeModal(mid);
+            var url = cfg.modalBodyUrl;
+            var currentId = StateManager.get(cfg.stateKey);
+            if (currentId) url += '?current_' + cfg.stateKey + '=' + encodeURIComponent(currentId);
+            htmx.ajax('GET', url, { target: cfg.modalBodySelector, swap: 'innerHTML' });
+          });
+        };
+
+        setupDropZone(cfg.dropZoneSelector, function (files) {
+          files.forEach(window[cfg.uploadFileFn]);
         });
       };
-
-      setupDropZone(cfg.dropZoneSelector, function(files) { files.forEach(window[cfg.uploadFileFn]); });
-    };
     </script>
     <!-- / inline scripts ───────────────────────────────────────────────── -->
-    {% block content %}{% endblock %}
-    {% include "modals/confirm_modal.html" %}
-    
+    {% block content %}{% endblock %} {% include "modals/confirm_modal.html" %}
+
     <!-- Global Lightbox for Images -->
-     <div id="lightbox" class="modal-overlay heavy hidden" role="dialog" aria-modal="true" aria-label="Image lightbox" style="z-index: var(--z-overlay);" onclick="closeLightbox(event)">
-       <button id="lightbox-close" class="absolute top-4 right-4 text-white/50 hover:text-white bg-black/50 hover:bg-black/75 rounded-full w-10 h-10 flex items-center justify-center transition-colors text-xl font-bold cursor-pointer focus:outline-hidden z-50" onclick="closeLightbox(event)" title="Close" aria-label="Close lightbox">{{ icon_close(24) }}</button>
-       <img id="lightbox-img" src="" alt="Enlarged image" class="max-w-[95vw] max-h-[95vh] object-contain rounded shadow-2xl" onclick="event.stopPropagation()">
+    <div
+      id="lightbox"
+      class="modal-overlay heavy hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Image lightbox"
+      style="z-index: var(--z-overlay)"
+      onclick="closeLightbox(event)"
+    >
+      <button
+        id="lightbox-close"
+        class="absolute top-4 right-4 text-white/50 hover:text-white bg-black/50 hover:bg-black/75 rounded-full w-10 h-10 flex items-center justify-center transition-colors text-xl font-bold cursor-pointer focus:outline-hidden z-50"
+        onclick="closeLightbox(event)"
+        title="Close"
+        aria-label="Close lightbox"
+      >
+        {{ icon_close(24) }}
+      </button>
+      <img
+        id="lightbox-img"
+        src=""
+        alt="Enlarged image"
+        class="max-w-[95vw] max-h-[95vh] object-contain rounded shadow-2xl"
+        onclick="event.stopPropagation()"
+      />
     </div>
 
     <!-- Global Crop Modal -->
-     <div id="crop-modal" class="modal-overlay heavy hidden" role="dialog" aria-modal="true" aria-label="Image crop tool" style="z-index: var(--z-overlay);">
-      <div class="modal-content" style="max-width: 42rem; width: 90vw; padding: 0; overflow: hidden; display: flex; flex-direction: column;">
-        <div class="modal-header" style="padding: 1rem 1.5rem; margin-bottom: 0; border-bottom: 1px solid var(--border);">
+    <div
+      id="crop-modal"
+      class="modal-overlay heavy hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Image crop tool"
+      style="z-index: var(--z-overlay)"
+    >
+      <div
+        class="modal-content"
+        style="
+          max-width: 42rem;
+          width: 90vw;
+          padding: 0;
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
+        "
+      >
+        <div
+          class="modal-header"
+          style="padding: 1rem 1.5rem; margin-bottom: 0; border-bottom: 1px solid var(--border)"
+        >
           <div class="modal-title">Crop Image</div>
-          <button class="btn btn-secondary w-8 h-8 rounded-full p-0 flex items-center justify-center" onclick="closeCropModal()" aria-label="Close crop tool">{{ icon_close() }}</button>
+          <button
+            class="btn btn-secondary w-8 h-8 rounded-full p-0 flex items-center justify-center"
+            onclick="closeCropModal()"
+            aria-label="Close crop tool"
+          >
+            {{ icon_close() }}
+          </button>
         </div>
-        <div id="crop-container" class="p-2" style="background: var(--surface-2); height: 60vh;"></div>
-        <div class="modal-footer" style="padding: 1rem 1.5rem;">
+        <div
+          id="crop-container"
+          class="p-2"
+          style="background: var(--surface-2); height: 60vh"
+        ></div>
+        <div class="modal-footer" style="padding: 1rem 1.5rem">
           <button class="btn btn-secondary" onclick="closeCropModal()">Cancel</button>
           <button class="btn btn-primary" id="crop-save-btn">Save Crop</button>
         </div>
@@ -261,5 +418,5 @@
     <script src="/static/js/edit_message.js"></script>
     <script src="/static/js/delete_mode.js"></script>
     <script src="/static/chat_stream.js"></script>
-</body>
+  </body>
 </html>

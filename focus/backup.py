@@ -1,5 +1,4 @@
 import logging
-import os
 from pathlib import Path
 
 import aiosqlite
@@ -25,8 +24,12 @@ async def create_backup(
     from focus.models import ExportRequest
 
     req = ExportRequest(
-        characters=["*"], personas=["*"], presets=["*"], chats=["*"],
-        include_providers=True, include_secrets=True,
+        characters=["*"],
+        personas=["*"],
+        presets=["*"],
+        chats=["*"],
+        include_providers=True,
+        include_secrets=True,
     )
     zip_bytes = await export_data(db, req)
 
@@ -52,11 +55,13 @@ def list_backups(backups_path: str | None = None) -> list[dict]:
     for entry in sorted(backups_dir.iterdir(), reverse=True):
         if not entry.is_file() or entry.suffix != ".focus":
             continue
-        result.append({
-            "id": entry.stem,
-            "path": str(entry),
-            "size_bytes": entry.stat().st_size,
-        })
+        result.append(
+            {
+                "id": entry.stem,
+                "path": str(entry),
+                "size_bytes": entry.stat().st_size,
+            }
+        )
     return result
 
 

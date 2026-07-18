@@ -1,17 +1,23 @@
 // DOM builders for chat message elements.
 // Depends on window.escapeHtml, window.renderMessage, window.getSvgSprite
 
-(function(){
-  window.createUserMessageDiv = function(text, stagedFiles, personaInitial) {
+(function () {
+  window.createUserMessageDiv = function (text, stagedFiles, personaInitial) {
     const userDiv = document.createElement('div');
     userDiv.className = 'message';
 
     let attachPreview = '';
     if (stagedFiles && stagedFiles.length > 0) {
-      attachPreview = '<div class="flex gap-2 flex-wrap mb-2">' + stagedFiles.map(f => {
-        if (f.type.startsWith('image/')) return `<img src="${URL.createObjectURL(f)}" class="h-24 rounded object-cover border border-border cursor-pointer" onclick="openLightbox(this.src)">`;
-        return `<div class="h-16 bg-surface-3 px-2 rounded flex items-center text-xs">${window.getSvgSprite('music', 24)} ${f.name}</div>`;
-      }).join('') + '</div>';
+      attachPreview =
+        '<div class="flex gap-2 flex-wrap mb-2">' +
+        stagedFiles
+          .map((f) => {
+            if (f.type.startsWith('image/'))
+              return `<img src="${URL.createObjectURL(f)}" class="h-24 rounded object-cover border border-border cursor-pointer" onclick="openLightbox(this.src)">`;
+            return `<div class="h-16 bg-surface-3 px-2 rounded flex items-center text-xs">${window.getSvgSprite('music', 24)} ${f.name}</div>`;
+          })
+          .join('') +
+        '</div>';
     }
 
     userDiv.innerHTML = `
@@ -24,7 +30,7 @@
     return userDiv;
   };
 
-  window.createAssistantPlaceholderDiv = function(charName, charImagePath) {
+  window.createAssistantPlaceholderDiv = function (charName, charImagePath) {
     const asstDiv = document.createElement('div');
     asstDiv.className = 'message';
     asstDiv.id = 'streaming-message';

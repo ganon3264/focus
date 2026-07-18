@@ -43,23 +43,25 @@ function openCropModal(file, callback, options = {}) {
       container: container,
       template:
         '<cropper-canvas>' +
-          '<cropper-image></cropper-image>' +
-          '<cropper-shade hidden></cropper-shade>' +
-          '<cropper-handle action="select" plain></cropper-handle>' +
-          '<cropper-selection initial-coverage="0.8" movable resizable aspect-ratio="' + aspectRatio + '">' +
-            '<cropper-grid role="grid" bordered covered></cropper-grid>' +
-            '<cropper-crosshair centered></cropper-crosshair>' +
-            '<cropper-handle action="move" theme-color="rgba(255, 255, 255, 0.35)"></cropper-handle>' +
-            '<cropper-handle action="n-resize"></cropper-handle>' +
-            '<cropper-handle action="e-resize"></cropper-handle>' +
-            '<cropper-handle action="s-resize"></cropper-handle>' +
-            '<cropper-handle action="w-resize"></cropper-handle>' +
-            '<cropper-handle action="ne-resize"></cropper-handle>' +
-            '<cropper-handle action="nw-resize"></cropper-handle>' +
-            '<cropper-handle action="se-resize"></cropper-handle>' +
-            '<cropper-handle action="sw-resize"></cropper-handle>' +
-          '</cropper-selection>' +
-        '</cropper-canvas>'
+        '<cropper-image></cropper-image>' +
+        '<cropper-shade hidden></cropper-shade>' +
+        '<cropper-handle action="select" plain></cropper-handle>' +
+        '<cropper-selection initial-coverage="0.8" movable resizable aspect-ratio="' +
+        aspectRatio +
+        '">' +
+        '<cropper-grid role="grid" bordered covered></cropper-grid>' +
+        '<cropper-crosshair centered></cropper-crosshair>' +
+        '<cropper-handle action="move" theme-color="rgba(255, 255, 255, 0.35)"></cropper-handle>' +
+        '<cropper-handle action="n-resize"></cropper-handle>' +
+        '<cropper-handle action="e-resize"></cropper-handle>' +
+        '<cropper-handle action="s-resize"></cropper-handle>' +
+        '<cropper-handle action="w-resize"></cropper-handle>' +
+        '<cropper-handle action="ne-resize"></cropper-handle>' +
+        '<cropper-handle action="nw-resize"></cropper-handle>' +
+        '<cropper-handle action="se-resize"></cropper-handle>' +
+        '<cropper-handle action="sw-resize"></cropper-handle>' +
+        '</cropper-selection>' +
+        '</cropper-canvas>',
     });
   }, 50);
 }
@@ -91,7 +93,7 @@ if (_cropSaveBtn) {
     const selection = cropper.getCropperSelection();
     if (!selection) return;
 
-    selection.$toCanvas(getOpts).then(canvas => {
+    selection.$toCanvas(getOpts).then((canvas) => {
       canvas.toBlob((blob) => {
         cb(blob);
         closeCropModal();
@@ -111,14 +113,16 @@ function handleAvatarUpload(fileInput, endpoint, successCallback) {
 
     fetch(endpoint, {
       method: 'POST',
-      body: formData
-    }).then(r => r.json()).then(data => {
-      if (successCallback) {
-        successCallback(data);
-      } else {
-        window.location.reload();
-      }
-    });
+      body: formData,
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (successCallback) {
+          successCallback(data);
+        } else {
+          window.location.reload();
+        }
+      });
   });
 
   fileInput.value = '';

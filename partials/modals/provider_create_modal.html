@@ -1,38 +1,43 @@
-{% from "macros.html" import custom_select, icon_key, icon_search %}
-{% from "modal_shell.html" import modal_shell %}
-{% call modal_shell('modal-provider-create', 'Add Provider', max_width='500px', z_index='100') %}
+{% from "macros.html" import custom_select, icon_key, icon_search %} {% from "modal_shell.html"
+import modal_shell %} {% call modal_shell('modal-provider-create', 'Add Provider',
+max_width='500px', z_index='100') %}
 <form onsubmit="submitProviderModal(event)" class="flex flex-col gap-3 p-4">
   <div class="form-group mb-0">
     <label>Name</label>
-    <input type="text" name="name" required placeholder="e.g. Local LLM" class="text-sm form-control w-full">
+    <input
+      type="text"
+      name="name"
+      required
+      placeholder="e.g. Local LLM"
+      class="text-sm form-control w-full"
+    />
   </div>
   <div class="form-group mb-0">
     <label>Type</label>
-    {{ custom_select(
-         name="type",
-         id="new-prov-type",
-         options=[
-           {"value": "openai_compat", "label": "OpenAI Compatible"},
-           {"value": "openrouter", "label": "OpenRouter"},
-           {"value": "google_aistudio", "label": "Google AI Studio"},
-           {"value": "google_vertex", "label": "Google Vertex AI"},
-           {"value": "deepseek", "label": "Deepseek"},
-           {"value": "moonshot", "label": "Moonshot"}
-         ],
-         selected="openai_compat",
-         on_change="toggleProviderFields('new-prov')",
-         extra_classes="form-control text-sm w-full"
-       )
-    }}
+    {{ custom_select( name="type", id="new-prov-type", options=[ {"value": "openai_compat", "label":
+    "OpenAI Compatible"}, {"value": "openrouter", "label": "OpenRouter"}, {"value":
+    "google_aistudio", "label": "Google AI Studio"}, {"value": "google_vertex", "label": "Google
+    Vertex AI"}, {"value": "deepseek", "label": "Deepseek"}, {"value": "moonshot", "label":
+    "Moonshot"} ], selected="openai_compat", on_change="toggleProviderFields('new-prov')",
+    extra_classes="form-control text-sm w-full" ) }}
   </div>
   <div class="form-group mb-0" id="new-prov-baseurl">
     <label>Base URL</label>
-    <input type="text" name="base_url" placeholder="https://api.example.com/v1" class="text-sm form-control w-full">
+    <input
+      type="text"
+      name="base_url"
+      placeholder="https://api.example.com/v1"
+      class="text-sm form-control w-full"
+    />
   </div>
   <div class="form-group mb-0">
     <label>API Key</label>
-    <input type="hidden" name="api_key" id="api-key-input-new-prov" value="">
-    <button type="button" class="form-control text-sm w-full flex justify-between items-center cursor-pointer" onclick="openSecretsModal('new-prov')">
+    <input type="hidden" name="api_key" id="api-key-input-new-prov" value="" />
+    <button
+      type="button"
+      class="form-control text-sm w-full flex justify-between items-center cursor-pointer"
+      onclick="openSecretsModal('new-prov')"
+    >
       <span id="api-key-display-new-prov" class="truncate text-muted">Select API Key...</span>
       <span class="opacity-50">{{ icon_key() }}</span>
     </button>
@@ -42,37 +47,70 @@
   <div class="form-group mb-0" id="new-prov-model-input">
     <label>Model</label>
     <div class="flex gap-2">
-      <input type="text" name="model" id="model-text-new-prov" required placeholder="gpt-4" class="text-sm form-control w-full">
-      <button type="button" class="btn btn-secondary" onclick="openFetchModelModal('new-prov')" aria-label="Fetch models" title="Fetch Models from Provider" style="width: 44px; display: grid; place-items: center;">{{ icon_search(18) }}</button>
+      <input
+        type="text"
+        name="model"
+        id="model-text-new-prov"
+        required
+        placeholder="gpt-4"
+        class="text-sm form-control w-full"
+      />
+      <button
+        type="button"
+        class="btn btn-secondary"
+        onclick="openFetchModelModal('new-prov')"
+        aria-label="Fetch models"
+        title="Fetch Models from Provider"
+        style="width: 44px; display: grid; place-items: center"
+      >
+        {{ icon_search(18) }}
+      </button>
     </div>
   </div>
-  
+
   <!-- OpenRouter Dynamic Fields -->
   <div id="new-prov-or-fields" class="hidden flex-col gap-3">
     <div class="form-group mb-0">
       <label>Model</label>
-      <input type="hidden" name="or_model" id="or-model-input-new-prov" value="">
-      <button type="button" class="form-control text-sm w-full flex justify-between items-center cursor-pointer" onclick="openORModelModal('new-prov')">
+      <input type="hidden" name="or_model" id="or-model-input-new-prov" value="" />
+      <button
+        type="button"
+        class="form-control text-sm w-full flex justify-between items-center cursor-pointer"
+        onclick="openORModelModal('new-prov')"
+      >
         <span id="or-model-display-new-prov" class="truncate text-muted">Select Model...</span>
         <span class="opacity-50">{{ icon_search() }}</span>
       </button>
     </div>
-    
+
     <div class="form-group mb-0">
       <label>Provider Routing</label>
       <div id="new-prov-route-wrapper">
-        {{ custom_select(name="or_route", id="new-prov-or-route", options=[{"value": "", "label": "Auto (Any)"}], selected="", extra_classes="form-control text-sm w-full") }}
+        {{ custom_select(name="or_route", id="new-prov-or-route", options=[{"value": "", "label":
+        "Auto (Any)"}], selected="", extra_classes="form-control text-sm w-full") }}
       </div>
     </div>
-    <div id="new-prov-or-no-fallbacks-row" class="form-group mb-0 flex items-center justify-between hidden">
-      <label class="text-xs mb-0 cursor-pointer" onclick="toggleNoFallbacks('new-prov')">Lock provider (no fallbacks)</label>
-      <div class="arranger-toggle active" role="switch" tabindex="0" id="new-prov-or-no-fallbacks-toggle" onclick="toggleNoFallbacks('new-prov')"></div>
-      <input type="hidden" name="or_no_fallbacks" id="new-prov-or-no-fallbacks" value="true">
+    <div
+      id="new-prov-or-no-fallbacks-row"
+      class="form-group mb-0 flex items-center justify-between hidden"
+    >
+      <label class="text-xs mb-0 cursor-pointer" onclick="toggleNoFallbacks('new-prov')"
+        >Lock provider (no fallbacks)</label
+      >
+      <div
+        class="arranger-toggle active"
+        role="switch"
+        tabindex="0"
+        id="new-prov-or-no-fallbacks-toggle"
+        onclick="toggleNoFallbacks('new-prov')"
+      ></div>
+      <input type="hidden" name="or_no_fallbacks" id="new-prov-or-no-fallbacks" value="true" />
     </div>
     <div class="form-group mb-0">
       <label>Quantization</label>
       <div id="new-prov-quant-wrapper">
-        {{ custom_select(name="or_quant", id="new-prov-or-quant", options=[{"value": "", "label": "Any"}], selected="", extra_classes="form-control text-sm w-full") }}
+        {{ custom_select(name="or_quant", id="new-prov-or-quant", options=[{"value": "", "label":
+        "Any"}], selected="", extra_classes="form-control text-sm w-full") }}
       </div>
     </div>
   </div>
@@ -81,38 +119,39 @@
   <div id="new-prov-vertex-fields" class="hidden flex-col gap-3">
     <div class="form-group mb-0">
       <label>Project ID</label>
-      <input type="text" name="vertex_project_id" id="new-prov-vertex-project-id" placeholder="Optional (Uses ADC if blank)" class="text-sm form-control w-full">
+      <input
+        type="text"
+        name="vertex_project_id"
+        id="new-prov-vertex-project-id"
+        placeholder="Optional (Uses ADC if blank)"
+        class="text-sm form-control w-full"
+      />
     </div>
     <div class="form-group mb-0">
       <label>Region</label>
-      {{ custom_select(
-           name="vertex_region",
-           id="new-prov-vertex-region",
-           options=[
-             {"value": "global", "label": "Global"},
-             {"value": "us-central1", "label": "us-central1 (Iowa)"},
-             {"value": "us-east4", "label": "us-east4 (N. Virginia)"},
-             {"value": "us-west1", "label": "us-west1 (Oregon)"},
-             {"value": "us-west4", "label": "us-west4 (Las Vegas)"},
-             {"value": "europe-west1", "label": "europe-west1 (Belgium)"},
-             {"value": "europe-west2", "label": "europe-west2 (London)"},
-             {"value": "europe-west3", "label": "europe-west3 (Frankfurt)"},
-             {"value": "europe-west4", "label": "europe-west4 (Netherlands)"},
-             {"value": "europe-west9", "label": "europe-west9 (Paris)"},
-             {"value": "asia-northeast1", "label": "asia-northeast1 (Tokyo)"},
-             {"value": "asia-northeast3", "label": "asia-northeast3 (Seoul)"},
-             {"value": "asia-southeast1", "label": "asia-southeast1 (Singapore)"}
-           ],
-           selected="global",
-           extra_classes="form-control text-sm w-full"
-         )
-      }}
+      {{ custom_select( name="vertex_region", id="new-prov-vertex-region", options=[ {"value":
+      "global", "label": "Global"}, {"value": "us-central1", "label": "us-central1 (Iowa)"},
+      {"value": "us-east4", "label": "us-east4 (N. Virginia)"}, {"value": "us-west1", "label":
+      "us-west1 (Oregon)"}, {"value": "us-west4", "label": "us-west4 (Las Vegas)"}, {"value":
+      "europe-west1", "label": "europe-west1 (Belgium)"}, {"value": "europe-west2", "label":
+      "europe-west2 (London)"}, {"value": "europe-west3", "label": "europe-west3 (Frankfurt)"},
+      {"value": "europe-west4", "label": "europe-west4 (Netherlands)"}, {"value": "europe-west9",
+      "label": "europe-west9 (Paris)"}, {"value": "asia-northeast1", "label": "asia-northeast1
+      (Tokyo)"}, {"value": "asia-northeast3", "label": "asia-northeast3 (Seoul)"}, {"value":
+      "asia-southeast1", "label": "asia-southeast1 (Singapore)"} ], selected="global",
+      extra_classes="form-control text-sm w-full" ) }}
     </div>
   </div>
 
   <div class="form-group mb-0 hidden">
     <label>Params JSON</label>
-    <input type="text" name="params" value="{}" placeholder='{"key":"val"}' class="text-sm form-control w-full">
+    <input
+      type="text"
+      name="params"
+      value="{}"
+      placeholder='{"key":"val"}'
+      class="text-sm form-control w-full"
+    />
   </div>
   <button class="btn btn-primary w-full mt-2 text-sm">Create Provider</button>
 </form>

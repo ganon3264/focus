@@ -1,10 +1,10 @@
 // Scroll sentinel and auto-scroll behavior for the chat message list.
 
-(function(){
+(function () {
   window.autoScroll = true;
   window.scrollSentinel = null;
 
-  window.ensureSentinelAndObserver = function() {
+  window.ensureSentinelAndObserver = function () {
     const ml = document.getElementById('message-list');
     const cc = document.querySelector('.chat-center');
     if (!ml || !cc) return;
@@ -21,25 +21,28 @@
     window.scrollSentinel = s;
 
     if (window._scrollObserver) window._scrollObserver.disconnect();
-    window._scrollObserver = new IntersectionObserver(function(_ref) {
-      window.autoScroll = _ref[0].isIntersecting;
-    }, { root: cc, threshold: 0 });
+    window._scrollObserver = new IntersectionObserver(
+      function (_ref) {
+        window.autoScroll = _ref[0].isIntersecting;
+      },
+      { root: cc, threshold: 0 },
+    );
     window._scrollObserver.observe(s);
   };
 
   function scrollToBottom() {
     var navEntries = performance.getEntriesByType('navigation');
     if (navEntries.length > 0 && navEntries[0].type === 'navigate') {
-      requestAnimationFrame(function() {
-        requestAnimationFrame(function() {
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
           var s = document.getElementById('scroll-sentinel');
-          if (s) s.scrollIntoView({block: 'end'});
+          if (s) s.scrollIntoView({ block: 'end' });
         });
       });
     }
   }
 
-  document.addEventListener('DOMContentLoaded', function() {
+  document.addEventListener('DOMContentLoaded', function () {
     window.ensureSentinelAndObserver();
     scrollToBottom();
   });

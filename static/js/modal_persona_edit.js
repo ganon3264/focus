@@ -4,10 +4,18 @@ createEditModalHandlers({
   mediaIdPrefix: 'persona-media',
   dataPrefix: 'persona',
   stateKey: 'persona_id',
-  apiGet: function(id) { return api.personas(id); },
-  apiImages: function(id) { return api.personaImages(id); },
-  apiImage: function(id, imgId) { return api.personaImage(id, imgId); },
-  apiAvatar: function(id) { return api.personaAvatar(id); },
+  apiGet: function (id) {
+    return api.personas(id);
+  },
+  apiImages: function (id) {
+    return api.personaImages(id);
+  },
+  apiImage: function (id, imgId) {
+    return api.personaImage(id, imgId);
+  },
+  apiAvatar: function (id) {
+    return api.personaAvatar(id);
+  },
   modalId: 'modal-edit-persona',
   modalBodyUrl: '/partials/personas-modal',
   modalBodySelector: '#personas-modal-body',
@@ -17,5 +25,5 @@ createEditModalHandlers({
   deleteFn: 'deletePersonaMedia',
   avatarFn: 'uploadPersonaAvatar',
   submitFn: 'submitEditPersona',
-  dropZoneSelector: '#edit-persona-media-section'
+  dropZoneSelector: '#edit-persona-media-section',
 });

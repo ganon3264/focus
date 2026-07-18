@@ -1,15 +1,15 @@
 {% for char in characters %}
-<div class="sidebar-item char-selector-item {% if current_character_id == char.id %}active{% endif %}" data-char-id="{{ char.id }}"
+<div
+  class="sidebar-item char-selector-item {% if current_character_id == char.id %}active{% endif %}"
+  data-char-id="{{ char.id }}"
   hx-trigger="click"
   hx-swap="none"
   onclick="htmx.ajax('GET', '/partials/chat-list?character_id={{ char.id }}&current_chat_id={{ chat_id }}', {target:'#chat-list', swap:'innerHTML'})"
 >
   <div class="avatar-thumb">
     {% if char.image_path %}
-      <img src="/{{ char.image_path }}" alt="{{ char.name }} avatar">
-    {% else %}
-      {{ char.name[:1] }}
-    {% endif %}
+    <img src="/{{ char.image_path }}" alt="{{ char.name }} avatar" />
+    {% else %} {{ char.name[:1] }} {% endif %}
   </div>
   <div class="truncate text-sm">{{ char.name }}</div>
 </div>

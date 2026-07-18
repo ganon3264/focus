@@ -1,11 +1,9 @@
-import pytest
-
 from focus.utils import (
+    SUFFIX_MIME_MAP,
+    SUFFIX_MIME_MAP_IMAGES_ONLY,
     _image_dims_from_data_url,
     estimate_image_tokens,
     variable_group_name,
-    SUFFIX_MIME_MAP,
-    SUFFIX_MIME_MAP_IMAGES_ONLY,
 )
 
 

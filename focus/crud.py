@@ -6,16 +6,18 @@ from pathlib import Path
 import aiosqlite
 
 from focus.card_parser import safe_load_card
-from focus.utils import now_iso, SUFFIX_MIME_MAP, SUFFIX_MIME_MAP_IMAGES_ONLY
+from focus.utils import SUFFIX_MIME_MAP, SUFFIX_MIME_MAP_IMAGES_ONLY, now_iso
 
 logger = logging.getLogger("focus.crud")
+
 
 def _strip_think_tags(text: str | None) -> str | None:
     if not text:
         return text
-    stripped = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL)
-    stripped = re.sub(r'</?think>', '', stripped)
+    stripped = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
+    stripped = re.sub(r"</?think>", "", stripped)
     return stripped.strip() if stripped.strip() else "New Chat"
+
 
 async def attach_images(blocks: list[dict], db: aiosqlite.Connection) -> list[dict]:
     if not blocks:
@@ -35,7 +37,9 @@ async def attach_images(blocks: list[dict], db: aiosqlite.Connection) -> list[di
     return blocks
 
 
-async def next_position(db: aiosqlite.Connection, table: str, where_col: str, where_val: str) -> int:
+async def next_position(
+    db: aiosqlite.Connection, table: str, where_col: str, where_val: str
+) -> int:
     async with db.execute(
         f"SELECT COALESCE(MAX(position), -1) FROM {table} WHERE {where_col} = ?", (where_val,)
     ) as cur:
@@ -43,7 +47,9 @@ async def next_position(db: aiosqlite.Connection, table: str, where_col: str, wh
     return row[0] + 1
 
 
-async def dynamic_update(db: aiosqlite.Connection, table: str, updates: dict, where_clause: str, where_params: list):
+async def dynamic_update(
+    db: aiosqlite.Connection, table: str, updates: dict, where_clause: str, where_params: list
+):
     cols = ", ".join(f"{k} = ?" for k in updates)
     vals = list(updates.values()) + where_params
     await db.execute(f"UPDATE {table} SET {cols} WHERE {where_clause}", vals)
@@ -97,6 +103,7 @@ async def delete_block_image(
         row = await cur.fetchone()
     if not row:
         from fastapi import HTTPException
+
         raise HTTPException(404, "Image not found")
     Path(row["image_path"]).unlink(missing_ok=True)
     await db.execute("DELETE FROM block_images WHERE id = ?", (image_id,))
@@ -120,6 +127,7 @@ async def verify_entity_exists(
             row = await cur.fetchone()
     if not row:
         from fastapi import HTTPException
+
         raise HTTPException(404, f"{table.split('_')[0].capitalize()} not found")
 
 
@@ -135,8 +143,7 @@ async def load_entity_blocks(
     parent_id: str,
 ) -> list[dict]:
     async with db.execute(
-        f"SELECT * FROM {table} WHERE {parent_col} = ? ORDER BY position, rowid",
-        (parent_id,)
+        f"SELECT * FROM {table} WHERE {parent_col} = ? ORDER BY position, rowid", (parent_id,)
     ) as cur:
         blocks = [dict(r) for r in await cur.fetchall()]
     await attach_images(blocks, db)
@@ -144,7 +151,9 @@ async def load_entity_blocks(
 
 
 async def get_characters(db: aiosqlite.Connection) -> list[dict]:
-    async with db.execute("SELECT * FROM characters WHERE is_deleted = 0 ORDER BY created_at DESC") as cur:
+    async with db.execute(
+        "SELECT * FROM characters WHERE is_deleted = 0 ORDER BY created_at DESC"
+    ) as cur:
         rows = await cur.fetchall()
         characters = []
         for r in rows:
@@ -154,6 +163,7 @@ async def get_characters(db: aiosqlite.Connection) -> list[dict]:
             characters.append(c)
     await attach_images(characters, db)
     return characters
+
 
 async def get_character(db: aiosqlite.Connection, character_id: str) -> dict | None:
     if not character_id:
@@ -166,12 +176,14 @@ async def get_character(db: aiosqlite.Connection, character_id: str) -> dict | N
     character["card"] = safe_load_card(row) or {}
     return character
 
+
 async def get_presets(db: aiosqlite.Connection) -> list[dict]:
     async with db.execute("SELECT * FROM presets ORDER BY created_at DESC") as cur:
         presets = [dict(r) for r in await cur.fetchall()]
     for p in presets:
         p["blocks"] = await load_entity_blocks(db, "preset_blocks", "preset_id", p["id"])
     return presets
+
 
 async def get_preset(db: aiosqlite.Connection, preset_id: str) -> dict | None:
     if not preset_id:
@@ -184,15 +196,18 @@ async def get_preset(db: aiosqlite.Connection, preset_id: str) -> dict | None:
     preset["blocks"] = await load_entity_blocks(db, "preset_blocks", "preset_id", preset_id)
     return preset
 
+
 async def get_providers(db: aiosqlite.Connection) -> list[dict]:
     async with db.execute("SELECT * FROM providers ORDER BY created_at DESC") as cur:
         return [dict(r) for r in await cur.fetchall()]
+
 
 async def get_personas(db: aiosqlite.Connection) -> list[dict]:
     async with db.execute("SELECT * FROM personas ORDER BY created_at DESC") as cur:
         personas = [dict(r) for r in await cur.fetchall()]
     await attach_images(personas, db)
     return personas
+
 
 async def get_persona(db: aiosqlite.Connection, persona_id: str = None) -> dict | None:
     if persona_id:
@@ -204,7 +219,9 @@ async def get_persona(db: aiosqlite.Connection, persona_id: str = None) -> dict 
     return dict(row) if row else None
 
 
-async def fetch_active_variants(db: aiosqlite.Connection, chat_id: str, extra_cols: str = "") -> list[dict]:
+async def fetch_active_variants(
+    db: aiosqlite.Connection, chat_id: str, extra_cols: str = ""
+) -> list[dict]:
     """Fetch messages with their active variant content for a chat.
 
     Returns rows with: id, role, position, active_index, content,
@@ -234,7 +251,7 @@ async def get_chat_messages(db: aiosqlite.Connection, chat_id: str) -> list[dict
 
     async with db.execute(
         "SELECT id, variant_id, file_path, mime_type FROM message_attachments WHERE chat_id = ? AND variant_id IS NOT NULL",
-        (chat_id,)
+        (chat_id,),
     ) as cur:
         attachments = await cur.fetchall()
 
@@ -246,6 +263,7 @@ async def get_chat_messages(db: aiosqlite.Connection, chat_id: str) -> list[dict
         m["attachments"] = attachments_by_variant.get(m["variant_id"], [])
 
     return messages
+
 
 async def get_chats_sidebar(db: aiosqlite.Connection, character_id: str = None) -> list[dict]:
     query_base = """
@@ -262,7 +280,7 @@ async def get_chats_sidebar(db: aiosqlite.Connection, character_id: str = None) 
     if character_id:
         async with db.execute(
             f"{query_base} WHERE character_id = ? AND is_deleted = 0 ORDER BY updated_at DESC",
-            (character_id,)
+            (character_id,),
         ) as cur:
             chats = [dict(r) for r in await cur.fetchall()]
     else:
@@ -276,27 +294,40 @@ async def get_chats_sidebar(db: aiosqlite.Connection, character_id: str = None) 
     return chats
 
 
-async def get_counts(db: aiosqlite.Connection, character_id: str | None, persona_id: str | None) -> dict:
+async def get_counts(
+    db: aiosqlite.Connection, character_id: str | None, persona_id: str | None
+) -> dict:
     counts = {"char_blocks": 0, "char_attachments": 0, "persona_attachments": 0}
 
     if character_id:
-        async with db.execute("SELECT id FROM char_blocks WHERE character_id = ?", (character_id,)) as cur:
+        async with db.execute(
+            "SELECT id FROM char_blocks WHERE character_id = ?", (character_id,)
+        ) as cur:
             char_blocks_rows = await cur.fetchall()
             counts["char_blocks"] = len(char_blocks_rows)
 
-            async with db.execute("SELECT COUNT(*) FROM block_images WHERE block_id = ? AND block_source = 'char'", (character_id,)) as img_cur:
+            async with db.execute(
+                "SELECT COUNT(*) FROM block_images WHERE block_id = ? AND block_source = 'char'",
+                (character_id,),
+            ) as img_cur:
                 row = await img_cur.fetchone()
                 counts["char_attachments"] += row[0] if row else 0
 
             if char_blocks_rows:
                 block_ids = [r["id"] for r in char_blocks_rows]
                 placeholders = ",".join("?" * len(block_ids))
-                async with db.execute(f"SELECT COUNT(*) FROM block_images WHERE block_id IN ({placeholders}) AND block_source = 'char'", block_ids) as img_cur:
+                async with db.execute(
+                    f"SELECT COUNT(*) FROM block_images WHERE block_id IN ({placeholders}) AND block_source = 'char'",
+                    block_ids,
+                ) as img_cur:
                     row = await img_cur.fetchone()
                     counts["char_attachments"] += row[0] if row else 0
 
     if persona_id:
-        async with db.execute("SELECT COUNT(*) FROM block_images WHERE block_id = ? AND block_source = 'char'", (persona_id,)) as img_cur:
+        async with db.execute(
+            "SELECT COUNT(*) FROM block_images WHERE block_id = ? AND block_source = 'char'",
+            (persona_id,),
+        ) as img_cur:
             row = await img_cur.fetchone()
             counts["persona_attachments"] += row[0] if row else 0
 

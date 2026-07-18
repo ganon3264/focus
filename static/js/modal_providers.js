@@ -1,39 +1,56 @@
 window._OR_MODELS_CACHE = window._OR_MODELS_CACHE || [];
 window._currentORPrefix = null;
 
+var PROVIDER_FIELD_CONFIG = {
+  openrouter: {
+    orFields: true,
+    modelInput: false,
+    baseUrl: false,
+    vertexFields: false,
+    modelRequired: false,
+  },
+  google_vertex: {
+    orFields: false,
+    modelInput: true,
+    baseUrl: false,
+    vertexFields: true,
+    modelRequired: true,
+  },
+};
+
 function toggleProviderFields(prefix) {
-  const type = document.getElementById(prefix + '-type').value;
-  const orFields = document.getElementById(prefix + '-or-fields');
-  const modelInput = document.getElementById(prefix + '-model-input');
-  const baseUrl = document.getElementById(prefix + '-baseurl');
-  const vertexFields = document.getElementById(prefix + '-vertex-fields');
-  
-  if (type === 'openrouter') {
-    if(orFields) { orFields.classList.remove('hidden'); orFields.classList.add('flex'); }
-    if(modelInput) modelInput.classList.add('hidden');
-    if(baseUrl) baseUrl.classList.add('hidden');
-    if(modelInput) modelInput.querySelector('input').removeAttribute('required');
-    if(vertexFields) { vertexFields.classList.add('hidden'); vertexFields.classList.remove('flex'); }
-  } else if (type === 'google_vertex') {
-    if(orFields) { orFields.classList.add('hidden'); orFields.classList.remove('flex'); }
-    if(modelInput) modelInput.classList.remove('hidden');
-    if(baseUrl) baseUrl.classList.add('hidden');
-    if(modelInput) modelInput.querySelector('input').setAttribute('required', 'required');
-    if(vertexFields) { vertexFields.classList.remove('hidden'); vertexFields.classList.add('flex'); }
-  } else if (type === 'google_aistudio' || type === 'deepseek' || type === 'moonshot') {
-    if(orFields) { orFields.classList.add('hidden'); orFields.classList.remove('flex'); }
-    if(modelInput) modelInput.classList.remove('hidden');
-    if(baseUrl) baseUrl.classList.add('hidden');
-    if(modelInput) modelInput.querySelector('input').setAttribute('required', 'required');
-    if(vertexFields) { vertexFields.classList.add('hidden'); vertexFields.classList.remove('flex'); }
-  } else {
-    if(orFields) { orFields.classList.add('hidden'); orFields.classList.remove('flex'); }
-    if(modelInput) modelInput.classList.remove('hidden');
-    if(baseUrl) baseUrl.classList.remove('hidden');
-    if(modelInput) modelInput.querySelector('input').setAttribute('required', 'required');
-    if(vertexFields) { vertexFields.classList.add('hidden'); vertexFields.classList.remove('flex'); }
+  var type = document.getElementById(prefix + '-type').value;
+  var orFields = document.getElementById(prefix + '-or-fields');
+  var modelInput = document.getElementById(prefix + '-model-input');
+  var baseUrl = document.getElementById(prefix + '-baseurl');
+  var vertexFields = document.getElementById(prefix + '-vertex-fields');
+
+  var cfg = PROVIDER_FIELD_CONFIG[type] || {
+    orFields: false,
+    modelInput: true,
+    baseUrl: true,
+    vertexFields: false,
+    modelRequired: true,
+  };
+
+  if (orFields) {
+    orFields.classList.toggle('hidden', !cfg.orFields);
+    orFields.classList.toggle('flex', cfg.orFields);
   }
-  
+  if (modelInput) {
+    modelInput.classList.toggle('hidden', !cfg.modelInput);
+    if (cfg.modelRequired) {
+      modelInput.querySelector('input').setAttribute('required', 'required');
+    } else {
+      modelInput.querySelector('input').removeAttribute('required');
+    }
+  }
+  if (baseUrl) baseUrl.classList.toggle('hidden', !cfg.baseUrl);
+  if (vertexFields) {
+    vertexFields.classList.toggle('hidden', !cfg.vertexFields);
+    vertexFields.classList.toggle('flex', cfg.vertexFields);
+  }
+
   const keyDisplay = document.getElementById('api-key-display-' + prefix);
   if (keyDisplay && keyDisplay.innerText.includes('Select')) {
     if (type === 'google_vertex') {
@@ -43,7 +60,6 @@ function toggleProviderFields(prefix) {
     }
   }
 }
-
 
 window._currentFetchPrefix = null;
 
@@ -56,31 +72,37 @@ function openFetchModelModal(prefix) {
 async function forceFetchModels() {
   const prefix = window._currentFetchPrefix;
   if (!prefix) return;
-  
+
   window.dispatchEvent(new CustomEvent('models-loading'));
-  
+
   // Extract data from the form to send to backend
   let type = document.getElementById(prefix + '-type')?.value;
   if (!type && prefix !== 'new-prov') {
-     type = document.getElementById('edit-prov-type-' + prefix)?.value;
+    type = document.getElementById('edit-prov-type-' + prefix)?.value;
   }
-  
-  const baseUrlInput = document.querySelector(`#provider-edit-${prefix} input[name="base_url"]`) || document.querySelector(`#new-prov-baseurl input[name="base_url"]`);
+
+  const baseUrlInput =
+    document.querySelector(`#provider-edit-${prefix} input[name="base_url"]`) ||
+    document.querySelector(`#new-prov-baseurl input[name="base_url"]`);
   const baseUrl = baseUrlInput ? baseUrlInput.value : '';
-  
+
   const apiKeyInput = document.getElementById('api-key-input-' + prefix);
   let apiKey = apiKeyInput ? apiKeyInput.value : '';
-  
+
   // Vertex needs region
   let params = {};
   if (type === 'google_vertex') {
-    const regionInput = document.getElementById('edit-prov-vertex-region-' + prefix) || document.getElementById('new-prov-vertex-region');
-    const projectInput = document.getElementById('edit-prov-vertex-project-id-' + prefix) || document.getElementById('new-prov-vertex-project-id');
+    const regionInput =
+      document.getElementById('edit-prov-vertex-region-' + prefix) ||
+      document.getElementById('new-prov-vertex-region');
+    const projectInput =
+      document.getElementById('edit-prov-vertex-project-id-' + prefix) ||
+      document.getElementById('new-prov-vertex-project-id');
     if (regionInput) {
-       params.vertex_region = regionInput.value;
+      params.vertex_region = regionInput.value;
     }
     if (projectInput) {
-       params.vertex_project_id = projectInput.value;
+      params.vertex_project_id = projectInput.value;
     }
   }
 
@@ -88,14 +110,14 @@ async function forceFetchModels() {
     const res = await fetch(api.providerFetchModels, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type, base_url: baseUrl, api_key: apiKey, params })
+      body: JSON.stringify({ type, base_url: baseUrl, api_key: apiKey, params }),
     });
-    
+
     if (!res.ok) {
-       const errData = await res.json();
-       throw new Error(errData.detail || 'Failed to fetch models from provider.');
+      const errData = await res.json();
+      throw new Error(errData.detail || 'Failed to fetch models from provider.');
     }
-    
+
     const data = await res.json();
     window.dispatchEvent(new CustomEvent('models-loaded', { detail: data.data }));
   } catch (err) {
@@ -107,9 +129,11 @@ async function forceFetchModels() {
 function selectFetchedModel(id, name) {
   const prefix = window._currentFetchPrefix;
   if (!prefix) return;
-  
-  const type = document.getElementById(prefix + '-type')?.value || document.getElementById('edit-prov-type-' + prefix)?.value;
-  
+
+  const type =
+    document.getElementById(prefix + '-type')?.value ||
+    document.getElementById('edit-prov-type-' + prefix)?.value;
+
   if (type === 'openrouter') {
     const input = document.getElementById('or-model-input-' + prefix);
     if (input) {
@@ -125,7 +149,7 @@ function selectFetchedModel(id, name) {
       input.value = id;
     }
   }
-  
+
   document.getElementById('modal-fetch-models').classList.add('hidden');
 }
 
@@ -134,12 +158,12 @@ function openORModelModal(prefix) {
 }
 function renderMacroSelect(name, id, options, selectedValue) {
   // Finds the selected label
-  let selectedLabel = "— Select —";
-  for(let o of options) {
-    if(o.value === selectedValue) selectedLabel = o.label;
+  let selectedLabel = '— Select —';
+  for (let o of options) {
+    if (o.value === selectedValue) selectedLabel = o.label;
   }
   const escapedLabel = selectedLabel.replace(/'/g, "\\'");
-  
+
   // Creates an options html string for Alpine template
   let optionsHtml = '';
   options.forEach((opt, idx) => {
@@ -189,52 +213,59 @@ async function updateOpenRouterOptions(prefix, modelId) {
     const res = await fetch(api.providerOREndpoint(modelId));
     if (!res.ok) throw new Error('Failed to fetch endpoints');
     const data = await res.json();
-    
+
     const endpoints = data.data?.endpoints || [];
-    
+
     // Route options
-    const routeOptions = [{value: "", label: "Auto (Any)"}];
+    const routeOptions = [{ value: '', label: 'Auto (Any)' }];
     const providers = new Set();
-    endpoints.forEach(ep => {
-      if(ep.provider_name) providers.add(ep.provider_name);
+    endpoints.forEach((ep) => {
+      if (ep.provider_name) providers.add(ep.provider_name);
     });
-    providers.forEach(p => {
-      routeOptions.push({value: p, label: p});
+    providers.forEach((p) => {
+      routeOptions.push({ value: p, label: p });
     });
-    
+
     // Quantization options
-    const quantOptions = [{value: "", label: "Any"}];
+    const quantOptions = [{ value: '', label: 'Any' }];
     const quants = new Set();
-    endpoints.forEach(ep => {
-      if(ep.quantization && ep.quantization !== 'unknown') quants.add(ep.quantization);
+    endpoints.forEach((ep) => {
+      if (ep.quantization && ep.quantization !== 'unknown') quants.add(ep.quantization);
     });
-    quants.forEach(q => {
-      quantOptions.push({value: q, label: q});
+    quants.forEach((q) => {
+      quantOptions.push({ value: q, label: q });
     });
 
     // Replace the inner HTML of the wrapper divs with a freshly rendered Alpine component
-    const routeWrapperId = prefix === 'new-prov' ? 'new-prov-route-wrapper' : 'edit-prov-route-wrapper-' + prefix;
-    const routeInputId = prefix === 'new-prov' ? 'new-prov-or-route' : 'edit-prov-or-route-' + prefix;
+    const routeWrapperId =
+      prefix === 'new-prov' ? 'new-prov-route-wrapper' : 'edit-prov-route-wrapper-' + prefix;
+    const routeInputId =
+      prefix === 'new-prov' ? 'new-prov-or-route' : 'edit-prov-or-route-' + prefix;
     const rWrap = document.getElementById(routeWrapperId);
-    if(rWrap) {
+    if (rWrap) {
       rWrap.innerHTML = renderMacroSelect('or_route', routeInputId, routeOptions, '');
       refreshNoFallbacksVisibility(prefix);
     }
-    
-    const quantWrapperId = prefix === 'new-prov' ? 'new-prov-quant-wrapper' : 'edit-prov-quant-wrapper-' + prefix;
-    const quantInputId = prefix === 'new-prov' ? 'new-prov-or-quant' : 'edit-prov-or-quant-' + prefix;
-    const qWrap = document.getElementById(quantWrapperId);
-    if(qWrap) qWrap.innerHTML = renderMacroSelect('or_quant', quantInputId, quantOptions, '');
 
-  } catch(err) {
-     console.error(err);
+    const quantWrapperId =
+      prefix === 'new-prov' ? 'new-prov-quant-wrapper' : 'edit-prov-quant-wrapper-' + prefix;
+    const quantInputId =
+      prefix === 'new-prov' ? 'new-prov-or-quant' : 'edit-prov-or-quant-' + prefix;
+    const qWrap = document.getElementById(quantWrapperId);
+    if (qWrap) qWrap.innerHTML = renderMacroSelect('or_quant', quantInputId, quantOptions, '');
+  } catch (err) {
+    console.error(err);
   }
 }
 
 function toggleNoFallbacks(prefix) {
   const isNew = prefix === 'new-prov';
-  const toggle = document.getElementById(isNew ? 'new-prov-or-no-fallbacks-toggle' : 'edit-prov-or-no-fallbacks-toggle-' + prefix);
-  const input = document.getElementById(isNew ? 'new-prov-or-no-fallbacks' : 'edit-prov-or-no-fallbacks-' + prefix);
+  const toggle = document.getElementById(
+    isNew ? 'new-prov-or-no-fallbacks-toggle' : 'edit-prov-or-no-fallbacks-toggle-' + prefix,
+  );
+  const input = document.getElementById(
+    isNew ? 'new-prov-or-no-fallbacks' : 'edit-prov-or-no-fallbacks-' + prefix,
+  );
   if (!toggle || !input) return;
   toggle.classList.toggle('active');
   input.value = toggle.classList.contains('active') ? 'true' : 'false';
@@ -242,8 +273,12 @@ function toggleNoFallbacks(prefix) {
 
 function refreshNoFallbacksVisibility(prefix) {
   const isNew = prefix === 'new-prov';
-  const routeInput = document.getElementById(isNew ? 'new-prov-or-route' : 'edit-prov-or-route-' + prefix);
-  const row = document.getElementById(isNew ? 'new-prov-or-no-fallbacks-row' : 'edit-prov-or-no-fallbacks-row-' + prefix);
+  const routeInput = document.getElementById(
+    isNew ? 'new-prov-or-route' : 'edit-prov-or-route-' + prefix,
+  );
+  const row = document.getElementById(
+    isNew ? 'new-prov-or-no-fallbacks-row' : 'edit-prov-or-no-fallbacks-row-' + prefix,
+  );
   if (!routeInput || !row) return;
   if (routeInput.value) {
     row.classList.remove('hidden');
@@ -253,20 +288,20 @@ function refreshNoFallbacksVisibility(prefix) {
 }
 
 function setActiveProvider(id, name, type) {
-  document.querySelectorAll('.provider-card').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.provider-card').forEach((el) => el.classList.remove('active'));
   const card = document.getElementById('prov-card-' + id);
-  if(card) card.classList.add('active');
-  
+  if (card) card.classList.add('active');
+
   const sendBtn = document.getElementById('send-btn');
-  if(sendBtn) sendBtn.dataset.providerId = id;
+  if (sendBtn) sendBtn.dataset.providerId = id;
   StateManager.setProvider(id, type);
 }
 
-function toggleProviderEdit(id){
+function toggleProviderEdit(id) {
   const card = document.getElementById('prov-card-' + id);
   const form = document.getElementById('provider-edit-' + id);
   const display = document.getElementById('prov-display-' + id);
-  if(form.classList.contains('hidden')){
+  if (form.classList.contains('hidden')) {
     card.classList.add('col-span-full');
     form.classList.remove('hidden');
     form.style.display = 'flex';
@@ -281,10 +316,10 @@ function toggleProviderEdit(id){
 
 function extractData(form) {
   const data = Object.fromEntries(new FormData(form));
-  if(data.api_key === '__HIDDEN__' || data.api_key === '') delete data.api_key;
-  
+  if (data.api_key === '__HIDDEN__' || data.api_key === '') delete data.api_key;
+
   const type = data.type || form.querySelector('input[name="type"]').value;
-  
+
   if (type === 'openrouter') {
     data.model = data.or_model;
     if (!data.model) {
@@ -292,69 +327,96 @@ function extractData(form) {
       throw new Error('Model required');
     }
     data.base_url = 'https://openrouter.ai/api/v1';
-    
+
     let params = {};
-    try { params = JSON.parse(data.params || '{}'); } catch(e){}
-    
+    try {
+      params = JSON.parse(data.params || '{}');
+    } catch (e) {}
+
     if (data.or_route) params.or_route = data.or_route;
     else delete params.or_route;
-    
+
     if (data.or_quant) params.or_quant = data.or_quant;
     else delete params.or_quant;
 
     const orNoFallbacksInput = form.querySelector('[name="or_no_fallbacks"]');
     params.or_no_fallbacks = orNoFallbacksInput ? orNoFallbacksInput.value === 'true' : true;
-    
+
     data.params = params;
   } else if (type === 'google_vertex') {
     let params = {};
-    try { params = JSON.parse(data.params || '{}'); } catch(e){}
+    try {
+      params = JSON.parse(data.params || '{}');
+    } catch (e) {}
     if (data.vertex_region) params.vertex_region = data.vertex_region;
     if (data.vertex_project_id) params.vertex_project_id = data.vertex_project_id;
     data.params = params;
     data.base_url = '';
   } else if (type === 'google_aistudio' || type === 'deepseek' || type === 'moonshot') {
-    try { data.params = JSON.parse(data.params || '{}'); } catch(e){ data.params = {}; }
+    try {
+      data.params = JSON.parse(data.params || '{}');
+    } catch (e) {
+      data.params = {};
+    }
     data.base_url = '';
   } else {
-    try { data.params = JSON.parse(data.params || '{}'); } catch(e){ data.params = {}; }
+    try {
+      data.params = JSON.parse(data.params || '{}');
+    } catch (e) {
+      data.params = {};
+    }
   }
-  
+
   delete data.or_model;
   delete data.or_route;
   delete data.or_quant;
   delete data.or_no_fallbacks;
   delete data.vertex_region;
   delete data.vertex_project_id;
-  
+
   return data;
 }
 
-function saveProviderModal(e, id){
+function saveProviderModal(e, id) {
   e.preventDefault();
   let data;
-  try { data = extractData(e.target); } catch(err) { return; }
+  try {
+    data = extractData(e.target);
+  } catch (err) {
+    return;
+  }
   fetch(api.provider(id), {
     method: 'PATCH',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify(data)
-  }).then(function(r){
-    if(r.ok) htmx.ajax('GET', api.partials.providersModal, {target:'#providers-modal-body',swap:'innerHTML'});
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  }).then(function (r) {
+    if (r.ok)
+      htmx.ajax('GET', api.partials.providersModal, {
+        target: '#providers-modal-body',
+        swap: 'innerHTML',
+      });
   });
 }
 
-function submitProviderModal(e){
+function submitProviderModal(e) {
   e.preventDefault();
   let data;
-  try { data = extractData(e.target); } catch(err) { return; }
+  try {
+    data = extractData(e.target);
+  } catch (err) {
+    return;
+  }
   fetch(api.providers, {
     method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify(data)
-  }).then(function(r){
-    if(r.ok) {
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  }).then(function (r) {
+    if (r.ok) {
       closeModal('modal-provider-create');
-      htmx.ajax('GET', api.partials.providersModal, {target:'#providers-modal-body',swap:'innerHTML'});
+      htmx.ajax('GET', api.partials.providersModal, {
+        target: '#providers-modal-body',
+        swap: 'innerHTML',
+      });
     }
   });
 }
@@ -363,19 +425,22 @@ function submitProviderModal(e){
 setTimeout(() => {
   const createRoute = document.getElementById('new-prov-or-route');
   if (createRoute && !createRoute.dataset.nfInit) {
-    createRoute.addEventListener('change', function() { refreshNoFallbacksVisibility('new-prov'); });
+    createRoute.addEventListener('change', function () {
+      refreshNoFallbacksVisibility('new-prov');
+    });
     createRoute.dataset.nfInit = '1';
   }
-  document.querySelectorAll('[id^="edit-prov-or-route-"]').forEach(function(el) {
+  document.querySelectorAll('[id^="edit-prov-or-route-"]').forEach(function (el) {
     if (el.dataset.nfInit) return;
-    el.addEventListener('change', function() { refreshNoFallbacksVisibility(el.id.replace('edit-prov-or-route-', '')); });
+    el.addEventListener('change', function () {
+      refreshNoFallbacksVisibility(el.id.replace('edit-prov-or-route-', ''));
+    });
     el.dataset.nfInit = '1';
   });
   const activeId = StateManager.get('provider_id');
   const activeType = StateManager.get('provider_type');
   if (activeId) setActiveProvider(activeId, '', activeType);
 }, 100);
-
 
 window._currentSecretPrefix = null;
 
@@ -390,21 +455,23 @@ async function fetchSecrets() {
     const res = await fetch(api.providerSecrets);
     const data = await res.json();
     window.dispatchEvent(new CustomEvent('secrets-loaded', { detail: data.data }));
-  } catch (err) { console.error(err); }
+  } catch (err) {
+    console.error(err);
+  }
 }
 
 async function saveNewSecret(name, value) {
-  if(!name || !value) return;
+  if (!name || !value) return;
   await fetch(api.providerSecrets, {
     method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({name, value})
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, value }),
   });
   fetchSecrets();
 }
 
 async function deleteSecret(name) {
-  if(!confirm('Delete this saved key?')) return;
+  if (!confirm('Delete this saved key?')) return;
   await fetch(api.providerSecret(name), { method: 'DELETE' });
   fetchSecrets();
 }
@@ -414,8 +481,8 @@ function _setKeyInput(val, displayHtml) {
   if (!prefix) return;
   const input = document.getElementById('api-key-input-' + prefix);
   const display = document.getElementById('api-key-display-' + prefix);
-  if(input) input.value = val;
-  if(display) {
+  if (input) input.value = val;
+  if (display) {
     display.innerHTML = displayHtml;
     display.classList.remove('text-muted');
   }
@@ -427,7 +494,7 @@ function selectSecret(name) {
 }
 
 function selectRawKey(val) {
-  if(!val) return;
+  if (!val) return;
   _setKeyInput(val, 'Raw Key (Hidden)');
 }
 
@@ -436,8 +503,8 @@ function clearKey() {
   if (!prefix) return;
   const input = document.getElementById('api-key-input-' + prefix);
   const display = document.getElementById('api-key-display-' + prefix);
-  if(input) input.value = '';
-  if(display) {
+  if (input) input.value = '';
+  if (display) {
     display.innerHTML = '<span class="text-muted">Select API Key...</span>';
   }
   document.getElementById('modal-secrets').classList.add('hidden');

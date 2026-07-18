@@ -1,10 +1,11 @@
 import os
+
 from google import genai
 from google.genai import types
 
-from .google_base import GoogleProviderBase, AI_STUDIO_SAFETY_OFF
 from ..logger import get_logger
 from ..utils import DEFAULT_TEMPERATURE
+from .google_base import AI_STUDIO_SAFETY_OFF, GoogleProviderBase
 
 logger = get_logger("providers.google_aistudio")
 
@@ -22,7 +23,9 @@ class GoogleAIStudioProvider(GoogleProviderBase):
             models.append({"id": model_id, "name": model_id})
         return models
 
-    def _build_config(self, merged: dict, system_instruction: str | None) -> types.GenerateContentConfig:
+    def _build_config(
+        self, merged: dict, system_instruction: str | None
+    ) -> types.GenerateContentConfig:
         include_reasoning = merged.get("include_reasoning", False)
         reasoning_effort = merged.get("reasoning_effort", None)
 
@@ -46,5 +49,5 @@ class GoogleAIStudioProvider(GoogleProviderBase):
 
         self._apply_thinking_config(config_kwargs, self.model, include_reasoning, reasoning_effort)
 
-        logger.debug(f"AI Studio request: model={self.model}")
+        logger.debug("AI Studio request: model=%s", self.model)
         return types.GenerateContentConfig(**config_kwargs)

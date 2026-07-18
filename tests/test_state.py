@@ -6,21 +6,15 @@ Node must be installed. The JS tests are in tests/test_state_manager.js.
 import os
 import subprocess
 
-import pytest
-
-from tests.conftest import create_character, create_persona, create_preset, create_chat
-
-
-# ── JS unit tests ──────────────────────────────────────────────────────────────
+from tests.conftest import create_character, create_chat, create_persona, create_preset
 
 def test_state_manager_js():
     """Run the Node-based unit tests for StateManager."""
     test_file = os.path.join(os.path.dirname(__file__), "test_state_manager.js")
     result = subprocess.run(["node", test_file], capture_output=True, text=True)
-    assert result.returncode == 0, f"StateManager JS tests failed:\n{result.stdout}\n{result.stderr}"
-
-
-# ── Server-side contract tests ────────────────────────────────────────────────
+    assert result.returncode == 0, (
+        f"StateManager JS tests failed:\n{result.stdout}\n{result.stderr}"
+    )
 
 class TestPresetLifecycle:
     """Tests that the server behaves correctly for operations the StateManager depends on."""
@@ -68,7 +62,6 @@ class TestPresetLifecycle:
         resp = await client.get(f"/api/presets/{pr['id']}")
         assert resp.status_code == 404
 
-
 class TestCharacterLifecycle:
     async def test_set_character_on_chat(self, client):
         """PATCH /api/chats/{id} with character_id persists."""
@@ -91,7 +84,6 @@ class TestCharacterLifecycle:
         chat = await client.get(f"/api/chats/{ch['id']}")
         assert chat.json()["character_id"] is None
 
-
 class TestPersonaLifecycle:
     async def test_set_persona_on_chat(self, client):
         """PATCH /api/chats/{id} with persona_id persists."""
@@ -103,7 +95,6 @@ class TestPersonaLifecycle:
 
         chat = await client.get(f"/api/chats/{ch['id']}")
         assert chat.json()["persona_id"] == p["id"]
-
 
 class TestModalPartials:
     """Tests that partial templates render correctly with query params — the
@@ -119,13 +110,13 @@ class TestModalPartials:
         html = resp.text
 
         # Alice's card should have the "active" class
-        assert f'class="card active"' in html
+        assert 'class="card active"' in html
         assert f'id="char-card-{c1["id"]}"' in html
         assert f'id="char-card-{c2["id"]}"' in html
 
     async def test_characters_modal_no_current_no_highlight(self, client):
         """Without current_character_id, no card gets the active class."""
-        c = await create_character(client, "Alice")
+        await create_character(client, "Alice")
         resp = await client.get("/partials/characters-modal")
         assert resp.status_code == 200
         assert 'class="card active"' not in resp.text
@@ -139,6 +130,6 @@ class TestModalPartials:
         assert resp.status_code == 200
         html = resp.text
 
-        assert f'class="card active"' in html
+        assert 'class="card active"' in html
         assert f'id="persona-card-{p1["id"]}"' in html
         assert f'id="persona-card-{p2["id"]}"' in html

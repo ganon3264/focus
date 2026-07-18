@@ -7,24 +7,26 @@ DEBUG_MODE = os.environ.get("FOCUS_DEBUG", "0") in ("1", "true", "True", "yes")
 
 LOG_LEVEL = logging.DEBUG if DEBUG_MODE else logging.INFO
 
+
 # Set up the formatter
 class UvicornFormatter(logging.Formatter):
     def format(self, record):
         level_color = {
-            logging.DEBUG: "\x1b[36m",    # Cyan
-            logging.INFO: "\x1b[32m",     # Green
+            logging.DEBUG: "\x1b[36m",  # Cyan
+            logging.INFO: "\x1b[32m",  # Green
             logging.WARNING: "\x1b[33m",  # Yellow
-            logging.ERROR: "\x1b[31m",    # Red
-            logging.CRITICAL: "\x1b[31;1m" # Bold Red
+            logging.ERROR: "\x1b[31m",  # Red
+            logging.CRITICAL: "\x1b[31;1m",  # Bold Red
         }.get(record.levelno, "\x1b[0m")
         reset = "\x1b[0m"
-        
+
         levelname = f"{level_color}{record.levelname:<7}{reset}:"
-        
+
         # Format similar to uvicorn's default
         record.msg = f"{record.name}: {record.msg}"
         self._style._fmt = f"{levelname} %(message)s"
         return super().format(record)
+
 
 # Set up the console handler
 console_handler = logging.StreamHandler(sys.stdout)
@@ -39,6 +41,7 @@ root_logger.propagate = False
 
 # Silence uvicorn's built-in access logging (we handle it ourselves)
 logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+
 
 def get_logger(name: str) -> logging.Logger:
     """Returns a logger for the given module name."""

@@ -1,11 +1,23 @@
-(function(){
+(function () {
   let currentController = null;
   const sendBtn = document.getElementById('send-btn');
   const stopBtn = document.getElementById('stop-btn');
   const input = document.getElementById('chat-input');
   const messageList = document.getElementById('message-list');
 
-  if(!sendBtn || !input || !messageList) return;
+  if (!sendBtn || !input || !messageList) return;
+
+  function preserveOpenStates(container, renderFn) {
+    const openStates = new Set();
+    container.querySelectorAll('details.reasoning[open]').forEach((d) => {
+      if (d.dataset.thinkId) openStates.add(d.dataset.thinkId);
+    });
+    container.innerHTML = renderFn();
+    openStates.forEach((id) => {
+      const el = container.querySelector(`details.reasoning[data-think-id="${id}"]`);
+      if (el) el.setAttribute('open', '');
+    });
+  }
 
   function resizeTextarea(el) {
     el.style.height = '44px';
@@ -28,16 +40,16 @@
 
     if (isRegenMode) {
       sendBtn.innerHTML = window.getSvgSprite('regen', 18);
-      sendBtn.title = "Regenerate";
-      sendBtn.dataset.mode = "regen";
+      sendBtn.title = 'Regenerate';
+      sendBtn.dataset.mode = 'regen';
     } else {
       sendBtn.innerHTML = window.getSvgSprite('send', 18);
-      sendBtn.title = "Send message";
-      sendBtn.dataset.mode = "send";
+      sendBtn.title = 'Send message';
+      sendBtn.dataset.mode = 'send';
     }
   }
 
-  input.addEventListener('input', function(){
+  input.addEventListener('input', function () {
     resizeTextarea(this);
     updateSendButtonState();
   });
@@ -69,7 +81,7 @@
         newMsg.style.setProperty('animation', 'none', 'important');
         oldMsg.replaceWith(newMsg);
         htmx.process(newMsg);
-        newMsg.querySelectorAll('.markdown-content:not(.processed)').forEach(function(el) {
+        newMsg.querySelectorAll('.markdown-content:not(.processed)').forEach(function (el) {
           el.innerHTML = window.renderMessage(el.textContent || '');
           el.classList.add('processed');
         });
@@ -89,14 +101,17 @@
     window.ensureSentinelAndObserver();
   }
 
-  window.triggerGeneration = async function(chatId, asstDiv, isRegen = false) {
+  window.triggerGeneration = async function (chatId, asstDiv, isRegen = false) {
     const providerId = sendBtn.dataset.providerId;
-    if(!providerId){ alert('No provider configured. Add one in Providers.'); return; }
+    if (!providerId) {
+      alert('No provider configured. Add one in Providers.');
+      return;
+    }
 
     const errorToast = document.getElementById('error-toast');
     if (errorToast) errorToast.classList.add('hidden');
 
-    if(currentController){
+    if (currentController) {
       currentController.abort();
       currentController = null;
     }
@@ -118,18 +133,18 @@
     if (!isRegen && window.stagedFiles.length > 0) {
       const filesToUpload = [...window.stagedFiles];
       const formData = new FormData();
-      filesToUpload.forEach(f => formData.append('files', f));
+      filesToUpload.forEach((f) => formData.append('files', f));
       try {
         const uploadRes = await fetch(api.chatAttachments(chatId), {
           method: 'POST',
-          body: formData
+          body: formData,
         });
         if (uploadRes.ok) {
           const data = await uploadRes.json();
-          attachmentIds = data.attachments.map(a => a.id);
+          attachmentIds = data.attachments.map((a) => a.id);
         }
       } catch (e) {
-        console.error("Upload failed", e);
+        console.error('Upload failed', e);
       }
       window.clearUploadedFiles(filesToUpload);
     }
@@ -137,25 +152,25 @@
     const body = {
       chat_id: chatId,
       provider_id: providerId,
-      user_message: window._tempUserMessage || "",
+      user_message: window._tempUserMessage || '',
       samplers: window.getActiveSamplers ? window.getActiveSamplers() : {},
       regenerate: isRegen,
-      attachment_ids: attachmentIds
+      attachment_ids: attachmentIds,
     };
 
-    window._tempUserMessage = "";
+    window._tempUserMessage = '';
 
     const useStream = body.samplers.stream_enabled !== false;
 
     try {
       const res = await fetch(api.stream, {
         method: 'POST',
-        headers: {'Content-Type':'application/json'},
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
-        signal
+        signal,
       });
 
-      if(!res.ok){
+      if (!res.ok) {
         const errText = await res.text();
         throw new Error(errText || 'Stream request failed');
       }
@@ -185,87 +200,79 @@
       let userMessageId = null;
       let fullText = '';
 
-      while(true){
-        const {done, value} = await reader.read();
-        if(done) break;
-        buffer += decoder.decode(value, {stream:true});
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split('\n');
         buffer = lines.pop();
-        for(const line of lines){
-          if(!line.startsWith('data: ')) continue;
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
           const data = line.slice(6).trim();
-          if(!data) continue;
+          if (!data) continue;
           let json;
-          try{ json = JSON.parse(data); }catch(e){ continue; }
-          if(json.type === 'start'){
+          try {
+            json = JSON.parse(data);
+          } catch (e) {
+            continue;
+          }
+          if (json.type === 'start') {
             messageId = json.message_id;
             userMessageId = json.user_message_id;
-            if(json.user_message_id){
+            if (json.user_message_id) {
               const userDiv = asstDiv.previousElementSibling;
-              if(userDiv && userDiv.classList.contains('message')){
+              if (userDiv && userDiv.classList.contains('message')) {
                 userDiv.id = 'message-' + json.user_message_id;
               }
             }
-          } else if(json.token !== undefined){
+          } else if (json.token !== undefined) {
             fullText += json.token;
             const contentDiv = asstDiv.querySelector('.message-content');
-            if(contentDiv) {
-              const openStates = new Set();
-              contentDiv.querySelectorAll('details.reasoning[open]').forEach(d => {
-                if (d.dataset.thinkId) openStates.add(d.dataset.thinkId);
-              });
-
-              contentDiv.innerHTML = window.renderMessage(fullText);
-
-              openStates.forEach(id => {
-                const el = contentDiv.querySelector(`details.reasoning[data-think-id="${id}"]`);
-                if (el) el.setAttribute('open', '');
-              });
+            if (contentDiv) {
+              preserveOpenStates(contentDiv, () => window.renderMessage(fullText));
 
               if (window.autoScroll && window.scrollSentinel) {
-                window.scrollSentinel.scrollIntoView({behavior: 'instant'});
+                window.scrollSentinel.scrollIntoView({ behavior: 'instant' });
               }
             }
-          } else if(json.error){
+          } else if (json.error) {
             throw new Error(json.error);
-          } else if(json.done){
+          } else if (json.done) {
             messageId = json.message_id;
           }
         }
       }
 
       const contentDiv = asstDiv.querySelector('.message-content');
-      if(contentDiv){
-        const openStates = new Set();
-        contentDiv.querySelectorAll('details.reasoning[open]').forEach(d => {
-          if (d.dataset.thinkId) openStates.add(d.dataset.thinkId);
-        });
-
-        contentDiv.innerHTML = window.renderMessage(fullText);
-
-        openStates.forEach(id => {
-          const el = contentDiv.querySelector(`details.reasoning[data-think-id="${id}"]`);
-          if (el) el.setAttribute('open', '');
-        });
+      if (contentDiv) {
+        preserveOpenStates(contentDiv, () => window.renderMessage(fullText));
       }
-      if(messageId){
+      if (messageId) {
         asstDiv.id = 'message-' + messageId;
         asstDiv.dataset.messageId = messageId;
       }
 
       await refreshMessagesAfterStream(chatId, userMessageId, messageId);
 
-      const doneProvider = window.APP_PROVIDERS && window.APP_PROVIDERS.find(p => p.id === providerId);
-      if (doneProvider && doneProvider.type === 'openrouter' && doneProvider.model && doneProvider.model.startsWith('anthropic/claude')) {
+      const doneProvider =
+        window.APP_PROVIDERS && window.APP_PROVIDERS.find((p) => p.id === providerId);
+      if (
+        doneProvider &&
+        doneProvider.type === 'openrouter' &&
+        doneProvider.model &&
+        doneProvider.model.startsWith('anthropic/claude')
+      ) {
         const doneSamplers = body.samplers || {};
         if (doneSamplers.cache_enabled) {
           localStorage.setItem('focus-cache-time-' + providerId, Date.now().toString());
-          localStorage.setItem('focus-cache-ttl-' + providerId, doneSamplers.cache_ttl || 'ephemeral');
+          localStorage.setItem(
+            'focus-cache-ttl-' + providerId,
+            doneSamplers.cache_ttl || 'ephemeral',
+          );
         }
       }
-
-    } catch(err){
-      if(err.name !== 'AbortError'){
+    } catch (err) {
+      if (err.name !== 'AbortError') {
         const errorToast = document.getElementById('error-toast');
         const errorToastText = document.getElementById('error-toast-text');
         if (errorToast && errorToastText) {
@@ -277,7 +284,10 @@
           asstDiv.remove();
         }
 
-        htmx.ajax('GET', api.partials.messageList(chatId), {target:'#message-list', swap:'innerHTML'});
+        htmx.ajax('GET', api.partials.messageList(chatId), {
+          target: '#message-list',
+          swap: 'innerHTML',
+        });
       }
     } finally {
       currentController = null;
@@ -288,12 +298,15 @@
     }
   };
 
-  sendBtn.addEventListener('click', async function(){
+  sendBtn.addEventListener('click', async function () {
     const chatId = sendBtn.dataset.chatId;
     const providerId = sendBtn.dataset.providerId;
 
     if (sendBtn.dataset.mode === 'regen') {
-      if(!providerId){ alert('No provider configured. Add one in Providers.'); return; }
+      if (!providerId) {
+        alert('No provider configured. Add one in Providers.');
+        return;
+      }
 
       const dataList = document.getElementById('message-list-data');
       const charName = dataList ? dataList.getAttribute('data-char-name') : 'Assistant';
@@ -301,15 +314,18 @@
 
       const asstDiv = window.createAssistantPlaceholderDiv(charName, charImagePath);
       messageList.insertBefore(asstDiv, window.scrollSentinel);
-      asstDiv.scrollIntoView({behavior:'smooth'});
+      asstDiv.scrollIntoView({ behavior: 'smooth' });
 
       window.triggerGeneration(chatId, asstDiv, false);
       return;
     }
 
     const text = input.value.trim();
-    if(!text && window.stagedFiles.length === 0) return;
-    if(!providerId){ alert('No provider configured. Add one in Providers.'); return; }
+    if (!text && window.stagedFiles.length === 0) return;
+    if (!providerId) {
+      alert('No provider configured. Add one in Providers.');
+      return;
+    }
 
     const personaNameEl = document.querySelector('#persona-selector .sidebar-item.active');
     const personaInitial = personaNameEl ? personaNameEl.textContent.trim()[0] : 'U';
@@ -328,29 +344,31 @@
 
     const asstDiv = window.createAssistantPlaceholderDiv(charName, charImagePath);
     messageList.insertBefore(asstDiv, window.scrollSentinel);
-    asstDiv.scrollIntoView({behavior:'smooth'});
+    asstDiv.scrollIntoView({ behavior: 'smooth' });
 
     window.triggerGeneration(chatId, asstDiv, false);
   });
 
-  stopBtn.addEventListener('click', function(){
-    if(currentController){
+  stopBtn.addEventListener('click', function () {
+    if (currentController) {
       currentController.abort();
       currentController = null;
     }
   });
 
-  window.branchFromMessage = async function(messageId, chatId) {
+  window.branchFromMessage = async function (messageId, chatId) {
     try {
       const r = await fetch(api.chatBranch(chatId, messageId), { method: 'POST' });
       if (!r.ok) throw new Error('Branch failed');
       const d = await r.json();
       window.location.href = '/chat/' + d.id;
-    } catch(e) { alert(e.message); }
+    } catch (e) {
+      alert(e.message);
+    }
   };
 
-  document.addEventListener('DOMContentLoaded', function(){
-    document.querySelectorAll('.markdown-content').forEach(function(el){
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.markdown-content').forEach(function (el) {
       const raw = el.textContent || '';
       el.innerHTML = window.renderMessage(raw);
       el.classList.add('processed');
@@ -361,11 +379,11 @@
     const savedProvider = StateManager.get('provider_id');
     if (savedProvider) {
       const sendBtn = document.getElementById('send-btn');
-      if(sendBtn) sendBtn.dataset.providerId = savedProvider;
+      if (sendBtn) sendBtn.dataset.providerId = savedProvider;
     }
   });
 
-  document.addEventListener('mousedown', function(e) {
+  document.addEventListener('mousedown', function (e) {
     if (e.target && e.target.tagName === 'SUMMARY') {
       const details = e.target.closest('details.reasoning');
       if (details) {
@@ -379,15 +397,15 @@
     }
   });
 
-  document.addEventListener('click', function(e) {
+  document.addEventListener('click', function (e) {
     if (e.target && e.target.tagName === 'SUMMARY' && e.target.closest('details.reasoning')) {
       e.preventDefault();
     }
   });
 
-  document.body.addEventListener('htmx:afterSwap', function(evt){
-    if(evt.detail.target.id === 'message-list'){
-      evt.detail.target.querySelectorAll('.markdown-content').forEach(function(el){
+  document.body.addEventListener('htmx:afterSwap', function (evt) {
+    if (evt.detail.target.id === 'message-list') {
+      evt.detail.target.querySelectorAll('.markdown-content').forEach(function (el) {
         const raw = el.textContent || '';
         el.innerHTML = window.renderMessage(raw);
         el.classList.add('processed');

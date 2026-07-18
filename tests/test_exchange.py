@@ -1,11 +1,10 @@
 """Integration tests for the Focus import/export system."""
 
 import json
-import uuid
 from io import BytesIO
 from zipfile import ZipFile
 
-from tests.conftest import create_character, create_persona, create_preset, create_chat
+from tests.conftest import create_character, create_chat, create_persona, create_preset
 
 
 def _extract_database_from_zip(zip_bytes: bytes) -> dict:
@@ -18,9 +17,12 @@ class TestExport:
         char1 = await create_character(client, "Alpha", description="First")
         char2 = await create_character(client, "Beta", description="Second")
 
-        resp = await client.post("/api/export", json={
-            "characters": [char1["id"], char2["id"]],
-        })
+        resp = await client.post(
+            "/api/export",
+            json={
+                "characters": [char1["id"], char2["id"]],
+            },
+        )
         assert resp.status_code == 200
         assert resp.headers["content-type"] == "application/zip"
 
@@ -34,19 +36,25 @@ class TestExport:
         await create_character(client, "Beta")
         await create_character(client, "Gamma")
 
-        resp = await client.post("/api/export", json={
-            "characters": ["*"],
-        })
+        resp = await client.post(
+            "/api/export",
+            json={
+                "characters": ["*"],
+            },
+        )
         db = _extract_database_from_zip(resp.content)
         assert len(db["characters"]) == 3
 
     async def test_export_personas(self, client):
-        p1 = await create_persona(client, "Hero")
-        p2 = await create_persona(client, "Villain")
+        await create_persona(client, "Hero")
+        await create_persona(client, "Villain")
 
-        resp = await client.post("/api/export", json={
-            "personas": ["*"],
-        })
+        resp = await client.post(
+            "/api/export",
+            json={
+                "personas": ["*"],
+            },
+        )
         db = _extract_database_from_zip(resp.content)
         assert len(db["personas"]) >= 2  # default User + Hero + Villain
 
@@ -54,16 +62,31 @@ class TestExport:
         p = await create_preset(client, "Test Preset")
 
         # Add a couple of blocks
-        await client.post(f"/api/presets/{p['id']}/blocks", json={
-            "name": "Block1", "content": "Hello", "role": "system", "block_type": "text",
-        })
-        await client.post(f"/api/presets/{p['id']}/blocks", json={
-            "name": "Block2", "content": "World", "role": "user", "block_type": "text",
-        })
+        await client.post(
+            f"/api/presets/{p['id']}/blocks",
+            json={
+                "name": "Block1",
+                "content": "Hello",
+                "role": "system",
+                "block_type": "text",
+            },
+        )
+        await client.post(
+            f"/api/presets/{p['id']}/blocks",
+            json={
+                "name": "Block2",
+                "content": "World",
+                "role": "user",
+                "block_type": "text",
+            },
+        )
 
-        resp = await client.post("/api/export", json={
-            "presets": [p["id"]],
-        })
+        resp = await client.post(
+            "/api/export",
+            json={
+                "presets": [p["id"]],
+            },
+        )
         db = _extract_database_from_zip(resp.content)
         assert len(db["presets"]) == 1
         # Preset comes with 5 default blocks + 2 added
@@ -75,9 +98,12 @@ class TestExport:
         preset = await create_preset(client, "ChatPreset")
         chat = await create_chat(client, char["id"], persona["id"], preset["id"])
 
-        resp = await client.post("/api/export", json={
-            "chats": [chat["id"]],
-        })
+        resp = await client.post(
+            "/api/export",
+            json={
+                "chats": [chat["id"]],
+            },
+        )
         db = _extract_database_from_zip(resp.content)
 
         assert len(db["chats"]) == 1
@@ -87,9 +113,15 @@ class TestExport:
         assert len(db["presets"]) == 1
 
     async def test_export_empty_selection(self, client):
-        resp = await client.post("/api/export", json={
-            "characters": [], "personas": [], "presets": [], "chats": [],
-        })
+        resp = await client.post(
+            "/api/export",
+            json={
+                "characters": [],
+                "personas": [],
+                "presets": [],
+                "chats": [],
+            },
+        )
         db = _extract_database_from_zip(resp.content)
         assert db["characters"] == []
         assert db["personas"] == []
@@ -98,13 +130,18 @@ class TestExport:
 
 class TestImport:
     async def test_roundtrip_characters(self, client):
-        c1 = await create_character(client, "ExportMe", description="Test desc", personality="Quiet")
+        c1 = await create_character(
+            client, "ExportMe", description="Test desc", personality="Quiet"
+        )
         c2 = await create_character(client, "AlsoExport")
 
         # Export
-        resp = await client.post("/api/export", json={
-            "characters": [c1["id"], c2["id"]],
-        })
+        resp = await client.post(
+            "/api/export",
+            json={
+                "characters": [c1["id"], c2["id"]],
+            },
+        )
         zip_bytes = resp.content
 
         # Import
@@ -151,9 +188,15 @@ class TestImport:
 
     async def test_roundtrip_presets(self, client):
         p = await create_preset(client, "MyPreset")
-        await client.post(f"/api/presets/{p['id']}/blocks", json={
-            "name": "System", "content": "You are helpful", "role": "system", "block_type": "text",
-        })
+        await client.post(
+            f"/api/presets/{p['id']}/blocks",
+            json={
+                "name": "System",
+                "content": "You are helpful",
+                "role": "system",
+                "block_type": "text",
+            },
+        )
 
         resp = await client.post("/api/export", json={"presets": [p["id"]]})
         files = {"file": ("test.focus", BytesIO(resp.content), "application/zip")}
@@ -162,13 +205,14 @@ class TestImport:
         assert imp_resp.json()["imported"]["presets"] == 1
 
     async def test_roundtrip_personas(self, client):
-        # Get existing personas to avoid the default "User"
-        existing = (await client.get("/api/personas/")).json()
         p = await create_persona(client, "CustomPersona")
 
-        resp = await client.post("/api/export", json={
-            "personas": [p["id"]],
-        })
+        resp = await client.post(
+            "/api/export",
+            json={
+                "personas": [p["id"]],
+            },
+        )
         files = {"file": ("test.focus", BytesIO(resp.content), "application/zip")}
         imp_resp = await client.post("/api/import", files=files)
         assert imp_resp.status_code == 201
@@ -187,20 +231,26 @@ class TestImport:
 
 class TestEndToEnd:
     async def test_full_roundtrip(self, client):
-        char = await create_character(client, "E2E Char", description="Full test",
-                                       first_mes="Hello there!")
+        char = await create_character(
+            client, "E2E Char", description="Full test", first_mes="Hello there!"
+        )
         preset = await create_preset(client, "E2E Preset")
         persona = await create_persona(client, "E2E Persona")
-        chat = await create_chat(client, char["id"], persona["id"], preset["id"])
+        await create_chat(client, char["id"], persona["id"], preset["id"])
 
         # Count existing entities
         chars_before = len((await client.get("/api/characters/")).json())
-        presets_before = len((await client.get("/api/presets/")).json())
 
         # Export everything
-        resp = await client.post("/api/export", json={
-            "characters": ["*"], "personas": ["*"], "presets": ["*"], "chats": ["*"],
-        })
+        resp = await client.post(
+            "/api/export",
+            json={
+                "characters": ["*"],
+                "personas": ["*"],
+                "presets": ["*"],
+                "chats": ["*"],
+            },
+        )
         zip_bytes = resp.content
 
         # Import
@@ -230,9 +280,14 @@ class TestCascading:
 
     async def test_character_export_includes_blocks(self, client):
         c = await create_character(client, "BlockChar")
-        resp = await client.post(f"/api/characters/{c['id']}/blocks", json={
-            "name": "Extra", "content": "block content", "role": "system",
-        })
+        resp = await client.post(
+            f"/api/characters/{c['id']}/blocks",
+            json={
+                "name": "Extra",
+                "content": "block content",
+                "role": "system",
+            },
+        )
         block_id = resp.json()["id"]
 
         resp = await client.post("/api/export", json={"characters": [c["id"]]})
@@ -244,20 +299,26 @@ class TestCascading:
 class TestProvidersAndSecrets:
     async def test_providers_roundtrip(self, client):
         # Create a provider
-        resp = await client.post("/api/providers/", json={
-            "name": "TestProvider",
-            "type": "openai_compat",
-            "base_url": "http://localhost:8080/v1",
-            "api_key": "sk-test-123",
-            "model": "test-model",
-        })
+        resp = await client.post(
+            "/api/providers/",
+            json={
+                "name": "TestProvider",
+                "type": "openai_compat",
+                "base_url": "http://localhost:8080/v1",
+                "api_key": "sk-test-123",
+                "model": "test-model",
+            },
+        )
         assert resp.status_code == 201
         provider_id = resp.json()["id"]
 
         # Export including providers
-        resp = await client.post("/api/export", json={
-            "include_providers": True,
-        })
+        resp = await client.post(
+            "/api/export",
+            json={
+                "include_providers": True,
+            },
+        )
         zip_bytes = resp.content
 
         # Import
@@ -275,9 +336,13 @@ class TestProvidersAndSecrets:
 
     async def test_secrets_roundtrip(self, client):
         # Create a secret
-        resp = await client.post("/api/providers/secrets", json={
-            "name": "my-secret", "value": "super-secret-value",
-        })
+        resp = await client.post(
+            "/api/providers/secrets",
+            json={
+                "name": "my-secret",
+                "value": "super-secret-value",
+            },
+        )
         assert resp.status_code in (200, 201)
 
         # Export including secrets

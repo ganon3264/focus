@@ -2,13 +2,12 @@ import uuid
 from pathlib import Path
 
 import aiosqlite
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
-from typing import Optional
 
 import focus.crud as crud
 from focus.database import get_db
-from focus.paths import PERSONAS_DIR, BLOCKS_DIR
+from focus.paths import BLOCKS_DIR, PERSONAS_DIR
 from focus.utils import now_iso
 
 router = APIRouter()
@@ -20,8 +19,8 @@ class PersonaCreate(BaseModel):
 
 
 class PersonaUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
+    name: str | None = None
+    description: str | None = None
 
 
 @router.get("/")
@@ -97,7 +96,9 @@ async def upload_avatar(
 
 @router.delete("/{persona_id}", status_code=204)
 async def delete_persona(persona_id: str, db: aiosqlite.Connection = Depends(get_db)):
-    async with db.execute("SELECT avatar_path, name FROM personas WHERE id = ?", (persona_id,)) as cur:
+    async with db.execute(
+        "SELECT avatar_path, name FROM personas WHERE id = ?", (persona_id,)
+    ) as cur:
         row = await cur.fetchone()
     if not row:
         raise HTTPException(404, "Persona not found")
@@ -119,7 +120,16 @@ async def add_persona_image(
 ):
     await crud.verify_entity_exists(db, "personas", persona_id)
     try:
-        return await crud.upload_block_image(db, persona_id, "char", await file.read(), file.filename, file.content_type, str(BLOCKS_DIR), images_only=False)
+        return await crud.upload_block_image(
+            db,
+            persona_id,
+            "char",
+            await file.read(),
+            file.filename,
+            file.content_type,
+            str(BLOCKS_DIR),
+            images_only=False,
+        )
     except Exception as e:
         raise HTTPException(500, f"Failed to save image: {str(e)}")
 

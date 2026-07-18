@@ -1,5 +1,6 @@
 {% for p in personas %}
-<div class="sidebar-item {% if current_persona_id == p.id %}active{% endif %}"
+<div
+  class="sidebar-item {% if current_persona_id == p.id %}active{% endif %}"
   hx-patch="/api/chats/{{ chat_id }}"
   hx-vals='{"persona_id": "{{ p.id }}"}'
   hx-trigger="click"
@@ -8,10 +9,8 @@
 >
   <div class="avatar-thumb">
     {% if p.avatar_path %}
-      <img src="/{{ p.avatar_path }}" alt="{{ p.name }} avatar">
-    {% else %}
-      {{ p.name[:1] }}
-    {% endif %}
+    <img src="/{{ p.avatar_path }}" alt="{{ p.name }} avatar" />
+    {% else %} {{ p.name[:1] }} {% endif %}
   </div>
   <div class="truncate text-sm">{{ p.name }}</div>
 </div>

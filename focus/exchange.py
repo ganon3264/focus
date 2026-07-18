@@ -1,16 +1,14 @@
 import json
 import logging
-import shutil
 import uuid
 from io import BytesIO
 from pathlib import Path
-from zipfile import ZipFile, ZIP_DEFLATED
+from zipfile import ZIP_DEFLATED, ZipFile
 
 import aiosqlite
 
-from focus.database import DB_PATH
-from focus.paths import ASSETS_DIR
 from focus.models import ExportRequest
+from focus.paths import ASSETS_DIR
 from focus.utils import now_iso
 
 logger = logging.getLogger("focus.exchange")
@@ -74,9 +72,6 @@ PATH_FIELDS = [
     ("message_attachments", "file_path"),
 ]
 
-
-# ── Helpers ────────────────────────────────────────────────────────────────────
-
 def _extract_file_paths(database: dict[str, list[dict]]) -> list[str]:
     paths: list[str] = []
     for table, field in PATH_FIELDS:
@@ -86,14 +81,12 @@ def _extract_file_paths(database: dict[str, list[dict]]) -> list[str]:
                 paths.append(val)
     return paths
 
-
 def _remap_path(old_path: str, id_map: dict[str, str]) -> str:
     parts = Path(old_path).parts
     new_parts = []
     for part in parts:
         new_parts.append(id_map.get(part, part))
     return str(Path(*new_parts))
-
 
 def _remap_attachment_path(old_path: str, id_map: dict[str, str]) -> str:
     path = Path(old_path)
@@ -102,7 +95,6 @@ def _remap_attachment_path(old_path: str, id_map: dict[str, str]) -> str:
     new_stem = id_map.get(stem, str(uuid.uuid4()))
     parent = _remap_path(str(path.parent), id_map)
     return str(Path(parent) / f"{new_stem}{suffix}")
-
 
 def _build_id_map(database: dict[str, list[dict]]) -> dict[str, str]:
     id_map: dict[str, str] = {}
@@ -126,9 +118,6 @@ def _build_id_map(database: dict[str, list[dict]]) -> dict[str, str]:
                 id_map[old_id] = str(uuid.uuid4())
     return id_map
 
-
-# ── Export ─────────────────────────────────────────────────────────────────────
-
 async def _resolve_entity_ids(
     db: aiosqlite.Connection,
     table: str,
@@ -137,10 +126,13 @@ async def _resolve_entity_ids(
     if not selections:
         return set()
     if "*" in selections:
-        async with db.execute(f"SELECT id FROM {table} WHERE is_deleted = 0" if table == "characters" else f"SELECT id FROM {table}") as cur:
+        async with db.execute(
+            f"SELECT id FROM {table} WHERE is_deleted = 0"
+            if table == "characters"
+            else f"SELECT id FROM {table}"
+        ) as cur:
             return {r["id"] for r in await cur.fetchall()}
     return set(selections)
-
 
 async def _query_table(
     db: aiosqlite.Connection,
@@ -154,7 +146,6 @@ async def _query_table(
     sql = f"SELECT * FROM {table} WHERE {where_col} IN ({placeholders})"
     async with db.execute(sql, list(ids)) as cur:
         return [dict(r) for r in await cur.fetchall()]
-
 
 async def export_data(db: aiosqlite.Connection, req: ExportRequest) -> bytes:
     char_ids = await _resolve_entity_ids(db, "characters", req.characters)
@@ -228,7 +219,6 @@ async def export_data(db: aiosqlite.Connection, req: ExportRequest) -> bytes:
             list(all_block_refs),
         ) as cur:
             block_image_rows = [dict(r) for r in await cur.fetchall()]
-            block_image_ids = {r["id"] for r in block_image_rows}
 
     # Attachment IDs (cascade from chats + variants)
     attachment_rows: list[dict] = []
@@ -257,7 +247,9 @@ async def export_data(db: aiosqlite.Connection, req: ExportRequest) -> bytes:
         "characters": await _query_table(db, "characters", "id", char_ids),
         "personas": await _query_table(db, "personas", "id", persona_ids),
         "presets": await _query_table(db, "presets", "id", preset_ids),
-        "providers": await _query_table(db, "providers", "id", set()) if not req.include_providers else await _query_table_all(db, "providers"),
+        "providers": await _query_table(db, "providers", "id", set())
+        if not req.include_providers
+        else await _query_table_all(db, "providers"),
         "secrets": await _query_table_all(db, "secrets") if req.include_secrets else [],
         "char_blocks": await _query_table(db, "char_blocks", "id", char_block_ids),
         "preset_blocks": await _query_table(db, "preset_blocks", "id", preset_block_ids),
@@ -307,15 +299,13 @@ async def export_data(db: aiosqlite.Connection, req: ExportRequest) -> bytes:
 
     return buf.getvalue()
 
-
 async def _query_table_all(db: aiosqlite.Connection, table: str) -> list[dict]:
     async with db.execute(f"SELECT * FROM {table}") as cur:
         return [dict(r) for r in await cur.fetchall()]
 
-
-# ── Import ─────────────────────────────────────────────────────────────────────
-
-def _remap_database(database: dict[str, list[dict]], id_map: dict[str, str]) -> dict[str, list[dict]]:
+def _remap_database(
+    database: dict[str, list[dict]], id_map: dict[str, str]
+) -> dict[str, list[dict]]:
     remapped: dict[str, list[dict]] = {}
     for table, rows in database.items():
         remapped[table] = []
@@ -355,7 +345,6 @@ def _remap_database(database: dict[str, list[dict]], id_map: dict[str, str]) -> 
                 row[field] = _remap_path(old_path, id_map)
 
     return remapped
-
 
 async def import_data(db: aiosqlite.Connection, zip_bytes: bytes) -> dict:
     with ZipFile(BytesIO(zip_bytes)) as zf:

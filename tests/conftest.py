@@ -6,7 +6,6 @@ import aiosqlite
 import httpx
 import pytest
 
-
 @pytest.fixture
 async def client():
     """Create an async HTTP client with a fresh isolated database per test."""
@@ -22,8 +21,8 @@ async def client():
         db.row_factory = aiosqlite.Row
         await db.executescript(SCHEMA)
 
-    from main import app
     from focus.database import get_db
+    from main import app
 
     async def override_get_db():
         async with aiosqlite.connect(path) as conn:
@@ -40,15 +39,17 @@ async def client():
     app.dependency_overrides.clear()
     shutil.rmtree(tmpdir, ignore_errors=True)
 
-
-# ── Helper factories ──────────────────────────────────────────────────────────
-
 async def create_character(client, name="Test Char", **overrides):
-    body = {"name": name, "description": "Desc", "personality": "Neutral", "scenario": "Test", **overrides}
+    body = {
+        "name": name,
+        "description": "Desc",
+        "personality": "Neutral",
+        "scenario": "Test",
+        **overrides,
+    }
     resp = await client.post("/api/characters/", json=body)
     assert resp.status_code == 201
     return resp.json()
-
 
 async def create_persona(client, name="Test Persona", **overrides):
     body = {"name": name, "description": "A persona", **overrides}
@@ -56,14 +57,14 @@ async def create_persona(client, name="Test Persona", **overrides):
     assert resp.status_code == 201
     return resp.json()
 
-
 async def create_preset(client, name="Test Preset"):
     resp = await client.post("/api/presets/", json={"name": name})
     assert resp.status_code == 201
     return resp.json()
 
-
-async def create_chat(client, character_id=None, persona_id=None, preset_id=None, title="Test Chat"):
+async def create_chat(
+    client, character_id=None, persona_id=None, preset_id=None, title="Test Chat"
+):
     body = {"title": title}
     if character_id:
         body["character_id"] = character_id

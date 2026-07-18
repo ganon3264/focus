@@ -1,60 +1,106 @@
-{% from "macros.html" import custom_select, icon_music, icon_plus, icon_close, icon_chevron_right, media_thumbnail %}
-<div class="arranger-item {% if not block.enabled %}disabled{% endif %} {% if block.block_type != 'chat_history' and block.block_type != 'char_blocks' %}bg-role-{{ block.role }}{% endif %}" data-block-id="{{ block.id }}" data-block-content="{{ block.content }}" x-data="{ expanded: (window._expandedArrangerBlocks || new Set()).has('{{ block.id }}') }">
+{% from "macros.html" import custom_select, icon_music, icon_plus, icon_close, icon_chevron_right,
+media_thumbnail %}
+<div
+  class="arranger-item {% if not block.enabled %}disabled{% endif %} {% if block.block_type != 'chat_history' and block.block_type != 'char_blocks' %}bg-role-{{ block.role }}{% endif %}"
+  data-block-id="{{ block.id }}"
+  data-block-content="{{ block.content }}"
+  x-data="{ expanded: (window._expandedArrangerBlocks || new Set()).has('{{ block.id }}') }"
+>
   <div class="arranger-header">
-      <div class="arranger-handle" title="Drag to reorder"></div>
-      <div class="arranger-title-group" @click="expanded = !expanded; expanded ? (window._expandedArrangerBlocks = window._expandedArrangerBlocks || new Set()).add('{{ block.id }}') : (window._expandedArrangerBlocks || new Set()).delete('{{ block.id }}')" role="button" tabindex="0" aria-expanded="false" style="cursor: pointer;">
-      <span style="font-size: 0.8rem; color: var(--text-muted); width: 16px; text-align: center; display: inline-flex; align-items: center; justify-content: center;" :class="expanded ? 'rotate-90' : ''">{{ icon_chevron_right(12) }}</span>
+    <div class="arranger-handle" title="Drag to reorder"></div>
+    <div
+      class="arranger-title-group"
+      @click="expanded = !expanded; expanded ? (window._expandedArrangerBlocks = window._expandedArrangerBlocks || new Set()).add('{{ block.id }}') : (window._expandedArrangerBlocks || new Set()).delete('{{ block.id }}')"
+      role="button"
+      tabindex="0"
+      aria-expanded="false"
+      style="cursor: pointer"
+    >
+      <span
+        style="
+          font-size: 0.8rem;
+          color: var(--text-muted);
+          width: 16px;
+          text-align: center;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        "
+        :class="expanded ? 'rotate-90' : ''"
+        >{{ icon_chevron_right(12) }}</span
+      >
       {% if block.block_type == 'text' %}
-        <input type="text" class="arranger-input" value="{{ block.name }}" @click.stop
-          onchange="fetch('/api/presets/{{ preset_id }}/blocks/{{ block.id }}', {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name:this.value})})"
-        >
+      <input
+        type="text"
+        class="arranger-input"
+        value="{{ block.name }}"
+        @click.stop
+        onchange="fetch('/api/presets/{{ preset_id }}/blocks/{{ block.id }}', {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name:this.value})})"
+      />
       {% else %}
-        <span class="arranger-badge badge-auto">AUTO</span>
-        <span class="arranger-input" style="cursor: pointer;">{{ block.block_type | replace('_', ' ') | title }}</span>
+      <span class="arranger-badge badge-auto">AUTO</span>
+      <span class="arranger-input" style="cursor: pointer"
+        >{{ block.block_type | replace('_', ' ') | title }}</span
+      >
       {% endif %}
     </div>
     <div class="arranger-actions">
-      <div class="arranger-toggle {% if block.enabled %}active{% endif %}" role="switch" tabindex="0" title="Toggle Block"
+      <div
+        class="arranger-toggle {% if block.enabled %}active{% endif %}"
+        role="switch"
+        tabindex="0"
+        title="Toggle Block"
         onclick="handleArrangerBlockUpdate('{{ preset_id }}', '{{ block.id }}', {enabled:{{ 0 if block.enabled else 1 }}})"
       ></div>
       {% if block.block_type != 'chat_history' %}
-      <button type="button" class="action-icon danger" title="Delete" aria-label="Delete block"
+      <button
+        type="button"
+        class="action-icon danger"
+        title="Delete"
+        aria-label="Delete block"
         onclick="window.customConfirm('Delete block?', function(){ handleArrangerBlockDelete('{{ preset_id }}', '{{ block.id }}'); })"
-      >{{ icon_close(16) }}</button>
+      >
+        {{ icon_close(16) }}
+      </button>
       {% else %}
-      <div style="width: 24px; height: 24px;"></div>
+      <div style="width: 24px; height: 24px"></div>
       {% endif %}
     </div>
   </div>
 
-  <div x-show="expanded" x-transition.opacity.duration.200ms style="margin-top: 0.5rem; display: none;">
+  <div
+    x-show="expanded"
+    x-transition.opacity.duration.200ms
+    style="margin-top: 0.5rem; display: none"
+  >
     {% if block.block_type == 'text' %}
     <div class="arranger-body">
-      <div style="width: 120px; flex-shrink: 0;">
-        {{ custom_select(
-             name="role",
-             id="role-" + block.id,
-             options=[
-               {"value": "system", "label": "system"},
-               {"value": "user", "label": "user"},
-               {"value": "assistant", "label": "assistant"}
-             ],
-             selected=block.role,
-             on_change="handleArrangerBlockUpdate('" + preset_id + "', '" + block.id + "', {role:$event.target.value})",
-             extra_classes="arranger-select"
-           )
-        }}
+      <div style="width: 120px; flex-shrink: 0">
+        {{ custom_select( name="role", id="role-" + block.id, options=[ {"value": "system", "label":
+        "system"}, {"value": "user", "label": "user"}, {"value": "assistant", "label": "assistant"}
+        ], selected=block.role, on_change="handleArrangerBlockUpdate('" + preset_id + "', '" +
+        block.id + "', {role:$event.target.value})", extra_classes="arranger-select" ) }}
       </div>
-      <div class="block-preview" role="button" tabindex="0" onclick="openBlockModal('{{ block.id }}', '{{ preset_id }}')">
-        {% if block.content %}{{ block.content[:80] }}{% if block.content | length > 80 %}…{% endif %}{% else %}<em class="empty-text">Empty — click to edit</em>{% endif %}
+      <div
+        class="block-preview"
+        role="button"
+        tabindex="0"
+        onclick="openBlockModal('{{ block.id }}', '{{ preset_id }}')"
+      >
+        {% if block.content %}{{ block.content[:80] }}{% if block.content | length > 80 %}…{% endif
+        %}{% else %}<em class="empty-text">Empty — click to edit</em>{% endif %}
       </div>
     </div>
 
     <!-- In-Chat Injection Controls -->
-    <div class="flex items-center gap-3 mt-3 pt-2" style="border-top: 1px solid var(--border);">
+    <div class="flex items-center gap-3 mt-3 pt-2" style="border-top: 1px solid var(--border)">
       <div class="flex items-center gap-2">
         <span class="text-xs text-muted select-none">In-Chat</span>
-        <div class="arranger-toggle {% if block.injection_depth is not none %}active{% endif %}" role="switch" tabindex="0" title="Toggle In-Chat Mode"
+        <div
+          class="arranger-toggle {% if block.injection_depth is not none %}active{% endif %}"
+          role="switch"
+          tabindex="0"
+          title="Toggle In-Chat Mode"
           onclick="handleArrangerBlockUpdate('{{ preset_id }}', '{{ block.id }}', {injection_depth: {{ 'null' if block.injection_depth is not none else '0' }}})"
         ></div>
       </div>
@@ -62,15 +108,25 @@
       <div class="flex items-center gap-3">
         <label class="flex items-center gap-1 text-xs text-muted">
           Depth
-          <input type="number" min="0" value="{{ block.injection_depth }}" class="form-control" style="width: 56px; padding: 2px 4px; font-size: 0.8rem;"
+          <input
+            type="number"
+            min="0"
+            value="{{ block.injection_depth }}"
+            class="form-control"
+            style="width: 56px; padding: 2px 4px; font-size: 0.8rem"
             onchange="handleArrangerBlockUpdate('{{ preset_id }}', '{{ block.id }}', {injection_depth: parseInt(this.value) || 0})"
-          >
+          />
         </label>
         <label class="flex items-center gap-1 text-xs text-muted">
           Order
-          <input type="number" min="0" value="{{ block.injection_order | default(0) }}" class="form-control" style="width: 56px; padding: 2px 4px; font-size: 0.8rem;"
+          <input
+            type="number"
+            min="0"
+            value="{{ block.injection_order | default(0) }}"
+            class="form-control"
+            style="width: 56px; padding: 2px 4px; font-size: 0.8rem"
             onchange="handleArrangerBlockUpdate('{{ preset_id }}', '{{ block.id }}', {injection_order: parseInt(this.value) || 0})"
-          >
+          />
         </label>
       </div>
       {% endif %}
@@ -81,9 +137,10 @@
       <div class="arranger-note flex flex-col gap-1">
         <span>Character custom blocks are injected automatically</span>
         {% if counts %}
-          <div class="text-xs mt-1" style="color: var(--text);">
-            Blocks: <strong>{{ counts.char_blocks }}</strong> | Attachments: <strong>{{ counts.char_attachments }}</strong>
-          </div>
+        <div class="text-xs mt-1" style="color: var(--text)">
+          Blocks: <strong>{{ counts.char_blocks }}</strong> | Attachments:
+          <strong>{{ counts.char_attachments }}</strong>
+        </div>
         {% endif %}
       </div>
     </div>
@@ -91,45 +148,42 @@
     {% else %}
     <div class="arranger-body">
       {% if block.block_type != 'chat_history' %}
-      <div style="width: 120px; flex-shrink: 0;">
-        {{ custom_select(
-             name="role",
-             id="role-" + block.id,
-             options=[
-               {"value": "system", "label": "system"},
-               {"value": "user", "label": "user"},
-               {"value": "assistant", "label": "assistant"}
-             ],
-             selected=block.role,
-             on_change="handleArrangerBlockUpdate('" + preset_id + "', '" + block.id + "', {role:$event.target.value})",
-             extra_classes="arranger-select"
-           )
-        }}
+      <div style="width: 120px; flex-shrink: 0">
+        {{ custom_select( name="role", id="role-" + block.id, options=[ {"value": "system", "label":
+        "system"}, {"value": "user", "label": "user"}, {"value": "assistant", "label": "assistant"}
+        ], selected=block.role, on_change="handleArrangerBlockUpdate('" + preset_id + "', '" +
+        block.id + "', {role:$event.target.value})", extra_classes="arranger-select" ) }}
       </div>
       {% endif %}
       <div class="arranger-note flex flex-col gap-1">
         {% if block.block_type == 'char_description' %}
-          <span>Character description is injected automatically</span>
-          {% if counts and counts.char_attachments > 0 %}<span class="text-xs text-(--text)">Attachments: <strong>{{ counts.char_attachments }}</strong></span>{% endif %}
-        {% endif %}
-        {% if block.block_type == 'char_personality' %}
-          <span>Character personality is injected automatically</span>
-          {% if counts and counts.char_attachments > 0 %}<span class="text-xs text-(--text)">Attachments: <strong>{{ counts.char_attachments }}</strong></span>{% endif %}
-        {% endif %}
-        {% if block.block_type == 'chat_history' %}<span>Chat messages are inserted at this position</span>{% endif %}
-        {% if block.block_type == 'user_persona' %}
-          <span>User persona description is injected automatically</span>
-          {% if counts and counts.persona_attachments > 0 %}<span class="text-xs text-(--text)">Attachments: <strong>{{ counts.persona_attachments }}</strong></span>{% endif %}
-        {% endif %}
+        <span>Character description is injected automatically</span>
+        {% if counts and counts.char_attachments > 0 %}<span class="text-xs text-(--text)"
+          >Attachments: <strong>{{ counts.char_attachments }}</strong></span
+        >{% endif %} {% endif %} {% if block.block_type == 'char_personality' %}
+        <span>Character personality is injected automatically</span>
+        {% if counts and counts.char_attachments > 0 %}<span class="text-xs text-(--text)"
+          >Attachments: <strong>{{ counts.char_attachments }}</strong></span
+        >{% endif %} {% endif %} {% if block.block_type == 'chat_history' %}<span
+          >Chat messages are inserted at this position</span
+        >{% endif %} {% if block.block_type == 'user_persona' %}
+        <span>User persona description is injected automatically</span>
+        {% if counts and counts.persona_attachments > 0 %}<span class="text-xs text-(--text)"
+          >Attachments: <strong>{{ counts.persona_attachments }}</strong></span
+        >{% endif %} {% endif %}
       </div>
     </div>
 
     {% if block.block_type != 'chat_history' %}
     <!-- In-Chat Injection Controls -->
-    <div class="flex items-center gap-3 mt-3 pt-2" style="border-top: 1px solid var(--border);">
+    <div class="flex items-center gap-3 mt-3 pt-2" style="border-top: 1px solid var(--border)">
       <div class="flex items-center gap-2">
         <span class="text-xs text-muted select-none">In-Chat</span>
-        <div class="arranger-toggle {% if block.injection_depth is not none %}active{% endif %}" role="switch" tabindex="0" title="Toggle In-Chat Mode"
+        <div
+          class="arranger-toggle {% if block.injection_depth is not none %}active{% endif %}"
+          role="switch"
+          tabindex="0"
+          title="Toggle In-Chat Mode"
           onclick="handleArrangerBlockUpdate('{{ preset_id }}', '{{ block.id }}', {injection_depth: {{ 'null' if block.injection_depth is not none else '0' }}})"
         ></div>
       </div>
@@ -137,38 +191,69 @@
       <div class="flex items-center gap-3">
         <label class="flex items-center gap-1 text-xs text-muted">
           Depth
-          <input type="number" min="0" value="{{ block.injection_depth }}" class="form-control" style="width: 56px; padding: 2px 4px; font-size: 0.8rem;"
+          <input
+            type="number"
+            min="0"
+            value="{{ block.injection_depth }}"
+            class="form-control"
+            style="width: 56px; padding: 2px 4px; font-size: 0.8rem"
             onchange="handleArrangerBlockUpdate('{{ preset_id }}', '{{ block.id }}', {injection_depth: parseInt(this.value) || 0})"
-          >
+          />
         </label>
         <label class="flex items-center gap-1 text-xs text-muted">
           Order
-          <input type="number" min="0" value="{{ block.injection_order | default(0) }}" class="form-control" style="width: 56px; padding: 2px 4px; font-size: 0.8rem;"
+          <input
+            type="number"
+            min="0"
+            value="{{ block.injection_order | default(0) }}"
+            class="form-control"
+            style="width: 56px; padding: 2px 4px; font-size: 0.8rem"
             onchange="handleArrangerBlockUpdate('{{ preset_id }}', '{{ block.id }}', {injection_order: parseInt(this.value) || 0})"
-          >
+          />
         </label>
       </div>
       {% endif %}
     </div>
-    {% endif %}
-    {% endif %}
+    {% endif %} {% endif %}
 
     <!-- Media attachments -->
-    {% if block.block_type not in ['chat_history', 'char_blocks', 'char_description', 'char_personality', 'user_persona'] %}
-    <div class="arranger-media-section" style="margin-top: 0.5rem; display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
-      {% for img in block.images %}
-      {{ media_thumbnail(img, "deleteBlockMedia('" + preset_id + "', '" + block.id + "', '" + img.id + "')", ' data-image-id="' + img.id + '"') }}
-      {% endfor %}
-      
-      <label class="btn btn-secondary btn-sm" style="height: 48px; padding: 0 0.5rem; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 4px; border-style: dashed; flex-shrink: 0; margin: 0;" title="Add Image or Audio">
+    {% if block.block_type not in ['chat_history', 'char_blocks', 'char_description',
+    'char_personality', 'user_persona'] %}
+    <div
+      class="arranger-media-section"
+      style="margin-top: 0.5rem; display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center"
+    >
+      {% for img in block.images %} {{ media_thumbnail(img, "deleteBlockMedia('" + preset_id + "',
+      '" + block.id + "', '" + img.id + "')", ' data-image-id="' + img.id + '"') }} {% endfor %}
+
+      <label
+        class="btn btn-secondary btn-sm"
+        style="
+          height: 48px;
+          padding: 0 0.5rem;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          border-radius: 4px;
+          border-style: dashed;
+          flex-shrink: 0;
+          margin: 0;
+        "
+        title="Add Image or Audio"
+      >
         {{ icon_plus(20) }}
-        <input type="file" accept="image/*,audio/*" class="hidden" onchange="uploadBlockMedia('{{ preset_id }}', '{{ block.id }}', this)">
+        <input
+          type="file"
+          accept="image/*,audio/*"
+          class="hidden"
+          onchange="uploadBlockMedia('{{ preset_id }}', '{{ block.id }}', this)"
+        />
       </label>
       {% if not block.images %}
       <span class="text-xs text-muted block-media-placeholder">Add reference image or audio</span>
       {% endif %}
     </div>
     {% endif %}
-
   </div>
 </div>

@@ -1,12 +1,15 @@
-import pytest
-
 from focus.macros import apply_macros, build_base_macros, extract_setvars
 
 
 class TestBuildBaseMacros:
     def test_full_card_and_persona(self):
-        card = {"name": "Sylvie", "description": "A fox", "personality": "Curious",
-                "scenario": "Forest", "mes_example": "Hello"}
+        card = {
+            "name": "Sylvie",
+            "description": "A fox",
+            "personality": "Curious",
+            "scenario": "Forest",
+            "mes_example": "Hello",
+        }
         persona = {"name": "Alex", "description": "A human", "id": "p1"}
         macros = build_base_macros(card, persona)
         assert macros["char"] == "Sylvie"
@@ -31,13 +34,22 @@ class TestBuildBaseMacros:
 
     def test_time_of_day_classification(self, monkeypatch):
         from datetime import datetime
+
         import focus.macros as m
 
-        test_cases = [(6, "morning"), (11, "morning"), (12, "afternoon"),
-                      (16, "afternoon"), (17, "evening"), (20, "evening"),
-                      (21, "night"), (3, "night")]
+        test_cases = [
+            (6, "morning"),
+            (11, "morning"),
+            (12, "afternoon"),
+            (16, "afternoon"),
+            (17, "evening"),
+            (20, "evening"),
+            (21, "night"),
+            (3, "night"),
+        ]
 
         for hour, expected in test_cases:
+
             class FakeDatetime(datetime):
                 @classmethod
                 def now(cls):
@@ -45,7 +57,9 @@ class TestBuildBaseMacros:
 
             monkeypatch.setattr(m, "datetime", FakeDatetime)
             macros = build_base_macros({})
-            assert macros["time_of_day"] == expected, f"hour={hour} expected={expected} got={macros['time_of_day']}"
+            assert macros["time_of_day"] == expected, (
+                f"hour={hour} expected={expected} got={macros['time_of_day']}"
+            )
 
     def test_time_date_keys_present(self):
         macros = build_base_macros({})
@@ -139,6 +153,7 @@ class TestApplyMacros:
 
     def test_max_passes_prevents_infinite_loop(self, monkeypatch):
         import focus.macros as m
+
         monkeypatch.setattr(m, "MACRO_MAX_PASSES", 2)
         macros = {"a": "{{a}}"}
         result = apply_macros("{{a}}", macros, 2)

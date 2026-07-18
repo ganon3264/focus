@@ -7,4 +7,5 @@ __pycache__/
 .env
 bin/tailwindcss-linux-x64
 static/tailwind.css
+static/vendor/
 .opencode/

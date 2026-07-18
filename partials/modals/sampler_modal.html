@@ -1,138 +1,308 @@
 {% from "macros.html" import icon_plus, icon_close %}
 <style>
-.styled-slider {
-  -webkit-appearance: none;
-  width: 100%;
-  height: 6px;
-  background: var(--surface-2);
-  border-radius: 3px;
-  outline: none;
-  border: 1px solid var(--border);
-}
-.styled-slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: var(--accent, #6366f1);
-  cursor: pointer;
-}
-.styled-slider::-moz-range-thumb {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: var(--accent, #6366f1);
-  cursor: pointer;
-  border: none;
-}
+  .styled-slider {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 6px;
+    background: var(--surface-2);
+    border-radius: 3px;
+    outline: none;
+    border: 1px solid var(--border);
+  }
+  .styled-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--accent, #6366f1);
+    cursor: pointer;
+  }
+  .styled-slider::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--accent, #6366f1);
+    cursor: pointer;
+    border: none;
+  }
 </style>
 
-<div x-data="samplerModal()" @provider-changed.window="onProviderChanged($event.detail)" @preset-changed.window="onPresetChanged($event.detail)" class="flex flex-col h-full">
+<div
+  x-data="samplerModal()"
+  @provider-changed.window="onProviderChanged($event.detail)"
+  @preset-changed.window="onPresetChanged($event.detail)"
+  class="flex flex-col h-full"
+>
   <!-- Tabs -->
-  <div class="flex mb-4" style="border-bottom: 1px solid var(--border);">
-    <button class="tab-btn" :class="{'active': tab === 'standard'}" @click="tab = 'standard'">Standard</button>
-    <button class="tab-btn" :class="{'active': tab === 'advanced'}" @click="tab = 'advanced'">Advanced</button>
-    <button class="tab-btn" :class="{'active': tab === 'custom'}" @click="tab = 'custom'">Custom Body</button>
+  <div class="flex mb-4" style="border-bottom: 1px solid var(--border)">
+    <button class="tab-btn" :class="{'active': tab === 'standard'}" @click="tab = 'standard'">
+      Standard
+    </button>
+    <button class="tab-btn" :class="{'active': tab === 'advanced'}" @click="tab = 'advanced'">
+      Advanced
+    </button>
+    <button class="tab-btn" :class="{'active': tab === 'custom'}" @click="tab = 'custom'">
+      Custom Body
+    </button>
   </div>
 
   <!-- Standard Tab -->
   <div x-show="tab === 'standard'" class="flex flex-col gap-3 overflow-y-auto pr-2 pb-2">
     <!-- ── Universal sliders ── -->
     <div class="form-group mb-0">
-      <label class="flex justify-between text-xs mb-1"><span>Temperature</span> <span x-text="samplers.temperature"></span></label>
-      <input type="range" min="0" max="2" step="0.01" x-model.number="samplers.temperature" @change="saveStandard()" class="styled-slider">
+      <label class="flex justify-between text-xs mb-1"
+        ><span>Temperature</span> <span x-text="samplers.temperature"></span
+      ></label>
+      <input
+        type="range"
+        min="0"
+        max="2"
+        step="0.01"
+        x-model.number="samplers.temperature"
+        @change="saveStandard()"
+        class="styled-slider"
+      />
     </div>
     <div class="form-group mb-0">
-      <label class="flex justify-between text-xs mb-1"><span>Max Tokens</span> <span x-text="samplers.max_tokens"></span></label>
-      <input type="number" min="1" max="128000" x-model.number="samplers.max_tokens" @change="saveStandard()" class="form-control text-sm w-full">
+      <label class="flex justify-between text-xs mb-1"
+        ><span>Max Tokens</span> <span x-text="samplers.max_tokens"></span
+      ></label>
+      <input
+        type="number"
+        min="1"
+        max="128000"
+        x-model.number="samplers.max_tokens"
+        @change="saveStandard()"
+        class="form-control text-sm w-full"
+      />
     </div>
     <div class="form-group mb-0">
-      <label class="flex justify-between text-xs mb-1"><span>Top P</span> <span x-text="samplers.top_p"></span></label>
-      <input type="range" min="0" max="1" step="0.01" x-model.number="samplers.top_p" @change="saveStandard()" class="styled-slider">
+      <label class="flex justify-between text-xs mb-1"
+        ><span>Top P</span> <span x-text="samplers.top_p"></span
+      ></label>
+      <input
+        type="range"
+        min="0"
+        max="1"
+        step="0.01"
+        x-model.number="samplers.top_p"
+        @change="saveStandard()"
+        class="styled-slider"
+      />
     </div>
 
     <!-- ── Provider-specific sliders ── -->
     <template x-if="providerType === 'openrouter'">
       <div class="flex flex-col gap-3">
         <div class="form-group mb-0">
-          <label class="flex justify-between text-xs mb-1"><span>Top K</span> <span x-text="samplers.top_k"></span></label>
-          <input type="range" min="0" max="100" step="1" x-model.number="samplers.top_k" @change="saveStandard()" class="styled-slider">
+          <label class="flex justify-between text-xs mb-1"
+            ><span>Top K</span> <span x-text="samplers.top_k"></span
+          ></label>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            step="1"
+            x-model.number="samplers.top_k"
+            @change="saveStandard()"
+            class="styled-slider"
+          />
         </div>
         <div class="form-group mb-0">
-          <label class="flex justify-between text-xs mb-1"><span>Min P</span> <span x-text="samplers.min_p"></span></label>
-          <input type="range" min="0" max="1" step="0.01" x-model.number="samplers.min_p" @change="saveStandard()" class="styled-slider">
+          <label class="flex justify-between text-xs mb-1"
+            ><span>Min P</span> <span x-text="samplers.min_p"></span
+          ></label>
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            x-model.number="samplers.min_p"
+            @change="saveStandard()"
+            class="styled-slider"
+          />
         </div>
       </div>
     </template>
     <template x-if="providerType === 'google_vertex' || providerType === 'google_aistudio'">
       <div class="form-group mb-0">
-        <label class="flex justify-between text-xs mb-1"><span>Top K</span> <span x-text="samplers.top_k"></span></label>
-        <input type="range" min="0" max="100" step="1" x-model.number="samplers.top_k" @change="saveStandard()" class="styled-slider">
+        <label class="flex justify-between text-xs mb-1"
+          ><span>Top K</span> <span x-text="samplers.top_k"></span
+        ></label>
+        <input
+          type="range"
+          min="0"
+          max="100"
+          step="1"
+          x-model.number="samplers.top_k"
+          @change="saveStandard()"
+          class="styled-slider"
+        />
       </div>
     </template>
 
     <!-- ── Universal toggles ── -->
     <div class="form-group mb-0 flex items-center justify-between mt-2">
-      <label class="text-xs mb-0 cursor-pointer" @click="samplers.stream_enabled = !samplers.stream_enabled; saveStandard()">Streaming</label>
-      <div class="arranger-toggle" role="switch" tabindex="0" :class="{ 'active': samplers.stream_enabled }" @click="samplers.stream_enabled = !samplers.stream_enabled; saveStandard()"></div>
+      <label
+        class="text-xs mb-0 cursor-pointer"
+        @click="samplers.stream_enabled = !samplers.stream_enabled; saveStandard()"
+        >Streaming</label
+      >
+      <div
+        class="arranger-toggle"
+        role="switch"
+        tabindex="0"
+        :class="{ 'active': samplers.stream_enabled }"
+        @click="samplers.stream_enabled = !samplers.stream_enabled; saveStandard()"
+      ></div>
     </div>
     <div class="form-group mb-0 flex items-center justify-between mt-2">
-      <label class="text-xs mb-0 cursor-pointer" @click="samplers.enable_multimodal = !samplers.enable_multimodal; saveStandard()">Enable Multimodal</label>
-      <div class="arranger-toggle" role="switch" tabindex="0" :class="{ 'active': samplers.enable_multimodal }" @click="samplers.enable_multimodal = !samplers.enable_multimodal; saveStandard()"></div>
+      <label
+        class="text-xs mb-0 cursor-pointer"
+        @click="samplers.enable_multimodal = !samplers.enable_multimodal; saveStandard()"
+        >Enable Multimodal</label
+      >
+      <div
+        class="arranger-toggle"
+        role="switch"
+        tabindex="0"
+        :class="{ 'active': samplers.enable_multimodal }"
+        @click="samplers.enable_multimodal = !samplers.enable_multimodal; saveStandard()"
+      ></div>
     </div>
 
     <!-- ── Provider-specific toggles ── -->
     <template x-if="providerType === 'openrouter'">
       <div class="flex flex-col gap-3">
         <div class="form-group mb-0 flex items-center justify-between mt-2">
-          <label class="text-xs mb-0 cursor-pointer" @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()">Include Reasoning</label>
-          <div class="arranger-toggle" role="switch" tabindex="0" :class="{ 'active': samplers.include_reasoning }" @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()"></div>
+          <label
+            class="text-xs mb-0 cursor-pointer"
+            @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()"
+            >Include Reasoning</label
+          >
+          <div
+            class="arranger-toggle"
+            role="switch"
+            tabindex="0"
+            :class="{ 'active': samplers.include_reasoning }"
+            @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()"
+          ></div>
         </div>
-        <div x-show="samplers.include_reasoning" x-transition.opacity.duration.200ms class="flex flex-col gap-2" style="display: none;">
+        <div
+          x-show="samplers.include_reasoning"
+          x-transition.opacity.duration.200ms
+          class="flex flex-col gap-2"
+          style="display: none"
+        >
           <div class="form-group mb-0">
             <label class="flex justify-between text-xs mb-2"><span>Reasoning Effort</span></label>
             <div class="flex gap-2 flex-wrap">
-              <button class="btn-tag" :class="!samplers.reasoning_effort ? 'active' : ''" @click.stop="samplers.reasoning_effort = ''; saveStandard()">Default</button>
+              <button
+                class="btn-tag"
+                :class="!samplers.reasoning_effort ? 'active' : ''"
+                @click.stop="samplers.reasoning_effort = ''; saveStandard()"
+              >
+                Default
+              </button>
               <template x-for="opt in effortOptions" :key="opt.value">
-                <button class="btn-tag" :class="samplers.reasoning_effort === opt.value ? 'active' : ''" @click.stop="samplers.reasoning_effort = opt.value; saveStandard()" x-text="opt.label"></button>
+                <button
+                  class="btn-tag"
+                  :class="samplers.reasoning_effort === opt.value ? 'active' : ''"
+                  @click.stop="samplers.reasoning_effort = opt.value; saveStandard()"
+                  x-text="opt.label"
+                ></button>
               </template>
             </div>
           </div>
         </div>
       </div>
     </template>
-    <template x-if="providerType === 'openai_compat' || providerType === 'deepseek' || providerType === 'moonshot'">
+    <template
+      x-if="providerType === 'openai_compat' || providerType === 'deepseek' || providerType === 'moonshot'"
+    >
       <div class="flex flex-col gap-3">
         <div class="form-group mb-0 flex items-center justify-between mt-2">
-          <label class="text-xs mb-0 cursor-pointer" @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()">Enable Thinking / Reasoning</label>
-          <div class="arranger-toggle" role="switch" tabindex="0" :class="{ 'active': samplers.include_reasoning }" @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()"></div>
+          <label
+            class="text-xs mb-0 cursor-pointer"
+            @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()"
+            >Enable Thinking / Reasoning</label
+          >
+          <div
+            class="arranger-toggle"
+            role="switch"
+            tabindex="0"
+            :class="{ 'active': samplers.include_reasoning }"
+            @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()"
+          ></div>
         </div>
-        <div class="form-group mb-0" x-show="samplers.include_reasoning && providerType !== 'moonshot'" x-transition.opacity.duration.200ms style="display: none;">
+        <div
+          class="form-group mb-0"
+          x-show="samplers.include_reasoning && providerType !== 'moonshot'"
+          x-transition.opacity.duration.200ms
+          style="display: none"
+        >
           <label class="flex justify-between text-xs mb-2"><span>Reasoning Effort</span></label>
-            <div class="flex gap-2 flex-wrap">
-              <button class="btn-tag" :class="!samplers.reasoning_effort ? 'active' : ''" @click.stop="samplers.reasoning_effort = ''; saveStandard()">Default</button>
-              <template x-for="opt in effortOptions" :key="opt.value">
-                <button class="btn-tag" :class="samplers.reasoning_effort === opt.value ? 'active' : ''" @click.stop="samplers.reasoning_effort = opt.value; saveStandard()" x-text="opt.label"></button>
-              </template>
-            </div>
+          <div class="flex gap-2 flex-wrap">
+            <button
+              class="btn-tag"
+              :class="!samplers.reasoning_effort ? 'active' : ''"
+              @click.stop="samplers.reasoning_effort = ''; saveStandard()"
+            >
+              Default
+            </button>
+            <template x-for="opt in effortOptions" :key="opt.value">
+              <button
+                class="btn-tag"
+                :class="samplers.reasoning_effort === opt.value ? 'active' : ''"
+                @click.stop="samplers.reasoning_effort = opt.value; saveStandard()"
+                x-text="opt.label"
+              ></button>
+            </template>
+          </div>
         </div>
       </div>
     </template>
     <template x-if="providerType === 'google_vertex' || providerType === 'google_aistudio'">
       <div class="flex flex-col gap-3">
         <div class="form-group mb-0 flex items-center justify-between mt-2">
-          <label class="text-xs mb-0 cursor-pointer" @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()">Enable Thinking</label>
-          <div class="arranger-toggle" role="switch" tabindex="0" :class="{ 'active': samplers.include_reasoning }" @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()"></div>
+          <label
+            class="text-xs mb-0 cursor-pointer"
+            @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()"
+            >Enable Thinking</label
+          >
+          <div
+            class="arranger-toggle"
+            role="switch"
+            tabindex="0"
+            :class="{ 'active': samplers.include_reasoning }"
+            @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()"
+          ></div>
         </div>
-        <div class="form-group mb-0" x-show="samplers.include_reasoning" x-transition.opacity.duration.200ms style="display: none;">
+        <div
+          class="form-group mb-0"
+          x-show="samplers.include_reasoning"
+          x-transition.opacity.duration.200ms
+          style="display: none"
+        >
           <label class="flex justify-between text-xs mb-2"><span>Thinking Level</span></label>
-            <div class="flex gap-2 flex-wrap">
-                <button class="btn-tag" :class="!samplers.reasoning_effort ? 'active' : ''" @click.stop="samplers.reasoning_effort = ''; saveStandard()">Default</button>
-              <template x-for="opt in effortOptions" :key="opt.value">
-                <button class="btn-tag" :class="samplers.reasoning_effort === opt.value ? 'active' : ''" @click.stop="samplers.reasoning_effort = opt.value; saveStandard()" x-text="opt.label"></button>
-              </template>
-            </div>
+          <div class="flex gap-2 flex-wrap">
+            <button
+              class="btn-tag"
+              :class="!samplers.reasoning_effort ? 'active' : ''"
+              @click.stop="samplers.reasoning_effort = ''; saveStandard()"
+            >
+              Default
+            </button>
+            <template x-for="opt in effortOptions" :key="opt.value">
+              <button
+                class="btn-tag"
+                :class="samplers.reasoning_effort === opt.value ? 'active' : ''"
+                @click.stop="samplers.reasoning_effort = opt.value; saveStandard()"
+                x-text="opt.label"
+              ></button>
+            </template>
+          </div>
         </div>
       </div>
     </template>
@@ -140,48 +310,141 @@
 
   <!-- Advanced Tab -->
   <div x-show="tab === 'advanced'" class="flex flex-col gap-3 overflow-y-auto pr-2 pb-2">
-    <template x-if="providerType === 'openai_compat' || providerType === 'deepseek' || providerType === 'moonshot'">
+    <template
+      x-if="providerType === 'openai_compat' || providerType === 'deepseek' || providerType === 'moonshot'"
+    >
       <div class="flex flex-col gap-3">
         <div class="form-group mb-0">
-          <label class="flex justify-between text-xs mb-1"><span>Frequency Penalty</span> <span x-text="samplers.frequency_penalty"></span></label>
-          <input type="range" min="-2" max="2" step="0.01" x-model.number="samplers.frequency_penalty" @change="saveStandard()" class="styled-slider">
+          <label class="flex justify-between text-xs mb-1"
+            ><span>Frequency Penalty</span> <span x-text="samplers.frequency_penalty"></span
+          ></label>
+          <input
+            type="range"
+            min="-2"
+            max="2"
+            step="0.01"
+            x-model.number="samplers.frequency_penalty"
+            @change="saveStandard()"
+            class="styled-slider"
+          />
         </div>
         <div class="form-group mb-0">
-          <label class="flex justify-between text-xs mb-1"><span>Presence Penalty</span> <span x-text="samplers.presence_penalty"></span></label>
-          <input type="range" min="-2" max="2" step="0.01" x-model.number="samplers.presence_penalty" @change="saveStandard()" class="styled-slider">
+          <label class="flex justify-between text-xs mb-1"
+            ><span>Presence Penalty</span> <span x-text="samplers.presence_penalty"></span
+          ></label>
+          <input
+            type="range"
+            min="-2"
+            max="2"
+            step="0.01"
+            x-model.number="samplers.presence_penalty"
+            @change="saveStandard()"
+            class="styled-slider"
+          />
         </div>
       </div>
     </template>
     <template x-if="providerType === 'openrouter'">
       <div class="flex flex-col gap-3">
         <div class="form-group mb-0">
-          <label class="flex justify-between text-xs mb-1"><span>Repetition Penalty</span> <span x-text="samplers.repetition_penalty"></span></label>
-          <input type="range" min="0" max="2" step="0.01" x-model.number="samplers.repetition_penalty" @change="saveStandard()" class="styled-slider">
+          <label class="flex justify-between text-xs mb-1"
+            ><span>Repetition Penalty</span> <span x-text="samplers.repetition_penalty"></span
+          ></label>
+          <input
+            type="range"
+            min="0"
+            max="2"
+            step="0.01"
+            x-model.number="samplers.repetition_penalty"
+            @change="saveStandard()"
+            class="styled-slider"
+          />
         </div>
-        <div class="form-group mb-0" x-show="samplers.include_reasoning" x-transition.opacity.duration.200ms style="display: none;">
-          <label class="flex justify-between text-xs mb-1"><span>Thinking Budget</span> <span x-text="samplers.thinking_budget || 'auto'"></span></label>
-          <input type="number" min="0" max="128000" step="1" x-model.number="samplers.thinking_budget" @change="saveStandard()" class="form-control text-sm w-full" placeholder="0 = use effort or default 2048">
+        <div
+          class="form-group mb-0"
+          x-show="samplers.include_reasoning"
+          x-transition.opacity.duration.200ms
+          style="display: none"
+        >
+          <label class="flex justify-between text-xs mb-1"
+            ><span>Thinking Budget</span> <span x-text="samplers.thinking_budget || 'auto'"></span
+          ></label>
+          <input
+            type="number"
+            min="0"
+            max="128000"
+            step="1"
+            x-model.number="samplers.thinking_budget"
+            @change="saveStandard()"
+            class="form-control text-sm w-full"
+            placeholder="0 = use effort or default 2048"
+          />
         </div>
         <div class="form-group mb-0 flex items-center justify-between mt-2">
-          <label class="text-xs mb-0 cursor-pointer" @click="samplers.cache_enabled = !samplers.cache_enabled; saveStandard()">Prompt Caching</label>
-          <div class="arranger-toggle" role="switch" tabindex="0" :class="{ 'active': samplers.cache_enabled }" @click="samplers.cache_enabled = !samplers.cache_enabled; saveStandard()"></div>
+          <label
+            class="text-xs mb-0 cursor-pointer"
+            @click="samplers.cache_enabled = !samplers.cache_enabled; saveStandard()"
+            >Prompt Caching</label
+          >
+          <div
+            class="arranger-toggle"
+            role="switch"
+            tabindex="0"
+            :class="{ 'active': samplers.cache_enabled }"
+            @click="samplers.cache_enabled = !samplers.cache_enabled; saveStandard()"
+          ></div>
         </div>
-        <div x-show="samplers.cache_enabled" x-transition.opacity.duration.200ms class="flex flex-col gap-2" style="display: none;">
+        <div
+          x-show="samplers.cache_enabled"
+          x-transition.opacity.duration.200ms
+          class="flex flex-col gap-2"
+          style="display: none"
+        >
           <div class="form-group mb-0">
-            <label class="flex justify-between text-xs mb-1"><span>Depth of Turns</span> <span x-text="samplers.cache_depth"></span></label>
-            <input type="number" min="1" max="50" step="1" x-model.number="samplers.cache_depth" @change="saveStandard()" class="form-control text-sm w-full">
+            <label class="flex justify-between text-xs mb-1"
+              ><span>Depth of Turns</span> <span x-text="samplers.cache_depth"></span
+            ></label>
+            <input
+              type="number"
+              min="1"
+              max="50"
+              step="1"
+              x-model.number="samplers.cache_depth"
+              @change="saveStandard()"
+              class="form-control text-sm w-full"
+            />
           </div>
           <div class="form-group mb-0 flex items-center justify-between">
-            <label class="text-xs mb-0 cursor-pointer" @click="samplers.cache_ttl = samplers.cache_ttl === '1h' ? 'ephemeral' : '1h'; saveStandard()">Extra TTL (1 hour)</label>
-            <div class="arranger-toggle" role="switch" tabindex="0" :class="{ 'active': samplers.cache_ttl === '1h' }" @click="samplers.cache_ttl = samplers.cache_ttl === '1h' ? 'ephemeral' : '1h'; saveStandard()"></div>
+            <label
+              class="text-xs mb-0 cursor-pointer"
+              @click="samplers.cache_ttl = samplers.cache_ttl === '1h' ? 'ephemeral' : '1h'; saveStandard()"
+              >Extra TTL (1 hour)</label
+            >
+            <div
+              class="arranger-toggle"
+              role="switch"
+              tabindex="0"
+              :class="{ 'active': samplers.cache_ttl === '1h' }"
+              @click="samplers.cache_ttl = samplers.cache_ttl === '1h' ? 'ephemeral' : '1h'; saveStandard()"
+            ></div>
           </div>
         </div>
       </div>
     </template>
     <template x-if="providerType === 'google_vertex' || providerType === 'google_aistudio'">
       <div class="form-group mb-0 flex items-center justify-between mt-2">
-        <label class="text-xs mb-0 cursor-pointer" @click="samplers.send_reasoning_history = !samplers.send_reasoning_history; saveStandard()">Send Reasoning History</label>
-        <div class="arranger-toggle" role="switch" tabindex="0" :class="{ 'active': samplers.send_reasoning_history }" @click="samplers.send_reasoning_history = !samplers.send_reasoning_history; saveStandard()"></div>
+        <label
+          class="text-xs mb-0 cursor-pointer"
+          @click="samplers.send_reasoning_history = !samplers.send_reasoning_history; saveStandard()"
+          >Send Reasoning History</label
+        >
+        <div
+          class="arranger-toggle"
+          role="switch"
+          tabindex="0"
+          :class="{ 'active': samplers.send_reasoning_history }"
+          @click="samplers.send_reasoning_history = !samplers.send_reasoning_history; saveStandard()"
+        ></div>
       </div>
     </template>
   </div>
@@ -189,224 +452,278 @@
   <!-- Custom Tab -->
   <div x-show="tab === 'custom'" class="flex flex-col gap-2 overflow-y-auto pr-2 pb-2 h-full">
     <div class="text-xs text-muted mb-2">Add custom fields sent directly to the provider.</div>
-    
+
     <template x-for="(item, index) in customFields" :key="index">
-      <div class="flex items-center gap-2 mb-2 p-2 rounded-md" style="background: var(--surface-2); border: 1px solid var(--border);">
-        <input type="checkbox" x-model="item.enabled" @change="saveCustom()" title="Enable/Disable">
-        <input type="text" x-model="item.key" @change="saveCustom()" placeholder="Key" class="form-control text-sm flex-1">
+      <div
+        class="flex items-center gap-2 mb-2 p-2 rounded-md"
+        style="background: var(--surface-2); border: 1px solid var(--border)"
+      >
+        <input
+          type="checkbox"
+          x-model="item.enabled"
+          @change="saveCustom()"
+          title="Enable/Disable"
+        />
+        <input
+          type="text"
+          x-model="item.key"
+          @change="saveCustom()"
+          placeholder="Key"
+          class="form-control text-sm flex-1"
+        />
         <select x-model="item.type" @change="saveCustom()" class="form-control text-sm w-24">
           <option value="string">String</option>
           <option value="number">Number</option>
           <option value="boolean">Bool</option>
           <option value="json">JSON</option>
         </select>
-        <input x-show="item.type !== 'boolean'" type="text" x-model="item.value" @change="saveCustom()" placeholder="Value" class="form-control text-sm flex-1">
-        <select x-show="item.type === 'boolean'" x-model="item.value" @change="saveCustom()" class="form-control text-sm flex-1">
+        <input
+          x-show="item.type !== 'boolean'"
+          type="text"
+          x-model="item.value"
+          @change="saveCustom()"
+          placeholder="Value"
+          class="form-control text-sm flex-1"
+        />
+        <select
+          x-show="item.type === 'boolean'"
+          x-model="item.value"
+          @change="saveCustom()"
+          class="form-control text-sm flex-1"
+        >
           <option value="true">True</option>
           <option value="false">False</option>
         </select>
-        <button class="btn btn-danger btn-sm" @click="removeCustom(index)" aria-label="Remove custom sampler" title="Remove">{{ icon_close(16) }}</button>
+        <button
+          class="btn btn-danger btn-sm"
+          @click="removeCustom(index)"
+          aria-label="Remove custom sampler"
+          title="Remove"
+        >
+          {{ icon_close(16) }}
+        </button>
       </div>
     </template>
-    
-    <button class="btn btn-secondary text-sm mt-2" @click="addCustom()">{{ icon_plus(14) }} Add Custom Field</button>
+
+    <button class="btn btn-secondary text-sm mt-2" @click="addCustom()">
+      {{ icon_plus(14) }} Add Custom Field
+    </button>
   </div>
 </div>
 
 <script>
-document.addEventListener('alpine:init', () => {
-  Alpine.data('samplerModal', () => ({
-    tab: 'standard',
-    providerType: StateManager.get('provider_type') || 'openai_compat',
-    providerId: StateManager.get('provider_id'),
-    presetId: StateManager.get('preset_id'),
+  document.addEventListener('alpine:init', () => {
+    Alpine.data('samplerModal', () => ({
+      tab: 'standard',
+      providerType: StateManager.get('provider_type') || 'openai_compat',
+      providerId: StateManager.get('provider_id'),
+      presetId: StateManager.get('preset_id'),
 
-    samplers: {},
-    customFields: [],
+      samplers: {},
+      customFields: [],
 
-    defaultSamplers() {
-      return {
-        temperature: 1.0,
-        max_tokens: 8192,
-        top_p: 0.95,
-        top_k: 40,
-        min_p: 0.05,
-        repetition_penalty: 1.0,
-        frequency_penalty: 0.0,
-        presence_penalty: 0.0,
-        include_reasoning: false,
-        send_reasoning_history: true,
-        reasoning_effort: '',
-        thinking_budget: 0,
-        stream_enabled: true,
-        enable_multimodal: true,
-        cache_enabled: false,
-        cache_ttl: 'ephemeral',
-        cache_depth: 5,
-      };
-    },
-
-    storageKey(type, id) {
-      const suffix = id || type || 'unknown';
-      return this.presetId ? `focus-samplers-${this.presetId}-${suffix}` : `focus-samplers-${suffix}`;
-    },
-
-    customStorageKey(type, id) {
-      const suffix = id || type || 'unknown';
-      return this.presetId ? `focus-custom-samplers-${this.presetId}-${suffix}` : `focus-custom-samplers-${suffix}`;
-    },
-
-    loadStandard() {
-      const key = this.storageKey(this.providerType, this.providerId);
-      const saved = localStorage.getItem(key);
-      this.samplers = saved
-        ? { ...this.defaultSamplers(), ...JSON.parse(saved) }
-        : { ...this.defaultSamplers() };
-    },
-
-    loadCustom() {
-      const key = this.customStorageKey(this.providerType, this.providerId);
-      const saved = localStorage.getItem(key);
-      this.customFields = saved ? JSON.parse(saved) : [];
-    },
-
-    get effortOptions() {
-      const map = {
-        openrouter: [
-          { value: 'minimal', label: 'Minimal' },
-          { value: 'low', label: 'Low' },
-          { value: 'medium', label: 'Medium' },
-          { value: 'high', label: 'High' },
-          { value: 'xhigh', label: 'X-High' },
-          { value: 'max', label: 'Max' },
-        ],
-        openai_compat: [
-          { value: 'low', label: 'Low' },
-          { value: 'medium', label: 'Medium' },
-          { value: 'high', label: 'High' },
-        ],
-        deepseek: [
-          { value: 'high', label: 'High' },
-          { value: 'max', label: 'Max' },
-        ],
-        google_vertex: [
-          { value: 'MINIMAL', label: 'Min' },
-          { value: 'LOW', label: 'Low' },
-          { value: 'MEDIUM', label: 'Med' },
-          { value: 'HIGH', label: 'High' },
-        ],
-        google_aistudio: [
-          { value: 'MINIMAL', label: 'Min' },
-          { value: 'LOW', label: 'Low' },
-          { value: 'MEDIUM', label: 'Med' },
-          { value: 'HIGH', label: 'High' },
-        ],
-      };
-      return map[this.providerType] || map.openai_compat;
-    },
-
-    init() {
-      this.loadStandard();
-      this.loadCustom();
-
-      // Make global function to retrieve payload
-      window.getActiveSamplers = () => {
-        let payload = {
-          temperature: this.samplers.temperature,
-          max_tokens: this.samplers.max_tokens,
-          top_p: this.samplers.top_p,
-          stream_enabled: this.samplers.stream_enabled
+      defaultSamplers() {
+        return {
+          temperature: 1.0,
+          max_tokens: 8192,
+          top_p: 0.95,
+          top_k: 40,
+          min_p: 0.05,
+          repetition_penalty: 1.0,
+          frequency_penalty: 0.0,
+          presence_penalty: 0.0,
+          include_reasoning: false,
+          send_reasoning_history: true,
+          reasoning_effort: '',
+          thinking_budget: 0,
+          stream_enabled: true,
+          enable_multimodal: true,
+          cache_enabled: false,
+          cache_ttl: 'ephemeral',
+          cache_depth: 5,
         };
+      },
 
-        if (this.providerType === 'openrouter') {
-          payload.top_k = this.samplers.top_k;
-          payload.min_p = this.samplers.min_p;
-          payload.repetition_penalty = this.samplers.repetition_penalty;
-          if (this.samplers.include_reasoning) {
-            payload.include_reasoning = true;
-            payload.reasoning_effort = this.samplers.reasoning_effort;
-            payload.thinking_budget = this.samplers.thinking_budget;
-          }
-          payload.cache_enabled = this.samplers.cache_enabled;
-          payload.cache_ttl = this.samplers.cache_ttl;
-          payload.cache_depth = this.samplers.cache_depth;
-        } else if (this.providerType === 'openai_compat' || this.providerType === 'deepseek' || this.providerType === 'moonshot') {
-          payload.frequency_penalty = this.samplers.frequency_penalty;
-          payload.presence_penalty = this.samplers.presence_penalty;
-        } else if (this.providerType === 'google_vertex' || this.providerType === 'google_aistudio') {
-          payload.top_k = this.samplers.top_k;
-          payload.send_reasoning_history = this.samplers.send_reasoning_history;
-          if (this.samplers.include_reasoning) {
-            payload.include_reasoning = true;
-            payload.reasoning_effort = this.samplers.reasoning_effort;
-          }
-        }
+      storageKey(type, id) {
+        const suffix = id || type || 'unknown';
+        return this.presetId
+          ? `focus-samplers-${this.presetId}-${suffix}`
+          : `focus-samplers-${suffix}`;
+      },
 
-        if (!this.samplers.enable_multimodal) {
-          payload.disable_multimodal = true;
-        }
+      customStorageKey(type, id) {
+        const suffix = id || type || 'unknown';
+        return this.presetId
+          ? `focus-custom-samplers-${this.presetId}-${suffix}`
+          : `focus-custom-samplers-${suffix}`;
+      },
 
-        // Add enabled custom fields
-        for (let item of this.customFields) {
-          if (item.enabled && item.key) {
-            let val = item.value;
-            if (item.type === 'number') val = Number(val);
-            else if (item.type === 'boolean') val = (val === 'true');
-            else if (item.type === 'json') {
-              try { val = JSON.parse(val); } catch(e) {}
+      loadStandard() {
+        const key = this.storageKey(this.providerType, this.providerId);
+        const saved = localStorage.getItem(key);
+        this.samplers = saved
+          ? { ...this.defaultSamplers(), ...JSON.parse(saved) }
+          : { ...this.defaultSamplers() };
+      },
+
+      loadCustom() {
+        const key = this.customStorageKey(this.providerType, this.providerId);
+        const saved = localStorage.getItem(key);
+        this.customFields = saved ? JSON.parse(saved) : [];
+      },
+
+      get effortOptions() {
+        const map = {
+          openrouter: [
+            { value: 'minimal', label: 'Minimal' },
+            { value: 'low', label: 'Low' },
+            { value: 'medium', label: 'Medium' },
+            { value: 'high', label: 'High' },
+            { value: 'xhigh', label: 'X-High' },
+            { value: 'max', label: 'Max' },
+          ],
+          openai_compat: [
+            { value: 'low', label: 'Low' },
+            { value: 'medium', label: 'Medium' },
+            { value: 'high', label: 'High' },
+          ],
+          deepseek: [
+            { value: 'high', label: 'High' },
+            { value: 'max', label: 'Max' },
+          ],
+          google_vertex: [
+            { value: 'MINIMAL', label: 'Min' },
+            { value: 'LOW', label: 'Low' },
+            { value: 'MEDIUM', label: 'Med' },
+            { value: 'HIGH', label: 'High' },
+          ],
+          google_aistudio: [
+            { value: 'MINIMAL', label: 'Min' },
+            { value: 'LOW', label: 'Low' },
+            { value: 'MEDIUM', label: 'Med' },
+            { value: 'HIGH', label: 'High' },
+          ],
+        };
+        return map[this.providerType] || map.openai_compat;
+      },
+
+      init() {
+        this.loadStandard();
+        this.loadCustom();
+
+        // Make global function to retrieve payload
+        window.getActiveSamplers = () => {
+          let payload = {
+            temperature: this.samplers.temperature,
+            max_tokens: this.samplers.max_tokens,
+            top_p: this.samplers.top_p,
+            stream_enabled: this.samplers.stream_enabled,
+          };
+
+          if (this.providerType === 'openrouter') {
+            payload.top_k = this.samplers.top_k;
+            payload.min_p = this.samplers.min_p;
+            payload.repetition_penalty = this.samplers.repetition_penalty;
+            if (this.samplers.include_reasoning) {
+              payload.include_reasoning = true;
+              payload.reasoning_effort = this.samplers.reasoning_effort;
+              payload.thinking_budget = this.samplers.thinking_budget;
             }
-            payload[item.key] = val;
+            payload.cache_enabled = this.samplers.cache_enabled;
+            payload.cache_ttl = this.samplers.cache_ttl;
+            payload.cache_depth = this.samplers.cache_depth;
+          } else if (
+            this.providerType === 'openai_compat' ||
+            this.providerType === 'deepseek' ||
+            this.providerType === 'moonshot'
+          ) {
+            payload.frequency_penalty = this.samplers.frequency_penalty;
+            payload.presence_penalty = this.samplers.presence_penalty;
+          } else if (
+            this.providerType === 'google_vertex' ||
+            this.providerType === 'google_aistudio'
+          ) {
+            payload.top_k = this.samplers.top_k;
+            payload.send_reasoning_history = this.samplers.send_reasoning_history;
+            if (this.samplers.include_reasoning) {
+              payload.include_reasoning = true;
+              payload.reasoning_effort = this.samplers.reasoning_effort;
+            }
           }
+
+          if (!this.samplers.enable_multimodal) {
+            payload.disable_multimodal = true;
+          }
+
+          // Add enabled custom fields
+          for (let item of this.customFields) {
+            if (item.enabled && item.key) {
+              let val = item.value;
+              if (item.type === 'number') val = Number(val);
+              else if (item.type === 'boolean') val = val === 'true';
+              else if (item.type === 'json') {
+                try {
+                  val = JSON.parse(val);
+                } catch (e) {}
+              }
+              payload[item.key] = val;
+            }
+          }
+
+          return payload;
+        };
+      },
+
+      saveStandard() {
+        localStorage.setItem(
+          this.storageKey(this.providerType, this.providerId),
+          JSON.stringify(this.samplers),
+        );
+      },
+
+      saveCustom() {
+        localStorage.setItem(
+          this.customStorageKey(this.providerType, this.providerId),
+          JSON.stringify(this.customFields),
+        );
+      },
+
+      onProviderChanged(detail) {
+        const newType = detail && typeof detail === 'object' ? detail.type : detail;
+        const newId = detail && typeof detail === 'object' ? detail.id : null;
+        if (newType === this.providerType && newId === this.providerId) return;
+        const oldKey = this.storageKey(this.providerType, this.providerId);
+        this.saveStandard();
+        this.saveCustom();
+        this.providerType = newType;
+        this.providerId = newId;
+        if (oldKey !== this.storageKey(newType, newId)) {
+          this.loadStandard();
+          this.loadCustom();
         }
+      },
 
-        return payload;
-      };
-    },
+      onPresetChanged(e) {
+        const newId = e && e.value !== undefined ? e.value : e;
+        const oldPreset = this.presetId;
+        this.saveStandard();
+        this.saveCustom();
+        this.presetId = newId;
+        if (this.presetId !== oldPreset) {
+          this.loadStandard();
+          this.loadCustom();
+        }
+      },
 
-    saveStandard() {
-      localStorage.setItem(this.storageKey(this.providerType, this.providerId), JSON.stringify(this.samplers));
-    },
+      addCustom() {
+        this.customFields.push({ enabled: true, key: '', type: 'string', value: '' });
+        this.saveCustom();
+      },
 
-    saveCustom() {
-      localStorage.setItem(this.customStorageKey(this.providerType, this.providerId), JSON.stringify(this.customFields));
-    },
-
-    onProviderChanged(detail) {
-      const newType = detail && typeof detail === 'object' ? detail.type : detail;
-      const newId = detail && typeof detail === 'object' ? detail.id : null;
-      if (newType === this.providerType && newId === this.providerId) return;
-      const oldKey = this.storageKey(this.providerType, this.providerId);
-      this.saveStandard();
-      this.saveCustom();
-      this.providerType = newType;
-      this.providerId = newId;
-      if (oldKey !== this.storageKey(newType, newId)) {
-        this.loadStandard();
-        this.loadCustom();
-      }
-    },
-
-    onPresetChanged(e) {
-      const newId = e && e.value !== undefined ? e.value : e;
-      const oldPreset = this.presetId;
-      this.saveStandard();
-      this.saveCustom();
-      this.presetId = newId;
-      if (this.presetId !== oldPreset) {
-        this.loadStandard();
-        this.loadCustom();
-      }
-    },
-
-    addCustom() {
-      this.customFields.push({ enabled: true, key: '', type: 'string', value: '' });
-      this.saveCustom();
-    },
-
-    removeCustom(idx) {
-      this.customFields.splice(idx, 1);
-      this.saveCustom();
-    },
-  }));
-});
+      removeCustom(idx) {
+        this.customFields.splice(idx, 1);
+        this.saveCustom();
+      },
+    }));
+  });
 </script>

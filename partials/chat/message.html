@@ -1,90 +1,135 @@
 <div class="message relative" id="message-{{ message.id }}" data-message-id="{{ message.id }}">
-  {% from "macros.html" import icon_edit, icon_refresh, icon_trash, icon_music, icon_branch, icon_chevron_left, icon_chevron_right %}
+  {% from "macros.html" import icon_edit, icon_refresh, icon_trash, icon_music, icon_branch,
+  icon_chevron_left, icon_chevron_right %}
   <div class="delete-mode-checkbox hidden absolute -left-12 top-4">
-    <input type="checkbox" class="w-5 h-5 accent-(--accent) rounded border-(--border) cursor-pointer msg-select-checkbox" value="{{ message.id }}" onchange="updateDeleteSelection()">
+    <input
+      type="checkbox"
+      class="w-5 h-5 accent-(--accent) rounded border-(--border) cursor-pointer msg-select-checkbox"
+      value="{{ message.id }}"
+      onchange="updateDeleteSelection()"
+    />
   </div>
   <div class="message-avatar">
-    {% if message.role == 'user' %}
-      {% if persona and persona.avatar_path %}
-        <img src="/{{ persona.avatar_path }}" alt="{{ persona.name if persona else 'User' }} avatar" class="cursor-pointer" onclick="openLightbox(this.src)">
-      {% else %}
-        {{ persona.name[:1] if persona else 'U' }}
-      {% endif %}
-    {% else %}
-      {% if character and character.image_path %}
-        <img src="/{{ character.image_path }}" alt="{{ character.name if character else 'Assistant' }} avatar" class="cursor-pointer" onclick="openLightbox(this.src)">
-      {% else %}
-        {{ character.name[:1] if character else 'A' }}
-      {% endif %}
-    {% endif %}
+    {% if message.role == 'user' %} {% if persona and persona.avatar_path %}
+    <img
+      src="/{{ persona.avatar_path }}"
+      alt="{{ persona.name if persona else 'User' }} avatar"
+      class="cursor-pointer"
+      onclick="openLightbox(this.src)"
+    />
+    {% else %} {{ persona.name[:1] if persona else 'U' }} {% endif %} {% else %} {% if character and
+    character.image_path %}
+    <img
+      src="/{{ character.image_path }}"
+      alt="{{ character.name if character else 'Assistant' }} avatar"
+      class="cursor-pointer"
+      onclick="openLightbox(this.src)"
+    />
+    {% else %} {{ character.name[:1] if character else 'A' }} {% endif %} {% endif %}
   </div>
   <div class="message-body">
     <div class="message-header flex justify-between items-center">
-      <span>{{ character.name if message.role == 'assistant' and character else (persona.name if message.role == 'user' and persona else message.role) }}</span>
+      <span
+        >{{ character.name if message.role == 'assistant' and character else (persona.name if
+        message.role == 'user' and persona else message.role) }}</span
+      >
       <span class="text-xs text-muted whitespace-nowrap">
-        {{ message.created_at[:10] if message.created_at else '' }} {{ message.created_at[11:16] if message.created_at else '' }}
-        {% if message.role == 'assistant' and message.model_name %}
-        · {{ message.model_name }}
-        {% endif %}
+        {{ message.created_at[:10] if message.created_at else '' }} {{ message.created_at[11:16] if
+        message.created_at else '' }} {% if message.role == 'assistant' and message.model_name %} ·
+        {{ message.model_name }} {% endif %}
       </span>
     </div>
-    
+
     {% if message.attachments %}
     <div class="flex gap-2 flex-wrap mb-2">
-      {% for att in message.attachments %}
-        {% if att.mime_type.startswith('image/') %}
-          <div class="relative group">
-            <img src="/{{ att.file_path }}" class="h-24 rounded object-cover border border-border cursor-pointer hover:opacity-90 transition-opacity" alt="attachment" onclick="openLightbox(this.src)">
-          </div>
-        {% else %}
-          <div class="relative group">
-            <div class="h-16 bg-surface-3 px-3 rounded border border-border flex items-center gap-2 text-sm">
-              <span>{{ icon_music(18) }}</span>
-              <audio controls class="h-8 max-w-[200px]" style="filter: contrast(0.8) grayscale(1);">
-                <source src="/{{ att.file_path }}" type="{{ att.mime_type }}">
-              </audio>
-            </div>
-          </div>
-        {% endif %}
-      {% endfor %}
+      {% for att in message.attachments %} {% if att.mime_type.startswith('image/') %}
+      <div class="relative group">
+        <img
+          src="/{{ att.file_path }}"
+          class="h-24 rounded object-cover border border-border cursor-pointer hover:opacity-90 transition-opacity"
+          alt="attachment"
+          onclick="openLightbox(this.src)"
+        />
+      </div>
+      {% else %}
+      <div class="relative group">
+        <div
+          class="h-16 bg-surface-3 px-3 rounded border border-border flex items-center gap-2 text-sm"
+        >
+          <span>{{ icon_music(18) }}</span>
+          <audio controls class="h-8 max-w-[200px]" style="filter: contrast(0.8) grayscale(1)">
+            <source src="/{{ att.file_path }}" type="{{ att.mime_type }}" />
+          </audio>
+        </div>
+      </div>
+      {% endif %} {% endfor %}
     </div>
-    {% endif %}
-
-    {% if message.role == 'assistant' %}
-      <div class="message-content markdown-content">{{ message.content }}</div>
+    {% endif %} {% if message.role == 'assistant' %}
+    <div class="message-content markdown-content">{{ message.content }}</div>
     {% else %}
-      <div class="message-content markdown-content">{{ message.content }}</div>
+    <div class="message-content markdown-content">{{ message.content }}</div>
     {% endif %}
   </div>
   <div class="message-actions normal-mode-actions">
     {% if message.variant_count > 1 or (is_latest and message.role == 'assistant') %}
-    <button class="action-btn" title="Swipe left" aria-label="Previous variant"
+    <button
+      class="action-btn"
+      title="Swipe left"
+      aria-label="Previous variant"
       hx-post="/api/chats/{{ chat_id }}/messages/{{ message.id }}/swipe"
       hx-vals='{"direction":"prev"}'
       hx-swap="none"
       hx-on:htmx:after-request="htmx.ajax('GET', '/partials/message-list/{{ chat_id }}', {target:'#message-list', swap:'innerHTML'})"
-    >{{ icon_chevron_left() }}</button>
-    <span class="text-xs text-muted" style="display:flex;align-items:center;">{{ message.active_index + 1 }}/{{ message.variant_count }}</span>
-    <button class="action-btn" title="Swipe right" aria-label="Next variant"
+    >
+      {{ icon_chevron_left() }}
+    </button>
+    <span class="text-xs text-muted" style="display: flex; align-items: center"
+      >{{ message.active_index + 1 }}/{{ message.variant_count }}</span
+    >
+    <button
+      class="action-btn"
+      title="Swipe right"
+      aria-label="Next variant"
       hx-post="/api/chats/{{ chat_id }}/messages/{{ message.id }}/swipe"
       hx-vals='{"direction":"next"}'
       hx-swap="none"
       hx-on:htmx:after-request="let res = JSON.parse(event.detail.xhr.response); if(res.needs_generation) { const asstDiv = document.getElementById('message-{{ message.id }}'); window.triggerGeneration('{{ chat_id }}', asstDiv, true); } else { htmx.ajax('GET', '/partials/message-list/{{ chat_id }}', {target:'#message-list', swap:'innerHTML'}); }"
-    >{{ icon_chevron_right() }}</button>
-    {% endif %}
-    {% if is_latest and message.role == 'assistant' and message.position != 0 %}
-    <button class="action-btn" title="Regenerate" aria-label="Regenerate"
+    >
+      {{ icon_chevron_right() }}
+    </button>
+    {% endif %} {% if is_latest and message.role == 'assistant' and message.position != 0 %}
+    <button
+      class="action-btn"
+      title="Regenerate"
+      aria-label="Regenerate"
       onclick="const asstDiv = document.getElementById('message-{{ message.id }}'); window.triggerGeneration('{{ chat_id }}', asstDiv, true);"
-    >{{ icon_refresh() }}</button>
+    >
+      {{ icon_refresh() }}
+    </button>
     {% endif %}
-    <button class="action-btn" title="Branch from here" aria-label="Branch from this message"
+    <button
+      class="action-btn"
+      title="Branch from here"
+      aria-label="Branch from this message"
       onclick="branchFromMessage('{{ message.id }}', '{{ chat_id }}')"
-    >{{ icon_branch() }}</button>
-    <button class="action-btn" title="Edit" aria-label="Edit message"
+    >
+      {{ icon_branch() }}
+    </button>
+    <button
+      class="action-btn"
+      title="Edit"
+      aria-label="Edit message"
       onclick="editMessage('{{ message.id }}', '{{ chat_id }}')"
-    >{{ icon_edit() }}</button>
-    <button class="action-btn text-danger" title="Delete Mode" aria-label="Delete messages"
+    >
+      {{ icon_edit() }}
+    </button>
+    <button
+      class="action-btn text-danger"
+      title="Delete Mode"
+      aria-label="Delete messages"
       onclick="enterDeleteMode('{{ message.id }}')"
-    >{{ icon_trash() }}</button>
+    >
+      {{ icon_trash() }}
+    </button>
   </div>
 </div>

@@ -1,35 +1,75 @@
-<div class="flex gap-3" style="height:60vh;">
+<div class="flex gap-3" style="height: 60vh">
   {% from "macros.html" import icon_trash, icon_plus %}
-  <div style="width:180px;flex-shrink:0;" class="flex flex-col gap-1 overflow-auto">
+  <div style="width: 180px; flex-shrink: 0" class="flex flex-col gap-1 overflow-auto">
     {% if not presets %}
-      <div class="text-muted text-center text-xs py-4 border border-dashed border-(--border) rounded-lg mb-2">
-        No presets.
-      </div>
-    {% endif %}
-    {% for p in presets %}
+    <div
+      class="text-muted text-center text-xs py-4 border border-dashed border-(--border) rounded-lg mb-2"
+    >
+      No presets.
+    </div>
+    {% endif %} {% for p in presets %}
     <div class="sidebar-item" role="button" tabindex="0" onclick="loadPresetModal('{{ p.id }}')">
       <div class="text-sm truncate flex-1">{{ p.name }}</div>
-      <button class="btn btn-danger btn-sm" style="margin-left:auto;" onclick="event.stopPropagation(); promptDeletePresetModal('{{ p.id }}', '{{ p.name | escape }}')" aria-label="Delete preset">{{ icon_trash() }}</button>
+      <button
+        class="btn btn-danger btn-sm"
+        style="margin-left: auto"
+        onclick="event.stopPropagation(); promptDeletePresetModal('{{ p.id }}', '{{ p.name | escape }}')"
+        aria-label="Delete preset"
+      >
+        {{ icon_trash() }}
+      </button>
     </div>
     {% endfor %}
-    <button class="btn btn-secondary btn-sm w-full mt-1" onclick="fetch('/api/presets',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:'New Preset'})}).then(()=>htmx.ajax('GET','/partials/presets-modal',{target:'#presets-modal-body',swap:'innerHTML'}))">{{ icon_plus(14) }} New</button>
+    <button
+      class="btn btn-secondary btn-sm w-full mt-1"
+      onclick="
+        fetch('/api/presets', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: 'New Preset' }),
+        }).then(() =>
+          htmx.ajax('GET', '/partials/presets-modal', {
+            target: '#presets-modal-body',
+            swap: 'innerHTML',
+          }),
+        )
+      "
+    >
+      {{ icon_plus(14) }} New
+    </button>
   </div>
-  <div class="flex-1 overflow-auto" style="background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:0.75rem;" id="preset-modal-editor">
+  <div
+    class="flex-1 overflow-auto"
+    style="
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.75rem;
+    "
+    id="preset-modal-editor"
+  >
     <div class="text-muted text-sm">Select a preset to edit.</div>
   </div>
 </div>
 <script>
-function promptDeletePresetModal(pid, pName) {
-  window.customConfirm(`Delete preset <strong>${pName}</strong>?`, function() {
-    fetch(`/api/presets/${pid}`, {
-      method: 'DELETE'
-    }).then(r => {
-      if(r.ok) htmx.ajax('GET','/partials/presets-modal',{target:'#presets-modal-body',swap:'innerHTML'});
+  function promptDeletePresetModal(pid, pName) {
+    window.customConfirm(`Delete preset <strong>${pName}</strong>?`, function () {
+      fetch(`/api/presets/${pid}`, {
+        method: 'DELETE',
+      }).then((r) => {
+        if (r.ok)
+          htmx.ajax('GET', '/partials/presets-modal', {
+            target: '#presets-modal-body',
+            swap: 'innerHTML',
+          });
+      });
     });
-  });
-}
+  }
 
-function loadPresetModal(pid){
-  htmx.ajax('GET', '/partials/preset-editor/' + pid, {target:'#preset-modal-editor', swap:'innerHTML'});
-}
+  function loadPresetModal(pid) {
+    htmx.ajax('GET', '/partials/preset-editor/' + pid, {
+      target: '#preset-modal-editor',
+      swap: 'innerHTML',
+    });
+  }
 </script>

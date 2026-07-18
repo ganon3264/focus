@@ -18,7 +18,9 @@
   function formatTimestamp(ts) {
     try {
       return new Date(ts.replace(/-/g, ':').replace('T', ' ')).toLocaleString();
-    } catch (_) { return ts; }
+    } catch (_) {
+      return ts;
+    }
   }
 
   function setStatus(el, text, isError) {
@@ -30,7 +32,8 @@
 
   function toggleActive(el, on) {
     if (!el) return;
-    if (on) el.classList.add('active'); else el.classList.remove('active');
+    if (on) el.classList.add('active');
+    else el.classList.remove('active');
   }
 
   /* ── backups list ─────────────────────────────────────────── */
@@ -38,9 +41,7 @@
     const list = document.getElementById('backups-list');
     if (!list) return;
     list.innerHTML =
-      '<div class="flex justify-center py-6">' +
-      '<div class="message-spinner"></div>' +
-      '</div>';
+      '<div class="flex justify-center py-6">' + '<div class="message-spinner"></div>' + '</div>';
     try {
       const resp = await fetch(window.api.backups);
       const backups = await resp.json();
@@ -60,18 +61,27 @@
         html +=
           '<div class="flex items-center gap-3 p-3 rounded-lg" style="background:var(--surface-2);border:1px solid var(--border);">' +
           '<div class="flex-1 min-w-0">' +
-          '<span class="text-sm font-semibold block">' + formatTimestamp(b.id) + '</span>' +
-          '<span class="text-xs" style="color:var(--text-muted);">' + formatBytes(b.size_bytes) + '</span>' +
+          '<span class="text-sm font-semibold block">' +
+          formatTimestamp(b.id) +
+          '</span>' +
+          '<span class="text-xs" style="color:var(--text-muted);">' +
+          formatBytes(b.size_bytes) +
+          '</span>' +
           '</div>' +
           '<div class="flex gap-1 shrink-0">' +
-          '<button class="btn btn-secondary btn-sm" onclick="BackupManager.restore(\'' + b.id + '\')">Restore</button>' +
-          '<button class="btn btn-danger btn-sm" onclick="BackupManager.delete(\'' + b.id + '\')">Delete</button>' +
+          '<button class="btn btn-secondary btn-sm" onclick="BackupManager.restore(\'' +
+          b.id +
+          '\')">Restore</button>' +
+          '<button class="btn btn-danger btn-sm" onclick="BackupManager.delete(\'' +
+          b.id +
+          '\')">Delete</button>' +
           '</div>' +
           '</div>';
       });
       list.innerHTML = html;
     } catch (_) {
-      list.innerHTML = '<div class="text-sm text-red-500 text-center py-4">Failed to load backups.</div>';
+      list.innerHTML =
+        '<div class="text-sm text-red-500 text-center py-4">Failed to load backups.</div>';
     }
   };
 
@@ -84,36 +94,41 @@
     fetch(window.api.backups, { method: 'POST' })
       .then(() => M.loadList())
       .catch(() => M.loadList())
-      .finally(() => { btn.disabled = false; btn.textContent = 'Create Backup'; });
+      .finally(() => {
+        btn.disabled = false;
+        btn.textContent = 'Create Backup';
+      });
   };
 
   M.restore = function (backupId) {
     window.customConfirm(
       '<div class="text-sm" style="color:var(--text);"><strong>Restore this backup?</strong></div>' +
-      '<div class="text-sm mt-2" style="color:var(--text-muted);">All data from the backup will be imported. Existing data is preserved.</div>',
+        '<div class="text-sm mt-2" style="color:var(--text-muted);">All data from the backup will be imported. Existing data is preserved.</div>',
       function () {
         fetch(window.api.backupRestore(backupId), { method: 'POST' })
-          .then(r => r.json())
-          .then(d => {
+          .then((r) => r.json())
+          .then((d) => {
             if (d.restored) {
               setStatus(document.getElementById('backup-status'), 'Backup restored successfully.');
               M.loadList();
             }
           })
-          .catch(() => setStatus(document.getElementById('backup-status'), 'Restore failed.', true));
-      }
+          .catch(() =>
+            setStatus(document.getElementById('backup-status'), 'Restore failed.', true),
+          );
+      },
     );
   };
 
   M.delete = function (backupId) {
     window.customConfirm(
       '<div class="text-sm" style="color:var(--text);"><strong>Delete this backup?</strong></div>' +
-      '<div class="text-sm mt-2" style="color:var(--text-muted);">This cannot be undone.</div>',
+        '<div class="text-sm mt-2" style="color:var(--text-muted);">This cannot be undone.</div>',
       function () {
         fetch(window.api.backupDelete(backupId), { method: 'DELETE' })
           .then(() => M.loadList())
           .catch(() => M.loadList());
-      }
+      },
     );
   };
 
@@ -129,13 +144,17 @@
     const st = document.getElementById('backup-status');
     setStatus(st, 'Importing…');
     fetch(window.api.import_, { method: 'POST', body: fd })
-      .then(r => r.json())
-      .then(d => {
+      .then((r) => r.json())
+      .then((d) => {
         setStatus(st, 'Imported ' + (d.total_entities || 0) + ' entities.');
-        setTimeout(() => { location.reload(); }, 800);
+        setTimeout(() => {
+          location.reload();
+        }, 800);
       })
       .catch(() => setStatus(st, 'Import failed.', true))
-      .finally(() => { input.value = ''; });
+      .finally(() => {
+        input.value = '';
+      });
   };
 
   /* ── export state ──────────────────────────────────────────── */
@@ -152,7 +171,7 @@
   };
 
   M.openExportModal = function () {
-    ['characters', 'personas', 'presets'].forEach(type => {
+    ['characters', 'personas', 'presets'].forEach((type) => {
       M._exportState[type] = 'none';
       const capType = type.charAt(0).toUpperCase() + type.slice(1);
       M._exportState['sel' + capType] = {};
@@ -168,9 +187,9 @@
 
   M._applyExportUI = function () {
     const s = M._exportState;
-    ['characters', 'personas', 'presets'].forEach(type => {
+    ['characters', 'personas', 'presets'].forEach((type) => {
       const buttons = document.querySelectorAll('[data-export-btn="' + type + '"]');
-      buttons.forEach(btn => {
+      buttons.forEach((btn) => {
         const val = btn.dataset.exportVal;
         toggleActive(btn, val === s[type]);
         if (val === 'some') {
@@ -205,7 +224,8 @@
   M.openEntitySelect = function (type) {
     M._entitySelectType = type;
     const title = document.querySelector('#modal-entity-select .modal-title');
-    const label = type === 'characters' ? 'Characters' : type === 'personas' ? 'Personas' : 'Presets';
+    const label =
+      type === 'characters' ? 'Characters' : type === 'personas' ? 'Personas' : 'Presets';
     if (title) title.textContent = 'Select ' + label;
     const url = window.api.partials.exportEntities + '?type=' + type;
     htmx.ajax('GET', url, { target: '#entity-select-list', swap: 'innerHTML' }).then(function () {
@@ -216,7 +236,8 @@
 
   M.filterExportEntities = function (type, query) {
     if (!type) return;
-    const url = window.api.partials.exportEntities + '?type=' + type + '&filter=' + encodeURIComponent(query);
+    const url =
+      window.api.partials.exportEntities + '?type=' + type + '&filter=' + encodeURIComponent(query);
     htmx.ajax('GET', url, { target: '#entity-select-list', swap: 'innerHTML' }).then(function () {
       M._applyEntitySelection(type);
     });
@@ -275,10 +296,12 @@
         const allChats = await cr.json();
         let charIds = null;
         if (s.characters !== 'some') {
-          body.chats = allChats.map(c => c.id);
+          body.chats = allChats.map((c) => c.id);
         } else {
           charIds = Object.keys(s.selChars || {});
-          body.chats = allChats.filter(c => charIds.indexOf(c.character_id) >= 0).map(c => c.id);
+          body.chats = allChats
+            .filter((c) => charIds.indexOf(c.character_id) >= 0)
+            .map((c) => c.id);
         }
       } catch (_) {}
     }
@@ -290,8 +313,8 @@
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     })
-      .then(r => r.blob())
-      .then(blob => {
+      .then((r) => r.blob())
+      .then((blob) => {
         const u = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = u;
@@ -303,23 +326,26 @@
         closeModal('modal-export');
       })
       .catch(() => alert('Export failed.'))
-      .finally(() => { btn.disabled = false; btn.textContent = 'Export'; });
+      .finally(() => {
+        btn.disabled = false;
+        btn.textContent = 'Export';
+      });
   };
 
   M.cleanDatabase = function () {
     window.customConfirm(
       '<div class="text-sm" style="color:var(--text);"><strong>Clean Database?</strong></div>' +
-      '<div class="text-sm mt-2" style="color:var(--text-muted);">Permanently deletes trashed characters, chats, and orphaned data. This cannot be undone.</div>',
+        '<div class="text-sm mt-2" style="color:var(--text-muted);">Permanently deletes trashed characters, chats, and orphaned data. This cannot be undone.</div>',
       function () {
         fetch(window.api.cleanDb, { method: 'POST' })
-          .then(r => r.json())
-          .then(d => {
+          .then((r) => r.json())
+          .then((d) => {
             const parts = [];
             for (var k in d) parts.push(k + ': ' + d[k]);
             setStatus(document.getElementById('backup-status'), 'Cleaned: ' + parts.join(', '));
           })
           .catch(() => setStatus(document.getElementById('backup-status'), 'Clean failed.', true));
-      }
+      },
     );
   };
 

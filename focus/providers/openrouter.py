@@ -1,7 +1,7 @@
-from .openai_compat import OpenAICompatProvider
-from ..logger import get_logger
-
 import httpx
+
+from ..logger import get_logger
+from .openai_compat import OpenAICompatProvider
 
 logger = get_logger("providers.openrouter")
 
@@ -9,14 +9,16 @@ OPENROUTER_BASE = "https://openrouter.ai/api/v1"
 
 
 class OpenRouterProvider(OpenAICompatProvider):
-    def __init__(self, api_key: str, model: str, params: dict,
-                 site_url: str = "", app_name: str = "Focus"):
+    def __init__(
+        self, api_key: str, model: str, params: dict, site_url: str = "", app_name: str = "Focus"
+    ):
         super().__init__(OPENROUTER_BASE, api_key, model, params)
         self.site_url = site_url
         self.app_name = app_name
 
     async def fetch_models(self) -> list[dict]:
         from ..utils import MODEL_FETCH_HTTP_TIMEOUT
+
         async with httpx.AsyncClient() as client:
             resp = await client.get(
                 "https://openrouter.ai/api/v1/models",
@@ -60,7 +62,7 @@ class OpenRouterProvider(OpenAICompatProvider):
         # Merge openrouter specific provider preferences into extra_body
         prefs = self._get_provider_preferences()
         extra_body = kwargs.get("extra_body", {})
-        
+
         # Build reasoning object (OpenRouter unified API)
         include_reasoning = kwargs.pop("include_reasoning", False)
         reasoning_effort = kwargs.pop("reasoning_effort", "")
@@ -80,13 +82,12 @@ class OpenRouterProvider(OpenAICompatProvider):
                 kwargs.pop("temperature", None)
                 kwargs.pop("top_p", None)
                 kwargs.pop("top_k", None)
-        
+
         if prefs:
             extra_body.update(prefs)
-            
+
         kwargs["extra_body"] = extra_body
-            
-        logger.debug(f"OpenRouter routing extra_body={kwargs.get('extra_body')}")
+
+        logger.debug("OpenRouter routing extra_body=%s", kwargs.get("extra_body"))
         async for chunk in super().stream_complete(messages, **kwargs):
             yield chunk
-

@@ -1,16 +1,16 @@
 // Message edit modal: load, render attachments, save, upload, delete.
 // Depends on window.api, window.extractThoughtsSafely, window.getSvgSprite
 
-(function(){
-  window.editMessage = async function(messageId, chatId) {
+(function () {
+  window.editMessage = async function (messageId, chatId) {
     try {
       const res = await fetch(window.api.chatMessage(chatId, messageId));
-      if (!res.ok) throw new Error("Failed to load message");
+      if (!res.ok) throw new Error('Failed to load message');
       const data = await res.json();
       const rawText = data.content;
 
       const extracted = window.extractThoughtsSafely(rawText);
-      let thoughtText = extracted.thoughts.map(t => t.content.trim()).join('\n\n');
+      let thoughtText = extracted.thoughts.map((t) => t.content.trim()).join('\n\n');
 
       let messageText = extracted.processed;
       for (let i = 0; i < extracted.thoughts.length; i++) {
@@ -27,7 +27,7 @@
         thoughtInput.value = thoughtText;
         thoughtContainer.style.display = 'block';
       } else {
-        thoughtInput.value = "";
+        thoughtInput.value = '';
         thoughtContainer.style.display = 'none';
       }
 
@@ -38,19 +38,19 @@
 
       if (window.openModal) window.openModal('modal-edit-message');
       else document.getElementById('modal-edit-message').classList.remove('hidden');
-
     } catch (err) {
-      alert("Error editing message: " + err.message);
+      alert('Error editing message: ' + err.message);
     }
   };
 
-  window.renderEditModalAttachments = function() {
+  window.renderEditModalAttachments = function () {
     const container = document.getElementById('edit-msg-attachments');
     if (!container) return;
 
     container.innerHTML = '';
     if (window.currentEditAttachments.length === 0) {
-      container.innerHTML = '<div class="text-xs text-muted w-full text-center italic py-2">No attachments</div>';
+      container.innerHTML =
+        '<div class="text-xs text-muted w-full text-center italic py-2">No attachments</div>';
       return;
     }
 
@@ -73,7 +73,7 @@
     });
   };
 
-  window.saveMessageEdit = async function() {
+  window.saveMessageEdit = async function () {
     const messageId = document.getElementById('edit-msg-id').value;
     const chatId = document.getElementById('edit-msg-chat-id').value;
 
@@ -90,54 +90,57 @@
     try {
       await fetch(window.api.chatMessage(chatId, messageId), {
         method: 'PATCH',
-        headers: {'Content-Type': 'application/json'},
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           content: text,
-          attachment_ids: window.currentEditAttachments.map(a => a.id)
-        })
+          attachment_ids: window.currentEditAttachments.map((a) => a.id),
+        }),
       });
 
       if (window.closeModal) window.closeModal('modal-edit-message');
       else document.getElementById('modal-edit-message').classList.add('hidden');
 
-      htmx.ajax('GET', window.api.partials.messageList(chatId), {target: '#message-list', swap: 'innerHTML'});
+      htmx.ajax('GET', window.api.partials.messageList(chatId), {
+        target: '#message-list',
+        swap: 'innerHTML',
+      });
     } catch (err) {
-      alert("Failed to save edit: " + err.message);
+      alert('Failed to save edit: ' + err.message);
     }
   };
 
-  window.uploadMessageAttachment = async function(inputEl) {
+  window.uploadMessageAttachment = async function (inputEl) {
     if (!inputEl.files.length) return;
     await window.uploadMessageAttachmentFiles(Array.from(inputEl.files));
     inputEl.value = '';
   };
 
-  window.uploadMessageAttachmentFiles = async function(files) {
+  window.uploadMessageAttachmentFiles = async function (files) {
     if (!files.length) return;
     const chatId = document.getElementById('edit-msg-chat-id').value;
     if (!chatId) return;
 
     const formData = new FormData();
-    files.forEach(f => formData.append('files', f));
+    files.forEach((f) => formData.append('files', f));
 
     try {
       const res = await fetch(window.api.chatAttachments(chatId), {
         method: 'POST',
-        body: formData
+        body: formData,
       });
       if (res.ok) {
         const data = await res.json();
         window.currentEditAttachments.push(...data.attachments);
         window.renderEditModalAttachments();
       } else {
-        alert("Failed to upload attachment");
+        alert('Failed to upload attachment');
       }
     } catch (err) {
       console.error(err);
     }
   };
 
-  window.deleteModalAttachment = function(idx) {
+  window.deleteModalAttachment = function (idx) {
     window.currentEditAttachments.splice(idx, 1);
     window.renderEditModalAttachments();
   };

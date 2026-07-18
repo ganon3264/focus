@@ -1,6 +1,4 @@
-import pytest
-
-from focus.routers.stream_utils import filter_unsupported_modalities, apply_claude_caching
+from focus.routers.stream_utils import apply_claude_caching, filter_unsupported_modalities
 
 
 class TestFilterUnsupportedModalities:
@@ -13,40 +11,65 @@ class TestFilterUnsupportedModalities:
         assert filter_unsupported_modalities(msgs, ["image", "audio"]) == msgs
 
     def test_removes_images_when_not_supported(self):
-        msgs = [{"role": "user", "content": [
-            {"type": "text", "text": "hello"},
-            {"type": "image_url", "image_url": {"url": "data:,"}},
-        ]}]
+        msgs = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "hello"},
+                    {"type": "image_url", "image_url": {"url": "data:,"}},
+                ],
+            }
+        ]
         result = filter_unsupported_modalities(msgs, ["audio"])
         # Collapsed to plain string since only text remains
         assert result[0]["content"] == "hello"
 
     def test_collapses_single_text_to_string(self):
-        msgs = [{"role": "user", "content": [
-            {"type": "text", "text": "just text"},
-        ]}]
+        msgs = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "just text"},
+                ],
+            }
+        ]
         result = filter_unsupported_modalities(msgs, ["audio"])
         assert result[0]["content"] == "just text"
 
     def test_removes_message_with_no_remaining_parts(self):
-        msgs = [{"role": "user", "content": [
-            {"type": "image_url", "image_url": {"url": "data:,"}},
-        ]}]
+        msgs = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "image_url", "image_url": {"url": "data:,"}},
+                ],
+            }
+        ]
         result = filter_unsupported_modalities(msgs, ["audio"])
         assert result == []
 
     def test_preserves_audio_when_supported(self):
-        msgs = [{"role": "user", "content": [
-            {"type": "text", "text": "desc"},
-            {"type": "input_audio", "input_audio": {"data": "...", "format": "wav"}},
-        ]}]
+        msgs = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "desc"},
+                    {"type": "input_audio", "input_audio": {"data": "...", "format": "wav"}},
+                ],
+            }
+        ]
         result = filter_unsupported_modalities(msgs, ["audio"])
         assert len(result[0]["content"]) == 2
 
     def test_removes_audio_when_not_supported(self):
-        msgs = [{"role": "user", "content": [
-            {"type": "input_audio", "input_audio": {"data": "..."}},
-        ]}]
+        msgs = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "input_audio", "input_audio": {"data": "..."}},
+                ],
+            }
+        ]
         result = filter_unsupported_modalities(msgs, ["image"])
         assert result == []
 
@@ -99,11 +122,11 @@ class TestApplyClaudeCaching:
     def test_sliding_breakpoint(self):
         msgs = [
             {"role": "system", "content": "system instructions"},
-            {"role": "user", "content": "a"},       # 3rd user from end
+            {"role": "user", "content": "a"},  # 3rd user from end
             {"role": "assistant", "content": "b"},
-            {"role": "user", "content": "c"},       # 2nd user from end
+            {"role": "user", "content": "c"},  # 2nd user from end
             {"role": "assistant", "content": "d"},
-            {"role": "user", "content": "e"},       # 1st user from end (current)
+            {"role": "user", "content": "e"},  # 1st user from end (current)
             {"role": "assistant", "content": "f"},
         ]
         result = apply_claude_caching(msgs, cache_enabled=True, cache_depth=2)
@@ -138,9 +161,16 @@ class TestApplyClaudeCaching:
 
     def test_strips_old_cache_control_and_readds_on_messages_0(self):
         msgs = [
-            {"role": "system", "content": [
-                {"type": "text", "text": "instructions", "cache_control": {"type": "ephemeral"}},
-            ]},
+            {
+                "role": "system",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "instructions",
+                        "cache_control": {"type": "ephemeral"},
+                    },
+                ],
+            },
             {"role": "user", "content": "hi"},
             {"role": "assistant", "content": "ok"},
         ]

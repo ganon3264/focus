@@ -4,10 +4,18 @@ createEditModalHandlers({
   mediaIdPrefix: 'char-modal-media',
   dataPrefix: 'char',
   stateKey: 'character_id',
-  apiGet: function(id) { return api.characters(id); },
-  apiImages: function(id) { return api.charImages(id); },
-  apiImage: function(id, imgId) { return api.charImage(id, imgId); },
-  apiAvatar: function(id) { return api.charAvatar(id); },
+  apiGet: function (id) {
+    return api.characters(id);
+  },
+  apiImages: function (id) {
+    return api.charImages(id);
+  },
+  apiImage: function (id, imgId) {
+    return api.charImage(id, imgId);
+  },
+  apiAvatar: function (id) {
+    return api.charAvatar(id);
+  },
   modalId: 'modal-edit-character',
   modalBodyUrl: '/partials/characters-modal',
   modalBodySelector: '#characters-modal-body',
@@ -17,5 +25,5 @@ createEditModalHandlers({
   deleteFn: 'deleteCharModalMedia',
   avatarFn: 'uploadCharacterAvatar',
   submitFn: 'submitEditCharacter',
-  dropZoneSelector: '#edit-char-media-section'
+  dropZoneSelector: '#edit-char-media-section',
 });

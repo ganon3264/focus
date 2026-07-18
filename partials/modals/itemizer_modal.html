@@ -1,9 +1,16 @@
 {% from "macros.html" import icon_chevron_right %}
 <div x-data="itemizerModal()" @itemizer-open.window="load()" class="flex flex-col h-full">
-  <div class="flex justify-between items-center mb-4 pb-2 border-b" style="border-color: var(--border);">
+  <div
+    class="flex justify-between items-center mb-4 pb-2 border-b"
+    style="border-color: var(--border)"
+  >
     <div class="text-xs text-muted">Visualize and estimate tokens for the outbound prompt.</div>
     <div class="flex items-center gap-3">
-      <span class="text-sm font-mono bg-surface-2 px-2 py-1 rounded" style="background:var(--surface-2); border:1px solid var(--border);" title="Uses cl100k_base estimation">
+      <span
+        class="text-sm font-mono bg-surface-2 px-2 py-1 rounded"
+        style="background: var(--surface-2); border: 1px solid var(--border)"
+        title="Uses cl100k_base estimation"
+      >
         Tokens: <span class="font-bold text-(--active-text)" x-text="totalTokens">...</span>
       </span>
       <button class="btn btn-secondary btn-sm" @click="load()" :disabled="loading">
@@ -17,28 +24,42 @@
     <template x-if="loading && messages.length === 0">
       <div class="text-center text-muted text-sm py-4">Generating estimate...</div>
     </template>
-    
+
     <template x-for="(msg, i) in messages" :key="i">
-      <div x-data="{ expanded: false }" class="rounded-md overflow-hidden shrink-0" style="border: 1px solid var(--border);">
-        <div class="px-3 py-2 flex justify-between items-center text-xs font-bold uppercase tracking-wider cursor-pointer select-none"
-             @click="expanded = !expanded"
-             :style="msg.role === 'system' ? 'background: var(--accent-dim); color: var(--accent);' : 
+      <div
+        x-data="{ expanded: false }"
+        class="rounded-md overflow-hidden shrink-0"
+        style="border: 1px solid var(--border)"
+      >
+        <div
+          class="px-3 py-2 flex justify-between items-center text-xs font-bold uppercase tracking-wider cursor-pointer select-none"
+          @click="expanded = !expanded"
+          :style="msg.role === 'system' ? 'background: var(--accent-dim); color: var(--accent);' : 
                      msg.role === 'user' ? 'background: var(--surface-2);' : 
-                     'background: rgba(16, 185, 129, 0.1); color: #10b981;'">
+                     'background: rgba(16, 185, 129, 0.1); color: #10b981;'"
+        >
           <div class="flex items-center gap-2">
-            <span class="transform transition-transform duration-200 inline-block w-4 text-center" :class="expanded ? 'rotate-90' : ''">{{ icon_chevron_right(12) }}</span>
+            <span
+              class="transform transition-transform duration-200 inline-block w-4 text-center"
+              :class="expanded ? 'rotate-90' : ''"
+              >{{ icon_chevron_right(12) }}</span
+            >
             <span x-text="msg.role"></span>
           </div>
           <span class="font-mono text-(--text) opacity-70" x-text="msg.tokens + ' tk'"></span>
         </div>
-        
+
         <div x-show="expanded" x-collapse>
-          <div class="p-3 text-sm flex flex-col gap-2" style="background: var(--surface); border-top: 1px solid var(--border);">
+          <div
+            class="p-3 text-sm flex flex-col gap-2"
+            style="background: var(--surface); border-top: 1px solid var(--border)"
+          >
             <template x-for="(part, j) in msg.parts" :key="j">
-              <div :class="part.type !== 'text' ? 'text-(--accent) font-mono text-xs p-2 rounded bg-surface-2 border inline-block w-max' : 'whitespace-pre-wrap'"
-                   :style="part.type !== 'text' ? 'background: var(--surface-2); border-color: var(--border);' : ''"
-                   x-text="part.type !== 'text' ? part.text + ' (' + part.tokens + ' tk)' : part.text">
-              </div>
+              <div
+                :class="part.type !== 'text' ? 'text-(--accent) font-mono text-xs p-2 rounded bg-surface-2 border inline-block w-max' : 'whitespace-pre-wrap'"
+                :style="part.type !== 'text' ? 'background: var(--surface-2); border-color: var(--border);' : ''"
+                x-text="part.type !== 'text' ? part.text + ' (' + part.tokens + ' tk)' : part.text"
+              ></div>
             </template>
           </div>
         </div>
@@ -48,44 +69,50 @@
 </div>
 
 <script>
-document.addEventListener('alpine:init', () => {
-  Alpine.data('itemizerModal', () => ({
-    loading: false,
-    messages: [],
-    totalTokens: 0,
-    
-    async load() {
-      const chatId = window.location.pathname.split('/').pop();
-      if (!chatId || chatId === 'chat') return;
-      
-      this.loading = true;
-      try {
-        const payload = {
-          chat_id: chatId,
-          user_message: window._tempUserMessage || (document.getElementById('user-input') ? document.getElementById('user-input').value : ""),
-          attachment_ids: window.stagedFiles ? window.stagedFiles.map(f => f.id).filter(id => id) : [], // Can't easily send raw files here, just getting existing IDs
-          regenerate: false // default estimate
-        };
-        
-        const res = await fetch('/api/itemize', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify(payload)
-        });
-        
-        if (res.ok) {
-          const data = await res.json();
-          this.messages = data.messages;
-          this.totalTokens = data.total_tokens;
-        } else {
-          console.error("Failed to itemize", await res.text());
+  document.addEventListener('alpine:init', () => {
+    Alpine.data('itemizerModal', () => ({
+      loading: false,
+      messages: [],
+      totalTokens: 0,
+
+      async load() {
+        const chatId = window.location.pathname.split('/').pop();
+        if (!chatId || chatId === 'chat') return;
+
+        this.loading = true;
+        try {
+          const payload = {
+            chat_id: chatId,
+            user_message:
+              window._tempUserMessage ||
+              (document.getElementById('user-input')
+                ? document.getElementById('user-input').value
+                : ''),
+            attachment_ids: window.stagedFiles
+              ? window.stagedFiles.map((f) => f.id).filter((id) => id)
+              : [], // Can't easily send raw files here, just getting existing IDs
+            regenerate: false, // default estimate
+          };
+
+          const res = await fetch('/api/itemize', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            this.messages = data.messages;
+            this.totalTokens = data.total_tokens;
+          } else {
+            console.error('Failed to itemize', await res.text());
+          }
+        } catch (e) {
+          console.error(e);
+        } finally {
+          this.loading = false;
         }
-      } catch (e) {
-        console.error(e);
-      } finally {
-        this.loading = false;
-      }
-    }
-  }));
-});
+      },
+    }));
+  });
 </script>

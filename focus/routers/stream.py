@@ -5,18 +5,27 @@ import uuid
 import aiosqlite
 import tiktoken
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 
-from focus.database import get_db, DB_PATH
-from focus.models import StreamRequest, ItemizerRequest
-from focus.providers import create_provider
+from focus.database import DB_PATH, get_db
 from focus.logger import get_logger
-from focus.utils import now_iso, resolve_secret_key, estimate_image_tokens, _image_dims_from_data_url, AUDIO_TOKEN_ESTIMATE
-from focus.routers.stream_utils import get_prompt_context, filter_unsupported_modalities, apply_claude_caching
+from focus.models import ItemizerRequest, StreamRequest
+from focus.providers import create_provider
+from focus.routers.stream_utils import (
+    apply_claude_caching,
+    filter_unsupported_modalities,
+    get_prompt_context,
+)
+from focus.utils import (
+    AUDIO_TOKEN_ESTIMATE,
+    _image_dims_from_data_url,
+    estimate_image_tokens,
+    now_iso,
+    resolve_secret_key,
+)
 
 router = APIRouter()
 logger = get_logger("routers.stream")
-
 
 @router.post("/stream")
 async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)):
@@ -60,7 +69,9 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
 
         # Claude prompt caching
         s = dict(body.samplers) if body.samplers else {}
-        if s.pop("cache_enabled", False) and prov_dict.get("model", "").startswith("anthropic/claude"):
+        if s.pop("cache_enabled", False) and prov_dict.get("model", "").startswith(
+            "anthropic/claude"
+        ):
             messages = apply_claude_caching(
                 messages,
                 True,
@@ -93,32 +104,41 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
         final_asst_msg_id = asst_msg_id
 
         try:
-            logger.debug(f"Starting non-stream completion for chat_id={body.chat_id} provider={prov_dict['name']}")
+            logger.debug(
+                f"Starting non-stream completion for chat_id={body.chat_id} provider={prov_dict['name']}"
+            )
             async for token in provider.stream_complete(messages, **gen_kwargs):
                 collected.append(token)
         except Exception as e:
-            logger.exception(f"Non-stream completion failed for chat_id={body.chat_id}")
+            logger.exception("Non-stream completion failed for chat_id=%s", body.chat_id)
             await _rollback_assistant(final_asst_msg_id)
             raise HTTPException(500, str(e) or repr(e))
 
         full = "".join(collected)
 
         try:
-            new_variant_id = await _save_assistant_variant(
-                body.chat_id, final_asst_msg_id, next_variant_index, full, body.regenerate, prov_dict.get("model", "")
+            await _save_assistant_variant(
+                body.chat_id,
+                final_asst_msg_id,
+                next_variant_index,
+                full,
+                body.regenerate,
+                prov_dict.get("model", ""),
             )
         except Exception as e:
-            logger.exception(f"Failed to save non-stream result for chat_id={body.chat_id}")
+            logger.exception("Failed to save non-stream result for chat_id=%s", body.chat_id)
             await _rollback_assistant(final_asst_msg_id)
             raise HTTPException(500, f"Generation succeeded but save failed: {str(e) or repr(e)}")
 
-        return JSONResponse({
-            "done": True,
-            "message_id": final_asst_msg_id,
-            "variant_index": next_variant_index,
-            "user_message_id": user_msg_id if not body.regenerate else None,
-            "full_text": full,
-        })
+        return JSONResponse(
+            {
+                "done": True,
+                "message_id": final_asst_msg_id,
+                "variant_index": next_variant_index,
+                "user_message_id": user_msg_id if not body.regenerate else None,
+                "full_text": full,
+            }
+        )
 
     # ── Streaming path ──────────────────────────────────────────────────────────
 
@@ -146,20 +166,24 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
             return dump_msgs
 
         logger.debug("OUTBOUND PAYLOAD =========================")
-        logger.debug(f"Provider: {prov_dict.get('name')} ({prov_dict.get('model')})")
-        logger.debug(f"Samplers:\n{json.dumps(gen_kwargs, indent=2)}")
-        logger.debug(f"Messages:\n{json.dumps(_truncate_b64(messages), indent=2, ensure_ascii=False)}")
+        logger.debug("Provider: %s (%s)", prov_dict.get("name"), prov_dict.get("model"))
+        logger.debug("Samplers:\n%s", json.dumps(gen_kwargs, indent=2))
+        logger.debug(
+            "Messages:\n%s", json.dumps(_truncate_b64(messages), indent=2, ensure_ascii=False)
+        )
         logger.debug("==========================================")
 
     async def generate():
         yield f"data: {json.dumps({'type': 'start', 'message_id': final_asst_msg_id, 'user_message_id': user_msg_id if not body.regenerate else None})}\n\n"
         try:
-            logger.debug(f"Starting generation stream for chat_id={body.chat_id} provider={prov_dict['name']}")
+            logger.debug(
+                f"Starting generation stream for chat_id={body.chat_id} provider={prov_dict['name']}"
+            )
             async for token in provider.stream_complete(messages, **gen_kwargs):
                 collected.append(token)
                 yield f"data: {json.dumps({'token': token})}\n\n"
         except Exception as e:
-            logger.exception(f"Stream exception for chat_id={body.chat_id}")
+            logger.exception("Stream exception for chat_id=%s", body.chat_id)
             await _rollback_assistant(final_asst_msg_id)
             err_msg = str(e)
             if not err_msg or err_msg == "()":
@@ -170,11 +194,16 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
         full = "".join(collected)
 
         try:
-            new_variant_id = await _save_assistant_variant(
-                body.chat_id, final_asst_msg_id, next_variant_index, full, body.regenerate, prov_dict.get("model", "")
+            await _save_assistant_variant(
+                body.chat_id,
+                final_asst_msg_id,
+                next_variant_index,
+                full,
+                body.regenerate,
+                prov_dict.get("model", ""),
             )
         except Exception as e:
-            logger.exception(f"Failed to save stream result for chat_id={body.chat_id}")
+            logger.exception("Failed to save stream result for chat_id=%s", body.chat_id)
             await _rollback_assistant(final_asst_msg_id)
             err_msg = str(e) or repr(e)
             yield f"data: {json.dumps({'error': f'Generation succeeded but save failed: {err_msg}'})}\n\n"
@@ -214,27 +243,32 @@ async def _save_assistant_variant(
             if row:
                 async with save_db.execute(
                     "SELECT * FROM message_attachments WHERE variant_id = (SELECT id FROM message_variants WHERE message_id = ? AND variant_index = ?) ORDER BY created_at",
-                    (asst_msg_id, row[0])
+                    (asst_msg_id, row[0]),
                 ) as att_cur:
                     old_attachments = [dict(r) for r in await att_cur.fetchall()]
 
                 for att in old_attachments:
                     await save_db.execute(
                         "INSERT INTO message_attachments (id, chat_id, message_id, variant_id, file_path, mime_type, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                        (str(uuid.uuid4()), chat_id, asst_msg_id, new_variant_id, att["file_path"], att["mime_type"], save_now),
+                        (
+                            str(uuid.uuid4()),
+                            chat_id,
+                            asst_msg_id,
+                            new_variant_id,
+                            att["file_path"],
+                            att["mime_type"],
+                            save_now,
+                        ),
                     )
 
         await save_db.execute(
             "UPDATE messages SET active_index = ? WHERE id = ?",
             (variant_index, asst_msg_id),
         )
-        await save_db.execute(
-            "UPDATE chats SET updated_at = ? WHERE id = ?", (save_now, chat_id)
-        )
+        await save_db.execute("UPDATE chats SET updated_at = ? WHERE id = ?", (save_now, chat_id))
         await save_db.commit()
 
     return new_variant_id
-
 
 async def _rollback_assistant(asst_msg_id: str | None):
     """Delete the empty assistant row that get_prompt_context eagerly inserts
@@ -246,7 +280,6 @@ async def _rollback_assistant(asst_msg_id: str | None):
         await rollback_db.execute("PRAGMA foreign_keys=ON")
         await rollback_db.execute("DELETE FROM messages WHERE id = ?", (asst_msg_id,))
         await rollback_db.commit()
-
 
 @router.post("/itemize")
 async def itemize_prompt(body: ItemizerRequest, db: aiosqlite.Connection = Depends(get_db)):
@@ -279,19 +312,20 @@ async def itemize_prompt(body: ItemizerRequest, db: aiosqlite.Connection = Depen
                     dims = _image_dims_from_data_url(part["image_url"]["url"])
                     img_tokens = estimate_image_tokens(*dims) if dims else 258
                     tokens += img_tokens
-                    clean_parts.append({"type": "image", "text": "[IMAGE ATTACHMENT]", "tokens": img_tokens})
+                    clean_parts.append(
+                        {"type": "image", "text": "[IMAGE ATTACHMENT]", "tokens": img_tokens}
+                    )
                 elif part["type"] == "input_audio":
                     tokens += AUDIO_TOKEN_ESTIMATE
-                    clean_parts.append({"type": "audio", "text": "[AUDIO ATTACHMENT]", "tokens": AUDIO_TOKEN_ESTIMATE})
+                    clean_parts.append(
+                        {
+                            "type": "audio",
+                            "text": "[AUDIO ATTACHMENT]",
+                            "tokens": AUDIO_TOKEN_ESTIMATE,
+                        }
+                    )
 
         total_tokens += tokens
-        clean_messages.append({
-            "role": role,
-            "parts": clean_parts,
-            "tokens": tokens
-        })
+        clean_messages.append({"role": role, "parts": clean_parts, "tokens": tokens})
 
-    return JSONResponse({
-        "total_tokens": total_tokens,
-        "messages": clean_messages
-    })
+    return JSONResponse({"total_tokens": total_tokens, "messages": clean_messages})

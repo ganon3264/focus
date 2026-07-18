@@ -1,29 +1,32 @@
 <div class="flex flex-col gap-1">
-{% if not entities %}
+  {% if not entities %}
   <div class="text-muted text-xs text-center py-3">No matches.</div>
-{% endif %}
-{% for e in entities %}
-{% set img_path = e.image_path or e.avatar_path or None %}
-<div class="flex items-center gap-2.5 p-2 rounded-lg cursor-pointer transition-colors hover:bg-[var(--surface-3)]"
-     style="background:var(--surface-2);border:1px solid var(--border);"
-     data-export-id="{{ e.id }}"
-     onclick="BackupManager.toggleExportEntity(this, '{{ etype }}', '{{ e.id }}')">
-
-  <div class="w-8 h-8 rounded-full overflow-hidden shrink-0 border border-[var(--border)] flex items-center justify-center"
-       style="background:var(--surface-3);">
-    {% if img_path %}
-      <img src="/{{ img_path }}" alt="" class="w-full h-full object-cover">
-    {% else %}
+  {% endif %} {% for e in entities %} {% set img_path = e.image_path or e.avatar_path or None %}
+  <div
+    class="flex items-center gap-2.5 p-2 rounded-lg cursor-pointer transition-colors hover:bg-[var(--surface-3)]"
+    style="background: var(--surface-2); border: 1px solid var(--border)"
+    data-export-id="{{ e.id }}"
+    onclick="BackupManager.toggleExportEntity(this, '{{ etype }}', '{{ e.id }}')"
+  >
+    <div
+      class="w-8 h-8 rounded-full overflow-hidden shrink-0 border border-[var(--border)] flex items-center justify-center"
+      style="background: var(--surface-3)"
+    >
+      {% if img_path %}
+      <img src="/{{ img_path }}" alt="" class="w-full h-full object-cover" />
+      {% else %}
       <span class="text-xs font-bold text-muted">{{ e.name[:1].upper() }}</span>
-    {% endif %}
+      {% endif %}
+    </div>
+
+    <span class="flex-1 min-w-0 text-sm font-medium truncate">{{ e.name }}</span>
+
+    <input
+      type="checkbox"
+      class="pointer-events-none shrink-0"
+      style="accent-color: var(--accent); width: 16px; height: 16px"
+      onclick="event.stopPropagation()"
+    />
   </div>
-
-  <span class="flex-1 min-w-0 text-sm font-medium truncate">{{ e.name }}</span>
-
-  <input type="checkbox"
-         class="pointer-events-none shrink-0"
-         style="accent-color:var(--accent); width:16px; height:16px;"
-         onclick="event.stopPropagation()">
-</div>
-{% endfor %}
+  {% endfor %}
 </div>

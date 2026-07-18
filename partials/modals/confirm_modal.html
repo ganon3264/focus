@@ -1,8 +1,7 @@
-{% from "modal_shell.html" import modal_shell %}
-{% call modal_shell('global-confirm-modal', 'Confirm Action', max_width='400px', content_style='', z_index='10010', role='alertdialog', overlay_close=false, close_fn='closeConfirmModal') %}
-<div id="global-confirm-message" class="text-sm mb-4" style="color: var(--text);">
-  Are you sure?
-</div>
+{% from "modal_shell.html" import modal_shell %} {% call modal_shell('global-confirm-modal',
+'Confirm Action', max_width='400px', content_style='', z_index='10010', role='alertdialog',
+overlay_close=false, close_fn='closeConfirmModal') %}
+<div id="global-confirm-message" class="text-sm mb-4" style="color: var(--text)">Are you sure?</div>
 <div class="flex justify-end gap-2">
   <button class="btn btn-secondary" onclick="closeConfirmModal()">Cancel</button>
   <button id="global-confirm-btn" class="btn btn-danger">Confirm</button>
@@ -19,35 +18,35 @@
 
   function openConfirmModal(message, callback) {
     const msgEl = document.getElementById('global-confirm-message');
-    if (message && message.includes("<")) {
+    if (message && message.includes('<')) {
       msgEl.innerHTML = message;
     } else {
-      msgEl.textContent = message || "Are you sure?";
+      msgEl.textContent = message || 'Are you sure?';
     }
     pendingConfirmCallback = callback;
     document.getElementById('global-confirm-modal').classList.remove('hidden');
   }
 
-  document.getElementById('global-confirm-btn').addEventListener('click', function() {
+  document.getElementById('global-confirm-btn').addEventListener('click', function () {
     if (pendingConfirmCallback) {
       pendingConfirmCallback();
     }
     closeConfirmModal();
   });
 
-  window.customConfirm = function(message, callback) {
+  window.customConfirm = function (message, callback) {
     openConfirmModal(message, callback);
   };
 
-  document.addEventListener("htmx:confirm", function(e) {
+  document.addEventListener('htmx:confirm', function (e) {
     e.preventDefault();
     const message = e.detail.question;
     if (!message) {
-        e.detail.issueRequest(true);
-        return;
+      e.detail.issueRequest(true);
+      return;
     }
-    openConfirmModal(message, function() {
-        e.detail.issueRequest(true);
+    openConfirmModal(message, function () {
+      e.detail.issueRequest(true);
     });
   });
 </script>

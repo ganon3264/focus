@@ -4,20 +4,17 @@ import uuid
 from pathlib import Path
 
 import aiosqlite
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
 import focus.crud as crud
-from focus.database import get_db
 from focus.card_parser import extract_card_json, normalise_card
-from focus.models import CharBlockCreate, CharBlockUpdate, CharacterCreate, CharacterUpdate
-from focus.paths import CHARACTERS_DIR, BLOCKS_DIR
+from focus.database import get_db
+from focus.models import CharacterCreate, CharacterUpdate, CharBlockCreate, CharBlockUpdate
+from focus.paths import BLOCKS_DIR, CHARACTERS_DIR
 from focus.utils import now_iso
 
 router = APIRouter()
 logger = logging.getLogger("focus.routers.characters")
-
-
-# ── Import ────────────────────────────────────────────────────────────────────
 
 @router.post("/import", status_code=201)
 async def import_character(
@@ -66,9 +63,6 @@ async def import_character(
         result["errors"] = errors
     return result
 
-
-# ── CRUD ──────────────────────────────────────────────────────────────────────
-
 @router.post("/", status_code=201)
 async def create_character(body: CharacterCreate, db: aiosqlite.Connection = Depends(get_db)):
     char_id = str(uuid.uuid4())
@@ -77,14 +71,14 @@ async def create_character(body: CharacterCreate, db: aiosqlite.Connection = Dep
         "spec": "chara_card_v2",
         "spec_version": "2.0",
         "data": {
-            "name":                body.name,
-            "description":         body.description,
-            "personality":         body.personality,
-            "scenario":            body.scenario,
-            "mes_example":         body.mes_example,
-            "first_mes":           body.first_mes,
+            "name": body.name,
+            "description": body.description,
+            "personality": body.personality,
+            "scenario": body.scenario,
+            "mes_example": body.mes_example,
+            "first_mes": body.first_mes,
             "alternate_greetings": body.alternate_greetings,
-        }
+        },
     }
     char_dir = CHARACTERS_DIR / char_id
     char_dir.mkdir(parents=True, exist_ok=True)
@@ -95,7 +89,6 @@ async def create_character(body: CharacterCreate, db: aiosqlite.Connection = Dep
     )
     await db.commit()
     return {"id": char_id, "name": body.name}
-
 
 @router.patch("/{char_id}")
 async def update_character(
@@ -133,7 +126,6 @@ async def update_character(
     await db.commit()
     return {"ok": True}
 
-
 @router.post("/{char_id}/avatar")
 async def upload_avatar(
     char_id: str,
@@ -160,7 +152,6 @@ async def upload_avatar(
     await db.execute("UPDATE characters SET image_path = ? WHERE id = ?", (avatar_path, char_id))
     await db.commit()
     return {"avatar_path": avatar_path}
-
 
 @router.get("/")
 async def list_characters(db: aiosqlite.Connection = Depends(get_db)):
@@ -194,9 +185,13 @@ async def get_character(char_id: str, db: aiosqlite.Connection = Depends(get_db)
     result["blocks"] = blocks
     return result
 
-
 @router.delete("/{char_id}", status_code=204)
-async def delete_character(char_id: str, hard: bool = False, delete_chats: bool = False, db: aiosqlite.Connection = Depends(get_db)):
+async def delete_character(
+    char_id: str,
+    hard: bool = False,
+    delete_chats: bool = False,
+    db: aiosqlite.Connection = Depends(get_db),
+):
     async with db.execute("SELECT image_path FROM characters WHERE id = ?", (char_id,)) as cur:
         row = await cur.fetchone()
     if not row:
@@ -213,13 +208,14 @@ async def delete_character(char_id: str, hard: bool = False, delete_chats: bool 
     await db.commit()
 
 @router.post("/{char_id}/restore", status_code=200)
-async def restore_character(char_id: str, restore_chats: bool = False, db: aiosqlite.Connection = Depends(get_db)):
+async def restore_character(
+    char_id: str, restore_chats: bool = False, db: aiosqlite.Connection = Depends(get_db)
+):
     await db.execute("UPDATE characters SET is_deleted = 0 WHERE id = ?", (char_id,))
     if restore_chats:
         await db.execute("UPDATE chats SET is_deleted = 0 WHERE character_id = ?", (char_id,))
     await db.commit()
     return {"ok": True}
-
 
 @router.post("/{char_id}/images", status_code=201)
 async def add_char_image(
@@ -229,10 +225,18 @@ async def add_char_image(
 ):
     await crud.verify_entity_exists(db, "characters", char_id)
     try:
-        return await crud.upload_block_image(db, char_id, "char", await file.read(), file.filename, file.content_type, str(BLOCKS_DIR), images_only=False)
+        return await crud.upload_block_image(
+            db,
+            char_id,
+            "char",
+            await file.read(),
+            file.filename,
+            file.content_type,
+            str(BLOCKS_DIR),
+            images_only=False,
+        )
     except Exception as e:
         raise HTTPException(500, f"Failed to save image: {str(e)}")
-
 
 @router.delete("/{char_id}/images/{image_id}", status_code=204)
 async def delete_char_image(
@@ -242,9 +246,6 @@ async def delete_char_image(
 ):
     await crud.delete_block_image(db, image_id, char_id)
 
-
-# ── Character-exclusive blocks ────────────────────────────────────────────────
-
 @router.get("/{char_id}/blocks")
 async def list_char_blocks(char_id: str, db: aiosqlite.Connection = Depends(get_db)):
     async with db.execute(
@@ -252,7 +253,6 @@ async def list_char_blocks(char_id: str, db: aiosqlite.Connection = Depends(get_
     ) as cur:
         blocks = [dict(r) for r in await cur.fetchall()]
     return await crud.attach_images(blocks, db)
-
 
 @router.post("/{char_id}/blocks", status_code=201)
 async def create_char_block(
@@ -268,7 +268,6 @@ async def create_char_block(
     await db.commit()
     return {"id": block_id}
 
-
 @router.patch("/{char_id}/blocks/{block_id}")
 async def update_char_block(
     char_id: str,
@@ -281,12 +280,9 @@ async def update_char_block(
         return {"ok": True}
     cols = ", ".join(f"{k} = ?" for k in updates)
     vals = list(updates.values()) + [block_id, char_id]
-    await db.execute(
-        f"UPDATE char_blocks SET {cols} WHERE id = ? AND character_id = ?", vals
-    )
+    await db.execute(f"UPDATE char_blocks SET {cols} WHERE id = ? AND character_id = ?", vals)
     await db.commit()
     return {"ok": True}
-
 
 @router.delete("/{char_id}/blocks/{block_id}", status_code=204)
 async def delete_char_block(
@@ -299,9 +295,6 @@ async def delete_char_block(
     )
     await db.commit()
 
-
-# ── Char block images ─────────────────────────────────────────────────────────
-
 @router.post("/{char_id}/blocks/{block_id}/images", status_code=201)
 async def add_char_block_image(
     char_id: str,
@@ -311,10 +304,18 @@ async def add_char_block_image(
 ):
     await crud.verify_entity_exists(db, "char_blocks", block_id, "character_id", char_id)
     try:
-        return await crud.upload_block_image(db, block_id, "char", await file.read(), file.filename, file.content_type, str(CHARACTERS_DIR / char_id / "blocks"), images_only=True)
+        return await crud.upload_block_image(
+            db,
+            block_id,
+            "char",
+            await file.read(),
+            file.filename,
+            file.content_type,
+            str(CHARACTERS_DIR / char_id / "blocks"),
+            images_only=True,
+        )
     except Exception as e:
         raise HTTPException(500, f"Failed to save image: {str(e)}")
-
 
 @router.delete("/{char_id}/blocks/{block_id}/images/{image_id}", status_code=204)
 async def delete_char_block_image(

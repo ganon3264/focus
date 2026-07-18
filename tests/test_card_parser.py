@@ -7,8 +7,8 @@ import pytest
 
 from focus.card_parser import (
     _iter_chunks,
-    _parse_text_chunk,
     _parse_itxt_chunk,
+    _parse_text_chunk,
     extract_card_json,
     normalise_card,
     safe_load_card,
@@ -32,22 +32,31 @@ def _png_with_chunk(chunk_type: str, chunk_data: bytes) -> bytes:
     # Minimal IEND chunk
     iend_crc = struct.pack(">I", zlib.crc32(b"IEND") & 0xFFFFFFFF)
 
-    return b"".join([
-        signature,
-        ihdr_len, b"IHDR", ihdr_data, ihdr_crc,
-        length, ctype, chunk_data, crc,
-        b"\x00\x00\x00\x00IEND", iend_crc,
-    ])
+    return b"".join(
+        [
+            signature,
+            ihdr_len,
+            b"IHDR",
+            ihdr_data,
+            ihdr_crc,
+            length,
+            ctype,
+            chunk_data,
+            crc,
+            b"\x00\x00\x00\x00IEND",
+            iend_crc,
+        ]
+    )
 
 
-def _chara_tEXt(card_dict: dict) -> bytes:
+def _chara_text(card_dict: dict) -> bytes:
     """Build a tEXt chunk with base64-encoded character card data."""
     raw = base64.b64encode(json.dumps(card_dict).encode("latin-1")).decode("latin-1")
     payload = b"chara\x00" + raw.encode("latin-1")
     return payload
 
 
-def _chara_iTXt(card_dict: dict, compressed: bool = False) -> bytes:
+def _chara_itxt(card_dict: dict, compressed: bool = False) -> bytes:
     """Build an iTXt chunk with character card data."""
     text = json.dumps(card_dict).encode("utf-8")
     if compressed:
@@ -83,7 +92,7 @@ class TestParseTextChunk:
 
 class TestParseITxtChunk:
     def test_uncompressed(self):
-        result = _parse_itxt_chunk(b"key\x00\x00\x00\x00\x00" + "value".encode("utf-8"))
+        result = _parse_itxt_chunk(b"key\x00\x00\x00\x00\x00" + b"value")
         assert result == ("key", "value")
 
     def test_compressed(self):
@@ -99,19 +108,19 @@ class TestParseITxtChunk:
 class TestExtractCardJson:
     def test_tEXt_chunk(self):
         card = {"name": "Test", "description": "A test card"}
-        data = _png_with_chunk("tEXt", _chara_tEXt(card))
+        data = _png_with_chunk("tEXt", _chara_text(card))
         result = extract_card_json(data)
         assert result == card
 
     def test_iTXt_chunk(self):
         card = {"name": "iTXt Card", "description": "From iTXt"}
-        data = _png_with_chunk("iTXt", _chara_iTXt(card))
+        data = _png_with_chunk("iTXt", _chara_itxt(card))
         result = extract_card_json(data)
         assert result == card
 
     def test_iTXt_compressed_chunk(self):
         card = {"name": "Compressed", "description": "zlib compressed"}
-        data = _png_with_chunk("iTXt", _chara_iTXt(card, compressed=True))
+        data = _png_with_chunk("iTXt", _chara_itxt(card, compressed=True))
         result = extract_card_json(data)
         assert result == card
 
@@ -130,8 +139,13 @@ class TestExtractCardJson:
 
 class TestNormaliseCard:
     def test_v1_format(self):
-        card = {"name": "V1", "description": "desc", "personality": "p",
-                "scenario": "s", "mes_example": "m"}
+        card = {
+            "name": "V1",
+            "description": "desc",
+            "personality": "p",
+            "scenario": "s",
+            "mes_example": "m",
+        }
         result = normalise_card(card)
         assert result["name"] == "V1"
         assert result["description"] == "desc"
