@@ -286,18 +286,56 @@ if (!window._varScriptsLoaded) {
         .then(() => setTimeout(() => initVarSortables(presetId), 50));
   };
 
+  window.refreshSingleVarGroup = function(presetId, groupName) {
+    var url = '/partials/preset-variables/' + presetId + '/group/' + encodeURIComponent(groupName);
+    fetch(url)
+      .then(function(r) { return r.text(); })
+      .then(function(html) {
+        var temp = document.createElement('div');
+        temp.innerHTML = html;
+        var newGroup = temp.querySelector('.var-group-container');
+        if (!newGroup) return;
+        var oldGroup = document.querySelector('.var-group-container[data-group-name="' + groupName.replace(/"/g, '\\"') + '"]');
+        if (oldGroup && oldGroup.parentNode) {
+          oldGroup.parentNode.replaceChild(newGroup, oldGroup);
+          htmx.process(newGroup);
+          setTimeout(function() { initVarSortables(presetId); }, 50);
+        }
+      });
+  };
+
   window.handleVarUpdate = function(presetId, blockId, payload) {
     fetch(`/api/presets/${presetId}/blocks/${blockId}`, {
       method: 'PATCH',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify(payload)
-    }).then(() => reloadPresetVariables(presetId));
+    }).then(function() {
+      var idsEl = document.querySelector('.var-group-ids[data-ids*="' + blockId + '"]');
+      if (idsEl) {
+        var container = idsEl.closest('.var-group-container');
+        if (container) {
+          var gname = container.getAttribute('data-group-name');
+          if (gname) { refreshSingleVarGroup(presetId, gname); return; }
+        }
+      }
+      reloadPresetVariables(presetId);
+    });
   };
 
   window.handleVarDelete = function(presetId, blockId) {
     fetch(`/api/presets/${presetId}/blocks/${blockId}`, {
       method: 'DELETE'
-    }).then(() => reloadPresetVariables(presetId));
+    }).then(function() {
+      var idsEl = document.querySelector('.var-group-ids[data-ids*="' + blockId + '"]');
+      if (idsEl) {
+        var container = idsEl.closest('.var-group-container');
+        if (container) {
+          var gname = container.getAttribute('data-group-name');
+          if (gname) { refreshSingleVarGroup(presetId, gname); return; }
+        }
+      }
+      reloadPresetVariables(presetId);
+    });
   };
 
   window.updateVarHint = function(groupName) {
@@ -339,7 +377,7 @@ if (!window._varScriptsLoaded) {
         body: JSON.stringify({name: combinedName, content: content})
       }).then(function(){
         closeVarModal();
-        reloadPresetVariables(presetId);
+        refreshSingleVarGroup(presetId, group);
       });
     } else {
       fetch('/api/presets/' + presetId + '/blocks', {
@@ -405,11 +443,9 @@ function openModal(id){
   if (!el) return;
   el.classList.remove('hidden');
   const body = el.querySelector('.modal-content > div:last-child');
-  if(body && body.textContent === 'Loading…'){
-    if(id === 'modal-characters') htmx.ajax('GET',api.partials.charactersModal + '?current_character_id=' + (StateManager.get('character_id') || ''),{target:'#characters-modal-body',swap:'innerHTML'});
-    if(id === 'modal-personas') htmx.ajax('GET',api.partials.personasModal + '?current_persona_id=' + (StateManager.get('persona_id') || ''),{target:'#personas-modal-body',swap:'innerHTML'});
-    if(id === 'modal-providers') htmx.ajax('GET',api.partials.providersModal,{target:'#providers-modal-body',swap:'innerHTML'});
-  }
+  if(id === 'modal-characters') htmx.ajax('GET',api.partials.charactersModal + '?current_character_id=' + (StateManager.get('character_id') || ''),{target:'#characters-modal-body',swap:'innerHTML'});
+  else if(id === 'modal-personas') htmx.ajax('GET',api.partials.personasModal + '?current_persona_id=' + (StateManager.get('persona_id') || ''),{target:'#personas-modal-body',swap:'innerHTML'});
+  else if(id === 'modal-providers') htmx.ajax('GET',api.partials.providersModal,{target:'#providers-modal-body',swap:'innerHTML'});
   if(id === 'modal-backups' && window.BackupManager) { BackupManager.loadList(); }
 }
 function closeModal(id){

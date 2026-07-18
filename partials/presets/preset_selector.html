@@ -62,7 +62,7 @@
       hx-post="/api/presets"
       hx-vals='{"name":"New Preset"}'
       hx-swap="none"
-      hx-on:htmx:after-request="window.location.reload()"
+      hx-on:htmx:after-request="handlePresetCreated(event)"
     >{{ icon_plus() }}</button>
     <button class="btn btn-secondary btn-sm flex-1" title="Import preset" aria-label="Import preset"
       onclick="document.getElementById('preset-import-file').click()"
@@ -96,6 +96,42 @@
   </div>
 </div>
 <script>
+window.addAndSelectPreset = function(id, name) {
+  const wrapper = document.getElementById('preset-selector-wrapper');
+  if (!wrapper) return;
+  const state = Alpine.$data(wrapper);
+  const dropdown = wrapper.querySelector('[x-show="open"]');
+  if (dropdown) {
+    const item = document.createElement('div');
+    item.className = 'px-3 py-2 cursor-pointer text-sm transition-colors duration-150';
+    item.style.cssText = 'border-top: 1px solid var(--border);';
+    item.dataset.presetId = id;
+    item.onmouseover = function() { this.style.background = 'var(--surface-3)'; };
+    item.onmouseout = function() { this.style.background = 'transparent'; };
+    item.onclick = function() {
+      const s = Alpine.$data(wrapper);
+      s.selectedId = id;
+      s.selectedName = name;
+      s.open = false;
+      StateManager.setPreset(id);
+    };
+    item.textContent = name;
+    const firstItem = dropdown.querySelector('.px-3.py-2.cursor-pointer.text-sm.text-muted');
+    dropdown.insertBefore(item, firstItem ? firstItem.nextSibling : null);
+  }
+  state.selectedId = id;
+  state.selectedName = name;
+  state.open = false;
+  StateManager.setPreset(id);
+};
+
+window.handlePresetCreated = function(evt) {
+  try {
+    const data = JSON.parse(evt.detail.xhr.response);
+    addAndSelectPreset(data.id, 'New Preset');
+  } catch(e) { window.location.reload(); }
+};
+
 function confirmRename(){
   const state = Alpine.$data(document.getElementById('preset-selector-wrapper'));
   const pid = state.selectedId;
@@ -108,8 +144,13 @@ function confirmRename(){
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({name: trimmed})
   }).then(function(r){
-    if(r.ok) window.location.reload();
-    else alert('Failed to rename preset');
+    if(r.ok) {
+      state.renaming = false;
+      state.selectedName = trimmed;
+      document.querySelectorAll('#preset-selector-wrapper [data-preset-id="' + pid + '"]').forEach(function(el) {
+        if (el.textContent !== '— Select Preset —') el.textContent = trimmed;
+      });
+    } else alert('Failed to rename preset');
   });
 }
 function importPreset(file){
@@ -118,8 +159,11 @@ function importPreset(file){
   formData.append('file', file);
   fetch('/api/presets/import', {method: 'POST', body: formData})
     .then(r => {
-      if(r.ok) window.location.reload();
+      if(r.ok) return r.json();
       else r.text().then(t => alert('Import failed: ' + t));
+    })
+    .then(data => {
+      if (data && data.id) addAndSelectPreset(data.id, data.name);
     });
 }
 function deletePreset(){

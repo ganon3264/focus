@@ -123,11 +123,17 @@ window.api = {
     messageList: function (chatId) {
       return '/partials/message-list/' + chatId;
     },
+    singleMessage: function (chatId, msgId) {
+      return '/partials/message/' + chatId + '/' + msgId;
+    },
     charactersModal: '/partials/characters-modal',
     personasModal: '/partials/personas-modal',
     providersModal: '/partials/providers-modal',
     promptArranger: function (presetId) {
       return '/partials/prompt-arranger/' + presetId;
+    },
+    singleBlock: function (presetId, blockId) {
+      return '/partials/prompt-arranger/' + presetId + '/block/' + blockId;
     },
     presetsModal: '/partials/presets-modal',
     exportEntities: '/partials/export-entities',
@@ -136,6 +142,9 @@ window.api = {
     },
     presetVariables: function (presetId) {
       return '/partials/preset-variables/' + presetId;
+    },
+    singleVarGroup: function (presetId, groupName) {
+      return '/partials/preset-variables/' + presetId + '/group/' + encodeURIComponent(groupName);
     },
     chatList: '/partials/chat-list',
   },

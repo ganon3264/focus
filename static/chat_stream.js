@@ -134,22 +134,29 @@
   }
 
   async function refreshSingleMessage(chatId, messageId) {
-    const resp = await fetch(api.partials.messageList(chatId));
-    if (!resp.ok) return;
-    const html = await resp.text();
-    const doc = new DOMParser().parseFromString(html, 'text/html');
-
-    const newSentinel = doc.getElementById('message-list-data');
-    const oldSentinel = document.getElementById('message-list-data');
-    if (newSentinel && oldSentinel) {
-      oldSentinel.replaceWith(newSentinel);
+    var existingMsg = document.getElementById('message-' + messageId);
+    if (!existingMsg) {
+      var resp = await fetch(api.partials.messageList(chatId));
+      if (!resp.ok) return;
+      var html = await resp.text();
+      var doc = new DOMParser().parseFromString(html, 'text/html');
+      _replaceMessageNode(doc, messageId, document.getElementById('delete-toolbar') && !document.getElementById('delete-toolbar').classList.contains('hidden'));
+      window.ensureSentinelAndObserver();
+      return;
     }
 
-    const toolbar = document.getElementById('delete-toolbar');
-    const inDeleteMode = toolbar && !toolbar.classList.contains('hidden');
+    var indexEl = existingMsg.querySelector('.meta-right [style*="font-size: 1.75rem"]');
+    var msgIndex = indexEl ? parseInt(indexEl.textContent.replace('#', '').trim()) || 1 : 1;
+    var msgList = document.getElementById('message-list');
+    var isLatest = msgList ? existingMsg === msgList.querySelector('.message:last-of-type') : false;
 
-    _replaceMessageNode(doc, messageId, inDeleteMode);
+    var url = '/partials/message/' + chatId + '/' + messageId + '?msg_index=' + msgIndex + '&is_latest=' + isLatest;
+    var resp = await fetch(url);
+    if (!resp.ok) return;
+    var html = await resp.text();
+    var doc = new DOMParser().parseFromString(html, 'text/html');
 
+    _replaceMessageNode(doc, messageId, document.getElementById('delete-toolbar') && !document.getElementById('delete-toolbar').classList.contains('hidden'));
     window.ensureSentinelAndObserver();
   }
 

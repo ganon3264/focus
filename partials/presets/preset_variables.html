@@ -3,7 +3,7 @@
   {% if var_groups %}
     <div class="flex flex-col gap-2" id="preset-variables-sortable-{{ preset_id }}">
     {% for vname, vblocks in var_groups.items() %}
-      <div class="arranger-item bg-role-system var-group-container" x-data="{ expanded: expandGet('varGroups', '{{ vname }}') }">
+      <div class="arranger-item bg-role-system var-group-container" data-group-name="{{ vname }}" x-data="{ expanded: expandGet('varGroups', '{{ vname }}') }">
         <div class="hidden var-group-ids" data-ids="{{ vblocks | map(attribute='id') | join(',') }}"></div>
         <div class="arranger-header">
           <div class="arranger-title-group" @click="expanded = expandToggle('varGroups', '{{ vname }}')" role="button" tabindex="0" aria-expanded="false" style="cursor: pointer;">

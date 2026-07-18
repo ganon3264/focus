@@ -255,11 +255,14 @@
       fetch(`/api/characters/${charId}?delete_chats=${delChats}`, {
         method: 'DELETE',
       }).then((r) => {
-        if (r.ok)
-          htmx.ajax('GET', '/partials/characters-modal', {
-            target: '#characters-modal-body',
-            swap: 'innerHTML',
-          });
+        if (r.ok) {
+          var card = document.getElementById('char-card-' + charId);
+          if (card) card.remove();
+          var grid = document.getElementById('char-modal-grid');
+          if (grid && grid.querySelectorAll('.card').length === 0) {
+            grid.innerHTML = '<div class="text-muted text-center text-sm py-6 border border-dashed border-(--border) rounded-lg">No characters found. Create or import one to get started!</div>';
+          }
+        }
       });
     });
   }

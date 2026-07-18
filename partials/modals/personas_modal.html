@@ -101,7 +101,7 @@
             style="aspect-ratio: 1/1; border-radius: 12px 12px 0 0; cursor: pointer"
             role="button"
             tabindex="0"
-            onclick="selectPersonaModal('{{ p.id }}')"
+            onclick="selectPersonaModal('{{ p.id }}', '{{ p.name | escape }}')"
           >
             {% if p.avatar_path %}
             <img
@@ -154,7 +154,7 @@
             class="flex items-center gap-2.5 p-2.5 cursor-pointer"
             role="button"
             tabindex="0"
-            onclick="selectPersonaModal('{{ p.id }}')"
+            onclick="selectPersonaModal('{{ p.id }}', '{{ p.name | escape }}')"
           >
             <div
               class="w-10 h-10 rounded-full overflow-hidden shrink-0 border border-(--border) flex items-center justify-center"
@@ -215,19 +215,30 @@
       fetch(`/api/personas/${pid}`, {
         method: 'DELETE',
       }).then((r) => {
-        if (r.ok)
-          htmx.ajax('GET', '/partials/personas-modal', {
-            target: '#personas-modal-body',
-            swap: 'innerHTML',
-          });
+        if (r.ok) {
+          var card = document.getElementById('persona-card-' + pid);
+          if (card) card.remove();
+          var grid = document.getElementById('persona-modal-grid');
+          if (grid && grid.querySelectorAll('.card').length === 0) {
+            grid.innerHTML = '<div class="text-muted text-center text-sm py-6 border border-dashed border-(--border) rounded-lg">No personas found. Create one to get started!</div>';
+          }
+        }
       });
     });
   }
 
-  function selectPersonaModal(pid) {
+  function selectPersonaModal(pid, pname) {
     StateManager.setPersona(pid);
     closeModal('modal-personas');
-    window.location.reload();
+    var statusEl = document.getElementById('status-persona');
+    if (statusEl) statusEl.textContent = pname || '...';
+    const chatId = document.getElementById('send-btn')?.dataset?.chatId;
+    if (chatId) {
+      htmx.ajax('GET', '/partials/message-list/' + chatId, {
+        target: '#message-list',
+        swap: 'innerHTML',
+      });
+    }
   }
 
   ListManager.setup({

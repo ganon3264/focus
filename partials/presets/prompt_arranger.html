@@ -2,11 +2,6 @@
 <div
   class="arranger-list"
   id="arranger-list-{{ preset_id }}"
-  hx-put="/api/presets/{{ preset_id }}/blocks"
-  hx-trigger="sortEnd"
-  hx-target="#prompt-arranger-inner"
-  hx-swap="innerHTML"
-  hx-include="[name='block_order']"
 >
   {% for block in blocks %} {% include "presets/prompt_block.html" %} {% endfor %}
 </div>
@@ -130,6 +125,30 @@ overlay_close=true) %}
   if (!window._arrangerScriptsLoaded) {
     window._arrangerScriptsLoaded = true;
 
+    window.refreshSingleBlock = function (presetId, blockId) {
+      var url = '/partials/prompt-arranger/' + presetId + '/block/' + blockId;
+      var params = new URLSearchParams();
+      if (StateManager.get('character_id'))
+        params.append('character_id', StateManager.get('character_id'));
+      if (StateManager.get('persona_id'))
+        params.append('persona_id', StateManager.get('persona_id'));
+      var qs = params.toString();
+      if (qs) url += '?' + qs;
+      fetch(url)
+        .then(function (r) { return r.text(); })
+        .then(function (html) {
+          var temp = document.createElement('div');
+          temp.innerHTML = html;
+          var newBlock = temp.querySelector('.arranger-item');
+          if (!newBlock) return;
+          var oldBlock = document.querySelector('.arranger-item[data-block-id="' + blockId + '"]');
+          if (oldBlock && oldBlock.parentNode) {
+            oldBlock.parentNode.replaceChild(newBlock, oldBlock);
+            htmx.process(newBlock);
+          }
+        });
+    };
+
     window.addBlock = function (pid, type, btn, nameOverride = null, contentOverride = '') {
       if (!pid) return;
       type = type || 'text';
@@ -185,7 +204,7 @@ overlay_close=true) %}
         body: JSON.stringify({ content: text }),
       }).then(function () {
         closeBlockModal();
-        reloadPromptArranger(presetId, getArrangerContainerId(presetId));
+        refreshSingleBlock(presetId, blockId);
       });
     };
 
@@ -197,7 +216,7 @@ overlay_close=true) %}
         method: 'POST',
         body: formData,
       }).then(function () {
-        reloadPromptArranger(presetId, getArrangerContainerId(presetId));
+        refreshSingleBlock(presetId, blockId);
       });
     };
 
@@ -205,7 +224,7 @@ overlay_close=true) %}
       fetch('/api/presets/' + presetId + '/blocks/' + blockId + '/images/' + imageId, {
         method: 'DELETE',
       }).then(function () {
-        reloadPromptArranger(presetId, getArrangerContainerId(presetId));
+        refreshSingleBlock(presetId, blockId);
       });
     };
 
@@ -214,7 +233,7 @@ overlay_close=true) %}
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
-      }).then(() => reloadPromptArranger(presetId, getArrangerContainerId(presetId)));
+      }).then(() => refreshSingleBlock(presetId, blockId));
     };
 
     window.handleArrangerBlockDelete = function (presetId, blockId) {

@@ -237,6 +237,46 @@ async def message_list_partial(request: Request, chat_id: str, db: aiosqlite.Con
     )
 
 
+@router.get("/partials/message/{chat_id}/{message_id}", response_class=HTMLResponse)
+async def single_message_partial(
+    request: Request,
+    chat_id: str,
+    message_id: str,
+    msg_index: int = Query(1),
+    is_latest: bool = Query(False),
+    db: aiosqlite.Connection = Depends(get_db),
+):
+    messages = await crud.get_chat_messages(db, chat_id)
+    message = next((m for m in messages if m["id"] == message_id), None)
+    if not message:
+        from fastapi import HTTPException
+        raise HTTPException(404, "Message not found")
+
+    char = None
+    persona = None
+    async with db.execute("SELECT * FROM chats WHERE id = ?", (chat_id,)) as cur:
+        chat_row = await cur.fetchone()
+    if chat_row:
+        chat = dict(chat_row)
+        char = await crud.get_character(db, chat.get("character_id"))
+        persona = await crud.get_persona(db, chat.get("persona_id"))
+
+    _resolve_macros_for_display([message], char, persona)
+
+    return templates.TemplateResponse(
+        request,
+        "chat/message.html",
+        {
+            "message": message,
+            "chat_id": chat_id,
+            "character": char,
+            "persona": persona,
+            "msg_index": msg_index,
+            "is_latest": is_latest,
+        },
+    )
+
+
 @router.get("/partials/chat-list", response_class=HTMLResponse)
 async def chat_list_partial(
     request: Request,
@@ -329,6 +369,25 @@ async def preset_variables_partial(request: Request, preset_id: str, db: aiosqli
     )
 
 
+@router.get("/partials/preset-variables/{preset_id}/group/{group_name}", response_class=HTMLResponse)
+async def preset_variables_group_partial(
+    request: Request, preset_id: str, group_name: str, db: aiosqlite.Connection = Depends(get_db)
+):
+    preset = await crud.get_preset(db, preset_id)
+    blocks = preset["blocks"] if preset else []
+
+    vblocks = [
+        b for b in blocks
+        if b["block_type"] == "variable" and variable_group_name(b["name"]) == group_name
+    ]
+
+    return templates.TemplateResponse(
+        request,
+        "presets/preset_variables.html",
+        {"preset_id": preset_id, "var_groups": {group_name: vblocks}},
+    )
+
+
 @router.get("/partials/preset-editor/{preset_id}", response_class=HTMLResponse)
 async def preset_editor_partial(
     request: Request,
@@ -374,6 +433,31 @@ async def prompt_arranger_partial(
         request,
         "presets/prompt_arranger.html",
         {"blocks": regular_blocks, "preset_id": preset_id, "counts": counts},
+    )
+
+
+@router.get("/partials/prompt-arranger/{preset_id}/block/{block_id}", response_class=HTMLResponse)
+async def prompt_arranger_block_partial(
+    request: Request,
+    preset_id: str,
+    block_id: str,
+    character_id: str = Query(None),
+    persona_id: str = Query(None),
+    db: aiosqlite.Connection = Depends(get_db),
+):
+    preset = await crud.get_preset(db, preset_id)
+    blocks = preset["blocks"] if preset else []
+    block = next((b for b in blocks if b["id"] == block_id), None)
+    if not block:
+        from fastapi import HTTPException
+        raise HTTPException(404, "Block not found")
+
+    counts = await crud.get_counts(db, character_id or None, persona_id or None)
+
+    return templates.TemplateResponse(
+        request,
+        "presets/prompt_block.html",
+        {"block": block, "preset_id": preset_id, "counts": counts},
     )
 
 
