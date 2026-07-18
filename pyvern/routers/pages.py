@@ -103,31 +103,7 @@ async def chat_page(request: Request, chat_id: str, db: aiosqlite.Connection = D
         else:
             regular_blocks.append(b)
             
-    # Collect stats for the sentinel blocks on page load
-    counts = {"char_blocks": 0, "char_attachments": 0, "persona_attachments": 0}
-    
-    char_id_for_counts = chat.get("character_id")
-    if char_id_for_counts:
-        async with db.execute("SELECT id FROM char_blocks WHERE character_id = ?", (char_id_for_counts,)) as cur:
-            char_blocks_rows = await cur.fetchall()
-            counts["char_blocks"] = len(char_blocks_rows)
-            
-            async with db.execute("SELECT COUNT(*) FROM block_images WHERE block_id = ? AND block_source = 'char'", (char_id_for_counts,)) as img_cur:
-                row = await img_cur.fetchone()
-                counts["char_attachments"] += row[0] if row else 0
-
-            if char_blocks_rows:
-                block_ids = [r["id"] for r in char_blocks_rows]
-                placeholders = ",".join("?" * len(block_ids))
-                async with db.execute(f"SELECT COUNT(*) FROM block_images WHERE block_id IN ({placeholders}) AND block_source = 'char'", block_ids) as img_cur:
-                    row = await img_cur.fetchone()
-                    counts["char_attachments"] += row[0] if row else 0
-
-    persona_id_for_counts = chat.get("persona_id") or (persona["id"] if persona else None)
-    if persona_id_for_counts:
-        async with db.execute("SELECT COUNT(*) FROM block_images WHERE block_id = ? AND block_source = 'char'", (persona_id_for_counts,)) as img_cur:
-            row = await img_cur.fetchone()
-            counts["persona_attachments"] += row[0] if row else 0
+    counts = await crud.get_counts(db, chat.get("character_id"), chat.get("persona_id") or (persona["id"] if persona else None))
 
     presets = await crud.get_presets(db)
     providers = await crud.get_providers(db)
@@ -316,30 +292,7 @@ async def preset_editor_partial(
     preset = await crud.get_preset(db, preset_id)
     blocks = preset["blocks"] if preset else []
 
-    # Collect stats for the sentinel blocks
-    counts = {"char_blocks": 0, "char_attachments": 0, "persona_attachments": 0}
-    
-    if character_id:
-        async with db.execute("SELECT id FROM char_blocks WHERE character_id = ?", (character_id,)) as cur:
-            char_blocks_rows = await cur.fetchall()
-            counts["char_blocks"] = len(char_blocks_rows)
-            
-            async with db.execute("SELECT COUNT(*) FROM block_images WHERE block_id = ? AND block_source = 'char'", (character_id,)) as img_cur:
-                row = await img_cur.fetchone()
-                counts["char_attachments"] += row[0] if row else 0
-
-            if char_blocks_rows:
-                block_ids = [r["id"] for r in char_blocks_rows]
-                placeholders = ",".join("?" * len(block_ids))
-                async with db.execute(f"SELECT COUNT(*) FROM block_images WHERE block_id IN ({placeholders}) AND block_source = 'char'", block_ids) as img_cur:
-                    row = await img_cur.fetchone()
-                    counts["char_attachments"] += row[0] if row else 0
-
-    if persona_id:
-        async with db.execute("SELECT COUNT(*) FROM block_images WHERE block_id = ? AND block_source = 'char'", (persona_id,)) as img_cur:
-            row = await img_cur.fetchone()
-            counts["persona_attachments"] += row[0] if row else 0
-
+    counts = await crud.get_counts(db, character_id or None, persona_id or None)
     var_blocks = []
     regular_blocks = []
     var_groups = {}
@@ -370,31 +323,7 @@ async def prompt_arranger_partial(
     preset = await crud.get_preset(db, preset_id)
     blocks = preset["blocks"] if preset else []
 
-    # Collect stats for the sentinel blocks
-    counts = {"char_blocks": 0, "char_attachments": 0, "persona_attachments": 0}
-    
-    if character_id:
-        async with db.execute("SELECT id FROM char_blocks WHERE character_id = ?", (character_id,)) as cur:
-            char_blocks_rows = await cur.fetchall()
-            counts["char_blocks"] = len(char_blocks_rows)
-            
-            # Count character's direct attachments (avatar not included)
-            async with db.execute("SELECT COUNT(*) FROM block_images WHERE block_id = ? AND block_source = 'char'", (character_id,)) as img_cur:
-                row = await img_cur.fetchone()
-                counts["char_attachments"] += row[0] if row else 0
-
-            # Count attachments across all of this character's blocks
-            if char_blocks_rows:
-                block_ids = [r["id"] for r in char_blocks_rows]
-                placeholders = ",".join("?" * len(block_ids))
-                async with db.execute(f"SELECT COUNT(*) FROM block_images WHERE block_id IN ({placeholders}) AND block_source = 'char'", block_ids) as img_cur:
-                    row = await img_cur.fetchone()
-                    counts["char_attachments"] += row[0] if row else 0
-
-    if persona_id:
-        async with db.execute("SELECT COUNT(*) FROM block_images WHERE block_id = ? AND block_source = 'char'", (persona_id,)) as img_cur:
-            row = await img_cur.fetchone()
-            counts["persona_attachments"] += row[0] if row else 0
+    counts = await crud.get_counts(db, character_id or None, persona_id or None)
 
     regular_blocks = [b for b in blocks if b["block_type"] != "variable"]
 

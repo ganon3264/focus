@@ -1,20 +1,17 @@
 import json
 import uuid
-from datetime import datetime, timezone
 from pathlib import Path
 
 import aiosqlite
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 
+import pyvern.crud as crud
 from pyvern.database import get_db
 from pyvern.card_parser import extract_card_json, normalise_card
 from pyvern.models import CharBlockCreate, CharBlockUpdate, CharacterCreate, CharacterUpdate
+from pyvern.utils import now_iso
 
 router = APIRouter()
-
-
-def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
 
 
 # ── Import ────────────────────────────────────────────────────────────────────
@@ -43,7 +40,7 @@ async def import_character(
             continue
 
         char_id = str(uuid.uuid4())
-        now = _now()
+        now = now_iso()
 
         char_dir = Path(f"assets/characters/{char_id}")
         char_dir.mkdir(parents=True, exist_ok=True)
@@ -64,31 +61,12 @@ async def import_character(
     return result
 
 
-async def _attach_images(blocks: list[dict], db: aiosqlite.Connection) -> list[dict]:
-    """Attach image metadata to a list of blocks. Mutates in place, also returns the list."""
-    if not blocks:
-        return blocks
-    ids = [b["id"] for b in blocks]
-    placeholders = ",".join("?" * len(ids))
-    async with db.execute(
-        f"SELECT id, block_id, image_path, mime_type, position FROM block_images WHERE block_id IN ({placeholders}) ORDER BY position",
-        ids,
-    ) as cur:
-        rows = await cur.fetchall()
-    images_by_block: dict[str, list] = {}
-    for r in rows:
-        images_by_block.setdefault(r["block_id"], []).append(dict(r))
-    for b in blocks:
-        b["images"] = images_by_block.get(b["id"], [])
-    return blocks
-
-
 # ── CRUD ──────────────────────────────────────────────────────────────────────
 
 @router.post("/", status_code=201)
 async def create_character(body: CharacterCreate, db: aiosqlite.Connection = Depends(get_db)):
     char_id = str(uuid.uuid4())
-    now = _now()
+    now = now_iso()
     card_json = {
         "spec": "chara_card_v2",
         "spec_version": "2.0",
@@ -196,7 +174,7 @@ async def get_character(char_id: str, db: aiosqlite.Connection = Depends(get_db)
         "SELECT * FROM char_blocks WHERE character_id = ? ORDER BY position, rowid", (char_id,)
     ) as cur:
         blocks = [dict(r) for r in await cur.fetchall()]
-    await _attach_images(blocks, db)
+    await crud.attach_images(blocks, db)
 
     result = dict(row)
     result["card"] = normalise_card(json.loads(result.pop("card_json")))
@@ -262,7 +240,7 @@ async def add_char_image(
 
     await db.execute(
         "INSERT INTO block_images (id, block_id, block_source, image_path, mime_type, position, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (image_id, char_id, "char", image_path, mime, next_pos, _now()),
+        (image_id, char_id, "char", image_path, mime, next_pos, now_iso()),
     )
     await db.commit()
     return {"id": image_id, "position": next_pos, "image_path": image_path, "mime_type": mime}
@@ -293,7 +271,7 @@ async def list_char_blocks(char_id: str, db: aiosqlite.Connection = Depends(get_
         "SELECT * FROM char_blocks WHERE character_id = ? ORDER BY position, rowid", (char_id,)
     ) as cur:
         blocks = [dict(r) for r in await cur.fetchall()]
-    return await _attach_images(blocks, db)
+    return await crud.attach_images(blocks, db)
 
 
 @router.post("/{char_id}/blocks", status_code=201)
@@ -374,7 +352,7 @@ async def add_char_block_image(
 
     await db.execute(
         "INSERT INTO block_images (id, block_id, block_source, image_path, mime_type, position, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (image_id, block_id, "char", image_path, mime, next_pos, _now()),
+        (image_id, block_id, "char", image_path, mime, next_pos, now_iso()),
     )
     await db.commit()
     return {"id": image_id, "position": next_pos, "image_path": image_path, "mime_type": mime}

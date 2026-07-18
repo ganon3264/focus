@@ -1,5 +1,4 @@
 import uuid
-from datetime import datetime, timezone
 from pathlib import Path
 
 import aiosqlite
@@ -8,12 +7,9 @@ from pydantic import BaseModel
 from typing import Optional
 
 from pyvern.database import get_db
+from pyvern.utils import now_iso
 
 router = APIRouter()
-
-
-def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
 
 
 class PersonaCreate(BaseModel):
@@ -37,7 +33,7 @@ async def create_persona(body: PersonaCreate, db: aiosqlite.Connection = Depends
     persona_id = str(uuid.uuid4())
     await db.execute(
         "INSERT INTO personas (id, name, description, avatar_path, created_at) VALUES (?, ?, ?, ?, ?)",
-        (persona_id, body.name, body.description, None, _now()),
+        (persona_id, body.name, body.description, None, now_iso()),
     )
     await db.commit()
     return {"id": persona_id}
@@ -133,7 +129,7 @@ async def add_persona_image(
 
     await db.execute(
         "INSERT INTO block_images (id, block_id, block_source, image_path, mime_type, position, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (image_id, persona_id, "char", image_path, mime, next_pos, _now()),
+        (image_id, persona_id, "char", image_path, mime, next_pos, now_iso()),
     )
     await db.commit()
     return {"id": image_id, "position": next_pos, "image_path": image_path, "mime_type": mime}

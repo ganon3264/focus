@@ -1,7 +1,6 @@
 import json
 import logging
 import uuid
-from datetime import datetime, timezone
 
 import aiosqlite
 import tiktoken
@@ -14,13 +13,10 @@ from pyvern.providers import create_provider
 from pyvern.prompt_chain import assemble_prompt, _build_content
 from pyvern.card_parser import normalise_card
 from pyvern.logger import get_logger
+from pyvern.utils import now_iso
 
 router = APIRouter()
 logger = get_logger("routers.stream")
-
-
-def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
 
 
 from pyvern.macros import build_base_macros
@@ -163,7 +159,7 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
         next_variant_index = 0
 
     # ── Save user message (not on regen) ──────────────────────────────────────
-    now = _now()
+    now = now_iso()
     if not body.regenerate:
         user_msg_id = None
         async with db.execute(
@@ -285,7 +281,7 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
             return
 
         full = "".join(collected)
-        save_now = _now()
+        save_now = now_iso()
         new_variant_id = str(uuid.uuid4())
 
         async with aiosqlite.connect(DB_PATH) as save_db:

@@ -1,6 +1,5 @@
 import json
 import uuid
-from datetime import datetime, timezone
 
 import aiosqlite
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
@@ -10,12 +9,9 @@ from pathlib import Path
 from pyvern.database import get_db
 from pyvern.models import ChatCreate, MessageEdit, SwipeRequest
 from pyvern.card_parser import normalise_card
+from pyvern.utils import now_iso
 
 router = APIRouter()
-
-
-def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
 
 
 # ── Chats ─────────────────────────────────────────────────────────────────────
@@ -23,7 +19,7 @@ def _now() -> str:
 @router.post("/", status_code=201)
 async def create_chat(body: ChatCreate, db: aiosqlite.Connection = Depends(get_db)):
     chat_id = str(uuid.uuid4())
-    now = _now()
+    now = now_iso()
     
     # Ensure empty strings are cast to None for Foreign Key constraints
     char_id = body.character_id if body.character_id else None
@@ -110,7 +106,7 @@ async def update_chat(chat_id: str, body: dict, db: aiosqlite.Connection = Depen
     updates = {k: v for k, v in body.items() if k in allowed}
     if updates:
         cols = ", ".join(f"{k} = ?" for k in updates)
-        vals = list(updates.values()) + [_now(), chat_id]
+        vals = list(updates.values()) + [now_iso(), chat_id]
         await db.execute(f"UPDATE chats SET {cols}, updated_at = ? WHERE id = ?", vals)
         await db.commit()
     return {"ok": True}
@@ -212,7 +208,7 @@ async def edit_message(
         max_row = await cur.fetchone()
 
     new_index = (max_row[0] or 0) + 1
-    now = _now()
+    now = now_iso()
     new_variant_id = str(uuid.uuid4())
 
     await db.execute(
@@ -232,7 +228,7 @@ async def edit_message(
             else:
                 await db.execute(
                     "INSERT INTO message_attachments (id, chat_id, message_id, variant_id, file_path, mime_type, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                    (str(uuid.uuid4()), chat_id, message_id, new_variant_id, att["file_path"], att["mime_type"], _now()),
+                    (str(uuid.uuid4()), chat_id, message_id, new_variant_id, att["file_path"], att["mime_type"], now_iso()),
                 )
 
     await db.execute(
@@ -329,7 +325,7 @@ async def upload_attachments(
         
         await db.execute(
             "INSERT INTO message_attachments (id, chat_id, message_id, variant_id, file_path, mime_type, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (attachment_id, chat_id, None, None, file_path, mime, _now()),
+            (attachment_id, chat_id, None, None, file_path, mime, now_iso()),
         )
         results.append({
             "id": attachment_id,

@@ -1,5 +1,4 @@
 (function(){
-  const SVG_MUSIC = '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>';
   const SVG_CLOSE = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
   let currentController = null;
   const sendBtn = document.getElementById('send-btn');
@@ -10,6 +9,10 @@
   const stagingArea = document.getElementById('staging-area');
 
   let stagedFiles = [];
+
+  let autoScroll = true;
+  let scrollSentinel = null;
+  let chatCenterEl = null;
 
   if(!sendBtn || !input || !messageList) return;
 
@@ -185,6 +188,8 @@
     if (typeof updateSendButtonState === 'function') {
       updateSendButtonState();
     }
+
+    ensureSentinelAndObserver();
   }
 
   window.triggerGeneration = async function(chatId, asstDiv, isRegen = false) {
@@ -298,11 +303,15 @@
               
               contentDiv.innerHTML = renderMessage(fullText);
               
-              // Restore open states
+               // Restore open states
               openStates.forEach(id => {
                 const el = contentDiv.querySelector(`details.reasoning[data-think-id="${id}"]`);
                 if (el) el.setAttribute('open', '');
               });
+
+              if (autoScroll && scrollSentinel) {
+                scrollSentinel.scrollIntoView({behavior: 'instant'});
+              }
             }
           } else if(json.error){
             throw new Error(json.error);
@@ -381,7 +390,7 @@
           <div class="message-content markdown-content processed"></div>
         </div>
       `;
-      messageList.appendChild(asstDiv);
+      messageList.insertBefore(asstDiv, scrollSentinel);
       asstDiv.scrollIntoView({behavior:'smooth'});
 
       window.triggerGeneration(chatId, asstDiv, false); // pass false so we create a NEW message, not overwrite last
@@ -413,7 +422,7 @@
         <div class="message-content">${escapeHtml(text)}</div>
       </div>
     `;
-    messageList.appendChild(userDiv);
+    messageList.insertBefore(userDiv, scrollSentinel);
     
     window._tempUserMessage = text;
     
@@ -435,7 +444,7 @@
         <div class="message-content markdown-content processed"></div>
       </div>
     `;
-    messageList.appendChild(asstDiv);
+    messageList.insertBefore(asstDiv, scrollSentinel);
     asstDiv.scrollIntoView({behavior:'smooth'});
 
     window.triggerGeneration(chatId, asstDiv, false);
@@ -621,12 +630,50 @@
     }
   };
 
+  function ensureSentinelAndObserver() {
+    const ml = document.getElementById('message-list');
+    const cc = document.querySelector('.chat-center');
+    if (!ml || !cc) return;
+
+    chatCenterEl = cc;
+
+    let s = document.getElementById('scroll-sentinel');
+    if (!s) {
+      s = document.createElement('div');
+      s.id = 'scroll-sentinel';
+      s.style.height = '1px';
+      ml.appendChild(s);
+    } else if (ml.lastChild !== s) {
+      ml.appendChild(s);
+    }
+    scrollSentinel = s;
+
+    if (window._scrollObserver) window._scrollObserver.disconnect();
+    window._scrollObserver = new IntersectionObserver(function(_ref) {
+      autoScroll = _ref[0].isIntersecting;
+    }, { root: cc, threshold: 0 });
+    window._scrollObserver.observe(s);
+  }
+
   document.addEventListener('DOMContentLoaded', function(){
     document.querySelectorAll('.markdown-content').forEach(function(el){
       const raw = el.textContent || '';
       el.innerHTML = renderMessage(raw);
       el.classList.add('processed');
     });
+
+    ensureSentinelAndObserver();
+
+    var navEntries = performance.getEntriesByType('navigation');
+    if (navEntries.length > 0 && navEntries[0].type === 'navigate') {
+      requestAnimationFrame(function() {
+        requestAnimationFrame(function() {
+          var s = document.getElementById('scroll-sentinel');
+          if (s) s.scrollIntoView({block: 'end'});
+        });
+      });
+    }
+
     document.getElementById('message-list')?.classList.add('ready');
     
     // Restore provider from localStorage
@@ -672,10 +719,12 @@
         el.classList.add('processed');
       });
       // Ensure the send button correctly updates its mode after DOM changes (like deletions or errors)
-      if (typeof updateSendButtonState === 'function') {
-        updateSendButtonState();
-      }
+    if (typeof updateSendButtonState === 'function') {
+      updateSendButtonState();
     }
+
+    ensureSentinelAndObserver();
+  }
   });
 })();
   // --- DELETE MODE & BULK DELETE ---

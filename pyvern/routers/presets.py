@@ -1,37 +1,16 @@
 import json
 import uuid
-from datetime import datetime, timezone
 from pathlib import Path
 
 import aiosqlite
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 
+import pyvern.crud as crud
 from pyvern.database import get_db
 from pyvern.models import PresetCreate, PresetUpdate, PresetBlockCreate, PresetBlockBulkUpdate
+from pyvern.utils import now_iso
 
 router = APIRouter()
-
-
-def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
-
-
-async def _attach_images(blocks: list[dict], db: aiosqlite.Connection) -> list[dict]:
-    if not blocks:
-        return blocks
-    ids = [b["id"] for b in blocks]
-    placeholders = ",".join("?" * len(ids))
-    async with db.execute(
-        f"SELECT id, block_id, image_path, mime_type, position FROM block_images WHERE block_id IN ({placeholders}) ORDER BY position",
-        ids,
-    ) as cur:
-        rows = await cur.fetchall()
-    images_by_block: dict[str, list] = {}
-    for r in rows:
-        images_by_block.setdefault(r["block_id"], []).append(dict(r))
-    for b in blocks:
-        b["images"] = images_by_block.get(b["id"], [])
-    return blocks
 
 
 # ── Presets ───────────────────────────────────────────────────────────────────
@@ -39,7 +18,7 @@ async def _attach_images(blocks: list[dict], db: aiosqlite.Connection) -> list[d
 @router.post("/", status_code=201)
 async def create_preset(body: PresetCreate, db: aiosqlite.Connection = Depends(get_db)):
     preset_id = str(uuid.uuid4())
-    now = _now()
+    now = now_iso()
 
     await db.execute(
         "INSERT INTO presets (id, name, created_at) VALUES (?, ?, ?)",
@@ -79,7 +58,7 @@ async def get_preset(preset_id: str, db: aiosqlite.Connection = Depends(get_db))
         "SELECT * FROM preset_blocks WHERE preset_id = ? ORDER BY position, rowid", (preset_id,)
     ) as cur:
         blocks = [dict(r) for r in await cur.fetchall()]
-    await _attach_images(blocks, db)
+    await crud.attach_images(blocks, db)
 
     result = dict(row)
     result["blocks"] = blocks
@@ -110,7 +89,7 @@ async def import_preset(file: UploadFile = File(...), db: aiosqlite.Connection =
 
     preset_name = Path(file.filename or "Imported Preset").stem
     preset_id = str(uuid.uuid4())
-    now = _now()
+    now = now_iso()
     await db.execute(
         "INSERT INTO presets (id, name, created_at) VALUES (?, ?, ?)",
         (preset_id, preset_name, now),
@@ -328,7 +307,7 @@ async def add_block_image(
 
     await db.execute(
         "INSERT INTO block_images (id, block_id, block_source, image_path, mime_type, position, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (image_id, block_id, "preset", image_path, mime, next_pos, _now()),
+        (image_id, block_id, "preset", image_path, mime, next_pos, now_iso()),
     )
     await db.commit()
     return {"id": image_id, "position": next_pos, "image_path": image_path, "mime_type": mime}

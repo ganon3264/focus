@@ -1,7 +1,6 @@
 from pydantic import BaseModel
 import json
 import uuid
-from datetime import datetime, timezone
 
 import aiosqlite
 import httpx
@@ -10,13 +9,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from pyvern.database import get_db
 from pyvern.models import ProviderCreate
 from pyvern.logger import get_logger
+from pyvern.utils import now_iso
 
 router = APIRouter()
 logger = get_logger("routers.providers")
-
-
-def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
 
 
 @router.post("/", status_code=201)
@@ -25,7 +21,7 @@ async def create_provider(body: ProviderCreate, db: aiosqlite.Connection = Depen
     await db.execute(
         "INSERT INTO providers (id, name, type, base_url, api_key, model, params_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         (provider_id, body.name, body.type, body.base_url, body.api_key,
-         body.model, json.dumps(body.params), _now()),
+         body.model, json.dumps(body.params), now_iso()),
     )
     await db.commit()
     return {"id": provider_id}
