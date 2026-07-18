@@ -425,10 +425,11 @@
       return;
     }
 
-    const personaNameEl = document.querySelector('#persona-selector .sidebar-item.active');
-    const personaInitial = personaNameEl ? personaNameEl.textContent.trim()[0] : 'U';
+    const dataList = document.getElementById('message-list-data');
+    const personaName = dataList ? dataList.getAttribute('data-persona-name') || 'You' : 'You';
+    const personaAvatar = dataList ? dataList.getAttribute('data-persona-avatar') || '' : '';
 
-    const userDiv = window.createUserMessageDiv(text, window.stagedFiles, personaInitial);
+    const userDiv = window.createUserMessageDiv(text, window.stagedFiles, personaName, personaAvatar);
     messageList.insertBefore(userDiv, window.scrollSentinel);
 
     window._tempUserMessage = text;
@@ -436,7 +437,6 @@
     input.value = '';
     resizeTextarea(input);
 
-    const dataList = document.getElementById('message-list-data');
     const charName = dataList ? dataList.getAttribute('data-char-name') : 'Assistant';
     const charImagePath = dataList ? dataList.getAttribute('data-char-image') : '';
 

@@ -2,9 +2,16 @@
 // Depends on window.escapeHtml, window.renderMessage, window.getSvgSprite
 
 (function () {
-  window.createUserMessageDiv = function (text, stagedFiles, personaInitial) {
+  window.createUserMessageDiv = function (text, stagedFiles, personaName, personaAvatarPath) {
     const userDiv = document.createElement('div');
-    userDiv.className = 'message';
+    userDiv.className = 'message msg';
+
+    const now = new Date();
+    const dateStr = now.toISOString().slice(0, 10);
+    const timeStr = now.toISOString().slice(11, 16);
+
+    const messageList = document.getElementById('message-list');
+    const msgIndex = messageList ? messageList.querySelectorAll('.message').length + 1 : 0;
 
     let attachPreview = '';
     if (stagedFiles && stagedFiles.length > 0) {
@@ -20,14 +27,26 @@
         '</div>';
     }
 
+    const avatarHtml = personaAvatarPath
+      ? `<img src="/${personaAvatarPath}" alt="" class="cursor-pointer" onclick="openLightbox(this.src)">`
+      : window.escapeHtml((personaName || 'U')[0]);
+
     userDiv.innerHTML = `
       <div class="message-body">
         <div class="flex items-start justify-between relative">
           <div class="flex items-start gap-3 min-w-0">
-            <div class="message-avatar">${window.escapeHtml(personaInitial || 'U')}</div>
+            <div class="message-avatar">${avatarHtml}</div>
             <div class="min-w-0">
-              <div class="text-sm font-medium" style="color:var(--text)">You</div>
-              <div class="text-xs text-muted flex items-center gap-1.5 flex-wrap mt-0.5"></div>
+              <div class="text-sm font-medium" style="color:var(--text)">${window.escapeHtml(personaName || 'You')}</div>
+            </div>
+          </div>
+          <div class="relative shrink-0" style="margin-left:1rem">
+            <div class="meta-right flex items-center gap-3 mt-0.5" style="transition:opacity 0.18s ease,transform 0.18s ease">
+              <div class="text-xs text-right leading-tight shrink-0">
+                <div class="text-muted">${dateStr}</div>
+                <div style="color:var(--text-faint)">${timeStr}</div>
+              </div>
+              <div class="text-[1.75rem] font-bold leading-none select-none shrink-0" style="color:var(--text-faint)">#${msgIndex}</div>
             </div>
           </div>
         </div>

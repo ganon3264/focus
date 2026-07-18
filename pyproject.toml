@@ -4,25 +4,25 @@ version = "0.1.0"
 description = "A lean SillyTavern alternative"
 requires-python = ">=3.11"
 dependencies = [
-    "fastapi",
-    "uvicorn[standard]",
-    "aiosqlite",
-    "httpx",
-    "openai",
-    "python-multipart",
-    "Pillow",
-    "jinja2",
-    "google-auth",
-    "requests",
-    "google-genai",
-    "tiktoken>=0.13.0",
-    "pytest>=9.1.1",
-    "pytest-asyncio>=1.4.0",
-    "cssutils>=2.15.0",
+    "fastapi==0.136.1",
+    "uvicorn[standard]==0.46.0",
+    "aiosqlite==0.22.1",
+    "httpx==0.28.1",
+    "openai==2.36.0",
+    "python-multipart==0.0.28",
+    "Pillow==12.2.0",
+    "jinja2==3.1.6",
+    "google-auth==2.55.0",
+    "requests==2.34.2",
+    "google-genai==2.10.0",
+    "tiktoken==0.13.0",
+    "pytest==9.1.1",
+    "pytest-asyncio==1.4.0",
+    "cssutils==2.15.0",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest", "pytest-asyncio", "ruff"]
+dev = ["ruff"]
 
 [build-system]
 requires = ["hatchling"]
