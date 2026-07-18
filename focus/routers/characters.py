@@ -1,5 +1,6 @@
 import json
 import logging
+import shutil
 import uuid
 from pathlib import Path
 
@@ -82,9 +83,6 @@ async def create_character(body: CharacterCreate, db: aiosqlite.Connection = Dep
             "alternate_greetings": body.alternate_greetings,
         },
     }
-    char_dir = CHARACTERS_DIR / char_id
-    char_dir.mkdir(parents=True, exist_ok=True)
-
     await db.execute(
         "INSERT INTO characters (id, name, image_path, card_json, created_at) VALUES (?, ?, ?, ?, ?)",
         (char_id, body.name, None, json.dumps(card_json), now),
@@ -208,6 +206,7 @@ async def delete_character(
     if hard:
         if row["image_path"]:
             Path(row["image_path"]).unlink(missing_ok=True)
+        shutil.rmtree(CHARACTERS_DIR / char_id, ignore_errors=True)
         await db.execute("DELETE FROM characters WHERE id = ?", (char_id,))
     else:
         await db.execute("UPDATE characters SET is_deleted = 1 WHERE id = ?", (char_id,))

@@ -5,7 +5,7 @@ DATA_DIR = Path(os.environ.get("FOCUS_DATA_DIR", "data"))
 DB_PATH = DATA_DIR / "focus.db"
 BACKUPS_DIR = Path(os.environ.get("FOCUS_BACKUPS_DIR", str(DATA_DIR / "backups")))
 
-ASSETS_DIR = Path("assets")
+ASSETS_DIR = Path(os.environ.get("FOCUS_ASSETS_DIR", "assets"))
 CHARACTERS_DIR = ASSETS_DIR / "characters"
 PERSONAS_DIR = ASSETS_DIR / "personas"
 PRESETS_DIR = ASSETS_DIR / "presets"

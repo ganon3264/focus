@@ -1,11 +1,23 @@
 import os
 import shutil
+import tempfile
 import uuid
 from pathlib import Path
 
 import aiosqlite
 import httpx
 import pytest
+
+# Redirect asset directories to a session-scoped temp dir so tests never
+# pollute the real assets/ directory.
+_assets_tmp = tempfile.mkdtemp(prefix="focus_test_assets_")
+os.environ["FOCUS_ASSETS_DIR"] = _assets_tmp
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _cleanup_assets():
+    yield
+    shutil.rmtree(_assets_tmp, ignore_errors=True)
 
 
 @pytest.fixture

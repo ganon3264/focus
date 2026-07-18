@@ -1,3 +1,4 @@
+import shutil
 import uuid
 from pathlib import Path
 
@@ -118,6 +119,7 @@ async def delete_persona(
     if hard:
         if row["avatar_path"]:
             Path(row["avatar_path"]).unlink(missing_ok=True)
+        shutil.rmtree(PERSONAS_DIR / persona_id, ignore_errors=True)
         await db.execute("DELETE FROM personas WHERE id = ?", (persona_id,))
     else:
         await db.execute("UPDATE personas SET is_deleted = 1 WHERE id = ?", (persona_id,))
