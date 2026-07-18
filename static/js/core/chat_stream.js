@@ -7,6 +7,108 @@
 
   if (!sendBtn || !input || !messageList) return;
 
+  function createAssistantSkeleton(charName, charImagePath) {
+    const asstDiv = document.createElement('div');
+    asstDiv.className = 'message msg';
+    asstDiv.id = 'streaming-message';
+    const avatarHtml = charImagePath
+      ? `<img src="/${charImagePath}" alt="" class="cursor-pointer" onclick="openLightbox(this.src)">`
+      : window.escapeHtml((charName || 'A')[0]);
+    asstDiv.innerHTML = `
+      <div class="message-body">
+        <div class="flex items-start gap-3 min-w-0">
+          <div class="message-avatar">${avatarHtml}</div>
+          <div class="min-w-0">
+            <div class="text-sm font-medium" style="color:var(--text)">${window.escapeHtml(charName)}</div>
+            <div class="text-xs text-muted flex items-center gap-1.5 flex-wrap mt-0.5">
+              <button class="reasoning-toggle-btn hidden" onclick="toggleReasoning(this)" aria-label="Toggle reasoning" style="background:none;border:none;padding:0;font:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:0.25rem">
+                <svg class="w-3 h-3 reasoning-chevron" style="color:var(--text-faint);transition:transform 0.2s ease" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                <span>Reasoning</span>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="message-content markdown-content processed" style="padding-left:3rem"></div>
+      </div>
+    `;
+    return asstDiv;
+  }
+
+
+
+  function _createAttachmentPreview(file) {
+    var wrapper = document.createElement('div');
+    wrapper.className = 'relative group';
+
+    if (file.type.startsWith('image/')) {
+      var img = document.createElement('img');
+      img.className = 'h-24 rounded object-cover border border-border cursor-pointer hover:opacity-90 transition-opacity';
+      img.src = URL.createObjectURL(file);
+      img.alt = 'attachment';
+      img.onclick = function () { openLightbox(this.src); };
+      wrapper.appendChild(img);
+    } else {
+      wrapper.className = 'h-16 bg-surface-3 px-3 rounded border border-border flex items-center gap-2 text-sm';
+      wrapper.innerHTML = '<span>' + (window.getSvgSprite ? window.getSvgSprite('music', 18) : '') + '</span>';
+      var audio = document.createElement('audio');
+      audio.controls = true;
+      audio.className = 'h-8 max-w-[200px]';
+      audio.style.cssText = 'filter: contrast(0.8) grayscale(1)';
+      var source = document.createElement('source');
+      source.src = URL.createObjectURL(file);
+      source.type = file.type;
+      audio.appendChild(source);
+      wrapper.appendChild(audio);
+    }
+
+    return wrapper;
+  }
+
+  function createUserMessageDiv(text) {
+    const dataList = document.getElementById('message-list-data');
+    const personaName = dataList ? dataList.getAttribute('data-persona-name') || 'You' : 'You';
+    const personaAvatar = dataList ? dataList.getAttribute('data-persona-avatar') : '';
+
+    const div = document.createElement('div');
+    div.className = 'message relative msg';
+    div.id = 'temp-user-msg';
+
+    div.innerHTML = [
+      '<div class="message-body">',
+      '<div class="flex items-start gap-3 min-w-0">',
+      '<div class="message-avatar">',
+      personaAvatar
+        ? '<img src="/' + personaAvatar + '" alt="" class="cursor-pointer" onclick="openLightbox(this.src)">'
+        : window.escapeHtml((personaName || 'Y')[0]),
+      '</div>',
+      '<div class="min-w-0">',
+      '<div class="text-sm font-medium" style="color:var(--text)">' + window.escapeHtml(personaName) + '</div>',
+      '</div>',
+      '</div>',
+      '<div class="message-content markdown-content" style="padding-left:3rem"></div>',
+      '</div>',
+    ].join('');
+
+    var staged = window.stagedFiles;
+    if (staged && staged.length > 0) {
+      var attContainer = document.createElement('div');
+      attContainer.className = 'flex gap-2 flex-wrap mb-2';
+      attContainer.style.cssText = 'padding-left:3rem';
+      staged.forEach(function (f) { attContainer.appendChild(_createAttachmentPreview(f)); });
+      var bodyDiv = div.querySelector('.message-body');
+      var contentEl = div.querySelector('.message-content');
+      if (bodyDiv && contentEl) bodyDiv.insertBefore(attContainer, contentEl);
+    }
+
+    var contentDiv = div.querySelector('.message-content');
+    if (contentDiv) {
+      contentDiv.innerHTML = window.renderMessage(text);
+      contentDiv.classList.add('processed');
+    }
+
+    return div;
+  }
+
   window.triggerGeneration = async function (chatId, asstDiv, isRegen = false, continueText = null) {
     const providerId = sendBtn.dataset.providerId;
     if (!providerId) {
@@ -26,19 +128,19 @@
     const fileUpload = document.getElementById('file-upload');
     if (fileUpload) fileUpload.disabled = true;
 
-    if (!continueText) {
-      const contentDiv = asstDiv.querySelector('.message-content');
-      if (contentDiv) {
-        contentDiv.innerHTML = '<div class="message-spinner"></div>';
-      }
-      const reasoningBtn = asstDiv.querySelector('.reasoning-toggle-btn');
-      if (reasoningBtn) reasoningBtn.classList.add('hidden');
-    } else {
-      const contentDiv = asstDiv.querySelector('.message-content');
-      if (contentDiv) {
-        const pulse = document.createElement('span');
-        pulse.className = 'gen-pulse';
-        contentDiv.appendChild(pulse);
+    if (asstDiv) {
+      if (!continueText) {
+        const contentDiv = asstDiv.querySelector('.message-content');
+        if (contentDiv) contentDiv.innerHTML = '<div class="message-spinner"></div>';
+        const reasoningBtn = asstDiv.querySelector('.reasoning-toggle-btn');
+        if (reasoningBtn) reasoningBtn.classList.add('hidden');
+      } else {
+        const contentDiv = asstDiv.querySelector('.message-content');
+        if (contentDiv) {
+          const pulse = document.createElement('span');
+          pulse.className = 'gen-pulse';
+          contentDiv.appendChild(pulse);
+        }
       }
     }
 
@@ -100,6 +202,24 @@
         const messageId = json.message_id;
         const userMessageId = json.user_message_id;
 
+        if (userMessageId && !isRegen) {
+          const tempUserMsg = document.getElementById('temp-user-msg');
+          if (tempUserMsg) {
+            tempUserMsg.id = 'message-' + userMessageId;
+            tempUserMsg.dataset.messageId = userMessageId;
+          }
+        }
+
+        if (!asstDiv) {
+          const dataList = document.getElementById('message-list-data');
+          asstDiv = createAssistantSkeleton(
+            dataList ? dataList.getAttribute('data-char-name') : 'Assistant',
+            dataList ? dataList.getAttribute('data-char-image') : '',
+          );
+          asstDiv.id = 'streaming-message';
+          messageList.insertBefore(asstDiv, window.scrollSentinel);
+        }
+
         const contentDiv = asstDiv.querySelector('.message-content');
         if (contentDiv) {
           contentDiv.innerHTML = window.renderMessage(fullText);
@@ -142,10 +262,12 @@
             messageId = json.message_id;
             window._streamingMessageId = messageId;
             userMessageId = json.user_message_id;
-            if (json.user_message_id) {
-              const userDiv = asstDiv.previousElementSibling;
-              if (userDiv && userDiv.classList.contains('message')) {
-                userDiv.id = 'message-' + json.user_message_id;
+
+            if (userMessageId && !isRegen) {
+              const tempUserMsg = document.getElementById('temp-user-msg');
+              if (tempUserMsg) {
+                tempUserMsg.id = 'message-' + userMessageId;
+                tempUserMsg.dataset.messageId = userMessageId;
               }
             }
           } else if (json.token !== undefined) {
@@ -188,11 +310,7 @@
     } catch (err) {
       if (err.name !== 'AbortError') {
         window.showErrorToast(err.message);
-
-        if (asstDiv && asstDiv.parentNode) {
-          asstDiv.remove();
-        }
-
+        if (asstDiv && asstDiv.parentNode) asstDiv.remove();
         htmx.ajax('GET', window.api.partials.messageList(chatId), {
           target: '#message-list',
           swap: 'innerHTML',
@@ -208,6 +326,8 @@
         }
       } else if (messageId) {
         const partialText = fullText;
+        asstDiv.id = 'message-' + messageId;
+        asstDiv.dataset.messageId = messageId;
         await window.refreshMessagesAfterStream(chatId, userMessageId, messageId);
         if (partialText) {
           const restoredDiv = document.getElementById('message-' + messageId);
@@ -245,7 +365,7 @@
       const charName = dataList ? dataList.getAttribute('data-char-name') : 'Assistant';
       const charImagePath = dataList ? dataList.getAttribute('data-char-image') : '';
 
-      const asstDiv = window.createAssistantPlaceholderDiv(charName, charImagePath);
+      const asstDiv = createAssistantSkeleton(charName, charImagePath);
       messageList.insertBefore(asstDiv, window.scrollSentinel);
       asstDiv.scrollIntoView({ behavior: 'smooth' });
 
@@ -260,24 +380,22 @@
       return;
     }
 
-    const dataList = document.getElementById('message-list-data');
-    const personaName = dataList ? dataList.getAttribute('data-persona-name') || 'You' : 'You';
-    const personaAvatar = dataList ? dataList.getAttribute('data-persona-avatar') || '' : '';
+    const existingTemp = document.getElementById('temp-user-msg');
+    if (existingTemp) existingTemp.remove();
 
-    const userDiv = window.createUserMessageDiv(text, window.stagedFiles, personaName, personaAvatar);
+    const userDiv = createUserMessageDiv(text);
     messageList.insertBefore(userDiv, window.scrollSentinel);
+
+    const dataList = document.getElementById('message-list-data');
+    const charName = dataList ? dataList.getAttribute('data-char-name') : 'Assistant';
+    const charImagePath = dataList ? dataList.getAttribute('data-char-image') : '';
+    const asstDiv = createAssistantSkeleton(charName, charImagePath);
+    messageList.insertBefore(asstDiv, window.scrollSentinel);
 
     window._tempUserMessage = text;
 
     input.value = '';
     if (window.resizeTextarea) window.resizeTextarea(input);
-
-    const charName = dataList ? dataList.getAttribute('data-char-name') : 'Assistant';
-    const charImagePath = dataList ? dataList.getAttribute('data-char-image') : '';
-
-    const asstDiv = window.createAssistantPlaceholderDiv(charName, charImagePath);
-    messageList.insertBefore(asstDiv, window.scrollSentinel);
-    asstDiv.scrollIntoView({ behavior: 'smooth' });
 
     window.triggerGeneration(chatId, asstDiv, false);
   });
