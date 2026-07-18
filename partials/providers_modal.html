@@ -1,49 +1,132 @@
-<div class="grid gap-2 mb-4" style="grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));">
+<div class="grid gap-3 mb-5" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));">
   {% for prov in providers %}
-  <div class="p-3" style="background:var(--surface-2);border:1px solid var(--border);border-radius:8px;">
-    <div class="flex justify-between items-center mb-1">
-      <strong class="text-sm">{{ prov.name }}</strong>
-      <button class="btn btn-danger btn-sm" hx-delete="/api/providers/{{ prov.id }}" hx-confirm="Delete?" hx-target="closest div" hx-swap="delete">×</button>
+  <div class="provider-card card" id="prov-card-{{ prov.id }}" style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);">
+    <!-- Display State -->
+    <div id="prov-display-{{ prov.id }}" class="p-3 cursor-pointer h-full flex flex-col justify-center" onclick="selectProviderModal('{{ prov.id }}', '{{ prov.name }}')">
+      <div class="flex justify-between items-center mb-1">
+        <strong class="text-sm">{{ prov.name }}</strong>
+        <div class="flex gap-1" onclick="event.stopPropagation()">
+          <button class="btn btn-secondary btn-sm" onclick="toggleProviderEdit('{{ prov.id }}')">✎</button>
+          <button class="btn btn-danger btn-sm" hx-delete="/api/providers/{{ prov.id }}" hx-confirm="Delete?" hx-target="closest .provider-card" hx-swap="delete">×</button>
+        </div>
+      </div>
+      <div class="text-xs text-muted">{{ prov.type }} • {{ prov.model }}</div>
     </div>
-    <div class="text-xs text-muted">{{ prov.type }} • {{ prov.model }}</div>
+
+    <!-- Edit Form State (Expanded Grid) -->
+    <form id="provider-edit-{{ prov.id }}" class="hidden flex-col gap-4 w-full p-4" onsubmit="saveProviderModal(event, '{{ prov.id }}')">
+      <div class="grid gap-4" style="grid-template-columns: 1fr 1fr;">
+        <div class="form-group mb-0">
+          <label class="text-xs">Name</label>
+          <input type="text" name="name" value="{{ prov.name }}" class="text-sm" required>
+        </div>
+        <div class="form-group mb-0">
+          <label class="text-xs">Model</label>
+          <input type="text" name="model" value="{{ prov.model }}" class="text-sm" required>
+        </div>
+        <div class="form-group mb-0 col-span-full">
+          <label class="text-xs">Base URL</label>
+          <input type="text" name="base_url" value="{{ prov.base_url or '' }}" class="text-sm" placeholder="Base URL">
+        </div>
+        <div class="form-group mb-0">
+          <label class="text-xs">API Key</label>
+          <input type="password" name="api_key" value="" class="text-sm" placeholder="(blank = unchanged)">
+        </div>
+        <div class="form-group mb-0">
+          <label class="text-xs">Params JSON</label>
+          <input type="text" name="params" value="{{ prov.params_json or '{}' }}" class="text-sm">
+        </div>
+      </div>
+      <div class="flex gap-2 mt-1 justify-end pt-3" style="border-top: 1px solid var(--border);">
+        <button class="btn btn-secondary btn-sm" style="width: 100px;" type="button" onclick="toggleProviderEdit('{{ prov.id }}')">Cancel</button>
+        <button class="btn btn-primary btn-sm" style="width: 100px;" type="submit">Save</button>
+      </div>
+    </form>
   </div>
   {% endfor %}
 </div>
 
-<h3 class="sidebar-title mb-2">Add Provider</h3>
-<form onsubmit="submitProviderModal(event)" class="grid gap-2" style="grid-template-columns: 1fr 1fr;">
-  <div class="form-group">
-    <label>Name</label>
-    <input type="text" name="name" required>
+<div class="flex items-center gap-4 mb-3">
+  <div class="flex-1 h-px" style="background: var(--border);"></div>
+  <span class="text-xs text-muted font-bold tracking-wider uppercase">Add Provider</span>
+  <div class="flex-1 h-px" style="background: var(--border);"></div>
+</div>
+
+<form onsubmit="submitProviderModal(event)" class="flex flex-col gap-3">
+  <div class="grid gap-3" style="grid-template-columns: 1fr 1fr;">
+    <div class="form-group mb-0">
+      <label>Name</label>
+      <input type="text" name="name" required placeholder="e.g. Local LLM">
+    </div>
+    <div class="form-group mb-0">
+      <label>Type</label>
+      <select name="type">
+        <option value="openai_compat">OpenAI Compatible</option>
+        <option value="openrouter">OpenRouter</option>
+      </select>
+    </div>
   </div>
-  <div class="form-group">
-    <label>Type</label>
-    <select name="type">
-      <option value="openai_compat">OpenAI Compatible</option>
-      <option value="openrouter">OpenRouter</option>
-    </select>
-  </div>
-  <div class="form-group">
+  <div class="form-group mb-0">
     <label>Base URL</label>
     <input type="text" name="base_url" placeholder="https://api.example.com/v1">
   </div>
-  <div class="form-group">
-    <label>API Key</label>
-    <input type="password" name="api_key">
+  <div class="grid gap-3" style="grid-template-columns: 1fr 1fr;">
+    <div class="form-group mb-0">
+      <label>Model</label>
+      <input type="text" name="model" required placeholder="gpt-4">
+    </div>
+    <div class="form-group mb-0">
+      <label>API Key</label>
+      <input type="password" name="api_key" placeholder="sk-...">
+    </div>
   </div>
-  <div class="form-group">
-    <label>Model</label>
-    <input type="text" name="model" required placeholder="gpt-4">
-  </div>
-  <div class="form-group">
+  <div class="form-group mb-0">
     <label>Params JSON</label>
     <input type="text" name="params" value="{}" placeholder='{"key":"val"}'>
   </div>
-  <div class="col-span-full">
-    <button class="btn btn-primary">Add Provider</button>
-  </div>
+  <button class="btn btn-primary w-full mt-2">Create Provider</button>
 </form>
+
 <script>
+function selectProviderModal(id, name){
+  const select = document.getElementById('stream-provider');
+  if(select) select.value = id;
+  const sendBtn = document.getElementById('send-btn');
+  if(sendBtn) sendBtn.dataset.providerId = id;
+  if (window.saveSampler) {
+    window.saveSampler('pyvern-provider-id', id);
+  }
+  closeModal('modal-providers');
+}
+function toggleProviderEdit(id){
+  const card = document.getElementById('prov-card-' + id);
+  const form = document.getElementById('provider-edit-' + id);
+  const display = document.getElementById('prov-display-' + id);
+  if(form.classList.contains('hidden')){
+    card.classList.add('col-span-full');
+    form.classList.remove('hidden');
+    form.style.display = 'flex';
+    display.classList.add('hidden');
+  } else {
+    card.classList.remove('col-span-full');
+    form.classList.add('hidden');
+    form.style.display = 'none';
+    display.classList.remove('hidden');
+  }
+}
+function saveProviderModal(e, id){
+  e.preventDefault();
+  const data = Object.fromEntries(new FormData(e.target));
+  if(!data.api_key) delete data.api_key;
+  try { data.params = JSON.parse(data.params || '{}'); } catch(err){ data.params = {}; }
+  fetch('/api/providers/' + id, {
+    method: 'PATCH',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(data)
+  }).then(function(r){
+    if(r.ok) htmx.ajax('GET','/partials/providers-modal',{target:'#providers-modal-body',swap:'innerHTML'});
+  });
+}
 function submitProviderModal(e){
   e.preventDefault();
   const data = Object.fromEntries(new FormData(e.target));

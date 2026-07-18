@@ -81,6 +81,9 @@ async def chat_page(request: Request, chat_id: str, db: aiosqlite.Connection = D
             ) as cur:
                 preset_blocks = [dict(r) for r in await cur.fetchall()]
 
+    async with db.execute("SELECT * FROM presets ORDER BY created_at DESC") as cur:
+        presets = [dict(r) for r in await cur.fetchall()]
+
     async with db.execute("SELECT * FROM providers") as cur:
         providers = [dict(r) for r in await cur.fetchall()]
 
@@ -105,6 +108,7 @@ async def chat_page(request: Request, chat_id: str, db: aiosqlite.Connection = D
         "preset": preset,
         "preset_blocks": preset_blocks,
         "providers": providers,
+        "presets": presets,
         "chats": chats_sidebar,
         "current_character_id": chat.get("character_id"),
         "current_persona_id": chat.get("persona_id"),
@@ -303,6 +307,9 @@ async def prompt_arranger_partial(request: Request, preset_id: str, db: aiosqlit
 
 @router.get("/partials/sampler-modal", response_class=HTMLResponse)
 async def sampler_modal_partial(request: Request, db: aiosqlite.Connection = Depends(get_db)):
+    async with db.execute("SELECT * FROM presets ORDER BY created_at DESC") as cur:
+        presets = [dict(r) for r in await cur.fetchall()]
+
     async with db.execute("SELECT * FROM providers") as cur:
         providers = [dict(r) for r in await cur.fetchall()]
     return templates.TemplateResponse(request, "sampler_modal.html", {

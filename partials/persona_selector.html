@@ -4,6 +4,7 @@
   hx-vals='{"persona_id": "{{ p.id }}"}'
   hx-trigger="click"
   hx-swap="none"
+  onclick="if(window.CURRENT_CHAT_STATE) window.CURRENT_CHAT_STATE.persona_id = '{{ p.id }}'; document.querySelectorAll('#persona-selector .sidebar-item').forEach(el => el.classList.remove('active')); this.classList.add('active');"
 >
   <div class="avatar-thumb">
     {% if p.avatar_path %}

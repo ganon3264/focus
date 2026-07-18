@@ -6,7 +6,7 @@ import aiosqlite
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 
 from pyvern.database import get_db
-from pyvern.models import PresetCreate, PresetBlockCreate, PresetBlockBulkUpdate
+from pyvern.models import PresetCreate, PresetUpdate, PresetBlockCreate, PresetBlockBulkUpdate
 
 router = APIRouter()
 
@@ -47,11 +47,11 @@ async def create_preset(body: PresetCreate, db: aiosqlite.Connection = Depends(g
 
     # Seed with sensible default blocks
     defaults = [
-        (str(uuid.uuid4()), preset_id, "Char Description", "", "system", 1, 0.0, "char_description"),
-        (str(uuid.uuid4()), preset_id, "Char Personality",  "", "system", 1, 1.0, "char_personality"),
-        (str(uuid.uuid4()), preset_id, "Char Blocks",       "", "system", 1, 2.0, "char_blocks"),
-        (str(uuid.uuid4()), preset_id, "System Prompt",     "", "system", 1, 3.0, "text"),
-        (str(uuid.uuid4()), preset_id, "Chat History",      "", "system", 1, 4.0, "chat_history"),
+        (str(uuid.uuid4()), preset_id, "System Prompt", "A default system prompt (please replace it!)", "system", 1, 0.0, "text"),
+        (str(uuid.uuid4()), preset_id, "Char Description", "", "user", 1, 1.0, "char_description"),
+        (str(uuid.uuid4()), preset_id, "User Persona", "", "user", 1, 2.0, "user_persona"),
+        (str(uuid.uuid4()), preset_id, "Char Blocks", "", "system", 1, 3.0, "char_blocks"),
+        (str(uuid.uuid4()), preset_id, "Chat History", "", "system", 1, 4.0, "chat_history"),
     ]
     await db.executemany(
         "INSERT INTO preset_blocks (id, preset_id, name, content, role, enabled, position, block_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
@@ -84,6 +84,17 @@ async def get_preset(preset_id: str, db: aiosqlite.Connection = Depends(get_db))
     result["blocks"] = blocks
     return result
 
+@router.patch("/{preset_id}")
+async def update_preset(
+    preset_id: str,
+    body: PresetUpdate,
+    db: aiosqlite.Connection = Depends(get_db),
+):
+    await db.execute(
+        "UPDATE presets SET name = ? WHERE id = ?", (body.name, preset_id)
+    )
+    await db.commit()
+    return {"ok": True}
 
 @router.delete("/{preset_id}", status_code=204)
 async def delete_preset(preset_id: str, db: aiosqlite.Connection = Depends(get_db)):
@@ -123,23 +134,30 @@ async def replace_blocks(
     body: PresetBlockBulkUpdate,
     db: aiosqlite.Connection = Depends(get_db),
 ):
-    """
-    Replace all text blocks atomically. Sentinel blocks are untouched.
-    Used for drag-reorder saves.
-    """
-    await db.execute(
-        "DELETE FROM preset_blocks WHERE preset_id = ? AND block_type = 'text'", (preset_id,)
-    )
+    if not body.blocks:
+        return {"ok": True}
+
+    block_ids = [b["id"] for b in body.blocks]
+    placeholders = ",".join("?" * len(block_ids))
+
+    # Verify all blocks belong to this preset
+    async with db.execute(
+        f"SELECT id FROM preset_blocks WHERE id IN ({placeholders}) AND preset_id = ?",
+        (*block_ids, preset_id),
+    ) as cur:
+        found = {r["id"] for r in await cur.fetchall()}
+
+    missing = set(block_ids) - found
+    if missing:
+        raise HTTPException(400, detail=f"Blocks not found: {missing}")
+
+    # Update only positions — no delete, no insert
     for b in body.blocks:
-        bid = b.get("id") or str(uuid.uuid4())
         await db.execute(
-            """INSERT INTO preset_blocks
-               (id, preset_id, name, content, role, enabled, position, block_type)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-            (bid, preset_id, b["name"], b.get("content", ""),
-             b.get("role", "system"), int(b.get("enabled", True)),
-             b["position"], b.get("block_type", "text")),
+            "UPDATE preset_blocks SET position = ? WHERE id = ? AND preset_id = ?",
+            (b["position"], b["id"], preset_id),
         )
+
     await db.commit()
     return {"ok": True}
 

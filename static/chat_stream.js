@@ -177,7 +177,42 @@
       const raw = el.textContent || '';
       el.innerHTML = DOMPurify.sanitize(marked.parse(raw));
     });
+    
+    // Restore samplers & provider from localStorage
+    const savedProvider = localStorage.getItem('pyvern-provider-id');
+    if (savedProvider) {
+      const select = document.getElementById('stream-provider');
+      if (select && select.querySelector(`option[value="${savedProvider}"]`)) {
+        select.value = savedProvider;
+        const sendBtn = document.getElementById('send-btn');
+        if(sendBtn) sendBtn.dataset.providerId = savedProvider;
+      }
+    }
+    
+    const savedTemp = localStorage.getItem('pyvern-sampler-temp');
+    if (savedTemp) {
+      const el = document.getElementById('sampler-temp');
+      const valEl = document.getElementById('temp-val');
+      if (el) { el.value = savedTemp; if(valEl) valEl.textContent = savedTemp; }
+    }
+    
+    const savedTopP = localStorage.getItem('pyvern-sampler-top-p');
+    if (savedTopP) {
+      const el = document.getElementById('sampler-top-p');
+      const valEl = document.getElementById('top-p-val');
+      if (el) { el.value = savedTopP; if(valEl) valEl.textContent = savedTopP; }
+    }
+    
+    const savedMax = localStorage.getItem('pyvern-sampler-max-tokens');
+    if (savedMax) {
+      const el = document.getElementById('sampler-max-tokens');
+      if (el) el.value = savedMax;
+    }
   });
+
+  window.saveSampler = function(key, value) {
+    localStorage.setItem(key, value);
+  };
 
   document.body.addEventListener('htmx:afterSwap', function(evt){
     if(evt.detail.target.id === 'message-list'){

@@ -9,6 +9,32 @@
     {% include "prompt_block.html" %}
   {% endfor %}
 </div>
+<div class="arranger-add-buttons">
+  <button class="btn-tag" onclick="addBlock('{{ preset_id }}', 'text', this)">+ Text</button>
+  <button class="btn-tag" onclick="addBlock('{{ preset_id }}', 'char_description', this)">+ Char Desc</button>
+  <button class="btn-tag" onclick="addBlock('{{ preset_id }}', 'char_personality', this)">+ Personality</button>
+  <button class="btn-tag" onclick="addBlock('{{ preset_id }}', 'char_blocks', this)">+ Char Blocks</button>
+  <button class="btn-tag" onclick="addBlock('{{ preset_id }}', 'chat_history', this)">+ Chat History</button>
+  <button class="btn-tag" onclick="addBlock('{{ preset_id }}', 'user_persona', this)">+ User Persona</button>
+</div>
+
+<!-- Block Edit Modal -->
+<div id="block-edit-modal" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeBlockModal()">
+  <div class="modal-content" style="max-width:640px;width:90vw;">
+    <div class="modal-header">
+      <div class="modal-title">Edit Block Content</div>
+      <button class="btn btn-secondary" onclick="closeBlockModal()">×</button>
+    </div>
+    <div>
+      <textarea id="block-modal-textarea" rows="12" class="form-control h-full" style="resize:vertical; line-height:1.6;" placeholder="Enter block content…"></textarea>
+      <div class="flex justify-end gap-2 mt-3">
+        <button class="btn btn-secondary" onclick="closeBlockModal()">Cancel</button>
+        <button class="btn btn-primary" id="block-modal-save">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 (function(){
   const el = document.getElementById('arranger-list-{{ preset_id }}');
@@ -18,27 +44,66 @@
     animation: 150,
     ghostClass: 'sortable-ghost',
     onEnd: function(){
-      const ids = Array.from(el.children).map(function(c){ return c.dataset.blockId; });
-      const form = document.createElement('form');
-      ids.forEach(function(id, idx){
-        const inp = document.createElement('input');
-        inp.type = 'hidden'; inp.name = 'block_order'; inp.value = id;
-        form.appendChild(inp);
-      });
-      document.body.appendChild(form);
-      const evt = new Event('sortEnd');
-      el.dispatchEvent(evt);
-      // HTMX will pick up the trigger, but we need to include the inputs
-      // Use htmx.ajax directly for reliability
+      const ids = Array.from(el.children).map(function(c){ return c.dataset.blockId; }).filter(Boolean);
       const body = ids.map(function(id, idx){ return {id: id, position: idx}; });
-      fetch('/api/presets/{{ preset_id }}/blocks', {
+      fetch('/api/presets/' + '{{ preset_id }}' + '/blocks', {
         method: 'PUT',
         headers: {'Content-Type':'application/json'},
         body: JSON.stringify({blocks: body})
       }).then(function(){
-        htmx.ajax('GET', '/partials/prompt-arranger/{{ preset_id }}', {target:'#prompt-arranger', swap:'innerHTML'});
+        const container = el.parentElement;
+        if(container && container.id){
+          htmx.ajax('GET', '/partials/prompt-arranger/{{ preset_id }}', {target: '#' + container.id, swap:'innerHTML'});
+        }
       });
     }
   });
 })();
+
+function addBlock(pid, type, btn){
+  if(!pid) return;
+  type = type || 'text';
+  fetch('/api/presets/' + pid + '/blocks', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({name: type, block_type: type, content: '', role: 'system'})
+  }).then(function(){
+    const list = btn.closest('.arranger-list') || document.getElementById('arranger-list-' + pid);
+    const container = list ? list.parentElement : null;
+    if(container && container.id){
+      htmx.ajax('GET', '/partials/prompt-arranger/' + pid, {target: '#' + container.id, swap:'innerHTML'});
+    }
+  });
+}
+
+var _currentBlockId = null;
+var _currentPresetId = null;
+
+function openBlockModal(blockId, presetId){
+  _currentBlockId = blockId;
+  _currentPresetId = presetId;
+  const item = document.querySelector('.arranger-item[data-block-id="' + blockId + '"]');
+  const content = item ? (item.dataset.blockContent || '') : '';
+  document.getElementById('block-modal-textarea').value = content;
+  document.getElementById('block-edit-modal').style.display = 'grid';
+}
+
+function closeBlockModal(){
+  document.getElementById('block-edit-modal').style.display = 'none';
+  _currentBlockId = null;
+  _currentPresetId = null;
+}
+
+document.getElementById('block-modal-save').addEventListener('click', function(){
+  if(!_currentBlockId || !_currentPresetId) return;
+  var text = document.getElementById('block-modal-textarea').value;
+  fetch('/api/presets/' + _currentPresetId + '/blocks/' + _currentBlockId, {
+    method: 'PATCH',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({content: text})
+  }).then(function(){
+    closeBlockModal();
+    htmx.ajax('GET', '/partials/prompt-arranger/' + _currentPresetId, {target: '#prompt-arranger', swap:'innerHTML'});
+  });
+});
 </script>

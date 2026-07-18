@@ -1,5 +1,29 @@
 {% for chat in chats %}
-<a href="/chat/{{ chat.id }}" class="sidebar-item {% if current_chat_id == chat.id %}active{% endif %}">
-  <div class="truncate text-sm">{{ chat.title }}</div>
-</a>
+<div class="sidebar-item group {% if current_chat_id == chat.id %}active{% endif %}" data-chat-id="{{ chat.id }}">
+  <a href="/chat/{{ chat.id }}" class="min-w-0 flex-1 flex flex-col justify-center">
+    <span class="truncate font-bold text-sm leading-tight mb-1">{{ chat.title }}</span>
+    <span class="text-xs text-muted">{{ chat.updated_at[:10] }}</span>
+  </a>
+  <button class="btn btn-danger action-btn" style="opacity: 0; position: absolute; right: 0.5rem;" onclick="event.preventDefault(); deleteChat('{{ chat.id }}', this)" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0'">×</button>
+</div>
 {% endfor %}
+<style>
+.sidebar-item:hover .action-btn { opacity: 1 !important; }
+</style>
+<script>
+function deleteChat(chatId, btn){
+  if(!confirm('Delete this chat?')) return;
+  fetch('/api/chats/' + chatId, {method: 'DELETE'})
+    .then(function(r){
+      if(!r.ok) throw new Error('Failed to delete chat');
+      const row = btn.closest('.sidebar-item');
+      if(row) row.remove();
+      const currentChatId = '{{ current_chat_id }}';
+      if(chatId === currentChatId){
+        window.location.href = '/chat';
+      }
+    }).catch(function(e){
+      alert(e.message);
+    });
+}
+</script>

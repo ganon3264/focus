@@ -90,6 +90,9 @@ SENTINEL_TYPES = {
 class PresetCreate(BaseModel):
     name: str
 
+class PresetUpdate(BaseModel):
+    name: str
+
 class PresetBlockCreate(BaseModel):
     name: str
     content: str = ""

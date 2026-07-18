@@ -1,14 +1,16 @@
-<div class="arranger-item" data-block-id="{{ block.id }}">
+<div class="arranger-item {% if not block.enabled %}disabled{% endif %}" data-block-id="{{ block.id }}" data-block-content="{{ block.content | replace('"', '&quot;') }}">
   <div class="arranger-header">
-    <div class="flex items-center gap-2">
-      <span class="arranger-type">{{ block.block_type }}</span>
-      <span class="arranger-name">{{ block.name }}</span>
+    <div class="arranger-title-group">
+      <span class="arranger-badge badge-{{ block.block_type }}">{{ block.block_type | replace('_', ' ') }}</span>
+      <input type="text" class="arranger-input" value="{{ block.name }}"
+        onchange="fetch('/api/presets/{{ preset_id }}/blocks/{{ block.id }}', {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name:this.value})})"
+      >
     </div>
-    <div class="flex gap-1">
-      <button class="btn btn-secondary btn-sm" title="Toggle"
+    <div class="arranger-actions">
+      <button class="action-icon {% if block.enabled %}active{% endif %}" title="Toggle"
         onclick="fetch('/api/presets/{{ preset_id }}/blocks/{{ block.id }}', {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({enabled:{{ 0 if block.enabled else 1 }}})}).then(()=>htmx.ajax('GET','/partials/prompt-arranger/{{ preset_id }}',{target:'#prompt-arranger',swap:'innerHTML'}))"
       >{{ '✓' if block.enabled else '○' }}</button>
-      <button class="btn btn-danger btn-sm" title="Delete"
+      <button class="action-icon danger" title="Delete"
         hx-delete="/api/presets/{{ preset_id }}/blocks/{{ block.id }}"
         hx-target="#prompt-arranger"
         hx-swap="innerHTML"
@@ -17,16 +19,41 @@
       >×</button>
     </div>
   </div>
-  <div class="flex gap-2 items-start">
-    <select class="text-xs" style="background:var(--surface-3);border:1px solid var(--border);color:var(--text);border-radius:4px;padding:0.2rem;"
+
+  {% if block.block_type == 'text' %}
+  <div class="arranger-body">
+    <select class="arranger-select"
       onchange="fetch('/api/presets/{{ preset_id }}/blocks/{{ block.id }}', {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({role:this.value})})"
     >
       <option value="system" {% if block.role == 'system' %}selected{% endif %}>system</option>
       <option value="user" {% if block.role == 'user' %}selected{% endif %}>user</option>
       <option value="assistant" {% if block.role == 'assistant' %}selected{% endif %}>assistant</option>
     </select>
-    <textarea class="flex-1 text-sm" rows="2" placeholder="Content"
-      onchange="fetch('/api/presets/{{ preset_id }}/blocks/{{ block.id }}', {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({content:this.value})})"
-    >{{ block.content }}</textarea>
+    <div class="block-preview" onclick="openBlockModal('{{ block.id }}', '{{ preset_id }}')">
+      {% if block.content %}{{ block.content[:80] }}{% if block.content | length > 80 %}…{% endif %}{% else %}<em class="empty-text">Empty — click to edit</em>{% endif %}
+    </div>
   </div>
+
+  {% elif block.block_type == 'char_blocks' %}
+  <div class="arranger-body">
+    <span class="arranger-note">Character custom blocks are injected automatically</span>
+  </div>
+
+  {% else %}
+  <div class="arranger-body">
+    <select class="arranger-select"
+      onchange="fetch('/api/presets/{{ preset_id }}/blocks/{{ block.id }}', {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({role:this.value})})"
+    >
+      <option value="system" {% if block.role == 'system' %}selected{% endif %}>system</option>
+      <option value="user" {% if block.role == 'user' %}selected{% endif %}>user</option>
+      <option value="assistant" {% if block.role == 'assistant' %}selected{% endif %}>assistant</option>
+    </select>
+    <span class="arranger-note">
+      {% if block.block_type == 'char_description' %}Character description is injected automatically{% endif %}
+      {% if block.block_type == 'char_personality' %}Character personality is injected automatically{% endif %}
+      {% if block.block_type == 'chat_history' %}Chat messages are inserted at this position{% endif %}
+      {% if block.block_type == 'user_persona' %}User persona description is injected automatically{% endif %}
+    </span>
+  </div>
+  {% endif %}
 </div>

@@ -18,18 +18,17 @@
             {% include "prompt_arranger.html" %}
           {% endwith %}
         {% else %}
-          <div class="text-muted text-sm p-2">Select a preset to edit blocks.</div>
+          <div class="text-muted text-sm mt-2">Select a preset to edit blocks.</div>
         {% endif %}
       </div>
     </div>
     <div class="sidebar-section">
       <div class="sidebar-title">Tools</div>
-      <div class="flex flex-col gap-2">
-        <button class="btn btn-secondary w-full" onclick="openModal('modal-sampler')">Samplers</button>
-        <button class="btn btn-secondary w-full" onclick="openModal('modal-characters')">Characters</button>
-        <button class="btn btn-secondary w-full" onclick="openModal('modal-personas')">Personas</button>
-        <button class="btn btn-secondary w-full" onclick="openModal('modal-presets')">Presets</button>
-        <button class="btn btn-secondary w-full" onclick="openModal('modal-providers')">Providers</button>
+      <div class="grid-cols-2">
+        <button class="btn btn-secondary w-full text-xs" onclick="openModal('modal-sampler')">Samplers</button>
+        <button class="btn btn-secondary w-full text-xs" onclick="openModal('modal-characters')">Characters</button>
+        <button class="btn btn-secondary w-full text-xs" onclick="openModal('modal-personas')">Personas</button>
+        <button class="btn btn-secondary w-full text-xs" onclick="openModal('modal-providers')">Providers</button>
       </div>
     </div>
   </aside>
@@ -42,23 +41,26 @@
       </div>
     </div>
     <div class="input-bar">
-      <textarea id="chat-input" rows="1" placeholder="Type a message…" onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();document.getElementById('send-btn').click()}"></textarea>
-      <button id="send-btn" class="send-btn" data-chat-id="{{ chat_id }}" data-provider-id="{{ providers[0].id if providers else '' }}">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22,2 15,22 11,13 2,9 22,2"></polygon></svg>
-      </button>
-      <button id="stop-btn" class="send-btn stop-btn hidden">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12"></rect></svg>
-      </button>
+      <div class="input-wrapper">
+        <textarea id="chat-input" rows="1" placeholder="Type a message…" onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();document.getElementById('send-btn').click()}"></textarea>
+        <button id="send-btn" class="send-btn" data-chat-id="{{ chat_id }}" data-provider-id="{{ providers[0].id if providers else '' }}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22,2 15,22 11,13 2,9 22,2"></polygon></svg>
+        </button>
+        <button id="stop-btn" class="send-btn stop-btn hidden">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12"></rect></svg>
+        </button>
+      </div>
     </div>
   </main>
 
-  <!-- Right Sidebar (chats only, collapsible) -->
+  <!-- Right Sidebar -->
   <aside class="right-sidebar" id="right-sidebar">
     <div class="sidebar-section flex-1 overflow-auto">
       <div class="sidebar-title flex justify-between items-center">
         <span>Chats</span>
-        <button class="btn btn-secondary btn-sm" onclick="toggleRightBar()" title="Collapse">→</button>
+        <button class="action-icon" onclick="toggleRightBar()" title="Collapse" style="margin-top: -0.3rem;">→</button>
       </div>
+      <button class="btn btn-primary btn-sm w-full mb-3 mt-1" onclick="newChat()">+ New Chat</button>
       <div id="chat-list" class="sidebar-list">
         {% include "chat_list.html" %}
       </div>
@@ -67,11 +69,11 @@
 
   <!-- Collapsed right tab -->
   <div id="right-tab" class="right-tab hidden" onclick="toggleRightBar()">
-    <div class="sidebar-title" style="writing-mode: vertical-rl; padding: 0.5rem 0; cursor: pointer;">Chats →</div>
+    <div class="sidebar-title" style="writing-mode: vertical-rl; padding: 0.5rem 0; cursor: pointer; color: var(--text);">Chats →</div>
   </div>
 </div>
 
-<!-- MODALS -->
+<!-- MAIN MODALS -->
 <div id="modal-sampler" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeModal('modal-sampler')">
   <div class="modal-content" style="max-width:420px;">
     <div class="modal-header"><div class="modal-title">Generation Parameters</div><button class="btn btn-secondary" onclick="closeModal('modal-sampler')">×</button></div>
@@ -80,23 +82,16 @@
 </div>
 
 <div id="modal-characters" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeModal('modal-characters')">
-  <div class="modal-content" style="max-width:640px;">
+  <div class="modal-content" style="max-width:760px;">
     <div class="modal-header"><div class="modal-title">Characters</div><button class="btn btn-secondary" onclick="closeModal('modal-characters')">×</button></div>
     <div id="characters-modal-body">Loading…</div>
   </div>
 </div>
 
 <div id="modal-personas" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeModal('modal-personas')">
-  <div class="modal-content" style="max-width:480px;">
+  <div class="modal-content" style="max-width:540px;">
     <div class="modal-header"><div class="modal-title">Personas</div><button class="btn btn-secondary" onclick="closeModal('modal-personas')">×</button></div>
     <div id="personas-modal-body">Loading…</div>
-  </div>
-</div>
-
-<div id="modal-presets" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeModal('modal-presets')">
-  <div class="modal-content" style="max-width:700px;max-height:85vh;">
-    <div class="modal-header"><div class="modal-title">Presets</div><button class="btn btn-secondary" onclick="closeModal('modal-presets')">×</button></div>
-    <div id="presets-modal-body">Loading…</div>
   </div>
 </div>
 
@@ -107,14 +102,36 @@
   </div>
 </div>
 
+<!-- TEXT EXPANDER MODAL -->
+<div id="modal-text-expander" class="modal-overlay" style="display:none; z-index: 999;" onclick="if(event.target===this)closeTextExpander()">
+  <div class="modal-content" style="max-width: 800px; width: 95vw; height: 85vh; display: flex; flex-direction: column;">
+    <div class="modal-header" style="margin-bottom: 1rem;">
+      <div class="modal-title" id="text-expander-title">Edit Text</div>
+      <button class="btn btn-secondary" onclick="closeTextExpander()">×</button>
+    </div>
+    <textarea id="text-expander-input" class="form-control w-full flex-1" style="resize:none; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);"></textarea>
+    <div class="flex justify-end gap-3 mt-4">
+      <button class="btn btn-secondary" onclick="closeTextExpander()" style="min-width: 100px;">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTextExpander()" style="min-width: 100px;">Save</button>
+    </div>
+  </div>
+</div>
+
 <script>
+// Expose current chat state globally for modals to inherit
+window.CURRENT_CHAT_STATE = {
+  character_id: '{{ current_character_id or "" }}',
+  persona_id: '{{ current_persona_id or "" }}',
+  preset_id: '{{ current_preset_id or "" }}'
+};
+
+/* Modal logic */
 function openModal(id){
   document.getElementById(id).style.display = 'grid';
   const body = document.getElementById(id).querySelector('.modal-content > div:last-child');
   if(body && body.textContent === 'Loading…'){
     if(id === 'modal-characters') htmx.ajax('GET','/partials/characters-modal',{target:'#characters-modal-body',swap:'innerHTML'});
     if(id === 'modal-personas') htmx.ajax('GET','/partials/personas-modal',{target:'#personas-modal-body',swap:'innerHTML'});
-    if(id === 'modal-presets') htmx.ajax('GET','/partials/presets-modal',{target:'#presets-modal-body',swap:'innerHTML'});
     if(id === 'modal-providers') htmx.ajax('GET','/partials/providers-modal',{target:'#providers-modal-body',swap:'innerHTML'});
   }
 }
@@ -122,6 +139,45 @@ function closeModal(id){ document.getElementById(id).style.display = 'none'; }
 function toggleRightBar(){
   document.getElementById('right-sidebar').classList.toggle('hidden');
   document.getElementById('right-tab').classList.toggle('hidden');
+}
+
+/* Text Expander Logic */
+let _expanderTarget = null;
+function openTextExpander(targetEl, title) {
+  _expanderTarget = targetEl;
+  document.getElementById('text-expander-title').innerText = title || 'Edit Text';
+  document.getElementById('text-expander-input').value = targetEl.value;
+  document.getElementById('modal-text-expander').style.display = 'grid';
+  document.getElementById('text-expander-input').focus();
+}
+function closeTextExpander() {
+  document.getElementById('modal-text-expander').style.display = 'none';
+  _expanderTarget = null;
+}
+function saveTextExpander() {
+  if (_expanderTarget) {
+    _expanderTarget.value = document.getElementById('text-expander-input').value;
+  }
+  closeTextExpander();
+}
+
+document.addEventListener('DOMContentLoaded', function(){
+  const presetSelect = document.querySelector('#preset-selector select');
+  if(presetSelect && presetSelect.value){
+    htmx.ajax('GET', '/partials/prompt-arranger/' + presetSelect.value, {target:'#prompt-arranger', swap:'innerHTML'});
+  }
+});
+function newChat(){
+  fetch('/api/chats', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(window.CURRENT_CHAT_STATE)
+  }).then(r => {
+    if(!r.ok) throw new Error('Failed to create chat');
+    return r.json();
+  }).then(data => {
+    window.location.href = '/chat/' + data.id;
+  }).catch(e => alert(e.message));
 }
 </script>
 {% endblock %}

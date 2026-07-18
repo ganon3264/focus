@@ -1,7 +1,5 @@
 {% for char in characters %}
-<div class="sidebar-item {% if current_character_id == char.id %}active{% endif %}"
-  hx-patch="/api/chats/{{ chat_id }}"
-  hx-vals='{"character_id": "{{ char.id }}"}'
+<div class="sidebar-item char-selector-item {% if current_character_id == char.id %}active{% endif %}" data-char-id="{{ char.id }}"
   hx-trigger="click"
   hx-swap="none"
   onclick="htmx.ajax('GET', '/partials/chat-list?character_id={{ char.id }}&current_chat_id={{ chat_id }}', {target:'#chat-list', swap:'innerHTML'})"

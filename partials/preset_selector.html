@@ -1,29 +1,59 @@
-<div class="flex flex-col gap-1">
-  <select class="text-sm" style="background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:0.4rem;"
+<div class="flex flex-col gap-2">
+  <select class="form-control"
     hx-patch="/api/chats/{{ chat_id }}"
     hx-vals='{"preset_id": this.value}'
     hx-trigger="change"
     hx-swap="none"
-    onchange="htmx.ajax('GET', '/partials/prompt-arranger/' + this.value, {target:'#prompt-arranger', swap:'innerHTML'})"
+    onchange="if(window.CURRENT_CHAT_STATE) window.CURRENT_CHAT_STATE.preset_id = this.value; htmx.ajax('GET', '/partials/prompt-arranger/' + this.value, {target:'#prompt-arranger', swap:'innerHTML'})"
   >
     <option value="">— Select Preset —</option>
     {% for p in presets %}
     <option value="{{ p.id }}" {% if current_preset_id == p.id %}selected{% endif %}>{{ p.name }}</option>
     {% endfor %}
   </select>
-  <div class="flex gap-2 mt-1">
+  <div class="flex gap-2">
     <button class="btn btn-secondary btn-sm flex-1"
       hx-post="/api/presets"
       hx-vals='{"name":"New Preset"}'
       hx-swap="none"
       hx-on::after-request="window.location.reload()"
     >New</button>
-    <button class="btn btn-danger btn-sm"
-      hx-delete="/api/presets/{{ current_preset_id }}"
-      hx-confirm="Delete this preset?"
-      hx-swap="none"
-      hx-on::after-request="window.location.reload()"
+    <button class="btn btn-secondary btn-sm flex-1"
+      onclick="renamePreset(this)"
       {% if not current_preset_id %}disabled{% endif %}
-    >Del</button>
+    >✎ Edit</button>
+    <button class="btn btn-danger btn-sm"
+      onclick="deletePreset(this)"
+      {% if not current_preset_id %}disabled{% endif %}
+    >×</button>
   </div>
 </div>
+<script>
+function renamePreset(btn){
+  const select = btn.closest('.flex-col').querySelector('select');
+  const pid = select ? select.value : '';
+  if(!pid) return;
+  const currentName = select.options[select.selectedIndex].text;
+  const newName = prompt('Enter new preset name:', currentName);
+  if(!newName || newName === currentName) return;
+  fetch('/api/presets/' + pid, {
+    method: 'PATCH',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({name: newName})
+  }).then(function(r){
+    if(r.ok) window.location.reload();
+    else alert('Failed to rename preset');
+  });
+}
+function deletePreset(btn){
+  const select = btn.closest('.flex-col').querySelector('select');
+  const pid = select ? select.value : '';
+  if(!pid) return;
+  if(!confirm('Delete this preset?')) return;
+  fetch('/api/presets/' + pid, {method: 'DELETE'})
+    .then(function(r){
+      if(r.ok) window.location.reload();
+      else alert('Failed to delete preset');
+    });
+}
+</script>

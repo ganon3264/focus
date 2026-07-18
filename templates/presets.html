@@ -34,14 +34,6 @@
           <div class="text-muted">No presets. Create one to start.</div>
         {% endif %}
       </div>
-      <div class="flex gap-2 flex-wrap" x-show="activePreset" x-cloak style="display:none;">
-        <button class="btn btn-secondary btn-sm" @click="addPresetBlock(activePreset, 'text')">+ Text</button>
-        <button class="btn btn-secondary btn-sm" @click="addPresetBlock(activePreset, 'char_description')">+ Char Description</button>
-        <button class="btn btn-secondary btn-sm" @click="addPresetBlock(activePreset, 'char_personality')">+ Char Personality</button>
-        <button class="btn btn-secondary btn-sm" @click="addPresetBlock(activePreset, 'char_blocks')">+ Char Blocks</button>
-        <button class="btn btn-secondary btn-sm" @click="addPresetBlock(activePreset, 'chat_history')">+ Chat History</button>
-        <button class="btn btn-secondary btn-sm" @click="addPresetBlock(activePreset, 'user_persona')">+ User Persona</button>
-      </div>
     </div>
   </div>
 </div>
@@ -54,17 +46,6 @@ function createPreset(e){
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify(data)
   }).then(function(){ window.location.reload(); });
-}
-function addPresetBlock(pid, type){
-  if(!pid) return;
-  type = type || 'text';
-  fetch('/api/presets/' + pid + '/blocks', {
-    method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({name: type, block_type: type, content: '', role: 'system'})
-  }).then(function(){
-    htmx.ajax('GET', '/partials/prompt-arranger/' + pid, {target:'#preset-editor', swap:'innerHTML'});
-  });
 }
 </script>
 {% endblock %}

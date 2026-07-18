@@ -1,38 +1,113 @@
-<div class="mb-3">
-  <form hx-post="/api/characters/import" hx-encoding="multipart/form-data" hx-target="#char-modal-grid" hx-swap="beforeend" style="display:inline;">
-    <label class="btn btn-primary btn-sm" style="cursor:pointer">
-      Import PNG
-      <input type="file" name="file" accept="image/png" class="hidden" onchange="this.closest('form').requestSubmit()">
-    </label>
+<div class="mb-5 flex flex-col gap-3">
+  <div class="flex gap-2 h-10">
+    <form hx-post="/api/characters/import" hx-encoding="multipart/form-data" hx-target="#char-modal-grid" hx-swap="beforeend" class="flex-1 h-full">
+      <label class="btn btn-secondary btn-sm w-full h-full flex items-center justify-center cursor-pointer m-0">
+        Import PNG Card
+        <input type="file" name="file" accept="image/png" class="hidden" onchange="this.closest('form').requestSubmit()">
+      </label>
+    </form>
+    <a href="/characters" class="btn btn-secondary btn-sm flex-1 flex items-center justify-center h-full text-decoration-none">Advanced Editor</a>
+  </div>
+  <form onsubmit="createCharModal(event)" class="flex gap-2">
+    <input type="text" name="name" placeholder="New character name" required class="text-sm flex-1" style="background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-md);padding:0.5rem 0.75rem;">
+    <button class="btn btn-primary btn-sm">Create Empty</button>
   </form>
 </div>
-<div class="grid" id="char-modal-grid" style="grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 1rem;">
+
+<div class="grid" id="char-modal-grid" style="grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 1rem;">
   {% for char in characters %}
-  <div class="card" style="cursor:pointer;" onclick="selectCharModal('{{ char.id }}', '{{ char.name }}')">
-    <div class="card-image" style="aspect-ratio: 1/1; border-radius: 10px;">
-      {% if char.image_path %}
-        <img src="/{{ char.image_path }}" alt="" style="border-radius: 10px;">
-      {% else %}
-        <span class="text-2xl">{{ char.name[:1] }}</span>
-      {% endif %}
+  <div class="card" style="position:relative;">
+    <!-- Display State -->
+    <div id="char-display-{{ char.id }}" class="h-full flex flex-col">
+      <div class="card-image" style="aspect-ratio: 1/1; border-radius: 12px 12px 0 0; cursor:pointer;" onclick="selectCharModal('{{ char.id }}', '{{ char.name }}')">
+        {% if char.image_path %}
+          <img src="/{{ char.image_path }}" alt="" style="border-radius: 12px 12px 0 0;">
+        {% else %}
+          <span class="text-3xl">{{ char.name[:1] }}</span>
+        {% endif %}
+      </div>
+      <div class="card-body" style="padding: 0.75rem;">
+        <div class="font-bold text-sm truncate mb-1">{{ char.name }}</div>
+        <div class="text-xs text-muted truncate mb-2">{{ char.card.get('description','')[:40] or 'No details' }}</div>
+        <div class="flex gap-1 mt-auto">
+          <button class="btn btn-secondary btn-sm flex-1" onclick="event.stopPropagation(); toggleCharEdit('{{ char.id }}')">✎</button>
+          <button class="btn btn-danger btn-sm" hx-delete="/api/characters/{{ char.id }}" hx-confirm="Delete character?" hx-target="closest .card" hx-swap="delete" onclick="event.stopPropagation()">×</button>
+        </div>
+      </div>
     </div>
-    <div class="card-body" style="padding: 0.5rem;">
-      <div class="font-bold text-sm truncate">{{ char.name }}</div>
-    </div>
+
+    <!-- Edit Form State -->
+    <form id="char-edit-{{ char.id }}" class="hidden flex-col gap-2 h-full" style="padding: 0.75rem;" onsubmit="saveCharModal(event, '{{ char.id }}')">
+      <div class="form-group mb-0">
+        <label class="text-xs">Name</label>
+        <input type="text" name="name" value="{{ char.name }}" class="text-sm w-full" required>
+      </div>
+      <div class="form-group mb-0 flex-1">
+        <label class="text-xs">Description</label>
+        <textarea name="description" rows="2" class="text-sm w-full" placeholder="Description">{{ char.card.get('description','') }}</textarea>
+      </div>
+      <div class="form-group mb-0 flex-1">
+        <label class="text-xs">Personality</label>
+        <textarea name="personality" rows="2" class="text-sm w-full" placeholder="Personality">{{ char.card.get('personality','') }}</textarea>
+      </div>
+      <div class="flex gap-1 mt-auto pt-2">
+        <button class="btn btn-primary btn-sm flex-1" type="submit">Save</button>
+        <button class="btn btn-secondary btn-sm flex-1" type="button" onclick="toggleCharEdit('{{ char.id }}')">Cancel</button>
+      </div>
+    </form>
   </div>
   {% endfor %}
 </div>
+
 <script>
 function selectCharModal(charId, charName){
-  const chatId = document.getElementById('send-btn').dataset.chatId;
-  fetch('/api/chats/' + chatId, {
+  const payload = window.CURRENT_CHAT_STATE ? { ...window.CURRENT_CHAT_STATE, character_id: charId } : { character_id: charId };
+  fetch('/api/chats', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(payload)
+  }).then(function(r){
+    if(!r.ok) throw new Error('Failed to create chat');
+    return r.json();
+  }).then(function(data){
+    window.location.href = '/chat/' + data.id;
+  }).catch(function(e){
+    alert(e.message);
+  });
+}
+function createCharModal(e){
+  e.preventDefault();
+  const data = Object.fromEntries(new FormData(e.target));
+  fetch('/api/characters', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(data)
+  }).then(function(r){
+    if(r.ok) htmx.ajax('GET','/partials/characters-modal',{target:'#characters-modal-body',swap:'innerHTML'});
+  });
+}
+function toggleCharEdit(id){
+  const form = document.getElementById('char-edit-' + id);
+  const display = document.getElementById('char-display-' + id);
+  if(form.classList.contains('hidden')){
+    form.classList.remove('hidden');
+    form.style.display = 'flex';
+    display.classList.add('hidden');
+  } else {
+    form.classList.add('hidden');
+    form.style.display = 'none';
+    display.classList.remove('hidden');
+  }
+}
+function saveCharModal(e, id){
+  e.preventDefault();
+  const data = Object.fromEntries(new FormData(e.target));
+  fetch('/api/characters/' + id, {
     method: 'PATCH',
     headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({character_id: charId})
-  }).then(function(){
-    // Refresh chat list for new character
-    htmx.ajax('GET', '/partials/chat-list?character_id=' + charId + '&current_chat_id=' + chatId, {target:'#chat-list', swap:'innerHTML'});
-    closeModal('modal-characters');
+    body: JSON.stringify(data)
+  }).then(function(r){
+    if(r.ok) htmx.ajax('GET','/partials/characters-modal',{target:'#characters-modal-body',swap:'innerHTML'});
   });
 }
 </script>
