@@ -10,10 +10,10 @@ class BaseProvider(ABC):
         self.params = params  # stored defaults (top_p, rep_pen, etc.)
 
     def _build_headers(self) -> dict:
-        return {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.api_key}",
-        }
+        headers = {"Content-Type": "application/json"}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+        return headers
 
     @abstractmethod
     async def stream_complete(

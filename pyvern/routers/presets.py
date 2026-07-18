@@ -79,13 +79,15 @@ async def add_block(
     db: aiosqlite.Connection = Depends(get_db),
 ):
     block_id = str(uuid.uuid4())
+    # Treat blank or obviously-invalid character_id as NULL
+    char_id = body.character_id if body.character_id and len(body.character_id) == 36 else None
     await db.execute(
         """INSERT INTO preset_blocks
            (id, preset_id, name, content, role, enabled, position, is_sentinel, source, character_id)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (block_id, preset_id, body.name, body.content, body.role,
          int(body.enabled), body.position, int(body.is_sentinel),
-         body.source, body.character_id),
+         body.source, char_id),
     )
     await db.commit()
     return {"id": block_id}

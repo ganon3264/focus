@@ -1,10 +1,22 @@
-import json
-import httpx
 from typing import AsyncIterator
+
+from openai import AsyncOpenAI
+
 from .base import BaseProvider
 
 
 class OpenAICompatProvider(BaseProvider):
+
+    def _get_client(self) -> AsyncOpenAI:
+        return AsyncOpenAI(
+            base_url=self.base_url or "http://localhost:8080/v1",
+            api_key=self.api_key or "no-key",
+            timeout=120.0,
+            default_headers=self._extra_headers(),
+        )
+
+    def _extra_headers(self) -> dict:
+        return {}
 
     async def stream_complete(
         self,
@@ -13,32 +25,18 @@ class OpenAICompatProvider(BaseProvider):
         temperature: float = 1.0,
         **kwargs,
     ) -> AsyncIterator[str]:
-        url = f"{self.base_url}/chat/completions"
-        payload = {
-            "model": self.model,
-            "messages": messages,
-            "max_tokens": max_tokens,
-            "temperature": temperature,
-            "stream": True,
-            **self.params,   # stored defaults first
-            **kwargs,        # per-request overrides win
-        }
+        merged = {**self.params, **kwargs}  # stored defaults, per-request wins
 
-        async with httpx.AsyncClient(timeout=120.0) as client:
-            async with client.stream(
-                "POST", url, headers=self._build_headers(), json=payload
-            ) as resp:
-                resp.raise_for_status()
-                async for line in resp.aiter_lines():
-                    if not line.startswith("data: "):
-                        continue
-                    raw = line[6:]
-                    if raw.strip() == "[DONE]":
-                        break
-                    try:
-                        chunk = json.loads(raw)
-                        delta = chunk["choices"][0]["delta"].get("content") or ""
-                        if delta:
-                            yield delta
-                    except (json.JSONDecodeError, KeyError, IndexError):
-                        continue
+        async with self._get_client() as client:
+            stream = await client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                stream=True,
+                **merged,
+            )
+            async for chunk in stream:
+                delta = chunk.choices[0].delta.content
+                if delta:
+                    yield delta
