@@ -88,43 +88,11 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
             raise HTTPException(500, str(e) or repr(e))
 
         full = "".join(collected)
-        save_now = now_iso()
-        new_variant_id = str(uuid.uuid4())
 
         try:
-            async with aiosqlite.connect(DB_PATH) as save_db:
-                await save_db.execute("PRAGMA foreign_keys=ON")
-                await save_db.execute(
-                    "INSERT INTO message_variants (id, message_id, variant_index, content, created_at) VALUES (?, ?, ?, ?, ?)",
-                    (new_variant_id, final_asst_msg_id, next_variant_index, full, save_now),
-                )
-
-                if body.regenerate and next_variant_index > 0:
-                    async with save_db.execute(
-                        "SELECT active_index FROM messages WHERE id = ?", (final_asst_msg_id,)
-                    ) as cur:
-                        row = await cur.fetchone()
-                        if row:
-                            async with save_db.execute(
-                                "SELECT * FROM message_attachments WHERE variant_id = (SELECT id FROM message_variants WHERE message_id = ? AND variant_index = ?) ORDER BY created_at",
-                                (final_asst_msg_id, row[0])
-                            ) as att_cur:
-                                old_attachments = [dict(r) for r in await att_cur.fetchall()]
-
-                            for att in old_attachments:
-                                await save_db.execute(
-                                    "INSERT INTO message_attachments (id, chat_id, message_id, variant_id, file_path, mime_type, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                                    (str(uuid.uuid4()), body.chat_id, final_asst_msg_id, new_variant_id, att["file_path"], att["mime_type"], save_now),
-                                )
-
-                await save_db.execute(
-                    "UPDATE messages SET active_index = ? WHERE id = ?",
-                    (next_variant_index, final_asst_msg_id),
-                )
-                await save_db.execute(
-                    "UPDATE chats SET updated_at = ? WHERE id = ?", (save_now, body.chat_id)
-                )
-                await save_db.commit()
+            new_variant_id = await _save_assistant_variant(
+                body.chat_id, final_asst_msg_id, next_variant_index, full, body.regenerate
+            )
         except Exception as e:
             logger.exception(f"Failed to save non-stream result for chat_id={body.chat_id}")
             raise HTTPException(500, f"Generation succeeded but save failed: {str(e) or repr(e)}")
@@ -184,43 +152,11 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
             return
 
         full = "".join(collected)
-        save_now = now_iso()
-        new_variant_id = str(uuid.uuid4())
 
         try:
-            async with aiosqlite.connect(DB_PATH) as save_db:
-                await save_db.execute("PRAGMA foreign_keys=ON")
-                await save_db.execute(
-                    "INSERT INTO message_variants (id, message_id, variant_index, content, created_at) VALUES (?, ?, ?, ?, ?)",
-                    (new_variant_id, final_asst_msg_id, next_variant_index, full, save_now),
-                )
-
-                if body.regenerate and next_variant_index > 0:
-                    async with save_db.execute(
-                        "SELECT active_index FROM messages WHERE id = ?", (final_asst_msg_id,)
-                    ) as cur:
-                        row = await cur.fetchone()
-                        if row:
-                            async with save_db.execute(
-                                "SELECT * FROM message_attachments WHERE variant_id = (SELECT id FROM message_variants WHERE message_id = ? AND variant_index = ?) ORDER BY created_at",
-                                (final_asst_msg_id, row[0])
-                            ) as att_cur:
-                                old_attachments = [dict(r) for r in await att_cur.fetchall()]
-
-                            for att in old_attachments:
-                                await save_db.execute(
-                                    "INSERT INTO message_attachments (id, chat_id, message_id, variant_id, file_path, mime_type, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                                    (str(uuid.uuid4()), body.chat_id, final_asst_msg_id, new_variant_id, att["file_path"], att["mime_type"], save_now),
-                                )
-
-                await save_db.execute(
-                    "UPDATE messages SET active_index = ? WHERE id = ?",
-                    (next_variant_index, final_asst_msg_id),
-                )
-                await save_db.execute(
-                    "UPDATE chats SET updated_at = ? WHERE id = ?", (save_now, body.chat_id)
-                )
-                await save_db.commit()
+            new_variant_id = await _save_assistant_variant(
+                body.chat_id, final_asst_msg_id, next_variant_index, full, body.regenerate
+            )
         except Exception as e:
             logger.exception(f"Failed to save stream result for chat_id={body.chat_id}")
             err_msg = str(e) or repr(e)
@@ -234,6 +170,52 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+async def _save_assistant_variant(
+    chat_id: str,
+    asst_msg_id: str,
+    variant_index: int,
+    content: str,
+    regenerate: bool,
+) -> str:
+    new_variant_id = str(uuid.uuid4())
+    save_now = now_iso()
+
+    async with aiosqlite.connect(DB_PATH) as save_db:
+        await save_db.execute("PRAGMA foreign_keys=ON")
+        await save_db.execute(
+            "INSERT INTO message_variants (id, message_id, variant_index, content, created_at) VALUES (?, ?, ?, ?, ?)",
+            (new_variant_id, asst_msg_id, variant_index, content, save_now),
+        )
+
+        if regenerate and variant_index > 0:
+            async with save_db.execute(
+                "SELECT active_index FROM messages WHERE id = ?", (asst_msg_id,)
+            ) as cur:
+                row = await cur.fetchone()
+            if row:
+                async with save_db.execute(
+                    "SELECT * FROM message_attachments WHERE variant_id = (SELECT id FROM message_variants WHERE message_id = ? AND variant_index = ?) ORDER BY created_at",
+                    (asst_msg_id, row[0])
+                ) as att_cur:
+                    old_attachments = [dict(r) for r in await att_cur.fetchall()]
+
+                for att in old_attachments:
+                    await save_db.execute(
+                        "INSERT INTO message_attachments (id, chat_id, message_id, variant_id, file_path, mime_type, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                        (str(uuid.uuid4()), chat_id, asst_msg_id, new_variant_id, att["file_path"], att["mime_type"], save_now),
+                    )
+
+        await save_db.execute(
+            "UPDATE messages SET active_index = ? WHERE id = ?",
+            (variant_index, asst_msg_id),
+        )
+        await save_db.execute(
+            "UPDATE chats SET updated_at = ? WHERE id = ?", (save_now, chat_id)
+        )
+        await save_db.commit()
+
+    return new_variant_id
 
 
 @router.post("/itemize")

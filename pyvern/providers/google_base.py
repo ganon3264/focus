@@ -8,6 +8,30 @@ from ..utils import THINK_OPEN, THINK_CLOSE, THOUGHT_SIGNATURE_OPEN, THOUGHT_SIG
 
 logger = get_logger("providers.google_base")
 
+_HARM_CATEGORIES = [
+    "HARM_CATEGORY_HARASSMENT",
+    "HARM_CATEGORY_HATE_SPEECH",
+    "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+    "HARM_CATEGORY_DANGEROUS_CONTENT",
+    "HARM_CATEGORY_CIVIC_INTEGRITY",
+    "HARM_CATEGORY_IMAGE_HATE",
+    "HARM_CATEGORY_IMAGE_DANGEROUS_CONTENT",
+    "HARM_CATEGORY_IMAGE_HARASSMENT",
+    "HARM_CATEGORY_IMAGE_SEXUALLY_EXPLICIT",
+    "HARM_CATEGORY_JAILBREAK",
+]
+
+VERTEX_SAFETY_OFF = [
+    types.SafetySetting(category=c, threshold="OFF")
+    for c in _HARM_CATEGORIES
+]
+
+AI_STUDIO_SAFETY_OFF = [
+    types.SafetySetting(category=c, threshold=types.HarmBlockThreshold.BLOCK_NONE)
+    for c in ["HARM_CATEGORY_HARASSMENT", "HARM_CATEGORY_HATE_SPEECH",
+              "HARM_CATEGORY_SEXUALLY_EXPLICIT", "HARM_CATEGORY_DANGEROUS_CONTENT"]
+]
+
 
 class GoogleProviderBase(BaseProvider):
     def __init__(self, api_key: str, model: str, params: dict):
@@ -84,22 +108,25 @@ class GoogleProviderBase(BaseProvider):
 
     async def _do_stream(self, contents, config):
         if logger.isEnabledFor(logging.DEBUG):
-            import json as _json
-            contents_dump = [c.model_dump(exclude_none=True) for c in contents]
-            config_dump = config.model_dump(exclude_none=True) if config else {}
-            # Truncate base64 blobs
-            for c in contents_dump:
-                for p in c.get("parts", []):
-                    if "inline_data" in p:
-                        inl = p["inline_data"]
-                        if "data" in inl:
-                            inl["data"] = "<truncated>"
-            logger.debug(
-                "GOOGLE RAW PAYLOAD:\nmodel=%s\ncontents=\n%s\nconfig=\n%s",
-                self.model,
-                _json.dumps(contents_dump, indent=2, ensure_ascii=False),
-                _json.dumps(config_dump, indent=2, ensure_ascii=False),
-            )
+            try:
+                import json as _json
+                contents_dump = [c.model_dump(exclude_none=True) for c in contents]
+                config_dump = config.model_dump(exclude_none=True) if config else {}
+                # Truncate base64 blobs
+                for c in contents_dump:
+                    for p in c.get("parts", []):
+                        if "inline_data" in p:
+                            inl = p["inline_data"]
+                            if "data" in inl:
+                                inl["data"] = "<truncated>"
+                logger.debug(
+                    "GOOGLE RAW PAYLOAD:\nmodel=%s\ncontents=\n%s\nconfig=\n%s",
+                    self.model,
+                    _json.dumps(contents_dump, indent=2, ensure_ascii=False),
+                    _json.dumps(config_dump, indent=2, ensure_ascii=False),
+                )
+            except Exception:
+                logger.debug("Failed to serialize debug payload", exc_info=True)
 
         stream = await self.client.aio.models.generate_content_stream(
             model=self.model,

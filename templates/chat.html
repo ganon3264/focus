@@ -178,61 +178,7 @@
 </div>
 
 <!-- EDIT CHARACTER MODAL -->
-<div id="modal-edit-character" class="modal-overlay" role="dialog" aria-modal="true" style="display:none; z-index: 100;" onclick="if(event.target===this)closeModal('modal-edit-character')">
-  <div class="modal-content" style="max-width: 600px; width: 95vw; display: flex; flex-direction: column;">
-    <div class="modal-header" style="margin-bottom: 1rem;">
-      <div class="modal-title">Edit Character</div>
-      <button class="btn btn-secondary" aria-label="Close" onclick="closeModal('modal-edit-character')">×</button>
-    </div>
-    <form id="edit-character-form" class="flex flex-col gap-4 flex-1" onsubmit="submitEditCharacter(event)">
-      <input type="hidden" name="id" id="edit-char-id">
-      
-      <div class="flex gap-4 items-center">
-        <!-- Avatar Upload -->
-        <label class="cursor-pointer relative rounded-full overflow-hidden" style="width: 64px; height: 64px; background: var(--surface-3); border: 1px solid var(--border); display: grid; place-items: center; flex-shrink: 0;" title="Change Avatar">
-          <img id="edit-char-image-preview" src="" style="width: 100%; height: 100%; object-fit: cover; display: none;">
-          <span id="edit-char-image-placeholder" class="text-2xl font-bold" style="color: var(--text-muted);"></span>
-          <div class="absolute inset-0 bg-black/50 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs">
-            Upload
-          </div>
-          <input type="file" accept="image/*" class="hidden" onchange="uploadCharacterAvatar(this)">
-        </label>
-
-        <!-- Name Input -->
-        <div class="form-group mb-0 flex-1">
-          <label>Name</label>
-          <input type="text" name="name" id="edit-char-name" required class="form-control w-full">
-        </div>
-      </div>
-
-      <div class="form-group mb-0 flex-1 flex flex-col h-full">
-        <label>Description</label>
-        <div class="textarea-wrapper h-full">
-          <textarea name="description" id="edit-char-desc" rows="10" class="form-control w-full h-full" style="resize:none;"></textarea>
-           <button type="button" class="expand-btn" aria-label="Expand text area" onclick="openTextExpander(document.getElementById('edit-char-desc'), 'Edit Character Description')">{{ icon_expand(18) }}</button>
-        </div>
-      </div>
-      
-      <!-- Character Reference Media -->
-      <div class="form-group mb-0 mt-2">
-        <label class="text-sm font-semibold text-muted block mb-1">Reference Media</label>
-        <div class="char-block-media-section" id="edit-char-media-section" style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
-          <!-- Dynamically populated via JS -->
-          <label class="btn btn-secondary btn-sm block-media-btn" style="height: 48px; padding: 0 0.5rem; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 4px; border-style: dashed; flex-shrink: 0; margin: 0;" title="Add Image or Audio">
-            <span class="text-muted text-xl">+</span>
-            <input type="file" accept="image/*,audio/*" class="hidden block-media-input" onchange="uploadCharModalMedia(this)">
-          </label>
-          <span class="text-xs text-muted block-media-placeholder">Add reference image or audio</span>
-        </div>
-      </div>
-      
-      <div class="flex gap-2 mt-4 justify-end pt-4" style="border-top: 1px solid var(--border);">
-        <button class="btn btn-secondary" style="width: 100px;" type="button" onclick="closeModal('modal-edit-character')">Cancel</button>
-        <button class="btn btn-primary" style="width: 100px;" type="submit">Save</button>
-      </div>
-    </form>
-  </div>
-</div>
+{% include "edit_character_modal.html" %}
 
 <div id="modal-personas" class="modal-overlay" role="dialog" aria-modal="true" style="display:none;" onclick="if(event.target===this)closeModal('modal-personas')">
   <div class="modal-content" style="max-width:800px; width: 95vw;">
@@ -242,61 +188,7 @@
 </div>
 
 <!-- EDIT PERSONA MODAL -->
-<div id="modal-edit-persona" class="modal-overlay" role="dialog" aria-modal="true" style="display:none; z-index: 100;" onclick="if(event.target===this)closeModal('modal-edit-persona')">
-  <div class="modal-content" style="max-width: 600px; width: 95vw; display: flex; flex-direction: column;">
-    <div class="modal-header" style="margin-bottom: 1rem;">
-      <div class="modal-title">Edit Persona</div>
-      <button class="btn btn-secondary" aria-label="Close" onclick="closeModal('modal-edit-persona')">×</button>
-    </div>
-    <form id="edit-persona-form" class="flex flex-col gap-4 flex-1" onsubmit="submitEditPersona(event)">
-      <input type="hidden" name="id" id="edit-persona-id">
-      
-      <div class="flex gap-4 items-center">
-        <!-- Avatar Upload -->
-        <label class="cursor-pointer relative rounded-full overflow-hidden" style="width: 64px; height: 64px; background: var(--surface-3); border: 1px solid var(--border); display: grid; place-items: center; flex-shrink: 0;" title="Change Avatar">
-          <img id="edit-persona-image-preview" src="" style="width: 100%; height: 100%; object-fit: cover; display: none;">
-          <span id="edit-persona-image-placeholder" class="text-2xl font-bold" style="color: var(--text-muted);"></span>
-          <div class="absolute inset-0 bg-black/50 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs">
-            Upload
-          </div>
-          <input type="file" accept="image/*" class="hidden" onchange="uploadPersonaAvatar(this)">
-        </label>
-
-        <!-- Name Input -->
-        <div class="form-group mb-0 flex-1">
-          <label>Name</label>
-          <input type="text" name="name" id="edit-persona-name" required class="form-control w-full">
-        </div>
-      </div>
-
-      <div class="form-group mb-0 flex-1 flex flex-col h-full">
-        <label>Description</label>
-        <div class="textarea-wrapper h-full">
-          <textarea name="description" id="edit-persona-desc" rows="10" class="form-control w-full h-full" style="resize:none;"></textarea>
-           <button type="button" class="expand-btn" aria-label="Expand text area" onclick="openTextExpander(document.getElementById('edit-persona-desc'), 'Edit Persona Description')">{{ icon_expand(18) }}</button>
-        </div>
-      </div>
-      
-      <!-- Persona Reference Media -->
-      <div class="form-group mb-0 mt-2">
-        <label class="text-sm font-semibold text-muted block mb-1">Reference Media</label>
-        <div class="char-block-media-section" id="edit-persona-media-section" style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
-          <!-- Dynamically populated via JS -->
-          <label class="btn btn-secondary btn-sm block-media-btn" style="height: 48px; padding: 0 0.5rem; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 4px; border-style: dashed; flex-shrink: 0; margin: 0;" title="Add Image or Audio">
-            <span class="text-muted text-xl">+</span>
-            <input type="file" accept="image/*,audio/*" class="hidden block-media-input" onchange="uploadPersonaMedia(this)">
-          </label>
-          <span class="text-xs text-muted block-media-placeholder">Add reference image or audio</span>
-        </div>
-      </div>
-      
-      <div class="flex gap-2 mt-4 justify-end pt-4" style="border-top: 1px solid var(--border);">
-        <button class="btn btn-secondary" style="width: 100px;" type="button" onclick="closeModal('modal-edit-persona')">Cancel</button>
-        <button class="btn btn-primary" style="width: 100px;" type="submit">Save</button>
-      </div>
-    </form>
-  </div>
-</div>
+{% include "edit_persona_modal.html" %}
 
 <div id="modal-providers" class="modal-overlay" role="dialog" aria-modal="true" style="display:none;" onclick="if(event.target===this)closeModal('modal-providers')">
   <div class="modal-content" style="max-width:1000px; width: 95vw; max-height:85vh; display: flex; flex-direction: column;">
@@ -306,43 +198,7 @@
 </div>
 
 <!-- EDIT MESSAGE MODAL -->
-<div id="modal-edit-message" class="modal-overlay" role="dialog" aria-modal="true" style="display:none; z-index: 100;" onclick="if(event.target===this)closeModal('modal-edit-message')">
-  <div class="modal-content" style="max-width: 800px; width: 95vw; max-height: 85vh; display: flex; flex-direction: column;">
-    <div class="modal-header" style="margin-bottom: 1rem;">
-      <div class="modal-title">Edit Message</div>
-      <button class="btn btn-secondary" aria-label="Close" onclick="closeModal('modal-edit-message')">×</button>
-    </div>
-    <div style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 1rem; padding-right: 0.5rem;">
-      <input type="hidden" id="edit-msg-id">
-      <input type="hidden" id="edit-msg-chat-id">
-      
-      <div id="edit-msg-thought-container" style="display:none;">
-        <label class="text-sm font-bold text-muted mb-1 block">Thought Process (Reasoning)</label>
-        <textarea id="edit-msg-thought" class="w-full p-2" rows="6" style="background:var(--surface-3); border:1px solid var(--border); color:var(--text); border-radius:6px; font-family:inherit; resize:vertical;"></textarea>
-      </div>
-      
-      <div>
-        <label class="text-sm font-bold text-muted mb-1 block">Message Content</label>
-        <textarea id="edit-msg-content" class="w-full p-2" rows="8" style="background:var(--surface-2); border:1px solid var(--border); color:var(--text); border-radius:6px; font-family:inherit; resize:vertical;"></textarea>
-      </div>
-      
-      <div>
-        <div class="flex justify-between items-center mb-1">
-            <label class="text-sm font-bold text-muted">Attachments</label>
-            <button class="btn btn-secondary btn-sm" onclick="document.getElementById('edit-msg-attach-input').click()">+ Add Media</button>
-            <input type="file" id="edit-msg-attach-input" class="hidden" multiple accept="image/*,audio/*" onchange="uploadMessageAttachment(this)">
-        </div>
-        <div id="edit-msg-attachments" class="flex gap-2 flex-wrap empty:hidden p-2 rounded" style="background: var(--surface-2); border: 1px solid var(--border); min-height: 2.5rem;">
-            <!-- Rendered via JS -->
-        </div>
-      </div>
-    </div>
-    <div class="flex gap-2 mt-4 pt-4" style="border-top: 1px solid var(--border);">
-      <button class="btn btn-primary" style="width: 100px;" onclick="saveMessageEdit()">Save</button>
-      <button class="btn btn-secondary" style="width: 100px;" type="button" onclick="closeModal('modal-edit-message')">Cancel</button>
-    </div>
-  </div>
-</div>
+{% include "edit_message_modal.html" %}
 
 {% include 'text_expander.html' %}
 
@@ -366,61 +222,7 @@
 </div>
 
 <!-- THEMES MODAL -->
-<div id="modal-themes" class="modal-overlay" role="dialog" aria-modal="true" style="display:none; z-index: 100;" onclick="if(event.target===this)closeModal('modal-themes')">
-  <div class="modal-content" style="max-width:400px;width:90vw;">
-    <div class="modal-header">
-      <div class="modal-title">Theme Customizer</div>
-      <button class="btn btn-secondary" aria-label="Close" onclick="closeModal('modal-themes')">×</button>
-    </div>
-    <div class="flex flex-col gap-4 mt-2">
-      <div class="flex gap-2">
-        <button class="btn btn-secondary flex-1 text-xs" onclick="applyPresetTheme('default')">Slate (Default)</button>
-        <button class="btn btn-secondary flex-1 text-xs" onclick="applyPresetTheme('midnight')">Midnight (OLED)</button>
-        <button class="btn btn-secondary flex-1 text-xs" onclick="applyPresetTheme('light')">Light</button>
-      </div>
-      
-      <div class="grid grid-cols-2 gap-3" id="theme-color-pickers">
-        <label class="flex flex-col gap-1 text-xs font-bold text-muted">
-          Background
-          <input type="color" data-var="--bg" class="w-full h-8 cursor-pointer rounded" onchange="previewThemeColor(this)" oninput="previewThemeColor(this)">
-        </label>
-        <label class="flex flex-col gap-1 text-xs font-bold text-muted">
-          Surface (Primary)
-          <input type="color" data-var="--surface" class="w-full h-8 cursor-pointer rounded" onchange="previewThemeColor(this)" oninput="previewThemeColor(this)">
-        </label>
-        <label class="flex flex-col gap-1 text-xs font-bold text-muted">
-          Surface (Secondary)
-          <input type="color" data-var="--surface-2" class="w-full h-8 cursor-pointer rounded" onchange="previewThemeColor(this)" oninput="previewThemeColor(this)">
-        </label>
-        <label class="flex flex-col gap-1 text-xs font-bold text-muted">
-          Surface (Tertiary)
-          <input type="color" data-var="--surface-3" class="w-full h-8 cursor-pointer rounded" onchange="previewThemeColor(this)" oninput="previewThemeColor(this)">
-        </label>
-        <label class="flex flex-col gap-1 text-xs font-bold text-muted">
-          Borders
-          <input type="color" data-var="--border" class="w-full h-8 cursor-pointer rounded" onchange="previewThemeColor(this)" oninput="previewThemeColor(this)">
-        </label>
-        <label class="flex flex-col gap-1 text-xs font-bold text-muted">
-          Accent Color
-          <input type="color" data-var="--accent" class="w-full h-8 cursor-pointer rounded" onchange="previewThemeColor(this)" oninput="previewThemeColor(this)">
-        </label>
-        <label class="flex flex-col gap-1 text-xs font-bold text-muted">
-          Text (Main)
-          <input type="color" data-var="--text" class="w-full h-8 cursor-pointer rounded" onchange="previewThemeColor(this)" oninput="previewThemeColor(this)">
-        </label>
-        <label class="flex flex-col gap-1 text-xs font-bold text-muted">
-          Text (Muted)
-          <input type="color" data-var="--text-muted" class="w-full h-8 cursor-pointer rounded" onchange="previewThemeColor(this)" oninput="previewThemeColor(this)">
-        </label>
-      </div>
-
-      <div class="flex justify-end gap-2 mt-4">
-        <button class="btn btn-secondary" onclick="closeModal('modal-themes'); resetThemePreview()">Cancel</button>
-        <button class="btn btn-primary" onclick="saveCustomTheme()">Save Theme</button>
-      </div>
-    </div>
-  </div>
-</div>
+{% include "theme_modal.html" %}
 
 <script src="/static/js/theme_manager.js"></script>
 <script>
@@ -451,6 +253,8 @@ function toggleRightBar(){
 <script src="/static/js/modal_char_edit.js"></script>
 
 <script src="/static/js/modal_persona_edit.js"></script>
+
+<script src="/static/js/modal_providers.js"></script>
 
 <script>
 // App Providers for Status Panel

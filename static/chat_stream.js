@@ -756,8 +756,8 @@
     ensureSentinelAndObserver();
   }
   });
-})();
-  // --- DELETE MODE & BULK DELETE ---
+
+// --- DELETE MODE & BULK DELETE ---
   let lastDeleteSelection = [];
   
   window.enterDeleteMode = function(startMessageId) {
@@ -875,4 +875,5 @@
           }
       }
   });
+})();
 

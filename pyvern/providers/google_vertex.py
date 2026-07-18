@@ -4,7 +4,7 @@ from google.oauth2 import service_account
 from google import genai
 from google.genai import types
 
-from .google_base import GoogleProviderBase
+from .google_base import GoogleProviderBase, VERTEX_SAFETY_OFF
 from ..logger import get_logger
 from ..utils import DEFAULT_MAX_TOKENS, DEFAULT_TEMPERATURE, GOOGLE_VERTEX_HTTP_TIMEOUT, GOOGLE_VERTEX_HTTP_RETRIES
 
@@ -56,6 +56,14 @@ class GoogleVertexProvider(GoogleProviderBase):
             )
         )
 
+    async def fetch_models(self) -> list[dict]:
+        vertex_models = await self.client.aio.models.list()
+        models = []
+        async for m in vertex_models:
+            model_id = m.name.split("/")[-1] if "/" in m.name else m.name
+            models.append({"id": model_id, "name": model_id})
+        return models
+
     def _build_config(self, merged: dict, system_instruction: str | None) -> types.GenerateContentConfig:
         max_tokens = merged.pop("max_tokens", DEFAULT_MAX_TOKENS)
         temperature = merged.pop("temperature", DEFAULT_TEMPERATURE)
@@ -68,18 +76,7 @@ class GoogleVertexProvider(GoogleProviderBase):
         config_args: dict = {
             "temperature": temperature,
             "max_output_tokens": merged.get("max_output_tokens", max_tokens),
-            "safety_settings": [
-                types.SafetySetting(category="HARM_CATEGORY_HARASSMENT", threshold="OFF"),
-                types.SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="OFF"),
-                types.SafetySetting(category="HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold="OFF"),
-                types.SafetySetting(category="HARM_CATEGORY_DANGEROUS_CONTENT", threshold="OFF"),
-                types.SafetySetting(category="HARM_CATEGORY_CIVIC_INTEGRITY", threshold="OFF"),
-                types.SafetySetting(category="HARM_CATEGORY_IMAGE_HATE", threshold="OFF"),
-                types.SafetySetting(category="HARM_CATEGORY_IMAGE_DANGEROUS_CONTENT", threshold="OFF"),
-                types.SafetySetting(category="HARM_CATEGORY_IMAGE_HARASSMENT", threshold="OFF"),
-                types.SafetySetting(category="HARM_CATEGORY_IMAGE_SEXUALLY_EXPLICIT", threshold="OFF"),
-                types.SafetySetting(category="HARM_CATEGORY_JAILBREAK", threshold="OFF"),
-            ],
+            "safety_settings": VERTEX_SAFETY_OFF,
         }
 
         self._apply_thinking_config(config_args, self.model, include_reasoning, reasoning_effort)

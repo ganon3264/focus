@@ -1,6 +1,8 @@
 from .openai_compat import OpenAICompatProvider
 from ..logger import get_logger
 
+import httpx
+
 logger = get_logger("providers.openrouter")
 
 OPENROUTER_BASE = "https://openrouter.ai/api/v1"
@@ -12,6 +14,21 @@ class OpenRouterProvider(OpenAICompatProvider):
         super().__init__(OPENROUTER_BASE, api_key, model, params)
         self.site_url = site_url
         self.app_name = app_name
+
+    async def fetch_models(self) -> list[dict]:
+        from ..utils import MODEL_FETCH_HTTP_TIMEOUT
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                "https://openrouter.ai/api/v1/models",
+                timeout=MODEL_FETCH_HTTP_TIMEOUT,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+        if isinstance(data, dict) and "data" in data and isinstance(data["data"], list):
+            return data["data"]
+        if isinstance(data, list):
+            return data
+        return []
 
     def _extra_headers(self) -> dict:
         headers = super()._extra_headers()

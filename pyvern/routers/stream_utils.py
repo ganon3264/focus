@@ -1,13 +1,13 @@
 import asyncio
-import json
 import logging
 import uuid
 import aiosqlite
 from fastapi import HTTPException
 from pyvern.prompt_chain import assemble_prompt, _build_content
-from pyvern.card_parser import normalise_card
+from pyvern.card_parser import safe_load_card
 from pyvern.macros import build_base_macros
 from pyvern.utils import now_iso
+import pyvern.crud as crud
 
 logger = logging.getLogger("pyvern.routers.stream_utils")
 
@@ -24,27 +24,14 @@ async def _get_history(db: aiosqlite.Connection, chat_id: str, regenerate: bool)
             msg_attachments.setdefault(r["variant_id"], []).append(dict(r))
 
     if regenerate:
-        async with db.execute(
-            """SELECT m.id, m.role, m.position, mv.content, mv.id as variant_id
-               FROM messages m
-               JOIN message_variants mv
-                 ON mv.message_id = m.id AND mv.variant_index = m.active_index
-               WHERE m.chat_id = ?
-               ORDER BY m.position""",
-            (chat_id,),
-        ) as cur:
-            all_rows = await cur.fetchall()
+        all_rows = await crud.fetch_active_variants(db, chat_id)
 
         last_asst_id = None
         last_asst_variant_count = 0
         for r in reversed(all_rows):
             if r["role"] == "assistant":
                 last_asst_id = r["id"]
-                async with db.execute(
-                    "SELECT COUNT(*) FROM message_variants WHERE message_id = ?", (r["id"],)
-                ) as cnt_cur:
-                    cnt_row = await cnt_cur.fetchone()
-                last_asst_variant_count = cnt_row[0]
+                last_asst_variant_count = r["variant_count"]
                 break
 
         history = [
@@ -54,16 +41,7 @@ async def _get_history(db: aiosqlite.Connection, chat_id: str, regenerate: bool)
         ]
         return history, last_asst_id, last_asst_variant_count
     else:
-        async with db.execute(
-            """SELECT m.id, m.role, mv.content, mv.id as variant_id
-               FROM messages m
-               JOIN message_variants mv
-                 ON mv.message_id = m.id AND mv.variant_index = m.active_index
-               WHERE m.chat_id = ?
-               ORDER BY m.position""",
-            (chat_id,),
-        ) as cur:
-            history_rows = await cur.fetchall()
+        history_rows = await crud.fetch_active_variants(db, chat_id)
         history = [{"role": r["role"], "content": _build_content(r["content"], msg_attachments.get(r["variant_id"], []))} for r in history_rows]
         return history, None, 0
 
@@ -104,11 +82,7 @@ async def get_prompt_context(
         ) as cur:
             char_row = await cur.fetchone()
         if char_row:
-            try:
-                card_json = normalise_card(json.loads(char_row["card_json"]))
-            except (json.JSONDecodeError, TypeError, ValueError) as e:
-                logger.warning("Corrupted card_json for character %s: %s", chat["character_id"], e)
-                card_json = {}
+            card_json = safe_load_card(char_row) or {}
             char_data.update(card_json)
 
         async with db.execute(

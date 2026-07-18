@@ -107,10 +107,7 @@ async def add_persona_image(
     file: UploadFile = File(...),
     db: aiosqlite.Connection = Depends(get_db),
 ):
-    async with db.execute("SELECT id FROM personas WHERE id = ?", (persona_id,)) as cur:
-        if not await cur.fetchone():
-            raise HTTPException(404, "Persona not found")
-
+    await crud.verify_entity_exists(db, "personas", persona_id)
     try:
         return await crud.upload_block_image(db, persona_id, "char", await file.read(), file.filename, file.content_type, "assets/blocks", images_only=False)
     except Exception as e:

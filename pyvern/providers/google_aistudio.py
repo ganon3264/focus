@@ -2,7 +2,7 @@ import os
 from google import genai
 from google.genai import types
 
-from .google_base import GoogleProviderBase
+from .google_base import GoogleProviderBase, AI_STUDIO_SAFETY_OFF
 from ..logger import get_logger
 from ..utils import DEFAULT_TEMPERATURE
 
@@ -23,24 +23,7 @@ class GoogleAIStudioProvider(GoogleProviderBase):
             "top_p": merged.get("top_p", DEFAULT_TEMPERATURE),
             "top_k": merged.get("top_k", 0),
             "system_instruction": system_instruction,
-            "safety_settings": [
-                types.SafetySetting(
-                    category=types.HarmCategory.HARM_CATEGORY_HARASSMENT,
-                    threshold=types.HarmBlockThreshold.BLOCK_NONE,
-                ),
-                types.SafetySetting(
-                    category=types.HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-                    threshold=types.HarmBlockThreshold.BLOCK_NONE,
-                ),
-                types.SafetySetting(
-                    category=types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-                    threshold=types.HarmBlockThreshold.BLOCK_NONE,
-                ),
-                types.SafetySetting(
-                    category=types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-                    threshold=types.HarmBlockThreshold.BLOCK_NONE,
-                ),
-            ],
+            "safety_settings": AI_STUDIO_SAFETY_OFF,
         }
 
         max_tokens = merged.get("max_tokens")

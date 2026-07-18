@@ -100,6 +100,51 @@ def _merge_consecutive(messages: list[dict]) -> list[dict]:
     return result
 
 
+def partition_blocks(blocks: list[dict]) -> tuple[list[dict], list[dict], dict[str, list[dict]]]:
+    """Split preset blocks into variable and non-variable buckets.
+
+    Returns (var_blocks, regular_blocks, var_groups). var_groups maps each
+    group name (everything before the first ':' in a block's name) to the
+    list of variable blocks in that group.
+    """
+    var_blocks: list[dict] = []
+    regular_blocks: list[dict] = []
+    var_groups: dict[str, list[dict]] = {}
+    for b in blocks:
+        if b["block_type"] == "variable":
+            var_blocks.append(b)
+            var_groups.setdefault(variable_group_name(b["name"]), []).append(b)
+        else:
+            regular_blocks.append(b)
+    return var_blocks, regular_blocks, var_groups
+
+
+def resolve_variable_blocks(variable_blocks: list[dict], macros: dict[str, str]) -> None:
+    """Resolve {{macro}} references inside variable blocks, mutating `macros`.
+
+    Variables may reference each other (e.g. {{nickname}} -> {{user}}); iterates
+    until the macros dict stabilises or MACRO_MAX_PASSES is reached.
+    Resolved content is stripped of leading/trailing whitespace before being stored.
+    """
+    if not variable_blocks:
+        return
+
+    var_map: dict[str, str] = {}
+    for v in variable_blocks:
+        var_key = variable_group_name(v["name"])
+        var_map[var_key] = v["content"]
+
+    for _ in range(MACRO_MAX_PASSES):
+        changed = False
+        for key, content in var_map.items():
+            resolved = apply_macros(content, macros).strip()
+            if macros.get(key) != resolved:
+                macros[key] = resolved
+                changed = True
+        if not changed:
+            break
+
+
 def assemble_prompt(
     preset_blocks: list[dict[str, Any]],
     chat_history: list[dict[str, str]],
@@ -131,22 +176,7 @@ def assemble_prompt(
     # ── Two-pass variable resolution (order-independent, handles chains) ──
     variables = [b for b in active if b["block_type"] == "variable"]
     active = [b for b in active if b["block_type"] != "variable"]
-
-    if variables:
-        var_map: dict[str, str] = {}
-        for v in variables:
-            var_key = variable_group_name(v["name"])
-            var_map[var_key] = v["content"]
-
-        for _ in range(MACRO_MAX_PASSES):
-            changed = False
-            for key, content in var_map.items():
-                resolved = apply_macros(content, macros).strip()
-                if macros.get(key) != resolved:
-                    macros[key] = resolved
-                    changed = True
-            if not changed:
-                break
+    resolve_variable_blocks(variables, macros)
 
     pre_history:  list[dict] = []
     post_history: list[dict] = []

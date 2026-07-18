@@ -1,4 +1,3 @@
-import json
 import logging
 import re
 import uuid
@@ -6,7 +5,7 @@ from pathlib import Path
 
 import aiosqlite
 
-from pyvern.card_parser import normalise_card
+from pyvern.card_parser import safe_load_card
 from pyvern.utils import now_iso, SUFFIX_MIME_MAP, SUFFIX_MIME_MAP_IMAGES_ONLY
 
 logger = logging.getLogger("pyvern.crud")
@@ -104,9 +103,45 @@ async def delete_block_image(
     await db.commit()
 
 
+async def verify_entity_exists(
+    db: aiosqlite.Connection,
+    table: str,
+    entity_id: str,
+    parent_col: str | None = None,
+    parent_id: str | None = None,
+) -> None:
+    if parent_col and parent_id is not None:
+        async with db.execute(
+            f"SELECT id FROM {table} WHERE id = ? AND {parent_col} = ?", (entity_id, parent_id)
+        ) as cur:
+            row = await cur.fetchone()
+    else:
+        async with db.execute(f"SELECT id FROM {table} WHERE id = ?", (entity_id,)) as cur:
+            row = await cur.fetchone()
+    if not row:
+        from fastapi import HTTPException
+        raise HTTPException(404, f"{table.split('_')[0].capitalize()} not found")
+
+
 async def has_characters(db: aiosqlite.Connection) -> bool:
     async with db.execute("SELECT 1 FROM characters WHERE is_deleted = 0 LIMIT 1") as cur:
         return await cur.fetchone() is not None
+
+
+async def load_entity_blocks(
+    db: aiosqlite.Connection,
+    table: str,
+    parent_col: str,
+    parent_id: str,
+) -> list[dict]:
+    async with db.execute(
+        f"SELECT * FROM {table} WHERE {parent_col} = ? ORDER BY position, rowid",
+        (parent_id,)
+    ) as cur:
+        blocks = [dict(r) for r in await cur.fetchall()]
+    await attach_images(blocks, db)
+    return blocks
+
 
 async def get_characters(db: aiosqlite.Connection) -> list[dict]:
     async with db.execute("SELECT * FROM characters WHERE is_deleted = 0 ORDER BY created_at DESC") as cur:
@@ -114,17 +149,8 @@ async def get_characters(db: aiosqlite.Connection) -> list[dict]:
         characters = []
         for r in rows:
             c = dict(r)
-            try:
-                c["card"] = normalise_card(json.loads(r["card_json"] or "{}"))
-            except Exception:
-                logger.warning("Corrupted card_json for character %s (%s)", r.get("id"), r.get("name"), exc_info=True)
-                c["card"] = {}
-            async with db.execute(
-                "SELECT * FROM char_blocks WHERE character_id = ? ORDER BY position, rowid",
-                (r["id"],)
-            ) as bcur:
-                c["blocks"] = [dict(b) for b in await bcur.fetchall()]
-            await attach_images(c["blocks"], db)
+            c["card"] = safe_load_card(r) or {}
+            c["blocks"] = await load_entity_blocks(db, "char_blocks", "character_id", r["id"])
             characters.append(c)
     await attach_images(characters, db)
     return characters
@@ -137,23 +163,14 @@ async def get_character(db: aiosqlite.Connection, character_id: str) -> dict | N
     if not row:
         return None
     character = dict(row)
-    try:
-        character["card"] = normalise_card(json.loads(row["card_json"] or "{}"))
-    except Exception:
-        logger.warning("Corrupted card_json for character %s (%s)", row.get("id"), row.get("name"), exc_info=True)
-        character["card"] = {}
+    character["card"] = safe_load_card(row) or {}
     return character
 
 async def get_presets(db: aiosqlite.Connection) -> list[dict]:
     async with db.execute("SELECT * FROM presets ORDER BY created_at DESC") as cur:
         presets = [dict(r) for r in await cur.fetchall()]
     for p in presets:
-        async with db.execute(
-            "SELECT * FROM preset_blocks WHERE preset_id = ? ORDER BY position, rowid",
-            (p["id"],)
-        ) as cur:
-            p["blocks"] = [dict(r) for r in await cur.fetchall()]
-        await attach_images(p["blocks"], db)
+        p["blocks"] = await load_entity_blocks(db, "preset_blocks", "preset_id", p["id"])
     return presets
 
 async def get_preset(db: aiosqlite.Connection, preset_id: str) -> dict | None:
@@ -164,12 +181,7 @@ async def get_preset(db: aiosqlite.Connection, preset_id: str) -> dict | None:
     if not row:
         return None
     preset = dict(row)
-    async with db.execute(
-        "SELECT * FROM preset_blocks WHERE preset_id = ? ORDER BY position, rowid",
-        (preset["id"],)
-    ) as cur:
-        preset["blocks"] = [dict(r) for r in await cur.fetchall()]
-    await attach_images(preset["blocks"], db)
+    preset["blocks"] = await load_entity_blocks(db, "preset_blocks", "preset_id", preset_id)
     return preset
 
 async def get_providers(db: aiosqlite.Connection) -> list[dict]:
@@ -191,16 +203,33 @@ async def get_persona(db: aiosqlite.Connection, persona_id: str = None) -> dict 
             row = await cur.fetchone()
     return dict(row) if row else None
 
+
+async def fetch_active_variants(db: aiosqlite.Connection, chat_id: str, extra_cols: str = "") -> list[dict]:
+    """Fetch messages with their active variant content for a chat.
+
+    Returns rows with: id, role, position, active_index, content,
+    variant_index, variant_id, variant_count plus any extra_cols.
+    """
+    cols = (
+        "m.id, m.role, m.position, m.active_index, "
+        "mv.content, mv.variant_index, mv.id as variant_id, "
+        "(SELECT COUNT(*) FROM message_variants WHERE message_id = m.id) as variant_count"
+    )
+    if extra_cols:
+        cols += ", " + extra_cols
+    async with db.execute(
+        f"""SELECT {cols}
+            FROM messages m
+            JOIN message_variants mv ON mv.message_id = m.id AND mv.variant_index = m.active_index
+            WHERE m.chat_id = ?
+            ORDER BY m.position""",
+        (chat_id,),
+    ) as cur:
+        return [dict(r) for r in await cur.fetchall()]
+
+
 async def get_chat_messages(db: aiosqlite.Connection, chat_id: str) -> list[dict]:
-    async with db.execute("""
-        SELECT m.id, m.role, m.position, m.active_index, mv.content, mv.variant_index, mv.id as variant_id,
-               (SELECT COUNT(*) FROM message_variants WHERE message_id = m.id) as variant_count
-        FROM messages m
-        JOIN message_variants mv ON mv.message_id = m.id AND mv.variant_index = m.active_index
-        WHERE m.chat_id = ?
-        ORDER BY m.position
-    """, (chat_id,)) as cur:
-        messages = [dict(r) for r in await cur.fetchall()]
+    messages = await fetch_active_variants(db, chat_id)
 
     async with db.execute(
         "SELECT id, variant_id, file_path, mime_type FROM message_attachments WHERE chat_id = ? AND variant_id IS NOT NULL",

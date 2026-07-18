@@ -108,3 +108,29 @@ def normalise_card(card_json: dict) -> dict:
         "first_mes":           src.get("first_mes", ""),
         "alternate_greetings": src.get("alternate_greetings") or [],
     }
+
+
+def safe_load_card(row, *, log_name: str | None = None) -> dict | None:
+    """Parse and normalise the `card_json` field from a DB row or dict.
+
+    Returns the normalised card dict on success.
+    Returns None if card_json is missing/empty or unparseable; callers should
+    decide what fallback they want (empty dict, specific shape, early-return).
+    A warning is logged on parse failure with a row identifier when available.
+    """
+    try:
+        raw = row["card_json"]
+    except (KeyError, TypeError):
+        return None
+    if not raw:
+        return None
+    try:
+        return normalise_card(json.loads(raw))
+    except (json.JSONDecodeError, TypeError, ValueError) as e:
+        if log_name is None:
+            try:
+                log_name = f"{row['id']} ({row['name']})"
+            except (KeyError, IndexError, TypeError):
+                log_name = "?"
+        logger.warning("Corrupted card_json for %s: %s", log_name, e)
+        return None

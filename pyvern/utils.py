@@ -1,6 +1,8 @@
+import asyncio
 import base64
 import logging
 import math
+import time
 from datetime import datetime, timezone
 from io import BytesIO
 
@@ -34,6 +36,51 @@ MODEL_FETCH_HTTP_TIMEOUT = 10.0
 
 # ── Caching ───────────────────────────────────────────────────────────────────
 MODEL_CACHE_TTL = 300
+
+
+class TTLCache:
+    """Async-safe TTL cache with dict semantics.
+
+    Two access patterns:
+      get(key) / set(key, value)  — standard read-through (returns None on miss/expiry)
+      get_or_refresh(key, factory) — atomic check-and-fetch (factory is async, called
+                                     outside the lock to avoid blocking concurrent reads)
+    """
+
+    def __init__(self, ttl: int = MODEL_CACHE_TTL):
+        self._data: dict[str, object] = {}
+        self._times: dict[str, float] = {}
+        self._lock = asyncio.Lock()
+        self._ttl = ttl
+
+    async def get(self, key: str):
+        """Return cached value if fresh, else None."""
+        async with self._lock:
+            ts = self._times.get(key, 0.0)
+            if key in self._data and time.monotonic() - ts < self._ttl:
+                return self._data[key]
+            return None
+
+    async def set(self, key: str, value):
+        """Store value with current timestamp."""
+        async with self._lock:
+            self._data[key] = value
+            self._times[key] = time.monotonic()
+
+    async def get_or_refresh(self, key: str, factory):
+        """Return fresh value or call async factory() to populate.
+
+        If stale/missing, releases the lock during IO (factory),
+        then stores the result.  Concurrent callers may both fetch,
+        but last-writer-wins on set.
+        """
+        cached = await self.get(key)
+        if cached is not None:
+            return cached
+        new_value = await factory()
+        if new_value is not None:
+            await self.set(key, new_value)
+        return new_value
 
 # ── Token estimation ──────────────────────────────────────────────────────────
 AUDIO_TOKEN_ESTIMATE = 100

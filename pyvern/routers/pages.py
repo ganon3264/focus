@@ -1,4 +1,3 @@
-import json
 from pathlib import Path
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -7,52 +6,25 @@ from jinja2 import FileSystemLoader
 import aiosqlite
 
 from pyvern.database import get_db
-from pyvern.card_parser import normalise_card
-from pyvern.utils import variable_group_name, MACRO_MAX_PASSES
+from pyvern.card_parser import safe_load_card
 from pyvern.macros import build_base_macros, apply_macros
+from pyvern.prompt_chain import partition_blocks, resolve_variable_blocks
 import pyvern.crud as crud
 
 router = APIRouter()
-
-def _partition_preset_blocks(blocks: list[dict]) -> tuple[list[dict], list[dict], dict[str, list[dict]]]:
-    var_blocks: list[dict] = []
-    regular_blocks: list[dict] = []
-    var_groups: dict[str, list[dict]] = {}
-    for b in blocks:
-        if b["block_type"] == "variable":
-            var_blocks.append(b)
-            var_groups.setdefault(variable_group_name(b["name"]), []).append(b)
-        else:
-            regular_blocks.append(b)
-    return var_blocks, regular_blocks, var_groups
 
 def _resolve_macros_for_display(messages, char, persona, preset_blocks=None):
     """Apply macros to message content for display resolution (greetings etc.)."""
     if not char:
         return
-    try:
-        card = json.loads(char["card_json"])
-    except (json.JSONDecodeError, TypeError):
+    card = safe_load_card(char)
+    if card is None:
         return
-    card = normalise_card(card)
     macros = build_base_macros(card, persona)
 
     if preset_blocks:
         variables = [b for b in preset_blocks if b["block_type"] == "variable"]
-        if variables:
-            var_map = {}
-            for v in variables:
-                var_key = variable_group_name(v["name"])
-                var_map[var_key] = v["content"]
-            for _ in range(MACRO_MAX_PASSES):
-                changed = False
-                for key, content in var_map.items():
-                    resolved = apply_macros(content, macros).strip()
-                    if macros.get(key) != resolved:
-                        macros[key] = resolved
-                        changed = True
-                if not changed:
-                    break
+        resolve_variable_blocks(variables, macros)
 
     for msg in messages:
         if isinstance(msg.get("content"), str):
@@ -88,7 +60,7 @@ async def chat_redirect(request: Request, character_id: str = Query(None), db: a
     preset = presets[0] if presets else None
     preset_blocks = preset["blocks"] if preset else []
 
-    var_blocks, regular_blocks, var_groups = _partition_preset_blocks(preset_blocks)
+    var_blocks, regular_blocks, var_groups = partition_blocks(preset_blocks)
 
     has_chars = await crud.has_characters(db)
 
@@ -127,7 +99,7 @@ async def chat_page(request: Request, chat_id: str, db: aiosqlite.Connection = D
     preset = await crud.get_preset(db, chat.get("preset_id"))
     preset_blocks = preset["blocks"] if preset else []
     
-    var_blocks, regular_blocks, var_groups = _partition_preset_blocks(preset_blocks)
+    var_blocks, regular_blocks, var_groups = partition_blocks(preset_blocks)
     
     _resolve_macros_for_display(messages, char, persona, preset_blocks)
             
@@ -177,7 +149,7 @@ async def presets_page(request: Request, db: aiosqlite.Connection = Depends(get_
     var_groups = {}
     regular_blocks = []
     if presets:
-        _, regular_blocks, var_groups = _partition_preset_blocks(presets[0]["blocks"])
+        _, regular_blocks, var_groups = partition_blocks(presets[0]["blocks"])
         
         # Override the blocks of the first preset to only be regular blocks
         # so the prompt_arranger partial include doesn't duplicate them
@@ -318,7 +290,7 @@ async def preset_editor_partial(
     blocks = preset["blocks"] if preset else []
 
     counts = await crud.get_counts(db, character_id or None, persona_id or None)
-    _, regular_blocks, var_groups = _partition_preset_blocks(blocks)
+    _, regular_blocks, var_groups = partition_blocks(blocks)
 
     return templates.TemplateResponse(request, "preset_editor.html", {
         "blocks": regular_blocks,

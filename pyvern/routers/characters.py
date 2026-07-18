@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 
 import pyvern.crud as crud
 from pyvern.database import get_db
-from pyvern.card_parser import extract_card_json, normalise_card
+from pyvern.card_parser import extract_card_json, normalise_card, safe_load_card
 from pyvern.models import CharBlockCreate, CharBlockUpdate, CharacterCreate, CharacterUpdate
 from pyvern.utils import now_iso
 
@@ -182,18 +182,10 @@ async def get_character(char_id: str, db: aiosqlite.Connection = Depends(get_db)
     if not row:
         raise HTTPException(404, "Character not found")
 
-    async with db.execute(
-        "SELECT * FROM char_blocks WHERE character_id = ? ORDER BY position, rowid", (char_id,)
-    ) as cur:
-        blocks = [dict(r) for r in await cur.fetchall()]
-    await crud.attach_images(blocks, db)
+    blocks = await crud.load_entity_blocks(db, "char_blocks", "character_id", char_id)
 
     result = dict(row)
-    try:
-        result["card"] = normalise_card(json.loads(result.pop("card_json")))
-    except (json.JSONDecodeError, TypeError, ValueError) as e:
-        logger.warning("Corrupted card_json for character %s: %s", char_id, e)
-        result["card"] = {}
+    result["card"] = safe_load_card(result.pop("card_json")) or {}
     result["blocks"] = blocks
     return result
 
@@ -230,10 +222,7 @@ async def add_char_image(
     file: UploadFile = File(...),
     db: aiosqlite.Connection = Depends(get_db),
 ):
-    async with db.execute("SELECT id FROM characters WHERE id = ?", (char_id,)) as cur:
-        if not await cur.fetchone():
-            raise HTTPException(404, "Character not found")
-
+    await crud.verify_entity_exists(db, "characters", char_id)
     try:
         return await crud.upload_block_image(db, char_id, "char", await file.read(), file.filename, file.content_type, "assets/blocks", images_only=False)
     except Exception as e:
@@ -315,12 +304,7 @@ async def add_char_block_image(
     file: UploadFile = File(...),
     db: aiosqlite.Connection = Depends(get_db),
 ):
-    async with db.execute(
-        "SELECT id FROM char_blocks WHERE id = ? AND character_id = ?", (block_id, char_id)
-    ) as cur:
-        if not await cur.fetchone():
-            raise HTTPException(404, "Block not found")
-
+    await crud.verify_entity_exists(db, "char_blocks", block_id, "character_id", char_id)
     try:
         return await crud.upload_block_image(db, block_id, "char", await file.read(), file.filename, file.content_type, f"assets/characters/{char_id}/blocks", images_only=True)
     except Exception as e:

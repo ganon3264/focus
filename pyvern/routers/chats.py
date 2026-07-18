@@ -1,4 +1,3 @@
-import json
 import uuid
 
 import aiosqlite
@@ -8,7 +7,8 @@ from pathlib import Path
 
 from pyvern.database import get_db
 from pyvern.models import ChatCreate, MessageEdit, SwipeRequest
-from pyvern.card_parser import normalise_card
+from pyvern.card_parser import safe_load_card
+import pyvern.crud as crud
 from pyvern.utils import now_iso
 
 router = APIRouter()
@@ -41,12 +41,7 @@ async def create_chat(body: ChatCreate, db: aiosqlite.Connection = Depends(get_d
         ) as cur:
             row = await cur.fetchone()
         if row:
-            try:
-                card = normalise_card(json.loads(row["card_json"]))
-            except (json.JSONDecodeError, TypeError, ValueError) as e:
-                logger = __import__("logging").getLogger("pyvern.routers.chats")
-                logger.warning("Corrupted card_json for character %s: %s", body.character_id, e)
-                card = {"first_mes": "", "alternate_greetings": []}
+            card = safe_load_card(row) or {"first_mes": "", "alternate_greetings": []}
             greetings = []
             if card["first_mes"]:
                 greetings.append(card["first_mes"])
@@ -90,18 +85,7 @@ async def get_chat(chat_id: str, db: aiosqlite.Connection = Depends(get_db)):
     if not chat:
         raise HTTPException(404, "Chat not found")
 
-    async with db.execute(
-        """SELECT m.id, m.role, m.position, m.active_index, m.created_at,
-                  mv.content,
-                  (SELECT COUNT(*) FROM message_variants WHERE message_id = m.id) AS variant_count
-           FROM messages m
-           JOIN message_variants mv
-             ON mv.message_id = m.id AND mv.variant_index = m.active_index
-           WHERE m.chat_id = ?
-           ORDER BY m.position""",
-        (chat_id,),
-    ) as cur:
-        messages = [dict(r) for r in await cur.fetchall()]
+    messages = await crud.fetch_active_variants(db, chat_id, extra_cols="m.created_at")
 
     result = dict(chat)
     result["messages"] = messages
