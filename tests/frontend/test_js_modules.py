@@ -3,7 +3,14 @@
 import subprocess
 from pathlib import Path
 
+import pytest
+
 FRONTEND_DIR = Path(__file__).parent
+
+JS_TEST_FILES = sorted(
+    str(p.relative_to(FRONTEND_DIR))
+    for p in FRONTEND_DIR.glob("test_*.js")
+)
 
 
 def _run_js_test(js_file: str):
@@ -14,29 +21,6 @@ def _run_js_test(js_file: str):
     )
 
 
-def test_api_paths():
-    _run_js_test("test_api_paths.js")
-
-
-def test_message_renderer():
-    _run_js_test("test_message_renderer.js")
-
-
-def test_reasoning_visibility():
-    _run_js_test("test_reasoning_visibility.js")
-
-
-def test_abort_cleanup():
-    _run_js_test("test_abort_cleanup.js")
-
-
-def test_state_manager():
-    _run_js_test("test_state_manager.js")
-
-
-def test_extract_data():
-    _run_js_test("test_extract_data.js")
-
-
-def test_backup_manager():
-    _run_js_test("test_backup_manager.js")
+@pytest.mark.parametrize("js_file", JS_TEST_FILES)
+def test_js_module(js_file: str):
+    _run_js_test(js_file)

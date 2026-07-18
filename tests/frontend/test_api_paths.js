@@ -1,8 +1,6 @@
 // Unit tests for api_paths.js — all route builders
-var failures = 0, tests = 0;
-
-function assert(cond, msg) { tests++; if (!cond) { console.error('FAIL: ' + msg); failures++; } else console.log('OK:   ' + msg); }
-function assertEqual(a, b, msg) { tests++; if (a !== b) { console.error('FAIL: ' + msg + ' — expected ' + JSON.stringify(b) + ', got ' + JSON.stringify(a)); failures++; } else console.log('OK:   ' + msg); }
+var h = require('./_helpers.js');
+var assert = h.assert, assertEqual = h.assertEqual;
 
 global.window = global;
 var path = require('path');
@@ -79,5 +77,4 @@ assertEqual(api.chat('abc-123'), '/api/chats/abc-123', 'chat with hyphen');
 assertEqual(api.characters('abc_123'), '/api/characters/abc_123', 'characters with underscore');
 
 // ── Result ──
-console.log('\n' + tests + ' tests, ' + failures + ' failures');
-process.exit(failures > 0 ? 1 : 0);
+h.printSummary();

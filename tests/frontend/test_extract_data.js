@@ -1,63 +1,36 @@
 // Unit tests for extractData() in modal_providers.js
-var failures = 0, tests = 0;
-
-function assert(cond, msg) { tests++; if (!cond) { console.error('FAIL: ' + msg); failures++; } else console.log('OK:   ' + msg); }
-function assertEqual(a, b, msg) { tests++; if (a !== b) { console.error('FAIL: ' + msg + ' — expected ' + JSON.stringify(b) + ', got ' + JSON.stringify(a)); failures++; } else console.log('OK:   ' + msg); }
-function assertDeepEqual(a, b, msg) { var s = JSON.stringify(a), t = JSON.stringify(b); tests++; if (s !== t) { console.error('FAIL: ' + msg + ' — expected ' + t + ', got ' + s); failures++; } else console.log('OK:   ' + msg); }
+var h = require('./_helpers.js');
+var assert = h.assert, assertEqual = h.assertEqual, assertDeepEqual = h.assertDeepEqual;
+var createMockForm = h.createMockForm;
 
 var path = require('path');
 var fs = require('fs');
 
 // Mock FormData
-global.FormData = function(form) {
-  this._fields = form._fields || {};
-  this[Symbol.iterator] = function() { return Object.entries(this._fields)[Symbol.iterator](); };
-};
+var MockFormData = h.createMockFormData();
+global.FormData = MockFormData;
 
 // Mock window globals needed by modal_providers.js
 global.window = global;
-global.alert = function() {};
-global.StateManager = { get: function() { return null; } };
+global.alert = function () {};
+global.StateManager = { get: function () { return null; } };
 global.api = {};
-global.htmx = { ajax: function() { return Promise.resolve(); } };
-global.openModal = function() {};
-global.closeModal = function() {};
-
-// Helper to create a mock form with fields and querySelector
-function mockForm(fields, queryMap) {
-  return {
-    _fields: fields,
-    querySelector: function(sel) {
-      if (queryMap && queryMap[sel] !== undefined) {
-        return { value: queryMap[sel] };
-      }
-      if (sel.indexOf('name="type"') >= 0) {
-        return { value: fields.type || '' };
-      }
-      if (sel.indexOf('name="or_no_fallbacks"') >= 0) {
-        return { value: 'true' };  // default checked
-      }
-      if (sel.indexOf('name="') >= 0) {
-        var m = sel.match(/name="([^"]+)"/);
-        if (m) return { value: fields[m[1]] !== undefined ? String(fields[m[1]]) : '' };
-      }
-      return null;
-    }
-  };
-}
+global.htmx = { ajax: function () { return Promise.resolve(); } };
+global.openModal = function () {};
+global.closeModal = function () {};
 
 // Load module
 eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'modals', 'modal_providers.js'), 'utf8'));
 
 // ── openai_compat — basic fields ──
-(function() {
-  var form = mockForm({
+(function () {
+  var form = createMockForm({
     name: 'My Provider',
     type: 'openai_compat',
     base_url: 'http://localhost:8080/v1',
     api_key: 'sk-test-123',
     model: 'gpt-4',
-    params: '{"temperature":0.7}'
+    params: '{"temperature":0.7}',
   });
   var data = extractData(form);
   assertEqual(data.name, 'My Provider', 'openai_compat: name preserved');
@@ -65,27 +38,27 @@ eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'modals', 
   assertEqual(data.base_url, 'http://localhost:8080/v1', 'openai_compat: base_url preserved');
   assertEqual(data.api_key, 'sk-test-123', 'openai_compat: api_key preserved');
   assertEqual(data.model, 'gpt-4', 'openai_compat: model preserved');
-  assertDeepEqual(data.params, {temperature: 0.7}, 'openai_compat: params parsed');
+  assertDeepEqual(data.params, { temperature: 0.7 }, 'openai_compat: params parsed');
   assert(!data.or_model, 'openai_compat: or_model deleted');
   assert(!data.or_route, 'openai_compat: or_route deleted');
 })();
 
 // ── openai_compat — hidden api_key removed ──
-(function() {
-  var form = mockForm({ name: 'P', type: 'openai_compat', model: 'gpt-4', api_key: '__HIDDEN__' });
+(function () {
+  var form = createMockForm({ name: 'P', type: 'openai_compat', model: 'gpt-4', api_key: '__HIDDEN__' });
   var data = extractData(form);
   assert(!data.api_key, 'openai_compat: __HIDDEN__ api_key removed');
 })();
 
 // ── openrouter — full config ──
-(function() {
-  var form = mockForm({
+(function () {
+  var form = createMockForm({
     name: 'OR',
     type: 'openrouter',
     or_model: 'anthropic/claude-3',
     or_route: 'fallback',
     or_quant: 'fp16',
-    params: '{}'
+    params: '{}',
   });
   var data = extractData(form);
   assertEqual(data.model, 'anthropic/claude-3', 'openrouter: model from or_model');
@@ -98,14 +71,14 @@ eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'modals', 
 })();
 
 // ── openrouter — no route/quant ──
-(function() {
-  var form = mockForm({
+(function () {
+  var form = createMockForm({
     name: 'OR Simple',
     type: 'openrouter',
     or_model: 'openai/gpt-4o',
     or_route: '',
     or_quant: '',
-    params: '{}'
+    params: '{}',
   });
   var data = extractData(form);
   assertEqual(data.model, 'openai/gpt-4o', 'openrouter simple: model set');
@@ -114,24 +87,24 @@ eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'modals', 
 })();
 
 // ── openrouter — no model alert ──
-(function() {
-  var form = mockForm({ name: 'Bad OR', type: 'openrouter', or_model: '' });
+(function () {
+  var form = createMockForm({ name: 'Bad OR', type: 'openrouter', or_model: '' });
   var alerted = false;
-  global.alert = function() { alerted = true; };
+  global.alert = function () { alerted = true; };
   var threw = false;
-  try { extractData(form); } catch(e) { threw = true; }
+  try { extractData(form); } catch (e) { threw = true; }
   assert(alerted, 'openrouter: no model triggers alert');
   assert(threw, 'openrouter: no model throws');
-  global.alert = function() {};
+  global.alert = function () {};
 })();
 
 // ── openrouter — invalid params json ──
-(function() {
-  var form = mockForm({
+(function () {
+  var form = createMockForm({
     name: 'OR',
     type: 'openrouter',
     or_model: 'model',
-    params: 'not-json'
+    params: 'not-json',
   });
   var data = extractData(form);
   assertEqual(data.params.or_no_fallbacks, true, 'openrouter: or_no_fallbacks still set');
@@ -139,14 +112,14 @@ eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'modals', 
 })();
 
 // ── google_vertex ──
-(function() {
-  var form = mockForm({
+(function () {
+  var form = createMockForm({
     name: 'Vertex',
     type: 'google_vertex',
     model: 'gemini-2.0',
     vertex_region: 'us-central1',
     vertex_project_id: 'my-project',
-    params: '{}'
+    params: '{}',
   });
   var data = extractData(form);
   assertEqual(data.model, 'gemini-2.0', 'vertex: model preserved');
@@ -158,29 +131,28 @@ eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'modals', 
 })();
 
 // ── google_aistudio ──
-(function() {
-  var form = mockForm({
+(function () {
+  var form = createMockForm({
     name: 'AI Studio',
     type: 'google_aistudio',
     model: 'gemini-2.0-flash',
     api_key: 'sk-ai',
-    params: '{"foo":"bar"}'
+    params: '{"foo":"bar"}',
   });
   var data = extractData(form);
   assertEqual(data.model, 'gemini-2.0-flash', 'aistudio: model preserved');
   assertEqual(data.base_url, '', 'aistudio: base_url empty');
   assertEqual(data.api_key, 'sk-ai', 'aistudio: api_key preserved');
-  assertDeepEqual(data.params, {foo: 'bar'}, 'aistudio: params parsed');
+  assertDeepEqual(data.params, { foo: 'bar' }, 'aistudio: params parsed');
 })();
 
 // ── deepseek ──
-(function() {
-  var form = mockForm({ name: 'DS', type: 'deepseek', model: 'deepseek-chat', params: '{}' });
+(function () {
+  var form = createMockForm({ name: 'DS', type: 'deepseek', model: 'deepseek-chat', params: '{}' });
   var data = extractData(form);
   assertEqual(data.model, 'deepseek-chat', 'deepseek: model preserved');
   assertEqual(data.base_url, '', 'deepseek: base_url empty');
 })();
 
 // ── Result ──
-console.log('\n' + tests + ' tests, ' + failures + ' failures');
-process.exit(failures > 0 ? 1 : 0);
+h.printSummary();

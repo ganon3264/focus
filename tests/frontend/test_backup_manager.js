@@ -1,41 +1,35 @@
 // Unit tests for backup_manager.js — export state machine
-var failures = 0, tests = 0;
-
-function assert(cond, msg) { tests++; if (!cond) { console.error('FAIL: ' + msg); failures++; } else console.log('OK:   ' + msg); }
-function assertEqual(a, b, msg) { tests++; if (a !== b) { console.error('FAIL: ' + msg + ' — expected ' + JSON.stringify(b) + ', got ' + JSON.stringify(a)); failures++; } else console.log('OK:   ' + msg); }
-function assertDeepEqual(a, b, msg) { var s = JSON.stringify(a), t = JSON.stringify(b); tests++; if (s !== t) { console.error('FAIL: ' + msg + ' — expected ' + t + ', got ' + s); failures++; } else console.log('OK:   ' + msg); }
+var h = require('./_helpers.js');
+var assert = h.assert, assertEqual = h.assertEqual, assertDeepEqual = h.assertDeepEqual;
 
 var path = require('path');
 var fs = require('fs');
 
 // Mock browser APIs
 global.window = global;
-global.document = {
-  getElementById: function() { return null; },
-  querySelector: function() { return null; },
-  querySelectorAll: function() { return []; }
-};
-global.openModal = function() {};
-global.closeModal = function() {};
-global.htmx = { ajax: function() { return Promise.resolve(); } };
-global.fetch = function(url, opts) {
+global.document = h.createMockDocument();
+global.openModal = function () {};
+global.closeModal = function () {};
+global.htmx = { ajax: function () { return Promise.resolve(); } };
+global.fetch = function (url, opts) {
   global._lastFetch = { url: url, opts: opts };
-  return Promise.resolve({ json: function() { return []; }, ok: true, blob: function() { return Promise.resolve(new Blob()); } });
+  return Promise.resolve({ json: function () { return []; }, ok: true, blob: function () { return Promise.resolve(new Blob()); } });
 };
+global._lastFetch = null;
 global.window.api = {
   backups: '/api/backups',
   export: '/api/export',
   cleanDb: '/api/db/clean',
   chats: '/api/chats',
   import_: '/api/import',
-  backupRestore: function(id) { return '/api/backups/' + id + '/restore'; },
-  backupDelete: function(id) { return '/api/backups/' + id; },
+  backupRestore: function (id) { return '/api/backups/' + id + '/restore'; },
+  backupDelete: function (id) { return '/api/backups/' + id; },
   partials: {
     exportEntities: '/partials/export-entities',
   },
 };
-global.URL = { createObjectURL: function() { return 'blob:url'; }, revokeObjectURL: function() {} };
-global.Blob = function() {};
+global.URL = { createObjectURL: function () { return 'blob:url'; }, revokeObjectURL: function () {} };
+global.Blob = function () {};
 
 // Load module
 eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'features', 'backup_manager.js'), 'utf8'));
@@ -44,7 +38,7 @@ var BM = window.BackupManager;
 assert(!!BM, 'BackupManager loaded');
 
 // ── Initial export state ──
-(function() {
+(function () {
   var s = BM._exportState;
   assertEqual(s.characters, 'none', 'initial: characters = none');
   assertEqual(s.personas, 'none', 'initial: personas = none');
@@ -58,15 +52,15 @@ assert(!!BM, 'BackupManager loaded');
 })();
 
 // ── setExportType 'all' ──
-(function() {
-  BM.openExportModal();  // resets state
+(function () {
+  BM.openExportModal();
   BM.setExportType('characters', 'all');
   assertEqual(BM._exportState.characters, 'all', 'setExportType(all): characters = all');
   assertDeepEqual(BM._exportState.selCharacters, {}, 'setExportType(all): selCharacters cleared');
 })();
 
 // ── setExportType 'none' ──
-(function() {
+(function () {
   BM.openExportModal();
   BM.setExportType('characters', 'all');
   BM.setExportType('characters', 'none');
@@ -74,7 +68,7 @@ assert(!!BM, 'BackupManager loaded');
 })();
 
 // ── toggleExportFlag toggles booleans ──
-(function() {
+(function () {
   BM.openExportModal();
   assertEqual(BM._exportState.chats, false, 'toggleExportFlag: chats starts false');
   BM.toggleExportFlag('chats');
@@ -88,14 +82,12 @@ assert(!!BM, 'BackupManager loaded');
 })();
 
 // ── toggleExportEntity adds/removes from selection ──
-(function() {
+(function () {
   BM.openExportModal();
-  // After openExportModal, characters=none, selChars={}
   BM.setExportType('characters', 'some');
-  // After setExportType('some'), characters='some'
   assertDeepEqual(BM._exportState.selCharacters, {}, 'selCharacters empty before toggle');
 
-  var el = { dataset: { exportId: 'char1' }, querySelector: function() { return { checked: false }; } };
+  var el = { dataset: { exportId: 'char1' }, querySelector: function () { return { checked: false }; } };
   BM.toggleExportEntity(el, 'characters', 'char1');
   assertEqual(BM._exportState.selCharacters.char1, true, 'toggleExportEntity: char1 selected');
 
@@ -104,7 +96,7 @@ assert(!!BM, 'BackupManager loaded');
 })();
 
 // ── doExport builds correct body for 'all' mode ──
-(function() {
+(function () {
   BM.openExportModal();
   BM.setExportType('characters', 'all');
   BM.setExportType('personas', 'all');
@@ -114,14 +106,14 @@ assert(!!BM, 'BackupManager loaded');
 
   var lastBody = null;
   global._lastFetch = null;
-  global.fetch = function(url, opts) {
-    if (url === '/api/chats/') return Promise.resolve({ json: function() { return []; }, ok: true });
+  global.fetch = function (url, opts) {
+    if (url === '/api/chats/') return Promise.resolve({ json: function () { return []; }, ok: true });
     global._lastFetch = { url: url, opts: opts };
     lastBody = JSON.parse(opts.body);
-    return Promise.resolve({ blob: function() { return Promise.resolve(new Blob()); }, ok: true });
+    return Promise.resolve({ blob: function () { return Promise.resolve(new Blob()); }, ok: true });
   };
 
-  return BM.doExport().then(function() {
+  return BM.doExport().then(function () {
     assert(!!lastBody, 'doExport: fetch called');
     assertDeepEqual(lastBody.characters, ['*'], 'doExport: characters = ["*"]');
     assertDeepEqual(lastBody.personas, ['*'], 'doExport: personas = ["*"]');
@@ -133,7 +125,7 @@ assert(!!BM, 'BackupManager loaded');
 })();
 
 // ── doExport builds correct body for 'some' mode ──
-(function() {
+(function () {
   BM.openExportModal();
   BM.setExportType('characters', 'some');
   BM._exportState.selCharacters = { char1: true, char2: true };
@@ -142,13 +134,13 @@ assert(!!BM, 'BackupManager loaded');
   BM.toggleExportFlag('chats');
 
   var lastBody = null;
-  global.fetch = function(url, opts) {
-    if (url === '/api/chats/') return Promise.resolve({ json: function() { return []; }, ok: true });
+  global.fetch = function (url, opts) {
+    if (url === '/api/chats/') return Promise.resolve({ json: function () { return []; }, ok: true });
     lastBody = JSON.parse(opts.body);
-    return Promise.resolve({ blob: function() { return Promise.resolve(new Blob()); }, ok: true });
+    return Promise.resolve({ blob: function () { return Promise.resolve(new Blob()); }, ok: true });
   };
 
-  return BM.doExport().then(function() {
+  return BM.doExport().then(function () {
     assertDeepEqual(lastBody.characters, ['char1', 'char2'], 'doExport some: characters = selected ids');
     assertDeepEqual(lastBody.personas, [], 'doExport some: personas = []');
     assertDeepEqual(lastBody.presets, [], 'doExport some: presets = []');
@@ -157,26 +149,25 @@ assert(!!BM, 'BackupManager loaded');
 })();
 
 // ── doExport filters chats by selected characters ──
-(function() {
+(function () {
   BM.openExportModal();
   BM.setExportType('characters', 'some');
   BM._exportState.selChars = { char1: true };
   BM.toggleExportFlag('chats');
 
   var lastBody = null;
-  global.fetch = function(url, opts) {
+  global.fetch = function (url, opts) {
     if (url === '/api/chats/') {
-      return Promise.resolve({ json: function() { return [{ id: 'chat1', character_id: 'char1' }, { id: 'chat2', character_id: 'char2' }]; }, ok: true });
+      return Promise.resolve({ json: function () { return [{ id: 'chat1', character_id: 'char1' }, { id: 'chat2', character_id: 'char2' }]; }, ok: true });
     }
     lastBody = JSON.parse(opts.body);
-    return Promise.resolve({ blob: function() { return Promise.resolve(new Blob()); }, ok: true });
+    return Promise.resolve({ blob: function () { return Promise.resolve(new Blob()); }, ok: true });
   };
 
-  return BM.doExport().then(function() {
+  return BM.doExport().then(function () {
     assertDeepEqual(lastBody.chats, ['chat1'], 'doExport chat filter: only char1 chats');
   });
 })();
 
 // ── Result ──
-console.log('\n' + tests + ' tests, ' + failures + ' failures');
-process.exit(failures > 0 ? 1 : 0);
+h.printSummary();

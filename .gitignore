@@ -10,3 +10,6 @@ static/tailwind.css
 static/vendor/
 .opencode/
 tests/tmp/
+tests/coverage_html/
+.coverage
+*.coverage.*

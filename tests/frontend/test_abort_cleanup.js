@@ -1,78 +1,19 @@
-// tests/frontend/test_abort_cleanup.js
-// Unit tests for the stream abort cleanup behavior.
-// The bug: when the user hits the stop button before any tokens are received,
-// the asstDiv (with the spinner) was left in the DOM, forcing a page refresh.
-// The fix: the AbortError catch branch must remove the empty asstDiv (for
-// new messages) or refresh the message list (for regenerate).
+// Unit tests for the stream abort cleanup behavior (contract test).
+//
+// The abort-handling logic lives inline inside the chat_stream.js IIFE
+// catch block (lines 310-343) and is deeply entangled with 30+ DOM
+// references that can't be mocked cleanly.  Rather than loading the full
+// module, we replicate the logic here to test the behavioral contract.
+//
+// The contract:
+//   AbortError + no text + new message  → asstDiv removed
+//   AbortError + no text + regen        → refresh fired, asstDiv preserved
+//   AbortError + partial text           → asstDiv kept (visible partial)
+//   Non-AbortError                      → asstDiv removed + refresh fired
 
-var failures = 0, tests = 0;
-function assert(cond, msg) { tests++; if (!cond) { console.error('FAIL: ' + msg); failures++; } else console.log('OK:   ' + msg); }
-function assertEqual(a, b, msg) {
-  tests++;
-  if (a !== b) { console.error('FAIL: ' + msg + ' — expected ' + JSON.stringify(b) + ', got ' + JSON.stringify(a)); failures++; }
-  else console.log('OK:   ' + msg);
-}
-
-// ── Minimal DOM mock (just enough for the abort logic) ──
-function makeEl(tag) {
-  var el = {
-    tagName: tag.toUpperCase(),
-    children: [],
-    classList: {
-      _set: new Set(),
-      add(c) { this._set.add(c); },
-      remove(c) { this._set.delete(c); },
-      contains(c) { return this._set.has(c); },
-      toggle(c, force) {
-        if (force === true) this._set.add(c);
-        else if (force === false) this._set.delete(c);
-        else if (this._set.has(c)) this._set.delete(c);
-        else this._set.add(c);
-      },
-    },
-    parent: null,
-    appendChild(c) { this.children.push(c); c.parent = this; return c; },
-    remove() { if (this.parent) { var i = this.parent.children.indexOf(this); if (i >= 0) this.parent.children.splice(i, 1); this.parent = null; } },
-    querySelector(sel) { return querySelectorAll(this, sel)[0] || null; },
-    querySelectorAll(sel) { return querySelectorAll(this, sel); },
-  };
-  Object.defineProperty(el, 'parentNode', {
-    get() { return el.parent; },
-  });
-  Object.defineProperty(el, 'innerHTML', {
-    get() { return el._innerHTML || ''; },
-    set(v) {
-      el._innerHTML = v;
-      el.children = [];
-      var m = /<(\w+)([^>]*)>/.exec(v);
-      if (m) {
-        var child = makeEl(m[1]);
-        var cls = /class\s*=\s*"([^"]+)"/.exec(m[2]);
-        if (cls) cls[1].split(/\s+/).forEach(function (c) { child.classList.add(c); });
-        el.appendChild(child);
-      }
-    },
-  });
-  return el;
-}
-
-function matches(el, sel) {
-  if (sel === '.message') return el.classList && el.classList.contains('message');
-  if (sel === '.message-content') return el.classList && el.classList.contains('message-content');
-  if (sel === '.reasoning-toggle-btn') return el.classList && el.classList.contains('reasoning-toggle-btn');
-  if (sel === '.message-spinner') return el.classList && el.classList.contains('message-spinner');
-  return false;
-}
-
-function querySelectorAll(root, sel) {
-  var results = [];
-  function walk(el) {
-    if (matches(el, sel)) results.push(el);
-    for (var i = 0; i < el.children.length; i++) walk(el.children[i]);
-  }
-  if (root) walk(root);
-  return results;
-}
+var h = require('./_helpers.js');
+var assert = h.assert, assertEqual = h.assertEqual;
+var makeElement = h.makeElement, querySelectorAll = h.querySelectorAll;
 
 // ── Replicate the production abort-handling logic ──
 function handleAbort(err, asstDiv, fullText, isRegen, htmxAjaxCalls) {
@@ -88,20 +29,31 @@ function handleAbort(err, asstDiv, fullText, isRegen, htmxAjaxCalls) {
       asstDiv.remove();
     }
   }
+  // partial text → asstDiv kept, no refresh (test cases 3,4)
+}
+
+function matches(el, sel) {
+  if (!el || !el.tagName) return false;
+  if (sel === '.message') return el.classList && el.classList.contains('message');
+  if (sel === '.message-content') return el.classList && el.classList.contains('message-content');
+  if (sel === '.reasoning-toggle-btn') return el.classList && el.classList.contains('reasoning-toggle-btn');
+  if (sel === '.message-spinner') return el.classList && el.classList.contains('message-spinner');
+  return false;
 }
 
 // ── Test helpers ──
+
 function makeAsstDiv() {
-  var msg = makeEl('div');
+  var msg = makeElement('div');
   msg.classList.add('message');
   msg.id = 'streaming-message';
 
-  var btn = makeEl('button');
+  var btn = makeElement('button');
   btn.classList.add('reasoning-toggle-btn');
   btn.classList.add('hidden');
   msg.appendChild(btn);
 
-  var content = makeEl('div');
+  var content = makeElement('div');
   content.classList.add('message-content');
   content.innerHTML = '<div class="message-spinner"></div>';
   msg.appendChild(content);
@@ -110,15 +62,15 @@ function makeAsstDiv() {
 }
 
 function makeExistingMessageDiv() {
-  var msg = makeEl('div');
+  var msg = makeElement('div');
   msg.classList.add('message');
   msg.id = 'message-existing-1';
 
-  var btn = makeEl('button');
+  var btn = makeElement('button');
   btn.classList.add('reasoning-toggle-btn');
   msg.appendChild(btn);
 
-  var content = makeEl('div');
+  var content = makeElement('div');
   content.classList.add('message-content');
   content.innerHTML = '<p>Previous assistant content</p>';
   msg.appendChild(content);
@@ -130,7 +82,7 @@ function makeExistingMessageDiv() {
 
 (function () {
   // 1. AbortError with no text and new message: asstDiv is removed
-  var parent = makeEl('div');
+  var parent = makeElement('div');
   var asstDiv = makeAsstDiv();
   parent.appendChild(asstDiv);
   var ajaxCalls = [];
@@ -140,7 +92,7 @@ function makeExistingMessageDiv() {
   assert(ajaxCalls.length === 0, 'AbortError + no text + new msg: no refresh fired');
 
   // 2. AbortError with no text and regenerate: refresh fired, asstDiv NOT removed
-  var parent2 = makeEl('div');
+  var parent2 = makeElement('div');
   var asstDiv2 = makeExistingMessageDiv();
   parent2.appendChild(asstDiv2);
   var ajaxCalls2 = [];
@@ -149,7 +101,7 @@ function makeExistingMessageDiv() {
   assert(ajaxCalls2.length === 1 && ajaxCalls2[0] === 'refresh', 'AbortError + no text + regen: refresh fired');
 
   // 3. AbortError with some text: asstDiv kept (no remove, no refresh)
-  var parent3 = makeEl('div');
+  var parent3 = makeElement('div');
   var asstDiv3 = makeAsstDiv();
   parent3.appendChild(asstDiv3);
   var ajaxCalls3 = [];
@@ -158,7 +110,7 @@ function makeExistingMessageDiv() {
   assert(ajaxCalls3.length === 0, 'AbortError + some text: no refresh fired');
 
   // 4. AbortError with some text + regenerate: same, asstDiv kept
-  var parent4 = makeEl('div');
+  var parent4 = makeElement('div');
   var asstDiv4 = makeExistingMessageDiv();
   parent4.appendChild(asstDiv4);
   var ajaxCalls4 = [];
@@ -166,8 +118,8 @@ function makeExistingMessageDiv() {
   assert(parent4.children.length === 1, 'AbortError + some text + regen: asstDiv kept');
   assert(ajaxCalls4.length === 0, 'AbortError + some text + regen: no refresh fired');
 
-  // 5. Non-AbortError: asstDiv removed, refresh fired (existing behavior)
-  var parent5 = makeEl('div');
+  // 5. Non-AbortError: asstDiv removed, refresh fired
+  var parent5 = makeElement('div');
   var asstDiv5 = makeAsstDiv();
   parent5.appendChild(asstDiv5);
   var ajaxCalls5 = [];
@@ -177,15 +129,19 @@ function makeExistingMessageDiv() {
   assert(ajaxCalls5.length === 1, 'Non-AbortError: refresh fired');
 
   // 6. Non-AbortError with regenerate: asstDiv removed, refresh fired
-  var parent6 = makeEl('div');
+  var parent6 = makeElement('div');
   var asstDiv6 = makeExistingMessageDiv();
   parent6.appendChild(asstDiv6);
   var ajaxCalls6 = [];
   handleAbort(realErr, asstDiv6, '', true, ajaxCalls6);
   assert(parent6.children.length === 0, 'Non-AbortError + regen: asstDiv removed');
   assert(ajaxCalls6.length === 1, 'Non-AbortError + regen: refresh fired');
+
+  // 7. null/undefined asstDiv — no crash
+  var ajaxCalls7 = [];
+  handleAbort(err, null, '', false, ajaxCalls7);
+  assert(ajaxCalls7.length === 0, 'null asstDiv: no crash, no refresh');
 })();
 
 // ── Result ──
-console.log('\n' + tests + ' tests, ' + failures + ' failures');
-process.exit(failures > 0 ? 1 : 0);
+h.printSummary();

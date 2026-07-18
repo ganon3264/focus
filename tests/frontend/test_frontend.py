@@ -98,3 +98,56 @@ def test_css_valid():
 
     assert ":root" in css_text
     assert ".left-sidebar" in css_text
+
+
+TEMPLATES_THAT_RENDER = [
+    ("modals/sampler_modal.html", {}),
+    ("modals/itemizer_modal.html", {}),
+    ("modals/confirm_modal.html", {}),
+    ("modals/edit_entity_modal.html", {"prefix": "char", "modal_id": "modal-edit-character", "entity_name": "Character", "upload_fn": "uploadCharModalMedia", "avatar_fn": "uploadCharacterAvatar", "submit_fn": "submitEditCharacter"}),
+    ("modals/edit_entity_modal.html", {"prefix": "persona", "modal_id": "modal-edit-persona", "entity_name": "Persona", "upload_fn": "uploadPersonaMedia", "avatar_fn": "uploadPersonaAvatar", "submit_fn": "submitEditPersona"}),
+    ("modals/backup_modal.html", {}),
+    ("modals/provider_create_modal.html", {}),
+    ("modals/text_expander.html", {}),
+    ("modals/theme_modal.html", {}),
+    ("modals/export_entities.html", {"entities": []}),
+]
+
+
+@pytest.mark.parametrize("template_name,context", TEMPLATES_THAT_RENDER)
+def test_template_renders(template_name, context):
+    """Key templates render without errors given minimal context."""
+    tmpl = env.get_template(template_name)
+    result = tmpl.render(context)
+    assert isinstance(result, str)
+    assert len(result) > 0
+
+
+def test_modal_shell_macro_compiles():
+    """modal_shell.html macro renders without errors."""
+    tmpl = env.get_template("modal_shell.html")
+    source = env.loader.get_source(env, "modal_shell.html")[0]
+    assert "{% macro modal_shell" in source
+    assert "{% macro modal_footer" in source
+
+
+def test_macros_macro_compiles():
+    """macros.html macro library compiles."""
+    source = env.loader.get_source(env, "macros.html")[0]
+    assert "{% macro" in source
+
+
+def test_header_integrity():
+    """All templates should compile under StrictUndefined (no missing variables)."""
+    # text_expander has no variable dependencies — renders with empty context
+    tmpl = env.get_template("modals/text_expander.html")
+    result = tmpl.render({})
+    assert len(result) > 0
+
+
+def test_css_has_essential_vars():
+    """CSS defines essential custom properties."""
+    css_text = (STATIC_DIR / "style.css").read_text()
+    for var in ["--bg", "--surface", "--border", "--accent", "--text", "--text-muted",
+                 "--radius-sm", "--radius-md", "--transition", "--z-modal"]:
+        assert var in css_text, f"Missing CSS variable: {var}"

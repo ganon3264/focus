@@ -18,6 +18,7 @@ dependencies = [
     "tiktoken==0.13.0",
     "pytest==9.1.1",
     "pytest-asyncio==1.4.0",
+    "pytest-cov==6.1.1",
     "cssutils==2.15.0",
 ]
 
@@ -34,6 +35,19 @@ packages = ["focus"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+addopts = "--cov=focus --cov-report=term-missing --cov-report=html:tests/coverage_html"
+
+[tool.coverage.run]
+source = ["focus", "main.py"]
+omit = ["*/vendor/*", "tests/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+    "raise AssertionError",
+    "if TYPE_CHECKING:",
+]
 
 [tool.ruff]
 line-length = 120

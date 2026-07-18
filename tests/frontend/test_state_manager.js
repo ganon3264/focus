@@ -1,50 +1,27 @@
-// tests/test_state_manager.js — unit tests for StateManager
-// Run: node tests/test_state_manager.js
+// Unit tests for StateManager
+var h = require('./_helpers.js');
+var assert = h.assert, assertEqual = h.assertEqual, assertDeepEqual = h.assertDeepEqual;
 
-var failures = 0;
-var tests = 0;
-
-function assert(condition, msg) {
-  tests++;
-  if (!condition) { console.error('FAIL: ' + msg); failures++; }
-  else { console.log('OK:   ' + msg); }
-}
-
-function assertEqual(actual, expected, msg) {
-  tests++;
-  if (actual !== expected) {
-    console.error('FAIL: ' + msg + ' — expected ' + JSON.stringify(expected) + ', got ' + JSON.stringify(actual));
-    failures++;
-  } else { console.log('OK:   ' + msg); }
-}
-
-function assertDeepEqual(actual, expected, msg) {
-  var a = JSON.stringify(actual), b = JSON.stringify(expected);
-  tests++;
-  if (a !== b) {
-    console.error('FAIL: ' + msg + ' — expected ' + b + ', got ' + a);
-    failures++;
-  } else { console.log('OK:   ' + msg); }
-}
-
-// Browser API mocks
 var storage = {};
+
+// Mock localStorage
 global.localStorage = {
-  getItem: function(k) { return storage.hasOwnProperty(k) ? storage[k] : null; },
-  setItem: function(k, v) { storage[k] = String(v); },
-  removeItem: function(k) { delete storage[k]; }
+  getItem: function (k) { return storage.hasOwnProperty(k) ? storage[k] : null; },
+  setItem: function (k, v) { storage[k] = String(v); },
+  removeItem: function (k) { delete storage[k]; },
 };
+
 global._lastFetch = null;
-global.fetch = function(url, opts) {
+global.fetch = function (url, opts) {
   global._lastFetch = { url: url, opts: opts };
   return Promise.resolve({ ok: true });
 };
-global.CustomEvent = function(name, opts) {
+global.CustomEvent = function (name, opts) {
   this.type = name; this.detail = opts ? opts.detail : undefined;
 };
 global._dispatchedEvents = [];
 global.window = global;
-global.window.dispatchEvent = function(ev) { global._dispatchedEvents.push(ev); };
+global.window.dispatchEvent = function (ev) { global._dispatchedEvents.push(ev); };
 
 // Load StateManager
 var fs = require('fs'), path = require('path');
@@ -57,7 +34,7 @@ function reset() {
 }
 
 // ── init() ──
-(function() {
+(function () {
   reset();
   StateManager.init({ character_id: 'c1', persona_id: 'p1', preset_id: 'pr1' }, 'chat1');
   assertEqual(StateManager.get('character_id'), 'c1', 'init sets character_id');
@@ -68,7 +45,7 @@ function reset() {
 })();
 
 // ── init() reads provider from localStorage ──
-(function() {
+(function () {
   reset();
   localStorage.setItem('focus-provider-id', 'prov1');
   localStorage.setItem('focus-provider-type', 'openai_compat');
@@ -78,11 +55,11 @@ function reset() {
 })();
 
 // ── setPreset() + callback ──
-(function() {
+(function () {
   reset();
   StateManager.init({ character_id: null, persona_id: null, preset_id: null }, 'chat2');
   var events = [];
-  StateManager.on('preset-changed', function(e) { events.push(e); });
+  StateManager.on('preset-changed', function (e) { events.push(e); });
 
   StateManager.setPreset('pr2');
   assertEqual(StateManager.get('preset_id'), 'pr2', 'setPreset updates state');
@@ -100,11 +77,11 @@ function reset() {
 })();
 
 // ── setPreset(null) ──
-(function() {
+(function () {
   reset();
   StateManager.init({ character_id: null, persona_id: null, preset_id: 'pr2' }, 'chat3');
   var events = [];
-  StateManager.on('preset-changed', function(e) { events.push(e); });
+  StateManager.on('preset-changed', function (e) { events.push(e); });
 
   StateManager.setPreset(null);
   assertEqual(StateManager.get('preset_id'), null, 'setPreset(null) clears state');
@@ -115,11 +92,11 @@ function reset() {
 })();
 
 // ── setCharacter() ──
-(function() {
+(function () {
   reset();
   StateManager.init({ character_id: 'c1', persona_id: null, preset_id: null }, 'chat4');
   var events = [];
-  StateManager.on('character-changed', function(e) { events.push(e); });
+  StateManager.on('character-changed', function (e) { events.push(e); });
 
   StateManager.setCharacter('c2');
   assertEqual(StateManager.get('character_id'), 'c2', 'setCharacter updates state');
@@ -130,11 +107,11 @@ function reset() {
 })();
 
 // ── setPersona() ──
-(function() {
+(function () {
   reset();
   StateManager.init({ character_id: null, persona_id: null, preset_id: null }, 'chat5');
   var events = [];
-  StateManager.on('persona-changed', function(e) { events.push(e); });
+  StateManager.on('persona-changed', function (e) { events.push(e); });
 
   StateManager.setPersona('p2');
   assertEqual(StateManager.get('persona_id'), 'p2', 'setPersona updates state');
@@ -144,11 +121,11 @@ function reset() {
 })();
 
 // ── setProvider() + localStorage + window event ──
-(function() {
+(function () {
   reset();
   StateManager.init({ character_id: null, persona_id: null, preset_id: null }, null);
   var cb = [];
-  StateManager.on('provider-changed', function(e) { cb.push(e); });
+  StateManager.on('provider-changed', function (e) { cb.push(e); });
 
   StateManager.setProvider('prov1', 'openai_compat');
   assertEqual(StateManager.get('provider_id'), 'prov1', 'setProvider updates provider_id');
@@ -176,7 +153,7 @@ function reset() {
 })();
 
 // ── setProvider without type → no CustomEvent ──
-(function() {
+(function () {
   reset();
   StateManager.init({}, null);
   StateManager.setProvider('provX', null);
@@ -188,17 +165,17 @@ function reset() {
 })();
 
 // ── getAll() ──
-(function() {
+(function () {
   reset();
   StateManager.init({ character_id: 'ca', persona_id: 'pa', preset_id: 'pra' }, 'chatX');
   assertDeepEqual(StateManager.getAll(), {
     character_id: 'ca', persona_id: 'pa', preset_id: 'pra',
-    provider_id: null, provider_type: null
+    provider_id: null, provider_type: null,
   }, 'getAll returns all 5 fields');
 })();
 
 // ── No chatId → no fetch ──
-(function() {
+(function () {
   reset();
   StateManager.init({ character_id: null, persona_id: null, preset_id: null }, null);
 
@@ -208,7 +185,7 @@ function reset() {
 })();
 
 // ── off() unregisters listener ──
-(function() {
+(function () {
   reset();
   StateManager.init({ character_id: null, persona_id: null, preset_id: null }, null);
 
@@ -224,22 +201,22 @@ function reset() {
 })();
 
 // ── setPreset with same value — still fires (StateManager always does) ──
-(function() {
+(function () {
   reset();
   StateManager.init({ preset_id: 'same' }, 'chat6');
   var calls = 0;
-  StateManager.on('preset-changed', function() { calls++; });
+  StateManager.on('preset-changed', function () { calls++; });
   StateManager.setPreset('same');
   assertEqual(calls, 1, 'setPreset(same) still fires callback');
   assertEqual(StateManager.get('preset_id'), 'same', 'setPreset(same) keeps value');
 })();
 
 // ── setCharacter with null clears ──
-(function() {
+(function () {
   reset();
   StateManager.init({ character_id: 'c1' }, 'chat7');
   var events = [];
-  StateManager.on('character-changed', function(e) { events.push(e); });
+  StateManager.on('character-changed', function (e) { events.push(e); });
   StateManager.setCharacter(null);
   assertEqual(StateManager.get('character_id'), null, 'setCharacter(null) clears');
   assertEqual(events[0].prev, 'c1', 'setCharacter(null) prev is old id');
@@ -248,7 +225,7 @@ function reset() {
 })();
 
 // ── setPersona with null clears ──
-(function() {
+(function () {
   reset();
   StateManager.init({ persona_id: 'p1' }, 'chat8');
   StateManager.setPersona(null);
@@ -256,18 +233,18 @@ function reset() {
 })();
 
 // ── Multiple callbacks on same event ──
-(function() {
+(function () {
   reset();
   StateManager.init({ preset_id: null }, 'chat9');
   var count = 0;
-  StateManager.on('preset-changed', function() { count++; });
-  StateManager.on('preset-changed', function() { count++; });
+  StateManager.on('preset-changed', function () { count++; });
+  StateManager.on('preset-changed', function () { count++; });
   StateManager.setPreset('multi');
   assertEqual(count, 2, 'multiple callbacks both fire');
 })();
 
 // ── setCharacter PATCH body shape ──
-(function() {
+(function () {
   reset();
   StateManager.init({ character_id: 'old' }, 'chat10');
   StateManager.setCharacter('newChar');
@@ -278,7 +255,7 @@ function reset() {
 })();
 
 // ── setPersona PATCH body shape ──
-(function() {
+(function () {
   reset();
   StateManager.init({ persona_id: null }, 'chat11');
   StateManager.setPersona('newPersona');
@@ -288,14 +265,14 @@ function reset() {
 })();
 
 // ── get() on unknown key returns undefined ──
-(function() {
+(function () {
   reset();
   StateManager.init({}, null);
   assertEqual(StateManager.get('nonexistent'), undefined, 'get(unknown) returns undefined');
 })();
 
 // ── init() with null chatId — no fetch on set ──
-(function() {
+(function () {
   reset();
   StateManager.init({ character_id: null, persona_id: null, preset_id: null }, null);
   StateManager.setCharacter('c99');
@@ -305,13 +282,13 @@ function reset() {
 })();
 
 // ── Provider: setProvider with previous values ──
-(function() {
+(function () {
   reset();
   localStorage.setItem('focus-provider-id', 'oldId');
   localStorage.setItem('focus-provider-type', 'oldType');
   StateManager.init({}, null);
   var events = [];
-  StateManager.on('provider-changed', function(e) { events.push(e); });
+  StateManager.on('provider-changed', function (e) { events.push(e); });
   StateManager.setProvider('newId', 'newType');
   assertEqual(events[0].prevId, 'oldId', 'provider prevId from localStorage');
   assertEqual(events[0].prevType, 'oldType', 'provider prevType from localStorage');
@@ -320,13 +297,12 @@ function reset() {
 })();
 
 // ── off() on non-registered listener — no crash ──
-(function() {
+(function () {
   reset();
   StateManager.init({}, null);
-  StateManager.off('preset-changed', function() {});
+  StateManager.off('preset-changed', function () {});
   assert(true, 'off(non-registered) does not throw');
 })();
 
 // ── Result ──
-console.log('\n' + tests + ' tests, ' + failures + ' failures');
-process.exit(failures > 0 ? 1 : 0);
+h.printSummary();
