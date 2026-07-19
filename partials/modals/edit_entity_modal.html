@@ -1,4 +1,4 @@
-{% from "macros.html" import icon_expand, icon_plus %} {% from "modal_shell.html" import modal_shell
+{% from "macros.html" import icon_expand, icon_plus, hint_tooltip %} {% from "modal_shell.html" import modal_shell
 %} {% call modal_shell(modal_id, 'Edit ' ~ entity_name, z_index='100') %}
 <form
   id="edit-{{ prefix }}-form"
@@ -72,7 +72,10 @@
   </div>
 
   <div class="form-group mb-0 mt-2">
-    <label class="text-sm font-semibold text-muted block mb-1">Reference Media</label>
+    <div class="flex items-center gap-1 mb-1">
+      <label class="text-sm font-semibold text-muted block" style="margin-bottom:0">Reference Media</label>
+      {{ hint_tooltip('Exact position within the block can be set using <code>{{media::x}}</code> macro, where x is the number of each attached media starting from 1. If not specified, all media is appended sequentially after the block.') }}
+    </div>
     <div
       class="char-block-media-section"
       id="edit-{{ prefix }}-media-section"
