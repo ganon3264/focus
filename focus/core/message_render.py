@@ -1,10 +1,19 @@
 from __future__ import annotations
 
+import json
 import re
 
 
-def render_message_segments(content: str, reasoning: str | None = None) -> list[dict]:
+def render_message_segments(
+    content: str,
+    reasoning: str | None = None,
+    segments_json: str | None = None,
+) -> list[dict]:
     """Split message content into typed segments for template rendering.
+
+    If *segments_json* is provided (from the stored ``segments_json`` column),
+    it is parsed and returned directly.  Otherwise the legacy parsing path is
+    used (``%%%TOOL_BOUNDARY%%%`` markers + ``<think>`` blocks in content).
 
     Returns a flat list of dicts:
       {"type": "text", "content": str}          # raw text (markdown-processed by JS later)
@@ -15,6 +24,9 @@ def render_message_segments(content: str, reasoning: str | None = None) -> list[
     individual toggle — it's controlled by the message-level reasoning button.
     Subsequent blocks get a clickable toggle button.
     """
+    if segments_json:
+        return json.loads(segments_json)
+
     segments: list[dict] = []
     reasoning_idx = 0
 

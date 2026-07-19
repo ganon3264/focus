@@ -91,8 +91,7 @@ async def _append_history_with_tool_calls(
 ):
     """Append a history entry for *row*, potentially followed by synthetic
     tool-role messages if the original assistant message had tool_calls."""
-    content_text = row["content"]
-    content_text = content_text.replace("%%%TOOL_BOUNDARY%%%", "").strip()
+    content_text = row["content"].strip()
     content = await _build_content(content_text, msg_attachments.get(row["variant_id"], []))
 
     entry: dict = {

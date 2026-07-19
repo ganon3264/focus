@@ -149,7 +149,7 @@
 
     var contentDiv = state.asstDiv.querySelector('.message-content');
     if (contentDiv) {
-      contentDiv.innerHTML = window.renderMessage(state.fullText, 0, state.fullReasoning);
+      contentDiv.innerHTML = window.renderMessage(state.fullText);
       if (window._updateReasoningButton) window._updateReasoningButton(contentDiv);
     }
     if (state.messageId) {

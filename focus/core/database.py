@@ -105,7 +105,8 @@ CREATE TABLE IF NOT EXISTS message_variants (
     content       TEXT NOT NULL,
     created_at    TEXT NOT NULL,
     model_name    TEXT,
-    reasoning     TEXT
+    reasoning     TEXT,
+    segments_json TEXT
 );
 
 CREATE TABLE IF NOT EXISTS block_images (
@@ -216,6 +217,8 @@ async def init_db():
             await db.execute("ALTER TABLE message_variants ADD COLUMN model_name TEXT")
         if "reasoning" not in col_names:
             await db.execute("ALTER TABLE message_variants ADD COLUMN reasoning TEXT")
+        if "segments_json" not in col_names:
+            await db.execute("ALTER TABLE message_variants ADD COLUMN segments_json TEXT")
 
         cols = await db.execute("PRAGMA table_info(settings)")
         col_names = {row[1] for row in await cols.fetchall()}

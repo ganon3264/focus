@@ -33,7 +33,7 @@ def _resolve_macros_for_display(messages, char, persona, preset_blocks=None):
     for msg in messages:
         if isinstance(msg.get("content"), str):
             msg["content"] = apply_macros(msg["content"], macros)
-            msg["segments"] = render_message_segments(msg["content"], msg.get("reasoning"))
+            msg["segments"] = render_message_segments(msg["content"], msg.get("reasoning"), msg.get("segments_json"))
 
 
 templates = Jinja2Templates(directory="templates")

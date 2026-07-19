@@ -119,8 +119,7 @@
     if (state.textSegments.length > 0) {
       for (var si = 0; si < state.textSegments.length; si++) {
         var seg = state.textSegments[si];
-        var segReasoning = si === 0 ? state.fullReasoning : null;
-        window.preserveOpenStates(seg.div, function () { return window.renderMessage(seg.text, 0, segReasoning); });
+        window.preserveOpenStates(seg.div, function () { return window.renderMessage(seg.text); });
       }
       if (window._updateReasoningButton) window._updateReasoningButton(state.asstDiv.querySelector('.message-content'));
     }

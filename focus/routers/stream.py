@@ -38,6 +38,11 @@ from focus.tools.provider_adapter import (
     to_provider_tools,
     to_provider_tool_results,
 )
+from focus.core.message_render import (
+    _escape_html,
+    _extract_think_blocks,
+    strip_think_blocks,
+)
 
 router = APIRouter()
 logger = get_logger("routers.stream")
@@ -289,6 +294,8 @@ async def _stream_generate(
     variant_saved = False
     final_text: list[str] = []
     final_reasoning: list[str] = []
+    _text_slices: list[int] = []      # len(final_text) at each tool boundary
+    _reasoning_slices: list[int] = [] # len(final_reasoning) at each tool boundary
 
     # ── start SSE ───────────────────────────────────────────────────────
     yield (
@@ -344,6 +351,9 @@ async def _stream_generate(
                 yield f"data: {json.dumps({'type': 'reasoning', 'text': event['text']})}\n\n"
 
             elif event["type"] == "tool_calls":
+                # Record iteration boundary for segment construction
+                _text_slices.append(len(final_text))
+                _reasoning_slices.append(len(final_reasoning))
                 yield (
                     f"data: {json.dumps({
                         'type': 'tool_calls',
@@ -367,18 +377,30 @@ async def _stream_generate(
 
             elif event["type"] == "done":
                 # ── save final variant ──────────────────────────────────
+                # Close final iteration boundary
+                _text_slices.append(len(final_text))
+                _reasoning_slices.append(len(final_reasoning))
+
                 full = "".join(final_text)
                 full_reasoning = "".join(final_reasoning).strip() or None
 
+                # Build structured segments from iteration data
+                segments = _build_segments(
+                    _text_slices, _reasoning_slices,
+                    final_text, final_reasoning,
+                )
+
                 logger.debug(
-                    "stream: saving variant asst_msg_id=%s variant_index=%d full_length=%d reasoning=%s",
-                    asst_msg_id, next_variant_index, len(full), "yes" if full_reasoning else "no",
+                    "stream: saving variant asst_msg_id=%s variant_index=%d full_length=%d reasoning=%s segments=%d",
+                    asst_msg_id, next_variant_index, len(full),
+                    "yes" if full_reasoning else "no", len(segments),
                 )
                 try:
                     await _upsert_variant(
                         body.chat_id, asst_msg_id, next_variant_index,
                         full, body.regenerate, prov_dict.get("model", ""),
                         variant_id=variant_id, reasoning=full_reasoning,
+                        segments_json=json.dumps(segments) if segments else None,
                     )
                     variant_saved = True
                     logger.debug("stream: variant saved successfully")
@@ -448,6 +470,8 @@ async def _non_stream_generate(
     """Run generation in non-streaming mode and return a JSON response."""
     collected: list[str] = []
     collected_reasoning: list[str] = []
+    n_text_slices: list[int] = []
+    n_reasoning_slices: list[int] = []
     variant_id = str(uuid.uuid4())
 
     try:
@@ -460,6 +484,9 @@ async def _non_stream_generate(
                 collected.append(event["text"])
             elif event["type"] == "reasoning":
                 collected_reasoning.append(event["text"])
+            elif event["type"] == "tool_calls":
+                n_text_slices.append(len(collected))
+                n_reasoning_slices.append(len(collected_reasoning))
             elif event["type"] == "error":
                 if not body.regenerate and not collected:
                     await _rollback_assistant(asst_msg_id)
@@ -476,21 +503,41 @@ async def _non_stream_generate(
             await _rollback_assistant(asst_msg_id)
         raise HTTPException(499, "Request cancelled")
 
+    # Close final iteration
+    n_text_slices.append(len(collected))
+    n_reasoning_slices.append(len(collected_reasoning))
+
+    # Apply prefill (insert at position 0) and adjust slice indices accordingly
+    prefill_text_len = 0
+    prefill_reasoning_len = 0
     if not provider.echoes_prefill:
         if body.continue_text:
             collected.insert(0, body.continue_text)
-        pref_reasoning = _prefill_reasoning(body, messages)
-        if pref_reasoning:
-            collected_reasoning.insert(0, pref_reasoning)
+            prefill_text_len = 1
+        pref_r = _prefill_reasoning(body, messages)
+        if pref_r:
+            collected_reasoning.insert(0, pref_r)
+            prefill_reasoning_len = 1
+    if prefill_text_len:
+        n_text_slices = [s + prefill_text_len for s in n_text_slices]
+    if prefill_reasoning_len:
+        n_reasoning_slices = [s + prefill_reasoning_len for s in n_reasoning_slices]
 
     full = "".join(collected)
     full_reasoning = "".join(collected_reasoning).strip() or None
+
+    # Build structured segments from iteration data
+    segments = _build_segments(
+        n_text_slices, n_reasoning_slices,
+        collected, collected_reasoning,
+    )
 
     try:
         await _upsert_variant(
             body.chat_id, asst_msg_id, next_variant_index,
             full, body.regenerate, prov_dict.get("model", ""),
             variant_id=variant_id, reasoning=full_reasoning,
+            segments_json=json.dumps(segments) if segments else None,
         )
     except Exception as e:
         logger.exception("Failed to save non-stream result for chat_id=%s", body.chat_id)
@@ -746,7 +793,63 @@ async def _execute_tool_round(
     return results
 
 
-# ── Variant persistence (unchanged) ──────────────────────────────────────
+# ── Segment construction from iteration data ──────────────────────────────
+
+
+def _build_segments(
+    text_slices: list[int],
+    reasoning_slices: list[int],
+    final_text: list[str],
+    final_reasoning: list[str],
+) -> list[dict]:
+    """Build segment list from per-iteration text/reasoning ranges.
+
+    Returns a flat list of segment dicts matching
+    ``render_message_segments()`` output format:
+      {"type": "text", "content": str}
+      {"type": "reasoning", "html": str, "index": int}
+      {"type": "tool_boundary"}
+    """
+    segments: list[dict] = []
+    think_idx = 0
+    prev_t = 0
+    prev_r = 0
+
+    for i in range(len(text_slices)):
+        t_end = text_slices[i]
+        r_end = reasoning_slices[i]
+
+        # Reasoning from the separate field (if any for this iteration)
+        if r_end > prev_r:
+            r_text = "".join(final_reasoning[prev_r:r_end]).strip()
+            if r_text:
+                segments.append({
+                    "type": "reasoning",
+                    "html": _escape_html(r_text),
+                    "index": think_idx,
+                })
+                think_idx += 1
+
+        # Text from this iteration
+        if t_end > prev_t:
+            t_text = "".join(final_text[prev_t:t_end])
+            # Extract inline <think> blocks (used by some models)
+            think_idx = _extract_think_blocks(t_text, think_idx, segments)
+            clean = strip_think_blocks(t_text)
+            if clean.strip():
+                segments.append({"type": "text", "content": clean})
+
+        # Tool boundary between iterations (except the last)
+        if i < len(text_slices) - 1:
+            segments.append({"type": "tool_boundary"})
+
+        prev_t = t_end
+        prev_r = r_end
+
+    return segments
+
+
+# ── Variant persistence ──────────────────────────────────────────────────
 
 
 async def _upsert_variant(
@@ -758,6 +861,7 @@ async def _upsert_variant(
     model_name: str = "",
     variant_id: str | None = None,
     reasoning: str | None = None,
+    segments_json: str | None = None,
 ) -> str:
     """Insert or update a message variant. If a variant with the same
     (message_id, variant_index) exists, updates it in-place. Otherwise inserts
@@ -776,14 +880,14 @@ async def _upsert_variant(
         if existing:
             vid = existing[0]
             await save_db.execute(
-                "UPDATE message_variants SET content = ?, model_name = ?, created_at = ?, reasoning = ? WHERE id = ?",
-                (content, model_name or None, save_now, reasoning, vid),
+                "UPDATE message_variants SET content = ?, model_name = ?, created_at = ?, reasoning = ?, segments_json = ? WHERE id = ?",
+                (content, model_name or None, save_now, reasoning, segments_json, vid),
             )
         else:
             vid = variant_id or str(uuid.uuid4())
             await save_db.execute(
-                "INSERT INTO message_variants (id, message_id, variant_index, content, created_at, model_name, reasoning) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (vid, asst_msg_id, variant_index, content, save_now, model_name or None, reasoning),
+                "INSERT INTO message_variants (id, message_id, variant_index, content, created_at, model_name, reasoning, segments_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (vid, asst_msg_id, variant_index, content, save_now, model_name or None, reasoning, segments_json),
             )
             if regenerate and variant_index > 0:
                 async with save_db.execute("SELECT active_index FROM messages WHERE id = ?", (asst_msg_id,)) as act:

@@ -257,9 +257,14 @@ async def edit_message(
     now = now_iso()
     new_variant_id = str(uuid.uuid4())
 
+    from focus.core.message_render import render_message_segments
+    import json
+    _segments = render_message_segments(body.content, body.reasoning)
+    _segments_json = json.dumps(_segments) if _segments else None
+
     await db.execute(
-        "INSERT INTO message_variants (id, message_id, variant_index, content, created_at, model_name, reasoning) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (new_variant_id, message_id, new_index, body.content, now, prev_model, body.reasoning),
+        "INSERT INTO message_variants (id, message_id, variant_index, content, created_at, model_name, reasoning, segments_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        (new_variant_id, message_id, new_index, body.content, now, prev_model, body.reasoning, _segments_json),
     )
 
     for att_id in body.attachment_ids:
@@ -402,8 +407,8 @@ async def branch_chat(
         for v in variants:
             new_variant_id = str(uuid.uuid4())
             await db.execute(
-                "INSERT INTO message_variants (id, message_id, variant_index, content, created_at) VALUES (?, ?, ?, ?, ?)",
-                (new_variant_id, new_msg_id, v["variant_index"], v["content"], v["created_at"]),
+                "INSERT INTO message_variants (id, message_id, variant_index, content, created_at, model_name, reasoning, segments_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (new_variant_id, new_msg_id, v["variant_index"], v["content"], v["created_at"], v.get("model_name"), v.get("reasoning"), v.get("segments_json")),
             )
             async with db.execute("SELECT * FROM message_attachments WHERE variant_id = ?", (v["id"],)) as cur3:
                 attachments = [dict(r) for r in await cur3.fetchall()]
