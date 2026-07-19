@@ -180,11 +180,11 @@
         {{ icon_chevron_right(12, 'class="w-3 h-3 chevron"') }}
         Reasoning
       </summary>
-      <div class="reasoning-content markdown-content processed">{{ seg.html | safe }}</div>
+      <div class="reasoning-content markdown-content">{{ seg.html | safe }}</div>
     </details>
     {% else %}
     <div class="reasoning-block pl-stream" data-think-id="0">
-      <div class="reasoning-content markdown-content processed hidden">{{ seg.html | safe }}</div>
+      <div class="reasoning-content markdown-content hidden">{{ seg.html | safe }}</div>
     </div>
     {% endif %}
     {% elif seg.type == 'tool_boundary' and message.get('tool_calls') and not ns.tool_rendered %}
