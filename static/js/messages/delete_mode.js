@@ -19,6 +19,12 @@
       .querySelectorAll('.delete-mode-checkbox')
       .forEach((el) => el.classList.remove('hidden'));
 
+    // Unprune all messages so DOM operations see every message
+    document.querySelectorAll('.message-placeholder').forEach(function (ph) {
+      var id = ph.dataset.msgId;
+      if (id && window._unpruneMessage) window._unpruneMessage(id);
+    });
+
     if (startMessageId) {
       let foundStart = false;
       document.querySelectorAll('.message').forEach((msgDiv) => {
@@ -50,9 +56,7 @@
   };
 
   window.bulkDeleteSelected = async function (chatId) {
-    const selected = Array.from(document.querySelectorAll('.msg-select-checkbox:checked')).map(
-      (cb) => cb.value,
-    );
+    const selected = lastDeleteSelection;
     if (selected.length === 0) {
       window.exitDeleteMode();
       return;
