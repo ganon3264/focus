@@ -1,0 +1,42 @@
+# Third-Party Notices
+
+Focus is licensed under the MIT License (see LICENSE). It depends on the
+following third-party software, each under its own license.
+
+## Frontend
+
+| Library      | Version | License              | Source |
+|--------------|---------|-----------------------|--------|
+| htmx         | 2.0.10  | 0BSD                  | https://github.com/bigskysoftware/htmx |
+| Alpine.js    | 3.15.12 | MIT                   | https://github.com/alpinejs/alpine |
+| Marked       | 18.0.5  | MIT                   | https://github.com/markedjs/marked |
+| DOMPurify    | 3.4.11  | (MPL-2.0 OR Apache-2.0) | https://github.com/cure53/DOMPurify |
+| Sortable.js  | 1.15.7  | MIT                   | https://github.com/SortableJS/Sortable |
+| Cropper.js   | 2.1.1   | MIT                   | https://github.com/fengyuanchen/cropperjs |
+| Tailwind CSS | v4.3.2  | MIT                   | https://github.com/tailwindlabs/tailwindcss |
+| Lucide (icons) | —     | ISC                   | https://github.com/lucide-icons/lucide |
+
+## Backend (Python)
+
+The following packages are used under permissive licenses (MIT / BSD /
+Apache-2.0): aiosqlite, annotated-doc, annotated-types, anyio, certifi,
+cffi, chardet, charset-normalizer, click, coverage, cryptography, distro,
+encutils, fastapi, google-auth, google-genai, h11, httpcore, httpx,
+httptools, idna, iniconfig, jinja2, jiter, markupsafe, more-itertools,
+openai, packaging, pillow, pluggy, pyasn1, pyasn1-modules, pycparser,
+pydantic, pydantic-core, pygments, pytest, pytest-asyncio, pytest-cov,
+python-dotenv, python-multipart, pyyaml, regex, requests, sniffio,
+starlette, tenacity, tiktoken, tqdm, typing-extensions, typing-inspection,
+urllib3, uvicorn, uvloop, watchfiles, websockets.
+
+One exception:
+
+| Package   | Version | License   | Note |
+|-----------|---------|-----------|------|
+| cssutils  | —       | LGPL-3.0  | Used as an unmodified library dependency via pip; not statically linked or bundled into Focus's own source. |
+
+---
+
+Full license texts for each dependency are available from their respective
+source repositories linked above. This file does not modify or supersede
+any dependency's own license terms.
