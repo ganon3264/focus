@@ -6,9 +6,9 @@ A roleplaying thingy, kinda like SillyTavern, but opinionated and personal (and 
 
 ## Prerequisites
 
-Python 3.11+
-uv (optional, but recommended)
-node.js (optional, for tests)
+- Python 3.11+
+- uv (optional, but recommended)
+- node.js (optional, for tests)
 
 ## How to use
 ```
@@ -21,9 +21,9 @@ cd focus
 
 - Generic OAI compatible chat completion
 - OpenRouter
- - Quantization, provider routing
- - Sticky routing by session ID
- - Claude caching support
+  - Quantization, provider routing
+  - Sticky routing by session ID
+  - Claude caching support
 - Deepseek
 - Moonshot
 - Google AI Studio
@@ -34,11 +34,11 @@ cd focus
 - Lightweight UI
 - Easily themable
 - Multimodal support as first class citizen
- - Attach images to prompt blocks, character cards, and personas; choose attachment's position within the card using a macro
+  - Attach images to prompt blocks, character cards, and personas; choose attachment's position within the card using a macro
 - Basic toolcalling support
- - Generic OAI, Moonshot and Deepseek tested; Google not so much
+  - Generic OAI, Moonshot and Deepseek tested; Google not so much
 - Prefill `reasoning_content` support for toolcalls and more complex presets
- - Actual support for sending `reasoning_content` back properly if model needs it (encrypted thinking not handled yet/if ever)
+  - Actual support for sending `reasoning_content` back properly if model needs it (encrypted thinking not handled yet/if ever)
 - Preset variables exposed in the UI with switches
 
 ## Why
