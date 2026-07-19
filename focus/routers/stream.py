@@ -42,6 +42,9 @@ from focus.tools.provider_adapter import (
 router = APIRouter()
 logger = get_logger("routers.stream")
 
+# Track active streaming generations for graceful stop (message_id → Event)
+_active_generations: dict[str, asyncio.Event] = {}
+
 
 # ── Provider loading ─────────────────────────────────────────────────────
 
@@ -189,6 +192,7 @@ async def _run_generation(
     chat_id: str,
     asst_msg_id: str,
     variant_id: str,
+    stop_event: asyncio.Event | None = None,
 ) -> AsyncIterator[dict]:
     """Run the tool-calling iteration loop.
 
@@ -209,12 +213,18 @@ async def _run_generation(
     loop_messages: list = list(messages)
 
     for _iteration in range(MAX_TOOL_ITERATIONS if tools_enabled else 1):
+        if stop_event and stop_event.is_set():
+            yield {"type": "done"}
+            return
         iter_collected: list[str] = []
         iter_reasoning: list[str] = []
         tool_calls_list: list | None = None
 
         try:
             async for event in provider.stream_complete(loop_messages, **gen_kwargs):
+                if stop_event and stop_event.is_set():
+                    yield {"type": "done"}
+                    return
                 if event["type"] == "token":
                     iter_collected.append(event["text"])
                     yield {"type": "token", "text": event["text"]}
@@ -272,6 +282,7 @@ async def _stream_generate(
     tools_enabled: bool,
     tools_by_name: dict,
     tool_read_only: bool,
+    stop_event: asyncio.Event,
 ) -> AsyncIterator[str]:
     """Async generator that yields SSE-encoded lines for a streaming response."""
     variant_id = str(uuid.uuid4())
@@ -288,25 +299,26 @@ async def _stream_generate(
         })}\n\n"
     )
 
-    # Emit prefill as synthetic events so the frontend always receives the
-    # complete message without any special prefill awareness.
-    if not provider.echoes_prefill:
-        pref_reasoning = _prefill_reasoning(body, messages)
-        if pref_reasoning:
-            final_reasoning.append(pref_reasoning)
-            yield f"data: {json.dumps({'type': 'reasoning', 'text': pref_reasoning})}\n\n"
-        if body.continue_text:
-            final_text.append(body.continue_text)
-            yield f"data: {json.dumps({'token': body.continue_text})}\n\n"
-
     # ── core loop ───────────────────────────────────────────────────────
     # GeneratorExit/CancelledError are caught here because aclose()
     # throws them at the SSE ``yield`` points below.
     try:
+        # Emit prefill as synthetic events (inside try so GeneratorExit
+        # from these yields is caught and cleanup runs).
+        if not provider.echoes_prefill:
+            pref_reasoning = _prefill_reasoning(body, messages)
+            if pref_reasoning:
+                final_reasoning.append(pref_reasoning)
+                yield f"data: {json.dumps({'type': 'reasoning', 'text': pref_reasoning})}\n\n"
+            if body.continue_text:
+                final_text.append(body.continue_text)
+                yield f"data: {json.dumps({'token': body.continue_text})}\n\n"
+
         async for event in _run_generation(
             provider, messages, gen_kwargs, tools_enabled,
             tools_by_name, tool_read_only,
             body.chat_id, asst_msg_id, variant_id,
+            stop_event,
         ):
             if event["type"] == "token":
                 final_text.append(event["text"])
@@ -413,6 +425,8 @@ async def _stream_generate(
             final_text, final_reasoning, prov_dict,
         )
         raise
+    finally:
+        _active_generations.pop(asst_msg_id, None)
 
 
 # ── Non-stream generation ────────────────────────────────────────────────
@@ -548,6 +562,10 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
     next_variant_index = ctx["next_variant_index"]
     user_msg_id = ctx["user_msg_id"]
 
+    # Register this generation for graceful stop
+    stop_event = asyncio.Event()
+    _active_generations[asst_msg_id] = stop_event
+
     logger.debug(
         "stream: ctx returned asst_msg_id=%s user_msg_id=%s next_variant_index=%d messages=%d",
         asst_msg_id, user_msg_id, next_variant_index, len(messages),
@@ -601,10 +619,30 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
             body, provider, prov_dict, messages, gen_kwargs,
             asst_msg_id, next_variant_index, user_msg_id,
             tools_enabled, tools_by_name, tool_read_only,
+            stop_event,
         ),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+# ── Stop-generation endpoint ──────────────────────────────────────────────
+
+
+@router.post("/stop-generation/{message_id}")
+async def stop_generation(message_id: str):
+    """Set the stop event for an active generation.
+
+    The SSE generator checks this event between tokens and drains gracefully,
+    sending a ``done`` event so the frontend's read loop completes normally.
+    """
+    event = _active_generations.get(message_id)
+    if not event:
+        logger.warning("Stop requested for unknown message_id=%s", message_id)
+        raise HTTPException(404, "No active generation found")
+    event.set()
+    logger.info("Graceful stop requested for message_id=%s", message_id)
+    return {"ok": True}
 
 
 # ── Tool round helpers (unchanged) ───────────────────────────────────────
@@ -762,10 +800,11 @@ async def _upsert_variant(
                             (str(uuid.uuid4()), chat_id, asst_msg_id, vid, att["file_path"], att["mime_type"], save_now),
                         )
 
-        await save_db.execute(
-            "UPDATE messages SET active_index = ? WHERE id = ?",
-            (variant_index, asst_msg_id),
-        )
+        if content or reasoning:
+            await save_db.execute(
+                "UPDATE messages SET active_index = ? WHERE id = ?",
+                (variant_index, asst_msg_id),
+            )
         await save_db.execute("UPDATE chats SET updated_at = ? WHERE id = ?", (save_now, chat_id))
         await save_db.commit()
 

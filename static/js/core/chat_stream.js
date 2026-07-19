@@ -164,42 +164,18 @@
   /* ── Stream error handler ── */
 
   async function _handleStreamError(err, state) {
-    console.error('[stream] Error: name=%s, message=%s, fullText.length=%d, messageId=%s',
-      err.name, err.message, state.fullText.length, state.messageId);
-
+    console.error('[stream] Error: name=%s, message=%s',
+      err.name, err.message);
     if (err.name !== 'AbortError') {
       window.showErrorToast(err.message);
-      if (state.asstDiv && state.asstDiv.parentNode) state.asstDiv.remove();
-      htmx.ajax('GET', window.api.partials.messageList(state.chatId), {
-        target: '#message-list',
-        swap: 'innerHTML',
-      });
-    } else if (!state.fullText) {
-      if (state.isRegen) {
-        htmx.ajax('GET', window.api.partials.messageList(state.chatId), {
-          target: '#message-list',
-          swap: 'innerHTML',
-        });
-      } else if (state.asstDiv && state.asstDiv.parentNode) {
-        state.asstDiv.remove();
-      }
-    } else if (state.messageId) {
-      var partialText = state.fullText;
-      state.asstDiv.id = 'message-' + state.messageId;
-      state.asstDiv.dataset.messageId = state.messageId;
-      await window.refreshMessagesAfterStream(state.chatId, state.userMessageId, state.messageId);
-      if (partialText) {
-        var restoredDiv = document.getElementById('message-' + state.messageId);
-        if (restoredDiv) {
-          restoredDiv.dataset.rawContent = partialText;
-          var restoredContent = restoredDiv.querySelector('.message-content');
-          if (restoredContent) {
-            restoredContent.innerHTML = window.renderMessage(partialText, 0, state.fullReasoning);
-            if (window._updateReasoningButton) window._updateReasoningButton(restoredContent);
-          }
-        }
-      }
     }
+    if (state.asstDiv && state.asstDiv.parentNode) {
+      state.asstDiv.remove();
+    }
+    htmx.ajax('GET', window.api.partials.messageList(state.chatId), {
+      target: '#message-list',
+      swap: 'innerHTML',
+    });
   }
 
   /* ── Main generation orchestrator ── */
@@ -376,7 +352,16 @@
   /* ── Stop button ── */
 
   stopBtn.addEventListener('click', function () {
-    if (currentController) {
+    if (!currentController) return;
+    var msgId = window._streamingMessageId;
+    if (msgId) {
+      fetch('/api/stop-generation/' + encodeURIComponent(msgId), { method: 'POST' }).catch(function () {
+        if (currentController) {
+          currentController.abort();
+          currentController = null;
+        }
+      });
+    } else {
       currentController.abort();
       currentController = null;
     }
