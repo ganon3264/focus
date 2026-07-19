@@ -394,7 +394,7 @@ async def branch_chat(
         msg_id_map[msg["id"]] = new_msg_id
         await db.execute(
             "INSERT INTO messages (id, chat_id, role, position, active_index, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-            (new_msg_id, new_chat_id, msg["role"], msg["position"], msg["active_index"], now),
+            (new_msg_id, new_chat_id, msg["role"], msg["position"], msg["active_index"], msg["created_at"]),
         )
 
         async with db.execute("SELECT * FROM message_variants WHERE message_id = ?", (msg["id"],)) as cur2:
@@ -403,7 +403,7 @@ async def branch_chat(
             new_variant_id = str(uuid.uuid4())
             await db.execute(
                 "INSERT INTO message_variants (id, message_id, variant_index, content, created_at) VALUES (?, ?, ?, ?, ?)",
-                (new_variant_id, new_msg_id, v["variant_index"], v["content"], now),
+                (new_variant_id, new_msg_id, v["variant_index"], v["content"], v["created_at"]),
             )
             async with db.execute("SELECT * FROM message_attachments WHERE variant_id = ?", (v["id"],)) as cur3:
                 attachments = [dict(r) for r in await cur3.fetchall()]
@@ -417,7 +417,7 @@ async def branch_chat(
                         new_variant_id,
                         att["file_path"],
                         att["mime_type"],
-                        now,
+                        att["created_at"],
                     ),
                 )
 
@@ -435,7 +435,7 @@ async def branch_chat(
                         tc["arguments"],
                         tc["result"],
                         tc["is_error"],
-                        now,
+                        tc["created_at"],
                     ),
                 )
 

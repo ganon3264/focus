@@ -30,7 +30,7 @@ def _render_message(message=None, **overrides):
         "variant_count": 1,
         "content": "Hello world",
         "model_name": "test-model",
-        "created_at": "2024-01-01T00:00:00",
+        "created_at": "2024-01-01T00:00:00+00:00",
         "attachments": [],
     }
     if message:

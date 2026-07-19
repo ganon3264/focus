@@ -74,6 +74,7 @@
       }
       _pruned.delete(r.id);
     }
+    if (window.formatTimestamps) window.formatTimestamps();
   }
 
   function schedule() {

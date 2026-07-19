@@ -1,11 +1,11 @@
 import re
-from datetime import datetime
+from datetime import UTC, datetime
 
 from focus.core.utils import MACRO_MAX_PASSES
 
 
 def build_base_macros(card: dict, persona: dict | None = None) -> dict[str, str]:
-    now = datetime.now()
+    now = datetime.now(UTC)
 
     hour = now.hour
     if 5 <= hour < 12:

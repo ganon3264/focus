@@ -28,6 +28,7 @@
     if (window._isMessagePruned && window._isMessagePruned(msgId)) {
       window._unpruneMessage(msgId);
     }
+    if (window.formatTimestamps) window.formatTimestamps();
   }
 
   async function _refreshMessageNodes(chatId, msgIds) {

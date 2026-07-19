@@ -52,8 +52,8 @@ class TestBuildBaseMacros:
 
             class FakeDatetime(datetime):
                 @classmethod
-                def now(cls):
-                    return cls(2025, 1, 1, hour, 0, 0)
+                def now(cls, tz=None):
+                    return cls(2025, 1, 1, hour, 0, 0, tzinfo=tz)
 
             monkeypatch.setattr(m, "datetime", FakeDatetime)
             macros = build_base_macros({})
