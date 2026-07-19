@@ -43,7 +43,7 @@
     card.className = 'details tool-call';
     card.innerHTML =
       '<summary>' +
-      '<svg class="w-3 h-3 chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>' +
+      (window.getSvgSprite('chevron-right', 12) || '').replace('<svg', '<svg class="w-3 h-3 chevron"') +
       '<code class="font-bold">' + window.escapeHtml(tc.function.name) + '</code>' +
       '<span class="truncate max-w-[300px]">' + window.escapeHtml(tc.function.arguments || '') + '</span>' +
       '</summary>' +
@@ -94,7 +94,7 @@
         details.className = 'details reasoning-block';
         details.innerHTML =
           '<summary>' +
-          '<svg class="w-3 h-3 chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>' +
+          (window.getSvgSprite('chevron-right', 12) || '').replace('<svg', '<svg class="w-3 h-3 chevron"') +
           '<span class="text-xs text-muted">Reasoning</span>' +
           '</summary>' +
           '<div style="margin-top:0.5rem"></div>';

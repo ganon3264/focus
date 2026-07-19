@@ -152,7 +152,7 @@
         var tip = document.getElementById('hint-tooltip');
         if (!tip) return;
         var r = icon.getBoundingClientRect();
-        tip.textContent = el.getAttribute('data-hint') || '';
+        tip.innerHTML = DOMPurify.sanitize(el.getAttribute('data-hint') || '');
         tip.style.left = (r.left + r.width / 2) + 'px';
         tip.style.top = (r.bottom + 4) + 'px';
         tip.style.transform = 'translateX(-50%)';

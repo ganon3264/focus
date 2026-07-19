@@ -2,34 +2,19 @@
   /* ── SVG helpers ── */
 
   function _chevronSvg() {
-    var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svg.setAttribute('class', 'w-3 h-3 reasoning-chevron');
-    svg.style.cssText = 'color:var(--text-faint);transition:transform 0.2s ease';
-    svg.setAttribute('fill', 'none');
-    svg.setAttribute('stroke', 'currentColor');
-    svg.setAttribute('viewBox', '0 0 24 24');
-    var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    path.setAttribute('stroke-linecap', 'round');
-    path.setAttribute('stroke-linejoin', 'round');
-    path.setAttribute('stroke-width', '2');
-    path.setAttribute('d', 'M9 5l7 7-7 7');
-    svg.appendChild(path);
-    return svg;
+    var html = (window.getSvgSprite('chevron-right', 12) || '').replace(
+      '<svg', '<svg class="w-3 h-3 reasoning-chevron" style="color:var(--text-faint);transition:transform 0.2s ease"');
+    var d = document.createElement('div');
+    d.innerHTML = html;
+    return d.firstElementChild;
   }
 
   function _summaryChevronSvg() {
-    var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svg.setAttribute('class', 'w-3 h-3 chevron');
-    svg.setAttribute('fill', 'none');
-    svg.setAttribute('stroke', 'currentColor');
-    svg.setAttribute('viewBox', '0 0 24 24');
-    var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    path.setAttribute('stroke-linecap', 'round');
-    path.setAttribute('stroke-linejoin', 'round');
-    path.setAttribute('stroke-width', '2');
-    path.setAttribute('d', 'M9 5l7 7-7 7');
-    svg.appendChild(path);
-    return svg;
+    var html = (window.getSvgSprite('chevron-right', 12) || '').replace(
+      '<svg', '<svg class="w-3 h-3 chevron"');
+    var d = document.createElement('div');
+    d.innerHTML = html;
+    return d.firstElementChild;
   }
 
   /* ── Builder: assistant streaming skeleton ── */

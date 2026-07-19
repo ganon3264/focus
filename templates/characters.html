@@ -106,8 +106,8 @@
             <!-- Character Reference Media -->
             <div class="form-group w-full mb-0 mt-2">
               <div class="flex items-center gap-1 mb-1">
-                <label class="text-sm font-semibold text-muted block">Reference Media</label>
-                {{ hint_tooltip('Images or audio attached here are sent to the model as context. Reference them in your prompt blocks using <code>{{ media::x }}</code> where x is the 1-based position in the list.') }}
+                <label class="text-sm font-semibold text-muted block" style="margin-bottom:0">Reference Media</label>
+                {{ hint_tooltip('Exact position within the block can be set using <code>{{ media::x }}</code> macro, where x is the number of each attached media starting from 1. If not specified, all media is appended sequentially after the block.') }}
               </div>
               <div class="char-block-media-section" id="media-section-char-{{ char.id }}" style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
                 {% for img in char.images %}
