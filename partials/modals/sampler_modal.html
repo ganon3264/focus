@@ -282,19 +282,25 @@
     >
       <div class="tree-child">
         <span class="tree-dot"></span>
-        <div class="form-group mb-0 flex items-center justify-between">
-          <label
-            class="text-xs mb-0 cursor-pointer"
-            @click="samplers.preserve_thinking = !samplers.preserve_thinking; saveStandard()"
-            >Preserve Thinking (multi-turn)</label
-          >
-          <div
-            class="arranger-toggle"
-            role="switch"
-            tabindex="0"
-            :class="{ 'active': samplers.preserve_thinking }"
-            @click="samplers.preserve_thinking = !samplers.preserve_thinking; saveStandard()"
-          ></div>
+        <div class="form-group mb-0">
+          <label class="flex justify-between text-xs mb-2"><span>Preserve Thinking (multi-turn)</span></label>
+          <div class="flex gap-2 flex-wrap">
+            <button
+              class="btn-tag"
+              :class="samplers.preserve_thinking === 'off' ? 'active' : ''"
+              @click.stop="samplers.preserve_thinking = 'off'; saveStandard()"
+            >Off</button>
+            <button
+              class="btn-tag"
+              :class="samplers.preserve_thinking === 'tool_only' ? 'active' : ''"
+              @click.stop="samplers.preserve_thinking = 'tool_only'; saveStandard()"
+            >Tool Calls</button>
+            <button
+              class="btn-tag"
+              :class="samplers.preserve_thinking === 'all' ? 'active' : ''"
+              @click.stop="samplers.preserve_thinking = 'all'; saveStandard()"
+            >All</button>
+          </div>
         </div>
       </div>
     </div>
@@ -614,18 +620,21 @@
 <script>
 const PROVIDER_SAMPLERS = {
   openai_compat: {
-    defaults: {},
+    defaults: { preserve_thinking: "tool_only" },
     build(s) {
       return {
         frequency_penalty: s.frequency_penalty,
         presence_penalty: s.presence_penalty,
         include_reasoning: s.include_reasoning,
-        ...(s.include_reasoning && s.reasoning_effort ? { reasoning_effort: s.reasoning_effort } : {}),
+        ...(s.include_reasoning ? {
+          reasoning_effort: s.reasoning_effort,
+          preserve_thinking: s.preserve_thinking,
+        } : {}),
       };
     },
   },
   deepseek: {
-    defaults: { preserve_thinking: false },
+    defaults: { preserve_thinking: "tool_only" },
     build(s) {
       return {
         include_reasoning: s.include_reasoning,
@@ -634,7 +643,7 @@ const PROVIDER_SAMPLERS = {
     },
   },
   moonshot: {
-    defaults: { preserve_thinking: false },
+    defaults: { preserve_thinking: "tool_only" },
     build(s) {
       return {
         frequency_penalty: s.frequency_penalty,
@@ -812,7 +821,7 @@ const PROVIDER_SAMPLERS = {
       },
       get showReasoningToggle() { return ['openai_compat', 'deepseek', 'moonshot'].includes(this.providerType); },
       get showReasoningEffort() { return this.samplers.include_reasoning && ['openai_compat', 'deepseek', 'moonshot'].includes(this.providerType); },
-      get showPreserveThinking() { return this.samplers.include_reasoning && ['moonshot', 'deepseek'].includes(this.providerType); },
+      get showPreserveThinking() { return this.samplers.include_reasoning && ['openai_compat', 'moonshot', 'deepseek'].includes(this.providerType); },
       get showGoogleReasoning() { return ['google_vertex', 'google_aistudio'].includes(this.providerType); },
       get showSendReasoningHistory() { return ['google_vertex', 'google_aistudio'].includes(this.providerType); },
       get showTopA() { return this.providerType === 'openrouter'; },

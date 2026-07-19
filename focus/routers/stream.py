@@ -106,15 +106,31 @@ async def _prepare_generation_messages(
     if prov_dict.get("type", "") not in ("google_aistudio", "google_vertex"):
         for msg in messages:
             msg.pop("thought_signature", None)
-        if prov_dict.get("type") not in ("moonshot", "deepseek"):
+
+        # ── Preserve thinking: unified 3-way logic for all non-Google providers ──
+        raw = (body.samplers or {}).get("preserve_thinking", False)
+        if isinstance(raw, str):
+            v = raw.lower()
+            if v in ("all", "true"):
+                mode = "all"
+            elif v == "tool_only":
+                mode = "tool_only"
+            else:
+                mode = "off"
+        elif raw is True:
+            mode = "all"
+        else:
+            mode = "off"
+
+        if mode == "off":
             for msg in messages:
-                msg.pop("reasoning", None)
-        elif prov_dict.get("type") == "deepseek":
-            preserve = body.samplers.get("preserve_thinking", False) if body.samplers else False
-            if not preserve:
-                for msg in messages:
-                    if msg.get("role") == "assistant" and msg.get("reasoning") and not msg.get("tool_calls") and msg.get("content"):
-                        msg.pop("reasoning")
+                if msg.get("role") == "assistant" and msg.get("reasoning"):
+                    msg.pop("reasoning")
+        elif mode == "tool_only":
+            for msg in messages:
+                if msg.get("role") == "assistant" and msg.get("reasoning") and not msg.get("tool_calls") and msg.get("content"):
+                    msg.pop("reasoning")
+        # mode == "all" → keep everything, no stripping
 
     if (body.continue_text is not None or body.continue_reasoning) and body.regenerate and provider.supports_prefill:
         prefill_msg = {"role": "assistant", "content": body.continue_text or ""}

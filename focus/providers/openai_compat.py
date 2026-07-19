@@ -46,6 +46,7 @@ class OpenAICompatProvider(BaseProvider):
 
         max_tokens = merged.pop("max_tokens", DEFAULT_MAX_TOKENS)
         temperature = merged.pop("temperature", DEFAULT_TEMPERATURE)
+        merged.pop("preserve_thinking", None)  # handled upstream in stream.py
 
         # Handle o1/o3 reasoning model quirks
         is_o_model = self.model.startswith("o1") or self.model.startswith("o3")
