@@ -49,14 +49,44 @@ def extract_setvars(text: str, macros: dict[str, str]) -> str:
     return re.sub(pattern, repl, text, flags=re.IGNORECASE)
 
 
+_COMMENT_START = re.compile(r"\{\{\s*//")
+
+
+def _strip_comment_macros(text: str) -> str:
+    result = []
+    i = 0
+    while i < len(text):
+        m = _COMMENT_START.search(text, i)
+        if not m:
+            result.append(text[i:])
+            break
+        result.append(text[i : m.start()])
+        j = m.end()
+        depth = 1
+        while j < len(text) and depth > 0:
+            if text[j : j + 2] == "{{":
+                depth += 1
+                j += 2
+            elif text[j : j + 2] == "}}":
+                depth -= 1
+                j += 2
+            else:
+                j += 1
+        i = j
+    return "".join(result)
+
+
 def apply_macros(text: str, macros: dict[str, str], max_passes: int = MACRO_MAX_PASSES) -> str:
     """
     Applies {{key}} or {{getvar::key}} using the macros dict.
     Iterates until text stabilises (handles chains like A→B→C).
     {{trim}} tokens are consumed and trigger blank-line collapse after resolution.
+    {{//...}} comment tokens are stripped before macro resolution (depth-aware).
     """
     if not text:
         return text
+
+    text = _strip_comment_macros(text)
 
     # Detect {{trim}} — consumed as a special token, not a macro lookup
     needs_trim = bool(re.search(r"\{\{trim\}\}", text, re.IGNORECASE))

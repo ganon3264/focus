@@ -1,4 +1,4 @@
-from focus.core.macros import apply_macros, build_base_macros, extract_setvars
+from focus.core.macros import _strip_comment_macros, apply_macros, build_base_macros, extract_setvars
 
 
 class TestBuildBaseMacros:
@@ -170,3 +170,55 @@ class TestApplyMacros:
     def test_no_macros_returns_original(self):
         result = apply_macros("plain text with no macros", {})
         assert result == "plain text with no macros"
+
+
+class TestCommentMacro:
+    def test_comment_stripped(self):
+        result = apply_macros("before {{//comment}} after", {})
+        assert result == "before  after"
+
+    def test_comment_with_spaces(self):
+        result = apply_macros("{{ // spaced comment }}", {})
+        assert result == ""
+
+    def test_comment_with_tab(self):
+        result = apply_macros("{{\t//tabbed}}", {})
+        assert result == ""
+
+    def test_comment_preserves_other_macros(self):
+        result = apply_macros("{{//note}}{{char}}", {"char": "Bot"})
+        assert result == "Bot"
+
+    def test_comment_empty(self):
+        result = apply_macros("{{//}}", {})
+        assert result == ""
+
+    def test_comment_nested_braces(self):
+        result = apply_macros("{{// {{char}} test}}", {})
+        assert result == ""
+
+    def test_comment_multiple(self):
+        result = apply_macros("a{{//c1}}b{{//c2}}c", {})
+        assert result == "abc"
+
+    def test_comment_no_close(self):
+        result = apply_macros("a{{// no close", {})
+        assert result == "a"
+
+    def test_single_slash_preserved(self):
+        result = apply_macros("{{/notacomment}}", {})
+        assert result == "{{/notacomment}}"
+
+    def test_comment_nested_setvar(self):
+        macros = {}
+        result = apply_macros("{{// {{setvar::x::y}} }}", macros)
+        assert result == ""
+        assert "x" not in macros
+
+    def test_comment_removes_only_token(self):
+        result = apply_macros("a\n{{//comment}}\nb", {})
+        assert result == "a\n\nb"
+
+    def test_strip_comment_macros_direct(self):
+        result = _strip_comment_macros("x{{//y}}z")
+        assert result == "xz"
