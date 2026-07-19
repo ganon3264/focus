@@ -1,73 +1,78 @@
-{% from "macros.html" import icon_plus %}
+{% from "macros.html" import icon_help, icon_plus %}
 <div style="flex: 1; min-height: 0; overflow-y: auto;" class="pr-2 scroll-fade">
   <div class="arranger-list" id="arranger-list-{{ preset_id }}">
     {% for block in blocks %} {% include "presets/prompt_block.html" %} {% endfor %}
   </div>
 </div>
 
-<div x-data="{ open: false }" data-preset-id="{{ preset_id }}" style="position: relative; margin-top: 0.5rem; flex-shrink: 0;">
-  <button type="button" class="btn btn-secondary w-full" @click="open = !open">
-    {{ icon_plus(14) }} Add Block
-  </button>
+<div style="display: flex; gap: 0.5rem; margin-top: 0.5rem; flex-shrink: 0;">
+  <div x-data="{ open: false }" data-preset-id="{{ preset_id }}" style="position: relative; flex: 1;">
+    <button type="button" class="btn btn-secondary w-full" @click="open = !open">
+      {{ icon_plus(14) }} Add Block
+    </button>
 
-  <div
-    x-show="open"
-    @click.away="open = false"
-    x-transition.opacity.duration.200ms
-    style="
-      position: absolute;
-      bottom: 100%;
-      left: 0;
-      right: 0;
-      margin-bottom: 0.5rem;
-      background: var(--surface-2);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-md);
-      padding: 0.75rem;
-      box-shadow: var(--shadow-lg);
-      z-index: 10;
-      display: none;
-    "
-  >
-    <div class="text-xs font-bold text-muted mb-2 uppercase tracking-wider">Select Block Type</div>
-    <div class="arranger-add-buttons grid grid-cols-2 gap-2">
-      <button
-        type="button"
-        class="btn-tag w-full text-left"
-        @click="open = false; addBlock($el.closest('[data-preset-id]').dataset.presetId, 'text', $el)"
-      >
-        Text (Custom Prompt)
-      </button>
-      <button
-        type="button"
-        class="btn-tag w-full text-left"
-        @click="open = false; addBlock($el.closest('[data-preset-id]').dataset.presetId, 'char_description', $el)"
-      >
-        Character Description
-      </button>
-      <button
-        type="button"
-        class="btn-tag w-full text-left"
-        @click="open = false; addBlock($el.closest('[data-preset-id]').dataset.presetId, 'char_personality', $el)"
-      >
-        Character Personality
-      </button>
-      <button
-        type="button"
-        class="btn-tag w-full text-left"
-        @click="open = false; addBlock($el.closest('[data-preset-id]').dataset.presetId, 'char_blocks', $el)"
-      >
-        Character Blocks
-      </button>
-      <button
-        type="button"
-        class="btn-tag w-full text-left"
-        @click="open = false; addBlock($el.closest('[data-preset-id]').dataset.presetId, 'user_persona', $el)"
-      >
-        User Persona
-      </button>
+    <div
+      x-show="open"
+      @click.away="open = false"
+      x-transition.opacity.duration.200ms
+      style="
+        position: absolute;
+        bottom: 100%;
+        left: 0;
+        right: 0;
+        margin-bottom: 0.5rem;
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        padding: 0.75rem;
+        box-shadow: var(--shadow-lg);
+        z-index: 10;
+        display: none;
+      "
+    >
+      <div class="text-xs font-bold text-muted mb-2 uppercase tracking-wider">Select Block Type</div>
+      <div class="arranger-add-buttons grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          class="btn-tag w-full text-left"
+          @click="open = false; addBlock($el.closest('[data-preset-id]').dataset.presetId, 'text', $el)"
+        >
+          Text (Custom Prompt)
+        </button>
+        <button
+          type="button"
+          class="btn-tag w-full text-left"
+          @click="open = false; addBlock($el.closest('[data-preset-id]').dataset.presetId, 'char_description', $el)"
+        >
+          Character Description
+        </button>
+        <button
+          type="button"
+          class="btn-tag w-full text-left"
+          @click="open = false; addBlock($el.closest('[data-preset-id]').dataset.presetId, 'char_personality', $el)"
+        >
+          Character Personality
+        </button>
+        <button
+          type="button"
+          class="btn-tag w-full text-left"
+          @click="open = false; addBlock($el.closest('[data-preset-id]').dataset.presetId, 'char_blocks', $el)"
+        >
+          Character Blocks
+        </button>
+        <button
+          type="button"
+          class="btn-tag w-full text-left"
+          @click="open = false; addBlock($el.closest('[data-preset-id]').dataset.presetId, 'user_persona', $el)"
+        >
+          User Persona
+        </button>
+      </div>
     </div>
   </div>
+  <button type="button" class="btn btn-secondary" style="width:36px;flex-shrink:0;display:grid;place-items:center;padding:0;" onclick="openModal('macro-help-modal')" aria-label="Macro reference">
+    {{ icon_help(16) }}
+  </button>
 </div>
 
 <!-- Block Edit Modal -->
@@ -96,6 +101,34 @@ overlay_close=true) %}
   <button type="button" class="btn btn-primary" id="block-modal-save" onclick="saveBlockModal()">
     Save
   </button>
+</div>
+{% endcall %}
+
+<!-- Macro Help Modal -->
+{% call modal_shell('macro-help-modal', 'Macro Reference', max_width='500px', z_index='100') %}
+<div class="flex flex-col gap-3 max-h-[65vh] overflow-y-auto">
+  <div>
+    <div class="text-xs font-bold text-muted uppercase tracking-wider mb-2">Built-in Macros</div>
+    <div class="grid grid-cols-2 gap-x-3 gap-y-2">
+      {% for key, def in macro_definitions.items() %}
+      <div class="flex items-center gap-2">
+        <code class="font-mono text-xs bg-(--surface-3) px-1.5 py-0.5 rounded whitespace-nowrap">{{ "{{" + key + "}}" }}</code>
+        <span class="text-xs text-muted">{{ def.description }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="pt-2" style="border-top: 1px solid var(--border)">
+    <div class="text-xs font-bold text-muted uppercase tracking-wider mb-2">Special Tokens</div>
+    <div class="flex flex-col gap-1.5">
+      {% for tok in special_tokens %}
+      <div class="flex items-center gap-2">
+        <code class="font-mono text-xs bg-(--surface-3) px-1.5 py-0.5 rounded whitespace-nowrap">{{ tok.syntax }}</code>
+        <span class="text-xs text-muted">{{ tok.description }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
 </div>
 {% endcall %}
 

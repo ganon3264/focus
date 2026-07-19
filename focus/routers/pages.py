@@ -8,7 +8,7 @@ from jinja2 import FileSystemLoader
 
 import focus.crud as crud
 from focus.core.database import get_db
-from focus.core.macros import apply_macros, build_base_macros
+from focus.core.macros import MACRO_DEFINITIONS, SPECIAL_TOKENS, apply_macros, build_base_macros
 from focus.core.message_render import render_message_segments
 from focus.core.utils import variable_group_name
 from focus.prompt_chain import partition_blocks, resolve_variable_blocks
@@ -40,6 +40,8 @@ templates = Jinja2Templates(directory="templates")
 if isinstance(templates.env.loader, FileSystemLoader):
     templates.env.loader.searchpath.append(str(Path("partials").resolve()))
 templates.env.globals["debug"] = DEBUG_MODE
+templates.env.globals["macro_definitions"] = MACRO_DEFINITIONS
+templates.env.globals["special_tokens"] = SPECIAL_TOKENS
 
 
 @router.get("/chat", response_class=HTMLResponse)
@@ -439,7 +441,13 @@ async def prompt_arranger_partial(
     return templates.TemplateResponse(
         request,
         "presets/prompt_arranger.html",
-        {"blocks": regular_blocks, "preset_id": preset_id, "counts": counts},
+        {
+            "blocks": regular_blocks,
+            "preset_id": preset_id,
+            "counts": counts,
+            "macro_definitions": MACRO_DEFINITIONS,
+            "special_tokens": SPECIAL_TOKENS,
+        },
     )
 
 

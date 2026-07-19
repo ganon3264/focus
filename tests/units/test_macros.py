@@ -1,4 +1,4 @@
-from focus.core.macros import _strip_comment_macros, apply_macros, build_base_macros, extract_setvars
+from focus.core.macros import MACRO_DEFINITIONS, _strip_comment_macros, apply_macros, build_base_macros, extract_setvars
 
 
 class TestBuildBaseMacros:
@@ -222,3 +222,15 @@ class TestCommentMacro:
     def test_strip_comment_macros_direct(self):
         result = _strip_comment_macros("x{{//y}}z")
         assert result == "xz"
+
+
+class TestMacroDefinitions:
+    def test_keys_match_build_base_macros(self):
+        macros = build_base_macros({}, {"name": "x", "description": "", "id": ""})
+        assert set(macros.keys()) == set(MACRO_DEFINITIONS.keys())
+
+    def test_special_tokens_have_required_keys(self):
+        from focus.core.macros import SPECIAL_TOKENS
+        for tok in SPECIAL_TOKENS:
+            assert "syntax" in tok
+            assert "description" in tok

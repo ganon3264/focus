@@ -34,6 +34,31 @@ def build_base_macros(card: dict, persona: dict | None = None) -> dict[str, str]
     return macros
 
 
+MACRO_DEFINITIONS: dict[str, dict[str, str]] = {
+    "char": {"description": "Character name", "source": "character card"},
+    "user": {"description": "User/persona name", "source": "persona"},
+    "persona": {"description": "Persona description text", "source": "persona"},
+    "persona_id": {"description": "Persona unique ID", "source": "persona"},
+    "description": {"description": "Character description", "source": "character card"},
+    "personality": {"description": "Character personality", "source": "character card"},
+    "scenario": {"description": "Scenario text", "source": "character card"},
+    "mes_example": {"description": "Example messages", "source": "character card"},
+    "time": {"description": "Current time (HH:MM)", "source": "system"},
+    "date": {"description": "Current date (YYYY-MM-DD)", "source": "system"},
+    "weekday": {"description": "Day of week", "source": "system"},
+    "time_of_day": {"description": "Time period (morning/afternoon/evening/night)", "source": "system"},
+}
+
+SPECIAL_TOKENS: list[dict[str, str]] = [
+    {"syntax": "{{getvar::key}}", "description": "Inject a variable or setvar value by key"},
+    {"syntax": "{{setvar::key::value}}", "description": "Define a custom macro inline (consumed)"},
+    {"syntax": "{{var::key::value}}", "description": "Alias for {{setvar::}}"},
+    {"syntax": "{{trim}}", "description": "Remove this line and collapse excess blank lines"},
+    {"syntax": "{{// comment}}", "description": "Comment — stripped from output entirely"},
+    {"syntax": "{{media::x}}", "description": "Insert attachment at position x (1-based, left to right)"},
+]
+
+
 def extract_setvars(text: str, macros: dict[str, str]) -> str:
     """
     Extracts {{setvar::key::value}} or {{var::key::value}} from text,

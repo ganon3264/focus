@@ -62,6 +62,25 @@ Single source of truth (loaded in `<head>`). 5 fields: `character_id`, `persona_
 
 Messages segmented into `text | reasoning | tool_boundary` typed siblings (mirrors `focus/core/message_render.py:render_message_segments()`). Never use `fullText` for per-segment rendering — each segment has its own div with independent `startThinkIdx`. Each generation creates a new `AbortController`. Stop button calls `.abort()`.
 
+### Macro system (`focus/core/macros.py`)
+
+**Built-in macros** — defined in two places that must stay in sync:
+1. `build_base_macros()` — computes actual values (e.g. `card.get("name", "Assistant")`)
+2. `MACRO_DEFINITIONS` dict — metadata (description, source) for the help modal
+
+**Special syntax tokens** (not simple `{{key}}` → value lookups):
+- Defined in `SPECIAL_TOKENS` list — `{{getvar::key}}`, `{{setvar::key::value}}`, `{{var::key::value}}`, `{{trim}}`, `{{// comment}}`, `{{media::id}}`
+
+**Adding a new macro:**
+1. Add key + resolver to `build_base_macros()` in `macros.py`
+2. Add matching key + `{"description", "source"}` to `MACRO_DEFINITIONS`
+3. The sync test `TestMacroDefinitions::test_keys_match_build_base_macros` will fail if 1 and 2 drift apart
+4. Jinja2 globals `macro_definitions` / `special_tokens` (set in `pages.py:42-43`) auto-pick up changes
+
+**Comment macro** `{{// ... }}` — stripped by `_strip_comment_macros()` before any macro resolution. Depth-aware: counts `{{`/`}}` nesting, so `{{// uses {{char}} }}` is fully stripped. Handles `{{ // ` with whitespace between braces and `//`.
+
+**Template globals** — `macro_definitions` and `special_tokens` are registered as Jinja2 globals in `pages.py:42-43`, available in every template including inline `{% include %}` renders (not just API route responses).
+
 ### Continue / prefill architecture
 
 When the user continues an interrupted assistant message, the server emits the prefill (existing partial content + reasoning) as **synthetic SSE events** (`type: reasoning` / `token`) before the model's real tokens. This means the frontend receives the *complete* message during streaming — no special `prefillMode` awareness needed.
@@ -83,3 +102,5 @@ Key rules:
 4. **`reloadPromptArranger`** (`static/js/modals/edit_entity_modal.js`) — guards with `if (!document.getElementById(targetId)) return;`, safe to call without arranger loaded.
 
 5. **`message-content` div always present for reasoning-only messages** — the Jinja2 template renders an empty `<div class="message-content markdown-content">` when a message has `reasoning` but no text segment, so the streaming pulse cursor and token rendering have a DOM position. The token handler's JS fallback (`querySelector('.message-content')` then create-if-missing) is a safety net for pre-existing messages, but template-rendered messages always have it.
+
+6. **Alpine `x-show` elements need `x-cloak`** — Alpine loads with `defer`, so there's a gap between HTML parsing and Alpine init. Any full-screen overlay using `x-show="expr"` without `x-cloak` will flash visible during this gap. The preset rename modal (`preset_selector.html:91`) is the prime example. Add `x-cloak` to any new `x-show`-based modals.
