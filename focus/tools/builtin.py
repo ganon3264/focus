@@ -100,6 +100,7 @@ BUILTIN_TOOLS: list[ToolSpec] = [
             ToolParam(name="path", type="string", description="Absolute path to the image file"),
         ],
         writes=False,
+        multimodal=True,
         handler=read_image,
     ),
     ToolSpec(

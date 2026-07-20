@@ -22,6 +22,7 @@ class ToolSpec:
     params: list[ToolParam]
     writes: bool
     handler: Callable[..., Any]
+    multimodal: bool = False
 
 
 @dataclass

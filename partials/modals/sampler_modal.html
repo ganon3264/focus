@@ -829,9 +829,9 @@ const PROVIDER_SAMPLERS = {
 
       get showVerbosity() { return this.providerType === 'openrouter'; },
 
-      init() {
-        this.loadStandard();
-        this.loadCustom();
+      async init() {
+        await this.loadStandard();
+        await this.loadCustom();
 
         // Format sampler-inputs on model changes (slider sync, etc.)
         this.$watch('samplers', () => {
@@ -883,6 +883,10 @@ const PROVIDER_SAMPLERS = {
 
           return payload;
         };
+
+        window.dispatchEvent(new CustomEvent('multimodal-changed', {
+          detail: { enabled: this.samplers.enable_multimodal },
+        }));
       },
 
       saveStandard() {
@@ -892,6 +896,9 @@ const PROVIDER_SAMPLERS = {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ key: key, value: JSON.stringify(this.samplers) }),
         });
+        window.dispatchEvent(new CustomEvent('multimodal-changed', {
+          detail: { enabled: this.samplers.enable_multimodal },
+        }));
       },
 
       saveCustom() {
@@ -903,7 +910,7 @@ const PROVIDER_SAMPLERS = {
         });
       },
 
-      onProviderChanged(detail) {
+      async onProviderChanged(detail) {
         const newType = detail && typeof detail === 'object' ? detail.type : detail;
         const newId = detail && typeof detail === 'object' ? detail.id : null;
         if (newType === this.providerType && newId === this.providerId) return;
@@ -913,9 +920,12 @@ const PROVIDER_SAMPLERS = {
         this.providerType = newType;
         this.providerId = newId;
         if (!sameProvider) {
-          this.loadStandard();
-          this.loadCustom();
+          await this.loadStandard();
+          await this.loadCustom();
         }
+        window.dispatchEvent(new CustomEvent('multimodal-changed', {
+          detail: { enabled: this.samplers.enable_multimodal },
+        }));
       },
 
       onPresetChanged(e) {

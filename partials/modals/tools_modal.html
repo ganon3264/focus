@@ -1,5 +1,5 @@
 {% from "macros.html" import hint_tooltip %}
-<div x-data="toolsModal()" class="flex flex-col gap-4">
+<div x-data="toolsModal()" class="flex flex-col gap-4" @multimodal-changed.window="enableMultimodal = $event.detail.enabled">
 
   <!-- Enable Tool Calls toggle -->
   <div class="form-group mb-0 flex items-center justify-between">
@@ -57,16 +57,24 @@
       <div
         class="p-3 rounded-md mb-2"
         style="background:var(--surface-2);border:1px solid var(--border)"
+        :class="tool.multimodal && !enableMultimodal ? 'opacity-40' : ''"
       >
         <div class="flex items-center justify-between mb-1">
           <code class="text-sm font-bold" x-text="tool.name"></code>
-          <span
-            class="text-xs px-1.5 py-0.5 rounded"
-            :style="tool.writes
-              ? 'background:var(--danger-dim);color:var(--danger)'
-              : 'background:var(--accent-faint);color:var(--accent)'"
-            x-text="tool.writes ? 'writes' : 'read-only'"
-          ></span>
+          <div class="flex items-center gap-1.5">
+            <span
+              class="text-xs px-1.5 py-0.5 rounded"
+              :style="tool.writes
+                ? 'background:var(--danger-dim);color:var(--danger)'
+                : 'background:var(--accent-faint);color:var(--accent)'"
+              x-text="tool.writes ? 'writes' : 'read-only'"
+            ></span>
+            <span
+              x-show="tool.multimodal"
+              class="text-xs px-1.5 py-0.5 rounded"
+              style="background:var(--accent-dim);color:var(--accent)"
+            >multimodal</span>
+          </div>
         </div>
         <div class="text-xs text-muted" x-text="tool.description"></div>
         <div class="text-xs text-faint mt-1" x-show="tool.params.length">
@@ -84,6 +92,7 @@ document.addEventListener('alpine:init', function () {
     return {
       enabled: false,
       readOnly: true,
+      enableMultimodal: true,
       providerType: (StateManager && StateManager.get('provider_type')) || 'openai_compat',
 
       tools: [],

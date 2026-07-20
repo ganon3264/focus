@@ -13,10 +13,11 @@ def truncate(text: str, max_chars: int = TOOL_OUTPUT_TRUNCATE_CHARS) -> str:
     return text[:max_chars] + f"\n\n... [truncated at {max_chars} chars]"
 
 
-def active_tools(all_tools: list, read_only: bool) -> list:
-    if read_only:
-        return [t for t in all_tools if not t.writes]
-    return all_tools
+def active_tools(all_tools: list, read_only: bool, disable_multimodal: bool = False) -> list:
+    filtered = [t for t in all_tools if not (read_only and t.writes)]
+    if disable_multimodal:
+        filtered = [t for t in filtered if not t.multimodal]
+    return filtered
 
 
 def build_tool_result(call_id: str, tool_name: str, output: Any) -> Any:
