@@ -220,7 +220,7 @@
     if (chatId) {
       htmx.ajax('GET', '/partials/message-list/' + chatId, {
         target: '#message-list',
-        swap: 'innerHTML',
+        swap: 'morph:innerHTML',
       });
     }
   }

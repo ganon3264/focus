@@ -54,6 +54,7 @@
     <link rel="stylesheet" href="/static/style.css" />
     <script src="/static/js/core/state-manager.js"></script>
     <script src="/static/vendor/htmx2.min.js"></script>
+    <script src="/static/vendor/idiomorph-ext.min.js"></script>
     <script defer src="/static/vendor/alpine-collapse.min.js"></script>
     <script defer src="/static/vendor/alpine.min.js"></script>
     <script src="/static/vendor/sortable.min.js"></script>
@@ -62,7 +63,7 @@
     <script src="/static/vendor/cropper.min.js"></script>
     {% block head %}{% endblock %}
   </head>
-  <body class="bg-dark text-light">
+  <body hx-ext="morph" class="bg-dark text-light">
     {% from "macros.html" import icon_close, icon_music, icon_send, icon_regen, icon_crop,
     icon_copy, icon_check, icon_chevron_right, icon_help %}
     <div style="display: none" aria-hidden="true" id="svg-sprite">

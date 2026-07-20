@@ -72,7 +72,7 @@
         if (res.ok) {
           htmx.ajax('GET', window.api.partials.messageList(chatId), {
             target: '#message-list',
-            swap: 'innerHTML',
+            swap: 'morph:innerHTML',
           });
           if (window._refreshChatList) window._refreshChatList(chatId);
         } else {
