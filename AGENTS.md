@@ -22,7 +22,7 @@ focus/                     # Backend
   core/                    # Database, models, paths, utils, logger, macros, card_parser, message_render
   providers/               # LLM providers (openai_compat, openrouter, deepseek, moonshot, google_*)
   routers/                 # API routes (pages, chats, characters, presets, providers, personas, stream, tools, settings, exchange, backup)
-  tools/                   # Tool system (builtin, provider_adapter)
+  tools/                   # Tool system (builtin, external, helpers, provider_adapter)
 templates/                 # Full-page Jinja2 templates
 partials/                  # HTMX partials (chat/, modals/, personas/, presets/)
 static/
@@ -58,9 +58,29 @@ Single source of truth (loaded in `<head>`). 5 fields: `character_id`, `persona_
 - Z-index scale: 50 (base) → 100 (sub) → 1000 (editors) → 10000 (overlays) → 10010 (confirm)
 - Editor modals (block edit, var edit, text expander, rename) at z-index 1000
 
-### Streaming (`static/js/core/chat_stream.js`)
+### Streaming
 
-Messages segmented into `text | reasoning | tool_boundary` typed siblings (mirrors `focus/core/message_render.py:render_message_segments()`). Never use `fullText` for per-segment rendering — each segment has its own div with independent `startThinkIdx`. Each generation creates a new `AbortController`. Stop button calls `.abort()`.
+SSE events: `start | token | reasoning | tool_calls | tool_result | done`.
+
+**Frontend** — `stream_events.js`: `StreamState` per generation, `HANDLERS` dispatch via `dispatchStreamEvent()`. `message_builder.js`: `segmentBuilders` factories (text/reasoning/tool_calls). Finalize with `finalizeStreamRender()`.
+
+**Backend** — `_active_generations` maps `message_id → asyncio.Event`. Stop button calls `POST /api/stop-generation/{message_id}` which sets the event — SSE generator drains gracefully instead of `AbortController.abort()`. Both `_stream_generate` (SSE) and `_non_stream_generate` (JSON) share `_run_generation()`.
+
+**Segment rendering** — messages split into `text | reasoning | tool_boundary` typed siblings. `_build_segments()` builds `segments_json` from per-iteration slices, stored in `message_variants`. Never use `fullText` for per-segment rendering. Use `preserveOpenStates()` not `innerHTML` to keep reasoning toggles open.
+
+### Tool system
+
+**Data model** — `ToolSpec`, `ToolParam`, `ToolCall`, `ToolResult` in `focus/tools/__init__.py`.
+
+**Builtin** — `BUILTIN_TOOLS` in `builtin.py`: `read_file`, `list_dir`, `read_image`, `execute_shell`. Each has a `writes` flag for read-only safety.
+
+**External** — JSON configs in `tools/*.json` (gitignored, project root). Format: `ExternalToolConfig(name, description, command, timeout, writes, params)`. Loaded via `load_external_tools()` → `ALL_TOOLS`. Invalid files silently skipped (logged as warning).
+
+**Provider adapter** — `to_provider_tools()` converts `ToolSpec` → OpenAI-compatible `tools=` payload. `to_provider_tool_results()` → tool-role messages.
+
+**Read-only mode** — `active_tools(all_tools, read_only)` filters `writes=True` tools. Checked in `_execute_tool_round()` before calling handlers.
+
+**Iteration loop** — `_run_generation()` loops up to `MAX_TOOL_ITERATIONS`. Per iteration: stream tokens → detect `tool_calls` → break → execute → emit results → loop. Calls persisted to `tool_calls` table.
 
 ### Macro system (`focus/core/macros.py`)
 
@@ -83,13 +103,22 @@ Messages segmented into `text | reasoning | tool_boundary` typed siblings (mirro
 
 ### Continue / prefill architecture
 
-When the user continues an interrupted assistant message, the server emits the prefill (existing partial content + reasoning) as **synthetic SSE events** (`type: reasoning` / `token`) before the model's real tokens. This means the frontend receives the *complete* message during streaming — no special `prefillMode` awareness needed.
+On continue, server emits existing partial content + reasoning as synthetic SSE events (`type: reasoning` / `token`) before real tokens. Frontend sees the complete message — no `prefillMode` needed.
 
-Key rules:
-- The server's `_prepare_generation_messages()` appends a prefill assistant message with `content` and `reasoning` fields to the API context.
-- The streaming generator emits the prefill as synthetic events after the `start` event when `echoes_prefill` is false (DeepSeek, Moonshot).
-- The non-stream path prepends prefill to `collected` / `collected_reasoning` lists before the final join.
-- The template always renders an empty `.message-content` div when a message has reasoning but no text segment — so the DOM structure is consistent and the pulse cursor has a place.
+- `_prepare_generation_messages()` appends a prefill assistant message to the API context.
+- Stream path emits synthetic events after `start` when `echoes_prefill` is false (DeepSeek, Moonshot).
+- Non-stream path prepends prefill to `collected`/`collected_reasoning` before final join.
+- Template always renders empty `.message-content` div when msg has reasoning but no text — pulse cursor needs a DOM position.
+
+### Preserve Thinking
+
+Controls whether past assistant reasoning fields are sent in multi-turn history. Set in sampler modal, applied in `_prepare_generation_messages()` (`stream.py:110-133`).
+
+- **off** — strip reasoning from all past assistant messages
+- **tool_only** — strip unless the message had `tool_calls` (reasoning from tool-using turns is useful context)
+- **all** — keep everything
+
+Only matters for DeepSeek, Moonshot, openai_compat with `include_reasoning` on.
 
 ## Critical gotchas
 
@@ -99,8 +128,6 @@ Key rules:
 
 3. **Message pruning** — `message_pruner.js` replaces off-screen `.message` with height placeholders. After any HTMX swap, call `window.pruneMessages()`. Check `window._isMessagePruned(msgId)` before DOM ops. `window._streamingMessageId` is excluded.
 
-4. **`reloadPromptArranger`** (`static/js/modals/edit_entity_modal.js`) — guards with `if (!document.getElementById(targetId)) return;`, safe to call without arranger loaded.
+4. **Reasoning-only messages have `.message-content`** — Template renders empty `<div class="message-content markdown-content">` when msg has `reasoning` but no text, so pulse cursor and tokens have a DOM position. JS fallback (create-if-missing) only fires for pre-existing messages.
 
-5. **`message-content` div always present for reasoning-only messages** — the Jinja2 template renders an empty `<div class="message-content markdown-content">` when a message has `reasoning` but no text segment, so the streaming pulse cursor and token rendering have a DOM position. The token handler's JS fallback (`querySelector('.message-content')` then create-if-missing) is a safety net for pre-existing messages, but template-rendered messages always have it.
-
-6. **Alpine `x-show` elements need `x-cloak`** — Alpine loads with `defer`, so there's a gap between HTML parsing and Alpine init. Any full-screen overlay using `x-show="expr"` without `x-cloak` will flash visible during this gap. The preset rename modal (`preset_selector.html:91`) is the prime example. Add `x-cloak` to any new `x-show`-based modals.
+5. **Alpine `x-show` elements need `x-cloak`** — Alpine loads with `defer`, so there's a gap between HTML parsing and Alpine init. Any full-screen overlay using `x-show="expr"` without `x-cloak` will flash visible during this gap. The preset rename modal (`preset_selector.html:91`) is the prime example. Add `x-cloak` to any new `x-show`-based modals.
