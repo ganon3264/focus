@@ -101,16 +101,16 @@ def test_css_valid():
 
 
 TEMPLATES_THAT_RENDER = [
-    ("modals/sampler_modal.html", {}),
-    ("modals/itemizer_modal.html", {}),
-    ("modals/confirm_modal.html", {}),
-    ("modals/edit_entity_modal.html", {"prefix": "char", "modal_id": "modal-edit-character", "entity_name": "Character", "upload_fn": "uploadCharModalMedia", "avatar_fn": "uploadCharacterAvatar", "submit_fn": "submitEditCharacter"}),
-    ("modals/edit_entity_modal.html", {"prefix": "persona", "modal_id": "modal-edit-persona", "entity_name": "Persona", "upload_fn": "uploadPersonaMedia", "avatar_fn": "uploadPersonaAvatar", "submit_fn": "submitEditPersona"}),
-    ("modals/backup_modal.html", {}),
-    ("modals/provider_create_modal.html", {}),
-    ("modals/text_expander.html", {}),
-    ("modals/theme_modal.html", {}),
-    ("modals/export_entities.html", {"entities": []}),
+    ("modals/sampler.html", {}),
+    ("modals/itemizer.html", {}),
+    ("modals/confirm.html", {}),
+    ("modals/edit-entity.html", {"prefix": "char", "modal_id": "modal-edit-character", "entity_name": "Character", "upload_fn": "uploadCharModalMedia", "avatar_fn": "uploadCharacterAvatar", "submit_fn": "submitEditCharacter"}),
+    ("modals/edit-entity.html", {"prefix": "persona", "modal_id": "modal-edit-persona", "entity_name": "Persona", "upload_fn": "uploadPersonaMedia", "avatar_fn": "uploadPersonaAvatar", "submit_fn": "submitEditPersona"}),
+    ("modals/backup.html", {}),
+    ("modals/provider-create.html", {}),
+    ("modals/text-expander.html", {}),
+    ("modals/theme.html", {}),
+    ("modals/export-entities.html", {"entities": []}),
 ]
 
 
@@ -125,8 +125,7 @@ def test_template_renders(template_name, context):
 
 def test_modal_shell_macro_compiles():
     """modal_shell.html macro renders without errors."""
-    tmpl = env.get_template("modal_shell.html")
-    source = env.loader.get_source(env, "modal_shell.html")[0]
+    source = env.loader.get_source(env, "modal-shell.html")[0]
     assert "{% macro modal_shell" in source
     assert "{% macro modal_footer" in source
 
@@ -140,7 +139,7 @@ def test_macros_macro_compiles():
 def test_header_integrity():
     """All templates should compile under StrictUndefined (no missing variables)."""
     # text_expander has no variable dependencies — renders with empty context
-    tmpl = env.get_template("modals/text_expander.html")
+    tmpl = env.get_template("modals/text-expander.html")
     result = tmpl.render({})
     assert len(result) > 0
 

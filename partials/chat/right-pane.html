@@ -1,0 +1,29 @@
+<!-- Right Sidebar -->
+<aside class="right-sidebar" id="right-sidebar">
+  <div class="sidebar-inner">
+  <div class="sidebar-section flex flex-col h-full" style="border-bottom: none;">
+    <div class="sidebar-title flex justify-between items-center">
+      <button class="action-icon" onclick="toggleSidebar('right')" title="Collapse" style="margin-top: -0.3rem;" aria-label="Toggle sidebar">{{ icon_chevron_right() }}</button>
+      <span>Chats</span>
+    </div>
+    
+    {% if has_characters %}
+      <button class="btn btn-primary btn-sm w-full mb-3 mt-1" onclick="newChat()">{{ icon_plus(14) }} New Chat</button>
+    {% else %}
+      <button class="btn btn-primary btn-sm w-full mb-3 mt-1" onclick="openModal('modal-characters')">{{ icon_plus(14) }} Add Character</button>
+    {% endif %}
+
+    <div id="chat-list" class="sidebar-list flex-1 flex flex-col min-h-0 scroll-fade">
+      {% include "chat/chat-list.html" %}
+    </div>
+  </div>
+  <div style="padding: 0.75rem 1.25rem; flex-shrink: 0; text-align: center;">
+    <button class="btn btn-secondary btn-sm" onclick="openChatTrashModal()">{{ icon_trash(14) }} Trash Bin</button>
+  </div>
+  </div>
+</aside>
+
+<!-- Collapsed right tab -->
+ <div id="right-tab" class="right-tab hidden" onclick="toggleSidebar('right')" role="button" tabindex="0">
+  <div class="sidebar-title" style="writing-mode: vertical-rl; padding: 0.5rem 0; cursor: pointer; color: var(--text);">Chats {{ icon_chevron_right() }}</div>
+</div>

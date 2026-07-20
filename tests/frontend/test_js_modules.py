@@ -9,7 +9,7 @@ FRONTEND_DIR = Path(__file__).parent
 
 JS_TEST_FILES = sorted(
     str(p.relative_to(FRONTEND_DIR))
-    for p in FRONTEND_DIR.glob("test_*.js")
+    for p in FRONTEND_DIR.glob("test-*.js")
 )
 
 

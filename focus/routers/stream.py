@@ -12,6 +12,11 @@ from fastapi.responses import JSONResponse, StreamingResponse
 
 from focus.core.database import DB_PATH, get_db
 from focus.core.logger import get_logger
+from focus.core.message_render import (
+    _escape_html,
+    _extract_think_blocks,
+    strip_think_blocks,
+)
 from focus.core.models import ItemizerRequest, StreamRequest
 from focus.core.utils import (
     AUDIO_TOKEN_ESTIMATE,
@@ -35,13 +40,8 @@ from focus.tools import (
 )
 from focus.tools.builtin import ALL_TOOLS
 from focus.tools.provider_adapter import (
-    to_provider_tools,
     to_provider_tool_results,
-)
-from focus.core.message_render import (
-    _escape_html,
-    _extract_think_blocks,
-    strip_think_blocks,
+    to_provider_tools,
 )
 
 router = APIRouter()
@@ -50,8 +50,6 @@ logger = get_logger("routers.stream")
 # Track active streaming generations for graceful stop (message_id → Event)
 _active_generations: dict[str, asyncio.Event] = {}
 
-
-# ── Provider loading ─────────────────────────────────────────────────────
 
 
 async def _load_provider(
@@ -68,8 +66,6 @@ async def _load_provider(
     provider = create_provider(prov_dict)
     return provider, prov_dict
 
-
-# ── Message preparation ──────────────────────────────────────────────────
 
 
 async def _prepare_generation_messages(
@@ -107,7 +103,7 @@ async def _prepare_generation_messages(
         for msg in messages:
             msg.pop("thought_signature", None)
 
-        # ── Preserve thinking: unified 3-way logic for all non-Google providers ──
+        # Preserve thinking: unified 3-way logic for all non-Google providers
         raw = (body.samplers or {}).get("preserve_thinking", False)
         if isinstance(raw, str):
             v = raw.lower()
@@ -130,7 +126,6 @@ async def _prepare_generation_messages(
             for msg in messages:
                 if msg.get("role") == "assistant" and msg.get("reasoning") and not msg.get("tool_calls") and msg.get("content"):
                     msg.pop("reasoning")
-        # mode == "all" → keep everything, no stripping
 
     if (body.continue_text is not None or body.continue_reasoning) and body.regenerate and provider.supports_prefill:
         prefill_msg = {"role": "assistant", "content": body.continue_text or ""}
@@ -154,8 +149,6 @@ async def _prepare_generation_messages(
 
     return messages, gen_kwargs
 
-
-# ── Debug logging helper ─────────────────────────────────────────────────
 
 
 def _log_outbound_payload(
@@ -199,8 +192,6 @@ def _prefill_reasoning(body: StreamRequest, messages: list[dict]) -> str | None:
         return messages[-1]["reasoning"]
     return None
 
-
-# ── Core generation loop (shared by stream and non-stream paths) ────────
 
 
 async def _run_generation(
@@ -296,8 +287,6 @@ async def _run_generation(
             }
 
 
-# ── SSE streaming generator (module-level, replaces nested generate()) ──
-
 
 async def _stream_generate(
     body: StreamRequest,
@@ -322,17 +311,15 @@ async def _stream_generate(
     _reasoning_slices: list[int] = [] # len(final_reasoning) at each tool boundary
     _tool_groups: list[list[dict]] = []  # per-boundary tool call dicts
 
-    # ── start SSE ───────────────────────────────────────────────────────
-    yield (
-        f"data: {json.dumps({
-            'type': 'start',
-            'message_id': asst_msg_id,
-            'user_message_id': user_msg_id if not body.regenerate else None,
-        })}\n\n"
-    )
+    # start SSE
+    start_data = json.dumps({
+        'type': 'start',
+        'message_id': asst_msg_id,
+        'user_message_id': user_msg_id if not body.regenerate else None,
+    })
+    yield f"data: {start_data}\n\n"
 
-    # ── core loop ───────────────────────────────────────────────────────
-    # GeneratorExit/CancelledError are caught here because aclose()
+    # core loop — GeneratorExit/CancelledError are caught here because aclose()
     # throws them at the SSE ``yield`` points below.
     try:
         # Emit prefill as synthetic events (inside try so GeneratorExit
@@ -376,11 +363,9 @@ async def _stream_generate(
                 yield f"data: {json.dumps({'type': 'reasoning', 'text': event['text']})}\n\n"
 
             elif event["type"] == "tool_calls":
-                # Record iteration boundary for segment construction
                 _text_slices.append(len(final_text))
                 _reasoning_slices.append(len(final_reasoning))
 
-                # Build tool call dicts (without results yet) for this group
                 group_calls = [
                     {
                         'id': tc.id,
@@ -391,44 +376,39 @@ async def _stream_generate(
                 ]
                 _tool_groups.append(group_calls)
 
-                yield (
-                    f"data: {json.dumps({
-                        'type': 'tool_calls',
-                        'calls': [
-                            {'id': tc.id, 'name': tc.name, 'arguments': tc.arguments}
-                            for tc in event['calls']
-                        ],
-                    })}\n\n"
-                )
+                tc_data = json.dumps({
+                    'type': 'tool_calls',
+                    'calls': [
+                        {'id': tc.id, 'name': tc.name, 'arguments': tc.arguments}
+                        for tc in event['calls']
+                    ],
+                })
+                yield f"data: {tc_data}\n\n"
 
             elif event["type"] == "tool_result":
-                # Fill in result on the matching tool call in the last group
                 if _tool_groups:
                     for tc in _tool_groups[-1]:
                         if tc['id'] == event['call_id']:
                             tc['result'] = event['result']
                             tc['is_error'] = event['is_error']
                             break
-                yield (
-                    f"data: {json.dumps({
-                        'type': 'tool_result',
-                        'call_id': event['call_id'],
-                        'name': event['name'],
-                        'result': event['result'],
-                        'is_error': event['is_error'],
-                    })}\n\n"
-                )
+                tr_data = json.dumps({
+                    'type': 'tool_result',
+                    'call_id': event['call_id'],
+                    'name': event['name'],
+                    'result': event['result'],
+                    'is_error': event['is_error'],
+                })
+                yield f"data: {tr_data}\n\n"
 
             elif event["type"] == "done":
-                # ── save final variant ──────────────────────────────────
-                # Close final iteration boundary
+                # save final variant — close final iteration boundary
                 _text_slices.append(len(final_text))
                 _reasoning_slices.append(len(final_reasoning))
 
                 full = "".join(final_text)
                 full_reasoning = "".join(final_reasoning).strip() or None
 
-                # Build structured segments from iteration data
                 segments = _build_segments(
                     _text_slices, _reasoning_slices,
                     final_text, final_reasoning,
@@ -457,13 +437,12 @@ async def _stream_generate(
                     yield f"data: {json.dumps({'error': f'Generation succeeded but save failed: {err_msg}'})}\n\n"
                     return
 
-                yield (
-                    f"data: {json.dumps({
-                        'done': True,
-                        'message_id': asst_msg_id,
-                        'variant_index': next_variant_index,
-                    })}\n\n"
-                )
+                done_data = json.dumps({
+                    'done': True,
+                    'message_id': asst_msg_id,
+                    'variant_index': next_variant_index,
+                })
+                yield f"data: {done_data}\n\n"
                 logger.info("Stream completed for chat_id=%s variant_saved=%s", body.chat_id, variant_saved)
                 return
 
@@ -519,8 +498,6 @@ async def _stream_generate(
     finally:
         _active_generations.pop(asst_msg_id, None)
 
-
-# ── Non-stream generation ────────────────────────────────────────────────
 
 
 async def _non_stream_generate(
@@ -604,11 +581,11 @@ async def _non_stream_generate(
             await _rollback_assistant(asst_msg_id)
         raise HTTPException(499, "Request cancelled")
 
-    # Close final iteration
+    # Close final iteration boundary
     n_text_slices.append(len(collected))
     n_reasoning_slices.append(len(collected_reasoning))
 
-    # Apply prefill (insert at position 0) and adjust slice indices accordingly
+    # Apply prefill (insert at position 0) and adjust slice indices
     prefill_text_len = 0
     prefill_reasoning_len = 0
     if not provider.echoes_prefill:
@@ -627,7 +604,6 @@ async def _non_stream_generate(
     full = "".join(collected)
     full_reasoning = "".join(collected_reasoning).strip() or None
 
-    # Build structured segments from iteration data
     segments = _build_segments(
         n_text_slices, n_reasoning_slices,
         collected, collected_reasoning,
@@ -657,8 +633,6 @@ async def _non_stream_generate(
     })
 
 
-# ── Partial save / rollback helper ───────────────────────────────────────
-
 
 async def _save_or_rollback(
     body: StreamRequest,
@@ -684,9 +658,6 @@ async def _save_or_rollback(
         await _rollback_assistant(asst_msg_id)
 
 
-# ── Stream endpoint ──────────────────────────────────────────────────────
-
-
 @router.post("/stream")
 async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)):
     """Generate a streaming completion from the selected provider.
@@ -695,7 +666,6 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
     streams tokens via SSE, and persists the result as a message variant.
     Supports an iterative tool-calling loop when tools_enabled=True.
     """
-    # ── Provider ──────────────────────────────────────────────────────────
     provider, prov_dict = await _load_provider(db, body.provider_id)
 
     logger.debug(
@@ -704,7 +674,6 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
         body.regenerate, body.user_message, body.attachment_ids,
     )
 
-    # ── Prompt context ────────────────────────────────────────────────────
     ctx = await get_prompt_context(
         db, body.chat_id, body.regenerate, body.user_message, body.attachment_ids, persist=True
     )
@@ -729,14 +698,13 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
         if row is not None:
             next_variant_index = row[0]
 
-    # ── Message preparation ───────────────────────────────────────────────
     messages, gen_kwargs = await _prepare_generation_messages(
         prov_dict, body, messages, provider, body.chat_id,
     )
 
     use_stream = gen_kwargs.pop("stream_enabled", True)
 
-    # ── Tool calling setup ────────────────────────────────────────────────
+    # Tool calling setup
     tools_enabled = body.tools_enabled
     tool_read_only = body.tool_read_only
 
@@ -754,11 +722,11 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
             gen_kwargs["tools"] = tools_payload
             gen_kwargs["tool_choice"] = "auto"
 
-    # ── Debug log ─────────────────────────────────────────────────────────
+    # Debug log
     if logger.isEnabledFor(logging.DEBUG):
         _log_outbound_payload(messages, gen_kwargs, prov_dict)
 
-    # ── Dispatch ──────────────────────────────────────────────────────────
+    # Dispatch
     if not use_stream:
         return await _non_stream_generate(
             body, provider, prov_dict, messages, gen_kwargs,
@@ -778,9 +746,6 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
     )
 
 
-# ── Stop-generation endpoint ──────────────────────────────────────────────
-
-
 @router.post("/stop-generation/{message_id}")
 async def stop_generation(message_id: str):
     """Set the stop event for an active generation.
@@ -795,9 +760,6 @@ async def stop_generation(message_id: str):
     event.set()
     logger.info("Graceful stop requested for message_id=%s", message_id)
     return {"ok": True}
-
-
-# ── Tool round helpers (unchanged) ───────────────────────────────────────
 
 
 async def _apply_tool_round(
@@ -898,8 +860,6 @@ async def _execute_tool_round(
     return results
 
 
-# ── Segment construction from iteration data ──────────────────────────────
-
 
 def _build_segments(
     text_slices: list[int],
@@ -941,10 +901,8 @@ def _build_segments(
                 })
                 think_idx += 1
 
-        # Text from this iteration
         if t_end > prev_t:
             t_text = "".join(final_text[prev_t:t_end])
-            # Extract inline <think> blocks (used by some models)
             think_idx = _extract_think_blocks(t_text, think_idx, segments)
             clean = strip_think_blocks(t_text)
             if clean.strip():
@@ -962,8 +920,6 @@ def _build_segments(
 
     return segments
 
-
-# ── Variant persistence ──────────────────────────────────────────────────
 
 
 async def _upsert_variant(
@@ -1041,9 +997,6 @@ async def _rollback_assistant(asst_msg_id: str | None):
         await rollback_db.commit()
 
 
-# ── Itemize endpoint (unchanged) ─────────────────────────────────────────
-
-
 @router.post("/itemize")
 async def itemize_prompt(body: ItemizerRequest, db: aiosqlite.Connection = Depends(get_db)):
     ctx = await get_prompt_context(
@@ -1051,7 +1004,6 @@ async def itemize_prompt(body: ItemizerRequest, db: aiosqlite.Connection = Depen
     )
     messages = ctx["messages"]
 
-    # Strip base64 and estimate tokens
     enc = tiktoken.get_encoding("cl100k_base")
     total_tokens = 0
     clean_messages = []

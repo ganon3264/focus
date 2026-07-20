@@ -1,30 +1,30 @@
 {% extends "base.html" %}
 {% from "macros.html" import icon_edit, icon_trash, icon_refresh, icon_music, icon_key, icon_search, icon_itemizer, icon_folder, icon_paperclip, icon_plus, icon_stop, icon_send, icon_chat, icon_close, icon_chevron_left, icon_chevron_right, icon_sliders, icon_user, icon_users, icon_layers, icon_palette, icon_wrench, hint_tooltip %}
-{% from "modal_shell.html" import modal_shell %}
+{% from "modal-shell.html" import modal_shell %}
 {% block title %}Chat - Focus{% endblock %}
 {% block content %}
 <div class="app-shell">
-  {% include "chat/left_pane.html" %}
-  {% include "chat/center_pane.html" %}
-  {% include "chat/right_pane.html" %}
+  {% include "chat/left-pane.html" %}
+  {% include "chat/center-pane.html" %}
+  {% include "chat/right-pane.html" %}
 </div>
 
 <!-- MAIN MODALS -->
 {% call modal_shell('modal-sampler', 'Generation Parameters', max_width='550px', content_style='display:flex;flex-direction:column;min-height:400px;') %}
 <div class="flex-1 overflow-y-auto">
-  {% include "modals/sampler_modal.html" %}
+  {% include "modals/sampler.html" %}
 </div>
 {% endcall %}
 
 {% call modal_shell('modal-tools', 'Tool Calls', max_width='550px', content_style='display:flex;flex-direction:column;') %}
 <div class="flex-1 overflow-y-auto">
-  {% include "modals/tools_modal.html" %}
+  {% include "modals/tools.html" %}
 </div>
 {% endcall %}
 
 {% call modal_shell('modal-itemizer', 'Prompt Itemizer', max_width='700px', content_style='display:flex;flex-direction:column;height:80vh;') %}
 <div class="flex-1 overflow-hidden" style="min-height:0;">
-  {% include "modals/itemizer_modal.html" %}
+  {% include "modals/itemizer.html" %}
 </div>
 {% endcall %}
 
@@ -33,23 +33,23 @@
 {% endcall %}
 
 {% set prefix = 'char' %}{% set modal_id = 'modal-edit-character' %}{% set entity_name = 'Character' %}{% set upload_fn = 'actionUploadCharMedia' %}{% set avatar_fn = 'actionUploadCharAvatar' %}{% set submit_fn = 'actionSubmitEditCharacter' %}
-{% include "modals/edit_entity_modal.html" %}
+{% include "modals/edit-entity.html" %}
 
 {% call modal_shell('modal-personas', 'Personas', max_width='800px', content_style='display:flex;flex-direction:column;height:80vh;') %}
 <div id="personas-modal-body" class="flex-1 overflow-hidden" style="min-height:0;">Loading…</div>
 {% endcall %}
 
 {% set prefix = 'persona' %}{% set modal_id = 'modal-edit-persona' %}{% set entity_name = 'Persona' %}{% set upload_fn = 'actionUploadPersonaMedia' %}{% set avatar_fn = 'actionUploadPersonaAvatar' %}{% set submit_fn = 'actionSubmitEditPersona' %}
-{% include "modals/edit_entity_modal.html" %}
+{% include "modals/edit-entity.html" %}
 
 {% call modal_shell('modal-providers', 'Providers', max_width='1000px', content_style='display:flex;flex-direction:column;max-height:85vh;') %}
 <div id="providers-modal-body" style="flex:1;overflow:hidden;">Loading…</div>
 {% endcall %}
 
 <!-- EDIT MESSAGE MODAL -->
-{% include "modals/edit_message_modal.html" %}
+{% include "modals/edit-message.html" %}
 
-{% include "modals/text_expander.html" %}
+{% include "modals/text-expander.html" %}
 
 <!-- PROMPT ARRANGER MODAL -->
 {% call modal_shell('modal-arranger', 'Prompt Arranger', max_width='600px', width='90vw', content_style='display:flex;flex-direction:column;height:85vh;padding:1.5rem 1.5rem 0 1.5rem;') %}
@@ -60,7 +60,7 @@
   </div>
   {% if preset %}
     {% with preset_id = preset.id, blocks = preset_blocks %}
-      {% include "presets/prompt_arranger.html" %}
+      {% include "presets/prompt-arranger.html" %}
     {% endwith %}
   {% else %}
     <div class="text-muted text-center mt-4">Select a preset first.</div>
@@ -282,15 +282,15 @@ setTimeout(() => {
 {% endif %}
 </script>
 
-<script src="/static/js/features/backup_manager.js"></script>
+<script src="/static/js/features/backup-manager.js"></script>
 
 <!-- THEMES MODAL -->
-{% include "modals/theme_modal.html" %}
+{% include "modals/theme.html" %}
 
 <!-- BACKUPS MODAL -->
-{% include "modals/backup_modal.html" %}
+{% include "modals/backup.html" %}
 
-<script src="/static/js/ui/theme_manager.js"></script>
+<script src="/static/js/ui/theme-manager.js"></script>
 <script>
 window.updateContinueButtons = function() {
   var type = StateManager.get('provider_type');
@@ -397,17 +397,17 @@ function toggleSidebar(side) {
 }
 </script>
 
-<script src="/static/js/modals/modal_char_edit.js"></script>
+<script src="/static/js/modals/char-edit.js"></script>
 
-<script src="/static/js/modals/modal_persona_edit.js"></script>
+<script src="/static/js/modals/persona-edit.js"></script>
 
-<script src="/static/js/modals/modal_providers.js"></script>
+<script src="/static/js/modals/providers.js"></script>
 
 <script>
 // App Providers for Status Panel
 window.APP_PROVIDERS = {{ providers | tojson | safe }};
 </script>
 
-<script src="/static/js/ui/status_panel.js"></script>
-<script src="/static/js/messages/message_pruner.js"></script>
+<script src="/static/js/ui/status-panel.js"></script>
+<script src="/static/js/messages/message-pruner.js"></script>
 {% endblock %}

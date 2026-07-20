@@ -257,8 +257,9 @@ async def edit_message(
     now = now_iso()
     new_variant_id = str(uuid.uuid4())
 
-    from focus.core.message_render import render_message_segments
     import json
+
+    from focus.core.message_render import render_message_segments
     _segments = render_message_segments(body.content, body.reasoning)
     _segments_json = json.dumps(_segments) if _segments else None
 

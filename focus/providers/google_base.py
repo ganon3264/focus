@@ -141,13 +141,14 @@ class GoogleProviderBase(BaseProvider):
                 )
             except Exception:
                 logger.debug("Failed to serialize debug payload", exc_info=True)
+        if self._candidate_count and self._candidate_count > 1:
+            config.candidate_count = self._candidate_count
 
         stream = await self.client.aio.models.generate_content_stream(
             model=self.model,
             contents=contents,
             config=config,
         )
-        thought_signature_b64 = None
 
         async for chunk in stream:
             if not chunk.candidates or not chunk.candidates[0].content or not chunk.candidates[0].content.parts:
@@ -156,8 +157,6 @@ class GoogleProviderBase(BaseProvider):
                 continue
 
             for part in chunk.candidates[0].content.parts:
-                if hasattr(part, "thought_signature") and part.thought_signature:
-                    thought_signature_b64 = base64.b64encode(part.thought_signature).decode("utf-8")
 
                 is_thought = getattr(part, "thought", False) or (part.text and part.text.startswith("THOUGHT:"))
 

@@ -315,7 +315,6 @@ async def get_prompt_context(
 
     messages = await assemble_prompt(preset_blocks, history, char_data, char_own_blocks, macros, block_images)
 
-    # Quick log of assembled message roles and whether they contain images
     for i, m in enumerate(messages):
         content = m.get("content")
         has_img = isinstance(content, list) and any(p.get("type") == "image_url" for p in content)

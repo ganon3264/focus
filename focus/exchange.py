@@ -276,10 +276,8 @@ async def export_data(db: aiosqlite.Connection, req: ExportRequest) -> bytes:
 
     file_paths = _extract_file_paths(database)
 
-    # Build ZIP
     buf = BytesIO()
     with ZipFile(buf, "w", ZIP_DEFLATED) as zf:
-        # Count external tools for the manifest
         tool_count = 0
         if TOOLS_DIR.is_dir():
             for f in sorted(TOOLS_DIR.iterdir()):
@@ -316,7 +314,6 @@ async def export_data(db: aiosqlite.Connection, req: ExportRequest) -> bytes:
             if p.exists():
                 zf.write(p, str(p))
 
-        # Include external tool definitions
         if TOOLS_DIR.is_dir():
             for f in sorted(TOOLS_DIR.iterdir()):
                 if f.suffix == ".json" and f.is_file():
@@ -336,7 +333,6 @@ def _remap_database(database: dict[str, list[dict]], id_map: dict[str, str]) -> 
         remapped[table] = []
         for row in rows:
             new_row = dict(row)
-            # Remap primary key
             for pk_col in ("id", "name"):
                 if pk_col in new_row and pk_col != "name":
                     old = new_row[pk_col]
@@ -382,10 +378,8 @@ async def import_data(db: aiosqlite.Connection, zip_bytes: bytes) -> dict:
     if manifest.get("app") != "focus":
         logger.warning("Importing archive from unknown app: %s", manifest.get("app"))
 
-    # Build ID map: all old IDs → new UUIDs
     id_map = _build_id_map(database)
 
-    # Remap all IDs and paths
     remapped = _remap_database(database, id_map)
 
     # Handle provider name collisions
@@ -397,7 +391,6 @@ async def import_data(db: aiosqlite.Connection, zip_bytes: bytes) -> dict:
             row["name"] = f"{original} (Imported)"
         existing_names.add(row["name"])
 
-    # Write asset files from ZIP
     with ZipFile(BytesIO(zip_bytes)) as zf:
         for name in zf.namelist():
             if name.startswith(str(ASSETS_DIR) + "/"):
@@ -427,7 +420,6 @@ async def import_data(db: aiosqlite.Connection, zip_bytes: bytes) -> dict:
             counts[table] = len(rows)
             continue
 
-        # Build column list from first row
         columns = list(rows[0].keys())
         placeholders = ",".join("?" * len(columns))
         colnames = ",".join(columns)

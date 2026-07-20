@@ -43,11 +43,9 @@ class BaseProvider(ABC):
             return data
         return []
 
-    # ── Prefill / Continue support ──────────────────────────────────────────
     supports_prefill: bool = True
     echoes_prefill: bool = True
 
-    # ── Tool calling support ────────────────────────────────────────────────
     supports_tools: bool = True
 
     @abstractmethod

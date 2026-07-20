@@ -20,7 +20,7 @@
     <!-- Preset list -->
     <div style="width:220px;flex-shrink:0;" class="flex flex-col gap-1" id="preset-list">
       {% for p in presets %}
-      {% include "presets/sidebar_item.html" %}
+      {% include "presets/sidebar-item.html" %}
       {% endfor %}
     </div>
 
@@ -29,7 +29,7 @@
       <div class="flex-1 overflow-auto" id="preset-editor" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1rem;">
         {% if presets %}
           {% with preset_id = presets[0].id, blocks = presets[0].blocks %}
-            {% include "presets/preset_editor.html" %}
+            {% include "presets/preset-editor.html" %}
           {% endwith %}
         {% else %}
           <div class="text-muted">No presets. Create one to start.</div>

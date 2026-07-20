@@ -38,12 +38,9 @@ def render_message_segments(
     parts = content.split("%%%TOOL_BOUNDARY%%%")
 
     for pi, part in enumerate(parts):
-        if not part.strip() and pi > 0:
-            pass  # empty segment between boundaries — no text
 
         reasoning_idx = _extract_think_blocks(part, reasoning_idx, segments)
 
-        # non-think text that remains after stripping think blocks
         text = strip_think_blocks(part)
         if text.strip():
             segments.append({"type": "text", "content": text})

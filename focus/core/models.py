@@ -130,16 +130,11 @@ class StreamRequest(BaseModel):
     chat_id: str
     provider_id: str = ""
     user_message: str = ""
-    # Override generation params per-request (falls back to provider defaults)
     samplers: dict[str, Any] = Field(default_factory=dict)
-    # For swipe/regen: regenerate the last assistant turn instead of appending
     regenerate: bool = False
-    # For Continue: prefill the assistant response with existing partial text
     continue_text: str | None = None
     continue_reasoning: str | None = None
-    # Attachment IDs to bind to the new user message
     attachment_ids: list[str] = Field(default_factory=list)
-    # Tool calling configuration
     tools_enabled: bool = False
     tool_read_only: bool = True
 

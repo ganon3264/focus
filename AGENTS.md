@@ -26,19 +26,19 @@ focus/                     # Backend
 templates/                 # Full-page Jinja2 templates
 partials/                  # HTMX partials (chat/, modals/, personas/, presets/)
 static/
-  js/core/                 # state_manager, actions, chat_stream, api_paths
-  js/features/             # char_editor, backup_manager
-  js/messages/             # message_renderer, message_refresh, reasoning_utils, file_staging, edit_message, delete_mode, message_pruner
-  js/modals/               # modal_providers, edit_entity_modal, modal_char_edit, modal_persona_edit
-  js/ui/                   # theme_manager, list_manager, lightbox, scroll_manager, status_panel, confirm, modal, input_bar, media_utils, notifications
-  js/utils/                # claude_cache, set_tracker
+  js/core/                 # state-manager, actions, chat-stream, api-paths
+  js/features/             # char-editor, backup-manager
+  js/messages/             # message-renderer, message-refresh, reasoning-utils, file-staging, edit-message, delete-mode, message-pruner
+  js/modals/               # providers, edit-entity, char-edit, persona-edit
+  js/ui/                   # theme-manager, list-manager, lightbox, scroll-manager, status-panel, confirm, modal, input-bar, media-utils, notifications
+  js/utils/                # claude-cache, set-tracker
   vendor/                  # htmx2, alpine, marked, purify, sortable, cropper, inter
 data/                      # focus.db, backups/, assets/
 ```
 
 ## Critical patterns
 
-### StateManager (`static/js/core/state_manager.js`)
+### StateManager (`static/js/core/state-manager.js`)
 
 Single source of truth (loaded in `<head>`). 5 fields: `character_id`, `persona_id`, `preset_id`, `provider_id`, `provider_type`.
 
@@ -53,7 +53,7 @@ Single source of truth (loaded in `<head>`). 5 fields: `character_id`, `persona_
 
 ### Modals
 
-- Template: `{% from "modal_shell.html" import modal_shell %} / {% call modal_shell('id', 'Title') %}...{% endcall %}`
+- Template: `{% from "modal-shell.html" import modal_shell %} / {% call modal_shell('id', 'Title') %}...{% endcall %}`
 - Show/hide: `classList.remove('hidden')` / `add('hidden')` (never `style.display` — `hidden` has `!important`)
 - Z-index scale: 50 (base) → 100 (sub) → 1000 (editors) → 10000 (overlays) → 10010 (confirm)
 - Editor modals (block edit, var edit, text expander, rename) at z-index 1000
@@ -62,7 +62,7 @@ Single source of truth (loaded in `<head>`). 5 fields: `character_id`, `persona_
 
 SSE events: `start | token | reasoning | tool_calls | tool_result | done`.
 
-**Frontend** — `stream_events.js`: `StreamState` per generation, `HANDLERS` dispatch via `dispatchStreamEvent()`. `message_builder.js`: `segmentBuilders` factories (text/reasoning/tool_calls). Finalize with `finalizeStreamRender()`.
+**Frontend** — `stream-events.js`: `StreamState` per generation, `HANDLERS` dispatch via `dispatchStreamEvent()`. `message-builder.js`: `segmentBuilders` factories (text/reasoning/tool_calls). Finalize with `finalizeStreamRender()`.
 
 **Backend** — `_active_generations` maps `message_id → asyncio.Event`. Stop button calls `POST /api/stop-generation/{message_id}` which sets the event — SSE generator drains gracefully instead of `AbortController.abort()`. Both `_stream_generate` (SSE) and `_non_stream_generate` (JSON) share `_run_generation()`.
 
@@ -126,8 +126,8 @@ Only matters for DeepSeek, Moonshot, openai_compat with `include_reasoning` on.
 
 2. **Never set `innerHTML` during streaming** — use `preserveOpenStates(container, renderFn)` to keep reasoning blocks open. Direct `innerHTML` destroys open toggle state.
 
-3. **Message pruning** — `message_pruner.js` replaces off-screen `.message` with height placeholders. After any HTMX swap, call `window.pruneMessages()`. Check `window._isMessagePruned(msgId)` before DOM ops. `window._streamingMessageId` is excluded.
+3. **Message pruning** — `message-pruner.js` replaces off-screen `.message` with height placeholders. After any HTMX swap, call `window.pruneMessages()`. Check `window._isMessagePruned(msgId)` before DOM ops. `window._streamingMessageId` is excluded.
 
 4. **Reasoning-only messages have `.message-content`** — Template renders empty `<div class="message-content markdown-content">` when msg has `reasoning` but no text, so pulse cursor and tokens have a DOM position. JS fallback (create-if-missing) only fires for pre-existing messages.
 
-5. **Alpine `x-show` elements need `x-cloak`** — Alpine loads with `defer`, so there's a gap between HTML parsing and Alpine init. Any full-screen overlay using `x-show="expr"` without `x-cloak` will flash visible during this gap. The preset rename modal (`preset_selector.html:91`) is the prime example. Add `x-cloak` to any new `x-show`-based modals.
+5. **Alpine `x-show` elements need `x-cloak`** — Alpine loads with `defer`, so there's a gap between HTML parsing and Alpine init. Any full-screen overlay using `x-show="expr"` without `x-cloak` will flash visible during this gap. The preset rename modal (`preset-selector.html:91`) is the prime example. Add `x-cloak` to any new `x-show`-based modals.

@@ -8,11 +8,11 @@ from jinja2 import FileSystemLoader
 
 import focus.crud as crud
 from focus.core.database import get_db
+from focus.core.logger import DEBUG_MODE
 from focus.core.macros import MACRO_DEFINITIONS, SPECIAL_TOKENS, apply_macros, build_base_macros
 from focus.core.message_render import render_message_segments
 from focus.core.utils import variable_group_name
 from focus.prompt_chain import partition_blocks, resolve_variable_blocks
-from focus.core.logger import DEBUG_MODE
 
 router = APIRouter()
 
@@ -60,14 +60,13 @@ async def chat_redirect(request: Request, character_id: str = Query(None), db: a
         if row:
             return RedirectResponse(url=f"/chat/{row['id']}")
 
-    # If no chat found (either overall, or for the specified character), load the UI in a "chatless" greeter state.
-    # To do this, we need to gather the base context (providers, presets, etc) just like a normal chat page.
+    # If no chat found, load the UI in a "chatless" greeter state
     character = await crud.get_character(db, character_id)
     presets = await crud.get_presets(db)
     providers = await crud.get_providers(db)
     persona = await crud.get_persona(db)
 
-    # Determine default preset
+    # Pick default preset
     preset = presets[0] if presets else None
     preset_blocks = preset["blocks"] if preset else []
 
@@ -93,7 +92,7 @@ async def chat_redirect(request: Request, character_id: str = Query(None), db: a
             "presets": presets,
             "chats": [],
             "has_characters": has_chars,
-            "current_character_id": character_id,  # Pre-seed the active character for newChat()
+            "current_character_id": character_id,
             "current_persona_id": persona["id"] if persona else None,
             "current_preset_id": preset["id"] if preset else None,
             "active_provider_id": active_provider["provider_id"],
@@ -236,7 +235,7 @@ async def message_list_partial(request: Request, chat_id: str, db: aiosqlite.Con
 
     return templates.TemplateResponse(
         request,
-        "chat/message_list.html",
+        "chat/message-list.html",
         {
             "messages": messages,
             "chat_id": chat_id,
@@ -297,7 +296,7 @@ async def chat_list_partial(
 
     return templates.TemplateResponse(
         request,
-        "chat/chat_list.html",
+        "chat/chat-list.html",
         {
             "chats": chats,
             "current_chat_id": current_chat_id,
@@ -315,7 +314,7 @@ async def char_selector_partial(request: Request, chat_id: str, db: aiosqlite.Co
             current_character_id = row["character_id"]
     return templates.TemplateResponse(
         request,
-        "chat/char_selector.html",
+        "chat/char-selector.html",
         {
             "characters": characters,
             "chat_id": chat_id,
@@ -334,7 +333,7 @@ async def persona_selector_partial(request: Request, chat_id: str, db: aiosqlite
             current_persona_id = row["persona_id"]
     return templates.TemplateResponse(
         request,
-        "chat/persona_selector.html",
+        "chat/persona-selector.html",
         {
             "personas": personas,
             "chat_id": chat_id,
@@ -353,7 +352,7 @@ async def preset_selector_partial(request: Request, chat_id: str, db: aiosqlite.
             current_preset_id = row["preset_id"]
     return templates.TemplateResponse(
         request,
-        "presets/preset_selector.html",
+        "presets/preset-selector.html",
         {
             "presets": presets,
             "chat_id": chat_id,
@@ -392,7 +391,7 @@ async def preset_variables_group_partial(
 
     return templates.TemplateResponse(
         request,
-        "presets/preset_variables.html",
+        "presets/preset-variables.html",
         {"preset_id": preset_id, "var_groups": {group_name: vblocks}},
     )
 
@@ -413,7 +412,7 @@ async def preset_editor_partial(
 
     return templates.TemplateResponse(
         request,
-        "presets/preset_editor.html",
+        "presets/preset-editor.html",
         {
             "blocks": regular_blocks,
             "var_groups": var_groups,
@@ -440,7 +439,7 @@ async def prompt_arranger_partial(
 
     return templates.TemplateResponse(
         request,
-        "presets/prompt_arranger.html",
+        "presets/prompt-arranger.html",
         {
             "blocks": regular_blocks,
             "preset_id": preset_id,
@@ -471,7 +470,7 @@ async def prompt_arranger_block_partial(
 
     return templates.TemplateResponse(
         request,
-        "presets/prompt_block.html",
+        "presets/prompt-block.html",
         {"block": block, "preset_id": preset_id, "counts": counts},
     )
 
@@ -482,7 +481,7 @@ async def sampler_modal_partial(request: Request, db: aiosqlite.Connection = Dep
     active_provider = await crud.get_active_provider(db)
     return templates.TemplateResponse(
         request,
-        "modals/sampler_modal.html",
+        "modals/sampler.html",
         {
             "providers": providers,
             "active_provider_id": active_provider["provider_id"],
@@ -503,7 +502,7 @@ async def providers_modal_partial(request: Request, db: aiosqlite.Connection = D
 
     return templates.TemplateResponse(
         request,
-        "modals/providers_modal.html",
+        "modals/providers.html",
         {
             "request": request,
             "providers": providers,
@@ -525,7 +524,7 @@ async def characters_modal_partial(
     compact_view = compact_view == "compact"
     return templates.TemplateResponse(
         request,
-        "modals/characters_modal.html",
+        "modals/characters.html",
         {
             "request": request,
             "characters": characters,
@@ -540,7 +539,7 @@ async def presets_modal_partial(request: Request, db: aiosqlite.Connection = Dep
     presets = await crud.get_presets(db)
     return templates.TemplateResponse(
         request,
-        "presets/presets_modal.html",
+        "presets/presets.html",
         {
             "request": request,
             "presets": presets,
@@ -561,7 +560,7 @@ async def personas_modal_partial(
     compact_view = compact_view == "compact"
     return templates.TemplateResponse(
         request,
-        "modals/personas_modal.html",
+        "modals/personas.html",
         {
             "request": request,
             "personas": personas,
@@ -593,7 +592,7 @@ async def export_entities_partial(
 
     return templates.TemplateResponse(
         request,
-        "modals/export_entities.html",
+        "modals/export-entities.html",
         {
             "request": request,
             "entities": entities,
@@ -611,7 +610,7 @@ async def persona_card_partial(
     if not p:
         from fastapi import HTTPException
         raise HTTPException(404)
-    return templates.TemplateResponse(request, "personas/card.html", {"p": p})
+    return templates.TemplateResponse(request, "personas/persona-card.html", {"p": p})
 
 
 @router.get("/partials/preset-sidebar/{preset_id}", response_class=HTMLResponse)
@@ -623,7 +622,7 @@ async def preset_sidebar_partial(
     if not p:
         from fastapi import HTTPException
         raise HTTPException(404)
-    return templates.TemplateResponse(request, "presets/sidebar_item.html", {"p": p})
+    return templates.TemplateResponse(request, "presets/sidebar-item.html", {"p": p})
 
 
 def from_json(value):

@@ -10,7 +10,6 @@ content).
 import re
 from pathlib import Path
 
-import pytest
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
 TEMPLATES_DIR = Path("templates").resolve()

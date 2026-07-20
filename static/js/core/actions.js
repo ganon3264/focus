@@ -48,9 +48,9 @@
   });
 })();
 
-/* ── Action wrappers ──
-   These are called from data-action attributes. They must NOT shadow the original
-   functions (which may be called directly from JS with different signatures). */
+/* Action wrappers called from data-action attributes.
+   They must NOT shadow the original functions
+   (which may be called directly from JS with different signatures). */
 
 window.actionOpenProviderCreateModal = function () {
   openModal("modal-provider-create");
@@ -139,8 +139,8 @@ window.actionFilterEntityList = function (el) {
   if (window.BackupManager) BackupManager.filterExportEntities(BackupManager._entitySelectType, el.value);
 };
 
-/* ── Entity edit modal action adapters ──
-   These bridge between data-action and createEditModalHandlers-registered functions. */
+/* Entity edit modal action adapters — bridge between data-action
+   and createEditModalHandlers-registered functions. */
 
 window.actionSubmitEditCharacter = function (el, e) {
   e.preventDefault();

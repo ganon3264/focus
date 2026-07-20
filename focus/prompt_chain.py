@@ -304,7 +304,7 @@ async def assemble_prompt(
     in_chat_blocks = [b for b in active if b.get("injection_depth") is not None]
     active = [b for b in active if b.get("injection_depth") is None]
 
-    # ── Two-pass variable resolution (order-independent, handles chains) ──
+    # Two-pass variable resolution (order-independent, handles chains)
     variables = [b for b in active if b["block_type"] == "variable"]
     active = [b for b in active if b["block_type"] != "variable"]
     resolve_variable_blocks(variables, macros)
@@ -368,7 +368,6 @@ async def assemble_prompt(
     cleaned_history = []
     for msg in chat_history:
         cleaned_msg = dict(msg)
-        # Apply macros to string content (resolves {{user}}, {{char}}, etc.)
         if isinstance(cleaned_msg.get("content"), str):
             cleaned_msg["content"] = apply_macros(cleaned_msg["content"], macros)
         if cleaned_msg.get("role") == "assistant" and isinstance(cleaned_msg.get("content"), str):

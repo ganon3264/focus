@@ -52,7 +52,7 @@
     <link rel="stylesheet" href="/static/vendor/inter.css" />
     <link rel="stylesheet" href="/static/tailwind.css" />
     <link rel="stylesheet" href="/static/style.css" />
-    <script src="/static/js/core/state_manager.js"></script>
+    <script src="/static/js/core/state-manager.js"></script>
     <script src="/static/vendor/htmx2.min.js"></script>
     <script defer src="/static/vendor/alpine-collapse.min.js"></script>
     <script defer src="/static/vendor/alpine.min.js"></script>
@@ -164,9 +164,9 @@
       };
     </script>
     <!-- / inline scripts ───────────────────────────────────────────────── -->
-    <script src="/static/js/ui/media_utils.js"></script>
-    <script src="/static/js/modals/edit_entity_modal.js"></script>
-    {% block content %}{% endblock %} {% include "modals/confirm_modal.html" %}
+    <script src="/static/js/ui/media-utils.js"></script>
+    <script src="/static/js/modals/edit-entity.js"></script>
+    {% block content %}{% endblock %} {% include "modals/confirm.html" %}
 
     <!-- Global Lightbox for Images -->
     <div
@@ -241,28 +241,28 @@
       </div>
     </div>
 
-    <script src="/static/js/utils/set_tracker.js"></script>
-    <script src="/static/js/utils/claude_cache.js"></script>
-    <script src="/static/js/utils/timestamp_formatter.js"></script>
+    <script src="/static/js/utils/set-tracker.js"></script>
+    <script src="/static/js/utils/claude-cache.js"></script>
+    <script src="/static/js/utils/timestamp-formatter.js"></script>
     <script src="/static/js/ui/modal.js"></script>
     <script src="/static/js/ui/confirm.js"></script>
     <script src="/static/js/ui/notifications.js"></script>
-    <script src="/static/js/ui/input_bar.js"></script>
-    <script src="/static/js/core/api_paths.js"></script>
+    <script src="/static/js/ui/input-bar.js"></script>
+    <script src="/static/js/core/api-paths.js"></script>
     <script src="/static/js/core/actions.js"></script>
     <script src="/static/js/ui/lightbox.js"></script>
 
-    <script src="/static/js/ui/list_manager.js"></script>
-    <script src="/static/js/messages/message_renderer.js"></script>
-    <script src="/static/js/messages/file_staging.js"></script>
-    <script src="/static/js/ui/scroll_manager.js"></script>
-    <script src="/static/js/messages/edit_message.js"></script>
-    <script src="/static/js/messages/delete_mode.js"></script>
-    <script src="/static/js/messages/reasoning_utils.js"></script>
-    <script src="/static/js/messages/message_refresh.js"></script>
-    <script src="/static/js/messages/message_builder.js"></script>
-    <script src="/static/js/messages/stream_events.js"></script>
-    <script src="/static/js/core/chat_stream.js"></script>
+    <script src="/static/js/ui/list-manager.js"></script>
+    <script src="/static/js/messages/message-renderer.js"></script>
+    <script src="/static/js/messages/file-staging.js"></script>
+    <script src="/static/js/ui/scroll-manager.js"></script>
+    <script src="/static/js/messages/edit-message.js"></script>
+    <script src="/static/js/messages/delete-mode.js"></script>
+    <script src="/static/js/messages/reasoning-utils.js"></script>
+    <script src="/static/js/messages/message-refresh.js"></script>
+    <script src="/static/js/messages/message-builder.js"></script>
+    <script src="/static/js/messages/stream-events.js"></script>
+    <script src="/static/js/core/chat-stream.js"></script>
     <div id="hint-tooltip" class="hint-tooltip"></div>
   </body>
 </html>

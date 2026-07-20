@@ -1,0 +1,132 @@
+{% from "modal-shell.html" import modal_shell %} {% call modal_shell('modal-themes', 'Theme
+Customizer', max_width='500px', width='90vw', content_style='', z_index='100') %}
+<div class="flex flex-col gap-4 mt-2">
+  <div class="flex gap-2">
+    <button class="btn btn-secondary flex-1 text-xs" onclick="applyPresetTheme('default')">
+      Slate (Default)
+    </button>
+    <button class="btn btn-secondary flex-1 text-xs" onclick="applyPresetTheme('midnight')">
+      Midnight (OLED)
+    </button>
+    <button class="btn btn-secondary flex-1 text-xs" onclick="applyPresetTheme('light')">
+      Light
+    </button>
+  </div>
+
+  <div class="grid grid-cols-2 gap-3" id="theme-color-pickers">
+    <label class="flex flex-col gap-1 text-xs font-bold text-muted">
+      Background
+      <input
+        type="color"
+        data-var="--bg"
+        class="w-full h-8 cursor-pointer rounded"
+        onchange="previewThemeColor(this)"
+        oninput="previewThemeColor(this)"
+      />
+    </label>
+    <label class="flex flex-col gap-1 text-xs font-bold text-muted">
+      Surface (Primary)
+      <input
+        type="color"
+        data-var="--surface"
+        class="w-full h-8 cursor-pointer rounded"
+        onchange="previewThemeColor(this)"
+        oninput="previewThemeColor(this)"
+      />
+    </label>
+    <label class="flex flex-col gap-1 text-xs font-bold text-muted">
+      Surface (Secondary)
+      <input
+        type="color"
+        data-var="--surface-2"
+        class="w-full h-8 cursor-pointer rounded"
+        onchange="previewThemeColor(this)"
+        oninput="previewThemeColor(this)"
+      />
+    </label>
+    <label class="flex flex-col gap-1 text-xs font-bold text-muted">
+      Surface (Tertiary)
+      <input
+        type="color"
+        data-var="--surface-3"
+        class="w-full h-8 cursor-pointer rounded"
+        onchange="previewThemeColor(this)"
+        oninput="previewThemeColor(this)"
+      />
+    </label>
+    <label class="flex flex-col gap-1 text-xs font-bold text-muted">
+      Borders
+      <input
+        type="color"
+        data-var="--border"
+        class="w-full h-8 cursor-pointer rounded"
+        onchange="previewThemeColor(this)"
+        oninput="previewThemeColor(this)"
+      />
+    </label>
+    <label class="flex flex-col gap-1 text-xs font-bold text-muted">
+      Accent Color
+      <input
+        type="color"
+        data-var="--accent"
+        class="w-full h-8 cursor-pointer rounded"
+        onchange="previewThemeColor(this)"
+        oninput="previewThemeColor(this)"
+      />
+    </label>
+    <label class="flex flex-col gap-1 text-xs font-bold text-muted">
+      Text (Main)
+      <input
+        type="color"
+        data-var="--text"
+        class="w-full h-8 cursor-pointer rounded"
+        onchange="previewThemeColor(this)"
+        oninput="previewThemeColor(this)"
+      />
+    </label>
+    <label class="flex flex-col gap-1 text-xs font-bold text-muted">
+      Text (Muted)
+      <input
+        type="color"
+        data-var="--text-muted"
+        class="w-full h-8 cursor-pointer rounded"
+        onchange="previewThemeColor(this)"
+        oninput="previewThemeColor(this)"
+      />
+    </label>
+    <label class="flex flex-col gap-1 text-xs font-bold text-muted">
+      User Role
+      <input
+        type="color"
+        data-var="--role-user"
+        class="w-full h-8 cursor-pointer rounded"
+        onchange="previewThemeColor(this)"
+        oninput="previewThemeColor(this)"
+      />
+    </label>
+    <label class="flex flex-col gap-1 text-xs font-bold text-muted">
+      Assistant Role
+      <input
+        type="color"
+        data-var="--role-assistant"
+        class="w-full h-8 cursor-pointer rounded"
+        onchange="previewThemeColor(this)"
+        oninput="previewThemeColor(this)"
+      />
+    </label>
+  </div>
+
+  <div class="flex justify-end gap-2 mt-4">
+    <button
+      class="btn btn-secondary"
+      onclick="
+        closeModal('modal-themes');
+        resetThemePreview();
+      "
+    >
+      Cancel
+    </button>
+    <button class="btn btn-primary" onclick="saveCustomTheme()">Save Theme</button>
+  </div>
+</div>
+{% endcall %}

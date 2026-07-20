@@ -1,0 +1,9 @@
+{% from "modal-shell.html" import modal_shell %} {% call modal_shell('global-confirm-modal',
+'Confirm Action', max_width='400px', content_style='', z_index='10010', role='alertdialog',
+overlay_close=false, close_fn='closeConfirmModal') %}
+<div id="global-confirm-message" class="text-sm mb-4" style="color: var(--text)">Are you sure?</div>
+<div class="flex justify-end gap-2">
+  <button class="btn btn-secondary" onclick="closeConfirmModal()">Cancel</button>
+  <button id="global-confirm-btn" class="btn btn-danger">Confirm</button>
+</div>
+{% endcall %}

@@ -16,7 +16,6 @@ import uuid
 from datetime import UTC, datetime
 
 import aiosqlite
-import pytest
 
 
 def _now_iso() -> str:
@@ -134,8 +133,8 @@ class TestStreamAbortBehavior:
         chat = await create_chat(client, char["id"], persona["id"], preset["id"])
         provider_id = await self._make_provider(client)
 
-        from focus.routers import stream as stream_module
         import focus.providers
+        from focus.routers import stream as stream_module
 
         rollback_calls: list[str | None] = []
         original_rollback = stream_module._rollback_assistant
@@ -195,8 +194,8 @@ class TestStreamAbortBehavior:
             db_path, chat_id=chat["id"], role="assistant", position=1, content="Old"
         )
 
-        from focus.routers import stream as stream_module
         import focus.providers
+        from focus.routers import stream as stream_module
 
         rollback_calls: list[str | None] = []
         original_rollback = stream_module._rollback_assistant
@@ -265,8 +264,8 @@ class TestStreamAbortBehavior:
 
         assert await _count_variants(db_path, old_asst_id) == 2
 
-        from focus.routers import stream as stream_module
         import focus.providers
+        from focus.routers import stream as stream_module
 
         async def _no_rollback(asst_msg_id):
             return None
