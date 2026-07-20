@@ -274,10 +274,18 @@ async def _run_generation(
 
         logger.debug("Tool round (%d calls) for chat_id=%s", len(tool_calls_list), chat_id)
 
-        results = await _apply_tool_round(
-            loop_messages, tool_calls_list, tools_by_name, tool_read_only,
-            chat_id, asst_msg_id, variant_id, iter_collected, iter_reasoning,
-        )
+        try:
+            results = await _apply_tool_round(
+                loop_messages, tool_calls_list, tools_by_name, tool_read_only,
+                chat_id, asst_msg_id, variant_id, iter_collected, iter_reasoning,
+            )
+        except Exception as e:
+            logger.exception("Tool round failed for chat_id=%s", chat_id)
+            err_msg = str(e)
+            if not err_msg or err_msg == "()":
+                err_msg = repr(e)
+            yield {"type": "error", "error": err_msg}
+            return
         for r in results:
             yield {
                 "type": "tool_result",
@@ -464,24 +472,48 @@ async def _stream_generate(
                     "stream: error state: final_text=%d regenerate=%s asst_msg_id=%s",
                     len(final_text), body.regenerate, asst_msg_id,
                 )
+                _text_slices.append(len(final_text))
+                _reasoning_slices.append(len(final_reasoning))
+                segments = _build_segments(
+                    _text_slices, _reasoning_slices,
+                    final_text, final_reasoning,
+                    tool_call_groups=_tool_groups if _tool_groups else None,
+                )
                 await _save_or_rollback(
                     body, asst_msg_id, next_variant_index, variant_id,
                     final_text, final_reasoning, prov_dict,
+                    segments_json=json.dumps(segments) if segments else None,
                 )
                 yield f"data: {json.dumps({'error': event['error']})}\n\n"
                 logger.info("Stream terminated (error) for chat_id=%s", body.chat_id)
                 return
     except GeneratorExit:
+        _text_slices.append(len(final_text))
+        _reasoning_slices.append(len(final_reasoning))
+        segments = _build_segments(
+            _text_slices, _reasoning_slices,
+            final_text, final_reasoning,
+            tool_call_groups=_tool_groups if _tool_groups else None,
+        )
         await _save_or_rollback(
             body, asst_msg_id, next_variant_index, variant_id,
             final_text, final_reasoning, prov_dict,
+            segments_json=json.dumps(segments) if segments else None,
         )
         logger.info("Stream cancelled for chat_id=%s", body.chat_id)
         return
     except asyncio.CancelledError:
+        _text_slices.append(len(final_text))
+        _reasoning_slices.append(len(final_reasoning))
+        segments = _build_segments(
+            _text_slices, _reasoning_slices,
+            final_text, final_reasoning,
+            tool_call_groups=_tool_groups if _tool_groups else None,
+        )
         await _save_or_rollback(
             body, asst_msg_id, next_variant_index, variant_id,
             final_text, final_reasoning, prov_dict,
+            segments_json=json.dumps(segments) if segments else None,
         )
         raise
     finally:
@@ -542,7 +574,22 @@ async def _non_stream_generate(
                             tc['is_error'] = event['is_error']
                             break
             elif event["type"] == "error":
-                if not body.regenerate and not collected:
+                n_text_slices.append(len(collected))
+                n_reasoning_slices.append(len(collected_reasoning))
+                segments = _build_segments(
+                    n_text_slices, n_reasoning_slices,
+                    collected, collected_reasoning,
+                    tool_call_groups=n_tool_groups if n_tool_groups else None,
+                )
+                if collected or collected_reasoning:
+                    await _upsert_variant(
+                        body.chat_id, asst_msg_id, next_variant_index,
+                        "".join(collected), body.regenerate, prov_dict.get("model", ""),
+                        variant_id=variant_id,
+                        reasoning="".join(collected_reasoning).strip() or None,
+                        segments_json=json.dumps(segments) if segments else None,
+                    )
+                elif not body.regenerate:
                     await _rollback_assistant(asst_msg_id)
                 raise HTTPException(500, event["error"])
     except asyncio.CancelledError:
@@ -621,6 +668,7 @@ async def _save_or_rollback(
     final_text: list[str],
     final_reasoning: list[str],
     prov_dict: dict,
+    segments_json: str | None = None,
 ) -> None:
     """On error or cancellation, save any partial text/reasoning or
     rollback the empty assistant slot so the DB stays consistent."""
@@ -630,6 +678,7 @@ async def _save_or_rollback(
             "".join(final_text), body.regenerate, prov_dict.get("model", ""),
             variant_id=variant_id,
             reasoning="".join(final_reasoning).strip() or None,
+            segments_json=segments_json,
         )
     elif not body.regenerate:
         await _rollback_assistant(asst_msg_id)
@@ -697,7 +746,8 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
 
     tools_by_name: dict = {}
     if tools_enabled:
-        cur_tools = active_tools(ALL_TOOLS, tool_read_only)
+        disable_multimodal = (body.samplers or {}).get("disable_multimodal", False)
+        cur_tools = active_tools(ALL_TOOLS, tool_read_only, disable_multimodal=disable_multimodal)
         tools_payload = to_provider_tools(cur_tools)
         tools_by_name = {t.name: t for t in cur_tools}
         if tools_payload:
