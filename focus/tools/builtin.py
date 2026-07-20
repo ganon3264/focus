@@ -7,6 +7,7 @@ from pathlib import Path
 
 from focus.prompt_chain import _ensure_compressed_sync
 from focus.tools import ToolParam, ToolSpec
+from focus.tools.helpers import TOOL_OUTPUT_TRUNCATE_CHARS
 
 
 def execute_shell(command: str, timeout_s: int = 10) -> str:
@@ -24,12 +25,15 @@ def execute_shell(command: str, timeout_s: int = 10) -> str:
     return output
 
 
-def read_file(path: str) -> str:
+def read_file(path: str, lines: int | None = None) -> str:
     p = Path(path)
     if not p.exists():
         raise FileNotFoundError(f"File not found: {path}")
     if not p.is_file():
         raise ValueError(f"Not a file: {path}")
+    if lines is not None:
+        with p.open(encoding="utf-8", errors="replace") as f:
+            return "".join(f.readline() for _ in range(lines))
     return p.read_text(encoding="utf-8", errors="replace")
 
 
@@ -67,9 +71,14 @@ def read_image(path: str) -> tuple[str, str, str]:
 ALL_TOOLS: list[ToolSpec] = [
     ToolSpec(
         name="read_file",
-        description="Read the contents of a text file from the local filesystem. Returns up to ~8000 tokens of content. Use for code, config files, logs, and other text-based files.",
+        description=f"Read the contents of a text file from the local filesystem. "
+                    f"Truncated if longer than {TOOL_OUTPUT_TRUNCATE_CHARS} chars. "
+                    f"Optionally read only the first N lines.",
         params=[
             ToolParam(name="path", type="string", description="Absolute path to the file to read"),
+            ToolParam(name="lines", type="integer",
+                      description="Number of lines to read from the start of the file (optional)",
+                      required=False),
         ],
         writes=False,
         handler=read_file,
@@ -85,7 +94,7 @@ ALL_TOOLS: list[ToolSpec] = [
     ),
     ToolSpec(
         name="read_image",
-        description="Read an image file and return it as a base64-encoded data URI for the model to view. Useful for inspecting screenshots, diagrams, and other visual content.",
+        description="Read an image file and return it as a base64-encoded data URI for the model to view.",
         params=[
             ToolParam(name="path", type="string", description="Absolute path to the image file"),
         ],
@@ -94,7 +103,7 @@ ALL_TOOLS: list[ToolSpec] = [
     ),
     ToolSpec(
         name="execute_shell",
-        description="Execute an arbitrary shell command and return its output. Can be used for any command-line operation including writing files, deleting files, running scripts, and inspecting system state. Use with caution in read-only mode.",
+        description="Execute an arbitrary shell command and return its output.",
         params=[
             ToolParam(name="command", type="string", description="Shell command to execute"),
             ToolParam(name="timeout_s", type="integer", description="Timeout in seconds", required=False),
