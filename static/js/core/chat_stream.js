@@ -63,9 +63,11 @@
         var bodyEl = asstDiv.querySelector('.message-body');
         if (bodyEl) bodyEl.appendChild(contentDiv);
       }
-      var pulse = document.createElement('span');
-      pulse.className = 'gen-pulse';
-      contentDiv.appendChild(pulse);
+      if (continueText) {
+        var pulse = document.createElement('span');
+        pulse.className = 'gen-pulse';
+        contentDiv.appendChild(pulse);
+      }
     } else {
       var contentDivs = asstDiv.querySelectorAll('.message-content');
       for (var j = 0; j < contentDivs.length; j++) contentDivs[j].remove();
