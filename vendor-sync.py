@@ -5,6 +5,7 @@ Zero npm/node dependency — uses Python stdlib only.
 Run `./vendor-sync.py` to refresh all vendor files.
 """
 
+import hashlib
 import stat
 import sys
 import urllib.request
@@ -21,6 +22,7 @@ MARKED_VERSION = "18.0.5"
 DOMPURIFY_VERSION = "3.4.11"
 SORTABLEJS_VERSION = "1.15.7"
 CROPPERJS_VERSION = "2.1.1"
+IDIOMORPH_VERSION = "0.7.4"
 TAILWIND_VERSION = "v4.3.2"
 
 TAILWIND_URL = (
@@ -58,11 +60,38 @@ DOWNLOADS = {
         f"https://unpkg.com/cropperjs@{CROPPERJS_VERSION}/dist/cropper.min.js",
         f"Cropper.js v{CROPPERJS_VERSION}",
     ),
+    "idiomorph-ext.min.js": (
+        f"https://unpkg.com/idiomorph@{IDIOMORPH_VERSION}/dist/idiomorph-ext.min.js",
+        f"Idiomorph v{IDIOMORPH_VERSION} + HTMX morph extension",
+    ),
     "inter.css": (
         "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap",
         "Inter font CSS",
     ),
 }
+
+# ── Checksums (SHA-256) ──────────────────────────────────────────────────────
+# Update after any intentional vendor upgrade: `sha256sum static/vendor/*`
+CHECKSUMS = {
+    "alpine-collapse.min.js": "c7661d4e2cf0465e3cd693190debb5f592ac72dcc4cfe650581273767558b27b",
+    "alpine.min.js": "57b37d7cae9a27d965fdae4adcc844245dfdc407e655aee85dcfff3a08036a3f",
+    "cropper.min.js": "27f29dae3c6fa7a5f6126901f4d1f8cbbc36756196046aa7e97d2eae14131979",
+    "htmx2.min.js": "71ea67185bfa8c98c39d31717c6fce5d852370fcdfd129db4543774d3145c0de",
+    "idiomorph-ext.min.js": "a6437e55b1b6a07bc421f0d230266a39399b6826c6ed19e0ed9c63b707444a5f",
+    "inter.css": "34bd07407ad1de576cba1f67651fa31a8fe783e24a6e1817e08c24bdc54014f9",
+    "marked.umd.js": "1f0acde4c17e28e4fb233ab358de856bee2f6ac28c7c757a68e2e3725f0db848",
+    "purify.min.js": "1009d4715549e1331c1702529ed924260e4c5b5d04e2eb94e2112398a6dd1aa3",
+    "sortable.min.js": "bf4241bc73fef7f11c59a283a69fe8051cdd31c6d8ff5a2b9ba219e7831fcf76",
+    "bin/tailwindcss-linux-x64": "5036c4fb4328e0bcdbb6065c70d8ac9452e0d4c947113a788a8f94fd390425c1",
+}
+
+
+def _warn_mismatch(mismatched: list) -> None:
+    print("⚠  Checksum mismatch:")
+    for key, expected, actual in mismatched:
+        print(f"    {key}")
+        print(f"      expected: {expected}")
+        print(f"      actual:   {actual}")
 
 
 def _download(url: str, dest: Path) -> bytes:
@@ -71,20 +100,41 @@ def _download(url: str, dest: Path) -> bytes:
         return resp.read()
 
 
+def _hash_file(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
 def check() -> int:
-    """Verify all vendor files exist. Exit 0 if complete, 1 if anything missing."""
+    """Verify all vendor files exist and checksums match. Exit 0 if ok."""
     missing = []
+    mismatched = []
     for filename in DOWNLOADS:
-        if not (VENDOR_DIR / filename).is_file():
+        dest = VENDOR_DIR / filename
+        if not dest.is_file():
             missing.append(f"static/vendor/{filename}")
     if not TAILWIND_DEST.is_file():
         missing.append("bin/tailwindcss-linux-x64")
+
     if missing:
         print("Missing vendor files — run without --check to download:")
         for m in missing:
             print(f"  {m}")
         return 1
-    print("All vendor files present")
+
+    for key, expected in CHECKSUMS.items():
+        p = ROOT / key
+        if not p.is_file():
+            continue
+        actual = _hash_file(p)
+        if actual != expected:
+            mismatched.append((key, expected, actual))
+
+    if mismatched:
+        _warn_mismatch(mismatched)
+        print("  Run without --check to re-download and update checksums.")
+        return 1
+
+    print("All vendor files present and checksums match")
     return 0
 
 
@@ -104,6 +154,10 @@ def sync() -> int:
         data = _download(TAILWIND_URL, TAILWIND_DEST)
         TAILWIND_DEST.write_bytes(data)
         TAILWIND_DEST.chmod(TAILWIND_DEST.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+        actual = hashlib.sha256(data).hexdigest()
+        expected = CHECKSUMS.get("bin/tailwindcss-linux-x64")
+        if expected and actual != expected:
+            _warn_mismatch([("bin/tailwindcss-linux-x64", expected, actual)])
         print(f"  {len(data):>8} bytes  Tailwind CSS CLI {TAILWIND_VERSION}")
         ok += 1
     except Exception as e:
@@ -119,6 +173,10 @@ def sync() -> int:
             if dest.suffix in (".js", ".css"):
                 data = data.replace(b"//# sourceMappingURL=", b"// ")
             dest.write_bytes(data)
+            actual = hashlib.sha256(data).hexdigest()
+            expected = CHECKSUMS.get(filename)
+            if expected and actual != expected:
+                _warn_mismatch([(filename, expected, actual)])
             print(f"  {len(data):>8} bytes  {label}")
             ok += 1
         except Exception as e:
