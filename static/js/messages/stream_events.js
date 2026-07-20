@@ -4,6 +4,31 @@
     dbg = function () { console.log('[stream]', Array.prototype.slice.call(arguments)); };
   }
 
+  /* ── Segment helpers ── */
+
+  function _lastSegment(state) {
+    return state.segments.length > 0 ? state.segments[state.segments.length - 1] : null;
+  }
+
+  function _appendSegment(state, type, el) {
+    var prev = _lastSegment(state);
+    if (prev && prev.el && prev.el.parentNode) {
+      prev.el.parentNode.insertBefore(el, prev.el.nextSibling);
+    } else {
+      var bodyEl = state.asstDiv.querySelector('.message-body');
+      if (bodyEl) bodyEl.appendChild(el);
+    }
+    state.segments.push({ type: type, el: el });
+  }
+
+  function _findOrCreateSegment(state, type, createFn) {
+    var last = _lastSegment(state);
+    if (last && last.type === type) return last;
+    var el = createFn();
+    _appendSegment(state, type, el);
+    return state.segments[state.segments.length - 1];
+  }
+
   /* ── StreamState: mutable state container for one generation ── */
 
   window.StreamState = function (chatId, asstDiv, isRegen, continueText, continueReasoning) {
@@ -13,11 +38,9 @@
     this.continueText = continueText || null;
     this.continueReasoning = continueReasoning || null;
     this.fullText = '';
-    this.fullReasoning = '';
     this.messageId = null;
     this.userMessageId = null;
-    this.textSegments = [];
-    this.currentTextDiv = null;
+    this.segments = [];
     this.controller = new AbortController();
   };
 
@@ -42,51 +65,38 @@
   };
 
   HANDLERS.tool_calls = function (state, data) {
-    window._renderToolCalls(state.asstDiv, data.calls);
-    var toolSection = state.asstDiv.querySelector('.tool-calls-stream');
-    var contDiv = document.createElement('div');
-    contDiv.className = 'message-content markdown-content processed pl-stream';
-    toolSection.parentNode.insertBefore(contDiv, toolSection.nextSibling);
-    state.currentTextDiv = contDiv;
-    state.textSegments.push({ div: contDiv, text: '' });
+    var el = window.segmentBuilders.tool_calls(data.calls);
+    _appendSegment(state, 'tool_calls', el);
   };
 
   HANDLERS.tool_result = function (state, data) {
-    window._updateToolResult(state.asstDiv, data.call_id, data.name, data.result, data.is_error);
+    var last = _lastSegment(state);
+    if (!last || last.type !== 'tool_calls') return;
+    window.updateToolCallCard(last.el, data.call_id, data.result, data.is_error);
   };
 
   HANDLERS.reasoning = function (state, data) {
-    state.fullReasoning += data.text || '';
-    var asstDiv = state.asstDiv;
-    var rb = asstDiv.querySelector('.reasoning-block');
-    if (!rb) {
-      rb = window.buildReasoningBlock();
-      var bodyEl = asstDiv.querySelector('.message-body');
-      var contentEl = asstDiv.querySelector('.message-content');
-      if (bodyEl && contentEl) bodyEl.insertBefore(rb, contentEl);
-      else if (bodyEl) bodyEl.appendChild(rb);
-    }
-    var rc = rb.querySelector('.reasoning-content');
-    if (rc) rc.textContent = state.fullReasoning;
-    if (window._updateReasoningButton) window._updateReasoningButton(contentEl || asstDiv);
+    var seg = _findOrCreateSegment(state, 'reasoning', function () {
+      var idx = 0;
+      for (var i = 0; i < state.segments.length; i++) {
+        if (state.segments[i].type === 'reasoning') idx++;
+      }
+      return window.segmentBuilders.reasoning(idx);
+    });
+    seg.text = (seg.text || '') + (data.text || '');
+    var rc = seg.el.querySelector('.reasoning-content');
+    if (rc) rc.textContent = seg.text;
+    if (window._updateReasoningButton) window._updateReasoningButton(state.asstDiv);
   };
 
   HANDLERS.token = function (state, data) {
     state.fullText += data.token;
-    if (!state.currentTextDiv) {
-      state.currentTextDiv = state.asstDiv.querySelector('.message-content');
-      if (!state.currentTextDiv) {
-        state.currentTextDiv = document.createElement('div');
-        state.currentTextDiv.className = 'message-content markdown-content processed pl-stream';
-        var bodyEl = state.asstDiv.querySelector('.message-body');
-        if (bodyEl) bodyEl.appendChild(state.currentTextDiv);
-      }
-      state.textSegments.push({ div: state.currentTextDiv, text: '' });
-    }
-    var seg = state.textSegments[state.textSegments.length - 1];
-    seg.text += data.token;
-    window.preserveOpenStates(state.currentTextDiv, function () { return window.renderMessage(seg.text); });
-    if (window._updateReasoningButton) window._updateReasoningButton(state.currentTextDiv);
+    var seg = _findOrCreateSegment(state, 'text', function () {
+      return window.segmentBuilders.text();
+    });
+    seg.content = (seg.content || '') + data.token;
+    window.preserveOpenStates(seg.el, function () { return window.renderMessage(seg.content); });
+    if (window._updateReasoningButton) window._updateReasoningButton(seg.el);
     if (window.autoScroll && window.scrollSentinel) {
       window.scrollSentinel.scrollIntoView({ behavior: 'smooth' });
     }
@@ -113,15 +123,21 @@
     if (json.token !== undefined) { HANDLERS.token(state, json); return; }
   };
 
-  /* ── Post-stream finalization (used after stream completes) ── */
+  /* ── Post-stream finalization ── */
 
   window.finalizeStreamRender = function (state) {
-    if (state.textSegments.length > 0) {
-      for (var si = 0; si < state.textSegments.length; si++) {
-        var seg = state.textSegments[si];
-        window.preserveOpenStates(seg.div, function () { return window.renderMessage(seg.text); });
+    for (var si = 0; si < state.segments.length; si++) {
+      var seg = state.segments[si];
+      if (seg.type === 'text') {
+        window.preserveOpenStates(seg.el, function () { return window.renderMessage(seg.content); });
       }
-      if (window._updateReasoningButton) window._updateReasoningButton(state.asstDiv.querySelector('.message-content'));
+    }
+    if (window._updateReasoningButton) {
+      var firstText = null;
+      for (var si = 0; si < state.segments.length; si++) {
+        if (state.segments[si].type === 'text') { firstText = state.segments[si].el; break; }
+      }
+      window._updateReasoningButton(firstText || state.asstDiv);
     }
     if (state.messageId) {
       state.asstDiv.id = 'message-' + state.messageId;

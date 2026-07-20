@@ -187,13 +187,21 @@
       <div class="reasoning-content markdown-content hidden">{{ seg.html | safe }}</div>
     </div>
     {% endif %}
-    {% elif seg.type == 'tool_boundary' and message.get('tool_calls') and not ns.tool_rendered %}
+    {% elif seg.type == 'tool_boundary' %}
+    {% if seg.tool_calls %}
+    <div class="tool-calls-section pl-stream">
+      {% for tc in seg.tool_calls %}
+      {{ tool_call_card(tc) }}
+      {% endfor %}
+    </div>
+    {% elif message.get('tool_calls') and not ns.tool_rendered %}
     {% set ns.tool_rendered = true %}
     <div class="tool-calls-section pl-stream">
       {% for tc in message.get('tool_calls') %}
       {{ tool_call_card(tc) }}
       {% endfor %}
     </div>
+    {% endif %}
     {% endif %}
     {% endfor %}
     {% if not (message.segments | selectattr("type", "equalto", "text") | list) and message.get('reasoning') %}

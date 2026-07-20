@@ -11,49 +11,6 @@
 
   if (!sendBtn || !input || !messageList) return;
 
-  /* ── Tool call rendering ── */
-
-  window._renderToolCalls = function (container, calls) {
-    var section = container.querySelector('.tool-calls-stream');
-    if (!section) {
-      section = document.createElement('div');
-      section.className = 'tool-calls-stream pl-stream';
-      var bodyEl = container.querySelector('.message-body') || container;
-      var contentEl = container.querySelector('.message-content');
-      if (contentEl && contentEl.parentNode) {
-        contentEl.parentNode.insertBefore(section, contentEl.nextSibling);
-      } else {
-        bodyEl.appendChild(section);
-      }
-    }
-    calls.forEach(function (call) {
-      var existing = section.querySelector('[data-call-id="' + call.id + '"]');
-      if (existing) return;
-      section.appendChild(window.buildToolCallCard(call));
-    });
-  };
-
-  window._updateToolResult = function (container, callId, name, result, isError) {
-    var section = container.querySelector('.tool-calls-stream');
-    if (!section) return;
-    var card = section.querySelector('[data-call-id="' + callId + '"]');
-    if (!card) return;
-    var label = card.querySelector('.executing-label');
-    if (label) {
-      label.textContent = isError ? '(error)' : '(done)';
-      label.style.color = isError ? 'var(--danger)' : 'var(--accent)';
-    }
-    var body = card.querySelector('.tool-result-body');
-    if (body) {
-      body.style.display = 'block';
-      var pre = body.querySelector('pre');
-      if (pre) {
-        pre.textContent = isError ? '(error) ' + result : result;
-        pre.style.color = isError ? 'var(--danger)' : '';
-      }
-    }
-  };
-
   /* ── UI state helpers ── */
 
   function _setGeneratingUI(generating) {
@@ -75,26 +32,32 @@
 
   function _clearStaleContent(asstDiv, continueText, continueReasoning) {
     if (!asstDiv) return;
-    var staleCalls = asstDiv.querySelector('.tool-calls-stream');
-    if (staleCalls) staleCalls.remove();
-    var staleSection = asstDiv.querySelector('.tool-calls-section');
-    if (staleSection) staleSection.remove();
+    var staleCalls = asstDiv.querySelectorAll('.tool-calls-stream');
+    for (var si = 0; si < staleCalls.length; si++) staleCalls[si].remove();
+    var staleSections = asstDiv.querySelectorAll('.tool-calls-section');
+    for (var si = 0; si < staleSections.length; si++) staleSections[si].remove();
 
-    if (!continueText && !continueReasoning) {
-      var contentDivs = asstDiv.querySelectorAll('.message-content');
-      for (var j = 0; j < contentDivs.length; j++) {
-        contentDivs[j].innerHTML = j === 0 ? '<div class="message-spinner"></div>' : '';
-      }
-      var reasoningBtn = asstDiv.querySelector('.reasoning-toggle-btn');
-      if (reasoningBtn) reasoningBtn.classList.add('hidden');
-      asstDiv.classList.remove('reasoning-open');
-      var staleBlocks = asstDiv.querySelectorAll('.reasoning-block');
-      for (var k = 0; k < staleBlocks.length; k++) staleBlocks[k].remove();
-    } else {
+    var staleBlocks = asstDiv.querySelectorAll('.reasoning-block');
+    for (var k = 0; k < staleBlocks.length; k++) staleBlocks[k].remove();
+
+    var reasoningBtn = asstDiv.querySelector('.reasoning-toggle-btn');
+    if (reasoningBtn) reasoningBtn.classList.add('hidden');
+    asstDiv.classList.remove('reasoning-open');
+
+    if (continueText || continueReasoning) {
       var contentDiv = asstDiv.querySelector('.message-content');
+      if (!contentDiv) {
+        contentDiv = document.createElement('div');
+        contentDiv.className = 'message-content markdown-content processed pl-stream';
+        var bodyEl = asstDiv.querySelector('.message-body');
+        if (bodyEl) bodyEl.appendChild(contentDiv);
+      }
       var pulse = document.createElement('span');
       pulse.className = 'gen-pulse';
       contentDiv.appendChild(pulse);
+    } else {
+      var contentDivs = asstDiv.querySelectorAll('.message-content');
+      for (var j = 0; j < contentDivs.length; j++) contentDivs[j].remove();
     }
   }
 
@@ -125,7 +88,6 @@
 
   async function _handleNonStream(json, state) {
     state.fullText = json.full_text || '';
-    state.fullReasoning = json.full_reasoning || '';
     state.messageId = json.message_id;
     state.userMessageId = json.user_message_id;
 
@@ -147,11 +109,14 @@
       messageList.insertBefore(state.asstDiv, window.scrollSentinel);
     }
 
-    var contentDiv = state.asstDiv.querySelector('.message-content');
-    if (contentDiv) {
-      contentDiv.innerHTML = window.renderMessage(state.fullText);
-      if (window._updateReasoningButton) window._updateReasoningButton(contentDiv);
+    var bodyEl = state.asstDiv.querySelector('.message-body');
+    var contentDiv = bodyEl ? bodyEl.querySelector('.message-content') : null;
+    if (!contentDiv) {
+      contentDiv = window.segmentBuilders.text();
+      if (bodyEl) bodyEl.appendChild(contentDiv);
     }
+    contentDiv.innerHTML = window.renderMessage(state.fullText);
+    if (window._updateReasoningButton) window._updateReasoningButton(contentDiv);
     if (state.messageId) {
       state.asstDiv.id = 'message-' + state.messageId;
       state.asstDiv.dataset.messageId = state.messageId;
@@ -206,7 +171,6 @@
     var signal = state.controller.signal;
 
     state.fullText = '';
-    state.fullReasoning = '';
 
     var attachmentIds = [];
 

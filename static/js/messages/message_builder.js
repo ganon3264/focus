@@ -198,9 +198,28 @@
     return details;
   };
 
-  /* ── Builder: reasoning block (think-id=0, used during streaming) ── */
+  /* ── Builder: reasoning block (indexed, used during streaming) ──
+   *
+   *  index === 0 → <div>  (no toggle — controlled by message-level button)
+   *  index  > 0 → <details> (collapsible, matching server-side template)
+   */
 
-  window.buildReasoningBlock = function () {
+  window.buildReasoningBlock = function (index) {
+    index = index || 0;
+    if (index > 0) {
+      var details = document.createElement('details');
+      details.className = 'details reasoning-block pl-stream';
+      details.setAttribute('data-think-id', String(index));
+      var summary = document.createElement('summary');
+      summary.appendChild(_summaryChevronSvg());
+      summary.appendChild(document.createTextNode(' Reasoning'));
+      details.appendChild(summary);
+      var rc = document.createElement('div');
+      rc.className = 'reasoning-content markdown-content';
+      rc.style.whiteSpace = 'pre-wrap';
+      details.appendChild(rc);
+      return details;
+    }
     var rb = document.createElement('div');
     rb.className = 'reasoning-block pl-stream';
     rb.setAttribute('data-think-id', '0');
@@ -209,5 +228,47 @@
     rc.style.whiteSpace = 'pre-wrap';
     rb.appendChild(rc);
     return rb;
+  };
+
+  /* ── Segment factories (single source of DOM structure per type) ── */
+
+  window.segmentBuilders = {
+    text: function () {
+      var el = document.createElement('div');
+      el.className = 'message-content markdown-content processed pl-stream';
+      return el;
+    },
+    reasoning: function (index) {
+      return window.buildReasoningBlock(index);
+    },
+    tool_calls: function (calls) {
+      var el = document.createElement('div');
+      el.className = 'tool-calls-stream pl-stream';
+      for (var ci = 0; ci < calls.length; ci++) {
+        el.appendChild(window.buildToolCallCard(calls[ci]));
+      }
+      return el;
+    },
+  };
+
+  /* ── Tool card updater (moves DOM knowledge here, out of handlers) ── */
+
+  window.updateToolCallCard = function (sectionEl, callId, result, isError) {
+    var card = sectionEl.querySelector('[data-call-id="' + callId + '"]');
+    if (!card) return;
+    var label = card.querySelector('.executing-label');
+    if (label) {
+      label.textContent = isError ? '(error)' : '(done)';
+      label.style.color = isError ? 'var(--danger)' : 'var(--accent)';
+    }
+    var body = card.querySelector('.tool-result-body');
+    if (body) {
+      body.style.display = 'block';
+      var pre = body.querySelector('pre');
+      if (pre) {
+        pre.textContent = isError ? '(error) ' + result : result;
+        pre.style.color = isError ? 'var(--danger)' : '';
+      }
+    }
   };
 })();

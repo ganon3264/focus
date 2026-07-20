@@ -312,6 +312,7 @@ async def _stream_generate(
     final_reasoning: list[str] = []
     _text_slices: list[int] = []      # len(final_text) at each tool boundary
     _reasoning_slices: list[int] = [] # len(final_reasoning) at each tool boundary
+    _tool_groups: list[list[dict]] = []  # per-boundary tool call dicts
 
     # ── start SSE ───────────────────────────────────────────────────────
     yield (
@@ -370,6 +371,18 @@ async def _stream_generate(
                 # Record iteration boundary for segment construction
                 _text_slices.append(len(final_text))
                 _reasoning_slices.append(len(final_reasoning))
+
+                # Build tool call dicts (without results yet) for this group
+                group_calls = [
+                    {
+                        'id': tc.id,
+                        'type': 'function',
+                        'function': {'name': tc.name, 'arguments': json.dumps(tc.arguments)},
+                    }
+                    for tc in event['calls']
+                ]
+                _tool_groups.append(group_calls)
+
                 yield (
                     f"data: {json.dumps({
                         'type': 'tool_calls',
@@ -381,6 +394,13 @@ async def _stream_generate(
                 )
 
             elif event["type"] == "tool_result":
+                # Fill in result on the matching tool call in the last group
+                if _tool_groups:
+                    for tc in _tool_groups[-1]:
+                        if tc['id'] == event['call_id']:
+                            tc['result'] = event['result']
+                            tc['is_error'] = event['is_error']
+                            break
                 yield (
                     f"data: {json.dumps({
                         'type': 'tool_result',
@@ -404,6 +424,7 @@ async def _stream_generate(
                 segments = _build_segments(
                     _text_slices, _reasoning_slices,
                     final_text, final_reasoning,
+                    tool_call_groups=_tool_groups if _tool_groups else None,
                 )
 
                 logger.debug(
@@ -488,6 +509,7 @@ async def _non_stream_generate(
     collected_reasoning: list[str] = []
     n_text_slices: list[int] = []
     n_reasoning_slices: list[int] = []
+    n_tool_groups: list[list[dict]] = []
     variant_id = str(uuid.uuid4())
 
     try:
@@ -503,6 +525,22 @@ async def _non_stream_generate(
             elif event["type"] == "tool_calls":
                 n_text_slices.append(len(collected))
                 n_reasoning_slices.append(len(collected_reasoning))
+                group_calls = [
+                    {
+                        'id': tc.id,
+                        'type': 'function',
+                        'function': {'name': tc.name, 'arguments': json.dumps(tc.arguments)},
+                    }
+                    for tc in event['calls']
+                ]
+                n_tool_groups.append(group_calls)
+            elif event["type"] == "tool_result":
+                if n_tool_groups:
+                    for tc in n_tool_groups[-1]:
+                        if tc['id'] == event['call_id']:
+                            tc['result'] = event['result']
+                            tc['is_error'] = event['is_error']
+                            break
             elif event["type"] == "error":
                 if not body.regenerate and not collected:
                     await _rollback_assistant(asst_msg_id)
@@ -546,6 +584,7 @@ async def _non_stream_generate(
     segments = _build_segments(
         n_text_slices, n_reasoning_slices,
         collected, collected_reasoning,
+        tool_call_groups=n_tool_groups if n_tool_groups else None,
     )
 
     try:
@@ -817,14 +856,20 @@ def _build_segments(
     reasoning_slices: list[int],
     final_text: list[str],
     final_reasoning: list[str],
+    tool_call_groups: list[list[dict]] | None = None,
 ) -> list[dict]:
     """Build segment list from per-iteration text/reasoning ranges.
+
+    When tool_call_groups are provided, each ``tool_boundary`` segment
+    carries its own ``tool_calls`` list so the template can render calls
+    per iteration instead of dumping all calls at the first boundary.
 
     Returns a flat list of segment dicts matching
     ``render_message_segments()`` output format:
       {"type": "text", "content": str}
       {"type": "reasoning", "html": str, "index": int}
-      {"type": "tool_boundary"}
+      {"type": "tool_boundary"}           (legacy, no tool_calls)
+      {"type": "tool_boundary", "tool_calls": [...]}  (new)
     """
     segments: list[dict] = []
     think_idx = 0
@@ -857,7 +902,10 @@ def _build_segments(
 
         # Tool boundary between iterations (except the last)
         if i < len(text_slices) - 1:
-            segments.append({"type": "tool_boundary"})
+            seg: dict = {"type": "tool_boundary"}
+            if tool_call_groups and i < len(tool_call_groups):
+                seg["tool_calls"] = tool_call_groups[i]
+            segments.append(seg)
 
         prev_t = t_end
         prev_r = r_end
