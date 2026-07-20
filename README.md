@@ -32,6 +32,7 @@ cd focus
 ## Features
 
 - Lightweight UI
+- Small amount of 3rd party dependencies
 - Easily themable
 - Multimodal support as first class citizen
   - Attach images to prompt blocks, character cards, and personas; choose attachment's position within the card using a macro

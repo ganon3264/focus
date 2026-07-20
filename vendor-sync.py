@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Download vendor JS/CSS dependencies from CDN.
-
-Zero npm/node dependency — uses Python stdlib only.
+Uses Python stdlib only.
 Run `./vendor-sync.py` to refresh all vendor files.
 """
 
@@ -70,8 +69,6 @@ DOWNLOADS = {
     ),
 }
 
-# ── Checksums (SHA-256) ──────────────────────────────────────────────────────
-# Update after any intentional vendor upgrade: `sha256sum static/vendor/*`
 CHECKSUMS = {
     "alpine-collapse.min.js": "c7661d4e2cf0465e3cd693190debb5f592ac72dcc4cfe650581273767558b27b",
     "alpine.min.js": "57b37d7cae9a27d965fdae4adcc844245dfdc407e655aee85dcfff3a08036a3f",
@@ -87,7 +84,7 @@ CHECKSUMS = {
 
 
 def _warn_mismatch(mismatched: list) -> None:
-    print("⚠  Checksum mismatch:")
+    print("Checksum mismatch:")
     for key, expected, actual in mismatched:
         print(f"    {key}")
         print(f"      expected: {expected}")
@@ -105,7 +102,6 @@ def _hash_file(path: Path) -> str:
 
 
 def check() -> int:
-    """Verify all vendor files exist and checksums match. Exit 0 if ok."""
     missing = []
     mismatched = []
     for filename in DOWNLOADS:
