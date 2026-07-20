@@ -8,6 +8,7 @@ following third-party software, each under its own license.
 | Library      | Version | License              | Source |
 |--------------|---------|-----------------------|--------|
 | htmx         | 2.0.10  | 0BSD                  | https://github.com/bigskysoftware/htmx |
+| idiomorph    | 0.7.4   | 0BSD                  | https://github.com/bigskysoftware/idiomorph |
 | Alpine.js    | 3.15.12 | MIT                   | https://github.com/alpinejs/alpine |
 | Marked       | 18.0.5  | MIT                   | https://github.com/markedjs/marked |
 | DOMPurify    | 3.4.11  | (MPL-2.0 OR Apache-2.0) | https://github.com/cure53/DOMPurify |
