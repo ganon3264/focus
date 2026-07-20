@@ -10,6 +10,7 @@ from focus.core.paths import (
     DB_PATH,
     PERSONAS_DIR,
     PRESETS_DIR,
+    TOOLS_DIR,
 )
 
 SCHEMA = """
@@ -178,6 +179,7 @@ def init_directories():
     PRESETS_DIR.mkdir(parents=True, exist_ok=True)
     ATTACHMENTS_DIR.mkdir(parents=True, exist_ok=True)
     COMPRESSED_DIR.mkdir(parents=True, exist_ok=True)
+    TOOLS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 async def init_db():

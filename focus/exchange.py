@@ -8,7 +8,7 @@ from zipfile import ZIP_DEFLATED, ZipFile
 import aiosqlite
 
 from focus.core.models import ExportRequest
-from focus.core.paths import ASSETS_DIR
+from focus.core.paths import ASSETS_DIR, TOOLS_DIR
 from focus.core.utils import now_iso
 
 logger = logging.getLogger("focus.exchange")
@@ -279,6 +279,13 @@ async def export_data(db: aiosqlite.Connection, req: ExportRequest) -> bytes:
     # Build ZIP
     buf = BytesIO()
     with ZipFile(buf, "w", ZIP_DEFLATED) as zf:
+        # Count external tools for the manifest
+        tool_count = 0
+        if TOOLS_DIR.is_dir():
+            for f in sorted(TOOLS_DIR.iterdir()):
+                if f.suffix == ".json" and f.is_file():
+                    tool_count += 1
+
         manifest = {
             "app": "focus",
             "version": FOCUS_VERSION,
@@ -298,6 +305,7 @@ async def export_data(db: aiosqlite.Connection, req: ExportRequest) -> bytes:
                 "message_attachments": len(database["message_attachments"]),
                 "tool_calls": len(database.get("tool_calls", [])),
                 "settings": len(database.get("settings", [])),
+                "tools": tool_count,
             },
         }
         zf.writestr("manifest.json", json.dumps(manifest, indent=2, ensure_ascii=False))
@@ -307,6 +315,12 @@ async def export_data(db: aiosqlite.Connection, req: ExportRequest) -> bytes:
             p = Path(path_str)
             if p.exists():
                 zf.write(p, str(p))
+
+        # Include external tool definitions
+        if TOOLS_DIR.is_dir():
+            for f in sorted(TOOLS_DIR.iterdir()):
+                if f.suffix == ".json" and f.is_file():
+                    zf.write(f, f"tools/{f.name}")
 
     return buf.getvalue()
 
@@ -386,13 +400,15 @@ async def import_data(db: aiosqlite.Connection, zip_bytes: bytes) -> dict:
     # Write asset files from ZIP
     with ZipFile(BytesIO(zip_bytes)) as zf:
         for name in zf.namelist():
-            if not name.startswith(str(ASSETS_DIR) + "/"):
-                continue
-            disk_path = Path(name)  # e.g., assets/characters/{old_id}/avatar.png
-            # Remap the path using id_map
-            dest = Path(_remap_path(str(disk_path), id_map))
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            if not dest.exists():
+            if name.startswith(str(ASSETS_DIR) + "/"):
+                disk_path = Path(name)
+                dest = Path(_remap_path(str(disk_path), id_map))
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                if not dest.exists():
+                    dest.write_bytes(zf.read(name))
+            elif name.startswith("tools/"):
+                dest = TOOLS_DIR / Path(name).relative_to("tools")
+                dest.parent.mkdir(parents=True, exist_ok=True)
                 dest.write_bytes(zf.read(name))
 
     # Insert rows in dependency order

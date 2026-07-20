@@ -8,6 +8,7 @@ from pathlib import Path
 from focus.prompt_chain import _ensure_compressed_sync
 from focus.tools import ToolParam, ToolSpec
 from focus.tools.helpers import TOOL_OUTPUT_TRUNCATE_CHARS
+from focus.tools.external import load_external_tools
 
 
 def execute_shell(command: str, timeout_s: int = 10) -> str:
@@ -68,7 +69,7 @@ def read_image(path: str) -> tuple[str, str, str]:
 
 # ── Tool registry ─────────────────────────────────────────────────────────────
 
-ALL_TOOLS: list[ToolSpec] = [
+BUILTIN_TOOLS: list[ToolSpec] = [
     ToolSpec(
         name="read_file",
         description=f"Read the contents of a text file from the local filesystem. "
@@ -112,3 +113,5 @@ ALL_TOOLS: list[ToolSpec] = [
         handler=execute_shell,
     ),
 ]
+
+ALL_TOOLS: list[ToolSpec] = BUILTIN_TOOLS + load_external_tools()

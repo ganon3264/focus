@@ -1,5 +1,6 @@
 data/
 assets/
+tools/
 __pycache__/
 *.pyc
 .venv/
