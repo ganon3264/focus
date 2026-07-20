@@ -44,6 +44,17 @@
     if (reasoningBtn) reasoningBtn.classList.add('hidden');
     asstDiv.classList.remove('reasoning-open');
 
+    /* ── Spinner: create if missing (swipe/continue reuse server HTML
+         which has no spinner), then make sure it's visible ── */
+
+    var spinner = asstDiv.querySelector('.message-spinner');
+    if (!spinner) {
+      spinner = document.createElement('div');
+      spinner.className = 'message-spinner';
+      asstDiv.appendChild(spinner);
+    }
+    spinner.classList.remove('hidden');
+
     if (continueText || continueReasoning) {
       var contentDiv = asstDiv.querySelector('.message-content');
       if (!contentDiv) {

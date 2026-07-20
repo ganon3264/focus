@@ -74,6 +74,10 @@
     content.className = 'message-content markdown-content processed pl-stream';
     body.appendChild(content);
 
+    var spinner = document.createElement('div');
+    spinner.className = 'message-spinner';
+    body.appendChild(spinner);
+
     return div;
   };
 
