@@ -7,8 +7,8 @@ A roleplaying thingy, kinda like SillyTavern, but opinionated and personal (and 
 ## Prerequisites
 
 - Python 3.11+
-- uv (optional, but recommended)
-- node.js (optional, for tests)
+  - uv (optional, but recommended)
+  - node.js (optional, for tests)
 
 ## How to use
 ```
@@ -16,6 +16,12 @@ git clone https://github.com/ganon3264/focus
 cd focus
 ./start.sh
 ```
+
+1. Open your browser and the app (default http://127.0.0.1:8000)
+2. Add/Import a character
+3. Add a provider connection
+4. Add/Import a preset
+5. Chat away
 
 ## Supported APIs
 
@@ -37,10 +43,12 @@ cd focus
 - Multimodal support as first class citizen
   - Attach images to prompt blocks, character cards, and personas; choose attachment's position within the card using a macro
 - Basic toolcalling support
+  - See TOOLS.md for custom tools
   - Generic OAI, Moonshot and Deepseek tested; Google not so much
 - Prefill `reasoning_content` support for toolcalls and more complex presets
   - Actual support for sending `reasoning_content` back properly if model needs it (encrypted thinking not handled yet/if ever)
 - Preset variables exposed in the UI with switches
+- Supports importing SillyTavern's character cards (v2 spec) and presets (limitations apply; some macros aren't implemented)
 
 ## Why
 
