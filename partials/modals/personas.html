@@ -82,6 +82,10 @@
 
 <script>
   function promptDeletePersona(pid, pName) {
+    if (pid instanceof Element) {
+      pName = pid.dataset.personaName || pName;
+      pid = pid.dataset.personaId;
+    }
     const html = `
     <div class="mb-4 text-sm" style="color:var(--text);">Delete persona <strong>${pName}</strong>?</div>
     <div class="flex flex-col gap-3">

@@ -98,6 +98,10 @@
 
 <script>
   function promptDeleteChar(charId, charName) {
+    if (charId instanceof Element) {
+      charName = charId.dataset.charName || charName;
+      charId = charId.dataset.charId;
+    }
     const html = `
     <div class="mb-4 text-sm" style="color:var(--text);">Delete character <strong>${charName}</strong>?</div>
     <div class="flex flex-col gap-3">

@@ -138,6 +138,17 @@ window.renderMessage = function (text, startThinkIdx, reasoning) {
 
   let html = DOMPurify.sanitize(marked.parse(processed));
 
+  // Replace externally-sourced <img> tags with click-to-load placeholders.
+  // Matches src="http://...", src="https://...", src="//...".
+  // data: and embeded:// URIs are left alone.
+  html = html.replace(
+    /<img\s[^>]*?src\s*=\s*"((?:https?:)?\/\/[^"]*)"([^>]*?)(\/?\s*>)/gi,
+    function (match, src, rest, closing) {
+      var alt = (match.match(/alt\s*=\s*"([^"]*)"/i) || [])[1] || '';
+      return '<span class="external-media-placeholder" data-src="' + src.replace(/"/g, '&quot;') + '" data-alt="' + alt.replace(/"/g, '&quot;') + '"><span class="external-media-label">External media</span><button class="external-media-btn" data-action="loadExternalMedia">Load</button></span>';
+    }
+  );
+
   const codeStash = [];
   html = html.replace(/<(code|pre)\b[^>]*>[\s\S]*?<\/\1>/g, (m) => {
     codeStash.push(m);
@@ -230,6 +241,16 @@ window.renderMessage = function (text, startThinkIdx, reasoning) {
   }
 
   return html;
+};
+
+window.loadExternalMedia = function (el) {
+  var placeholder = el.closest('.external-media-placeholder');
+  if (!placeholder) return;
+  var img = document.createElement('img');
+  img.src = placeholder.dataset.src;
+  if (placeholder.dataset.alt) img.alt = placeholder.dataset.alt;
+  img.loading = 'lazy';
+  placeholder.replaceWith(img);
 };
 
 document.addEventListener('click', function (e) {

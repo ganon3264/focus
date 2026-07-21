@@ -8,7 +8,7 @@ import aiosqlite
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
 import focus.crud as crud
-from focus.core.card_parser import extract_card_json, normalise_card
+from focus.core.card_parser import normalise_card, parse_card_bytes, validate_card_warnings
 from focus.core.database import get_db
 from focus.core.models import CharacterCreate, CharacterUpdate, CharBlockCreate, CharBlockUpdate
 from focus.core.paths import BLOCKS_DIR, CHARACTERS_DIR
@@ -30,10 +30,14 @@ async def import_character(
         data = await read_upload(file)
 
         try:
-            raw_json = extract_card_json(data)
+            raw_json = parse_card_bytes(data)
         except ValueError as e:
             errors.append({"filename": file.filename, "error": str(e)})
             continue
+
+        warnings = validate_card_warnings(raw_json)
+        if warnings:
+            logger.info("Card import warnings for %s: %s", file.filename, warnings)
 
         try:
             card = normalise_card(raw_json)
@@ -56,7 +60,10 @@ async def import_character(
             "INSERT INTO characters (id, name, image_path, card_json, created_at) VALUES (?, ?, ?, ?, ?)",
             (char_id, card["name"], avatar_path, json.dumps(raw_json), now),
         )
-        imported.append({"id": char_id, "name": card["name"]})
+        entry: dict[str, object] = {"id": char_id, "name": card["name"]}
+        if warnings:
+            entry["warnings"] = warnings
+        imported.append(entry)
 
     await db.commit()
 

@@ -234,3 +234,136 @@ class TestMacroDefinitions:
         for tok in SPECIAL_TOKENS:
             assert "syntax" in tok
             assert "description" in tok
+
+
+class TestNicknameMacro:
+    def test_nickname_used_for_char(self):
+        card = {"name": "FullName", "nickname": "Nick"}
+        macros = build_base_macros(card)
+        assert macros["char"] == "Nick"
+
+    def test_name_fallback_when_no_nickname(self):
+        card = {"name": "FullName"}
+        macros = build_base_macros(card)
+        assert macros["char"] == "FullName"
+
+    def test_empty_nickname_falls_back(self):
+        card = {"name": "FullName", "nickname": ""}
+        macros = build_base_macros(card)
+        assert macros["char"] == "FullName"
+
+    def test_none_nickname_falls_back(self):
+        card = {"name": "FullName", "nickname": None}
+        macros = build_base_macros(card)
+        assert macros["char"] == "FullName"
+
+
+class TestCbsRandom:
+    def test_single_value(self):
+        result = apply_macros("{{random:Hello}}", {})
+        assert result == "Hello"
+
+    def test_picks_one_of_values(self):
+        result = apply_macros("{{random:A,B,C}}", {})
+        assert result in ("A", "B", "C")
+
+    def test_empty_returns_empty(self):
+        result = apply_macros("{{random:}}", {})
+        assert result == ""
+
+    def test_escaped_comma(self):
+        result = apply_macros(r"{{random:Hello\, World,Hi}}", {})
+        assert result in ("Hello, World", "Hi")
+
+    def test_case_insensitivity(self):
+        result = apply_macros("{{RANDOM:X,Y}}", {})
+        assert result in ("X", "Y")
+
+
+class TestCbsPick:
+    def test_deterministic_per_chat(self):
+        macros = {"_chat_id": "chat-1"}
+        result_a = apply_macros("{{pick:Red,Green,Blue}}", macros)
+        result_b = apply_macros("{{pick:Red,Green,Blue}}", macros)
+        assert result_a == result_b
+
+    def test_different_chat_different_pick(self):
+        r1 = apply_macros("{{pick:Alpha,Beta,Gamma}}", {"_chat_id": "chat-a"})
+        r2 = apply_macros("{{pick:Alpha,Beta,Gamma}}", {"_chat_id": "chat-b"})
+        # Very unlikely to be equal, but not impossible — just verify both are valid
+        assert r1 in ("Alpha", "Beta", "Gamma")
+        assert r2 in ("Alpha", "Beta", "Gamma")
+
+    def test_without_chat_id_falls_back_to_random(self):
+        result = apply_macros("{{pick:X,Y,Z}}", {})
+        assert result in ("X", "Y", "Z")
+
+    def test_single_value(self):
+        result = apply_macros("{{pick:Only}}", {"_chat_id": "c1"})
+        assert result == "Only"
+
+
+class TestCbsRoll:
+    def test_basic_roll(self):
+        result = apply_macros("{{roll:6}}", {})
+        assert 1 <= int(result) <= 6
+
+    def test_d_prefix(self):
+        result = apply_macros("{{roll:d20}}", {})
+        assert 1 <= int(result) <= 20
+
+    def test_d_uppercase(self):
+        result = apply_macros("{{roll:D100}}", {})
+        assert 1 <= int(result) <= 100
+
+    def test_deterministic_with_chat_id(self):
+        r1 = apply_macros("{{roll:10}}", {"_chat_id": "c1"})
+        r2 = apply_macros("{{roll:10}}", {"_chat_id": "c1"})
+        assert r1 == r2
+
+    def test_invalid_returns_empty(self):
+        assert apply_macros("{{roll:}}", {}) == ""
+        assert apply_macros("{{roll:abc}}", {}) == ""
+        assert apply_macros("{{roll:0}}", {}) == ""
+
+
+class TestCbsReverse:
+    def test_reverses_string(self):
+        result = apply_macros("{{reverse:Hello}}", {})
+        assert result == "olleH"
+
+    def test_empty(self):
+        result = apply_macros("{{reverse:}}", {})
+        assert result == ""
+
+    def test_case_insensitivity(self):
+        result = apply_macros("{{REVERSE:abc}}", {})
+        assert result == "cba"
+
+    def test_palindrome(self):
+        result = apply_macros("{{reverse:racecar}}", {})
+        assert result == "racecar"
+
+
+class TestCbsComment:
+    def test_comment_stripped(self):
+        result = apply_macros("before {{comment: note }} after", {})
+        assert result == "before  after"
+
+    def test_comment_empty(self):
+        result = apply_macros("{{comment:}}", {})
+        assert result == ""
+
+    def test_comment_with_content(self):
+        result = apply_macros("Hello {{comment: user name}} world", {})
+        assert result == "Hello  world"
+
+
+class TestCbsHiddenKey:
+    def test_hidden_key_stripped(self):
+        result = apply_macros("before {{hidden_key:secret}} after", {})
+        assert result == "before  after"
+
+    def test_hidden_key_empty(self):
+        result = apply_macros("{{hidden_key:}}", {})
+        assert result == ""

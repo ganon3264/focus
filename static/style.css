@@ -505,6 +505,36 @@
     color: var(--accent);
   }
 
+  /* ── External media placeholder (click-to-load) ── */
+  .external-media-placeholder {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5em;
+    padding: 0.4em 0.8em;
+    margin: 0.2em 0;
+    border: 1px dashed var(--border);
+    border-radius: 6px;
+    background: var(--surface-1);
+    font-size: 0.85em;
+    color: var(--text-muted);
+  }
+  .external-media-label {
+    white-space: nowrap;
+  }
+  .external-media-btn {
+    padding: 0.15em 0.6em;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--surface-2);
+    color: var(--text);
+    cursor: pointer;
+    font-size: inherit;
+  }
+  .external-media-btn:hover {
+    background: var(--surface-3);
+    border-color: var(--border-hover);
+  }
+
   /* ── Collapsible <details> sections (tool calls + subsequent reasoning blocks) ── */
   details.details {
     padding: 0;

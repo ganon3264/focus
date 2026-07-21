@@ -251,6 +251,10 @@
   };
 
   M.toggleExportEntity = function (el, type, id) {
+    if (!type && el instanceof Element) {
+      type = el.dataset.exportType;
+      id = el.dataset.exportId;
+    }
     const capType = type.charAt(0).toUpperCase() + type.slice(1);
     const key = 'sel' + capType;
     if (!M._exportState[key]) M._exportState[key] = {};

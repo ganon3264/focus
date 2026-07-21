@@ -193,6 +193,7 @@ async def get_prompt_context(
                 persona = dict(row)
 
     macros = build_base_macros(char_data, persona)
+    macros["_chat_id"] = chat_id
 
     preset_blocks: list[dict] = []
     if chat["preset_id"]:

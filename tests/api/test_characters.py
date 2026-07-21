@@ -1,4 +1,33 @@
+import base64
+import json
+import struct
+import zlib
+
 from tests.helpers import create_character, create_chat
+
+
+def _minimal_png(text_keyword: bytes, text_value: bytes) -> bytes:
+    """Build a minimal valid PNG with a single tEXt chunk."""
+    chunk_payload = text_keyword + b"\x00" + text_value
+    signature = b"\x89PNG\r\n\x1a\n"
+    ihdr_data = struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0)
+    ihdr_chunk = struct.pack(">I", 13) + b"IHDR" + ihdr_data + struct.pack(">I", zlib.crc32(b"IHDR" + ihdr_data) & 0xFFFFFFFF)
+    meta_len = struct.pack(">I", len(chunk_payload))
+    meta_crc = struct.pack(">I", zlib.crc32(b"tEXt" + chunk_payload) & 0xFFFFFFFF)
+    iend_crc = struct.pack(">I", zlib.crc32(b"IEND") & 0xFFFFFFFF)
+    return b"".join([signature, ihdr_chunk, meta_len, b"tEXt", chunk_payload, meta_crc, b"\x00\x00\x00\x00IEND", iend_crc])
+
+
+def _png_card(card_dict: dict) -> bytes:
+    """Encode a character card dict into a PNG PNG."""
+    raw = base64.b64encode(json.dumps(card_dict).encode("latin-1")).decode("latin-1")
+    return _minimal_png(b"chara", raw.encode("latin-1"))
+
+
+def _png_v3_card(card_dict: dict) -> bytes:
+    """Encode a V3 character card dict into a PNG with a ``ccv3`` chunk."""
+    raw = base64.b64encode(json.dumps(card_dict).encode("latin-1")).decode("latin-1")
+    return _minimal_png(b"ccv3", raw.encode("latin-1"))
 
 
 class TestCharacters:
@@ -120,3 +149,111 @@ class TestCharacterModals:
         resp = await client.get("/partials/characters-modal")
         assert resp.status_code == 200
         assert 'class="card active"' not in resp.text
+
+
+class TestCharacterImport:
+    async def test_import_png(self, client):
+        card = {"name": "Imported", "description": "From PNG"}
+        png_data = _png_card(card)
+        resp = await client.post(
+            "/api/characters/import",
+            files={"files": ("test.png", png_data, "image/png")},
+        )
+        assert resp.status_code == 201
+        data = resp.json()
+        assert data["total"] == 1
+        assert len(data["imported"]) == 1
+        assert data["imported"][0]["name"] == "Imported"
+
+    async def test_import_json(self, client):
+        card = {"name": "JSON Char", "description": "From JSON"}
+        json_bytes = json.dumps(card).encode("utf-8")
+        resp = await client.post(
+            "/api/characters/import",
+            files={"files": ("test.json", json_bytes, "application/json")},
+        )
+        assert resp.status_code == 201
+        data = resp.json()
+        assert len(data["imported"]) == 1
+        assert data["imported"][0]["name"] == "JSON Char"
+
+    async def test_import_corrupt_png_returns_error(self, client):
+        resp = await client.post(
+            "/api/characters/import",
+            files={"files": ("corrupt.png", b"not a png", "image/png")},
+        )
+        assert resp.status_code == 201
+        data = resp.json()
+        assert data["total"] == 1
+        assert len(data["imported"]) == 0
+        assert len(data["errors"]) == 1
+        assert "Not a valid PNG" in data["errors"][0]["error"]
+
+    async def test_import_partial_success(self, client):
+        good_card = {"name": "Good"}
+        bad_data = b"not a png"
+        resp = await client.post(
+            "/api/characters/import",
+            files=[
+                ("files", ("good.png", _png_card(good_card), "image/png")),
+                ("files", ("bad.png", bad_data, "image/png")),
+            ],
+        )
+        assert resp.status_code == 201
+        data = resp.json()
+        assert data["total"] == 2
+        assert len(data["imported"]) == 1
+        assert len(data["errors"]) == 1
+
+    async def test_import_warns_on_missing_name(self, client):
+        card = {"description": "No name"}
+        png_data = _png_card(card)
+        resp = await client.post(
+            "/api/characters/import",
+            files={"files": ("noname.png", png_data, "image/png")},
+        )
+        assert resp.status_code == 201
+        data = resp.json()
+        assert len(data["imported"]) == 1
+        assert "warnings" in data["imported"][0]
+        assert any("Missing" in w for w in data["imported"][0]["warnings"])
+
+    async def test_import_warns_on_non_string_field(self, client):
+        card = {"name": "X", "description": 42}
+        png_data = _png_card(card)
+        resp = await client.post(
+            "/api/characters/import",
+            files={"files": ("badtype.png", png_data, "image/png")},
+        )
+        assert resp.status_code == 201
+        data = resp.json()
+        assert len(data["imported"]) == 1
+        assert "warnings" in data["imported"][0]
+        assert any("description" in w for w in data["imported"][0]["warnings"])
+
+    async def test_import_v3_png(self, client):
+        card = {"spec": "chara_card_v3", "spec_version": "3.0", "data": {"name": "V3 Char"}}
+        png_data = _png_v3_card(card)
+        resp = await client.post(
+            "/api/characters/import",
+            files={"files": ("v3.png", png_data, "image/png")},
+        )
+        assert resp.status_code == 201
+        data = resp.json()
+        assert data["total"] == 1
+        assert len(data["imported"]) == 1
+        assert data["imported"][0]["name"] == "V3 Char"
+        assert "warnings" not in data["imported"][0]
+
+    async def test_import_v3_future_version_warns(self, client):
+        card = {"spec": "chara_card_v3", "spec_version": "3.5", "data": {"name": "Future"}}
+        png_data = _png_v3_card(card)
+        resp = await client.post(
+            "/api/characters/import",
+            files={"files": ("future.png", png_data, "image/png")},
+        )
+        assert resp.status_code == 201
+        data = resp.json()
+        assert len(data["imported"]) == 1
+        assert "warnings" in data["imported"][0]
+        assert any("newer" in w for w in data["imported"][0]["warnings"])
