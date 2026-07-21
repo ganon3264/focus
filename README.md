@@ -25,15 +25,14 @@ cd focus
 
 ## Supported APIs
 
-- Generic OAI compatible chat completion
-- OpenRouter
-  - Quantization, provider routing
-  - Sticky routing by session ID
-  - Claude caching support
-- Deepseek
-- Moonshot
-- Google AI Studio
-- Google Vertex AI
+| Provider | Toolcalls | Reasoning effort | Preserve/prefill reasoning | Other |
+|---|:---:|:---:|:---:|---|
+| Generic OAI-compatible | ✅ | ✅\* |✅\* | *If the backend supports it |
+| OpenRouter | ✅ | ✅| ✅\*| Quantization & provider routing, sticky routing by session ID, Claude caching, (*Model dependent) |
+| Deepseek | ✅ | ✅ | ✅ | |
+| Moonshot | ✅ | ✅ | ✅ | `prompt_cache_key` support |
+| Google AI Studio | | ✅ | ✅ | |
+| Google Vertex AI | | ✅ | ✅ | |
 
 ## Features
 
