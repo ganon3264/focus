@@ -373,7 +373,7 @@ async def preset_variables_partial(request: Request, preset_id: str, db: aiosqli
             var_groups.setdefault(group_name, []).append(b)
 
     return templates.TemplateResponse(
-        request, "presets/preset_variables.html", {"preset_id": preset_id, "var_groups": var_groups}
+        request, "presets/preset-variables.html", {"preset_id": preset_id, "var_groups": var_groups}
     )
 
 

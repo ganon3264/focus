@@ -14,7 +14,7 @@
     <div class="sidebar-title">
       <span>Preset Variables</span>
       {% if preset %}
-      <button type="button" class="action-icon" onclick="openVarEditModal(this)" title="Add Variable" data-preset-id="{{ preset.id }}" style="margin-right: 0.5rem;">{{ icon_plus(14) }}</button>
+      <button type="button" id="preset-add-var-btn" class="action-icon{% if not preset %} hidden{% endif %}" onclick="openVarEditModal(this)" title="Add Variable" data-preset-id="{{ preset.id if preset else '' }}" style="margin-right: 0.5rem;">{{ icon_plus(14) }}</button>
       {% endif %}
     </div>
     <div id="preset-variables" style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
@@ -46,7 +46,7 @@
     <div style="background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-md); padding:0.5rem;" class="flex flex-col gap-1 text-xs">
       <div class="flex justify-between gap-2"><span class="text-muted">Character</span> <span class="font-bold truncate max-w-[130px]" id="status-character" title="{{ character.name if character else 'None' }}">{{ character.name if character else 'None' }}</span></div>
       <div class="flex justify-between gap-2"><span class="text-muted">Persona</span> <span class="font-bold truncate max-w-[130px]" id="status-persona" title="{{ persona.name if persona else 'None' }}">{{ persona.name if persona else 'None' }}</span></div>
-      <div class="flex justify-between gap-2"><span class="text-muted">Prov. Preset</span> <span class="font-bold truncate max-w-[130px]" id="status-preset" title="None">None</span></div>
+      <div class="flex justify-between gap-2"><span class="text-muted">Provider</span> <span class="font-bold truncate max-w-[130px]" id="status-preset" title="None">None</span></div>
       <div class="flex justify-between gap-2"><span class="text-muted">Provider</span> <span class="font-bold truncate max-w-[130px]" id="status-provider" title="None">None</span></div>
       <div class="flex justify-between gap-2"><span class="text-muted">Model</span> <span class="font-bold truncate max-w-[130px]" id="status-model" title="None">None</span></div>
       <div class="flex justify-between gap-2 hidden" id="status-cache-row"><span class="text-muted">Cache</span> <span class="font-bold truncate max-w-[130px]" id="status-cache"></span></div>

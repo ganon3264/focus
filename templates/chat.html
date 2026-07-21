@@ -314,12 +314,18 @@ StateManager.init({
 }, '{{ chat_id }}');
 
 StateManager.on('preset-changed', function(e) {
+  var addBtn = document.getElementById('preset-add-var-btn');
   if (e.value) {
     htmx.ajax('GET', '/partials/preset-variables/' + e.value, {target:'#preset-variables', swap:'innerHTML'});
     reloadPromptArranger(e.value, 'arranger-modal-body');
+    if (addBtn) {
+      addBtn.dataset.presetId = e.value;
+      addBtn.classList.remove('hidden');
+    }
   } else {
     document.getElementById('preset-variables').innerHTML = '';
     document.getElementById('arranger-modal-body').innerHTML = '<div class="text-muted text-center mt-4">Select a preset first.</div>';
+    if (addBtn) addBtn.classList.add('hidden');
   }
 });
 
