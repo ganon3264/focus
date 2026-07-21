@@ -38,7 +38,7 @@ from focus.tools import (
     active_tools,
     build_tool_result,
 )
-from focus.tools.builtin import ALL_TOOLS
+from focus.tools.builtin import get_all_tools
 from focus.tools.provider_adapter import (
     to_provider_tool_results,
     to_provider_tools,
@@ -734,7 +734,15 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
     tools_by_name: dict = {}
     if tools_enabled:
         disable_multimodal = (body.samplers or {}).get("disable_multimodal", False)
-        cur_tools = active_tools(ALL_TOOLS, tool_read_only, disable_multimodal=disable_multimodal)
+        async with db.execute(
+            "SELECT tool_name FROM chat_tool_states WHERE chat_id = ? AND enabled = 0", (body.chat_id,)
+        ) as cur:
+            disabled_tools = {row["tool_name"] for row in await cur.fetchall()}
+        cur_tools = active_tools(
+            get_all_tools(), tool_read_only,
+            disable_multimodal=disable_multimodal,
+            disabled_names=disabled_tools,
+        )
         tools_payload = to_provider_tools(cur_tools)
         tools_by_name = {t.name: t for t in cur_tools}
         if tools_payload:

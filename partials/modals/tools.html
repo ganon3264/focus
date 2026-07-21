@@ -52,12 +52,20 @@
 
   <!-- Available Tools List -->
   <div x-show="enabled && providerSupportsTools">
-    <div class="text-xs font-bold text-muted mb-2">Available Tools</div>
+    <div class="flex items-center justify-between mb-2">
+      <div class="text-xs font-bold text-muted">Available Tools</div>
+      <button
+        class="text-xs px-2 py-1 rounded cursor-pointer hover:opacity-80"
+        style="background:var(--surface-2);border:1px solid var(--border);color:var(--text-muted)"
+        @click="reloadTools()"
+        x-text="reloading ? 'Reloading...' : 'Reload'"
+      ></button>
+    </div>
     <template x-for="tool in tools" :key="tool.name">
       <div
         class="p-3 rounded-md mb-2"
         style="background:var(--surface-2);border:1px solid var(--border)"
-        :class="tool.multimodal && !enableMultimodal ? 'opacity-40' : ''"
+        :class="(tool.multimodal && !enableMultimodal) || toolStates[tool.name] === false ? 'opacity-40' : ''"
       >
         <div class="flex items-center justify-between mb-1">
           <code class="text-sm font-bold" x-text="tool.name"></code>
@@ -74,6 +82,13 @@
               class="text-xs px-1.5 py-0.5 rounded"
               style="background:var(--accent-dim);color:var(--accent)"
             >multimodal</span>
+            <div
+              class="arranger-toggle shrink-0"
+              role="switch"
+              tabindex="0"
+              :class="{ 'active': toolStates[tool.name] !== false }"
+              @click="toggleTool(tool.name)"
+            ></div>
           </div>
         </div>
         <div class="text-xs text-muted" x-text="tool.description"></div>
@@ -94,8 +109,10 @@ document.addEventListener('alpine:init', function () {
       readOnly: true,
       enableMultimodal: true,
       providerType: (StateManager && StateManager.get('provider_type')) || 'openai_compat',
+      reloading: false,
 
       tools: [],
+      toolStates: {},
 
       get providerSupportsTools() {
         return !['google_aistudio', 'google_vertex'].includes(this.providerType);
@@ -114,6 +131,7 @@ document.addEventListener('alpine:init', function () {
               .then(function (chat) {
                 self.enabled = chat.tool_calls_enabled === 1 || chat.tool_calls_enabled === true;
                 self.readOnly = chat.tool_read_only !== 0 && chat.tool_read_only !== false;
+                self.toolStates = chat.tool_states || {};
               })
               .catch(function () {})
           );
@@ -129,6 +147,34 @@ document.addEventListener('alpine:init', function () {
       toggleReadOnly: function () {
         this.readOnly = !this.readOnly;
         this._save();
+      },
+
+      toggleTool: function (name) {
+        var newState = this.toolStates[name] !== false ? false : true;
+        this.toolStates[name] = newState;
+        var chatId = document.getElementById('send-btn')
+          ? document.getElementById('send-btn').dataset.chatId
+          : null;
+        if (chatId) {
+          fetch('/api/chats/' + chatId + '/tool-states', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ [name]: newState }),
+          });
+        }
+      },
+
+      reloadTools: function () {
+        var self = this;
+        self.reloading = true;
+        fetch('/api/tools/reload', { method: 'POST' })
+          .then(function () { return fetch('/api/tools'); })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            self.tools = data;
+            self.reloading = false;
+          })
+          .catch(function () { self.reloading = false; });
       },
 
       _save: function () {

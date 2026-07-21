@@ -97,4 +97,4 @@ count = len(text.split())
 print(json.dumps({"output": str(count)}))
 ```
 
-Place both files in `tools/`, restart the server, and the tool is available to the LLM.
+Place both files in `tools/`, click reload in the tools modal, and the tool is available to the LLM.

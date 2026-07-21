@@ -103,8 +103,14 @@ async def get_chat(chat_id: str, db: aiosqlite.Connection = Depends(get_db)):
 
     messages = await crud.fetch_active_variants(db, chat_id, extra_cols="m.created_at")
 
+    async with db.execute(
+        "SELECT tool_name, enabled FROM chat_tool_states WHERE chat_id = ?", (chat_id,)
+    ) as cur:
+        tool_states = {row["tool_name"]: bool(row["enabled"]) for row in await cur.fetchall()}
+
     result = dict(chat)
     result["messages"] = messages
+    result["tool_states"] = tool_states
     return result
 
 
@@ -120,6 +126,18 @@ async def update_chat(chat_id: str, body: dict, db: aiosqlite.Connection = Depen
             await db.commit()
         except aiosqlite.IntegrityError as e:
             raise HTTPException(400, f"Invalid reference: {e}")
+    return {"ok": True}
+
+
+@router.put("/{chat_id}/tool-states")
+async def update_chat_tool_states(chat_id: str, body: dict[str, bool], db: aiosqlite.Connection = Depends(get_db)):
+    for tool_name, enabled in body.items():
+        await db.execute(
+            "INSERT INTO chat_tool_states (chat_id, tool_name, enabled) VALUES (?, ?, ?) "
+            "ON CONFLICT(chat_id, tool_name) DO UPDATE SET enabled = excluded.enabled",
+            (chat_id, tool_name, enabled),
+        )
+    await db.commit()
     return {"ok": True}
 
 

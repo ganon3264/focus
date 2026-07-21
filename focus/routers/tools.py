@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from focus.tools.builtin import ALL_TOOLS
+from focus.tools.builtin import get_all_tools, reload_tools
 
 router = APIRouter()
 
@@ -15,5 +15,11 @@ async def list_tools():
             "writes": t.writes,
             "multimodal": t.multimodal,
         }
-        for t in ALL_TOOLS
+        for t in get_all_tools()
     ]
+
+
+@router.post("/tools/reload")
+async def reload_external_tools():
+    tools = reload_tools()
+    return {"ok": True, "count": len(tools)}

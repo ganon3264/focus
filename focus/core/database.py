@@ -181,6 +181,13 @@ CREATE TABLE IF NOT EXISTS generation_usage (
     created_at        TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS chat_tool_states (
+    chat_id   TEXT NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
+    tool_name TEXT NOT NULL,
+    enabled   INTEGER NOT NULL DEFAULT 1,
+    PRIMARY KEY (chat_id, tool_name)
+);
+
 CREATE INDEX IF NOT EXISTS idx_gen_usage_message ON generation_usage(message_id);
 CREATE INDEX IF NOT EXISTS idx_gen_usage_chat    ON generation_usage(chat_id);
 """
@@ -265,5 +272,17 @@ async def init_db():
             await db.execute("ALTER TABLE chats ADD COLUMN tool_calls_enabled INTEGER NOT NULL DEFAULT 0")
         if "tool_read_only" not in col_names:
             await db.execute("ALTER TABLE chats ADD COLUMN tool_read_only INTEGER NOT NULL DEFAULT 1")
+
+        cols = await db.execute("PRAGMA table_info(chat_tool_states)")
+        col_names = {row[1] for row in await cols.fetchall()}
+        if "chat_id" not in col_names:
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS chat_tool_states (
+                    chat_id   TEXT NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
+                    tool_name TEXT NOT NULL,
+                    enabled   INTEGER NOT NULL DEFAULT 1,
+                    PRIMARY KEY (chat_id, tool_name)
+                )
+            """)
 
         await db.commit()

@@ -115,4 +115,17 @@ BUILTIN_TOOLS: list[ToolSpec] = [
     ),
 ]
 
-ALL_TOOLS: list[ToolSpec] = BUILTIN_TOOLS + load_external_tools()
+_tool_cache: list[ToolSpec] | None = None
+
+
+def get_all_tools() -> list[ToolSpec]:
+    global _tool_cache
+    if _tool_cache is None:
+        _tool_cache = BUILTIN_TOOLS + load_external_tools()
+    return list(_tool_cache)
+
+
+def reload_tools() -> list[ToolSpec]:
+    global _tool_cache
+    _tool_cache = BUILTIN_TOOLS + load_external_tools()
+    return list(_tool_cache)
