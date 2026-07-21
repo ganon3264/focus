@@ -9,6 +9,8 @@ OPENROUTER_BASE = "https://openrouter.ai/api/v1"
 
 
 class OpenRouterProvider(OpenAICompatProvider):
+    _include_stream_options = False
+
     def __init__(self, api_key: str, model: str, params: dict, site_url: str = "", app_name: str = "Focus"):
         super().__init__(OPENROUTER_BASE, api_key, model, params)
         self.site_url = site_url

@@ -161,6 +161,28 @@ CREATE INDEX IF NOT EXISTS idx_message_variants_msg  ON message_variants(message
 CREATE INDEX IF NOT EXISTS idx_tool_calls_message ON tool_calls(message_id);
 CREATE INDEX IF NOT EXISTS idx_tool_calls_chat    ON tool_calls(chat_id);
 CREATE INDEX IF NOT EXISTS idx_messages_chat_pos  ON messages(chat_id, position);
+
+CREATE TABLE IF NOT EXISTS generation_usage (
+    id                TEXT PRIMARY KEY,
+    chat_id           TEXT NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
+    message_id        TEXT NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+    variant_id        TEXT REFERENCES message_variants(id) ON DELETE SET NULL,
+    provider_id       TEXT,
+    provider_type     TEXT,
+    model_name        TEXT,
+    prompt_tokens     INTEGER DEFAULT 0,
+    completion_tokens INTEGER DEFAULT 0,
+    total_tokens      INTEGER DEFAULT 0,
+    cached_tokens     INTEGER DEFAULT 0,
+    reasoning_tokens  INTEGER DEFAULT 0,
+    cost              REAL,
+    cost_details      TEXT,
+    tool_iteration    INTEGER DEFAULT 0,
+    created_at        TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_gen_usage_message ON generation_usage(message_id);
+CREATE INDEX IF NOT EXISTS idx_gen_usage_chat    ON generation_usage(chat_id);
 """
 
 

@@ -243,6 +243,8 @@ async def _run_generation(
                 elif event["type"] == "reasoning":
                     iter_reasoning.append(event["text"])
                     yield {"type": "reasoning", "text": event["text"]}
+                elif event["type"] == "usage":
+                    yield {"type": "usage", "usage": event["usage"]}
                 elif event["type"] == "tool_calls":
                     tool_calls_list = event["calls"]
                     break
@@ -401,6 +403,15 @@ async def _stream_generate(
                 })
                 yield f"data: {tr_data}\n\n"
 
+            elif event["type"] == "usage":
+                await _save_usage(
+                    body.chat_id, asst_msg_id, variant_id,
+                    prov_dict.get("id"), prov_dict.get("type"),
+                    prov_dict.get("model", ""),
+                    event["usage"],
+                    tool_iteration=len(_tool_groups),
+                )
+
             elif event["type"] == "done":
                 # save final variant — close final iteration boundary
                 _text_slices.append(len(final_text))
@@ -550,6 +561,14 @@ async def _non_stream_generate(
                             tc['result'] = event['result']
                             tc['is_error'] = event['is_error']
                             break
+            elif event["type"] == "usage":
+                await _save_usage(
+                    body.chat_id, asst_msg_id, variant_id,
+                    prov_dict.get("id"), prov_dict.get("type"),
+                    prov_dict.get("model", ""),
+                    event["usage"],
+                    tool_iteration=len(n_tool_groups),
+                )
             elif event["type"] == "error":
                 n_text_slices.append(len(collected))
                 n_reasoning_slices.append(len(collected_reasoning))
@@ -995,6 +1014,60 @@ async def _rollback_assistant(asst_msg_id: str | None):
         await rollback_db.execute("PRAGMA foreign_keys=ON")
         await rollback_db.execute("DELETE FROM messages WHERE id = ?", (asst_msg_id,))
         await rollback_db.commit()
+
+
+async def _save_usage(
+    chat_id: str,
+    message_id: str,
+    variant_id: str,
+    provider_id: str | None,
+    provider_type: str | None,
+    model_name: str | None,
+    usage: dict,
+    tool_iteration: int = 0,
+) -> None:
+    """Persist token/cache/cost usage from a single API call to generation_usage."""
+    row_id = str(uuid.uuid4())
+    now = now_iso()
+    cost = usage.get("cost")
+    cost_details_raw = usage.get("cost_details")
+    cost_details_str = json.dumps(cost_details_raw) if cost_details_raw is not None else None
+
+    prompt = usage.get("prompt_tokens", 0)
+    completion = usage.get("completion_tokens", 0)
+    total = usage.get("total_tokens", 0)
+    cached = usage.get("cached_tokens", 0)
+
+    cache_pct = f"{cached / prompt * 100:.0f}%" if prompt > 0 else "-"
+    tag = f"{provider_type or '?'}/{model_name or '?'}"
+    cost_str = f" | cost=${cost:.5f}" if cost is not None else ""
+    iter_str = f" (iter={tool_iteration})" if tool_iteration else ""
+    logger.info(
+        "USAGE %s | p=%s + c=%s = t=%s | cache=%s (%s)%s%s",
+        tag, prompt, completion, total, cached, cache_pct, cost_str, iter_str,
+    )
+
+    async with aiosqlite.connect(DB_PATH) as save_db:
+        await save_db.execute("PRAGMA foreign_keys=ON")
+        await save_db.execute(
+            """INSERT INTO generation_usage
+               (id, chat_id, message_id, variant_id, provider_id, provider_type,
+                model_name, prompt_tokens, completion_tokens, total_tokens,
+                cached_tokens, reasoning_tokens, cost, cost_details,
+                tool_iteration, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                row_id, chat_id, message_id, variant_id,
+                provider_id, provider_type, model_name,
+                prompt, completion, total,
+                cached, usage.get("reasoning_tokens", 0),
+                cost,
+                cost_details_str,
+                tool_iteration,
+                now,
+            ),
+        )
+        await save_db.commit()
 
 
 @router.post("/itemize")

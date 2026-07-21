@@ -150,7 +150,11 @@ class GoogleProviderBase(BaseProvider):
             config=config,
         )
 
+        last_usage = None
         async for chunk in stream:
+            if hasattr(chunk, "usage_metadata") and chunk.usage_metadata is not None:
+                last_usage = chunk.usage_metadata
+
             if not chunk.candidates or not chunk.candidates[0].content or not chunk.candidates[0].content.parts:
                 if chunk.text:
                     yield {"type": "token", "text": chunk.text}
@@ -167,6 +171,14 @@ class GoogleProviderBase(BaseProvider):
                 else:
                     if part.text:
                         yield {"type": "token", "text": part.text}
+
+        if last_usage is not None:
+            yield {"type": "usage", "usage": {
+                "prompt_tokens": getattr(last_usage, "prompt_token_count", 0) or 0,
+                "completion_tokens": getattr(last_usage, "candidates_token_count", 0) or 0,
+                "total_tokens": getattr(last_usage, "total_token_count", 0) or 0,
+                "cached_tokens": getattr(last_usage, "cached_content_token_count", 0) or 0,
+            }}
 
     async def stream_complete(self, messages: list[dict], **kwargs):
         """Stream tokens from a Google Gemini model.

@@ -19,6 +19,8 @@ logger = get_logger("providers.openai")
 
 
 class OpenAICompatProvider(BaseProvider):
+    _include_stream_options = True
+
     def _get_client(self) -> AsyncOpenAI:
         return AsyncOpenAI(
             base_url=self.base_url or DEFAULT_OPENAI_COMPAT_BASE_URL,
@@ -91,6 +93,9 @@ class OpenAICompatProvider(BaseProvider):
         if extra_body:
             request_params["extra_body"] = extra_body
 
+        if self._include_stream_options:
+            request_params["stream_options"] = {"include_usage": True}
+
         if is_o_model:
             request_params["max_completion_tokens"] = max_tokens
             request_params.pop("temperature", None)
@@ -115,10 +120,13 @@ class OpenAICompatProvider(BaseProvider):
 
         # Accumulate tool calls across streaming chunks
         tool_calls_acc: dict[int, dict] = {}
+        last_usage: dict | None = None
 
         async with self._get_client() as client:
             stream = await client.chat.completions.create(**request_params)
             async for chunk in stream:
+                if chunk.usage:
+                    last_usage = chunk.usage
                 if not chunk.choices:
                     continue
 
@@ -149,6 +157,28 @@ class OpenAICompatProvider(BaseProvider):
 
                 if delta:
                     yield {"type": "token", "text": delta}
+
+        # Emit usage data if captured
+        if last_usage is not None:
+            usage_dict: dict = {
+                "prompt_tokens": getattr(last_usage, "prompt_tokens", 0) or 0,
+                "completion_tokens": getattr(last_usage, "completion_tokens", 0) or 0,
+                "total_tokens": getattr(last_usage, "total_tokens", 0) or 0,
+                "cached_tokens": 0,
+                "reasoning_tokens": 0,
+            }
+            ptd = getattr(last_usage, "prompt_tokens_details", None)
+            if ptd is not None:
+                usage_dict["cached_tokens"] = getattr(ptd, "cached_tokens", 0) or 0
+            ctd = getattr(last_usage, "completion_tokens_details", None)
+            if ctd is not None:
+                usage_dict["reasoning_tokens"] = getattr(ctd, "reasoning_tokens", 0) or 0
+            extra = getattr(last_usage, "model_extra", None) or {}
+            if "cost" in extra:
+                usage_dict["cost"] = extra["cost"]
+            if "cost_details" in extra:
+                usage_dict["cost_details"] = extra["cost_details"]
+            yield {"type": "usage", "usage": usage_dict}
 
         # After stream ends: emit tool_calls or done
         if tool_calls_acc:

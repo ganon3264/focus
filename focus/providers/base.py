@@ -59,5 +59,6 @@ class BaseProvider(ABC):
         Event types:
           {"type": "token", "text": str}
           {"type": "tool_calls", "calls": list[ToolCall]}
+          {"type": "usage", "usage": dict}
           {"type": "done"}
         """
