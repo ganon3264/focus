@@ -42,7 +42,8 @@ window.ListManager = {
       cards.forEach(function (card) {
         grid.appendChild(card);
       });
-      document.getElementById(cfg.sortSelectId).value = mode;
+      var sel = document.getElementById(cfg.sortSelectId);
+      if (sel) sel.value = mode;
     };
 
     window[cfg.applyCompactFn] = function (compact) {

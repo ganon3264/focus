@@ -55,6 +55,57 @@
 </div>
 {% endmacro %}
 
+{% macro sort_dropdown(storage_key, sort_fn) %}
+<div class="relative shrink-0"
+     x-data="{
+       open: false,
+       active: localStorage.getItem('{{ storage_key }}') || 'newest',
+       get label() {
+         return { newest: 'Newest', oldest: 'Oldest', az: 'A → Z', za: 'Z → A' }[this.active] || 'Newest';
+       },
+       select(val) {
+         this.active = val;
+         this.open = false;
+         {{ sort_fn }}(val);
+       }
+     }">
+  <button type="button" @click="open = !open"
+          class="form-control flex items-center justify-between gap-1 text-sm cursor-pointer"
+          style="padding: 0.35rem 0.5rem;">
+    <span x-text="label"></span>
+    <span class="text-muted" :class="open ? 'rotate-180' : ''"
+          style="transition: transform 0.2s; display: inline-flex;">{{ icon_chevron_down(12) }}</span>
+  </button>
+  <div x-show="open" @click.away="open = false" x-transition.opacity.duration.200ms
+       class="absolute top-full right-0 mt-1 z-50"
+       style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); display: none; min-width: 120px;">
+    <div class="px-3 py-2 cursor-pointer text-sm whitespace-nowrap"
+         :class="{ 'text-[var(--accent)] font-medium': active === 'newest' }"
+         @click="select('newest')"
+         style="border-bottom: 1px solid var(--border);"
+         onmouseover="this.style.background='var(--surface-3)'"
+         onmouseout="this.style.background='transparent'">Newest</div>
+    <div class="px-3 py-2 cursor-pointer text-sm whitespace-nowrap"
+         :class="{ 'text-[var(--accent)] font-medium': active === 'oldest' }"
+         @click="select('oldest')"
+         style="border-bottom: 1px solid var(--border);"
+         onmouseover="this.style.background='var(--surface-3)'"
+         onmouseout="this.style.background='transparent'">Oldest</div>
+    <div class="px-3 py-2 cursor-pointer text-sm whitespace-nowrap"
+         :class="{ 'text-[var(--accent)] font-medium': active === 'az' }"
+         @click="select('az')"
+         style="border-bottom: 1px solid var(--border);"
+         onmouseover="this.style.background='var(--surface-3)'"
+         onmouseout="this.style.background='transparent'">A → Z</div>
+    <div class="px-3 py-2 cursor-pointer text-sm whitespace-nowrap"
+         :class="{ 'text-[var(--accent)] font-medium': active === 'za' }"
+         @click="select('za')"
+         onmouseover="this.style.background='var(--surface-3)'"
+         onmouseout="this.style.background='transparent'">Z → A</div>
+  </div>
+</div>
+{% endmacro %}
+
 {# ── SVG Icon Macros ───────────────────────────────────────────────────── #}
 
 {% macro _icon_svg_base(size, extra_attrs='') %}aria-hidden="true" viewBox="0 0 24 24" width="{{ size }}" height="{{ size }}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" {{ extra_attrs | safe }}{% endmacro %}

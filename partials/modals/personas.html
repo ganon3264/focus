@@ -1,5 +1,5 @@
 <div class="flex flex-col h-full">
-  {% from "macros.html" import icon_edit, icon_trash, icon_search, icon_plus, icon_grid, icon_close %}
+  {% from "macros.html" import icon_edit, icon_trash, icon_search, icon_plus, icon_grid, icon_close, sort_dropdown %}
   <div class="flex flex-col gap-3 pb-4">
     <h3 class="sidebar-title mb-1">Tools</h3>
     <div class="flex gap-2 h-10">
@@ -39,23 +39,7 @@
           "
         />
       </div>
-      <select
-        id="persona-sort-select"
-        onchange="sortPersonas(this.value)"
-        class="text-sm shrink-0"
-        style="
-          background: var(--surface-2);
-          border: 1px solid var(--border);
-          color: var(--text);
-          border-radius: var(--radius-md);
-          padding: 0.35rem 0.4rem;
-        "
-      >
-        <option value="newest">Newest</option>
-        <option value="oldest">Oldest</option>
-        <option value="az">A → Z</option>
-        <option value="za">Z → A</option>
-      </select>
+      {{ sort_dropdown('focus_persona_sort', 'sortPersonas') }}
       <button
         onclick="togglePersonaCompactView()"
         class="btn btn-secondary btn-sm shrink-0"
