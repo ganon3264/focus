@@ -62,7 +62,7 @@
 
       <!-- Right: meta-right + toolbar overlay -->
       <div class="relative shrink-0" style="margin-left:1rem">
-        <div class="meta-right flex items-center gap-3 mt-0.5" style="transition:opacity 0.18s ease,transform 0.18s ease">
+        <div class="meta-right flex items-center gap-3 mt-0.5" style="transition:opacity 0.18s ease,transform 0.18s steps(6,end)">
           <div class="text-xs text-right leading-tight shrink-0" data-utc="{{ message.created_at or '' }}">
             <div class="text-muted ts-date">{{ message.created_at[:10] if message.created_at else '' }}</div>
             <div style="color:var(--text-faint)" class="ts-time">{{ message.created_at[11:16] if message.created_at else '' }}</div>
