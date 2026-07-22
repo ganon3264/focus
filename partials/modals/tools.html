@@ -65,7 +65,7 @@
       <div
         class="p-3 rounded-md mb-2"
         style="background:var(--surface-2);border:1px solid var(--border)"
-        :class="(tool.multimodal && !enableMultimodal) || toolStates[tool.name] === false ? 'opacity-40' : ''"
+        :class="(tool.multimodal && !enableMultimodal) || (tool.writes && readOnly) || toolStates[tool.name] === false ? 'opacity-40' : ''"
       >
         <div class="flex items-center justify-between mb-1">
           <code class="text-sm font-bold" x-text="tool.name"></code>

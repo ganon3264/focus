@@ -48,7 +48,7 @@ def list_dir(path: str) -> str:
     return "\n".join(lines) if lines else "(empty directory)"
 
 
-def read_image(path: str) -> tuple[str, str, str]:
+def read_image(path: str) -> dict:
     p = Path(path)
     if not p.exists():
         raise FileNotFoundError(f"File not found: {path}")
@@ -64,7 +64,7 @@ def read_image(path: str) -> tuple[str, str, str]:
     compressed_path, out_mime = _ensure_compressed_sync(path, mime)
     data = compressed_path.read_bytes()
     b64 = base64.b64encode(data).decode("ascii")
-    return (path, b64, out_mime)
+    return {"image": {"base64": b64, "mime": out_mime, "path": path}}
 
 
 # ── Tool registry ─────────────────────────────────────────────────────────────

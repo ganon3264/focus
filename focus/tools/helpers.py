@@ -28,21 +28,35 @@ def active_tools(
     return filtered
 
 
-def build_tool_result(call_id: str, tool_name: str, output: Any) -> Any:
+def build_tool_result(call_id: str, tool_name: str, output: Any, multimodal: bool = False) -> ToolResult:
     from focus.tools import ToolResult  # lazy to avoid circular import
 
-    if tool_name == "read_image":
-        path, b64_data, mime = output
+    if isinstance(output, dict) and "image" in output:
+        if not multimodal:
+            return ToolResult(
+                call_id=call_id,
+                content=truncate(str(output)),
+            )
+        img = output["image"]
+        if not isinstance(img, dict) or not img.get("base64"):
+            return ToolResult(
+                call_id=call_id,
+                content="Tool returned image key without base64 data.",
+                is_error=True,
+            )
+        b64_data = img["base64"]
+        mime = img.get("mime", "image/png")
         return ToolResult(
             call_id=call_id,
-            content=f"image read: {path} (attached in next message)",
+            content=f"SUCCESS: Tool '{tool_name}' returned an image. It will be appended as a user message.",
             extra_message={
                 "role": "user",
                 "content": [
-                    {"type": "text", "text": f"[contents of {path}]"},
+                    {"type": "text", "text": f"TOOL_RESULT: '{tool_name}'"},
                     {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64_data}"}},
                 ],
                 "internal": True,
             },
         )
+
     return ToolResult(call_id=call_id, content=truncate(str(output)))

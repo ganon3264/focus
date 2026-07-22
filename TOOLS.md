@@ -16,6 +16,7 @@ Place a `.json` file in `tools/` at the project root. It is loaded automatically
     }
   ],
   "writes": false,
+  "multimodal": false,
   "timeout": 30
 }
 ```
@@ -27,6 +28,7 @@ Place a `.json` file in `tools/` at the project root. It is loaded automatically
 | `command` | `string` or `array` | — | Executable and args. A string is split with `shlex.split`. |
 | `params` | `array` | `[]` | List of accepted parameters (see below) |
 | `writes` | `bool` | `false` | When `true`, hidden in read-only mode |
+| `multimodal` | `bool` | `false` | When `true`, tool may return image data (see Script Contract) |
 | `timeout` | `int` | `30` | Subprocess timeout in seconds |
 
 ### Param object
@@ -61,6 +63,24 @@ The tool script receives parameters as JSON on **stdin** and must return output 
 ```json
 {"error": "something went wrong"}
 ```
+
+**Image return** — return a JSON object with an `"image"` key. Requires `"multimodal": true`
+in the tool config. The `"image"` value is an object with these fields:
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `base64` | `string` | yes | Base64-encoded image bytes |
+| `mime` | `string` | no | MIME type, defaults to `image/png` |
+| `path` | `string` | no | Source path (informational) |
+| `description` | `string` | no | Text shown alongside the image |
+
+```json
+{"image": {"base64": "iVBORw0KGgo...", "mime": "image/png", "description": "Screenshot of desktop"}}
+```
+
+A tool may also include an `"output"` key alongside `"image"` — the text output is
+fed back to the model as a tool result, and the image is injected as a subsequent
+user message with multimodal content.
 
 Output is truncated at 32,000 characters. Invalid JSON configs are skipped (logged as a warning).
 
@@ -98,3 +118,39 @@ print(json.dumps({"output": str(count)}))
 ```
 
 Place both files in `tools/`, click reload in the tools modal, and the tool is available to the LLM.
+
+# Image Example
+
+`tools/screenshot.json`:
+
+```json
+{
+  "name": "screenshot",
+  "description": "Take a screenshot of the desktop and return it as an image.",
+  "command": ["python3", "tools/screenshot.py"],
+  "multimodal": true,
+  "params": [],
+  "writes": false
+}
+```
+
+`tools/screenshot.py`:
+
+```python
+#!/usr/bin/env python3
+import subprocess, json, base64, sys
+
+result = subprocess.run(["import", "-window", "root", "png:-"],
+                        capture_output=True, timeout=10)
+b64 = base64.b64encode(result.stdout).decode()
+print(json.dumps({
+    "image": {
+        "base64": b64,
+        "mime": "image/png",
+        "description": "Current desktop screenshot",
+    },
+}))
+```
+
+Place both files in `tools/`, click reload in the tools modal, and the tool is available
+to vision-capable models (the sampler must have multimodal tools enabled).

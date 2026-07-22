@@ -39,6 +39,7 @@ class ExternalToolConfig(BaseModel):
     command: str | list[str]
     timeout: int = 30
     writes: bool = False
+    multimodal: bool = False
     params: list[ToolParamDef] = []
 
 
@@ -48,7 +49,7 @@ def _parse_command(command: str | list[str]) -> list[str]:
     return command
 
 
-def _run_external_tool(command: list[str], params: dict[str, Any], timeout: int = 30) -> str:
+def _run_external_tool(command: list[str], params: dict[str, Any], timeout: int = 30) -> Any:
     result = subprocess.run(
         command,
         input=json.dumps(params),
@@ -65,6 +66,8 @@ def _run_external_tool(command: list[str], params: dict[str, Any], timeout: int 
     if isinstance(response, dict):
         if response.get("error"):
             raise RuntimeError(response["error"])
+        if "image" in response:
+            return response
         if "output" in response:
             return response["output"]
     return result.stdout
@@ -84,7 +87,7 @@ def _load_single_tool(path: Path) -> ToolSpec:
         for p in config.params
     ]
 
-    def handler(**kwargs: Any) -> str:
+    def handler(**kwargs: Any) -> Any:
         return _run_external_tool(command, kwargs, timeout=config.timeout)
 
     return ToolSpec(
@@ -92,6 +95,7 @@ def _load_single_tool(path: Path) -> ToolSpec:
         description=config.description,
         params=params,
         writes=config.writes,
+        multimodal=config.multimodal,
         handler=handler,
     )
 
