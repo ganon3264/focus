@@ -174,10 +174,26 @@
       if (r.ok) {
         const modal = document.getElementById('persona-trash-modal');
         if (modal) modal.remove();
-        htmx.ajax('GET', '/partials/personas-modal', {
-          target: '#personas-modal-body',
-          swap: 'innerHTML',
-        });
+        var g = document.getElementById('persona-modal-grid');
+        if (g) {
+          var cid = StateManager.get('persona_id') || '';
+          var cv = g.dataset.view === 'compact';
+          htmx.ajax('GET', '/partials/persona-modal-card/' + personaId
+            + '?current_persona_id=' + encodeURIComponent(cid)
+            + '&compact_view=' + cv, { target: '#persona-modal-grid', swap: 'beforeend' })
+            .then(function () {
+              var val = localStorage.getItem('focus_persona_sort');
+              if (val && window.sortPersonas) window.sortPersonas(val);
+            });
+        } else {
+          htmx.ajax('GET', '/partials/personas-modal', {
+            target: '#personas-modal-body-inner',
+            swap: 'innerHTML',
+          }).then(function () {
+            var val = localStorage.getItem('focus_persona_sort');
+            if (val && window.sortPersonas) window.sortPersonas(val);
+          });
+        }
       }
     });
   };
@@ -208,7 +224,7 @@
     if (chatId) {
       htmx.ajax('GET', '/partials/message-list/' + chatId, {
         target: '#message-list',
-        swap: 'morph:innerHTML',
+        swap: 'innerHTML',
       });
     }
   }
@@ -230,7 +246,7 @@
     newItemLabel: 'Persona Name',
     newItemInputId: 'new-persona-name-input',
     apiEndpoint: '/api/personas',
-    hxRoute: '/partials/personas-modal',
-    hxTarget: '#personas-modal-body',
+    cardEndpoint: '/partials/persona-modal-card/',
+    stateKey: 'persona_id',
   });
 </script>

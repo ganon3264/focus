@@ -146,6 +146,16 @@ window.api = {
     singleBlock: function (presetId, blockId) {
       return '/partials/prompt-arranger/' + presetId + '/block/' + blockId;
     },
+    characterCard: function (charId, currentId, compactView) {
+      return '/partials/character-card/' + charId
+        + '?current_character_id=' + encodeURIComponent(currentId || '')
+        + '&compact_view=' + (compactView ? 'true' : 'false');
+    },
+    personaModalCard: function (personaId, currentId, compactView) {
+      return '/partials/persona-modal-card/' + personaId
+        + '?current_persona_id=' + encodeURIComponent(currentId || '')
+        + '&compact_view=' + (compactView ? 'true' : 'false');
+    },
     presetsModal: '/partials/presets-modal',
     exportEntities: '/partials/export-entities',
     presetEditor: function (presetId) {

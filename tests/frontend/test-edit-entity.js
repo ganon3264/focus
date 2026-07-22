@@ -110,8 +110,6 @@ assert(typeof window.createEditModalHandlers === 'function', 'createEditModalHan
     apiGet: function (id) { return '/api/characters/' + id; },
     mediaIdPrefix: 'char-img',
     stateKey: 'character_id',
-    modalBodyUrl: '/partials/characters_modal',
-    modalBodySelector: '#characters-modal-body',
     dropZoneSelector: '#edit-char-dropzone',
   };
 

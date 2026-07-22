@@ -613,6 +613,58 @@ async def persona_card_partial(
     return templates.TemplateResponse(request, "personas/persona-card.html", {"p": p})
 
 
+@router.get("/partials/character-card/{char_id}", response_class=HTMLResponse)
+async def character_card_partial(
+    request: Request,
+    char_id: str,
+    current_character_id: str = "",
+    compact_view: bool = False,
+    db: aiosqlite.Connection = Depends(get_db),
+):
+    from fastapi import HTTPException
+
+    char = await crud.get_character(db, char_id)
+    if not char:
+        raise HTTPException(status_code=404)
+    await crud.attach_images([char], db)
+    return templates.TemplateResponse(
+        request,
+        "modals/character-card.html",
+        {
+            "char": char,
+            "current_character_id": current_character_id,
+            "compact_view": compact_view,
+            "request": request,
+        },
+    )
+
+
+@router.get("/partials/persona-modal-card/{persona_id}", response_class=HTMLResponse)
+async def persona_modal_card_partial(
+    request: Request,
+    persona_id: str,
+    current_persona_id: str = "",
+    compact_view: bool = False,
+    db: aiosqlite.Connection = Depends(get_db),
+):
+    from fastapi import HTTPException
+
+    p = await crud.get_persona(db, persona_id)
+    if not p:
+        raise HTTPException(status_code=404)
+    await crud.attach_images([p], db)
+    return templates.TemplateResponse(
+        request,
+        "modals/persona-card.html",
+        {
+            "p": p,
+            "current_persona_id": current_persona_id,
+            "compact_view": compact_view,
+            "request": request,
+        },
+    )
+
+
 @router.get("/partials/preset-sidebar/{preset_id}", response_class=HTMLResponse)
 async def preset_sidebar_partial(
     request: Request, preset_id: str, db: aiosqlite.Connection = Depends(get_db)

@@ -61,9 +61,13 @@ DOWNLOADS = {
         f"https://unpkg.com/cropperjs@{CROPPERJS_VERSION}/dist/cropper.min.js",
         f"Cropper.js v{CROPPERJS_VERSION}",
     ),
-    "idiomorph-ext.min.js": (
-        f"https://unpkg.com/idiomorph@{IDIOMORPH_VERSION}/dist/idiomorph-ext.min.js",
-        f"Idiomorph v{IDIOMORPH_VERSION} + HTMX morph extension",
+    "alpine-morph.min.js": (
+        f"https://unpkg.com/@alpinejs/morph@{ALPINE_VERSION}/dist/cdn.min.js",
+        f"Alpine Morph v{ALPINE_VERSION}",
+    ),
+    "htmx-alpine-morph.js": (
+        "https://unpkg.com/htmx-ext-alpine-morph@2.0.1/alpine-morph.js",
+        "HTMX 2 Alpine Morph Extension",
     ),
     "inter-variable.woff2": (
         "https://unpkg.com/@fontsource-variable/inter@5.3.0/files/inter-latin-wght-normal.woff2",
@@ -76,7 +80,6 @@ CHECKSUMS = {
     "alpine.min.js": "57b37d7cae9a27d965fdae4adcc844245dfdc407e655aee85dcfff3a08036a3f",
     "cropper.min.js": "27f29dae3c6fa7a5f6126901f4d1f8cbbc36756196046aa7e97d2eae14131979",
     "htmx2.min.js": "71ea67185bfa8c98c39d31717c6fce5d852370fcdfd129db4543774d3145c0de",
-    "idiomorph-ext.min.js": "a6437e55b1b6a07bc421f0d230266a39399b6826c6ed19e0ed9c63b707444a5f",
     "inter-variable.woff2": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62",
     "marked.umd.js": "1f0acde4c17e28e4fb233ab358de856bee2f6ac28c7c757a68e2e3725f0db848",
     "purify.min.js": "1009d4715549e1331c1702529ed924260e4c5b5d04e2eb94e2112398a6dd1aa3",

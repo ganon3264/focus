@@ -93,11 +93,27 @@ window.ListManager = {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: name }),
         }).then(function (r) {
-          if (r.ok) htmx.ajax('GET', cfg.hxRoute, { target: cfg.hxTarget, swap: 'innerHTML' });
-          else
+          if (r.ok) {
+            r.json().then(function (data) {
+              var id = data.id;
+              if (!id) return;
+              var currentId = StateManager.get(cfg.stateKey) || '';
+              var gridEl = document.getElementById(cfg.gridId);
+              var compactView = gridEl && gridEl.dataset.view === 'compact';
+              var url = cfg.cardEndpoint + id
+                + '?current_' + cfg.stateKey + '=' + encodeURIComponent(currentId)
+                + '&compact_view=' + (compactView ? 'true' : 'false');
+              htmx.ajax('GET', url, { target: '#' + cfg.gridId, swap: 'beforeend' })
+                .then(function () {
+                  var val = localStorage.getItem(cfg.sortStorageKey);
+                  if (val && window[cfg.sortFn]) window[cfg.sortFn](val);
+                });
+            });
+          } else {
             r.text().then(function (t) {
               alert('Create failed: ' + t);
             });
+          }
         });
       });
       setTimeout(function () {

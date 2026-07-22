@@ -17,8 +17,10 @@ createEditModalHandlers({
     return api.personaAvatar(id);
   },
   modalId: 'modal-edit-persona',
-  modalBodyUrl: '/partials/personas-modal',
-  modalBodySelector: '#personas-modal-body',
+  cardEndpoint: '/partials/persona-modal-card/',
+  gridId: 'persona-modal-grid',
+  sortStorageKey: 'focus_persona_sort',
+  sortFn: 'sortPersonas',
   openFn: 'openEditPersonaModal',
   uploadFn: 'uploadPersonaMedia',
   uploadFileFn: 'uploadPersonaMediaFile',

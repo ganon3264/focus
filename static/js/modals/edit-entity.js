@@ -189,10 +189,23 @@
       }).then(async function (r) {
         if (!r.ok) return;
         window.closeModal(mid);
-        var url = cfg.modalBodyUrl;
-        var currentId = StateManager.get(cfg.stateKey);
-        if (currentId) url += '?current_' + cfg.stateKey + '=' + encodeURIComponent(currentId);
-        htmx.ajax('GET', url, { target: cfg.modalBodySelector, swap: 'innerHTML' });
+        if (cfg.cardEndpoint && cfg.gridId) {
+          var currentId = StateManager.get(cfg.stateKey) || '';
+          var gridEl = document.getElementById(cfg.gridId);
+          var compactView = gridEl && gridEl.dataset.view === 'compact';
+          var url = cfg.cardEndpoint + id
+            + '?current_' + cfg.stateKey + '=' + encodeURIComponent(currentId)
+            + '&compact_view=' + (compactView ? 'true' : 'false');
+          htmx.ajax('GET', url, {
+            target: '#' + (cfg.stateKey === 'character_id' ? 'char' : 'persona') + '-card-' + id,
+            swap: 'outerHTML',
+          }).then(function () {
+            if (cfg.sortStorageKey && cfg.sortFn && window[cfg.sortFn]) {
+              var val = localStorage.getItem(cfg.sortStorageKey);
+              if (val) window[cfg.sortFn](val);
+            }
+          });
+        }
       });
     };
 

@@ -90,7 +90,7 @@ SSE events: `start | token | reasoning | tool_calls | tool_result | done`.
 2. `MACRO_DEFINITIONS` dict — metadata (description, source) for the help modal
 
 **Special syntax tokens** (not simple `{{key}}` → value lookups):
-- Defined in `SPECIAL_TOKENS` list — `{{getvar::key}}`, `{{setvar::key::value}}`, `{{var::key::value}}`, `{{trim}}`, `{{// comment}}`, `{{media::id}}`
+- Defined in `SPECIAL_TOKENS` list — `{{getvar::key}}`, `{{setvar::key::value}}`, `{{var::key::value}}`, `{{trim}}`, `{{// comment}}`, `{{media:id}}`
 
 **Adding a new macro:**
 1. Add key + resolver to `build_base_macros()` in `macros.py`

@@ -142,7 +142,7 @@
     }
     htmx.ajax('GET', window.api.partials.messageList(state.chatId), {
       target: '#message-list',
-      swap: 'morph:innerHTML',
+      swap: 'innerHTML',
     });
   }
 

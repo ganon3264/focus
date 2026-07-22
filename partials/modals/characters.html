@@ -207,10 +207,26 @@
       }).then((r) => {
         if (r.ok) {
           document.getElementById('trash-modal').remove();
-          htmx.ajax('GET', '/partials/characters-modal', {
-            target: '#characters-modal-body',
-            swap: 'innerHTML',
-          });
+          var g = document.getElementById('char-modal-grid');
+          if (g) {
+            var cid = StateManager.get('character_id') || '';
+            var cv = g.dataset.view === 'compact';
+            htmx.ajax('GET', '/partials/character-card/' + charId
+              + '?current_character_id=' + encodeURIComponent(cid)
+              + '&compact_view=' + cv, { target: '#char-modal-grid', swap: 'beforeend' })
+              .then(function () {
+                var val = localStorage.getItem('focus_char_sort');
+                if (val && window.sortCharacters) window.sortCharacters(val);
+              });
+          } else {
+            htmx.ajax('GET', '/partials/characters-modal', {
+              target: '#characters-modal-body-inner',
+              swap: 'innerHTML',
+            }).then(function () {
+              var val = localStorage.getItem('focus_char_sort');
+              if (val && window.sortCharacters) window.sortCharacters(val);
+            });
+          }
         }
       });
     });
@@ -259,10 +275,29 @@
                 .join('\n'),
           );
         }
-        htmx.ajax('GET', '/partials/characters-modal', {
-          target: '#characters-modal-body',
-          swap: 'innerHTML',
-        });
+        var g = document.getElementById('char-modal-grid');
+        var cid = StateManager.get('character_id') || '';
+        var cv = g ? g.dataset.view === 'compact' : false;
+        if (g) {
+          var fetches = [];
+          (data.imported || []).forEach(function (entry) {
+            fetches.push(htmx.ajax('GET', '/partials/character-card/' + entry.id
+              + '?current_character_id=' + encodeURIComponent(cid)
+              + '&compact_view=' + cv, { target: '#char-modal-grid', swap: 'beforeend' }));
+          });
+          Promise.all(fetches).then(function () {
+            var val = localStorage.getItem('focus_char_sort');
+            if (val && window.sortCharacters) window.sortCharacters(val);
+          });
+        } else {
+          htmx.ajax('GET', '/partials/characters-modal', {
+            target: '#characters-modal-body-inner',
+            swap: 'innerHTML',
+          }).then(function () {
+            var val = localStorage.getItem('focus_char_sort');
+            if (val && window.sortCharacters) window.sortCharacters(val);
+          });
+        }
       } else {
         r.text().then((t) => alert('Import failed: ' + t));
       }
@@ -286,7 +321,7 @@
     newItemLabel: 'Character Name',
     newItemInputId: 'new-char-name-input',
     apiEndpoint: '/api/characters',
-    hxRoute: '/partials/characters-modal',
-    hxTarget: '#characters-modal-body',
+    cardEndpoint: '/partials/character-card/',
+    stateKey: 'character_id',
   });
 </script>

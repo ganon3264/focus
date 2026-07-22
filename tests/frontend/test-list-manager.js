@@ -91,8 +91,6 @@ var cfg = {
   viewFullClass: 'card-full',
   viewCompactClass: 'card-compact',
   apiEndpoint: '/api/test-items',
-  hxRoute: '/partials/test-items',
-  hxTarget: '#test-grid',
 };
 
 // Setup restores view/sort

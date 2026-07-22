@@ -17,8 +17,10 @@ createEditModalHandlers({
     return api.charAvatar(id);
   },
   modalId: 'modal-edit-character',
-  modalBodyUrl: '/partials/characters-modal',
-  modalBodySelector: '#characters-modal-body',
+  cardEndpoint: '/partials/character-card/',
+  gridId: 'char-modal-grid',
+  sortStorageKey: 'focus_char_sort',
+  sortFn: 'sortCharacters',
   openFn: 'openEditCharacterModal',
   uploadFn: 'uploadCharModalMedia',
   uploadFileFn: 'uploadCharModalMediaFile',

@@ -400,8 +400,8 @@ function saveProviderModal(e, id) {
     body: JSON.stringify(data),
   }).then(function (r) {
     if (r.ok)
-      htmx.ajax('GET', api.partials.providersModal, {
-        target: '#providers-modal-body',
+        htmx.ajax('GET', api.partials.providersModal, {
+        target: '#providers-modal-body-inner',
         swap: 'innerHTML',
       });
   });
@@ -423,7 +423,7 @@ function submitProviderModal(e) {
     if (r.ok) {
       closeModal('modal-provider-create');
       htmx.ajax('GET', api.partials.providersModal, {
-        target: '#providers-modal-body',
+        target: '#providers-modal-body-inner',
         swap: 'innerHTML',
       });
     }
