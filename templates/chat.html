@@ -16,10 +16,8 @@
 </div>
 {% endcall %}
 
-{% call modal_shell('modal-tools', 'Tool Calls', max_width='550px', content_style='display:flex;flex-direction:column;') %}
-<div class="flex-1 overflow-y-auto">
-  {% include "modals/tools.html" %}
-</div>
+{% call modal_shell('modal-tools', 'Tool Calls', max_width='700px', content_style='display:flex;flex-direction:column;overflow:hidden;') %}
+{% include "modals/tools.html" %}
 {% endcall %}
 
 {% call modal_shell('modal-itemizer', 'Prompt Itemizer', max_width='700px', content_style='display:flex;flex-direction:column;height:80vh;') %}
