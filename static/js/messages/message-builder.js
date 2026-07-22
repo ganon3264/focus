@@ -173,10 +173,13 @@
     code.textContent = window.escapeHtml(call.name);
     summary.appendChild(code);
 
-    var argSpan = document.createElement('span');
-    argSpan.className = 'truncate max-w-[300px]';
-    argSpan.textContent = window.escapeHtml(JSON.stringify(call.arguments));
-    summary.appendChild(argSpan);
+    var argStr = JSON.stringify(call.arguments);
+    if (argStr !== '{}') {
+      var argSpan = document.createElement('span');
+      argSpan.className = 'truncate max-w-[300px]';
+      argSpan.textContent = window.escapeHtml(argStr);
+      summary.appendChild(argSpan);
+    }
 
     details.appendChild(summary);
 
@@ -242,7 +245,7 @@
   };
 
   // Moves DOM knowledge here, out of handlers
-  window.updateToolCallCard = function (sectionEl, callId, result, isError) {
+  window.updateToolCallCard = function (sectionEl, callId, result, isError, imageUrl) {
     var card = sectionEl.querySelector('[data-call-id="' + callId + '"]');
     if (!card) return;
     var label = card.querySelector('.executing-label');
@@ -257,6 +260,15 @@
       if (pre) {
         pre.textContent = isError ? '(error) ' + result : result;
         pre.style.color = isError ? 'var(--danger)' : '';
+      }
+      if (imageUrl) {
+        var existingImg = body.querySelector('img');
+        if (!existingImg) {
+          var img = document.createElement('img');
+          img.src = imageUrl;
+          img.className = 'max-w-full h-auto rounded mt-2';
+          body.appendChild(img);
+        }
       }
     }
   };

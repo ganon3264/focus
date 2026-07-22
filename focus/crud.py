@@ -1,3 +1,4 @@
+import json
 import logging
 import re
 import uuid
@@ -17,6 +18,21 @@ def _strip_think_tags(text: str | None) -> str | None:
     stripped = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
     stripped = re.sub(r"</?think>", "", stripped)
     return stripped.strip() if stripped.strip() else "New Chat"
+
+
+def _extract_image_from_extra(extra_json: str | None) -> str | None:
+    if not extra_json:
+        return None
+    try:
+        extra = json.loads(extra_json)
+        content = extra.get("content", [])
+        if isinstance(content, list):
+            for part in content:
+                if isinstance(part, dict) and part.get("type") == "image_url":
+                    return part.get("image_url", {}).get("url")
+    except (json.JSONDecodeError, TypeError):
+        pass
+    return None
 
 
 async def attach_images(blocks: list[dict], db: aiosqlite.Connection) -> list[dict]:
@@ -301,6 +317,7 @@ async def get_chat_messages(db: aiosqlite.Connection, chat_id: str) -> list[dict
                     },
                     "result": tc["result"],
                     "is_error": bool(tc["is_error"]),
+                    "image_data": _extract_image_from_extra(tc.get("extra_message_json")),
                 }
                 for tc in tcs
             ]

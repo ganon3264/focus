@@ -39,6 +39,11 @@
   }
 
   function renderToolCallCard(tc) {
+    var imgHtml = '';
+    var imgSrc = tc.image_data || tc.image_url || '';
+    if (imgSrc) {
+      imgHtml = '<img src="' + window.escapeHtml(imgSrc) + '" class="max-w-full h-auto rounded mt-2" />';
+    }
     var card = document.createElement('details');
     card.className = 'details tool-call';
     card.innerHTML =
@@ -47,7 +52,7 @@
       '<code class="font-bold">' + window.escapeHtml(tc.function.name) + '</code>' +
       '<span class="truncate max-w-[300px]">' + window.escapeHtml(tc.function.arguments || '') + '</span>' +
       '</summary>' +
-      '<div class="tool-result-body"><pre class="whitespace-pre-wrap break-all">' + window.escapeHtml(tc.result || '') + '</pre></div>';
+      '<div class="tool-result-body"><pre class="whitespace-pre-wrap break-all">' + window.escapeHtml(tc.result || '') + '</pre>' + imgHtml + '</div>';
     return card;
   }
 

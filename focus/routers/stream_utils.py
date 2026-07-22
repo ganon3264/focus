@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import uuid
 
@@ -125,6 +126,11 @@ async def _append_history_with_tool_calls(
             "tool_call_id": tc["id"],
             "content": tc["result"] or "",
         })
+
+    # Reconstruct extra_message user messages for tool calls with images
+    for tc in tcs:
+        if tc.get("extra_message_json"):
+            history.append(json.loads(tc["extra_message_json"]))
 
 
 async def get_prompt_context(

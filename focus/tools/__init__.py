@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
-from .helpers import MAX_TOOL_ITERATIONS, active_tools, build_tool_result
+from .helpers import MAX_TOOL_ITERATIONS, active_tools, build_tool_result, extract_image_url
 
 
 @dataclass

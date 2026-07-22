@@ -37,6 +37,7 @@ from focus.tools import (
     ToolResult,
     active_tools,
     build_tool_result,
+    extract_image_url,
 )
 from focus.tools.builtin import get_all_tools
 from focus.tools.provider_adapter import (
@@ -286,6 +287,7 @@ async def _run_generation(
                 "name": next((tc.name for tc in tool_calls_list if tc.id == r.call_id), ""),
                 "result": r.content,
                 "is_error": r.is_error,
+                "image_url": extract_image_url(r) or None,
             }
 
 
@@ -393,6 +395,7 @@ async def _stream_generate(
                         if tc['id'] == event['call_id']:
                             tc['result'] = event['result']
                             tc['is_error'] = event['is_error']
+                            tc['image_url'] = event.get('image_url') or None
                             break
                 tr_data = json.dumps({
                     'type': 'tool_result',
@@ -400,6 +403,7 @@ async def _stream_generate(
                     'name': event['name'],
                     'result': event['result'],
                     'is_error': event['is_error'],
+                    'image_url': event.get('image_url') or None,
                 })
                 yield f"data: {tr_data}\n\n"
 
@@ -560,6 +564,7 @@ async def _non_stream_generate(
                         if tc['id'] == event['call_id']:
                             tc['result'] = event['result']
                             tc['is_error'] = event['is_error']
+                            tc['image_url'] = event.get('image_url') or None
                             break
             elif event["type"] == "usage":
                 await _save_usage(
@@ -866,10 +871,11 @@ async def _execute_tool_round(
         async with aiosqlite.connect(DB_PATH) as save_db:
             await save_db.execute("PRAGMA foreign_keys=ON")
             for call, result in zip(tool_calls_list, results):
+                extra_msg = json.dumps(result.extra_message) if result.extra_message else None
                 await save_db.execute(
                     """INSERT INTO tool_calls
-                       (id, chat_id, message_id, variant_id, tool_name, arguments, result, is_error, created_at)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                       (id, chat_id, message_id, variant_id, tool_name, arguments, result, is_error, extra_message_json, created_at)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (
                         str(uuid.uuid4()),
                         chat_id,
@@ -879,6 +885,7 @@ async def _execute_tool_round(
                         json.dumps(call.arguments),
                         result.content,
                         int(result.is_error),
+                        extra_msg,
                         save_now,
                     ),
                 )

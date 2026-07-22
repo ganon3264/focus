@@ -67,7 +67,7 @@
   HANDLERS.tool_result = function (state, data) {
     var last = _lastSegment(state);
     if (!last || last.type !== 'tool_calls') return;
-    window.updateToolCallCard(last.el, data.call_id, data.result, data.is_error);
+    window.updateToolCallCard(last.el, data.call_id, data.result, data.is_error, data.image_url);
   };
 
   HANDLERS.reasoning = function (state, data) {

@@ -267,8 +267,16 @@
   <summary>
     {{ icon_chevron_right(12, 'class="w-3 h-3 chevron"') }}
     <code class="font-bold">{{ tc.function.name }}</code>
+    {% if tc.function.arguments and tc.function.arguments != '{}' %}
     <span class="truncate max-w-[300px]">{{ tc.function.arguments }}</span>
+    {% endif %}
   </summary>
-  <div class="tool-result-body"><pre class="whitespace-pre-wrap break-all">{{ tc.result or '' }}</pre></div>
+  <div class="tool-result-body">
+    <pre class="whitespace-pre-wrap break-all">{{ tc.result or '' }}</pre>
+    {% set img = tc.image_data or tc.image_url %}
+    {% if img %}
+    <img src="{{ img }}" class="max-w-full h-auto rounded mt-2" />
+    {% endif %}
+  </div>
 </details>
 {% endmacro %}

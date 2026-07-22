@@ -149,6 +149,7 @@ CREATE TABLE IF NOT EXISTS tool_calls (
     arguments   TEXT NOT NULL,
     result      TEXT,
     is_error    INTEGER NOT NULL DEFAULT 0,
+    extra_message_json  TEXT,
     created_at  TEXT NOT NULL
 );
 
@@ -272,6 +273,11 @@ async def init_db():
             await db.execute("ALTER TABLE chats ADD COLUMN tool_calls_enabled INTEGER NOT NULL DEFAULT 0")
         if "tool_read_only" not in col_names:
             await db.execute("ALTER TABLE chats ADD COLUMN tool_read_only INTEGER NOT NULL DEFAULT 1")
+
+        cols = await db.execute("PRAGMA table_info(tool_calls)")
+        col_names = {row[1] for row in await cols.fetchall()}
+        if "extra_message_json" not in col_names:
+            await db.execute("ALTER TABLE tool_calls ADD COLUMN extra_message_json TEXT")
 
         cols = await db.execute("PRAGMA table_info(chat_tool_states)")
         col_names = {row[1] for row in await cols.fetchall()}

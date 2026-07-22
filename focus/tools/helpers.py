@@ -28,6 +28,21 @@ def active_tools(
     return filtered
 
 
+def extract_image_url(result) -> str | None:
+    extra = getattr(result, "extra_message", None)
+    if not extra:
+        return None
+    content = extra.get("content", [])
+    if not isinstance(content, list):
+        return None
+    for part in content:
+        if isinstance(part, dict) and part.get("type") == "image_url":
+            url = part.get("image_url", {}).get("url")
+            if url:
+                return url
+    return None
+
+
 def build_tool_result(call_id: str, tool_name: str, output: Any, multimodal: bool = False) -> ToolResult:
     from focus.tools import ToolResult  # lazy to avoid circular import
 
