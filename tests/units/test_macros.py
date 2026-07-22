@@ -114,9 +114,9 @@ class TestApplyMacros:
         result = apply_macros("{{getvar::missing}}", {})
         assert result == ""
 
-    def test_unknown_key_preserved(self):
+    def test_unknown_key_stripped(self):
         result = apply_macros("{{unknown}}", {})
-        assert result == "{{unknown}}"
+        assert result == ""
 
     def test_chain_resolution(self):
         macros = {"a": "Hello {{b}}", "b": "World"}
@@ -205,9 +205,9 @@ class TestCommentMacro:
         result = apply_macros("a{{// no close", {})
         assert result == "a"
 
-    def test_single_slash_preserved(self):
+    def test_single_slash_stripped(self):
         result = apply_macros("{{/notacomment}}", {})
-        assert result == "{{/notacomment}}"
+        assert result == ""
 
     def test_comment_nested_setvar(self):
         macros = {}
@@ -345,25 +345,4 @@ class TestCbsReverse:
         assert result == "racecar"
 
 
-class TestCbsComment:
-    def test_comment_stripped(self):
-        result = apply_macros("before {{comment: note }} after", {})
-        assert result == "before  after"
 
-    def test_comment_empty(self):
-        result = apply_macros("{{comment:}}", {})
-        assert result == ""
-
-    def test_comment_with_content(self):
-        result = apply_macros("Hello {{comment: user name}} world", {})
-        assert result == "Hello  world"
-
-
-class TestCbsHiddenKey:
-    def test_hidden_key_stripped(self):
-        result = apply_macros("before {{hidden_key:secret}} after", {})
-        assert result == "before  after"
-
-    def test_hidden_key_empty(self):
-        result = apply_macros("{{hidden_key:}}", {})
-        assert result == ""

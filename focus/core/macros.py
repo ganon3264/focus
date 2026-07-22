@@ -1,9 +1,13 @@
 import hashlib
+import logging
 import random as _random
 import re
+from collections.abc import Callable
 from datetime import UTC, datetime
 
 from focus.core.utils import MACRO_MAX_PASSES
+
+logger = logging.getLogger("focus.macros")
 
 
 def _resolve_random(values: list[str]) -> str:
@@ -69,17 +73,29 @@ def _cbs_seed(chat_id: str | None, body: str) -> int | None:
     return int(hashlib.sha256(key.encode()).hexdigest(), 16)
 
 
-_STRIP_CBS_PATTERNS = (
-    (re.compile(r"\{\{\s*comment\s*:(.*?)\}\}", re.IGNORECASE), ""),
-    (re.compile(r"\{\{\s*hidden_key\s*:(.*?)\}\}", re.IGNORECASE), ""),
-)
+_CBS_HANDLERS: list[tuple[str, Callable[[str, dict, str | None], str | None]]] = [
+    ("getvar::",  lambda k, m, c: str(m.get(k[8:].strip(), ""))),
+    ("random:",   lambda k, m, c: _resolve_random(_split_cbs_values(k[7:]))),
+    ("pick:",     lambda k, m, c: _resolve_pick(_split_cbs_values(k[5:]), _cbs_seed(c, k[5:]))),
+    ("roll:",     lambda k, m, c: _resolve_roll(k[5:], _cbs_seed(c, k[5:]))),
+    ("reverse:",  lambda k, m, c: k[8:][::-1]),
+    ("media:",    lambda k, m, c: "{{" + k + "}}"),
+]
+
+_CBS_EXACT: dict[str, Callable[[], str]] = {
+    "trim": lambda: "",
+}
 
 
-def _strip_cbs_macros(text: str) -> str:
-    """Remove ``{{comment:...}}`` and ``{{hidden_key:...}}`` from text."""
-    for pat, repl in _STRIP_CBS_PATTERNS:
-        text = pat.sub(repl, text)
-    return text
+def _resolve_cbs(full_key: str, macros: dict, chat_id: str | None) -> str | None:
+    """Resolve a built-in CBS, or return *None* to fall through to macro lookup."""
+    lower = full_key.lower()
+    if lower in _CBS_EXACT:
+        return _CBS_EXACT[lower]()
+    for prefix, handler in _CBS_HANDLERS:
+        if lower.startswith(prefix):
+            return handler(full_key, macros, chat_id)
+    return None
 
 
 def build_base_macros(card: dict, persona: dict | None = None) -> dict[str, str]:
@@ -133,13 +149,11 @@ SPECIAL_TOKENS: list[dict[str, str]] = [
     {"syntax": "{{var::key::value}}", "description": "Alias for {{setvar::}}"},
     {"syntax": "{{trim}}", "description": "Remove this line and collapse excess blank lines"},
     {"syntax": "{{// comment}}", "description": "Comment — stripped from output entirely"},
-    {"syntax": "{{media::x}}", "description": "Insert attachment at position x (1-based, left to right)"},
+    {"syntax": "{{media:x}}", "description": "Insert attachment at position x (1-based, left to right)"},
     {"syntax": "{{random:A,B,C}}", "description": "Random pick from comma-separated values"},
     {"syntax": "{{pick:A,B,C}}", "description": "Sticky random pick (deterministic per chat)"},
     {"syntax": "{{roll:N}}", "description": "Random number between 1 and N"},
     {"syntax": "{{reverse:A}}", "description": "Reverse the string A"},
-    {"syntax": "{{comment: A}}", "description": "Inline comment (visible in UI, stripped from prompt)"},
-    {"syntax": "{{hidden_key:A}}", "description": "Hidden comment (stripped from prompt)"},
 ]
 
 
@@ -188,29 +202,14 @@ def _strip_comment_macros(text: str) -> str:
 def apply_macros(text: str, macros: dict[str, str], max_passes: int = MACRO_MAX_PASSES) -> str:
     """
     Applies ``{{key}}`` and built-in curley-brace syntaxes using the macros dict.
-
     Supported CBS (see ``SPECIAL_TOKENS`` for the full list):
-
-    * ``{{getvar::key}}``          — look up a macro value
-    * ``{{setvar::key::value}}``   — define a custom macro inline (consumed)
-    * ``{{var::key::value}}``      — alias for ``{{setvar::}}``
-    * ``{{trim}}``                 — consume line and collapse blank lines
-    * ``{{// ...}}``               — comment, stripped entirely
-    * ``{{comment: ...}}``         — inline comment, stripped from prompt
-    * ``{{hidden_key: ...}}``      — hidden comment, stripped from prompt
-    * ``{{random:A,B,C}}``         — random pick from comma-separated values
-    * ``{{pick:A,B,C}}``           — deterministic pick (same result per chat)
-    * ``{{roll:N}}`` / ``{{roll:dN}}`` — random number 1…*N*
-    * ``{{reverse:A}}``            — reverse the string *A*
-
-    Unknown ``{{…}}`` tokens are preserved as-is.
+    Unknown ``{{…}}`` tokens are stripped from output with a warning.
     Iterates until text stabilises (handles chains like ``A→B→C``).
     """
     if not text:
         return text
 
     text = _strip_comment_macros(text)
-    text = _strip_cbs_macros(text)
 
     chat_id = macros.get("_chat_id") if isinstance(macros.get("_chat_id"), str) else None
 
@@ -227,40 +226,15 @@ def apply_macros(text: str, macros: dict[str, str], max_passes: int = MACRO_MAX_
 
     pattern_get = r"\{\{(.*?)\}\}"
 
-    def _resolve_cbs(full_key: str) -> str | None:
-        """Resolve a built-in CBS, or return *None* to fall through to macro lookup."""
-        lower = full_key.lower()
-
-        if lower == "trim":
-            return ""
-        if lower.startswith("getvar::"):
-            k = full_key[8:].strip()
-            return str(macros.get(k, ""))
-
-        if lower.startswith("random:"):
-            body = full_key[7:]
-            return _resolve_random(_split_cbs_values(body))
-
-        if lower.startswith("pick:"):
-            body = full_key[5:]
-            return _resolve_pick(_split_cbs_values(body), _cbs_seed(chat_id, body))
-
-        if lower.startswith("roll:"):
-            body = full_key[5:]
-            return _resolve_roll(body, _cbs_seed(chat_id, body))
-
-        if lower.startswith("reverse:"):
-            body = full_key[8:]
-            return body[::-1]
-
-        return None
-
     def get_repl_func(match):
         full_key = match.group(1).strip()
-        resolved = _resolve_cbs(full_key)
+        resolved = _resolve_cbs(full_key, macros, chat_id)
         if resolved is not None:
             return resolved
-        return str(macros.get(full_key, match.group(0)))
+        if full_key in macros:
+            return str(macros[full_key])
+        logger.warning("Unknown macro '{{%s}}' stripped from prompt", full_key)
+        return ""
 
     prev = None
     for _ in range(max_passes):

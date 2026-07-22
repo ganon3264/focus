@@ -18,7 +18,7 @@ logger = logging.getLogger("focus.prompt_chain")
 
 MAX_IMAGE_B64 = 5 * 1024 * 1024  # 5 MB provider limit on base64 payload
 
-MEDIA_PATTERN = re.compile(r"\{\{media::(\d+)\}\}")
+MEDIA_PATTERN = re.compile(r"\{\{media:(\d+)\}\}")
 
 
 async def _ensure_compressed(orig_path: str, mime: str) -> tuple[Path, str]:
@@ -135,7 +135,7 @@ async def _build_content(text: str, images: list[dict]) -> str | list:
     """
     Return plain string if no images, or a multimodal content array if images present.
 
-    If the text contains {{media::x}} markers (1-based index), images are
+    If the text contains {{media:x}} markers (1-based index), images are
     interleaved at the marker positions instead of being appended at the end.
     Out-of-range indices leave the raw marker in the text as a visible error.
     """

@@ -7,7 +7,7 @@ from focus.prompt_chain import (
 
 
 class TestBuildContent:
-    """Tests for _build_content with {{media::x}} markers."""
+    """Tests for _build_content with {{media:x}} markers."""
 
     async def _mock_load_media(self, media_row):
         return {
@@ -39,7 +39,7 @@ class TestBuildContent:
             {"id": "imgA", "image_path": "/fake/a.png", "mime_type": "image/png"},
             {"id": "imgB", "image_path": "/fake/b.png", "mime_type": "image/png"},
         ]
-        result = await _build_content("cat: {{media::1}} and dog: {{media::2}}", images)
+        result = await _build_content("cat: {{media:1}} and dog: {{media:2}}", images)
         assert len(result) == 4
         assert result[0] == {"type": "text", "text": "cat: "}
         assert result[1]["image_url"]["url"].endswith("imgA")
@@ -49,7 +49,7 @@ class TestBuildContent:
     async def test_marker_at_start_and_end(self, monkeypatch):
         monkeypatch.setattr("focus.prompt_chain._load_media", self._mock_load_media)
         images = [{"id": "img", "image_path": "/fake/x.png", "mime_type": "image/png"}]
-        result = await _build_content("{{media::1}}middle{{media::1}}", images)
+        result = await _build_content("{{media:1}}middle{{media:1}}", images)
         assert len(result) == 3
         assert result[0]["image_url"]["url"].endswith("img")
         assert result[1] == {"type": "text", "text": "middle"}
@@ -58,18 +58,18 @@ class TestBuildContent:
     async def test_out_of_range_left_as_raw_text(self, monkeypatch):
         monkeypatch.setattr("focus.prompt_chain._load_media", self._mock_load_media)
         images = [{"id": "img", "image_path": "/fake/x.png", "mime_type": "image/png"}]
-        result = await _build_content("a {{media::2}} b", images)
+        result = await _build_content("a {{media:2}} b", images)
         assert len(result) == 3
         assert result[0] == {"type": "text", "text": "a "}
-        assert result[1] == {"type": "text", "text": "{{media::2}}"}
+        assert result[1] == {"type": "text", "text": "{{media:2}}"}
         assert result[2] == {"type": "text", "text": " b"}
 
     async def test_out_of_range_zero_left_as_raw_text(self, monkeypatch):
         monkeypatch.setattr("focus.prompt_chain._load_media", self._mock_load_media)
         images = [{"id": "img", "image_path": "/fake/x.png", "mime_type": "image/png"}]
-        result = await _build_content("{{media::0}}", images)
+        result = await _build_content("{{media:0}}", images)
         assert len(result) == 1
-        assert result[0] == {"type": "text", "text": "{{media::0}}"}
+        assert result[0] == {"type": "text", "text": "{{media:0}}"}
 
     async def test_mixed_valid_and_invalid_markers(self, monkeypatch):
         monkeypatch.setattr("focus.prompt_chain._load_media", self._mock_load_media)
@@ -77,11 +77,11 @@ class TestBuildContent:
             {"id": "img1", "image_path": "/fake/1.png", "mime_type": "image/png"},
             {"id": "img2", "image_path": "/fake/2.png", "mime_type": "image/png"},
         ]
-        result = await _build_content("{{media::1}} ok {{media::3}} bad {{media::2}}", images)
+        result = await _build_content("{{media:1}} ok {{media:3}} bad {{media:2}}", images)
         assert len(result) == 5
         assert result[0]["image_url"]["url"].endswith("img1")
         assert result[1] == {"type": "text", "text": " ok "}
-        assert result[2] == {"type": "text", "text": "{{media::3}}"}
+        assert result[2] == {"type": "text", "text": "{{media:3}}"}
         assert result[3] == {"type": "text", "text": " bad "}
         assert result[4]["image_url"]["url"].endswith("img2")
 
@@ -99,16 +99,16 @@ class TestBuildContent:
         assert result[0]["image_url"]["url"].endswith("img")
 
     def test_media_marker_preserved_by_apply_macros(self):
-        """Verify apply_macros does not strip {{media::x}} markers."""
+        """Verify apply_macros does not strip {{media:x}} markers."""
         from focus.core.macros import apply_macros
-        result = apply_macros("before {{media::2}} after", {})
-        assert result == "before {{media::2}} after"
+        result = apply_macros("before {{media:2}} after", {})
+        assert result == "before {{media:2}} after"
 
     async def test_structural_newlines_stripped_around_marker(self, monkeypatch):
         """Artifact newlines from the marker being on its own line are removed."""
         monkeypatch.setattr("focus.prompt_chain._load_media", self._mock_load_media)
         images = [{"id": "img", "image_path": "/fake/x.png", "mime_type": "image/png"}]
-        result = await _build_content("before\n{{media::1}}\nafter", images)
+        result = await _build_content("before\n{{media:1}}\nafter", images)
         assert len(result) == 3
         assert result[0] == {"type": "text", "text": "before"}
         assert result[1]["image_url"]["url"].endswith("img")
