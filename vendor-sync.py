@@ -7,6 +7,8 @@ Run `./vendor-sync.py` to refresh all vendor files.
 import hashlib
 import stat
 import sys
+import time
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -63,9 +65,9 @@ DOWNLOADS = {
         f"https://unpkg.com/idiomorph@{IDIOMORPH_VERSION}/dist/idiomorph-ext.min.js",
         f"Idiomorph v{IDIOMORPH_VERSION} + HTMX morph extension",
     ),
-    "inter.css": (
-        "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap",
-        "Inter font CSS",
+    "inter-variable.woff2": (
+        "https://unpkg.com/@fontsource-variable/inter@5.3.0/files/inter-latin-wght-normal.woff2",
+        "Inter Variable Font (Latin)",
     ),
 }
 
@@ -75,7 +77,7 @@ CHECKSUMS = {
     "cropper.min.js": "27f29dae3c6fa7a5f6126901f4d1f8cbbc36756196046aa7e97d2eae14131979",
     "htmx2.min.js": "71ea67185bfa8c98c39d31717c6fce5d852370fcdfd129db4543774d3145c0de",
     "idiomorph-ext.min.js": "a6437e55b1b6a07bc421f0d230266a39399b6826c6ed19e0ed9c63b707444a5f",
-    "inter.css": "34bd07407ad1de576cba1f67651fa31a8fe783e24a6e1817e08c24bdc54014f9",
+    "inter-variable.woff2": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62",
     "marked.umd.js": "1f0acde4c17e28e4fb233ab358de856bee2f6ac28c7c757a68e2e3725f0db848",
     "purify.min.js": "1009d4715549e1331c1702529ed924260e4c5b5d04e2eb94e2112398a6dd1aa3",
     "sortable.min.js": "bf4241bc73fef7f11c59a283a69fe8051cdd31c6d8ff5a2b9ba219e7831fcf76",
@@ -83,18 +85,34 @@ CHECKSUMS = {
 }
 
 
+def _red(text: str) -> str:
+    return f"\033[31m{text}\033[0m"
+
+
+def _yellow(text: str) -> str:
+    return f"\033[33m{text}\033[0m"
+
+
 def _warn_mismatch(mismatched: list) -> None:
-    print("Checksum mismatch:")
+    print(_yellow("Checksum mismatch:"))
     for key, expected, actual in mismatched:
         print(f"    {key}")
         print(f"      expected: {expected}")
         print(f"      actual:   {actual}")
 
 
-def _download(url: str, dest: Path) -> bytes:
+def _download(url: str) -> bytes:
     req = urllib.request.Request(url, headers={"User-Agent": "vendor-sync/1.0"})
-    with urllib.request.urlopen(req, timeout=120) as resp:
-        return resp.read()
+    last_err = None
+    for attempt in range(1, 4):
+        try:
+            with urllib.request.urlopen(req, timeout=120) as resp:
+                return resp.read()
+        except (urllib.error.URLError, OSError) as e:
+            last_err = e
+            if attempt < 3:
+                time.sleep(1 * attempt)
+    raise last_err
 
 
 def _hash_file(path: Path) -> str:
@@ -112,7 +130,7 @@ def check() -> int:
         missing.append("bin/tailwindcss-linux-x64")
 
     if missing:
-        print("Missing vendor files — run without --check to download:")
+        print(_red("Missing vendor files:"))
         for m in missing:
             print(f"  {m}")
         return 1
@@ -127,7 +145,6 @@ def check() -> int:
 
     if mismatched:
         _warn_mismatch(mismatched)
-        print("  Run without --check to re-download and update checksums.")
         return 1
 
     print("All vendor files present and checksums match")
@@ -147,8 +164,10 @@ def sync() -> int:
     name = "tailwindcss-linux-x64"
     print(f"  {name} ...", end=" ", flush=True)
     try:
-        data = _download(TAILWIND_URL, TAILWIND_DEST)
-        TAILWIND_DEST.write_bytes(data)
+        data = _download(TAILWIND_URL)
+        tmp = TAILWIND_DEST.with_suffix(".tmp")
+        tmp.write_bytes(data)
+        tmp.rename(TAILWIND_DEST)
         TAILWIND_DEST.chmod(TAILWIND_DEST.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
         actual = hashlib.sha256(data).hexdigest()
         expected = CHECKSUMS.get("bin/tailwindcss-linux-x64")
@@ -157,18 +176,20 @@ def sync() -> int:
         print(f"  {len(data):>8} bytes  Tailwind CSS CLI {TAILWIND_VERSION}")
         ok += 1
     except Exception as e:
-        print(f"  FAILED ({e})")
+        print(f"  {_red('FAILED')} ({e})")
         fail += 1
 
     for filename, (url, label) in DOWNLOADS.items():
         dest = VENDOR_DIR / filename
         print(f"  {filename} ...", end=" ", flush=True)
         try:
-            data = _download(url, dest)
+            data = _download(url)
             # Strip source map references (browsers warn on 404s for .map files we don't ship)
             if dest.suffix in (".js", ".css"):
                 data = data.replace(b"//# sourceMappingURL=", b"// ")
-            dest.write_bytes(data)
+            tmp = dest.with_suffix(".tmp")
+            tmp.write_bytes(data)
+            tmp.rename(dest)
             actual = hashlib.sha256(data).hexdigest()
             expected = CHECKSUMS.get(filename)
             if expected and actual != expected:
@@ -176,7 +197,7 @@ def sync() -> int:
             print(f"  {len(data):>8} bytes  {label}")
             ok += 1
         except Exception as e:
-            print(f"  FAILED ({e})")
+            print(f"  {_red('FAILED')} ({e})")
             fail += 1
 
     print()

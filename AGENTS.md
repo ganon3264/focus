@@ -32,7 +32,8 @@ static/
   js/modals/               # providers, edit-entity, char-edit, persona-edit
   js/ui/                   # theme-manager, list-manager, lightbox, scroll-manager, status-panel, confirm, modal, input-bar, media-utils, notifications
   js/utils/                # claude-cache, set-tracker
-  vendor/                  # htmx2, alpine, marked, purify, sortable, cropper, inter
+  vendor/                  # htmx2, alpine, marked, purify, sortable, cropper, inter-variable.woff2
+  inter.css                # @font-face referencing vendor/inter-variable.woff2 (committed)
 data/                      # focus.db, backups/, assets/
 ```
 

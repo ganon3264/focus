@@ -66,7 +66,8 @@ def test_template_asset_references(template_name):
 CRITICAL_ASSETS = [
     "style.css",
     "tailwind.css",
-    "vendor/inter.css",
+    "inter.css",
+    "vendor/inter-variable.woff2",
     "vendor/htmx2.min.js",
     "vendor/alpine.min.js",
     "vendor/alpine-collapse.min.js",
