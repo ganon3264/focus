@@ -65,6 +65,11 @@
   --role-assistant: #f59e0b;
 }
 
+html, body {
+  overflow: hidden;
+  height: 100%;
+}
+
 /* ── Reduced motion ─────────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -94,10 +99,6 @@
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-  }
-
-  html {
-    scrollbar-gutter: stable;
   }
 
   * {
@@ -167,7 +168,9 @@
   .app-shell {
     display: flex;
     height: 100vh;
+    width: 100vw;
     overflow: hidden;
+    position: relative;
   }
   .left-sidebar {
     width: var(--sidebar-width-left);
@@ -278,6 +281,10 @@
 
   /* Right Tab Collapse */
   .right-tab {
+    position: absolute;
+    right: 0;
+    top: 0;
+    height: 100%;
     width: 40px;
     background: var(--surface);
     border-left: 1px solid var(--border);
@@ -285,7 +292,6 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    flex-shrink: 0;
     transition: background var(--transition);
     z-index: 20;
     box-shadow: var(--shadow-sm);
@@ -297,6 +303,10 @@
 
   /* Left Tab Collapse */
   .left-tab {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
     width: 40px;
     background: var(--surface);
     border-right: 1px solid var(--border);
@@ -304,7 +314,6 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    flex-shrink: 0;
     transition: background var(--transition);
     z-index: 20;
     box-shadow: var(--shadow-sm);
