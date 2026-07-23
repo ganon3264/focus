@@ -6,21 +6,17 @@ import sqlite3
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from dataclasses import dataclass, field
 
 import aiosqlite
-from dataclasses import dataclass, field
 import tiktoken
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from focus.core.database import DB_PATH, get_db
 from focus.core.logger import get_logger
-from focus.core.message_render import (
-    _escape_html,
-    _extract_think_blocks,
-    strip_think_blocks,
-)
 from focus.core.models import ItemizerRequest, StreamRequest
+from focus.core.segments import build_segments
 from focus.core.utils import (
     AUDIO_TOKEN_ESTIMATE,
     _image_dims_from_data_url,
@@ -313,8 +309,9 @@ class _GenAccumulator:
     """Mutable state shared by both stream and non-stream generation paths.
 
     Tracks accumulated text, reasoning, slice boundaries at tool iterations,
-    and tool-call groups so that ``_build_segments()`` can reconstruct the
-    iteration-by-iteration rendering.
+    and tool-call groups so that ``build_segments()`` (from
+    ``focus/core/segments.py``) can reconstruct the iteration-by-iteration
+    rendering.
     """
     text: list[str] = field(default_factory=list)
     reasoning: list[str] = field(default_factory=list)
@@ -359,7 +356,7 @@ class _GenAccumulator:
         self.reasoning_slices.append(len(self.reasoning))
 
     def build_segments(self) -> list[dict]:
-        return _build_segments(
+        return build_segments(
             self.text_slices, self.reasoning_slices,
             self.text, self.reasoning,
             tool_call_groups=self.tool_groups if self.tool_groups else None,
@@ -906,67 +903,6 @@ async def _execute_tool_round(
             await conn.commit()
 
     return results
-
-
-
-def _build_segments(
-    text_slices: list[int],
-    reasoning_slices: list[int],
-    final_text: list[str],
-    final_reasoning: list[str],
-    tool_call_groups: list[list[dict]] | None = None,
-) -> list[dict]:
-    """Build segment list from per-iteration text/reasoning ranges.
-
-    When tool_call_groups are provided, each ``tool_boundary`` segment
-    carries its own ``tool_calls`` list so the template can render calls
-    per iteration instead of dumping all calls at the first boundary.
-
-    Returns a flat list of segment dicts matching
-    ``render_message_segments()`` output format:
-      {"type": "text", "content": str}
-      {"type": "reasoning", "html": str, "index": int}
-      {"type": "tool_boundary"}           (legacy, no tool_calls)
-      {"type": "tool_boundary", "tool_calls": [...]}  (new)
-    """
-    segments: list[dict] = []
-    think_idx = 0
-    prev_t = 0
-    prev_r = 0
-
-    for i in range(len(text_slices)):
-        t_end = text_slices[i]
-        r_end = reasoning_slices[i]
-
-        # Reasoning from the separate field (if any for this iteration)
-        if r_end > prev_r:
-            r_text = "".join(final_reasoning[prev_r:r_end]).strip()
-            if r_text:
-                segments.append({
-                    "type": "reasoning",
-                    "html": _escape_html(r_text),
-                    "index": think_idx,
-                })
-                think_idx += 1
-
-        if t_end > prev_t:
-            t_text = "".join(final_text[prev_t:t_end])
-            think_idx = _extract_think_blocks(t_text, think_idx, segments)
-            clean = strip_think_blocks(t_text)
-            if clean.strip():
-                segments.append({"type": "text", "content": clean})
-
-        # Tool boundary between iterations (except the last)
-        if i < len(text_slices) - 1:
-            seg: dict = {"type": "tool_boundary"}
-            if tool_call_groups and i < len(tool_call_groups):
-                seg["tool_calls"] = tool_call_groups[i]
-            segments.append(seg)
-
-        prev_t = t_end
-        prev_r = r_end
-
-    return segments
 
 
 
