@@ -9,7 +9,6 @@ import aiosqlite
 
 from focus.core.card_parser import safe_load_card
 from focus.core.database import DB_PATH
-from focus.core.models import StreamRequest
 from focus.core.utils import SUFFIX_MIME_MAP, SUFFIX_MIME_MAP_IMAGES_ONLY, now_iso
 
 logger = logging.getLogger("focus.crud")
@@ -540,26 +539,4 @@ async def save_usage(
         logger.exception("Failed to persist generation_usage for message_id=%s", message_id)
 
 
-async def save_or_rollback(
-    body: StreamRequest,
-    asst_msg_id: str,
-    variant_index: int,
-    variant_id: str,
-    final_text: list[str],
-    final_reasoning: list[str],
-    prov_dict: dict,
-    segments_json: str | None = None,
-    db: aiosqlite.Connection | None = None,
-) -> None:
-    """On error or cancellation, save any partial text/reasoning or
-    rollback the empty assistant slot so the DB stays consistent."""
-    if final_text or final_reasoning:
-        await upsert_variant(
-            body.chat_id, asst_msg_id, variant_index,
-            "".join(final_text), body.regenerate, prov_dict.get("model", ""),
-            variant_id=variant_id,
-            reasoning="".join(final_reasoning).strip() or None,
-            segments_json=segments_json, db=db,
-        )
-    elif not body.regenerate:
-        await rollback_assistant(asst_msg_id, db=db)
+

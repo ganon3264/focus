@@ -5,6 +5,7 @@ import logging
 import uuid
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
+from typing import Any
 
 import aiosqlite
 import tiktoken
@@ -21,7 +22,7 @@ from focus.core.utils import (
     estimate_image_tokens,
     resolve_secret_key,
 )
-from focus.crud import rollback_assistant, save_or_rollback, save_usage, upsert_variant
+from focus.crud import rollback_assistant, save_usage, upsert_variant
 from focus.providers import create_provider
 from focus.routers.stream_utils import (
     get_prompt_context,
@@ -42,6 +43,29 @@ logger = get_logger("routers.stream")
 
 # Track active streaming generations for graceful stop (message_id → Event)
 _active_generations: dict[str, asyncio.Event] = {}
+
+
+@dataclass
+class _GenCtx:
+    """Bundles all generation-scoped state so we don't thread 14 params."""
+    body: StreamRequest
+    provider: Any
+    prov_dict: dict
+    messages: list[dict]
+    gen_kwargs: dict
+    asst_msg_id: str
+    next_variant_index: int
+    user_msg_id: str | None
+    tools_enabled: bool
+    tools_by_name: dict
+    tool_read_only: bool
+    disable_multimodal: bool
+    stop_event: asyncio.Event | None
+    db: aiosqlite.Connection | None
+
+
+class _SaveFailed(Exception):
+    """Raised when the final variant save fails during a successful generation."""
 
 
 async def _load_provider(
@@ -207,6 +231,7 @@ class _GenAccumulator:
     reasoning_slices: list[int] = field(default_factory=list)
     tool_groups: list[list[dict]] = field(default_factory=list)
     variant_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    finalized: bool = False
 
     def add_text(self, chunk: str) -> None:
         self.text.append(chunk)
@@ -258,291 +283,196 @@ class _GenAccumulator:
         return r or None
 
 
-async def _stream_generate(
-    body: StreamRequest,
-    provider,
-    prov_dict: dict,
-    messages: list[dict],
-    gen_kwargs: dict,
-    asst_msg_id: str,
-    next_variant_index: int,
-    user_msg_id: str | None,
-    tools_enabled: bool,
-    tools_by_name: dict,
-    tool_read_only: bool,
-    disable_multimodal: bool = False,
-    stop_event: asyncio.Event | None = None,
-    db: aiosqlite.Connection | None = None,
-) -> AsyncIterator[str]:
+async def _run_generation_with_prefill(
+    ctx: _GenCtx, variant_id: str
+) -> AsyncIterator[dict]:
+    """Emit prefill events if provider doesn't echo them, then delegate to ``_run_generation``."""
+    if not ctx.provider.echoes_prefill:
+        pref_r = prefill_reasoning(ctx.body, ctx.messages)
+        if pref_r:
+            yield {"type": "reasoning", "text": pref_r}
+        if ctx.body.continue_text:
+            yield {"type": "token", "text": ctx.body.continue_text}
+
+    async for event in _run_generation(
+        ctx.provider, ctx.messages, ctx.gen_kwargs, ctx.tools_enabled,
+        ctx.tools_by_name, ctx.tool_read_only, ctx.disable_multimodal,
+        ctx.body.chat_id, ctx.asst_msg_id, variant_id,
+        stop_event=ctx.stop_event, db=ctx.db,
+    ):
+        yield event
+
+
+async def _finalize_gen(ctx: _GenCtx, acc: _GenAccumulator, *, success: bool = False) -> None:
+    """Idempotent final save. Persists variant or rolls back the empty assistant slot."""
+    if acc.finalized:
+        return
+    acc.finalized = True
+    acc.close_iteration()
+    segments = acc.build_segments()
+    has_content = bool(acc.full_text() or acc.full_reasoning())
+
+    if not success and not has_content:
+        if not ctx.body.regenerate:
+            await rollback_assistant(ctx.asst_msg_id, db=ctx.db)
+        return
+
+    try:
+        await upsert_variant(
+            ctx.body.chat_id, ctx.asst_msg_id, ctx.next_variant_index,
+            acc.full_text(), ctx.body.regenerate, ctx.prov_dict.get("model", ""),
+            variant_id=acc.variant_id, reasoning=acc.full_reasoning(),
+            segments_json=json.dumps(segments) if segments else None,
+            db=ctx.db,
+        )
+    except Exception as e:
+        logger.exception("Failed to save variant for message_id=%s", ctx.asst_msg_id)
+        if not ctx.body.regenerate:
+            await rollback_assistant(ctx.asst_msg_id, db=ctx.db)
+        if success:
+            raise _SaveFailed(e) from e
+
+
+async def _handle_event(
+    acc: _GenAccumulator, event: dict, ctx: _GenCtx
+) -> dict | None:
+    """Reduce one event from ``_run_generation``.
+
+    Accumulates into *acc*, checkpoints to DB, returns the SSE payload
+    the transport should send (``None`` for internal-only events like usage).
+    """
+    t = event["type"]
+
+    if t == "token":
+        acc.add_text(event["text"])
+        if len(acc.text) % 5 == 0:
+            await upsert_variant(
+                ctx.body.chat_id, ctx.asst_msg_id, ctx.next_variant_index,
+                acc.full_text(), ctx.body.regenerate, ctx.prov_dict.get("model", ""),
+                variant_id=acc.variant_id, reasoning=acc.full_reasoning(),
+                db=ctx.db,
+            )
+        return {"token": event["text"]}
+
+    if t == "reasoning":
+        acc.add_reasoning(event["text"])
+        if len(acc.reasoning) % 5 == 0:
+            await upsert_variant(
+                ctx.body.chat_id, ctx.asst_msg_id, ctx.next_variant_index,
+                acc.full_text(), ctx.body.regenerate, ctx.prov_dict.get("model", ""),
+                variant_id=acc.variant_id, reasoning=acc.full_reasoning(),
+                db=ctx.db,
+            )
+        return {"type": "reasoning", "text": event["text"]}
+
+    if t == "tool_calls":
+        acc.begin_tool_iteration(event["calls"])
+        await upsert_variant(
+            ctx.body.chat_id, ctx.asst_msg_id, ctx.next_variant_index,
+            acc.full_text(), ctx.body.regenerate, ctx.prov_dict.get("model", ""),
+            variant_id=acc.variant_id, reasoning=acc.full_reasoning(),
+            db=ctx.db,
+        )
+        return {
+            "type": "tool_calls",
+            "calls": [
+                {"id": c.id, "name": c.name, "arguments": c.arguments}
+                for c in event["calls"]
+            ],
+        }
+
+    if t == "tool_result":
+        acc.update_tool_result(
+            event["call_id"], event["result"],
+            event["is_error"], event.get("image_url"),
+        )
+        return {
+            "type": "tool_result",
+            "call_id": event["call_id"],
+            "name": event["name"],
+            "result": event["result"],
+            "is_error": event["is_error"],
+            "image_url": event.get("image_url") or None,
+        }
+
+    if t == "usage":
+        await save_usage(
+            ctx.body.chat_id, ctx.asst_msg_id, acc.variant_id,
+            ctx.prov_dict.get("id"), ctx.prov_dict.get("type"),
+            ctx.prov_dict.get("model", ""),
+            event["usage"],
+            tool_iteration=len(acc.tool_groups), db=ctx.db,
+        )
+        return None
+
+    if t == "done":
+        await _finalize_gen(ctx, acc, success=True)
+        return {
+            "done": True,
+            "message_id": ctx.asst_msg_id,
+            "variant_index": ctx.next_variant_index,
+        }
+
+    if t == "error":
+        await _finalize_gen(ctx, acc)
+        return {"error": event["error"]}
+
+    return None
+
+
+async def _stream_generate(ctx: _GenCtx) -> AsyncIterator[str]:
     """Async generator that yields SSE-encoded lines for a streaming response."""
     acc = _GenAccumulator()
 
-    _active_generations[asst_msg_id] = stop_event or asyncio.Event()
+    _active_generations[ctx.asst_msg_id] = ctx.stop_event or asyncio.Event()
 
-    start_data = json.dumps({
-        'type': 'start',
-        'message_id': asst_msg_id,
-        'user_message_id': user_msg_id if not body.regenerate else None,
-    })
-    yield f"data: {start_data}\n\n"
+    yield f"data: {json.dumps({'type': 'start', 'message_id': ctx.asst_msg_id, 'user_message_id': None if ctx.body.regenerate else ctx.user_msg_id})}\n\n"
 
     try:
-        # Emit prefill as synthetic events
-        if not provider.echoes_prefill:
-            pref_reasoning = prefill_reasoning(body, messages)
-            if pref_reasoning:
-                acc.add_reasoning(pref_reasoning)
-                yield f"data: {json.dumps({'type': 'reasoning', 'text': pref_reasoning})}\n\n"
-            if body.continue_text:
-                acc.add_text(body.continue_text)
-                yield f"data: {json.dumps({'token': body.continue_text})}\n\n"
-
-        async for event in _run_generation(
-            provider, messages, gen_kwargs, tools_enabled,
-            tools_by_name, tool_read_only, disable_multimodal,
-            body.chat_id, asst_msg_id, acc.variant_id,
-            stop_event=stop_event, db=db,
-        ):
-            if event["type"] == "token":
-                acc.add_text(event["text"])
-                if len(acc.text) % 5 == 0:
-                    await upsert_variant(
-                        body.chat_id, asst_msg_id, next_variant_index,
-                        acc.full_text(), body.regenerate, prov_dict.get("model", ""),
-                        variant_id=acc.variant_id,
-                        reasoning=acc.full_reasoning(),
-                        db=db,
-                    )
-                yield f"data: {json.dumps({'token': event['text']})}\n\n"
-
-            elif event["type"] == "reasoning":
-                acc.add_reasoning(event["text"])
-                if len(acc.reasoning) % 5 == 0:
-                    await upsert_variant(
-                        body.chat_id, asst_msg_id, next_variant_index,
-                        acc.full_text(), body.regenerate, prov_dict.get("model", ""),
-                        variant_id=acc.variant_id,
-                        reasoning=acc.full_reasoning(),
-                        db=db,
-                    )
-                yield f"data: {json.dumps({'type': 'reasoning', 'text': event['text']})}\n\n"
-
-            elif event["type"] == "tool_calls":
-                acc.begin_tool_iteration(event['calls'])
-                tc_data = json.dumps({
-                    'type': 'tool_calls',
-                    'calls': [
-                        {'id': tc.id, 'name': tc.name, 'arguments': tc.arguments}
-                        for tc in event['calls']
-                    ],
-                })
-                yield f"data: {tc_data}\n\n"
-
-            elif event["type"] == "tool_result":
-                acc.update_tool_result(
-                    event['call_id'], event['result'],
-                    event['is_error'], event.get('image_url'),
-                )
-                tr_data = json.dumps({
-                    'type': 'tool_result',
-                    'call_id': event['call_id'],
-                    'name': event['name'],
-                    'result': event['result'],
-                    'is_error': event['is_error'],
-                    'image_url': event.get('image_url') or None,
-                })
-                yield f"data: {tr_data}\n\n"
-
-            elif event["type"] == "usage":
-                await save_usage(
-                    body.chat_id, asst_msg_id, acc.variant_id,
-                    prov_dict.get("id"), prov_dict.get("type"),
-                    prov_dict.get("model", ""),
-                    event["usage"],
-                    tool_iteration=len(acc.tool_groups), db=db,
-                )
-
-            elif event["type"] == "done":
-                acc.close_iteration()
-                segments = acc.build_segments()
-
-                try:
-                    await upsert_variant(
-                        body.chat_id, asst_msg_id, next_variant_index,
-                        acc.full_text(), body.regenerate, prov_dict.get("model", ""),
-                        variant_id=acc.variant_id, reasoning=acc.full_reasoning(),
-                        segments_json=json.dumps(segments) if segments else None,
-                        db=db,
-                    )
-                except Exception as e:
-                    logger.exception("Failed to save stream result for chat_id=%s", body.chat_id)
-                    if not body.regenerate:
-                        await rollback_assistant(asst_msg_id, db=db)
-                    yield f"data: {json.dumps({'error': f'Generation succeeded but save failed: {_format_error(e)}'})}\n\n"
-                    return
-
-                done_data = json.dumps({
-                    'done': True,
-                    'message_id': asst_msg_id,
-                    'variant_index': next_variant_index,
-                })
-                yield f"data: {done_data}\n\n"
+        async for event in _run_generation_with_prefill(ctx, acc.variant_id):
+            payload = await _handle_event(acc, event, ctx)
+            if payload is not None:
+                yield f"data: {json.dumps(payload)}\n\n"
+            if event["type"] in ("done", "error"):
                 return
-
-            elif event["type"] == "error":
-                acc.close_iteration()
-                segments = acc.build_segments()
-                await save_or_rollback(
-                    body, asst_msg_id, next_variant_index, acc.variant_id,
-                    acc.text, acc.reasoning, prov_dict,
-                    segments_json=json.dumps(segments) if segments else None,
-                    db=db,
-                )
-                yield f"data: {json.dumps({'error': event['error']})}\n\n"
-                return
+    except _SaveFailed as e:
+        yield f"data: {json.dumps({'error': f'Generation succeeded but save failed: {_format_error(e)}'})}\n\n"
     except GeneratorExit:
-        acc.close_iteration()
-        segments = acc.build_segments()
-        await save_or_rollback(
-            body, asst_msg_id, next_variant_index, acc.variant_id,
-            acc.text, acc.reasoning, prov_dict,
-            segments_json=json.dumps(segments) if segments else None,
-            db=db,
-        )
-        return
+        await _finalize_gen(ctx, acc)
     except asyncio.CancelledError:
-        acc.close_iteration()
-        segments = acc.build_segments()
-        await save_or_rollback(
-            body, asst_msg_id, next_variant_index, acc.variant_id,
-            acc.text, acc.reasoning, prov_dict,
-            segments_json=json.dumps(segments) if segments else None,
-            db=db,
-        )
+        await _finalize_gen(ctx, acc)
         raise
     finally:
-        _active_generations.pop(asst_msg_id, None)
+        _active_generations.pop(ctx.asst_msg_id, None)
 
 
 
-async def _non_stream_generate(
-    body: StreamRequest,
-    provider,
-    prov_dict: dict,
-    messages: list[dict],
-    gen_kwargs: dict,
-    asst_msg_id: str,
-    next_variant_index: int,
-    user_msg_id: str | None,
-    tools_enabled: bool,
-    tools_by_name: dict,
-    tool_read_only: bool,
-    disable_multimodal: bool = False,
-    stop_event: asyncio.Event | None = None,
-    db: aiosqlite.Connection | None = None,
-) -> JSONResponse:
+async def _non_stream_generate(ctx: _GenCtx) -> JSONResponse:
     """Run generation in non-streaming mode and return a JSON response."""
     acc = _GenAccumulator()
 
-    _active_generations[asst_msg_id] = stop_event or asyncio.Event()
+    _active_generations[ctx.asst_msg_id] = ctx.stop_event or asyncio.Event()
     try:
-        async for event in _run_generation(
-            provider, messages, gen_kwargs, tools_enabled,
-            tools_by_name, tool_read_only, disable_multimodal,
-            body.chat_id, asst_msg_id, acc.variant_id,
-            stop_event=stop_event, db=db,
-        ):
-            if event["type"] == "token":
-                acc.add_text(event["text"])
-            elif event["type"] == "reasoning":
-                acc.add_reasoning(event["text"])
-            elif event["type"] == "tool_calls":
-                acc.begin_tool_iteration(event['calls'])
-            elif event["type"] == "tool_result":
-                acc.update_tool_result(
-                    event['call_id'], event['result'],
-                    event['is_error'], event.get('image_url'),
-                )
-            elif event["type"] == "usage":
-                await save_usage(
-                    body.chat_id, asst_msg_id, acc.variant_id,
-                    prov_dict.get("id"), prov_dict.get("type"),
-                    prov_dict.get("model", ""),
-                    event["usage"],
-                    tool_iteration=len(acc.tool_groups), db=db,
-                )
-            elif event["type"] == "error":
-                acc.close_iteration()
-                segments = acc.build_segments()
-                if acc.full_text() or acc.full_reasoning():
-                    await upsert_variant(
-                        body.chat_id, asst_msg_id, next_variant_index,
-                        acc.full_text(), body.regenerate, prov_dict.get("model", ""),
-                        variant_id=acc.variant_id,
-                        reasoning=acc.full_reasoning(),
-                        segments_json=json.dumps(segments) if segments else None,
-                        db=db,
-                    )
-                elif not body.regenerate:
-                    await rollback_assistant(asst_msg_id, db=db)
+        async for event in _run_generation_with_prefill(ctx, acc.variant_id):
+            await _handle_event(acc, event, ctx)
+            if event["type"] == "error":
                 raise HTTPException(500, event["error"])
+    except _SaveFailed as e:
+        raise HTTPException(500, f"Generation succeeded but save failed: {_format_error(e)}")
     except asyncio.CancelledError:
-        if acc.full_text() or acc.full_reasoning():
-            await upsert_variant(
-                body.chat_id, asst_msg_id, next_variant_index,
-                acc.full_text(), body.regenerate, prov_dict.get("model", ""),
-                variant_id=acc.variant_id,
-                reasoning=acc.full_reasoning(),
-                db=db,
-            )
-        elif not body.regenerate:
-            await rollback_assistant(asst_msg_id, db=db)
+        await _finalize_gen(ctx, acc)
         raise HTTPException(499, "Request cancelled")
     else:
-        acc.close_iteration()
-
-        # Apply prefill (insert at position 0) and adjust slice indices
-        prefill_text_len = 0
-        prefill_reasoning_len = 0
-        if not provider.echoes_prefill:
-            if body.continue_text:
-                acc.text.insert(0, body.continue_text)
-                prefill_text_len = 1
-            pref_r = prefill_reasoning(body, messages)
-            if pref_r:
-                acc.reasoning.insert(0, pref_r)
-                prefill_reasoning_len = 1
-        if prefill_text_len:
-            acc.text_slices = [s + prefill_text_len for s in acc.text_slices]
-        if prefill_reasoning_len:
-            acc.reasoning_slices = [s + prefill_reasoning_len for s in acc.reasoning_slices]
-
-        segments = acc.build_segments()
-
-        try:
-            await upsert_variant(
-                body.chat_id, asst_msg_id, next_variant_index,
-                acc.full_text(), body.regenerate, prov_dict.get("model", ""),
-                variant_id=acc.variant_id, reasoning=acc.full_reasoning(),
-                segments_json=json.dumps(segments) if segments else None,
-                db=db,
-            )
-        except Exception as e:
-            logger.exception("Failed to save non-stream result for chat_id=%s", body.chat_id)
-            if not body.regenerate:
-                await rollback_assistant(asst_msg_id, db=db)
-            raise HTTPException(500, f"Generation succeeded but save failed: {_format_error(e)}")
-
         return JSONResponse({
             "done": True,
-            "message_id": asst_msg_id,
-            "variant_index": next_variant_index,
-            "user_message_id": user_msg_id if not body.regenerate else None,
+            "message_id": ctx.asst_msg_id,
+            "variant_index": ctx.next_variant_index,
+            "user_message_id": None if ctx.body.regenerate else ctx.user_msg_id,
             "full_text": acc.full_text(),
             "full_reasoning": acc.full_reasoning(),
         })
     finally:
-        _active_generations.pop(asst_msg_id, None)
+        _active_generations.pop(ctx.asst_msg_id, None)
 
 
 @router.post("/stream")
@@ -621,22 +551,21 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
     if logger.isEnabledFor(logging.DEBUG):
         _log_outbound_payload(messages, gen_kwargs, prov_dict)
 
+    gctx = _GenCtx(
+        body=body, provider=provider, prov_dict=prov_dict,
+        messages=messages, gen_kwargs=gen_kwargs,
+        asst_msg_id=asst_msg_id, next_variant_index=next_variant_index,
+        user_msg_id=user_msg_id, tools_enabled=tools_enabled,
+        tools_by_name=tools_by_name, tool_read_only=tool_read_only,
+        disable_multimodal=disable_multimodal, stop_event=stop_event, db=db,
+    )
+
     # Dispatch
     if not use_stream:
-        return await _non_stream_generate(
-            body, provider, prov_dict, messages, gen_kwargs,
-            asst_msg_id, next_variant_index, user_msg_id,
-            tools_enabled, tools_by_name, tool_read_only,
-            disable_multimodal, stop_event=stop_event, db=db,
-        )
+        return await _non_stream_generate(gctx)
 
     return StreamingResponse(
-        _stream_generate(
-            body, provider, prov_dict, messages, gen_kwargs,
-            asst_msg_id, next_variant_index, user_msg_id,
-            tools_enabled, tools_by_name, tool_read_only,
-            disable_multimodal, stop_event=stop_event, db=db,
-        ),
+        _stream_generate(gctx),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
