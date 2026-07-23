@@ -133,11 +133,12 @@ class TestStreamAbortBehavior:
         chat = await create_chat(client, char["id"], persona["id"], preset["id"])
         provider_id = await self._make_provider(client)
 
+        import focus.crud
         import focus.providers
         from focus.routers import stream as stream_module
 
         rollback_calls: list[str | None] = []
-        original_rollback = stream_module._rollback_assistant
+        original_rollback = focus.crud.rollback_assistant
 
         async def tracking_rollback(asst_msg_id, **kwargs):
             rollback_calls.append(asst_msg_id)
@@ -146,7 +147,7 @@ class TestStreamAbortBehavior:
         original_provider = focus.providers.create_provider
         focus.providers.create_provider = lambda row: _FailingProvider()
         stream_module.create_provider = focus.providers.create_provider
-        stream_module._rollback_assistant = tracking_rollback
+        focus.crud.rollback_assistant = tracking_rollback
         try:
             resp = await client.post(
                 "/api/stream",
@@ -162,7 +163,7 @@ class TestStreamAbortBehavior:
         finally:
             focus.providers.create_provider = original_provider
             stream_module.create_provider = original_provider
-            stream_module._rollback_assistant = original_rollback
+            focus.crud.rollback_assistant = original_rollback
 
         events = await _consume_sse_events(resp)
         assert any(e.get("error") for e in events), (
@@ -190,15 +191,16 @@ class TestStreamAbortBehavior:
         db_path = _db_path(tmp_test_dir)
 
         await _insert_message(db_path, chat_id=chat["id"], role="user", position=0, content="Hi")
-        old_asst_id, _ = await _insert_message(
+        old_asst_id, _ =         await _insert_message(
             db_path, chat_id=chat["id"], role="assistant", position=1, content="Old"
         )
 
+        import focus.crud
         import focus.providers
         from focus.routers import stream as stream_module
 
         rollback_calls: list[str | None] = []
-        original_rollback = stream_module._rollback_assistant
+        original_rollback = focus.crud.rollback_assistant
 
         async def tracking_rollback(asst_msg_id, **kwargs):
             rollback_calls.append(asst_msg_id)
@@ -207,7 +209,7 @@ class TestStreamAbortBehavior:
         original_provider = focus.providers.create_provider
         focus.providers.create_provider = lambda row: _FailingProvider()
         stream_module.create_provider = focus.providers.create_provider
-        stream_module._rollback_assistant = tracking_rollback
+        focus.crud.rollback_assistant = tracking_rollback
         try:
             resp = await client.post(
                 "/api/stream",
@@ -223,7 +225,7 @@ class TestStreamAbortBehavior:
         finally:
             focus.providers.create_provider = original_provider
             stream_module.create_provider = original_provider
-            stream_module._rollback_assistant = original_rollback
+            focus.crud.rollback_assistant = original_rollback
 
         events = await _consume_sse_events(resp)
         assert any(e.get("error") for e in events), (
@@ -264,6 +266,7 @@ class TestStreamAbortBehavior:
 
         assert await _count_variants(db_path, old_asst_id) == 2
 
+        import focus.crud
         import focus.providers
         from focus.routers import stream as stream_module
 
@@ -271,13 +274,13 @@ class TestStreamAbortBehavior:
             return None
 
         original_provider = focus.providers.create_provider
-        original_rollback = stream_module._rollback_assistant
+        original_rollback = focus.crud.rollback_assistant
         focus.providers.create_provider = lambda row: _FailingProvider()
         stream_module.create_provider = focus.providers.create_provider
         # Replace _rollback_assistant with a no-op for regenerate (which it
         # shouldn't be called for anyway). The real rollback uses the
         # production DB_PATH so it would touch the wrong database.
-        stream_module._rollback_assistant = _no_rollback
+        focus.crud.rollback_assistant = _no_rollback
         try:
             resp = await client.post(
                 "/api/stream",
@@ -293,7 +296,7 @@ class TestStreamAbortBehavior:
         finally:
             focus.providers.create_provider = original_provider
             stream_module.create_provider = original_provider
-            stream_module._rollback_assistant = original_rollback
+            focus.crud.rollback_assistant = original_rollback
 
         events = await _consume_sse_events(resp)
         assert any(e.get("error") for e in events), (
