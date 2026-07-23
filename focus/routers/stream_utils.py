@@ -1,4 +1,5 @@
 import asyncio
+import html
 import json
 import logging
 import uuid
@@ -93,6 +94,27 @@ async def _append_history_with_tool_calls(
     """Append a history entry for *row*, potentially followed by synthetic
     tool-role messages if the original assistant message had tool_calls."""
     content_text = row["content"].strip()
+
+    # Attach tool_calls if this assistant message had them (keyed by variant_id)
+    tcs = tool_calls_by_variant.get(row["variant_id"], [])
+
+    # Split path: when segments carry per-iteration tool boundaries, rebuild
+    # the exact generation order (assistant text -> tool_calls -> tool results
+    # -> extra user messages -> assistant reaction) instead of merging all
+    # iterations into one assistant entry.
+    if tcs and row["role"] == "assistant":
+        segments = None
+        if row.get("segments_json"):
+            try:
+                segments = json.loads(row["segments_json"])
+            except (TypeError, ValueError):
+                segments = None
+        if segments and any(
+            s.get("type") == "tool_boundary" and s.get("tool_calls") for s in segments
+        ):
+            _append_segmented_tool_history(history, segments, tcs)
+            return
+
     content = await _build_content(content_text, msg_attachments.get(row["variant_id"], []))
 
     entry: dict = {
@@ -102,8 +124,6 @@ async def _append_history_with_tool_calls(
     if row["role"] == "assistant" and row.get("reasoning"):
         entry["reasoning"] = row["reasoning"]
 
-    # Attach tool_calls if this assistant message had them (keyed by variant_id)
-    tcs = tool_calls_by_variant.get(row["variant_id"], [])
     if tcs and row["role"] == "assistant":
         entry["tool_calls"] = [
             {
@@ -119,18 +139,88 @@ async def _append_history_with_tool_calls(
 
     history.append(entry)
 
-    # Insert synthetic tool-role messages after the assistant message
+    # Insert synthetic tool-role messages after the assistant message,
+    # interleaved with any extra_message user messages (e.g. images)
     for tc in tcs:
-        history.append({
-            "role": "tool",
-            "tool_call_id": tc["id"],
-            "content": tc["result"] or "",
-        })
+        _append_tool_messages(history, tc)
 
-    # Reconstruct extra_message user messages for tool calls with images
-    for tc in tcs:
-        if tc.get("extra_message_json"):
-            history.append(json.loads(tc["extra_message_json"]))
+
+def _tool_calls_payload(tc: dict) -> dict:
+    return {
+        "id": tc["id"],
+        "type": "function",
+        "function": {
+            "name": tc["tool_name"],
+            "arguments": tc["arguments"],
+        },
+    }
+
+
+def _append_tool_messages(history: list, tc: dict) -> None:
+    """Append a synthetic tool-role message for *tc*, followed by its
+    extra_message user message (e.g. a tool-returned image) if present."""
+    history.append({
+        "role": "tool",
+        "tool_call_id": tc["id"],
+        "content": tc["result"] or "",
+    })
+    if tc.get("extra_message_json"):
+        history.append(json.loads(tc["extra_message_json"]))
+
+
+def _append_segmented_tool_history(history: list, segments: list, tcs: list) -> None:
+    """Rebuild per-iteration history from stored segments.
+
+    Each ``tool_boundary`` segment with ``tool_calls`` closes an assistant
+    chunk; the final chunk (the post-tool reaction) becomes a plain assistant
+    entry. Reasoning segments store escaped HTML — unescaped here, which is
+    the exact inverse of ``_escape_html`` in message_render.py.
+
+    Segment calls carry the *provider* call id while ``tool_calls`` rows use
+    a local uuid as PK, so calls are matched to rows by consumption order
+    (boundaries are in generation order; rows are loaded ``ORDER BY
+    created_at``), validated by tool name.
+    """
+    ordered = list(tcs)  # already ORDER BY created_at from _get_history
+    pos = 0
+    text_parts: list[str] = []
+    reasoning_parts: list[str] = []
+
+    def flush(group: list | None) -> None:
+        text = "".join(text_parts).strip()
+        reasoning = "".join(reasoning_parts).strip()
+        if not text and not reasoning and not group:
+            return
+        entry: dict = {"role": "assistant", "content": text}
+        if reasoning:
+            entry["reasoning"] = reasoning
+        if group:
+            entry["tool_calls"] = [_tool_calls_payload(tc) for tc in group]
+        history.append(entry)
+        for tc in group or []:
+            _append_tool_messages(history, tc)
+        text_parts.clear()
+        reasoning_parts.clear()
+
+    for seg in segments:
+        seg_type = seg.get("type")
+        if seg_type == "text":
+            text_parts.append(seg.get("content", ""))
+        elif seg_type == "reasoning":
+            reasoning_parts.append(html.unescape(seg.get("html", "")))
+        elif seg_type == "tool_boundary" and seg.get("tool_calls"):
+            calls = seg["tool_calls"]
+            group = ordered[pos:pos + len(calls)]
+            pos += len(group)
+            for call, tc in zip(calls, group):
+                seg_name = (call.get("function") or {}).get("name")
+                if seg_name and seg_name != tc["tool_name"]:
+                    logger.warning(
+                        "tool_calls/segment mismatch: segment %s vs row %s — order drift?",
+                        seg_name, tc["tool_name"],
+                    )
+            flush(group)
+    flush(None)
 
 
 async def get_prompt_context(

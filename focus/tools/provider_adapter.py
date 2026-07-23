@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from focus.tools import ToolResult, ToolSpec
+from focus.tools import ToolSpec
 
 
 def to_provider_tools(tools: list[ToolSpec]) -> list[dict]:
@@ -29,9 +29,4 @@ def to_provider_tools(tools: list[ToolSpec]) -> list[dict]:
 
 
 
-def to_provider_tool_results(results: list[ToolResult]) -> list[dict]:
-    """Convert ToolResult list → tool result messages."""
-    return [
-        {"role": "tool", "tool_call_id": r.call_id, "content": r.content}
-        for r in results
-    ]
+

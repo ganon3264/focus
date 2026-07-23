@@ -3,7 +3,10 @@ from __future__ import annotations
 import base64
 import os
 import subprocess
+from io import BytesIO
 from pathlib import Path
+
+from PIL import Image
 
 from focus.prompt_chain import _ensure_compressed_sync
 from focus.tools import ToolParam, ToolSpec
@@ -64,7 +67,9 @@ def read_image(path: str) -> dict:
     compressed_path, out_mime = _ensure_compressed_sync(path, mime)
     data = compressed_path.read_bytes()
     b64 = base64.b64encode(data).decode("ascii")
-    return {"image": {"base64": b64, "mime": out_mime, "path": path}}
+    with Image.open(BytesIO(data)) as img:
+        w, h = img.size
+    return {"image": {"base64": b64, "mime": out_mime, "path": path, "width": w, "height": h}}
 
 
 # ── Tool registry ─────────────────────────────────────────────────────────────

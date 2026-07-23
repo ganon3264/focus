@@ -215,6 +215,10 @@ def _merge_consecutive(messages: list[dict]) -> list[dict]:
             if msg.get("role") == "tool" or last.get("role") == "tool":
                 result.append(dict(msg))
                 continue
+            # Never merge internal (tool-injected) user messages with real ones
+            if msg.get("internal") or last.get("internal"):
+                result.append(dict(msg))
+                continue
             merged_extra = {}
             for k, v in last.items():
                 if k not in ("role", "content"):

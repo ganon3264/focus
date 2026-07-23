@@ -2,6 +2,7 @@ import asyncio
 import copy
 import json
 import logging
+import sqlite3
 import uuid
 from collections.abc import AsyncIterator
 
@@ -40,10 +41,7 @@ from focus.tools import (
     extract_image_url,
 )
 from focus.tools.builtin import get_all_tools
-from focus.tools.provider_adapter import (
-    to_provider_tool_results,
-    to_provider_tools,
-)
+from focus.tools.provider_adapter import to_provider_tools
 
 router = APIRouter()
 logger = get_logger("routers.stream")
@@ -202,9 +200,10 @@ async def _run_generation(
     tools_enabled: bool,
     tools_by_name: dict,
     tool_read_only: bool,
-    chat_id: str,
-    asst_msg_id: str,
-    variant_id: str,
+    disable_multimodal: bool = False,
+    chat_id: str = "",
+    asst_msg_id: str = "",
+    variant_id: str = "",
     stop_event: asyncio.Event | None = None,
 ) -> AsyncIterator[dict]:
     """Run the tool-calling iteration loop.
@@ -229,6 +228,9 @@ async def _run_generation(
         if stop_event and stop_event.is_set():
             yield {"type": "done"}
             return
+        # Strip internal metadata before sending to the provider
+        for msg in loop_messages:
+            msg.pop("internal", None)
         iter_collected: list[str] = []
         iter_reasoning: list[str] = []
         tool_calls_list: list | None = None
@@ -272,6 +274,7 @@ async def _run_generation(
             results = await _apply_tool_round(
                 loop_messages, tool_calls_list, tools_by_name, tool_read_only,
                 chat_id, asst_msg_id, variant_id, iter_collected, iter_reasoning,
+                disable_multimodal=disable_multimodal,
             )
         except Exception as e:
             logger.exception("Tool round failed for chat_id=%s", chat_id)
@@ -304,7 +307,8 @@ async def _stream_generate(
     tools_enabled: bool,
     tools_by_name: dict,
     tool_read_only: bool,
-    stop_event: asyncio.Event,
+    disable_multimodal: bool = False,
+    stop_event: asyncio.Event | None = None,
 ) -> AsyncIterator[str]:
     """Async generator that yields SSE-encoded lines for a streaming response."""
     variant_id = str(uuid.uuid4())
@@ -339,7 +343,7 @@ async def _stream_generate(
 
         async for event in _run_generation(
             provider, messages, gen_kwargs, tools_enabled,
-            tools_by_name, tool_read_only,
+            tools_by_name, tool_read_only, disable_multimodal,
             body.chat_id, asst_msg_id, variant_id,
             stop_event,
         ):
@@ -527,6 +531,7 @@ async def _non_stream_generate(
     tools_enabled: bool,
     tools_by_name: dict,
     tool_read_only: bool,
+    disable_multimodal: bool = False,
 ) -> JSONResponse:
     """Run generation in non-streaming mode and return a JSON response."""
     collected: list[str] = []
@@ -539,7 +544,7 @@ async def _non_stream_generate(
     try:
         async for event in _run_generation(
             provider, messages, gen_kwargs, tools_enabled,
-            tools_by_name, tool_read_only,
+            tools_by_name, tool_read_only, disable_multimodal,
             body.chat_id, asst_msg_id, variant_id,
         ):
             if event["type"] == "token":
@@ -731,14 +736,15 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
     # Tool calling setup
     tools_enabled = body.tools_enabled
     tool_read_only = body.tool_read_only
+    disable_multimodal = (body.samplers or {}).get("disable_multimodal", False)
 
     if tools_enabled and not provider.supports_tools:
         tools_enabled = False
         logger.debug("Tools disabled: provider %s does not support tool calling", prov_dict.get("type"))
 
+
     tools_by_name: dict = {}
     if tools_enabled:
-        disable_multimodal = (body.samplers or {}).get("disable_multimodal", False)
         async with db.execute(
             "SELECT tool_name FROM chat_tool_states WHERE chat_id = ? AND enabled = 0", (body.chat_id,)
         ) as cur:
@@ -764,6 +770,7 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
             body, provider, prov_dict, messages, gen_kwargs,
             asst_msg_id, next_variant_index, user_msg_id,
             tools_enabled, tools_by_name, tool_read_only,
+            disable_multimodal,
         )
 
     return StreamingResponse(
@@ -771,7 +778,7 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
             body, provider, prov_dict, messages, gen_kwargs,
             asst_msg_id, next_variant_index, user_msg_id,
             tools_enabled, tools_by_name, tool_read_only,
-            stop_event,
+            disable_multimodal, stop_event,
         ),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
@@ -804,6 +811,7 @@ async def _apply_tool_round(
     variant_id: str,
     iter_collected: list[str],
     iter_reasoning: list[str] | None = None,
+    disable_multimodal: bool = False,
 ) -> list:
     """Build assistant message with tool_calls, execute tools, append results
     to loop_messages. Returns the ToolResult list so callers can yield SSE events."""
@@ -824,10 +832,19 @@ async def _apply_tool_round(
         tool_calls_list, tools_by_name, read_only,
         chat_id, asst_msg_id, variant_id,
     )
-    loop_messages.extend(to_provider_tool_results(results))
     for r in results:
+        loop_messages.append({"role": "tool", "tool_call_id": r.call_id, "content": r.content})
         if r.extra_message is not None:
-            loop_messages.append(r.extra_message)
+            em = r.extra_message
+            if disable_multimodal:
+                content = em.get("content", [])
+                if isinstance(content, list):
+                    content = [p for p in content if p.get("type") == "text"]
+                    if len(content) == 1:
+                        em = {"role": "user", "content": content[0].get("text", "")}
+                    else:
+                        em = {"role": "user", "content": content}
+            loop_messages.append(em)
 
     return results
 
@@ -1062,16 +1079,10 @@ async def _save_usage(
         tag, prompt, completion, total, cached, cache_pct, cost_str, iter_str,
     )
 
-    async with aiosqlite.connect(DB_PATH) as save_db:
-        await save_db.execute("PRAGMA foreign_keys=ON")
-        await save_db.execute(
-            """INSERT INTO generation_usage
-               (id, chat_id, message_id, variant_id, provider_id, provider_type,
-                model_name, prompt_tokens, completion_tokens, total_tokens,
-                cached_tokens, reasoning_tokens, cost, cost_details,
-                tool_iteration, created_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (
+    try:
+        async with aiosqlite.connect(DB_PATH) as save_db:
+            await save_db.execute("PRAGMA foreign_keys=ON")
+            params = (
                 row_id, chat_id, message_id, variant_id,
                 provider_id, provider_type, model_name,
                 prompt, completion, total,
@@ -1080,9 +1091,23 @@ async def _save_usage(
                 cost_details_str,
                 tool_iteration,
                 now,
-            ),
-        )
-        await save_db.commit()
+            )
+            sql = """INSERT INTO generation_usage
+                   (id, chat_id, message_id, variant_id, provider_id, provider_type,
+                    model_name, prompt_tokens, completion_tokens, total_tokens,
+                    cached_tokens, reasoning_tokens, cost, cost_details,
+                    tool_iteration, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"""
+            try:
+                await save_db.execute(sql, params)
+            except sqlite3.IntegrityError:
+                # Variant row may not exist yet (usage event can arrive before
+                # any token/reasoning triggered _upsert_variant). Retry without
+                # the variant FK rather than killing the stream over telemetry.
+                await save_db.execute(sql, (params[0], params[1], params[2], None) + params[4:])
+            await save_db.commit()
+    except Exception:
+        logger.exception("Failed to persist generation_usage for message_id=%s", message_id)
 
 
 @router.post("/itemize")
@@ -1131,7 +1156,11 @@ async def itemize_prompt(body: ItemizerRequest, db: aiosqlite.Connection = Depen
             tokens += r_tokens
             clean_parts.append({"type": "reasoning", "text": msg["reasoning"], "tokens": r_tokens})
 
+        if msg.get("internal") and clean_messages:
+            clean_messages[-1]["parts"].extend(clean_parts)
+            clean_messages[-1]["tokens"] += tokens
+        else:
+            clean_messages.append({"role": role, "parts": clean_parts, "tokens": tokens})
         total_tokens += tokens
-        clean_messages.append({"role": role, "parts": clean_parts, "tokens": tokens})
 
     return JSONResponse({"total_tokens": total_tokens, "messages": clean_messages})

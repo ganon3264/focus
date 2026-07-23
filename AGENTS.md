@@ -69,6 +69,8 @@ SSE events: `start | token | reasoning | tool_calls | tool_result | done`.
 
 **Segment rendering** — messages split into `text | reasoning | tool_boundary` typed siblings. `_build_segments()` builds `segments_json` from per-iteration slices, stored in `message_variants`. Never use `fullText` for per-segment rendering. Use `preserveOpenStates()` not `innerHTML` to keep reasoning toggles open.
 
+**History reconstruction** — `_append_history_with_tool_calls()` (stream_utils.py) rebuilds the API payload from `segments_json`: each `tool_boundary` with `tool_calls` closes an assistant chunk, emitting `assistant → tool → extra user message (image)` per iteration, so the post-tool reaction text lands *after* the tool results. Reasoning segments store escaped HTML — unescape with `html.unescape`. Legacy segments (boundary without `tool_calls`) fall back to a single merged assistant entry.
+
 ### Tool system
 
 **Data model** — `ToolSpec`, `ToolParam`, `ToolCall`, `ToolResult` in `focus/tools/__init__.py`.

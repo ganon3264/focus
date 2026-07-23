@@ -200,6 +200,7 @@ async def get_message(chat_id: str, message_id: str, db: aiosqlite.Connection = 
             },
             "result": tc["result"],
             "is_error": bool(tc["is_error"]),
+            "image_data": crud._extract_image_from_extra(tc.get("extra_message_json")),
         })
 
     return {"content": row["content"], "reasoning": row["reasoning"], "attachments": attachments, "tool_calls": tool_calls}
@@ -449,7 +450,7 @@ async def branch_chat(
                 old_tool_calls = [dict(r) for r in await cur4.fetchall()]
             for tc in old_tool_calls:
                 await db.execute(
-                    "INSERT INTO tool_calls (id, chat_id, message_id, variant_id, tool_name, arguments, result, is_error, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    "INSERT INTO tool_calls (id, chat_id, message_id, variant_id, tool_name, arguments, result, is_error, extra_message_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     (
                         str(uuid.uuid4()),
                         new_chat_id,
@@ -459,6 +460,7 @@ async def branch_chat(
                         tc["arguments"],
                         tc["result"],
                         tc["is_error"],
+                        tc.get("extra_message_json"),
                         tc["created_at"],
                     ),
                 )

@@ -61,14 +61,24 @@ def build_tool_result(call_id: str, tool_name: str, output: Any, multimodal: boo
             )
         b64_data = img["base64"]
         mime = img.get("mime", "image/png")
+        meta_parts = []
+        w = img.get("width")
+        h = img.get("height")
+        if w and h:
+            meta_parts.append(f"{w}x{h}")
+        path = img.get("path")
+        if path:
+            meta_parts.append(path)
+        meta = f" ({', '.join(meta_parts)})" if meta_parts else ""
         return ToolResult(
             call_id=call_id,
-            content=f"SUCCESS: Tool '{tool_name}' returned an image. It will be appended as a user message.",
+            content=f"SUCCESS: Tool '{tool_name}' returned an image{meta}. It will be appended as a user message.",
             extra_message={
                 "role": "user",
                 "content": [
-                    {"type": "text", "text": f"TOOL_RESULT: '{tool_name}'"},
+                    {"type": "text", "text": f"<{tool_name}>"},
                     {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64_data}"}},
+                    {"type": "text", "text": f"</{tool_name}>"},
                 ],
                 "internal": True,
             },

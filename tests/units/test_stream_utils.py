@@ -1,4 +1,10 @@
-from focus.routers.stream_utils import apply_claude_caching, filter_unsupported_modalities
+import json
+
+from focus.routers.stream_utils import (
+    _append_history_with_tool_calls,
+    apply_claude_caching,
+    filter_unsupported_modalities,
+)
 
 
 class TestFilterUnsupportedModalities:
@@ -177,3 +183,121 @@ class TestApplyClaudeCaching:
         result = apply_claude_caching(msgs, cache_enabled=True)
         # Old cache_control stripped, new one added on messages[0]
         assert "cache_control" in result[0]["content"][0]
+
+
+def _tc(tc_id, name="sd_image_gen", result="ok", extra=None):
+    return {
+        "id": tc_id,  # local uuid PK (NOT the provider call id)
+        "tool_name": name,
+        "arguments": "{}",
+        "result": result,
+        "extra_message_json": json.dumps(extra) if extra else None,
+    }
+
+
+def _seg_call(provider_id, name="sd_image_gen"):
+    # Segments store the *provider* call id, which never matches tool_calls.id
+    return {"id": provider_id, "type": "function",
+            "function": {"name": name, "arguments": "{}"}}
+
+
+def _row(segments=None, reasoning=None):
+    return {
+        "role": "assistant",
+        "content": "pre-tool text\npost-tool reaction",
+        "reasoning": reasoning,
+        "variant_id": "v1",
+        "segments_json": json.dumps(segments) if segments is not None else None,
+    }
+
+
+class TestAppendHistoryWithToolCalls:
+    async def test_segments_split_preserves_generation_order(self):
+        segments = [
+            {"type": "reasoning", "html": "thinking &amp; stuff", "index": 0},
+            {"type": "text", "content": "pre-tool text"},
+            {"type": "tool_boundary", "tool_calls": [_seg_call("call_abc")]},
+            {"type": "text", "content": "post-tool reaction"},
+        ]
+        extra = {"role": "user", "content": [{"type": "image_url", "image_url": {"url": "data:,"}}]}
+        tcs = [_tc("uuid-1", result="SUCCESS: image", extra=extra)]
+        history = []
+        await _append_history_with_tool_calls(history, _row(segments), {}, {"v1": tcs})
+
+        assert [m["role"] for m in history] == ["assistant", "tool", "user", "assistant"]
+        assert history[0]["content"] == "pre-tool text"
+        assert history[0]["reasoning"] == "thinking & stuff"
+        assert history[0]["tool_calls"][0]["id"] == "uuid-1"
+        assert history[1]["tool_call_id"] == "uuid-1"
+        assert history[1]["content"] == "SUCCESS: image"
+        assert history[2] == extra
+        assert history[3]["content"] == "post-tool reaction"
+        assert "tool_calls" not in history[3]
+
+    async def test_segments_multiple_tool_rounds(self):
+        segments = [
+            {"type": "text", "content": "first"},
+            {"type": "tool_boundary", "tool_calls": [_seg_call("call_1")]},
+            {"type": "text", "content": "second"},
+            {"type": "tool_boundary", "tool_calls": [_seg_call("call_2")]},
+            {"type": "text", "content": "third"},
+        ]
+        tcs = [_tc("uuid-1", result="r1"), _tc("uuid-2", result="r2")]
+        history = []
+        await _append_history_with_tool_calls(history, _row(segments), {}, {"v1": tcs})
+
+        assert [m["role"] for m in history] == [
+            "assistant", "tool", "assistant", "tool", "assistant",
+        ]
+        assert history[0]["content"] == "first"
+        assert history[2]["content"] == "second"
+        assert history[2]["tool_calls"][0]["id"] == "uuid-2"
+        assert history[4]["content"] == "third"
+
+    async def test_empty_final_chunk_skipped(self):
+        segments = [
+            {"type": "text", "content": "only text"},
+            {"type": "tool_boundary", "tool_calls": [_seg_call("call_1")]},
+        ]
+        tcs = [_tc("uuid-1")]
+        history = []
+        await _append_history_with_tool_calls(history, _row(segments), {}, {"v1": tcs})
+
+        assert [m["role"] for m in history] == ["assistant", "tool"]
+
+    async def test_legacy_boundary_falls_back_to_single_entry(self):
+        segments = [
+            {"type": "text", "content": "pre"},
+            {"type": "tool_boundary"},
+            {"type": "text", "content": "post"},
+        ]
+        tcs = [_tc("uuid-1", result="res")]
+        history = []
+        await _append_history_with_tool_calls(history, _row(segments), {}, {"v1": tcs})
+
+        assert [m["role"] for m in history] == ["assistant", "tool"]
+        assert history[0]["tool_calls"][0]["id"] == "uuid-1"
+
+    async def test_no_segments_falls_back_to_single_entry(self):
+        tcs = [_tc("uuid-1", result="res")]
+        history = []
+        await _append_history_with_tool_calls(history, _row(None), {}, {"v1": tcs})
+
+        assert [m["role"] for m in history] == ["assistant", "tool"]
+        assert history[0]["content"] == "pre-tool text\npost-tool reaction"
+
+    async def test_more_rows_than_segment_calls_are_ignored(self):
+        # Partial save edge: tc rows without a matching boundary are not
+        # emitted (a tool message without preceding tool_calls is invalid).
+        segments = [
+            {"type": "text", "content": "pre"},
+            {"type": "tool_boundary", "tool_calls": [_seg_call("call_1")]},
+            {"type": "text", "content": "post"},
+        ]
+        tcs = [_tc("uuid-1", result="r1"), _tc("uuid-2", result="orphan")]
+        history = []
+        await _append_history_with_tool_calls(history, _row(segments), {}, {"v1": tcs})
+
+        assert [m["role"] for m in history] == ["assistant", "tool", "assistant"]
+        assert history[1]["content"] == "r1"
+        assert history[2]["content"] == "post"
