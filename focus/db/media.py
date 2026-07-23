@@ -48,6 +48,7 @@ async def upload_block_image(
         "INSERT INTO block_images (id, block_id, block_source, image_path, mime_type, position, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
         (image_id, block_id, block_source, image_path, mime, next_pos, now_iso()),
     )
+    await db.commit()
     return {"id": image_id, "position": next_pos, "image_path": image_path, "mime_type": mime}
 
 
@@ -65,3 +66,4 @@ async def delete_block_image(
         raise HTTPException(404, "Image not found")
     Path(row["image_path"]).unlink(missing_ok=True)
     await db.execute("DELETE FROM block_images WHERE id = ?", (image_id,))
+    await db.commit()

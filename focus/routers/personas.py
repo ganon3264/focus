@@ -1,15 +1,14 @@
 import shutil
-import uuid
 from pathlib import Path
 
-import aiosqlite
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
 
 import focus.crud as crud
+import focus.db as db
 from focus.core.database import get_db
 from focus.core.paths import BLOCKS_DIR, PERSONAS_DIR
-from focus.core.utils import now_iso, read_upload
+from focus.core.utils import read_upload
 
 router = APIRouter()
 
@@ -25,33 +24,29 @@ class PersonaUpdate(BaseModel):
 
 
 @router.get("/")
-async def list_personas(db: aiosqlite.Connection = Depends(get_db)):
-    async with db.execute("SELECT * FROM personas WHERE is_deleted = 0 ORDER BY name") as cur:
+async def list_personas(_db=Depends(get_db)):
+    async with _db.execute("SELECT * FROM personas WHERE is_deleted = 0 ORDER BY name") as cur:
         return [dict(r) for r in await cur.fetchall()]
 
 
 @router.get("/trash")
-async def list_trashed_personas(db: aiosqlite.Connection = Depends(get_db)):
-    async with db.execute(
+async def list_trashed_personas(_db=Depends(get_db)):
+    async with _db.execute(
         "SELECT id, name, avatar_path, created_at FROM personas WHERE is_deleted = 1 ORDER BY name"
     ) as cur:
         return [dict(r) for r in await cur.fetchall()]
 
 
 @router.post("/", status_code=201)
-async def create_persona(body: PersonaCreate, db: aiosqlite.Connection = Depends(get_db)):
-    persona_id = str(uuid.uuid4())
-    await db.execute(
-        "INSERT INTO personas (id, name, description, avatar_path, created_at) VALUES (?, ?, ?, ?, ?)",
-        (persona_id, body.name, body.description, None, now_iso()),
-    )
-    await db.commit()
+async def create_persona(body: PersonaCreate, _db=Depends(get_db)):
+    persona_id = await db.create_persona(_db, body.name, body.description)
+    await _db.commit()
     return {"id": persona_id}
 
 
 @router.get("/{persona_id}")
-async def get_persona(persona_id: str, db: aiosqlite.Connection = Depends(get_db)):
-    async with db.execute("SELECT * FROM personas WHERE id = ? AND is_deleted = 0", (persona_id,)) as cur:
+async def get_persona(persona_id: str, _db=Depends(get_db)):
+    async with _db.execute("SELECT * FROM personas WHERE id = ? AND is_deleted = 0", (persona_id,)) as cur:
         row = await cur.fetchone()
     if not row:
         raise HTTPException(404, "Persona not found")
@@ -62,15 +57,13 @@ async def get_persona(persona_id: str, db: aiosqlite.Connection = Depends(get_db
 async def update_persona(
     persona_id: str,
     body: PersonaUpdate,
-    db: aiosqlite.Connection = Depends(get_db),
+    _db=Depends(get_db),
 ):
     updates = body.model_dump(exclude_none=True)
     if not updates:
         return {"ok": True}
-    cols = ", ".join(f"{k} = ?" for k in updates)
-    vals = list(updates.values()) + [persona_id]
-    await db.execute(f"UPDATE personas SET {cols} WHERE id = ?", vals)
-    await db.commit()
+    await db.update_persona(_db, persona_id, updates)
+    await _db.commit()
     return {"ok": True}
 
 
@@ -78,9 +71,9 @@ async def update_persona(
 async def upload_avatar(
     persona_id: str,
     file: UploadFile = File(...),
-    db: aiosqlite.Connection = Depends(get_db),
+    _db=Depends(get_db),
 ):
-    async with db.execute("SELECT avatar_path FROM personas WHERE id = ?", (persona_id,)) as cur:
+    async with _db.execute("SELECT avatar_path FROM personas WHERE id = ?", (persona_id,)) as cur:
         row = await cur.fetchone()
     if not row:
         raise HTTPException(404, "Persona not found")
@@ -97,8 +90,8 @@ async def upload_avatar(
     except OSError as e:
         raise HTTPException(500, f"Failed to save avatar: {e}")
 
-    await db.execute("UPDATE personas SET avatar_path = ? WHERE id = ?", (avatar_path, persona_id))
-    await db.commit()
+    await db.update_persona_avatar(_db, persona_id, avatar_path)
+    await _db.commit()
     return {"avatar_path": avatar_path}
 
 
@@ -106,9 +99,9 @@ async def upload_avatar(
 async def delete_persona(
     persona_id: str,
     hard: bool = False,
-    db: aiosqlite.Connection = Depends(get_db),
+    _db=Depends(get_db),
 ):
-    async with db.execute("SELECT avatar_path, name FROM personas WHERE id = ?", (persona_id,)) as cur:
+    async with _db.execute("SELECT name FROM personas WHERE id = ?", (persona_id,)) as cur:
         row = await cur.fetchone()
     if not row:
         raise HTTPException(404, "Persona not found")
@@ -116,22 +109,22 @@ async def delete_persona(
         raise HTTPException(400, "Cannot delete the default persona")
 
     if hard:
-        if row["avatar_path"]:
-            Path(row["avatar_path"]).unlink(missing_ok=True)
+        avatar_path = await db.hard_delete_persona(_db, persona_id)
+        if avatar_path:
+            Path(avatar_path).unlink(missing_ok=True)
         shutil.rmtree(PERSONAS_DIR / persona_id, ignore_errors=True)
-        await db.execute("DELETE FROM personas WHERE id = ?", (persona_id,))
     else:
-        await db.execute("UPDATE personas SET is_deleted = 1 WHERE id = ?", (persona_id,))
-    await db.commit()
+        await db.delete_persona(_db, persona_id)
+    await _db.commit()
 
 
 @router.post("/{persona_id}/restore", status_code=200)
-async def restore_persona(persona_id: str, db: aiosqlite.Connection = Depends(get_db)):
-    async with db.execute("SELECT id FROM personas WHERE id = ?", (persona_id,)) as cur:
+async def restore_persona(persona_id: str, _db=Depends(get_db)):
+    async with _db.execute("SELECT id FROM personas WHERE id = ?", (persona_id,)) as cur:
         if not await cur.fetchone():
             raise HTTPException(404, "Persona not found")
-    await db.execute("UPDATE personas SET is_deleted = 0 WHERE id = ?", (persona_id,))
-    await db.commit()
+    await db.restore_persona(_db, persona_id)
+    await _db.commit()
     return {"ok": True}
 
 
@@ -139,12 +132,12 @@ async def restore_persona(persona_id: str, db: aiosqlite.Connection = Depends(ge
 async def add_persona_image(
     persona_id: str,
     file: UploadFile = File(...),
-    db: aiosqlite.Connection = Depends(get_db),
+    _db=Depends(get_db),
 ):
-    await crud.verify_entity_exists(db, "personas", persona_id)
+    await crud.verify_entity_exists(_db, "personas", persona_id)
     try:
-        return await crud.upload_block_image(
-            db,
+        return await db.upload_block_image(
+            _db,
             persona_id,
             "persona",
             await read_upload(file),
@@ -161,6 +154,6 @@ async def add_persona_image(
 async def delete_persona_image(
     persona_id: str,
     image_id: str,
-    db: aiosqlite.Connection = Depends(get_db),
+    _db=Depends(get_db),
 ):
-    await crud.delete_block_image(db, image_id, persona_id)
+    await db.delete_block_image(_db, image_id, persona_id)
