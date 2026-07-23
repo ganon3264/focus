@@ -37,7 +37,7 @@
           </div>
           {% if message.role == 'assistant' %}
           <div class="text-xs text-muted flex items-center gap-1.5 flex-wrap mt-0.5">
-            {% set has_reasoning = (message.get('segments')|selectattr("type", "equalto", "reasoning")|list|length > 0) if message.get('segments') else message.get('reasoning') or '<think>' in message.content %}
+            {% set has_reasoning = (message.get('segments')|selectattr("type", "equalto", "reasoning")|list|length > 0) if message.get('segments') else message.get('reasoning') %}
             {% if message.model_name %}
             <span>{{ message.model_name }}</span>
             {% if message.position != 0 and has_reasoning %}

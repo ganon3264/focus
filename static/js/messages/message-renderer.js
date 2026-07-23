@@ -5,34 +5,8 @@ window.escapeHtml = function (text) {
 };
 
 window.extractThoughtsSafely = function (text) {
-  const codeBlocks = [];
-  let processed = text.replace(/```[\s\S]*?(?:```|$)/g, (match) => {
-    codeBlocks.push(match);
-    return `%%%FOCUS_CODE_${codeBlocks.length - 1}%%%`;
-  });
-
-  processed = processed.replace(/`[^`\n]*`/g, (match) => {
-    codeBlocks.push(match);
-    return `%%%FOCUS_CODE_${codeBlocks.length - 1}%%%`;
-  });
-
-  processed = processed.replace(/<thought_signature>([\s\S]*?)(?:<\/thought_signature>|$)/g, '');
-
-  const thoughts = [];
-  processed = processed.replace(/<think>([\s\S]*?)(?:<\/think>|$)/g, function (match, p1) {
-    thoughts.push({ content: p1 });
-    return `\n\n%%%THINK_BLOCK_${thoughts.length - 1}%%%\n\n`;
-  });
-
-  for (let j = 0; j < codeBlocks.length; j++) {
-    const marker = `%%%FOCUS_CODE_${j}%%%`;
-    processed = processed.split(marker).join(codeBlocks[j]);
-    for (let t of thoughts) {
-      t.content = t.content.split(marker).join(codeBlocks[j]);
-    }
-  }
-
-  return { thoughts, processed };
+  text = (text || '').replace(/<thought_signature>[\s\S]*?(?:<\/thought_signature>|$)/g, '');
+  return { thoughts: [], processed: text };
 };
 
 window.closeMarkdown = function (text) {
@@ -121,19 +95,9 @@ window.renderMessage = function (text, startThinkIdx, reasoning) {
   const extracted = window.extractThoughtsSafely(text);
   let processed = extracted.processed;
 
-  // Prepend reasoning from separate field (new messages) or fall back to thinks extracted from text (old messages)
-  const thoughts = extracted.thoughts.slice();
+  const thoughts = [];
   if (reasoning) {
-    thoughts.unshift({ content: reasoning });
-    // Insert placeholder at start so marked renders it inline for replacement
-    processed = '\n\n%%%THINK_BLOCK_0%%%\n\n' + processed;
-    // Renumber existing placeholders by +1 to make room
-    for (var ri = 0; ri < extracted.thoughts.length; ri++) {
-      processed = processed.replace(
-        new RegExp('%%%THINK_BLOCK_' + ri + '%%%', 'g'),
-        '%%%THINK_BLOCK_' + (ri + 1) + '%%%'
-      );
-    }
+    thoughts.push({ content: reasoning });
   }
 
   let html = DOMPurify.sanitize(marked.parse(processed));
@@ -229,15 +193,11 @@ window.renderMessage = function (text, startThinkIdx, reasoning) {
     let safeInner = DOMPurify.sanitize(marked.parse(completedContent, { breaks: true }));
     const chevron = (window.getSvgSprite('chevron-right', 12) || '>').replace('<svg', '<svg class="chevron"');
     var globalIdx = startThinkIdx + i;
-    var detailsHtml;
     if (globalIdx === 0) {
-      detailsHtml = `<div class="reasoning-block" data-think-id="0"><div class="reasoning-content markdown-content hidden">${safeInner}</div></div>`;
+      html = `<div class="reasoning-block" data-think-id="0"><div class="reasoning-content markdown-content hidden">${safeInner}</div></div>` + html;
     } else {
-      detailsHtml = `<details class="details reasoning-block" data-think-id="${globalIdx}"><summary>${chevron} Reasoning</summary><div class="reasoning-content markdown-content">${safeInner}</div></details>`;
+      html += `<details class="details reasoning-block" data-think-id="${globalIdx}"><summary>${chevron} Reasoning</summary><div class="reasoning-content markdown-content">${safeInner}</div></details>`;
     }
-
-    const regex = new RegExp(`<p>%%%THINK_BLOCK_${i}%%%<\\/p>|%%%THINK_BLOCK_${i}%%%`, 'g');
-    html = html.replace(regex, () => detailsHtml);
   }
 
   return html;

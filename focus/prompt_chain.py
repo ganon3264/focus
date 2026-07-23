@@ -377,13 +377,7 @@ async def assemble_prompt(
         if cleaned_msg.get("role") == "assistant" and isinstance(cleaned_msg.get("content"), str):
             content = cleaned_msg["content"]
 
-            if cleaned_msg.get("reasoning"):
-                # reasoning already populated from DB column — just strip <think> tags
-                # for backward compat with old messages that still have them in content
-                if "<think>" in content:
-                    cleaned_msg["content"] = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
-            else:
-                # Fall back to <think> extraction for old messages
+            if not cleaned_msg.get("reasoning"):
                 signature_match = re.search(
                     r"<thought_signature>(.*?)</thought_signature>", content, flags=re.DOTALL
                 )
@@ -392,12 +386,7 @@ async def assemble_prompt(
                     content = re.sub(
                         r"<thought_signature>.*?</thought_signature>", "", content, flags=re.DOTALL
                     ).strip()
-
-                thoughts = re.findall(r"<think>(.*?)</think>", content, flags=re.DOTALL)
-                if thoughts:
-                    cleaned_msg["reasoning"] = "\n\n".join(t.strip() for t in thoughts if t.strip())
-
-                cleaned_msg["content"] = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
+                cleaned_msg["content"] = content
 
         cleaned_history.append(cleaned_msg)
 

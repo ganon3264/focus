@@ -57,48 +57,11 @@ eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'messages'
   assertEqual(result.thoughts.length, 0, 'extractThoughts: no thoughts extracted');
 })();
 
-// ── extractThoughtsSafely — think block ──
-(function () {
-  var result = window.extractThoughtsSafely('before<think>hidden</think>after');
-  assertEqual(result.thoughts.length, 1, 'extractThoughts: one thought');
-  assertEqual(result.thoughts[0].content, 'hidden', 'extractThoughts: thought content');
-  assertNotIncludes(result.processed, 'hidden', 'extractThoughts: thought content removed from processed');
-  assertIncludes(result.processed, '%%%THINK_BLOCK_0%%%', 'extractThoughts: placeholder inserted');
-})();
-
-// ── extractThoughtsSafely — unclosed think block ──
-(function () {
-  var result = window.extractThoughtsSafely('<think>unclosed');
-  assert(result.thoughts.length === 1, 'extractThoughts: unclosed thought extracted');
-  assertEqual(result.thoughts[0].content, 'unclosed', 'extractThoughts: unclosed content');
-})();
-
-// ── extractThoughtsSafely — code blocks protect think tags ──
-(function () {
-  var result = window.extractThoughtsSafely('```\n<think>inside code</think>\n```');
-  assertEqual(result.thoughts.length, 0, 'extractThoughts: think inside code block ignored');
-  assert(result.processed.indexOf('<think>') >= 0, 'extractThoughts: code block content preserved');
-})();
-
 // ── extractThoughtsSafely — thought_signature removal ──
 (function () {
   var result = window.extractThoughtsSafely('hello <thought_signature>sig</thought_signature> world');
   assertNotIncludes(result.processed, 'sig', 'extractThoughts: thought_signature removed');
   assertNotIncludes(result.processed, '<thought_signature>', 'extractThoughts: thought_signature tag removed');
-})();
-
-// ── extractThoughtsSafely — inline code protected ──
-(function () {
-  var result = window.extractThoughtsSafely('`<think>inline</think>`');
-  assertEqual(result.thoughts.length, 0, 'extractThoughts: think inside inline code ignored');
-})();
-
-// ── extractThoughtsSafely — multiple think blocks ──
-(function () {
-  var result = window.extractThoughtsSafely('a<think>first</think>b<think>second</think>c');
-  assertEqual(result.thoughts.length, 2, 'extractThoughts: two thoughts');
-  assertEqual(result.thoughts[0].content, 'first', 'extractThoughts: first thought content');
-  assertEqual(result.thoughts[1].content, 'second', 'extractThoughts: second thought content');
 })();
 
 // ── renderMessage — empty input ──
@@ -108,29 +71,6 @@ eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'messages'
   assertEqual(window.renderMessage(undefined), '', 'renderMessage: undefined returns empty');
 })();
 
-// ── renderMessage — think block produces .reasoning-block ──
-(function () {
-  var html = window.renderMessage('hello<think>hidden</think>world');
-  assertIncludes(html, 'class="reasoning-block"', 'renderMessage: think becomes reasoning-block');
-  assertNotIncludes(html, 'class="details reasoning-block"', 'renderMessage: single block is not details');
-  assertNotIncludes(html, '<summary>', 'renderMessage: single block has no summary');
-  assertIncludes(html, 'hidden', 'renderMessage: think content in output');
-  assertIncludes(html, 'hello', 'renderMessage: text before think preserved');
-  assertIncludes(html, 'world', 'renderMessage: text after think preserved');
-
-  var html2 = window.renderMessage('a<think>first</think>b<think>second</think>c');
-  assertIncludes(html2, '<summary>', 'renderMessage: second block has summary');
-  var summaries = (html2.match(/<summary>/g) || []).length;
-  assertEqual(summaries, 1, 'renderMessage: only one summary (second block)');
-  assertEqual(
-    (html2.match(/class="details reasoning-block"/g) || []).length, 1,
-    'renderMessage: only second block uses details'
-  );
-  assertEqual(
-    (html2.match(/reasoning-block/g) || []).length, 2,
-    'renderMessage: both blocks have reasoning-block class'
-  );
-})();
 
 // ── renderMessage — code block gets copy button ──
 (function () {
@@ -143,14 +83,6 @@ eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'messages'
 (function () {
   var html = window.renderMessage('**bold**');
   assertIncludes(html, '<strong>', 'renderMessage: markdown bold rendered (or fallback)');
-})();
-
-// ── renderMessage — think inside code block not rendered as reasoning ──
-(function () {
-  var html = window.renderMessage('```\n<think>not a real thought</think>\n```');
-  assertNotIncludes(html, 'details class="reasoning"', 'renderMessage: think inside code not rendered as reasoning');
-  assertNotIncludes(html, '%%%THINK_BLOCK', 'renderMessage: no unresolved think placeholders');
-  assertIncludes(html, '<pre>', 'renderMessage: code block preserved as pre');
 })();
 
 // ── closeMarkdown — no-op for plain text ──

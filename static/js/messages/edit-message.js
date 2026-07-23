@@ -10,17 +10,7 @@
     var parts = (content || '').split('%%%TOOL_BOUNDARY%%%');
 
     for (var pi = 0; pi < parts.length; pi++) {
-      var extracted = window.extractThoughtsSafely(parts[pi]);
-
-      for (var t = 0; t < extracted.thoughts.length; t++) {
-        blocks.push({ type: 'reasoning', content: extracted.thoughts[t].content.trim() });
-      }
-
-      var text = extracted.processed;
-      for (var i = 0; i < extracted.thoughts.length; i++) {
-        text = text.replace(new RegExp('\\s*%%%THINK_BLOCK_' + i + '%%%\\s*'), '\n\n');
-      }
-      text = text.trim();
+      var text = parts[pi].trim();
       if (text) {
         blocks.push({ type: 'text', content: text });
       }

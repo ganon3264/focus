@@ -56,9 +56,9 @@ def _extract_reasoning_button(html: str) -> str:
     return match.group(0) if match else ""
 
 
-def test_reasoning_button_present_when_content_has_think_tags():
-    """Server should render the button when content contains <think>."""
-    html = _render_message({"content": "<think>hidden</think>answer"})
+def test_reasoning_button_present_when_message_has_reasoning():
+    """Server should render the button when message has a reasoning field."""
+    html = _render_message({"reasoning": "hidden reasoning"})
     btn = _extract_reasoning_button(html)
     assert btn, "Expected reasoning button to be rendered"
     assert "reasoning-toggle-btn" in btn, (
@@ -67,7 +67,7 @@ def test_reasoning_button_present_when_content_has_think_tags():
     )
 
 
-def test_reasoning_button_absent_when_no_think_tags():
+def test_reasoning_button_absent_when_no_reasoning():
     """No button when content has no <think> tags."""
     html = _render_message({"content": "plain text response"})
     assert _extract_reasoning_button(html) == ""
@@ -75,19 +75,19 @@ def test_reasoning_button_absent_when_no_think_tags():
 
 def test_reasoning_button_absent_for_position_zero():
     """Greeting message (position 0) never shows the reasoning button."""
-    html = _render_message({"position": 0, "content": "<think>hidden</think>hello"})
+    html = _render_message({"position": 0, "reasoning": "hidden"})
     assert _extract_reasoning_button(html) == ""
 
 
 def test_reasoning_button_absent_for_user_messages():
     """User messages never show the reasoning button."""
-    html = _render_message({"role": "user", "content": "<think>hidden</think>user"})
+    html = _render_message({"role": "user", "reasoning": "hidden"})
     assert _extract_reasoning_button(html) == ""
 
 
 def test_reasoning_button_class_unchanged():
     """Regression: existing class list is preserved alongside the new one."""
-    html = _render_message({"content": "<think>hidden</think>answer"})
+    html = _render_message({"reasoning": "hidden"})
     btn = _extract_reasoning_button(html)
     for required in (
         "inline-flex",

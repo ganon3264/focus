@@ -1,6 +1,5 @@
 import json
 import logging
-import re
 import sqlite3
 import uuid
 from contextlib import asynccontextmanager
@@ -14,14 +13,6 @@ from focus.core.models import StreamRequest
 from focus.core.utils import SUFFIX_MIME_MAP, SUFFIX_MIME_MAP_IMAGES_ONLY, now_iso
 
 logger = logging.getLogger("focus.crud")
-
-
-def _strip_think_tags(text: str | None) -> str | None:
-    if not text:
-        return text
-    stripped = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
-    stripped = re.sub(r"</?think>", "", stripped)
-    return stripped.strip() if stripped.strip() else "New Chat"
 
 
 def extract_image_from_extra(extra_json: str | None) -> str | None:
@@ -348,7 +339,7 @@ async def get_chats_sidebar(db: aiosqlite.Connection, character_id: str = None) 
 
     for chat in chats:
         if chat.get("last_message"):
-            chat["last_message"] = _strip_think_tags(chat["last_message"])
+            chat["last_message"] = chat["last_message"].strip() or "New Chat"
 
     return chats
 
