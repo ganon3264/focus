@@ -24,7 +24,7 @@ def _strip_think_tags(text: str | None) -> str | None:
     return stripped.strip() if stripped.strip() else "New Chat"
 
 
-def _extract_image_from_extra(extra_json: str | None) -> str | None:
+def extract_image_from_extra(extra_json: str | None) -> str | None:
     if not extra_json:
         return None
     try:
@@ -63,14 +63,6 @@ async def next_position(db: aiosqlite.Connection, table: str, where_col: str, wh
     ) as cur:
         row = await cur.fetchone()
     return row[0] + 1
-
-
-async def dynamic_update(db: aiosqlite.Connection, table: str, updates: dict, where_clause: str, where_params: list):
-    cols = ", ".join(f"{k} = ?" for k in updates)
-    vals = list(updates.values()) + where_params
-    await db.execute(f"UPDATE {table} SET {cols} WHERE {where_clause}", vals)
-    await db.commit()
-
 
 async def upload_block_image(
     db: aiosqlite.Connection,
@@ -321,7 +313,7 @@ async def get_chat_messages(db: aiosqlite.Connection, chat_id: str) -> list[dict
                     },
                     "result": tc["result"],
                     "is_error": bool(tc["is_error"]),
-                    "image_data": _extract_image_from_extra(tc.get("extra_message_json")),
+                    "image_data": extract_image_from_extra(tc.get("extra_message_json")),
                 }
                 for tc in tcs
             ]

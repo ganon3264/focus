@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from focus.core.message_render import _escape_html
+from focus.core.message_render import escape_html
 
 
 def build_segments(
@@ -37,7 +37,7 @@ def build_segments(
             if r_text:
                 segments.append({
                     "type": "reasoning",
-                    "html": _escape_html(r_text),
+                    "html": escape_html(r_text),
                     "index": reasoning_idx,
                 })
                 reasoning_idx += 1

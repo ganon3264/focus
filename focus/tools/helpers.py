@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 TOOL_OUTPUT_TRUNCATE_CHARS = 32000
 MAX_TOOL_ITERATIONS = 10
 
@@ -43,7 +42,7 @@ def extract_image_url(result) -> str | None:
     return None
 
 
-def build_tool_result(call_id: str, tool_name: str, output: Any, multimodal: bool = False) -> ToolResult:
+def build_tool_result(call_id: str, tool_name: str, output: Any, multimodal: bool = False) -> ToolResult:  # noqa: F821
     from focus.tools import ToolResult  # lazy to avoid circular import
 
     if isinstance(output, dict) and "image" in output:

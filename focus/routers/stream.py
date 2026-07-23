@@ -498,50 +498,51 @@ async def _non_stream_generate(
         elif not body.regenerate:
             await rollback_assistant(asst_msg_id, db=db)
         raise HTTPException(499, "Request cancelled")
+    else:
+        acc.close_iteration()
 
-    acc.close_iteration()
+        # Apply prefill (insert at position 0) and adjust slice indices
+        prefill_text_len = 0
+        prefill_reasoning_len = 0
+        if not provider.echoes_prefill:
+            if body.continue_text:
+                acc.text.insert(0, body.continue_text)
+                prefill_text_len = 1
+            pref_r = prefill_reasoning(body, messages)
+            if pref_r:
+                acc.reasoning.insert(0, pref_r)
+                prefill_reasoning_len = 1
+        if prefill_text_len:
+            acc.text_slices = [s + prefill_text_len for s in acc.text_slices]
+        if prefill_reasoning_len:
+            acc.reasoning_slices = [s + prefill_reasoning_len for s in acc.reasoning_slices]
 
-    # Apply prefill (insert at position 0) and adjust slice indices
-    prefill_text_len = 0
-    prefill_reasoning_len = 0
-    if not provider.echoes_prefill:
-        if body.continue_text:
-            acc.text.insert(0, body.continue_text)
-            prefill_text_len = 1
-        pref_r = prefill_reasoning(body, messages)
-        if pref_r:
-            acc.reasoning.insert(0, pref_r)
-            prefill_reasoning_len = 1
-    if prefill_text_len:
-        acc.text_slices = [s + prefill_text_len for s in acc.text_slices]
-    if prefill_reasoning_len:
-        acc.reasoning_slices = [s + prefill_reasoning_len for s in acc.reasoning_slices]
+        segments = acc.build_segments()
 
-    segments = acc.build_segments()
+        try:
+            await upsert_variant(
+                body.chat_id, asst_msg_id, next_variant_index,
+                acc.full_text(), body.regenerate, prov_dict.get("model", ""),
+                variant_id=acc.variant_id, reasoning=acc.full_reasoning(),
+                segments_json=json.dumps(segments) if segments else None,
+                db=db,
+            )
+        except Exception as e:
+            logger.exception("Failed to save non-stream result for chat_id=%s", body.chat_id)
+            if not body.regenerate:
+                await rollback_assistant(asst_msg_id, db=db)
+            raise HTTPException(500, f"Generation succeeded but save failed: {_format_error(e)}")
 
-    try:
-        await upsert_variant(
-            body.chat_id, asst_msg_id, next_variant_index,
-            acc.full_text(), body.regenerate, prov_dict.get("model", ""),
-            variant_id=acc.variant_id, reasoning=acc.full_reasoning(),
-            segments_json=json.dumps(segments) if segments else None,
-            db=db,
-        )
-    except Exception as e:
-        logger.exception("Failed to save non-stream result for chat_id=%s", body.chat_id)
-        if not body.regenerate:
-            await rollback_assistant(asst_msg_id, db=db)
-        raise HTTPException(500, f"Generation succeeded but save failed: {_format_error(e)}")
-
-    return JSONResponse({
-        "done": True,
-        "message_id": asst_msg_id,
-        "variant_index": next_variant_index,
-        "user_message_id": user_msg_id if not body.regenerate else None,
-        "full_text": acc.full_text(),
-        "full_reasoning": acc.full_reasoning(),
-    })
-
+        return JSONResponse({
+            "done": True,
+            "message_id": asst_msg_id,
+            "variant_index": next_variant_index,
+            "user_message_id": user_msg_id if not body.regenerate else None,
+            "full_text": acc.full_text(),
+            "full_reasoning": acc.full_reasoning(),
+        })
+    finally:
+        _active_generations.pop(asst_msg_id, None)
 
 
 @router.post("/stream")

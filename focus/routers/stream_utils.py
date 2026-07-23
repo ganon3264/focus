@@ -12,7 +12,7 @@ from focus.core.card_parser import safe_load_card
 from focus.core.macros import build_base_macros
 from focus.core.models import StreamRequest
 from focus.core.utils import now_iso
-from focus.prompt_chain import _build_content, assemble_prompt
+from focus.prompt_chain import assemble_prompt, build_content
 from focus.routers.providers import get_openrouter_model_modalities
 
 logger = logging.getLogger("focus.routers.stream_utils")
@@ -117,7 +117,7 @@ async def _append_history_with_tool_calls(
             _append_segmented_tool_history(history, segments, tcs)
             return
 
-    content = await _build_content(content_text, msg_attachments.get(row["variant_id"], []))
+    content = await build_content(content_text, msg_attachments.get(row["variant_id"], []))
 
     entry: dict = {
         "role": row["role"],
@@ -127,17 +127,7 @@ async def _append_history_with_tool_calls(
         entry["reasoning"] = row["reasoning"]
 
     if tcs and row["role"] == "assistant":
-        entry["tool_calls"] = [
-            {
-                "id": tc["id"],
-                "type": "function",
-                "function": {
-                    "name": tc["tool_name"],
-                    "arguments": tc["arguments"],
-                },
-            }
-            for tc in tcs
-        ]
+        entry["tool_calls"] = [_tool_calls_payload(tc) for tc in tcs]
 
     history.append(entry)
 
@@ -365,7 +355,7 @@ async def get_prompt_context(
                     else:
                         new_attachments = []
 
-                    history.append({"role": "user", "content": await _build_content(user_message, new_attachments)})
+                    history.append({"role": "user", "content": await build_content(user_message, new_attachments)})
                     logger.debug(
                         "get_prompt_context: appended user msg to history, history now has %d messages",
                         len(history),
@@ -390,7 +380,7 @@ async def get_prompt_context(
                         attachment_ids,
                     ) as cur:
                         new_attachments = [dict(r) for r in await cur.fetchall()]
-                history.append({"role": "user", "content": await _build_content(user_message, new_attachments)})
+                history.append({"role": "user", "content": await build_content(user_message, new_attachments)})
 
     all_block_ids = [b["id"] for b in preset_blocks] + [b["id"] for b in char_own_blocks]
     if chat["character_id"]:

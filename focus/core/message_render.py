@@ -31,7 +31,7 @@ def render_message_segments(
     reasoning_idx = 0
 
     if reasoning:
-        escaped = _escape_html(reasoning.strip())
+        escaped = escape_html(reasoning.strip())
         segments.append({"type": "reasoning", "html": escaped, "index": 0})
         reasoning_idx = 1
 
@@ -68,7 +68,7 @@ def _extract_think_blocks(text: str, start_idx: int, segments: list) -> int:
         raw = match.group(1)
         for j, cb in enumerate(code_blocks):
             raw = raw.replace(f"%%%FOCUS_CODE_{j}%%%", cb)
-        escaped = _escape_html(raw).strip()
+        escaped = escape_html(raw).strip()
         segments.append({"type": "reasoning", "html": escaped, "index": idx})
         idx += 1
 
@@ -105,7 +105,7 @@ def _stash(text: str, stash: list) -> str:
     return f"%%%FOCUS_CODE_{idx}%%%"
 
 
-def _escape_html(text: str) -> str:
+def escape_html(text: str) -> str:
     text = text.replace("&", "&amp;")
     text = text.replace("<", "&lt;")
     text = text.replace(">", "&gt;")

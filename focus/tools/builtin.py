@@ -10,8 +10,8 @@ from PIL import Image
 
 from focus.prompt_chain import _ensure_compressed_sync
 from focus.tools import ToolParam, ToolSpec
-from focus.tools.helpers import TOOL_OUTPUT_TRUNCATE_CHARS
 from focus.tools.external import load_external_tools
+from focus.tools.helpers import TOOL_OUTPUT_TRUNCATE_CHARS
 
 
 def execute_shell(command: str, timeout_s: int = 10) -> str:

@@ -131,7 +131,7 @@ async def _load_media(media_row: dict) -> dict | None:
     }
 
 
-async def _build_content(text: str, images: list[dict]) -> str | list:
+async def build_content(text: str, images: list[dict]) -> str | list:
     """
     Return plain string if no images, or a multimodal content array if images present.
 
@@ -329,7 +329,7 @@ async def assemble_prompt(
 
         if btype == "text":
             text = apply_macros(block["content"], macros).strip()
-            content = await _build_content(text, images)
+            content = await build_content(text, images)
             if content or block.get("reasoning"):
                 msg = {"role": block["role"], "content": content}
                 if block["role"] == "assistant" and block.get("reasoning"):
@@ -339,14 +339,14 @@ async def assemble_prompt(
         elif btype == "char_description":
             char_images = block_images.get(char_data.get("id"), [])
             text = apply_macros(char_data.get("description", ""), macros).strip()
-            content = await _build_content(text, char_images)
+            content = await build_content(text, char_images)
             if content:
                 target.append({"role": block["role"], "content": content})
 
         elif btype == "char_personality":
             char_images = block_images.get(char_data.get("id"), [])
             text = apply_macros(char_data.get("personality", ""), macros).strip()
-            content = await _build_content(text, char_images)
+            content = await build_content(text, char_images)
             if content:
                 target.append({"role": block["role"], "content": content})
 
@@ -354,7 +354,7 @@ async def assemble_prompt(
             persona_id = macros.get("persona_id", "")
             persona_images = block_images.get(persona_id, []) if persona_id else []
             text = apply_macros(macros.get("persona", ""), macros).strip()
-            content = await _build_content(text, persona_images)
+            content = await build_content(text, persona_images)
             if content:
                 target.append({"role": block["role"], "content": content})
 
@@ -364,7 +364,7 @@ async def assemble_prompt(
             for cb in enabled:
                 text = apply_macros(cb["content"], macros).strip()
                 cb_images = block_images.get(cb["id"], [])
-                content = await _build_content(text, cb_images)
+                content = await build_content(text, cb_images)
                 if content:
                     target.append({"role": cb["role"], "content": content})
 
@@ -416,7 +416,7 @@ async def assemble_prompt(
             for block in blocks:
                 text = apply_macros(block["content"], macros).strip()
                 images = block_images.get(block["id"], [])
-                content = await _build_content(text, images)
+                content = await build_content(text, images)
                 if content or (block["role"] == "assistant" and block.get("reasoning")):
                     msg = {"role": block["role"], "content": content}
                     if block["role"] == "assistant" and block.get("reasoning"):

@@ -200,7 +200,7 @@ async def get_message(chat_id: str, message_id: str, db: aiosqlite.Connection = 
             },
             "result": tc["result"],
             "is_error": bool(tc["is_error"]),
-            "image_data": crud._extract_image_from_extra(tc.get("extra_message_json")),
+            "image_data": crud.extract_image_from_extra(tc.get("extra_message_json")),
         })
 
     return {"content": row["content"], "reasoning": row["reasoning"], "attachments": attachments, "tool_calls": tool_calls}
