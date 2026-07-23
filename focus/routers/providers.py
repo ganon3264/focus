@@ -1,15 +1,14 @@
 import json
-import uuid
 
-import aiosqlite
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+import focus.db as db
 from focus.core.database import get_db
 from focus.core.logger import get_logger
 from focus.core.models import ProviderCreate
-from focus.core.utils import MODEL_FETCH_HTTP_TIMEOUT, TTLCache, now_iso, resolve_secret_key
+from focus.core.utils import MODEL_FETCH_HTTP_TIMEOUT, TTLCache, resolve_secret_key
 from focus.providers import create_provider as provider_factory
 
 router = APIRouter()
@@ -17,28 +16,17 @@ logger = get_logger("routers.providers")
 
 
 @router.post("/", status_code=201)
-async def create_provider(body: ProviderCreate, db: aiosqlite.Connection = Depends(get_db)):
-    provider_id = str(uuid.uuid4())
-    await db.execute(
-        "INSERT INTO providers (id, name, type, base_url, api_key, model, params_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        (
-            provider_id,
-            body.name,
-            body.type,
-            body.base_url,
-            body.api_key,
-            body.model,
-            json.dumps(body.params),
-            now_iso(),
-        ),
+async def create_provider(body: ProviderCreate, _db=Depends(get_db)):
+    provider_id = await db.create_provider(
+        _db, body.name, body.type, body.base_url, body.api_key, body.model, body.params,
     )
-    await db.commit()
+    await _db.commit()
     return {"id": provider_id}
 
 
 @router.get("/")
-async def list_providers(db: aiosqlite.Connection = Depends(get_db)):
-    async with db.execute(
+async def list_providers(_db=Depends(get_db)):
+    async with _db.execute(
         "SELECT id, name, type, base_url, api_key, model, params_json, created_at FROM providers ORDER BY name"
     ) as cur:
         out = []
@@ -57,12 +45,10 @@ async def list_providers(db: aiosqlite.Connection = Depends(get_db)):
 async def update_provider(
     provider_id: str,
     body: dict,
-    db: aiosqlite.Connection = Depends(get_db),
+    _db=Depends(get_db),
 ):
-    allowed = {"name", "base_url", "api_key", "model", "params_json"}
-    updates = {k: v for k, v in body.items() if k in allowed}
+    updates = {k: v for k, v in body.items() if k in {"name", "base_url", "api_key", "model", "params_json"}}
 
-    # Don't overwrite api_key with empty string (unless explicitly clearing it, which the UI doesn't support for existing keys)
     if "api_key" in updates and not updates["api_key"]:
         del updates["api_key"]
 
@@ -70,17 +56,16 @@ async def update_provider(
         updates["params_json"] = json.dumps(body["params"])
     if not updates:
         return {"ok": True}
-    cols = ", ".join(f"{k} = ?" for k in updates)
-    vals = list(updates.values()) + [provider_id]
-    await db.execute(f"UPDATE providers SET {cols} WHERE id = ?", vals)
-    await db.commit()
+
+    await db.update_provider(_db, provider_id, updates)
+    await _db.commit()
     return {"ok": True}
 
 
 @router.delete("/{provider_id}", status_code=204)
-async def delete_provider(provider_id: str, db: aiosqlite.Connection = Depends(get_db)):
-    await db.execute("DELETE FROM providers WHERE id = ?", (provider_id,))
-    await db.commit()
+async def delete_provider(provider_id: str, _db=Depends(get_db)):
+    await db.delete_provider(_db, provider_id)
+    await _db.commit()
 
 
 _model_cache = TTLCache()
@@ -97,15 +82,15 @@ class FetchModelsRequest(BaseModel):
 
 
 @router.post("/fetch_models")
-async def fetch_models(body: FetchModelsRequest, db: aiosqlite.Connection = Depends(get_db)):
+async def fetch_models(body: FetchModelsRequest, _db=Depends(get_db)):
     """Fetch available models from a provider and cache the result for 5 minutes."""
-    api_key = await resolve_secret_key(db, body.api_key or "")
+    api_key = await resolve_secret_key(_db, body.api_key or "")
 
     if not api_key and body.provider_id:
-        async with db.execute("SELECT api_key FROM providers WHERE id = ?", (body.provider_id,)) as cur:
+        async with _db.execute("SELECT api_key FROM providers WHERE id = ?", (body.provider_id,)) as cur:
             row = await cur.fetchone()
             if row and row["api_key"]:
-                api_key = await resolve_secret_key(db, row["api_key"])
+                api_key = await resolve_secret_key(_db, row["api_key"])
 
     cache_key = f"{body.type}_{hash(api_key)}"
     cached = await _model_cache.get(cache_key)
@@ -185,21 +170,15 @@ class SecretUpdate(BaseModel):
 
 
 @router.post("/secrets")
-async def update_secret(body: SecretUpdate, db: aiosqlite.Connection = Depends(get_db)):
-    if not body.value:
-        await db.execute("DELETE FROM secrets WHERE name = ?", (body.name,))
-    else:
-        await db.execute(
-            "INSERT INTO secrets (name, value) VALUES (?, ?) ON CONFLICT(name) DO UPDATE SET value = excluded.value",
-            (body.name, body.value),
-        )
-    await db.commit()
+async def update_secret(body: SecretUpdate, _db=Depends(get_db)):
+    await db.upsert_secret(_db, body.name, body.value)
+    await _db.commit()
     return {"ok": True}
 
 
 @router.get("/secrets")
-async def list_secrets(db: aiosqlite.Connection = Depends(get_db)):
-    async with db.execute("SELECT name, value FROM secrets ORDER BY name") as cur:
+async def list_secrets(_db=Depends(get_db)):
+    async with _db.execute("SELECT name, value FROM secrets ORDER BY name") as cur:
         out = []
         for r in await cur.fetchall():
             val = r["value"]
@@ -209,9 +188,9 @@ async def list_secrets(db: aiosqlite.Connection = Depends(get_db)):
 
 
 @router.delete("/secrets/{name}", status_code=204)
-async def delete_secret(name: str, db: aiosqlite.Connection = Depends(get_db)):
-    await db.execute("DELETE FROM secrets WHERE name = ?", (name,))
-    await db.commit()
+async def delete_secret(name: str, _db=Depends(get_db)):
+    await db.delete_secret(_db, name)
+    await _db.commit()
     return {"ok": True}
 
 
@@ -247,8 +226,8 @@ BALANCE_CONFIG = {
 
 
 @router.get("/{provider_id}/balance")
-async def get_provider_balance(provider_id: str, db: aiosqlite.Connection = Depends(get_db)):
-    async with db.execute("SELECT * FROM providers WHERE id = ?", (provider_id,)) as cur:
+async def get_provider_balance(provider_id: str, _db=Depends(get_db)):
+    async with _db.execute("SELECT * FROM providers WHERE id = ?", (provider_id,)) as cur:
         row = await cur.fetchone()
     if not row:
         raise HTTPException(404, "Provider not found")
@@ -258,7 +237,7 @@ async def get_provider_balance(provider_id: str, db: aiosqlite.Connection = Depe
     if not cfg:
         raise HTTPException(400, f"Balance not supported for provider type: {d['type']}")
 
-    api_key = await resolve_secret_key(db, d.get("api_key") or "")
+    api_key = await resolve_secret_key(_db, d.get("api_key") or "")
     cache_key = f"{d['type']}_{hash(api_key)}"
 
     async def _fetch():
