@@ -2,13 +2,9 @@ from __future__ import annotations
 
 import json
 import logging
-import uuid
 
-import aiosqlite
-
-from focus.core.utils import now_iso
-from focus.crud import _db_conn
 from focus.tools import ToolResult, build_tool_result
+from focus.db.chats import persist_tool_calls
 
 logger = logging.getLogger("focus.tools.executor")
 
@@ -98,27 +94,6 @@ async def execute_tool_round(
 
     # Persist to tool_calls table
     if results:
-        save_now = now_iso()
-        async with _db_conn(db) as conn:
-            for call, result in zip(tool_calls_list, results):
-                extra_msg = json.dumps(result.extra_message) if result.extra_message else None
-                await conn.execute(
-                    """INSERT INTO tool_calls
-                       (id, chat_id, message_id, variant_id, tool_name, arguments, result, is_error, extra_message_json, created_at)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                    (
-                        str(uuid.uuid4()),
-                        chat_id,
-                        asst_msg_id,
-                        variant_id,
-                        call.name,
-                        json.dumps(call.arguments),
-                        result.content,
-                        int(result.is_error),
-                        extra_msg,
-                        save_now,
-                    ),
-                )
-            await conn.commit()
+        await persist_tool_calls(chat_id, asst_msg_id, variant_id, tool_calls_list, results, db=db)
 
     return results

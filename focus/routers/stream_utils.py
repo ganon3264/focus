@@ -2,7 +2,6 @@ import asyncio
 import html
 import json
 import logging
-import uuid
 
 import aiosqlite
 from fastapi import HTTPException
@@ -11,7 +10,11 @@ import focus.crud as crud
 from focus.core.card_parser import safe_load_card
 from focus.core.macros import build_base_macros
 from focus.core.models import StreamRequest
-from focus.core.utils import now_iso
+from focus.db.chats import (
+    bind_attachments_to_message,
+    create_message,
+    create_message_with_variant,
+)
 from focus.prompt_chain import assemble_prompt, build_content
 from focus.routers.providers import get_openrouter_model_modalities
 
@@ -23,15 +26,7 @@ _chat_locks_creation_lock = asyncio.Lock()
 
 async def _make_assistant_slot(db: aiosqlite.Connection, chat_id: str) -> str:
     """Insert a new assistant message row and return its id."""
-    now = now_iso()
-    async with db.execute("SELECT MAX(position) FROM messages WHERE chat_id = ?", (chat_id,)) as cur:
-        pos_row = await cur.fetchone()
-    next_pos = (pos_row[0] if pos_row[0] is not None else -1) + 1
-    asst_id = str(uuid.uuid4())
-    await db.execute(
-        "INSERT INTO messages (id, chat_id, role, position, active_index, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-        (asst_id, chat_id, "assistant", next_pos, 0, now),
-    )
+    asst_id = await create_message(db, chat_id, "assistant")
     await db.commit()
     return asst_id
 
@@ -312,22 +307,14 @@ async def get_prompt_context(
                     _chat_locks[chat_id] = asyncio.Lock()
             lock = _chat_locks[chat_id]
             async with lock:
-                now = now_iso()
                 async with db.execute("SELECT MAX(position) FROM messages WHERE chat_id = ?", (chat_id,)) as cur:
                     pos_row = await cur.fetchone()
                 next_pos = (pos_row[0] if pos_row[0] is not None else -1) + 1
 
                 # Only create a user message if there's actual text or attachments
                 if user_message.strip() or attachment_ids:
-                    user_msg_id = str(uuid.uuid4())
-                    user_variant_id = str(uuid.uuid4())
-                    await db.execute(
-                        "INSERT INTO messages (id, chat_id, role, position, active_index, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-                        (user_msg_id, chat_id, "user", next_pos, 0, now),
-                    )
-                    await db.execute(
-                        "INSERT INTO message_variants (id, message_id, variant_index, content, created_at) VALUES (?, ?, ?, ?, ?)",
-                        (user_variant_id, user_msg_id, 0, user_message, now),
+                    user_msg_id, user_variant_id = await create_message_with_variant(
+                        db, chat_id, "user", user_message, position=next_pos,
                     )
 
                     logger.debug(
@@ -337,12 +324,9 @@ async def get_prompt_context(
 
                     # Bind any attached files to the newly created user message
                     if attachment_ids:
-                        placeholders = ",".join("?" * len(attachment_ids))
-                        await db.execute(
-                            f"UPDATE message_attachments SET message_id = ?, variant_id = ? WHERE id IN ({placeholders})",
-                            [user_msg_id, user_variant_id] + attachment_ids,
-                        )
+                        await bind_attachments_to_message(db, chat_id, user_msg_id, user_variant_id, attachment_ids)
 
+                        placeholders = ",".join("?" * len(attachment_ids))
                         async with db.execute(
                             f"SELECT * FROM message_attachments WHERE id IN ({placeholders}) ORDER BY created_at",
                             attachment_ids,
