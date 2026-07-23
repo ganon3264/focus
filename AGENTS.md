@@ -77,7 +77,7 @@ SSE events: `start | token | reasoning | tool_calls | tool_result | done`.
 
 **Builtin** — `BUILTIN_TOOLS` in `builtin.py`: `read_file`, `list_dir`, `read_image`, `execute_shell`. Each has a `writes` flag for read-only safety.
 
-**External** — JSON configs in `tools/*.json` (gitignored, project root). Format: `ExternalToolConfig(name, description, command, timeout, writes, params)`. Loaded via `load_external_tools()` → `ALL_TOOLS`. Invalid files silently skipped (logged as warning).
+**External** — JSON configs in `tools/` (project root). Recursive scan up to 2 levels deep, hidden dirs (`.venv`, etc.) skipped. `tools/samples/` is shipped with the repo. Format: `ExternalToolConfig(name, description, command, timeout, writes, params)`. Loaded via `load_external_tools()` → `ALL_TOOLS`. Invalid files silently skipped (logged as warning).
 
 **Provider adapter** — `to_provider_tools()` converts `ToolSpec` → OpenAI-compatible `tools=` payload. `to_provider_tool_results()` → tool-role messages.
 

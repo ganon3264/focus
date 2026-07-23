@@ -1,3 +1,4 @@
+
 # Focus
 
 A roleplaying thingy, kinda like SillyTavern, but opinionated and personal (and sloppy).
@@ -6,7 +7,7 @@ A roleplaying thingy, kinda like SillyTavern, but opinionated and personal (and 
 
 ## Prerequisites
 
-- Python 3.11+
+- Python 3.13+
   - uv (optional, but recommended)
   - node.js (optional, for tests)
 
@@ -25,14 +26,14 @@ cd focus
 
 ## Supported APIs
 
-| Provider | Toolcalls | Reasoning effort | Preserve/prefill reasoning | Other |
-|---|:---:|:---:|:---:|---|
-| Generic OAI-compatible | ✅ | ✅\* |✅\* | *If the backend supports it |
-| OpenRouter | ✅ | ✅| ✅\*| Quantization & provider routing, sticky routing by session ID, Claude caching, (*Model dependent) |
-| Deepseek | ✅ | ✅ | ✅ | |
-| Moonshot | ✅ | ✅ | ✅ | `prompt_cache_key` support |
-| Google AI Studio | | ✅ | ✅ | |
-| Google Vertex AI | | ✅ | ✅ | |
+| Provider | Toolcalls | Reasoning effort | Preserve reasoning| Prefill reasoning | Other |
+|---|:---:|:---:|:---:|:---:|---|
+| Generic OAI-compatible | ✓ | ✓\* | ✓\*| ✓\* | *If the backend supports it |
+| OpenRouter             | ✓ | ✓| ✓\*| ✓\* | Quantization & provider routing, sticky routing by session ID, Claude caching, (*Model dependent) |
+| Deepseek               | ✓ | ✓ | ✓ |✓ | |
+| Moonshot               | ✓ | ✓ | ✓ | ✓ | `prompt_cache_key` support |
+| Google AI Studio         | | ✓ | ✓ | | |
+| Google Vertex AI         | | ✓ | ✓ | | |
 
 ## Features
 
@@ -42,8 +43,7 @@ cd focus
 - Multimodal support as first class citizen
   - Attach images to prompt blocks, character cards, and personas; choose attachment's position within the card using a macro
 - Basic toolcalling support
-  - See TOOLS.md for custom tools
-  - Generic OAI, Moonshot and Deepseek tested; Google not so much
+  - See [TOOLS.md](TOOLS.md) for custom tools
 - Prefill `reasoning_content` support for toolcalls and more complex presets
   - Actual support for sending `reasoning_content` back properly if model needs it (encrypted thinking not handled yet/if ever)
 - Preset variables exposed in the UI with switches

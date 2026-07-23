@@ -1,6 +1,7 @@
 /data/
 /assets/
-/tools/
+/tools/*
+!/tools/samples/
 __pycache__/
 *.pyc
 /.venv/

@@ -1,0 +1,15 @@
+{
+  "name": "screenshot",
+  "description": "Capture a screenshot of the current monitor and return it as an image for the model to view.",
+  "command": ["python3", "tools/samples/screenshot.py"],
+  "multimodal": true,
+  "params": [
+    {
+      "name": "monitor",
+      "type": "string",
+      "description": "Which monitor to capture: 'current' (default), 'fullscreen', 'activewindow'",
+      "required": false
+    }
+  ],
+  "writes": false
+}

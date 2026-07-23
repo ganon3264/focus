@@ -1,0 +1,34 @@
+{
+  "name": "sd_image_gen",
+  "description": "Generate an image using a local Stable Diffusion model. Returns the generated image for the model to view.",
+  "command": ["python3", "tools/samples/sd_image_gen.py"],
+  "multimodal": true,
+  "params": [
+    {
+      "name": "prompt",
+      "type": "string",
+      "description": "Text description of the image to generate. Tag order: [quality/meta/year/safety tags] [1girl/1boy/1other etc] [character] [series] [@artist] [general tags]",
+      "required": true
+    },
+    {
+      "name": "negative_prompt",
+      "type": "string",
+      "description": "Things to avoid in the generated image; default one provided if not specified.",
+      "required": false
+    },
+    {
+      "name": "width",
+      "type": "integer",
+      "description": "Image width in pixels. Default varies by model; safe range is typically 512-1536.",
+      "required": false
+    },
+    {
+      "name": "height",
+      "type": "integer",
+      "description": "Image height in pixels. Default varies by model; safe range is typically 512-1536.",
+      "required": false
+    }
+  ],
+  "writes": false,
+  "timeout": 300
+}

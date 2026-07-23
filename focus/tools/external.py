@@ -110,10 +110,17 @@ def load_external_tools(tools_dir: str | Path | None = None) -> list[ToolSpec]:
         return []
 
     tools: list[ToolSpec] = []
-    for f in sorted(d.iterdir()):
-        if f.suffix == ".json" and f.is_file():
-            try:
-                tools.append(_load_single_tool(f))
-            except Exception as exc:
-                logger.warning("Skipping external tool %s: %s", f.name, exc)
+    MAX_DEPTH = 2
+    for f in sorted(d.rglob("*.json")):
+        if not f.is_file():
+            continue
+        rel = f.relative_to(d)
+        if len(rel.parents) >= MAX_DEPTH:
+            continue
+        if any(p.name.startswith(".") for p in rel.parents):
+            continue
+        try:
+            tools.append(_load_single_tool(f))
+        except Exception as exc:
+            logger.warning("Skipping external tool %s: %s", f.name, exc)
     return tools
