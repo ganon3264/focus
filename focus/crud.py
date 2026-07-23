@@ -4,12 +4,6 @@ import logging
 import aiosqlite
 
 from focus.core.card_parser import safe_load_card
-from focus.core.utils import now_iso
-
-# Backward-compat re-exports — new code should import from focus.db directly.
-from focus.db._core import _db_conn
-from focus.db.media import delete_block_image, next_position, upload_block_image
-from focus.db.chats import rollback_assistant, save_usage, upsert_variant
 
 logger = logging.getLogger("focus.crud")
 

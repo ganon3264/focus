@@ -22,7 +22,7 @@ from focus.core.utils import (
     estimate_image_tokens,
     resolve_secret_key,
 )
-from focus.crud import rollback_assistant, save_usage, upsert_variant
+from focus.db.chats import rollback_assistant, save_usage, upsert_variant
 from focus.providers import create_provider
 from focus.routers.stream_utils import (
     get_prompt_context,
