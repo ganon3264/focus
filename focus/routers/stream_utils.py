@@ -10,8 +10,10 @@ from fastapi import HTTPException
 import focus.crud as crud
 from focus.core.card_parser import safe_load_card
 from focus.core.macros import build_base_macros
+from focus.core.models import StreamRequest
 from focus.core.utils import now_iso
 from focus.prompt_chain import _build_content, assemble_prompt
+from focus.routers.providers import get_openrouter_model_modalities
 
 logger = logging.getLogger("focus.routers.stream_utils")
 
@@ -538,3 +540,96 @@ def apply_claude_caching(
         msg.pop("_greeting", None)
 
     return messages
+
+
+async def prepare_generation_messages(
+    prov_dict: dict,
+    body: StreamRequest,
+    messages: list[dict],
+    provider,
+    chat_id: str,
+) -> tuple[list[dict], dict]:
+    """Apply modality filtering, caching, field stripping, prefill,
+    sampler processing, and OpenRouter sticky routing.
+    Returns (filtered_messages, gen_kwargs)."""
+
+    s = dict(body.samplers or {})
+    if s.pop("disable_multimodal", False):
+        messages = filter_unsupported_modalities(messages, ["text"])
+
+    if prov_dict.get("type") == "openrouter":
+        modalities = await get_openrouter_model_modalities(prov_dict.get("model", ""))
+        if modalities:
+            messages = filter_unsupported_modalities(messages, modalities)
+
+        if s.pop("cache_enabled", False) and prov_dict.get("model", "").startswith("anthropic/claude"):
+            messages = apply_claude_caching(
+                messages,
+                True,
+                s.pop("cache_ttl", "ephemeral"),
+                s.pop("cache_depth", 5),
+            )
+
+    for msg in messages:
+        msg.pop("_greeting", None)
+    if prov_dict.get("type", "") not in ("google_aistudio", "google_vertex"):
+        for msg in messages:
+            msg.pop("thought_signature", None)
+
+        raw = (body.samplers or {}).get("preserve_thinking", False)
+        if isinstance(raw, str):
+            v = raw.lower()
+            if v in ("all", "true"):
+                mode = "all"
+            elif v == "tool_only":
+                mode = "tool_only"
+            else:
+                mode = "off"
+        elif raw is True:
+            mode = "all"
+        else:
+            mode = "off"
+
+        if mode == "off":
+            for msg in messages:
+                if msg.get("role") == "assistant" and msg.get("reasoning"):
+                    msg.pop("reasoning")
+        elif mode == "tool_only":
+            for msg in messages:
+                if msg.get("role") == "assistant" and msg.get("reasoning") and not msg.get("tool_calls") and msg.get("content"):
+                    msg.pop("reasoning")
+
+    if (body.continue_text is not None or body.continue_reasoning) and body.regenerate and provider.supports_prefill:
+        prefill_msg = {"role": "assistant", "content": body.continue_text or ""}
+        if body.continue_reasoning:
+            prefill_msg["reasoning"] = body.continue_reasoning
+        messages.append(prefill_msg)
+
+    gen_kwargs: dict = {}
+    if body.samplers:
+        s.pop("disable_multimodal", None)
+        s.pop("cache_enabled", None)
+        s.pop("cache_ttl", None)
+        s.pop("cache_depth", None)
+        gen_kwargs.update(s)
+
+    if prov_dict.get("type") == "openrouter":
+        gen_kwargs["session_id"] = chat_id
+    if prov_dict.get("type") == "moonshot":
+        gen_kwargs["prompt_cache_key"] = chat_id
+
+    return messages, gen_kwargs
+
+
+def prefill_reasoning(body: StreamRequest, messages: list[dict]) -> str | None:
+    """Return the prefill reasoning text that the provider won't echo back.
+
+    Checks body.continue_reasoning first (explicit continue/regenerate),
+    then falls back to the last message if it's an assistant thinking-only
+    block (reasoning with empty content).  Returns None if no such text.
+    """
+    if body.continue_reasoning:
+        return body.continue_reasoning
+    if messages and messages[-1].get("role") == "assistant" and messages[-1].get("reasoning"):
+        return messages[-1]["reasoning"]
+    return None

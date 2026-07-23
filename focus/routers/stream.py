@@ -23,11 +23,10 @@ from focus.core.utils import (
 )
 from focus.crud import rollback_assistant, save_or_rollback, save_usage, upsert_variant
 from focus.providers import create_provider
-from focus.routers.providers import get_openrouter_model_modalities
 from focus.routers.stream_utils import (
-    apply_claude_caching,
-    filter_unsupported_modalities,
     get_prompt_context,
+    prefill_reasoning,
+    prepare_generation_messages,
 )
 from focus.tools import (
     MAX_TOOL_ITERATIONS,
@@ -60,88 +59,6 @@ async def _load_provider(
     return provider, prov_dict
 
 
-
-async def _prepare_generation_messages(
-    prov_dict: dict,
-    body: StreamRequest,
-    messages: list[dict],
-    provider,
-    chat_id: str,
-) -> tuple[list[dict], dict]:
-    """Apply modality filtering, caching, field stripping, prefill,
-    sampler processing, and OpenRouter sticky routing.
-    Returns (filtered_messages, gen_kwargs)."""
-
-    s = dict(body.samplers or {})
-    if s.pop("disable_multimodal", False):
-        messages = filter_unsupported_modalities(messages, ["text"])
-
-    if prov_dict.get("type") == "openrouter":
-        modalities = await get_openrouter_model_modalities(prov_dict.get("model", ""))
-        if modalities:
-            messages = filter_unsupported_modalities(messages, modalities)
-
-        if s.pop("cache_enabled", False) and prov_dict.get("model", "").startswith("anthropic/claude"):
-            messages = apply_claude_caching(
-                messages,
-                True,
-                s.pop("cache_ttl", "ephemeral"),
-                s.pop("cache_depth", 5),
-            )
-
-    for msg in messages:
-        msg.pop("_greeting", None)
-    if prov_dict.get("type", "") not in ("google_aistudio", "google_vertex"):
-        for msg in messages:
-            msg.pop("thought_signature", None)
-
-        # Preserve thinking: unified 3-way logic for all non-Google providers
-        raw = (body.samplers or {}).get("preserve_thinking", False)
-        if isinstance(raw, str):
-            v = raw.lower()
-            if v in ("all", "true"):
-                mode = "all"
-            elif v == "tool_only":
-                mode = "tool_only"
-            else:
-                mode = "off"
-        elif raw is True:
-            mode = "all"
-        else:
-            mode = "off"
-
-        if mode == "off":
-            for msg in messages:
-                if msg.get("role") == "assistant" and msg.get("reasoning"):
-                    msg.pop("reasoning")
-        elif mode == "tool_only":
-            for msg in messages:
-                if msg.get("role") == "assistant" and msg.get("reasoning") and not msg.get("tool_calls") and msg.get("content"):
-                    msg.pop("reasoning")
-
-    if (body.continue_text is not None or body.continue_reasoning) and body.regenerate and provider.supports_prefill:
-        prefill_msg = {"role": "assistant", "content": body.continue_text or ""}
-        if body.continue_reasoning:
-            prefill_msg["reasoning"] = body.continue_reasoning
-        messages.append(prefill_msg)
-
-    gen_kwargs: dict = {}
-    if body.samplers:
-        s.pop("disable_multimodal", None)
-        s.pop("cache_enabled", None)
-        s.pop("cache_ttl", None)
-        s.pop("cache_depth", None)
-        gen_kwargs.update(s)
-
-    if prov_dict.get("type") == "openrouter":
-        gen_kwargs["session_id"] = chat_id
-    if prov_dict.get("type") == "moonshot":
-        gen_kwargs["prompt_cache_key"] = chat_id
-
-    return messages, gen_kwargs
-
-
-
 def _log_outbound_payload(
     messages: list[dict],
     gen_kwargs: dict,
@@ -168,20 +85,6 @@ def _log_outbound_payload(
     logger.debug("Samplers:\n%s", json.dumps(gen_kwargs, indent=2))
     logger.debug("Messages:\n%s", json.dumps(_truncate_b64(messages), indent=2, ensure_ascii=False))
     logger.debug("==========================================")
-
-
-def _prefill_reasoning(body: StreamRequest, messages: list[dict]) -> str | None:
-    """Return the prefill reasoning text that the provider won't echo back.
-
-    Checks body.continue_reasoning first (explicit continue/regenerate),
-    then falls back to the last message if it's an assistant thinking-only
-    block (reasoning with empty content).  Returns None if no such text.
-    """
-    if body.continue_reasoning:
-        return body.continue_reasoning
-    if messages and messages[-1].get("role") == "assistant" and messages[-1].get("reasoning"):
-        return messages[-1]["reasoning"]
-    return None
 
 
 def _format_error(e: Exception) -> str:
@@ -386,7 +289,7 @@ async def _stream_generate(
     try:
         # Emit prefill as synthetic events
         if not provider.echoes_prefill:
-            pref_reasoning = _prefill_reasoning(body, messages)
+            pref_reasoning = prefill_reasoning(body, messages)
             if pref_reasoning:
                 acc.add_reasoning(pref_reasoning)
                 yield f"data: {json.dumps({'type': 'reasoning', 'text': pref_reasoning})}\n\n"
@@ -605,7 +508,7 @@ async def _non_stream_generate(
         if body.continue_text:
             acc.text.insert(0, body.continue_text)
             prefill_text_len = 1
-        pref_r = _prefill_reasoning(body, messages)
+        pref_r = prefill_reasoning(body, messages)
         if pref_r:
             acc.reasoning.insert(0, pref_r)
             prefill_reasoning_len = 1
@@ -680,7 +583,7 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
         if row is not None:
             next_variant_index = row[0]
 
-    messages, gen_kwargs = await _prepare_generation_messages(
+    messages, gen_kwargs = await prepare_generation_messages(
         prov_dict, body, messages, provider, body.chat_id,
     )
 
