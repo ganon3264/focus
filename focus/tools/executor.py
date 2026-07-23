@@ -7,7 +7,7 @@ import uuid
 import aiosqlite
 
 from focus.core.utils import now_iso
-from focus.crud import db_conn
+from focus.crud import _db_conn
 from focus.tools import ToolResult, build_tool_result
 
 logger = logging.getLogger("focus.tools.executor")
@@ -99,7 +99,7 @@ async def execute_tool_round(
     # Persist to tool_calls table
     if results:
         save_now = now_iso()
-        async with db_conn(db) as conn:
+        async with _db_conn(db) as conn:
             for call, result in zip(tool_calls_list, results):
                 extra_msg = json.dumps(result.extra_message) if result.extra_message else None
                 await conn.execute(

@@ -394,7 +394,7 @@ async def get_active_provider(db: aiosqlite.Connection) -> dict:
 
 
 @asynccontextmanager
-async def db_conn(db: aiosqlite.Connection | None = None):
+async def _db_conn(db: aiosqlite.Connection | None = None):
     """Yield *db* if provided, otherwise open and close a fresh connection."""
     if db is not None:
         yield db
@@ -422,7 +422,7 @@ async def upsert_variant(
     regenerate. Returns the variant id."""
     save_now = now_iso()
 
-    async with db_conn(db) as conn:
+    async with _db_conn(db) as conn:
         cur = await conn.execute(
             "SELECT id FROM message_variants WHERE message_id = ? AND variant_index = ?",
             (asst_msg_id, variant_index),
@@ -476,7 +476,7 @@ async def rollback_assistant(
     a failed request leaves the DB in pre-send state (user message is kept)."""
     if not asst_msg_id:
         return
-    async with db_conn(db) as conn:
+    async with _db_conn(db) as conn:
         await conn.execute("DELETE FROM messages WHERE id = ?", (asst_msg_id,))
         await conn.commit()
 
@@ -514,7 +514,7 @@ async def save_usage(
     )
 
     try:
-        async with db_conn(db) as conn:
+        async with _db_conn(db) as conn:
             params = (
                 row_id, chat_id, message_id, variant_id,
                 provider_id, provider_type, model_name,

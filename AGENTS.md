@@ -67,7 +67,7 @@ SSE events: `start | token | reasoning | tool_calls | tool_result | done`.
 
 **Backend** — `_active_generations` maps `message_id → asyncio.Event`. Stop button calls `POST /api/stop-generation/{message_id}` which sets the event — SSE generator drains gracefully instead of `AbortController.abort()`. Both `_stream_generate` (SSE) and `_non_stream_generate` (JSON) share `_run_generation()`.
 
-**Segment rendering** — messages split into `text | reasoning | tool_boundary` typed siblings. `_build_segments()` builds `segments_json` from per-iteration slices, stored in `message_variants`. Never use `fullText` for per-segment rendering. Use `preserveOpenStates()` not `innerHTML` to keep reasoning toggles open.
+**Segment rendering** — messages split into `text | reasoning | tool_boundary` typed siblings. `build_segments()` (`focus/core/segments.py`) builds `segments_json` from per-iteration slices, stored in `message_variants`. Never use `fullText` for per-segment rendering. Use `preserveOpenStates()` not `innerHTML` to keep reasoning toggles open.
 
 **History reconstruction** — `_append_history_with_tool_calls()` (stream_utils.py) rebuilds the API payload from `segments_json`: each `tool_boundary` with `tool_calls` closes an assistant chunk, emitting `assistant → tool → extra user message (image)` per iteration, so the post-tool reaction text lands *after* the tool results. Reasoning segments store escaped HTML — unescape with `html.unescape`. Legacy segments (boundary without `tool_calls`) fall back to a single merged assistant entry.
 
@@ -81,7 +81,7 @@ SSE events: `start | token | reasoning | tool_calls | tool_result | done`.
 
 **Provider adapter** — `to_provider_tools()` converts `ToolSpec` → OpenAI-compatible `tools=` payload. `to_provider_tool_results()` → tool-role messages.
 
-**Read-only mode** — `active_tools(all_tools, read_only)` filters `writes=True` tools. Checked in `_execute_tool_round()` before calling handlers.
+**Read-only mode** — `active_tools(all_tools, read_only)` filters `writes=True` tools. Checked in `execute_tool_round()` (`focus/tools/executor.py`) before calling handlers.
 
 **Iteration loop** — `_run_generation()` loops up to `MAX_TOOL_ITERATIONS`. Per iteration: stream tokens → detect `tool_calls` → break → execute → emit results → loop. Calls persisted to `tool_calls` table.
 
@@ -108,14 +108,14 @@ SSE events: `start | token | reasoning | tool_calls | tool_result | done`.
 
 On continue, server emits existing partial content + reasoning as synthetic SSE events (`type: reasoning` / `token`) before real tokens. Frontend sees the complete message — no `prefillMode` needed.
 
-- `_prepare_generation_messages()` appends a prefill assistant message to the API context.
+- `prepare_generation_messages()` (`focus/routers/stream_utils.py`) appends a prefill assistant message to the API context.
 - Stream path emits synthetic events after `start` when `echoes_prefill` is false (DeepSeek, Moonshot).
 - Non-stream path prepends prefill to `collected`/`collected_reasoning` before final join.
 - Template always renders empty `.message-content` div when msg has reasoning but no text — pulse cursor needs a DOM position.
 
 ### Preserve Thinking
 
-Controls whether past assistant reasoning fields are sent in multi-turn history. Set in sampler modal, applied in `_prepare_generation_messages()` (`stream.py:110-133`).
+Controls whether past assistant reasoning fields are sent in multi-turn history. Set in sampler modal, applied in `prepare_generation_messages()` (`focus/routers/stream_utils.py:535`).
 
 - **off** — strip reasoning from all past assistant messages
 - **tool_only** — strip unless the message had `tool_calls` (reasoning from tool-using turns is useful context)

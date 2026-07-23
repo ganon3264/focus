@@ -191,7 +191,7 @@ class TestStreamAbortBehavior:
         db_path = _db_path(tmp_test_dir)
 
         await _insert_message(db_path, chat_id=chat["id"], role="user", position=0, content="Hi")
-        old_asst_id, _ =         await _insert_message(
+        old_asst_id, _ = await _insert_message(
             db_path, chat_id=chat["id"], role="assistant", position=1, content="Old"
         )
 
