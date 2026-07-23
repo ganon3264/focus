@@ -1,15 +1,15 @@
 import json
 import logging
-import sqlite3
-import uuid
-from contextlib import asynccontextmanager
-from pathlib import Path
 
 import aiosqlite
 
 from focus.core.card_parser import safe_load_card
-from focus.core.database import DB_PATH
-from focus.core.utils import SUFFIX_MIME_MAP, SUFFIX_MIME_MAP_IMAGES_ONLY, now_iso
+from focus.core.utils import now_iso
+
+# Backward-compat re-exports — new code should import from focus.db directly.
+from focus.db._core import _db_conn
+from focus.db.media import delete_block_image, next_position, upload_block_image
+from focus.db.chats import rollback_assistant, save_usage, upsert_variant
 
 logger = logging.getLogger("focus.crud")
 
@@ -45,67 +45,6 @@ async def attach_images(blocks: list[dict], db: aiosqlite.Connection) -> list[di
     for b in blocks:
         b["images"] = images_by_block.get(b["id"], [])
     return blocks
-
-
-async def next_position(db: aiosqlite.Connection, table: str, where_col: str, where_val: str) -> int:
-    async with db.execute(
-        f"SELECT COALESCE(MAX(position), -1) FROM {table} WHERE {where_col} = ?", (where_val,)
-    ) as cur:
-        row = await cur.fetchone()
-    return row[0] + 1
-
-async def upload_block_image(
-    db: aiosqlite.Connection,
-    block_id: str,
-    block_source: str,
-    file_data: bytes,
-    filename: str,
-    content_type: str | None,
-    storage_dir: str,
-    images_only: bool = False,
-) -> dict:
-    next_pos = await next_position(db, "block_images", "block_id", block_id)
-
-    image_id = str(uuid.uuid4())
-    suffix = Path(filename).suffix.lower() if filename else ".png"
-    suffix = suffix or ".png"
-    mime_map = SUFFIX_MIME_MAP_IMAGES_ONLY if images_only else SUFFIX_MIME_MAP
-    mime = mime_map.get(suffix, "image/png" if images_only else "application/octet-stream")
-    if not images_only and mime == "application/octet-stream" and content_type:
-        mime = content_type
-
-    blocks_dir = Path(storage_dir)
-    blocks_dir.mkdir(parents=True, exist_ok=True)
-    image_path = str(blocks_dir / f"{image_id}{suffix}")
-    try:
-        Path(image_path).write_bytes(file_data)
-    except OSError as e:
-        raise OSError(f"Failed to write uploaded file to {image_path}: {e}")
-
-    await db.execute(
-        "INSERT INTO block_images (id, block_id, block_source, image_path, mime_type, position, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (image_id, block_id, block_source, image_path, mime, next_pos, now_iso()),
-    )
-    await db.commit()
-    return {"id": image_id, "position": next_pos, "image_path": image_path, "mime_type": mime}
-
-
-async def delete_block_image(
-    db: aiosqlite.Connection,
-    image_id: str,
-    block_id: str,
-) -> None:
-    async with db.execute(
-        "SELECT image_path FROM block_images WHERE id = ? AND block_id = ?", (image_id, block_id)
-    ) as cur:
-        row = await cur.fetchone()
-    if not row:
-        from fastapi import HTTPException
-
-        raise HTTPException(404, "Image not found")
-    Path(row["image_path"]).unlink(missing_ok=True)
-    await db.execute("DELETE FROM block_images WHERE id = ?", (image_id,))
-    await db.commit()
 
 
 async def verify_entity_exists(
@@ -392,151 +331,7 @@ async def get_active_provider(db: aiosqlite.Connection) -> dict:
     return {"provider_id": provider_id, "provider_type": provider_type}
 
 
-@asynccontextmanager
-async def _db_conn(db: aiosqlite.Connection | None = None):
-    """Yield *db* if provided, otherwise open and close a fresh connection."""
-    if db is not None:
-        yield db
-    else:
-        async with aiosqlite.connect(DB_PATH) as conn:
-            await conn.execute("PRAGMA foreign_keys=ON")
-            yield conn
 
-
-async def upsert_variant(
-    chat_id: str,
-    asst_msg_id: str,
-    variant_index: int,
-    content: str,
-    regenerate: bool,
-    model_name: str = "",
-    variant_id: str | None = None,
-    reasoning: str | None = None,
-    segments_json: str | None = None,
-    db: aiosqlite.Connection | None = None,
-) -> str:
-    """Insert or update a message variant. If a variant with the same
-    (message_id, variant_index) exists, updates it in-place. Otherwise inserts
-    a new row and copies attachments from the previous active variant on
-    regenerate. Returns the variant id."""
-    save_now = now_iso()
-
-    async with _db_conn(db) as conn:
-        cur = await conn.execute(
-            "SELECT id FROM message_variants WHERE message_id = ? AND variant_index = ?",
-            (asst_msg_id, variant_index),
-        )
-        existing = await cur.fetchone()
-
-        if existing:
-            vid = existing[0]
-            await conn.execute(
-                "UPDATE message_variants SET content = ?, model_name = ?, created_at = ?, reasoning = ?, segments_json = ? WHERE id = ?",
-                (content, model_name or None, save_now, reasoning, segments_json, vid),
-            )
-        else:
-            vid = variant_id or str(uuid.uuid4())
-            await conn.execute(
-                "INSERT INTO message_variants (id, message_id, variant_index, content, created_at, model_name, reasoning, segments_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                (vid, asst_msg_id, variant_index, content, save_now, model_name or None, reasoning, segments_json),
-            )
-            if regenerate and variant_index > 0:
-                async with conn.execute("SELECT active_index FROM messages WHERE id = ?", (asst_msg_id,)) as act:
-                    row = await act.fetchone()
-                if row:
-                    async with conn.execute(
-                        "SELECT * FROM message_attachments WHERE variant_id = (SELECT id FROM message_variants WHERE message_id = ? AND variant_index = ?) ORDER BY created_at",
-                        (asst_msg_id, row[0]),
-                    ) as att_cur:
-                        old_attachments = [dict(r) for r in await att_cur.fetchall()]
-                    for att in old_attachments:
-                        await conn.execute(
-                            "INSERT INTO message_attachments (id, chat_id, message_id, variant_id, file_path, mime_type, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                            (str(uuid.uuid4()), chat_id, asst_msg_id, vid, att["file_path"], att["mime_type"], save_now),
-                        )
-
-        if content or reasoning:
-            await conn.execute(
-                "UPDATE messages SET active_index = ? WHERE id = ?",
-                (variant_index, asst_msg_id),
-            )
-        await conn.execute("UPDATE chats SET updated_at = ? WHERE id = ?", (save_now, chat_id))
-        await conn.commit()
-
-    return vid
-
-
-async def rollback_assistant(
-    asst_msg_id: str | None,
-    db: aiosqlite.Connection | None = None,
-):
-    """Delete the empty assistant row that get_prompt_context eagerly inserts
-    before the provider is called. Called from the stream's exception paths so
-    a failed request leaves the DB in pre-send state (user message is kept)."""
-    if not asst_msg_id:
-        return
-    async with _db_conn(db) as conn:
-        await conn.execute("DELETE FROM messages WHERE id = ?", (asst_msg_id,))
-        await conn.commit()
-
-
-async def save_usage(
-    chat_id: str,
-    message_id: str,
-    variant_id: str,
-    provider_id: str | None,
-    provider_type: str | None,
-    model_name: str | None,
-    usage: dict,
-    tool_iteration: int = 0,
-    db: aiosqlite.Connection | None = None,
-) -> None:
-    """Persist token/cache/cost usage from a single API call to generation_usage."""
-    row_id = str(uuid.uuid4())
-    now = now_iso()
-    cost = usage.get("cost")
-    cost_details_raw = usage.get("cost_details")
-    cost_details_str = json.dumps(cost_details_raw) if cost_details_raw is not None else None
-
-    prompt = usage.get("prompt_tokens", 0)
-    completion = usage.get("completion_tokens", 0)
-    total = usage.get("total_tokens", 0)
-    cached = usage.get("cached_tokens", 0)
-
-    cache_pct = f"{cached / prompt * 100:.0f}%" if prompt > 0 else "-"
-    tag = f"{provider_type or '?'}/{model_name or '?'}"
-    cost_str = f" | cost=${cost:.5f}" if cost is not None else ""
-    iter_str = f" (iter={tool_iteration})" if tool_iteration else ""
-    logger.info(
-        "USAGE %s | p=%s + c=%s = t=%s | cache=%s (%s)%s%s",
-        tag, prompt, completion, total, cached, cache_pct, cost_str, iter_str,
-    )
-
-    try:
-        async with _db_conn(db) as conn:
-            params = (
-                row_id, chat_id, message_id, variant_id,
-                provider_id, provider_type, model_name,
-                prompt, completion, total,
-                cached, usage.get("reasoning_tokens", 0),
-                cost,
-                cost_details_str,
-                tool_iteration,
-                now,
-            )
-            sql = """INSERT INTO generation_usage
-                   (id, chat_id, message_id, variant_id, provider_id, provider_type,
-                    model_name, prompt_tokens, completion_tokens, total_tokens,
-                    cached_tokens, reasoning_tokens, cost, cost_details,
-                    tool_iteration, created_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"""
-            try:
-                await conn.execute(sql, params)
-            except sqlite3.IntegrityError:
-                await conn.execute(sql, (params[0], params[1], params[2], None) + params[4:])
-            await conn.commit()
-    except Exception:
-        logger.exception("Failed to persist generation_usage for message_id=%s", message_id)
 
 
 

@@ -1,0 +1,112 @@
+from focus.db.models import (
+    BlockImage,
+    Character,
+    CharBlock,
+    Chat,
+    ChatToolState,
+    GenerationUsage,
+    Message,
+    MessageAttachment,
+    MessageVariant,
+    Persona,
+    Preset,
+    PresetBlock,
+    Provider,
+    Secret,
+    Setting,
+    ToolCall,
+)
+from focus.db.settings import delete_setting, set_active_provider, upsert_setting
+from focus.db.personas import (
+    create_persona,
+    delete_persona,
+    hard_delete_persona,
+    restore_persona,
+    update_persona,
+    update_persona_avatar,
+)
+from focus.db.providers import (
+    create_provider,
+    delete_provider,
+    delete_secret,
+    update_provider,
+    upsert_secret,
+)
+from focus.db.presets import (
+    create_preset,
+    create_preset_block,
+    delete_preset,
+    delete_preset_block,
+    import_preset,
+    replace_preset_blocks,
+    update_preset,
+    update_preset_block,
+)
+from focus.db.characters import (
+    create_char_block,
+    create_character,
+    delete_char_block,
+    delete_character,
+    hard_delete_character,
+    import_character,
+    restore_character,
+    update_char_block,
+    update_character,
+    update_character_avatar,
+)
+from focus.db.chats import (
+    bind_attachments_to_message,
+    branch_chat,
+    bulk_delete_messages,
+    create_attachment,
+    create_chat,
+    create_greeting_messages,
+    create_message,
+    delete_attachment,
+    delete_chat,
+    hard_delete_chat,
+    delete_message_and_after,
+    edit_message_create_variant,
+    persist_tool_calls,
+    restore_chat,
+    rollback_assistant,
+    save_usage,
+    swipe_message,
+    update_chat,
+    update_chat_tool_states,
+    upsert_variant,
+)
+from focus.db.media import delete_block_image, upload_block_image
+from focus.db.cleanup import clean_database
+
+# Internal helpers
+from focus.db._core import _db_conn
+
+__all__ = [
+    "BlockImage", "Character", "CharBlock", "Chat", "ChatToolState",
+    "GenerationUsage", "Message", "MessageAttachment", "MessageVariant",
+    "Persona", "Preset", "PresetBlock", "Provider", "Secret", "Setting",
+    "ToolCall",
+    "delete_setting", "set_active_provider", "upsert_setting",
+    "create_persona", "delete_persona", "hard_delete_persona",
+    "restore_persona", "update_persona", "update_persona_avatar",
+    "create_provider", "delete_provider", "delete_secret",
+    "update_provider", "upsert_secret",
+    "create_preset", "create_preset_block", "delete_preset",
+    "delete_preset_block", "import_preset", "replace_preset_blocks",
+    "update_preset", "update_preset_block",
+    "create_char_block", "create_character", "delete_char_block",
+    "delete_character", "hard_delete_character", "import_character",
+    "restore_character", "update_char_block", "update_character",
+    "update_character_avatar",
+    "bind_attachments_to_message", "branch_chat", "bulk_delete_messages",
+    "create_attachment", "create_chat", "create_greeting_messages",
+    "create_message", "delete_attachment", "delete_chat", "hard_delete_chat",
+    "delete_message_and_after", "edit_message_create_variant",
+    "persist_tool_calls", "restore_chat", "rollback_assistant", "save_usage",
+    "swipe_message", "update_chat", "update_chat_tool_states",
+    "upsert_variant",
+    "delete_block_image", "upload_block_image",
+    "clean_database",
+    "_db_conn",
+]
