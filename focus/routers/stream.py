@@ -5,8 +5,10 @@ import logging
 import sqlite3
 import uuid
 from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 import aiosqlite
+from dataclasses import dataclass, field
 import tiktoken
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -50,6 +52,17 @@ logger = get_logger("routers.stream")
 _active_generations: dict[str, asyncio.Event] = {}
 
 
+@asynccontextmanager
+async def _db_conn(db: aiosqlite.Connection | None = None):
+    """Yield *db* if provided, otherwise open and close a fresh connection."""
+    if db is not None:
+        yield db
+    else:
+        async with aiosqlite.connect(DB_PATH) as conn:
+            await conn.execute("PRAGMA foreign_keys=ON")
+            yield conn
+
+
 
 async def _load_provider(
     db: aiosqlite.Connection, provider_id: str
@@ -78,7 +91,7 @@ async def _prepare_generation_messages(
     sampler processing, and OpenRouter sticky routing.
     Returns (filtered_messages, gen_kwargs)."""
 
-    s = dict(body.samplers) if body.samplers else {}
+    s = dict(body.samplers or {})
     if s.pop("disable_multimodal", False):
         messages = filter_unsupported_modalities(messages, ["text"])
 
@@ -87,7 +100,6 @@ async def _prepare_generation_messages(
         if modalities:
             messages = filter_unsupported_modalities(messages, modalities)
 
-        s = dict(body.samplers) if body.samplers else {}
         if s.pop("cache_enabled", False) and prov_dict.get("model", "").startswith("anthropic/claude"):
             messages = apply_claude_caching(
                 messages,
@@ -134,7 +146,6 @@ async def _prepare_generation_messages(
 
     gen_kwargs: dict = {}
     if body.samplers:
-        s = dict(body.samplers)
         s.pop("disable_multimodal", None)
         s.pop("cache_enabled", None)
         s.pop("cache_ttl", None)
@@ -192,6 +203,13 @@ def _prefill_reasoning(body: StreamRequest, messages: list[dict]) -> str | None:
     return None
 
 
+def _format_error(e: Exception) -> str:
+    """Return a non-empty string representation of an exception."""
+    msg = str(e)
+    if not msg or msg == "()":
+        msg = repr(e)
+    return msg
+
 
 async def _run_generation(
     provider,
@@ -205,6 +223,7 @@ async def _run_generation(
     asst_msg_id: str = "",
     variant_id: str = "",
     stop_event: asyncio.Event | None = None,
+    db: aiosqlite.Connection | None = None,
 ) -> AsyncIterator[dict]:
     """Run the tool-calling iteration loop.
 
@@ -255,10 +274,7 @@ async def _run_generation(
                     break
         except Exception as e:
             logger.exception("Completion failed for chat_id=%s", chat_id)
-            err_msg = str(e)
-            if not err_msg or err_msg == "()":
-                err_msg = repr(e)
-            yield {"type": "error", "error": err_msg}
+            yield {"type": "error", "error": _format_error(e)}
             return
 
         if not tool_calls_list:
@@ -274,14 +290,11 @@ async def _run_generation(
             results = await _apply_tool_round(
                 loop_messages, tool_calls_list, tools_by_name, tool_read_only,
                 chat_id, asst_msg_id, variant_id, iter_collected, iter_reasoning,
-                disable_multimodal=disable_multimodal,
+                disable_multimodal=disable_multimodal, db=db,
             )
         except Exception as e:
             logger.exception("Tool round failed for chat_id=%s", chat_id)
-            err_msg = str(e)
-            if not err_msg or err_msg == "()":
-                err_msg = repr(e)
-            yield {"type": "error", "error": err_msg}
+            yield {"type": "error", "error": _format_error(e)}
             return
         for r in results:
             yield {
@@ -293,6 +306,71 @@ async def _run_generation(
                 "image_url": extract_image_url(r) or None,
             }
 
+
+
+@dataclass
+class _GenAccumulator:
+    """Mutable state shared by both stream and non-stream generation paths.
+
+    Tracks accumulated text, reasoning, slice boundaries at tool iterations,
+    and tool-call groups so that ``_build_segments()`` can reconstruct the
+    iteration-by-iteration rendering.
+    """
+    text: list[str] = field(default_factory=list)
+    reasoning: list[str] = field(default_factory=list)
+    text_slices: list[int] = field(default_factory=list)
+    reasoning_slices: list[int] = field(default_factory=list)
+    tool_groups: list[list[dict]] = field(default_factory=list)
+    variant_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+
+    def add_text(self, chunk: str) -> None:
+        self.text.append(chunk)
+
+    def add_reasoning(self, chunk: str) -> None:
+        self.reasoning.append(chunk)
+
+    def begin_tool_iteration(self, tool_calls: list) -> list[dict]:
+        self.text_slices.append(len(self.text))
+        self.reasoning_slices.append(len(self.reasoning))
+        group = [
+            {
+                'id': tc.id,
+                'type': 'function',
+                'function': {'name': tc.name, 'arguments': json.dumps(tc.arguments)},
+            }
+            for tc in tool_calls
+        ]
+        self.tool_groups.append(group)
+        return group
+
+    def update_tool_result(
+        self, call_id: str, result: str, is_error: bool, image_url: str | None = None,
+    ) -> None:
+        if self.tool_groups:
+            for tc in self.tool_groups[-1]:
+                if tc['id'] == call_id:
+                    tc['result'] = result
+                    tc['is_error'] = is_error
+                    tc['image_url'] = image_url or None
+                    break
+
+    def close_iteration(self) -> None:
+        self.text_slices.append(len(self.text))
+        self.reasoning_slices.append(len(self.reasoning))
+
+    def build_segments(self) -> list[dict]:
+        return _build_segments(
+            self.text_slices, self.reasoning_slices,
+            self.text, self.reasoning,
+            tool_call_groups=self.tool_groups if self.tool_groups else None,
+        )
+
+    def full_text(self) -> str:
+        return "".join(self.text)
+
+    def full_reasoning(self) -> str | None:
+        r = "".join(self.reasoning).strip()
+        return r or None
 
 
 async def _stream_generate(
@@ -309,17 +387,13 @@ async def _stream_generate(
     tool_read_only: bool,
     disable_multimodal: bool = False,
     stop_event: asyncio.Event | None = None,
+    db: aiosqlite.Connection | None = None,
 ) -> AsyncIterator[str]:
     """Async generator that yields SSE-encoded lines for a streaming response."""
-    variant_id = str(uuid.uuid4())
-    variant_saved = False
-    final_text: list[str] = []
-    final_reasoning: list[str] = []
-    _text_slices: list[int] = []      # len(final_text) at each tool boundary
-    _reasoning_slices: list[int] = [] # len(final_reasoning) at each tool boundary
-    _tool_groups: list[list[dict]] = []  # per-boundary tool call dicts
+    acc = _GenAccumulator()
 
-    # start SSE
+    _active_generations[asst_msg_id] = stop_event or asyncio.Event()
+
     start_data = json.dumps({
         'type': 'start',
         'message_id': asst_msg_id,
@@ -327,63 +401,49 @@ async def _stream_generate(
     })
     yield f"data: {start_data}\n\n"
 
-    # core loop — GeneratorExit/CancelledError are caught here because aclose()
-    # throws them at the SSE ``yield`` points below.
     try:
-        # Emit prefill as synthetic events (inside try so GeneratorExit
-        # from these yields is caught and cleanup runs).
+        # Emit prefill as synthetic events
         if not provider.echoes_prefill:
             pref_reasoning = _prefill_reasoning(body, messages)
             if pref_reasoning:
-                final_reasoning.append(pref_reasoning)
+                acc.add_reasoning(pref_reasoning)
                 yield f"data: {json.dumps({'type': 'reasoning', 'text': pref_reasoning})}\n\n"
             if body.continue_text:
-                final_text.append(body.continue_text)
+                acc.add_text(body.continue_text)
                 yield f"data: {json.dumps({'token': body.continue_text})}\n\n"
 
         async for event in _run_generation(
             provider, messages, gen_kwargs, tools_enabled,
             tools_by_name, tool_read_only, disable_multimodal,
-            body.chat_id, asst_msg_id, variant_id,
-            stop_event,
+            body.chat_id, asst_msg_id, acc.variant_id,
+            stop_event=stop_event, db=db,
         ):
             if event["type"] == "token":
-                final_text.append(event["text"])
-                if len(final_text) % 5 == 0:
+                acc.add_text(event["text"])
+                if len(acc.text) % 5 == 0:
                     await _upsert_variant(
                         body.chat_id, asst_msg_id, next_variant_index,
-                        "".join(final_text), body.regenerate, prov_dict.get("model", ""),
-                        variant_id=variant_id,
-                        reasoning="".join(final_reasoning).strip() or None,
+                        acc.full_text(), body.regenerate, prov_dict.get("model", ""),
+                        variant_id=acc.variant_id,
+                        reasoning=acc.full_reasoning(),
+                        db=db,
                     )
                 yield f"data: {json.dumps({'token': event['text']})}\n\n"
 
             elif event["type"] == "reasoning":
-                final_reasoning.append(event["text"])
-                # Save before yield — if aclose() throws GeneratorExit at
-                # the yield below the reasoning is already committed.
-                await _upsert_variant(
-                    body.chat_id, asst_msg_id, next_variant_index,
-                    "".join(final_text), body.regenerate, prov_dict.get("model", ""),
-                    variant_id=variant_id,
-                    reasoning="".join(final_reasoning).strip() or None,
-                )
+                acc.add_reasoning(event["text"])
+                if len(acc.reasoning) % 5 == 0:
+                    await _upsert_variant(
+                        body.chat_id, asst_msg_id, next_variant_index,
+                        acc.full_text(), body.regenerate, prov_dict.get("model", ""),
+                        variant_id=acc.variant_id,
+                        reasoning=acc.full_reasoning(),
+                        db=db,
+                    )
                 yield f"data: {json.dumps({'type': 'reasoning', 'text': event['text']})}\n\n"
 
             elif event["type"] == "tool_calls":
-                _text_slices.append(len(final_text))
-                _reasoning_slices.append(len(final_reasoning))
-
-                group_calls = [
-                    {
-                        'id': tc.id,
-                        'type': 'function',
-                        'function': {'name': tc.name, 'arguments': json.dumps(tc.arguments)},
-                    }
-                    for tc in event['calls']
-                ]
-                _tool_groups.append(group_calls)
-
+                acc.begin_tool_iteration(event['calls'])
                 tc_data = json.dumps({
                     'type': 'tool_calls',
                     'calls': [
@@ -394,13 +454,10 @@ async def _stream_generate(
                 yield f"data: {tc_data}\n\n"
 
             elif event["type"] == "tool_result":
-                if _tool_groups:
-                    for tc in _tool_groups[-1]:
-                        if tc['id'] == event['call_id']:
-                            tc['result'] = event['result']
-                            tc['is_error'] = event['is_error']
-                            tc['image_url'] = event.get('image_url') or None
-                            break
+                acc.update_tool_result(
+                    event['call_id'], event['result'],
+                    event['is_error'], event.get('image_url'),
+                )
                 tr_data = json.dumps({
                     'type': 'tool_result',
                     'call_id': event['call_id'],
@@ -413,47 +470,30 @@ async def _stream_generate(
 
             elif event["type"] == "usage":
                 await _save_usage(
-                    body.chat_id, asst_msg_id, variant_id,
+                    body.chat_id, asst_msg_id, acc.variant_id,
                     prov_dict.get("id"), prov_dict.get("type"),
                     prov_dict.get("model", ""),
                     event["usage"],
-                    tool_iteration=len(_tool_groups),
+                    tool_iteration=len(acc.tool_groups), db=db,
                 )
 
             elif event["type"] == "done":
-                # save final variant — close final iteration boundary
-                _text_slices.append(len(final_text))
-                _reasoning_slices.append(len(final_reasoning))
+                acc.close_iteration()
+                segments = acc.build_segments()
 
-                full = "".join(final_text)
-                full_reasoning = "".join(final_reasoning).strip() or None
-
-                segments = _build_segments(
-                    _text_slices, _reasoning_slices,
-                    final_text, final_reasoning,
-                    tool_call_groups=_tool_groups if _tool_groups else None,
-                )
-
-                logger.debug(
-                    "stream: saving variant asst_msg_id=%s variant_index=%d full_length=%d reasoning=%s segments=%d",
-                    asst_msg_id, next_variant_index, len(full),
-                    "yes" if full_reasoning else "no", len(segments),
-                )
                 try:
                     await _upsert_variant(
                         body.chat_id, asst_msg_id, next_variant_index,
-                        full, body.regenerate, prov_dict.get("model", ""),
-                        variant_id=variant_id, reasoning=full_reasoning,
+                        acc.full_text(), body.regenerate, prov_dict.get("model", ""),
+                        variant_id=acc.variant_id, reasoning=acc.full_reasoning(),
                         segments_json=json.dumps(segments) if segments else None,
+                        db=db,
                     )
-                    variant_saved = True
-                    logger.debug("stream: variant saved successfully")
                 except Exception as e:
                     logger.exception("Failed to save stream result for chat_id=%s", body.chat_id)
                     if not body.regenerate:
-                        await _rollback_assistant(asst_msg_id)
-                    err_msg = str(e) or repr(e)
-                    yield f"data: {json.dumps({'error': f'Generation succeeded but save failed: {err_msg}'})}\n\n"
+                        await _rollback_assistant(asst_msg_id, db=db)
+                    yield f"data: {json.dumps({'error': f'Generation succeeded but save failed: {_format_error(e)}'})}\n\n"
                     return
 
                 done_data = json.dumps({
@@ -462,56 +502,37 @@ async def _stream_generate(
                     'variant_index': next_variant_index,
                 })
                 yield f"data: {done_data}\n\n"
-                logger.info("Stream completed for chat_id=%s variant_saved=%s", body.chat_id, variant_saved)
                 return
 
             elif event["type"] == "error":
-                logger.debug(
-                    "stream: error state: final_text=%d regenerate=%s asst_msg_id=%s",
-                    len(final_text), body.regenerate, asst_msg_id,
-                )
-                _text_slices.append(len(final_text))
-                _reasoning_slices.append(len(final_reasoning))
-                segments = _build_segments(
-                    _text_slices, _reasoning_slices,
-                    final_text, final_reasoning,
-                    tool_call_groups=_tool_groups if _tool_groups else None,
-                )
+                acc.close_iteration()
+                segments = acc.build_segments()
                 await _save_or_rollback(
-                    body, asst_msg_id, next_variant_index, variant_id,
-                    final_text, final_reasoning, prov_dict,
+                    body, asst_msg_id, next_variant_index, acc.variant_id,
+                    acc.text, acc.reasoning, prov_dict,
                     segments_json=json.dumps(segments) if segments else None,
+                    db=db,
                 )
                 yield f"data: {json.dumps({'error': event['error']})}\n\n"
-                logger.info("Stream terminated (error) for chat_id=%s", body.chat_id)
                 return
     except GeneratorExit:
-        _text_slices.append(len(final_text))
-        _reasoning_slices.append(len(final_reasoning))
-        segments = _build_segments(
-            _text_slices, _reasoning_slices,
-            final_text, final_reasoning,
-            tool_call_groups=_tool_groups if _tool_groups else None,
-        )
+        acc.close_iteration()
+        segments = acc.build_segments()
         await _save_or_rollback(
-            body, asst_msg_id, next_variant_index, variant_id,
-            final_text, final_reasoning, prov_dict,
+            body, asst_msg_id, next_variant_index, acc.variant_id,
+            acc.text, acc.reasoning, prov_dict,
             segments_json=json.dumps(segments) if segments else None,
+            db=db,
         )
-        logger.info("Stream cancelled for chat_id=%s", body.chat_id)
         return
     except asyncio.CancelledError:
-        _text_slices.append(len(final_text))
-        _reasoning_slices.append(len(final_reasoning))
-        segments = _build_segments(
-            _text_slices, _reasoning_slices,
-            final_text, final_reasoning,
-            tool_call_groups=_tool_groups if _tool_groups else None,
-        )
+        acc.close_iteration()
+        segments = acc.build_segments()
         await _save_or_rollback(
-            body, asst_msg_id, next_variant_index, variant_id,
-            final_text, final_reasoning, prov_dict,
+            body, asst_msg_id, next_variant_index, acc.variant_id,
+            acc.text, acc.reasoning, prov_dict,
             segments_json=json.dumps(segments) if segments else None,
+            db=db,
         )
         raise
     finally:
@@ -532,133 +553,108 @@ async def _non_stream_generate(
     tools_by_name: dict,
     tool_read_only: bool,
     disable_multimodal: bool = False,
+    stop_event: asyncio.Event | None = None,
+    db: aiosqlite.Connection | None = None,
 ) -> JSONResponse:
     """Run generation in non-streaming mode and return a JSON response."""
-    collected: list[str] = []
-    collected_reasoning: list[str] = []
-    n_text_slices: list[int] = []
-    n_reasoning_slices: list[int] = []
-    n_tool_groups: list[list[dict]] = []
-    variant_id = str(uuid.uuid4())
+    acc = _GenAccumulator()
 
+    _active_generations[asst_msg_id] = stop_event or asyncio.Event()
     try:
         async for event in _run_generation(
             provider, messages, gen_kwargs, tools_enabled,
             tools_by_name, tool_read_only, disable_multimodal,
-            body.chat_id, asst_msg_id, variant_id,
+            body.chat_id, asst_msg_id, acc.variant_id,
+            stop_event=stop_event, db=db,
         ):
             if event["type"] == "token":
-                collected.append(event["text"])
+                acc.add_text(event["text"])
             elif event["type"] == "reasoning":
-                collected_reasoning.append(event["text"])
+                acc.add_reasoning(event["text"])
             elif event["type"] == "tool_calls":
-                n_text_slices.append(len(collected))
-                n_reasoning_slices.append(len(collected_reasoning))
-                group_calls = [
-                    {
-                        'id': tc.id,
-                        'type': 'function',
-                        'function': {'name': tc.name, 'arguments': json.dumps(tc.arguments)},
-                    }
-                    for tc in event['calls']
-                ]
-                n_tool_groups.append(group_calls)
+                acc.begin_tool_iteration(event['calls'])
             elif event["type"] == "tool_result":
-                if n_tool_groups:
-                    for tc in n_tool_groups[-1]:
-                        if tc['id'] == event['call_id']:
-                            tc['result'] = event['result']
-                            tc['is_error'] = event['is_error']
-                            tc['image_url'] = event.get('image_url') or None
-                            break
+                acc.update_tool_result(
+                    event['call_id'], event['result'],
+                    event['is_error'], event.get('image_url'),
+                )
             elif event["type"] == "usage":
                 await _save_usage(
-                    body.chat_id, asst_msg_id, variant_id,
+                    body.chat_id, asst_msg_id, acc.variant_id,
                     prov_dict.get("id"), prov_dict.get("type"),
                     prov_dict.get("model", ""),
                     event["usage"],
-                    tool_iteration=len(n_tool_groups),
+                    tool_iteration=len(acc.tool_groups), db=db,
                 )
             elif event["type"] == "error":
-                n_text_slices.append(len(collected))
-                n_reasoning_slices.append(len(collected_reasoning))
-                segments = _build_segments(
-                    n_text_slices, n_reasoning_slices,
-                    collected, collected_reasoning,
-                    tool_call_groups=n_tool_groups if n_tool_groups else None,
-                )
-                if collected or collected_reasoning:
+                acc.close_iteration()
+                segments = acc.build_segments()
+                if acc.full_text() or acc.full_reasoning():
                     await _upsert_variant(
                         body.chat_id, asst_msg_id, next_variant_index,
-                        "".join(collected), body.regenerate, prov_dict.get("model", ""),
-                        variant_id=variant_id,
-                        reasoning="".join(collected_reasoning).strip() or None,
+                        acc.full_text(), body.regenerate, prov_dict.get("model", ""),
+                        variant_id=acc.variant_id,
+                        reasoning=acc.full_reasoning(),
                         segments_json=json.dumps(segments) if segments else None,
+                        db=db,
                     )
                 elif not body.regenerate:
-                    await _rollback_assistant(asst_msg_id)
+                    await _rollback_assistant(asst_msg_id, db=db)
                 raise HTTPException(500, event["error"])
     except asyncio.CancelledError:
-        if collected or collected_reasoning:
+        if acc.full_text() or acc.full_reasoning():
             await _upsert_variant(
                 body.chat_id, asst_msg_id, next_variant_index,
-                "".join(collected), body.regenerate, prov_dict.get("model", ""),
-                variant_id=variant_id,
-                reasoning="".join(collected_reasoning).strip() or None,
+                acc.full_text(), body.regenerate, prov_dict.get("model", ""),
+                variant_id=acc.variant_id,
+                reasoning=acc.full_reasoning(),
+                db=db,
             )
         elif not body.regenerate:
-            await _rollback_assistant(asst_msg_id)
+            await _rollback_assistant(asst_msg_id, db=db)
         raise HTTPException(499, "Request cancelled")
 
-    # Close final iteration boundary
-    n_text_slices.append(len(collected))
-    n_reasoning_slices.append(len(collected_reasoning))
+    acc.close_iteration()
 
     # Apply prefill (insert at position 0) and adjust slice indices
     prefill_text_len = 0
     prefill_reasoning_len = 0
     if not provider.echoes_prefill:
         if body.continue_text:
-            collected.insert(0, body.continue_text)
+            acc.text.insert(0, body.continue_text)
             prefill_text_len = 1
         pref_r = _prefill_reasoning(body, messages)
         if pref_r:
-            collected_reasoning.insert(0, pref_r)
+            acc.reasoning.insert(0, pref_r)
             prefill_reasoning_len = 1
     if prefill_text_len:
-        n_text_slices = [s + prefill_text_len for s in n_text_slices]
+        acc.text_slices = [s + prefill_text_len for s in acc.text_slices]
     if prefill_reasoning_len:
-        n_reasoning_slices = [s + prefill_reasoning_len for s in n_reasoning_slices]
+        acc.reasoning_slices = [s + prefill_reasoning_len for s in acc.reasoning_slices]
 
-    full = "".join(collected)
-    full_reasoning = "".join(collected_reasoning).strip() or None
-
-    segments = _build_segments(
-        n_text_slices, n_reasoning_slices,
-        collected, collected_reasoning,
-        tool_call_groups=n_tool_groups if n_tool_groups else None,
-    )
+    segments = acc.build_segments()
 
     try:
         await _upsert_variant(
             body.chat_id, asst_msg_id, next_variant_index,
-            full, body.regenerate, prov_dict.get("model", ""),
-            variant_id=variant_id, reasoning=full_reasoning,
+            acc.full_text(), body.regenerate, prov_dict.get("model", ""),
+            variant_id=acc.variant_id, reasoning=acc.full_reasoning(),
             segments_json=json.dumps(segments) if segments else None,
+            db=db,
         )
     except Exception as e:
         logger.exception("Failed to save non-stream result for chat_id=%s", body.chat_id)
         if not body.regenerate:
-            await _rollback_assistant(asst_msg_id)
-        raise HTTPException(500, f"Generation succeeded but save failed: {str(e) or repr(e)}")
+            await _rollback_assistant(asst_msg_id, db=db)
+        raise HTTPException(500, f"Generation succeeded but save failed: {_format_error(e)}")
 
     return JSONResponse({
         "done": True,
         "message_id": asst_msg_id,
         "variant_index": next_variant_index,
         "user_message_id": user_msg_id if not body.regenerate else None,
-        "full_text": full,
-        "full_reasoning": full_reasoning,
+        "full_text": acc.full_text(),
+        "full_reasoning": acc.full_reasoning(),
     })
 
 
@@ -672,6 +668,7 @@ async def _save_or_rollback(
     final_reasoning: list[str],
     prov_dict: dict,
     segments_json: str | None = None,
+    db: aiosqlite.Connection | None = None,
 ) -> None:
     """On error or cancellation, save any partial text/reasoning or
     rollback the empty assistant slot so the DB stays consistent."""
@@ -681,10 +678,10 @@ async def _save_or_rollback(
             "".join(final_text), body.regenerate, prov_dict.get("model", ""),
             variant_id=variant_id,
             reasoning="".join(final_reasoning).strip() or None,
-            segments_json=segments_json,
+            segments_json=segments_json, db=db,
         )
     elif not body.regenerate:
-        await _rollback_assistant(asst_msg_id)
+        await _rollback_assistant(asst_msg_id, db=db)
 
 
 @router.post("/stream")
@@ -711,9 +708,8 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
     next_variant_index = ctx["next_variant_index"]
     user_msg_id = ctx["user_msg_id"]
 
-    # Register this generation for graceful stop
+    # Generation-scoped event; registration is handled by _stream_generate / _non_stream_generate
     stop_event = asyncio.Event()
-    _active_generations[asst_msg_id] = stop_event
 
     logger.debug(
         "stream: ctx returned asst_msg_id=%s user_msg_id=%s next_variant_index=%d messages=%d",
@@ -770,7 +766,7 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
             body, provider, prov_dict, messages, gen_kwargs,
             asst_msg_id, next_variant_index, user_msg_id,
             tools_enabled, tools_by_name, tool_read_only,
-            disable_multimodal,
+            disable_multimodal, stop_event=stop_event, db=db,
         )
 
     return StreamingResponse(
@@ -778,7 +774,7 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
             body, provider, prov_dict, messages, gen_kwargs,
             asst_msg_id, next_variant_index, user_msg_id,
             tools_enabled, tools_by_name, tool_read_only,
-            disable_multimodal, stop_event,
+            disable_multimodal, stop_event=stop_event, db=db,
         ),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
@@ -812,6 +808,7 @@ async def _apply_tool_round(
     iter_collected: list[str],
     iter_reasoning: list[str] | None = None,
     disable_multimodal: bool = False,
+    db: aiosqlite.Connection | None = None,
 ) -> list:
     """Build assistant message with tool_calls, execute tools, append results
     to loop_messages. Returns the ToolResult list so callers can yield SSE events."""
@@ -830,7 +827,7 @@ async def _apply_tool_round(
 
     results = await _execute_tool_round(
         tool_calls_list, tools_by_name, read_only,
-        chat_id, asst_msg_id, variant_id,
+        chat_id, asst_msg_id, variant_id, db=db,
     )
     for r in results:
         loop_messages.append({"role": "tool", "tool_call_id": r.call_id, "content": r.content})
@@ -856,6 +853,7 @@ async def _execute_tool_round(
     chat_id: str,
     asst_msg_id: str,
     variant_id: str | None,
+    db: aiosqlite.Connection | None = None,
 ) -> list:
     """Execute a list of ToolCall objects and return ToolResult list.
 
@@ -885,11 +883,10 @@ async def _execute_tool_round(
     # Persist to tool_calls table
     if results:
         save_now = now_iso()
-        async with aiosqlite.connect(DB_PATH) as save_db:
-            await save_db.execute("PRAGMA foreign_keys=ON")
+        async with _db_conn(db) as conn:
             for call, result in zip(tool_calls_list, results):
                 extra_msg = json.dumps(result.extra_message) if result.extra_message else None
-                await save_db.execute(
+                await conn.execute(
                     """INSERT INTO tool_calls
                        (id, chat_id, message_id, variant_id, tool_name, arguments, result, is_error, extra_message_json, created_at)
                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
@@ -906,7 +903,7 @@ async def _execute_tool_round(
                         save_now,
                     ),
                 )
-            await save_db.commit()
+            await conn.commit()
 
     return results
 
@@ -983,6 +980,7 @@ async def _upsert_variant(
     variant_id: str | None = None,
     reasoning: str | None = None,
     segments_json: str | None = None,
+    db: aiosqlite.Connection | None = None,
 ) -> str:
     """Insert or update a message variant. If a variant with the same
     (message_id, variant_index) exists, updates it in-place. Otherwise inserts
@@ -990,9 +988,8 @@ async def _upsert_variant(
     regenerate. Returns the variant id."""
     save_now = now_iso()
 
-    async with aiosqlite.connect(DB_PATH) as save_db:
-        await save_db.execute("PRAGMA foreign_keys=ON")
-        cur = await save_db.execute(
+    async with _db_conn(db) as conn:
+        cur = await conn.execute(
             "SELECT id FROM message_variants WHERE message_id = ? AND variant_index = ?",
             (asst_msg_id, variant_index),
         )
@@ -1000,52 +997,54 @@ async def _upsert_variant(
 
         if existing:
             vid = existing[0]
-            await save_db.execute(
+            await conn.execute(
                 "UPDATE message_variants SET content = ?, model_name = ?, created_at = ?, reasoning = ?, segments_json = ? WHERE id = ?",
                 (content, model_name or None, save_now, reasoning, segments_json, vid),
             )
         else:
             vid = variant_id or str(uuid.uuid4())
-            await save_db.execute(
+            await conn.execute(
                 "INSERT INTO message_variants (id, message_id, variant_index, content, created_at, model_name, reasoning, segments_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 (vid, asst_msg_id, variant_index, content, save_now, model_name or None, reasoning, segments_json),
             )
             if regenerate and variant_index > 0:
-                async with save_db.execute("SELECT active_index FROM messages WHERE id = ?", (asst_msg_id,)) as act:
+                async with conn.execute("SELECT active_index FROM messages WHERE id = ?", (asst_msg_id,)) as act:
                     row = await act.fetchone()
                 if row:
-                    async with save_db.execute(
+                    async with conn.execute(
                         "SELECT * FROM message_attachments WHERE variant_id = (SELECT id FROM message_variants WHERE message_id = ? AND variant_index = ?) ORDER BY created_at",
                         (asst_msg_id, row[0]),
                     ) as att_cur:
                         old_attachments = [dict(r) for r in await att_cur.fetchall()]
                     for att in old_attachments:
-                        await save_db.execute(
+                        await conn.execute(
                             "INSERT INTO message_attachments (id, chat_id, message_id, variant_id, file_path, mime_type, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
                             (str(uuid.uuid4()), chat_id, asst_msg_id, vid, att["file_path"], att["mime_type"], save_now),
                         )
 
         if content or reasoning:
-            await save_db.execute(
+            await conn.execute(
                 "UPDATE messages SET active_index = ? WHERE id = ?",
                 (variant_index, asst_msg_id),
             )
-        await save_db.execute("UPDATE chats SET updated_at = ? WHERE id = ?", (save_now, chat_id))
-        await save_db.commit()
+        await conn.execute("UPDATE chats SET updated_at = ? WHERE id = ?", (save_now, chat_id))
+        await conn.commit()
 
     return vid
 
 
-async def _rollback_assistant(asst_msg_id: str | None):
+async def _rollback_assistant(
+    asst_msg_id: str | None,
+    db: aiosqlite.Connection | None = None,
+):
     """Delete the empty assistant row that get_prompt_context eagerly inserts
     before the provider is called. Called from the stream's exception paths so
     a failed request leaves the DB in pre-send state (user message is kept)."""
     if not asst_msg_id:
         return
-    async with aiosqlite.connect(DB_PATH) as rollback_db:
-        await rollback_db.execute("PRAGMA foreign_keys=ON")
-        await rollback_db.execute("DELETE FROM messages WHERE id = ?", (asst_msg_id,))
-        await rollback_db.commit()
+    async with _db_conn(db) as conn:
+        await conn.execute("DELETE FROM messages WHERE id = ?", (asst_msg_id,))
+        await conn.commit()
 
 
 async def _save_usage(
@@ -1057,6 +1056,7 @@ async def _save_usage(
     model_name: str | None,
     usage: dict,
     tool_iteration: int = 0,
+    db: aiosqlite.Connection | None = None,
 ) -> None:
     """Persist token/cache/cost usage from a single API call to generation_usage."""
     row_id = str(uuid.uuid4())
@@ -1080,8 +1080,7 @@ async def _save_usage(
     )
 
     try:
-        async with aiosqlite.connect(DB_PATH) as save_db:
-            await save_db.execute("PRAGMA foreign_keys=ON")
+        async with _db_conn(db) as conn:
             params = (
                 row_id, chat_id, message_id, variant_id,
                 provider_id, provider_type, model_name,
@@ -1099,13 +1098,10 @@ async def _save_usage(
                     tool_iteration, created_at)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"""
             try:
-                await save_db.execute(sql, params)
+                await conn.execute(sql, params)
             except sqlite3.IntegrityError:
-                # Variant row may not exist yet (usage event can arrive before
-                # any token/reasoning triggered _upsert_variant). Retry without
-                # the variant FK rather than killing the stream over telemetry.
-                await save_db.execute(sql, (params[0], params[1], params[2], None) + params[4:])
-            await save_db.commit()
+                await conn.execute(sql, (params[0], params[1], params[2], None) + params[4:])
+            await conn.commit()
     except Exception:
         logger.exception("Failed to persist generation_usage for message_id=%s", message_id)
 

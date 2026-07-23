@@ -139,9 +139,9 @@ class TestStreamAbortBehavior:
         rollback_calls: list[str | None] = []
         original_rollback = stream_module._rollback_assistant
 
-        async def tracking_rollback(asst_msg_id):
+        async def tracking_rollback(asst_msg_id, **kwargs):
             rollback_calls.append(asst_msg_id)
-            return await original_rollback(asst_msg_id)
+            return await original_rollback(asst_msg_id, **kwargs)
 
         original_provider = focus.providers.create_provider
         focus.providers.create_provider = lambda row: _FailingProvider()
@@ -200,9 +200,9 @@ class TestStreamAbortBehavior:
         rollback_calls: list[str | None] = []
         original_rollback = stream_module._rollback_assistant
 
-        async def tracking_rollback(asst_msg_id):
+        async def tracking_rollback(asst_msg_id, **kwargs):
             rollback_calls.append(asst_msg_id)
-            return await original_rollback(asst_msg_id)
+            return await original_rollback(asst_msg_id, **kwargs)
 
         original_provider = focus.providers.create_provider
         focus.providers.create_provider = lambda row: _FailingProvider()
