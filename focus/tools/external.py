@@ -115,7 +115,7 @@ def load_external_tools(tools_dir: str | Path | None = None) -> list[ToolSpec]:
         if not f.is_file():
             continue
         rel = f.relative_to(d)
-        if len(rel.parents) >= MAX_DEPTH:
+        if len(rel.parents) > MAX_DEPTH:
             continue
         if any(p.name.startswith(".") for p in rel.parents):
             continue
