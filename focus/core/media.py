@@ -67,11 +67,6 @@ def ensure_compressed_sync(
 
     data = orig.read_bytes()
 
-    if len(base64.b64encode(data).decode()) <= MAX_IMAGE_B64:
-        out_path = COMPRESSED_DIR / f"{stem}{Path(orig_path).suffix or '.png'}"
-        out_path.write_bytes(data)
-        return out_path, mime
-
     img = Image.open(BytesIO(data))
 
     longest = max(img.width, img.height)
@@ -84,6 +79,26 @@ def ensure_compressed_sync(
     if target_format == "png":
         buf = BytesIO()
         img.save(buf, format="PNG", optimize=True)
+        if len(base64.b64encode(buf.getvalue()).decode()) <= MAX_IMAGE_B64:
+            cache_path.write_bytes(buf.getvalue())
+            return cache_path, out_mime
+        scale = 1.0
+        while scale > 0.05:
+            scale *= 0.75
+            w = max(1, int(img.width * scale))
+            h = max(1, int(img.height * scale))
+            resized = img.resize((w, h), Image.LANCZOS)
+            buf = BytesIO()
+            resized.save(buf, format="PNG", optimize=True)
+            if len(base64.b64encode(buf.getvalue()).decode()) <= MAX_IMAGE_B64:
+                cache_path.write_bytes(buf.getvalue())
+                return cache_path, out_mime
+        cache_path.write_bytes(buf.getvalue())
+        return cache_path, out_mime
+
+    buf = BytesIO()
+    img.save(buf, format="WEBP", quality=85)
+    if len(base64.b64encode(buf.getvalue()).decode()) <= MAX_IMAGE_B64:
         cache_path.write_bytes(buf.getvalue())
         return cache_path, out_mime
 
