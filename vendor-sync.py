@@ -173,6 +173,10 @@ def _hash_file(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _stale_tailwind_files() -> list[Path]:
+    return [p for p in BIN_DIR.glob("tailwindcss-*") if p.name != TAILWIND_BINARY]
+
+
 def check() -> int:
     missing = []
     mismatched = []
@@ -182,6 +186,14 @@ def check() -> int:
             missing.append(f"static/vendor/{filename}")
     if not TAILWIND_DEST.is_file():
         missing.append(f"bin/{TAILWIND_BINARY}")
+
+    stale = _stale_tailwind_files()
+    if stale and not missing:
+        print(_yellow("Stale tailwind binaries from other platforms:"))
+        for p in stale:
+            print(f"  {p.name}")
+        print("  Run vendor-sync.py to clean up")
+        return 1
 
     if missing:
         print(_red("Missing vendor files:"))
@@ -208,6 +220,11 @@ def check() -> int:
 def sync() -> int:
     VENDOR_DIR.mkdir(parents=True, exist_ok=True)
     BIN_DIR.mkdir(parents=True, exist_ok=True)
+
+    stale = _stale_tailwind_files()
+    for p in stale:
+        p.unlink()
+        print(f"  Removed stale {p.name}")
 
     print(f"Vendor directory: {VENDOR_DIR}")
     print()
