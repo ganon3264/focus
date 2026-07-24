@@ -8,7 +8,7 @@ from pathlib import Path
 
 from PIL import Image
 
-from focus.prompt_chain import _ensure_compressed_sync
+from focus.core.media import ensure_compressed_sync
 from focus.tools import ToolParam, ToolSpec
 from focus.tools.external import load_external_tools
 from focus.tools.helpers import TOOL_OUTPUT_TRUNCATE_CHARS
@@ -64,7 +64,7 @@ def read_image(path: str) -> dict:
         ".webp": "image/webp",
     }
     mime = mime_map.get(suffix, "image/png")
-    compressed_path, out_mime = _ensure_compressed_sync(path, mime)
+    compressed_path, out_mime = ensure_compressed_sync(path, mime)
     data = compressed_path.read_bytes()
     b64 = base64.b64encode(data).decode("ascii")
     with Image.open(BytesIO(data)) as img:

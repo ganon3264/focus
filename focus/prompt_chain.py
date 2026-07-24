@@ -1,120 +1,16 @@
 from __future__ import annotations
 
-import asyncio
-import base64
 import logging
 import re
-from io import BytesIO
-from pathlib import Path
 from typing import Any
 
-from PIL import Image
-
 from focus.core.macros import apply_macros
-from focus.core.paths import COMPRESSED_DIR
+from focus.core.media import load_media
 from focus.core.utils import MACRO_MAX_PASSES, variable_group_name
 
 logger = logging.getLogger("focus.prompt_chain")
 
-MAX_IMAGE_B64 = int(3.5 * 1024 * 1024)
-MAX_IMAGE_DIMENSION = 1568
-
 MEDIA_PATTERN = re.compile(r"\{\{media:(\d+)\}\}")
-
-
-async def _ensure_compressed(orig_path: str, mime: str) -> tuple[Path, str]:
-    loop = asyncio.get_running_loop()
-    return await loop.run_in_executor(None, _ensure_compressed_sync, orig_path, mime)
-
-
-def _ensure_compressed_sync(orig_path: str, mime: str) -> tuple[Path, str]:
-    """Return (compressed_file_path, output_mime) from a disk cache.
-
-    Creates a compressed WebP version on disk if missing or stale.
-    Caps the longest edge at MAX_IMAGE_DIMENSION before compressing.
-    WebP natively handles alpha, so transparency is preserved without
-    a separate PNG path. Cache invalidation is by mtime.
-    """
-    orig = Path(orig_path)
-    stem = orig.stem
-    webp_cache = COMPRESSED_DIR / f"{stem}.webp"
-
-    try:
-        orig_mtime = orig.stat().st_mtime
-    except OSError:
-        orig_mtime = 0
-
-    if webp_cache.exists() and webp_cache.stat().st_mtime >= orig_mtime:
-        return webp_cache, "image/webp"
-
-    data = orig.read_bytes()
-
-    if len(base64.b64encode(data).decode()) <= MAX_IMAGE_B64:
-        out_path = COMPRESSED_DIR / f"{stem}{Path(orig_path).suffix or '.png'}"
-        out_path.write_bytes(data)
-        return out_path, mime
-
-    img = Image.open(BytesIO(data))
-
-    longest = max(img.width, img.height)
-    if longest > MAX_IMAGE_DIMENSION:
-        scale = MAX_IMAGE_DIMENSION / longest
-        w = max(1, int(img.width * scale))
-        h = max(1, int(img.height * scale))
-        img = img.resize((w, h), Image.LANCZOS)
-
-    for quality in (80, 65, 50, 35, 20):
-        scale = 1.0
-        while scale > 0.05:
-            scale *= 0.75
-            w = max(1, int(img.width * scale))
-            h = max(1, int(img.height * scale))
-            resized = img.resize((w, h), Image.LANCZOS)
-            buf = BytesIO()
-            resized.save(buf, format="WEBP", quality=quality)
-            if len(base64.b64encode(buf.getvalue()).decode()) <= MAX_IMAGE_B64:
-                webp_cache.write_bytes(buf.getvalue())
-                return webp_cache, "image/webp"
-
-    webp_cache.write_bytes(buf.getvalue())
-    return webp_cache, "image/webp"
-
-
-async def _load_media(media_row: dict) -> dict | None:
-    """Read a media file from disk and return an OpenAI-format block."""
-    path = media_row.get("image_path") or media_row.get("file_path")
-    if not path:
-        logger.warning("_load_media: no path in media_row %r", media_row.get("id"))
-        return None
-    if not Path(path).exists():
-        logger.warning("_load_media: file not found %s", path)
-        return None
-
-    mime = media_row.get("mime_type", "image/png")
-
-    if mime.startswith("audio/"):
-        try:
-            data = Path(path).read_bytes()
-        except OSError as e:
-            logger.warning("_load_media: cannot read %s: %s", path, e)
-            return None
-        fmt = mime.split("/")[-1].replace("mpeg", "mp3")
-        return {
-            "type": "input_audio",
-            "input_audio": {"data": base64.b64encode(data).decode(), "format": fmt},
-        }
-
-    try:
-        compressed_path, out_mime = await _ensure_compressed(path, mime)
-        data = compressed_path.read_bytes()
-    except OSError as e:
-        logger.warning("_load_media: compression failed for %s: %s", path, e)
-        return None
-
-    return {
-        "type": "image_url",
-        "image_url": {"url": f"data:{out_mime};base64,{base64.b64encode(data).decode()}"},
-    }
 
 
 async def build_content(text: str, images: list[dict]) -> str | list:
@@ -134,7 +30,7 @@ async def build_content(text: str, images: list[dict]) -> str | list:
         if text:
             parts.append({"type": "text", "text": text})
         for img in images:
-            m = await _load_media(img)
+            m = await load_media(img)
             if m is not None:
                 parts.append(m)
         return parts
@@ -151,7 +47,7 @@ async def build_content(text: str, images: list[dict]) -> str | list:
         index = int(match.group(1))
         if 1 <= index <= len(images):
             img = images[index - 1]
-            media_block = await _load_media(img)
+            media_block = await load_media(img)
             if media_block:
                 parts.append(media_block)
         else:

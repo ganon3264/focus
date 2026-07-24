@@ -16,12 +16,12 @@ class TestBuildContent:
         }
 
     async def test_no_images_returns_plain_text(self, monkeypatch):
-        monkeypatch.setattr("focus.prompt_chain._load_media", self._mock_load_media)
+        monkeypatch.setattr("focus.prompt_chain.load_media", self._mock_load_media)
         result = await build_content("hello", [])
         assert result == "hello"
 
     async def test_no_marker_appends_all_images(self, monkeypatch):
-        monkeypatch.setattr("focus.prompt_chain._load_media", self._mock_load_media)
+        monkeypatch.setattr("focus.prompt_chain.load_media", self._mock_load_media)
         images = [
             {"id": "img1", "image_path": "/fake/1.png", "mime_type": "image/png"},
             {"id": "img2", "image_path": "/fake/2.png", "mime_type": "image/png"},
@@ -34,7 +34,7 @@ class TestBuildContent:
         assert result[2]["image_url"]["url"].endswith("img2")
 
     async def test_marker_inserts_image_at_position(self, monkeypatch):
-        monkeypatch.setattr("focus.prompt_chain._load_media", self._mock_load_media)
+        monkeypatch.setattr("focus.prompt_chain.load_media", self._mock_load_media)
         images = [
             {"id": "imgA", "image_path": "/fake/a.png", "mime_type": "image/png"},
             {"id": "imgB", "image_path": "/fake/b.png", "mime_type": "image/png"},
@@ -47,7 +47,7 @@ class TestBuildContent:
         assert result[3]["image_url"]["url"].endswith("imgB")
 
     async def test_marker_at_start_and_end(self, monkeypatch):
-        monkeypatch.setattr("focus.prompt_chain._load_media", self._mock_load_media)
+        monkeypatch.setattr("focus.prompt_chain.load_media", self._mock_load_media)
         images = [{"id": "img", "image_path": "/fake/x.png", "mime_type": "image/png"}]
         result = await build_content("{{media:1}}middle{{media:1}}", images)
         assert len(result) == 3
@@ -56,7 +56,7 @@ class TestBuildContent:
         assert result[2]["image_url"]["url"].endswith("img")
 
     async def test_out_of_range_left_as_raw_text(self, monkeypatch):
-        monkeypatch.setattr("focus.prompt_chain._load_media", self._mock_load_media)
+        monkeypatch.setattr("focus.prompt_chain.load_media", self._mock_load_media)
         images = [{"id": "img", "image_path": "/fake/x.png", "mime_type": "image/png"}]
         result = await build_content("a {{media:2}} b", images)
         assert len(result) == 3
@@ -65,14 +65,14 @@ class TestBuildContent:
         assert result[2] == {"type": "text", "text": " b"}
 
     async def test_out_of_range_zero_left_as_raw_text(self, monkeypatch):
-        monkeypatch.setattr("focus.prompt_chain._load_media", self._mock_load_media)
+        monkeypatch.setattr("focus.prompt_chain.load_media", self._mock_load_media)
         images = [{"id": "img", "image_path": "/fake/x.png", "mime_type": "image/png"}]
         result = await build_content("{{media:0}}", images)
         assert len(result) == 1
         assert result[0] == {"type": "text", "text": "{{media:0}}"}
 
     async def test_mixed_valid_and_invalid_markers(self, monkeypatch):
-        monkeypatch.setattr("focus.prompt_chain._load_media", self._mock_load_media)
+        monkeypatch.setattr("focus.prompt_chain.load_media", self._mock_load_media)
         images = [
             {"id": "img1", "image_path": "/fake/1.png", "mime_type": "image/png"},
             {"id": "img2", "image_path": "/fake/2.png", "mime_type": "image/png"},
@@ -86,12 +86,12 @@ class TestBuildContent:
         assert result[4]["image_url"]["url"].endswith("img2")
 
     async def test_no_markers_no_images_returns_text(self, monkeypatch):
-        monkeypatch.setattr("focus.prompt_chain._load_media", self._mock_load_media)
+        monkeypatch.setattr("focus.prompt_chain.load_media", self._mock_load_media)
         result = await build_content("just text", [])
         assert result == "just text"
 
     async def test_empty_text_with_images_no_markers(self, monkeypatch):
-        monkeypatch.setattr("focus.prompt_chain._load_media", self._mock_load_media)
+        monkeypatch.setattr("focus.prompt_chain.load_media", self._mock_load_media)
         images = [{"id": "img", "image_path": "/fake/x.png", "mime_type": "image/png"}]
         result = await build_content("", images)
         assert isinstance(result, list)
@@ -106,7 +106,7 @@ class TestBuildContent:
 
     async def test_structural_newlines_stripped_around_marker(self, monkeypatch):
         """Artifact newlines from the marker being on its own line are removed."""
-        monkeypatch.setattr("focus.prompt_chain._load_media", self._mock_load_media)
+        monkeypatch.setattr("focus.prompt_chain.load_media", self._mock_load_media)
         images = [{"id": "img", "image_path": "/fake/x.png", "mime_type": "image/png"}]
         result = await build_content("before\n{{media:1}}\nafter", images)
         assert len(result) == 3
