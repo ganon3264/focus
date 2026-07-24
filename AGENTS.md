@@ -19,7 +19,7 @@ The opencode container runs on Alpine (musl libc), the host may be glibc. Venv s
 ```
 main.py                    # FastAPI app entry
 focus/                     # Backend
-  core/                    # Database, models, paths, utils, logger, macros, card_parser, message_render
+  core/                    # Database, models, paths, utils, logger, macros, card_parser, message_render, segments, media
   providers/               # LLM providers (openai_compat, openrouter, deepseek, moonshot, google_*)
   routers/                 # API routes (pages, chats, characters, presets, providers, personas, stream, tools, settings, exchange, backup)
   tools/                   # Tool system (builtin, external, helpers, provider_adapter)
@@ -84,6 +84,17 @@ SSE events: `start | token | reasoning | tool_calls | tool_result | done`.
 **Read-only mode** — `active_tools(all_tools, read_only)` filters `writes=True` tools. Checked in `execute_tool_round()` (`focus/tools/executor.py`) before calling handlers.
 
 **Iteration loop** — `_run_generation()` loops up to `MAX_TOOL_ITERATIONS`. Per iteration: stream tokens → detect `tool_calls` → break → execute → emit results → loop. Calls persisted to `tool_calls` table.
+
+### Media module (`focus/core/media.py`)
+
+Image/audio compression and loading, extracted from `prompt_chain.py`.
+
+**Public API:**
+- `ensure_compressed(orig_path, mime)` — async, compresses an image to WebP with dimension capping (`MAX_IMAGE_DIMENSION=1568`) and size capping (`MAX_IMAGE_B64=3.5MB`). Returns `(path, mime)`. Caches to `COMPRESSED_DIR`.
+- `ensure_compressed_sync(orig_path, mime)` — synchronous version used by `builtin.py:read_image()`.
+- `load_media(media_row)` — reads a media file from disk and returns an OpenAI-format block (`image_url` or `input_audio`). Handles compression via `ensure_compressed`.
+
+**Consumed by:** `prompt_chain.py:build_content()` (via import), `tools/builtin.py` (via direct import of `ensure_compressed_sync`).
 
 ### Macro system (`focus/core/macros.py`)
 
