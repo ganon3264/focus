@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import contextvars
 import logging
 from io import BytesIO
 from pathlib import Path
@@ -15,31 +16,54 @@ logger = logging.getLogger("focus.core.media")
 MAX_IMAGE_B64 = int(3.5 * 1024 * 1024)
 MAX_IMAGE_DIMENSION = 1568
 
+image_format_var = contextvars.ContextVar("image_format", default="webp")
+
+
+def set_image_format(fmt: str) -> None:
+    image_format_var.set(fmt)
+
 
 async def ensure_compressed(orig_path: str, mime: str) -> tuple[Path, str]:
+    target_format = image_format_var.get()
     loop = asyncio.get_running_loop()
-    return await loop.run_in_executor(None, ensure_compressed_sync, orig_path, mime)
+    return await loop.run_in_executor(None, ensure_compressed_sync, orig_path, mime, target_format)
 
 
-def ensure_compressed_sync(orig_path: str, mime: str) -> tuple[Path, str]:
+def _mime_for(fmt: str) -> str:
+    return "image/png" if fmt == "png" else "image/webp"
+
+
+def _ext_for(fmt: str) -> str:
+    return "png" if fmt == "png" else "webp"
+
+
+def ensure_compressed_sync(
+    orig_path: str, mime: str, target_format: str | None = None,
+) -> tuple[Path, str]:
     """Return (compressed_file_path, output_mime) from a disk cache.
 
-    Creates a compressed WebP version on disk if missing or stale.
+    Creates a compressed version on disk if missing or stale.
     Caps the longest edge at MAX_IMAGE_DIMENSION before compressing.
-    WebP natively handles alpha, so transparency is preserved without
-    a separate PNG path. Cache invalidation is by mtime.
+    Defaults to WebP; pass target_format="png" for lossless PNG.
+    Cache invalidation is by mtime.
     """
+    if target_format is None:
+        target_format = image_format_var.get()
+
+    out_ext = _ext_for(target_format)
+    out_mime = _mime_for(target_format)
+
     orig = Path(orig_path)
     stem = orig.stem
-    webp_cache = COMPRESSED_DIR / f"{stem}.webp"
+    cache_path = COMPRESSED_DIR / f"{stem}.{out_ext}"
 
     try:
         orig_mtime = orig.stat().st_mtime
     except OSError:
         orig_mtime = 0
 
-    if webp_cache.exists() and webp_cache.stat().st_mtime >= orig_mtime:
-        return webp_cache, "image/webp"
+    if cache_path.exists() and cache_path.stat().st_mtime >= orig_mtime:
+        return cache_path, out_mime
 
     data = orig.read_bytes()
 
@@ -57,6 +81,12 @@ def ensure_compressed_sync(orig_path: str, mime: str) -> tuple[Path, str]:
         h = max(1, int(img.height * scale))
         img = img.resize((w, h), Image.LANCZOS)
 
+    if target_format == "png":
+        buf = BytesIO()
+        img.save(buf, format="PNG", optimize=True)
+        cache_path.write_bytes(buf.getvalue())
+        return cache_path, out_mime
+
     for quality in (80, 65, 50, 35, 20):
         scale = 1.0
         while scale > 0.05:
@@ -67,11 +97,11 @@ def ensure_compressed_sync(orig_path: str, mime: str) -> tuple[Path, str]:
             buf = BytesIO()
             resized.save(buf, format="WEBP", quality=quality)
             if len(base64.b64encode(buf.getvalue()).decode()) <= MAX_IMAGE_B64:
-                webp_cache.write_bytes(buf.getvalue())
-                return webp_cache, "image/webp"
+                cache_path.write_bytes(buf.getvalue())
+                return cache_path, out_mime
 
-    webp_cache.write_bytes(buf.getvalue())
-    return webp_cache, "image/webp"
+    cache_path.write_bytes(buf.getvalue())
+    return cache_path, out_mime
 
 
 async def load_media(media_row: dict) -> dict | None:

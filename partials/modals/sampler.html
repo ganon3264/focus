@@ -183,6 +183,33 @@
       ></div>
     </div>
 
+    <div
+      x-show="samplers.enable_multimodal"
+      x-transition.opacity.duration.200ms
+      class="flex flex-col gap-2"
+      style="display: none"
+    >
+      <div class="tree-child">
+        <span class="tree-dot"></span>
+        <div class="form-group mb-0 flex items-center justify-between">
+          <div class="flex items-center gap-1">
+            <label
+              class="text-xs mb-0 cursor-pointer"
+              @click="samplers.image_format = samplers.image_format === 'png' ? 'webp' : 'png'; saveStandard()"
+            >PNG Mode</label>
+            {{ hint_tooltip('Some providers don\'t play nicely with WebP (mainly llama.cpp). Switch if WebP is causing issues.') }}
+          </div>
+          <div
+            class="arranger-toggle"
+            role="switch"
+            tabindex="0"
+            :class="{ 'active': samplers.image_format === 'png' }"
+            @click="samplers.image_format = samplers.image_format === 'png' ? 'webp' : 'png'; saveStandard()"
+          ></div>
+        </div>
+      </div>
+    </div>
+
     <!-- ── Provider-specific toggles ── -->
     <div x-show="providerType === 'openrouter'" class="flex flex-col gap-3">
       <div class="form-group mb-0 flex items-center justify-between mt-2">
@@ -725,6 +752,7 @@ const PROVIDER_SAMPLERS = {
           thinking_budget: 0,
           stream_enabled: true,
           enable_multimodal: true,
+          image_format: 'webp',
           cache_enabled: false,
           cache_ttl: 'ephemeral',
           cache_depth: 5,
@@ -867,6 +895,7 @@ const PROVIDER_SAMPLERS = {
           if (!this.samplers.enable_multimodal) {
             payload.disable_multimodal = true;
           }
+          payload.image_format = this.samplers.image_format;
 
           // Add enabled custom fields
           for (const item of this.customFields) {

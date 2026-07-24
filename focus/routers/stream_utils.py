@@ -582,6 +582,7 @@ async def prepare_generation_messages(
     gen_kwargs: dict = {}
     if body.samplers:
         s.pop("disable_multimodal", None)
+        s.pop("image_format", None)
         s.pop("cache_enabled", None)
         s.pop("cache_ttl", None)
         s.pop("cache_depth", None)

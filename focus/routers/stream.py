@@ -15,6 +15,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from focus.core.database import get_db
 from focus.core.logger import get_logger
 from focus.core.models import ItemizerRequest, StreamRequest
+from focus.core.media import set_image_format
 from focus.core.segments import build_segments
 from focus.core.utils import (
     AUDIO_TOKEN_ESTIMATE,
@@ -484,6 +485,9 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
     Supports an iterative tool-calling loop when tools_enabled=True.
     """
     provider, prov_dict = await _load_provider(db, body.provider_id)
+
+    fmt = (body.samplers or {}).get("image_format", "webp")
+    set_image_format(fmt)
 
     logger.debug(
         "stream: chat_id=%s provider=%s model=%s regenerate=%s user_message=%r attachment_ids=%s",
