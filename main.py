@@ -123,7 +123,6 @@ async def favicon():
 @app.post("/api/db/clean")
 async def clean_database_endpoint(_db=Depends(get_db)):
     counts = await db_cleanup(_db)
-    await _db.commit()
     return counts
 
 

@@ -34,15 +34,24 @@ async def clean_database(db: aiosqlite.Connection) -> dict:
 
     counts["block_images"] = (
         await db.execute("""
-            DELETE FROM block_images WHERE block_id NOT IN (
-                SELECT id FROM preset_blocks
-            ) AND block_id NOT IN (
-                SELECT id FROM char_blocks
-            ) AND block_id NOT IN (
-                SELECT id FROM characters
-            ) AND block_id NOT IN (
-                SELECT id FROM personas
-            )
+            DELETE FROM block_images WHERE
+                (block_source = 'preset' AND block_id NOT IN (SELECT id FROM preset_blocks))
+                OR (block_source = 'char' AND block_id NOT IN (
+                    SELECT id FROM char_blocks
+                    UNION
+                    SELECT id FROM characters
+                    UNION
+                    SELECT id FROM personas
+                ))
+                OR (block_source NOT IN ('preset', 'char') AND block_id NOT IN (
+                    SELECT id FROM preset_blocks
+                    UNION
+                    SELECT id FROM char_blocks
+                    UNION
+                    SELECT id FROM characters
+                    UNION
+                    SELECT id FROM personas
+                ))
         """)
     ).rowcount
 
@@ -51,9 +60,9 @@ async def clean_database(db: aiosqlite.Connection) -> dict:
     ).rowcount
 
     await db.commit()
-    await db.execute("VACUUM")
     asset_counts = await clean_orphaned_assets(db)
     counts.update(asset_counts)
+    await db.execute("VACUUM")
     return counts
 
 

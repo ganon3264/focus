@@ -14,7 +14,7 @@ from focus.core.paths import (
     PERSONAS_DIR,
     PRESETS_DIR,
 )
-from focus.db.cleanup import clean_orphaned_assets
+from focus.db.cleanup import clean_database, clean_orphaned_assets
 
 
 @pytest.fixture(autouse=True)
@@ -330,3 +330,249 @@ class TestCleanOrphanedAssets:
         assert result["compressed_purged"] == 1
         assert result["orphaned_entity_dirs"] == 1
         assert result["orphaned_files"] == 2
+
+
+class TestCleanDatabase:
+    # ── Soft-deleted entities are hard-deleted ──
+
+    async def test_deletes_soft_deleted_characters(self, db):
+        cid = _char_id()
+        await db.execute(
+            "INSERT INTO characters (id, name, card_json, created_at, is_deleted) VALUES (?, ?, ?, ?, ?)",
+            (cid, "Test", "{}", "now", 1),
+        )
+        await db.commit()
+        result = await clean_database(db)
+        assert result["characters"] == 1
+        async with db.execute("SELECT 1 FROM characters WHERE id = ?", (cid,)) as cur:
+            assert not await cur.fetchone()
+
+    async def test_deletes_soft_deleted_personas(self, db):
+        pid = _char_id()
+        await db.execute(
+            "INSERT INTO personas (id, name, description, created_at, is_deleted) VALUES (?, ?, ?, ?, ?)",
+            (pid, "Test", "", "now", 1),
+        )
+        await db.commit()
+        result = await clean_database(db)
+        assert result["personas"] == 1
+        async with db.execute("SELECT 1 FROM personas WHERE id = ?", (pid,)) as cur:
+            assert not await cur.fetchone()
+
+    async def test_deletes_chats_of_deleted_character(self, db):
+        cid = _char_id()
+        await db.execute(
+            "INSERT INTO characters (id, name, card_json, created_at, is_deleted) VALUES (?, ?, ?, ?, ?)",
+            (cid, "Test", "{}", "now", 1),
+        )
+        chat_id = uuid.uuid4().hex
+        await db.execute(
+            "INSERT INTO chats (id, title, character_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+            (chat_id, "Chat", cid, "now", "now"),
+        )
+        await db.commit()
+        result = await clean_database(db)
+        assert result["characters"] == 1
+        assert result["chats"] == 1
+        async with db.execute("SELECT 1 FROM chats WHERE id = ?", (chat_id,)) as cur:
+            assert not await cur.fetchone()
+
+    async def test_preserves_active_entities(self, db):
+        cid = _char_id()
+        pid = _char_id()
+        await db.execute(
+            "INSERT INTO characters (id, name, card_json, created_at) VALUES (?, ?, ?, ?)",
+            (cid, "Test", "{}", "now"),
+        )
+        await db.execute(
+            "INSERT INTO personas (id, name, description, created_at) VALUES (?, ?, ?, ?)",
+            (pid, "Test", "", "now"),
+        )
+        chat_id = uuid.uuid4().hex
+        await db.execute(
+            "INSERT INTO chats (id, title, character_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+            (chat_id, "Chat", cid, "now", "now"),
+        )
+        await db.commit()
+        result = await clean_database(db)
+        assert result["chats"] == 0
+        assert result["characters"] == 0
+        assert result["personas"] == 0
+
+    # ── Block images ──
+
+    async def test_deletes_orphaned_block_images(self, db):
+        BLOCKS_DIR.mkdir(parents=True, exist_ok=True)
+        path = str(BLOCKS_DIR / "img.png")
+        Path(path).write_bytes(b"img")
+        await db.execute(
+            "INSERT INTO block_images (id, block_id, block_source, image_path, mime_type, position, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (uuid.uuid4().hex, "nonexistent", "preset", path, "image/png", 0, "now"),
+        )
+        await db.commit()
+        result = await clean_database(db)
+        assert result["block_images"] == 1
+
+    async def test_preserves_block_images_via_preset_block(self, db):
+        BLOCKS_DIR.mkdir(parents=True, exist_ok=True)
+        path = str(BLOCKS_DIR / "img.png")
+        Path(path).write_bytes(b"img")
+        pr_id = uuid.uuid4().hex
+        await db.execute(
+            "INSERT INTO presets (id, name, created_at) VALUES (?, ?, ?)",
+            (pr_id, "Test", "now"),
+        )
+        pb_id = uuid.uuid4().hex
+        await db.execute(
+            "INSERT INTO preset_blocks (id, preset_id, name, content, role, position) VALUES (?, ?, ?, ?, ?, ?)",
+            (pb_id, pr_id, "Block", "content", "system", 0),
+        )
+        await db.execute(
+            "INSERT INTO block_images (id, block_id, block_source, image_path, mime_type, position, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (uuid.uuid4().hex, pb_id, "preset", path, "image/png", 0, "now"),
+        )
+        await db.commit()
+        result = await clean_database(db)
+        assert result["block_images"] == 0
+
+    async def test_preserves_block_images_via_char_block(self, db):
+        BLOCKS_DIR.mkdir(parents=True, exist_ok=True)
+        path = str(BLOCKS_DIR / "img.png")
+        Path(path).write_bytes(b"img")
+        cid = _char_id()
+        await db.execute(
+            "INSERT INTO characters (id, name, card_json, created_at) VALUES (?, ?, ?, ?)",
+            (cid, "Test", "{}", "now"),
+        )
+        cb_id = uuid.uuid4().hex
+        await db.execute(
+            "INSERT INTO char_blocks (id, character_id, name, content, role, position) VALUES (?, ?, ?, ?, ?, ?)",
+            (cb_id, cid, "Block", "content", "system", 0),
+        )
+        await db.execute(
+            "INSERT INTO block_images (id, block_id, block_source, image_path, mime_type, position, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (uuid.uuid4().hex, cb_id, "char", path, "image/png", 0, "now"),
+        )
+        await db.commit()
+        result = await clean_database(db)
+        assert result["block_images"] == 0
+
+    async def test_preserves_block_images_via_character_direct(self, db):
+        BLOCKS_DIR.mkdir(parents=True, exist_ok=True)
+        path = str(BLOCKS_DIR / "img.png")
+        Path(path).write_bytes(b"img")
+        cid = _char_id()
+        await db.execute(
+            "INSERT INTO characters (id, name, card_json, created_at) VALUES (?, ?, ?, ?)",
+            (cid, "Test", "{}", "now"),
+        )
+        await db.execute(
+            "INSERT INTO block_images (id, block_id, block_source, image_path, mime_type, position, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (uuid.uuid4().hex, cid, "char", path, "image/png", 0, "now"),
+        )
+        await db.commit()
+        result = await clean_database(db)
+        assert result["block_images"] == 0
+
+    async def test_preserves_block_images_via_persona_direct(self, db):
+        BLOCKS_DIR.mkdir(parents=True, exist_ok=True)
+        path = str(BLOCKS_DIR / "img.png")
+        Path(path).write_bytes(b"img")
+        pid = _char_id()
+        await db.execute(
+            "INSERT INTO personas (id, name, description, created_at) VALUES (?, ?, ?, ?)",
+            (pid, "Test", "", "now"),
+        )
+        await db.execute(
+            "INSERT INTO block_images (id, block_id, block_source, image_path, mime_type, position, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (uuid.uuid4().hex, pid, "char", path, "image/png", 0, "now"),
+        )
+        await db.commit()
+        result = await clean_database(db)
+        assert result["block_images"] == 0
+
+    # ── Unknown block_source fallback ──
+
+    async def test_unknown_block_source_kept_when_valid(self, db):
+        BLOCKS_DIR.mkdir(parents=True, exist_ok=True)
+        path = str(BLOCKS_DIR / "img.png")
+        Path(path).write_bytes(b"img")
+        pid = _char_id()
+        await db.execute(
+            "INSERT INTO personas (id, name, description, created_at) VALUES (?, ?, ?, ?)",
+            (pid, "Test", "", "now"),
+        )
+        await db.execute(
+            "INSERT INTO block_images (id, block_id, block_source, image_path, mime_type, position, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (uuid.uuid4().hex, pid, "persona", path, "image/png", 0, "now"),
+        )
+        await db.commit()
+        result = await clean_database(db)
+        assert result["block_images"] == 0
+
+    async def test_unknown_block_source_deleted_when_invalid(self, db):
+        BLOCKS_DIR.mkdir(parents=True, exist_ok=True)
+        path = str(BLOCKS_DIR / "img.png")
+        Path(path).write_bytes(b"img")
+        await db.execute(
+            "INSERT INTO block_images (id, block_id, block_source, image_path, mime_type, position, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (uuid.uuid4().hex, "nonexistent", "persona", path, "image/png", 0, "now"),
+        )
+        await db.commit()
+        result = await clean_database(db)
+        assert result["block_images"] == 1
+
+    # ── Attachments ──
+
+    async def test_deletes_orphaned_attachments(self, db):
+        ATTACHMENTS_DIR.mkdir(parents=True, exist_ok=True)
+        path = str(ATTACHMENTS_DIR / "doc.pdf")
+        Path(path).write_bytes(b"doc")
+        chat_id = uuid.uuid4().hex
+        await db.execute(
+            "INSERT INTO chats (id, title, created_at, updated_at) VALUES (?, ?, ?, ?)",
+            (chat_id, "Chat", "now", "now"),
+        )
+        await db.execute(
+            "INSERT INTO message_attachments (id, chat_id, file_path, mime_type, created_at) VALUES (?, ?, ?, ?, ?)",
+            (uuid.uuid4().hex, chat_id, path, "application/pdf", "now"),
+        )
+        await db.commit()
+        result = await clean_database(db)
+        assert result["attachments"] == 1
+
+    async def test_preserves_attachments_with_message_id(self, db):
+        ATTACHMENTS_DIR.mkdir(parents=True, exist_ok=True)
+        path = str(ATTACHMENTS_DIR / "doc.pdf")
+        Path(path).write_bytes(b"doc")
+        chat_id = uuid.uuid4().hex
+        await db.execute(
+            "INSERT INTO chats (id, title, created_at, updated_at) VALUES (?, ?, ?, ?)",
+            (chat_id, "Chat", "now", "now"),
+        )
+        msg_id = uuid.uuid4().hex
+        await db.execute(
+            "INSERT INTO messages (id, chat_id, role, position, created_at) VALUES (?, ?, ?, ?, ?)",
+            (msg_id, chat_id, "user", 0, "now"),
+        )
+        await db.execute(
+            "INSERT INTO message_attachments (id, chat_id, message_id, file_path, mime_type, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+            (uuid.uuid4().hex, chat_id, msg_id, path, "application/pdf", "now"),
+        )
+        await db.commit()
+        result = await clean_database(db)
+        assert result["attachments"] == 0
+
+    # ── Counts ──
+
+    async def test_counts_have_expected_keys(self, db):
+        result = await clean_database(db)
+        assert set(result.keys()) == {
+            "chats", "characters", "personas", "block_images", "attachments",
+            "compressed_purged", "orphaned_entity_dirs", "orphaned_files", "empty_dirs_removed",
+        }
+
+    async def test_empty_database_returns_zero_counts(self, db):
+        result = await clean_database(db)
+        for v in result.values():
+            assert v == 0
