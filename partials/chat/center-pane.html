@@ -19,10 +19,10 @@
     <!-- Standard Input -->
     <div id="standard-input-container" class="input-wrapper relative w-full">
       <input type="file" id="file-upload" class="hidden" multiple accept="image/*,audio/*">
-       <button class="btn btn-secondary !px-2" style="border: none; background: transparent; color: var(--text-muted);" onclick="document.getElementById('file-upload').click()" title="Attach files" aria-label="Attach files">
+       <button class="btn btn-secondary !px-2" style="border: none; background: transparent; color: var(--text-muted);" data-action="actionTriggerFileUpload" data-target="file-upload" title="Attach files" aria-label="Attach files">
         {{ icon_paperclip(20) }}
       </button>
-      <textarea id="chat-input" placeholder="Type a message…" onkeydown="if(event.key==='Enter' && !event.shiftKey && !document.getElementById('send-btn').classList.contains('hidden')){event.preventDefault();document.getElementById('send-btn').click()}"></textarea>
+      <textarea id="chat-input" placeholder="Type a message…"></textarea>
        <button id="send-btn" class="send-btn" aria-label="Send message" data-chat-id="{{ chat_id }}" data-provider-id="{{ providers[0].id if providers else '' }}">
         {{ icon_send() }}
       </button>

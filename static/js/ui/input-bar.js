@@ -41,6 +41,14 @@
       resizeTextarea(this);
       updateSendButtonState();
     });
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        if (sendBtn && !sendBtn.classList.contains('hidden')) {
+          e.preventDefault();
+          sendBtn.click();
+        }
+      }
+    });
   }
 
   if (sendBtn) {

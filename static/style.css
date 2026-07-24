@@ -753,7 +753,7 @@ html, body {
   }
 
   .input-bar {
-    padding: 1rem 1.5rem 1.5rem;
+    padding: 0rem 1.5rem 1.5rem;
     display: flex;
     justify-content: center;
     position: absolute;
@@ -762,8 +762,19 @@ html, body {
     right: 0;
     z-index: 20;
     pointer-events: none;
-    background: linear-gradient(to top, var(--bg) 60%, transparent);
   }
+
+  .input-bar::before {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    left: 1.5rem;
+    right: 1.5rem;
+    height: 3rem;
+    background: linear-gradient(to top, var(--bg) 0%, transparent);
+    pointer-events: none;
+  }
+
   .input-wrapper {
     display: flex;
     gap: 0.5rem;
