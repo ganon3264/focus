@@ -97,212 +97,34 @@
 </div>
 
 <script>
-  function promptDeleteChar(charId, charName) {
-    if (charId instanceof Element) {
-      charName = charId.dataset.charName || charName;
-      charId = charId.dataset.charId;
-    }
-    const html = `
-    <div class="mb-4 text-sm" style="color:var(--text);">Delete character <strong>${charName}</strong>?</div>
-    <div class="flex flex-col gap-3">
-      <label class="flex items-start gap-3 cursor-pointer p-3 rounded-lg hover:bg-(--surface-3) transition-colors border border-(--border) relative group">
-        <div class="mt-0.5">
-          <input type="radio" name="char_delete_option" value="soft" checked class="w-4 h-4 cursor-pointer" style="accent-color: var(--accent);">
-        </div>
-        <div class="flex flex-col">
-          <span class="text-sm font-bold" style="color:var(--text);">Move Character to Trash</span>
-          <span class="text-xs text-muted">You can restore the character later.</span>
-        </div>
-      </label>
-      <label class="flex items-start gap-3 cursor-pointer p-3 rounded-lg hover:bg-(--surface-3) transition-colors border border-(--border) relative group">
-        <div class="mt-0.5">
-          <input type="radio" name="char_delete_option" value="soft_with_chats" class="w-4 h-4 cursor-pointer" style="accent-color: var(--accent);">
-        </div>
-        <div class="flex flex-col">
-          <span class="text-sm font-bold" style="color:var(--text);">Move Character & Conversations to Trash</span>
-          <span class="text-xs text-muted">Hides their chats too. Both can be restored.</span>
-        </div>
-      </label>
-    </div>
-  `;
-    window.customConfirm(html, function () {
-      const selected = document.querySelector('input[name="char_delete_option"]:checked').value;
-      const delChats = selected === 'soft_with_chats';
-      fetch(`/api/characters/${charId}?delete_chats=${delChats}`, {
-        method: 'DELETE',
-      }).then((r) => {
-        if (r.ok) {
-          var card = document.getElementById('char-card-' + charId);
-          if (card) card.remove();
-          var grid = document.getElementById('char-modal-grid');
-          if (grid && grid.querySelectorAll('.card').length === 0) {
-            grid.innerHTML = '<div class="text-muted text-center text-sm py-6 border border-dashed border-(--border) rounded-lg">No characters found. Create or import one to get started!</div>';
-          }
-        }
-      });
-    });
-  }
-
-  function openTrashModal() {
-    fetch('/api/characters/trash')
-      .then((r) => r.json())
-      .then((chars) => {
-        let html = `<div class="flex flex-col gap-2 max-h-[60vh] overflow-y-auto pr-1">`;
-        if (chars.length === 0) {
-          html += `<div class="text-muted text-center py-6 border border-dashed border-(--border) rounded-lg">Trash is empty.</div>`;
-        } else {
-          chars.forEach((c) => {
-            html += `
-            <div class="flex justify-between items-center p-3 border border-(--border) rounded-lg bg-(--surface-2)">
-              <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-full overflow-hidden bg-(--surface-3) flex items-center justify-center border border-(--border)">
-                  ${c.image_path ? `<img src="/${c.image_path}" loading="lazy" class="w-full h-full object-cover">` : `<span class="text-sm font-bold text-muted">${c.name.charAt(0)}</span>`}
-                </div>
-                <span class="font-bold text-sm" style="color:var(--text);">${c.name}</span>
-              </div>
-              <div class="flex gap-2">
-                <button class="btn btn-secondary btn-sm" onclick="restoreChar('${c.id}')">Restore</button>
-                <button class="btn btn-danger btn-sm" onclick="hardDeleteChar('${c.id}', '${c.name.replace(/'/g, "\\'")}')">Delete Forever</button>
-              </div>
-            </div>
-          `;
-          });
-        }
-        html += `</div>`;
-
-        const modalHtml = `
-        <div id="trash-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Trash" style="z-index: var(--z-overlay);" onclick="if(event.target===this) this.remove()">
-          <div class="modal-content" style="max-width: 500px; width: 90vw;">
-            <div class="modal-header" style="margin-bottom: 1rem;">
-              <div class="modal-title">Trash Bin</div>
-               <button class="btn btn-secondary btn-sm" onclick="document.getElementById('trash-modal').remove()" aria-label="Close">{{ icon_close(16) }}</button>
-            </div>
-            <div id="trash-modal-body">
-              ${html}
-            </div>
-          </div>
-        </div>
-      `;
-        document.body.insertAdjacentHTML('beforeend', modalHtml);
-      });
-  }
-
-  window.restoreChar = function (charId) {
-    const html = `
-    <div class="mb-4 text-sm" style="color:var(--text);">Restore character?</div>
-    <label class="flex items-start gap-3 cursor-pointer p-3 rounded-lg hover:bg-(--surface-3) transition-colors border border-(--border)">
-      <div class="mt-0.5">
-        <input type="checkbox" id="restore_chats_cb" checked class="w-4 h-4 cursor-pointer" style="accent-color: var(--accent);">
-      </div>
-      <div class="flex flex-col">
-        <span class="text-sm font-bold" style="color:var(--text);">Also restore conversations</span>
-        <span class="text-xs text-muted">Brings back chats previously deleted with this character.</span>
-      </div>
-    </label>
-  `;
-    window.customConfirm(html, function () {
-      const restoreChats = document.getElementById('restore_chats_cb').checked;
-      fetch(`/api/characters/${charId}/restore?restore_chats=${restoreChats}`, {
-        method: 'POST',
-      }).then((r) => {
-        if (r.ok) {
-          document.getElementById('trash-modal').remove();
-          var g = document.getElementById('char-modal-grid');
-          if (g) {
-            var cid = StateManager.get('character_id') || '';
-            var cv = g.dataset.view === 'compact';
-            htmx.ajax('GET', '/partials/character-card/' + charId
-              + '?current_character_id=' + encodeURIComponent(cid)
-              + '&compact_view=' + cv, { target: '#char-modal-grid', swap: 'beforeend' })
-              .then(function () {
-                var val = localStorage.getItem('focus_char_sort');
-                if (val && window.sortCharacters) window.sortCharacters(val);
-              });
-          } else {
-            htmx.ajax('GET', '/partials/characters-modal', {
-              target: '#characters-modal-body-inner',
-              swap: 'innerHTML',
-            }).then(function () {
-              var val = localStorage.getItem('focus_char_sort');
-              if (val && window.sortCharacters) window.sortCharacters(val);
-            });
-          }
-        }
-      });
-    });
-  };
-
-  window.hardDeleteChar = function (charId, charName) {
-    window.customConfirm(
-      `Permanently delete <strong>${charName}</strong>? This cannot be undone.`,
-      function () {
-        fetch(`/api/characters/${charId}?hard=true`, {
-          method: 'DELETE',
-        }).then((r) => {
-          if (r.ok) {
-            document.getElementById('trash-modal').remove();
-            openTrashModal();
-          }
-        });
-      },
-    );
-  };
-
-  function selectCharModal(el) {
-    window.location.href = '/chat?character_id=' + (el.dataset.charId || '');
-  }
-
-  function importCharModal(e) {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    fetch('/api/characters/import', {
-      method: 'POST',
-      body: formData,
-    }).then(async function (r) {
-      if (r.ok) {
-        const data = await r.json();
-        if (data.errors && data.errors.length) {
-          alert(
-            'Imported ' +
-              data.imported.length +
-              ' of ' +
-              data.total +
-              ' cards.\n\nErrors:\n' +
-              data.errors
-                .map(function (e) {
-                  return '• ' + e.filename + ': ' + e.error;
-                })
-                .join('\n'),
-          );
-        }
-        var g = document.getElementById('char-modal-grid');
-        var cid = StateManager.get('character_id') || '';
-        var cv = g ? g.dataset.view === 'compact' : false;
-        if (g) {
-          var fetches = [];
-          (data.imported || []).forEach(function (entry) {
-            fetches.push(htmx.ajax('GET', '/partials/character-card/' + entry.id
-              + '?current_character_id=' + encodeURIComponent(cid)
-              + '&compact_view=' + cv, { target: '#char-modal-grid', swap: 'beforeend' }));
-          });
-          Promise.all(fetches).then(function () {
-            var val = localStorage.getItem('focus_char_sort');
-            if (val && window.sortCharacters) window.sortCharacters(val);
-          });
-        } else {
-          htmx.ajax('GET', '/partials/characters-modal', {
-            target: '#characters-modal-body-inner',
-            swap: 'innerHTML',
-          }).then(function () {
-            var val = localStorage.getItem('focus_char_sort');
-            if (val && window.sortCharacters) window.sortCharacters(val);
-          });
-        }
-      } else {
-        r.text().then((t) => alert('Import failed: ' + t));
-      }
-    });
-  }
+  setupEntityModal({
+    entity: 'Character',
+    fnEntity: 'Char',
+    entityLower: 'character',
+    stateKey: 'character_id',
+    apiBase: '/api/characters',
+    gridId: 'char-modal-grid',
+    cardEndpoint: '/partials/character-card/',
+    modalEndpoint: '/partials/characters-modal',
+    modalBodyInnerId: 'characters-modal-body-inner',
+    cardPrefix: 'char-card-',
+    idAttr: 'charId',
+    nameAttr: 'charName',
+    imageField: 'image_path',
+    trashModalId: 'trash-modal',
+    modalId: 'modal-characters',
+    statusId: 'status-character',
+    sortStorageKey: 'focus_char_sort',
+    sortFn: 'sortCharacters',
+    emptyText: 'No characters found. Create or import one to get started!',
+    openTrashFn: 'openTrashModal',
+    selectFn: 'selectCharModal',
+    importFn: 'importCharModal',
+    deleteWithChats: true,
+    hasRestoreDialog: true,
+    selectMode: 'redirect',
+    hasImport: true,
+  });
 
   ListManager.setup({
     filterFn: 'filterCharacters',

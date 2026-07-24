@@ -81,153 +81,31 @@
 </div>
 
 <script>
-  function promptDeletePersona(pid, pName) {
-    if (pid instanceof Element) {
-      pName = pid.dataset.personaName || pName;
-      pid = pid.dataset.personaId;
-    }
-    const html = `
-    <div class="mb-4 text-sm" style="color:var(--text);">Delete persona <strong>${pName}</strong>?</div>
-    <div class="flex flex-col gap-3">
-      <label class="flex items-start gap-3 cursor-pointer p-3 rounded-lg hover:bg-(--surface-3) transition-colors border border-(--border)">
-        <div class="mt-0.5">
-          <input type="radio" name="persona_delete_option" value="soft" checked class="w-4 h-4 cursor-pointer" style="accent-color: var(--accent);">
-        </div>
-        <div class="flex flex-col">
-          <span class="text-sm font-bold" style="color:var(--text);">Move Persona to Trash</span>
-          <span class="text-xs text-muted">You can restore the persona later.</span>
-        </div>
-      </label>
-      <label class="flex items-start gap-3 cursor-pointer p-3 rounded-lg hover:bg-(--surface-3) transition-colors border border-(--border)">
-        <div class="mt-0.5">
-          <input type="radio" name="persona_delete_option" value="hard" class="w-4 h-4 cursor-pointer" style="accent-color: var(--accent);">
-        </div>
-        <div class="flex flex-col">
-          <span class="text-sm font-bold" style="color:var(--text);">Delete Forever</span>
-          <span class="text-xs text-muted">Permanently delete this persona. Cannot be undone.</span>
-        </div>
-      </label>
-    </div>
-  `;
-    window.customConfirm(html, function () {
-      const selected = document.querySelector('input[name="persona_delete_option"]:checked').value;
-      const url = selected === 'hard' ? `/api/personas/${pid}?hard=true` : `/api/personas/${pid}`;
-      fetch(url, { method: 'DELETE' }).then((r) => {
-        if (r.ok) {
-          var card = document.getElementById('persona-card-' + pid);
-          if (card) card.remove();
-          var grid = document.getElementById('persona-modal-grid');
-          if (grid && grid.querySelectorAll('.card').length === 0) {
-            grid.innerHTML = '<div class="text-muted text-center text-sm py-6 border border-dashed border-(--border) rounded-lg">No personas found. Create one to get started!</div>';
-          }
-        }
-      });
-    });
-  }
-
-  function openPersonaTrashModal() {
-    fetch('/api/personas/trash')
-      .then((r) => r.json())
-      .then((personas) => {
-        let html = `<div class="flex flex-col gap-2 max-h-[60vh] overflow-y-auto pr-1">`;
-        if (personas.length === 0) {
-          html += `<div class="text-muted text-center py-6 border border-dashed border-(--border) rounded-lg">Trash is empty.</div>`;
-        } else {
-          personas.forEach((p) => {
-            html += `
-            <div class="flex justify-between items-center p-3 border border-(--border) rounded-lg bg-(--surface-2)">
-              <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-full overflow-hidden bg-(--surface-3) flex items-center justify-center border border-(--border)">
-                  ${p.avatar_path ? `<img src="/${p.avatar_path}" loading="lazy" class="w-full h-full object-cover">` : `<span class="text-sm font-bold text-muted">${p.name.charAt(0)}</span>`}
-                </div>
-                <span class="font-bold text-sm" style="color:var(--text);">${p.name}</span>
-              </div>
-              <div class="flex gap-2">
-                <button class="btn btn-secondary btn-sm" onclick="restorePersona('${p.id}')">Restore</button>
-                <button class="btn btn-danger btn-sm" onclick="hardDeletePersona('${p.id}', '${p.name.replace(/'/g, "\\'")}')">Delete Forever</button>
-              </div>
-            </div>
-          `;
-          });
-        }
-        html += `</div>`;
-
-        const modalHtml = `
-        <div id="persona-trash-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Trash" style="z-index: var(--z-overlay);" onclick="if(event.target===this) this.remove()">
-          <div class="modal-content" style="max-width: 500px; width: 90vw;">
-            <div class="modal-header" style="margin-bottom: 1rem;">
-              <div class="modal-title">Trash Bin</div>
-               <button class="btn btn-secondary btn-sm" onclick="document.getElementById('persona-trash-modal').remove()" aria-label="Close">{{ icon_close(16) }}</button>
-            </div>
-            <div id="persona-trash-modal-body">
-              ${html}
-            </div>
-          </div>
-        </div>
-      `;
-        document.body.insertAdjacentHTML('beforeend', modalHtml);
-      });
-  }
-
-  window.restorePersona = function (personaId) {
-    fetch('/api/personas/' + personaId + '/restore', { method: 'POST' }).then((r) => {
-      if (r.ok) {
-        const modal = document.getElementById('persona-trash-modal');
-        if (modal) modal.remove();
-        var g = document.getElementById('persona-modal-grid');
-        if (g) {
-          var cid = StateManager.get('persona_id') || '';
-          var cv = g.dataset.view === 'compact';
-          htmx.ajax('GET', '/partials/persona-modal-card/' + personaId
-            + '?current_persona_id=' + encodeURIComponent(cid)
-            + '&compact_view=' + cv, { target: '#persona-modal-grid', swap: 'beforeend' })
-            .then(function () {
-              var val = localStorage.getItem('focus_persona_sort');
-              if (val && window.sortPersonas) window.sortPersonas(val);
-            });
-        } else {
-          htmx.ajax('GET', '/partials/personas-modal', {
-            target: '#personas-modal-body-inner',
-            swap: 'innerHTML',
-          }).then(function () {
-            var val = localStorage.getItem('focus_persona_sort');
-            if (val && window.sortPersonas) window.sortPersonas(val);
-          });
-        }
-      }
-    });
-  };
-
-  window.hardDeletePersona = function (personaId, personaName) {
-    window.customConfirm(
-      `Permanently delete <strong>${personaName}</strong>? This cannot be undone.`,
-      function () {
-        fetch('/api/personas/' + personaId + '?hard=true', { method: 'DELETE' }).then((r) => {
-          if (r.ok) {
-            const modal = document.getElementById('persona-trash-modal');
-            if (modal) modal.remove();
-            openPersonaTrashModal();
-          }
-        });
-      },
-    );
-  };
-
-  function selectPersonaModal(el) {
-    var pid = el.dataset.personaId || '';
-    var pname = el.dataset.personaName || '';
-    StateManager.setPersona(pid);
-    closeModal('modal-personas');
-    var statusEl = document.getElementById('status-persona');
-    if (statusEl) statusEl.textContent = pname || '...';
-    const chatId = document.getElementById('send-btn')?.dataset?.chatId;
-    if (chatId) {
-      htmx.ajax('GET', '/partials/message-list/' + chatId, {
-        target: '#message-list',
-        swap: 'innerHTML',
-      });
-    }
-  }
+  setupEntityModal({
+    entity: 'Persona',
+    fnEntity: 'Persona',
+    entityLower: 'persona',
+    stateKey: 'persona_id',
+    apiBase: '/api/personas',
+    gridId: 'persona-modal-grid',
+    cardEndpoint: '/partials/persona-modal-card/',
+    modalEndpoint: '/partials/personas-modal',
+    modalBodyInnerId: 'personas-modal-body-inner',
+    cardPrefix: 'persona-card-',
+    idAttr: 'personaId',
+    nameAttr: 'personaName',
+    imageField: 'avatar_path',
+    trashModalId: 'persona-trash-modal',
+    modalId: 'modal-personas',
+    statusId: 'status-persona',
+    sortStorageKey: 'focus_persona_sort',
+    sortFn: 'sortPersonas',
+    emptyText: 'No personas found. Create one to get started!',
+    deleteWithChats: false,
+    hasRestoreDialog: false,
+    selectMode: 'inplace',
+    hasImport: false,
+  });
 
   ListManager.setup({
     filterFn: 'filterPersonas',

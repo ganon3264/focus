@@ -294,6 +294,8 @@ setTimeout(() => {
 <!-- BACKUPS MODAL -->
 {% include "modals/backup.html" %}
 
+<template id="icon-close-tpl">{{ icon_close(16) }}</template>
+
 <script src="/static/js/ui/theme-manager.js"></script>
 <script>
 window.updateContinueButtons = function() {
@@ -406,6 +408,8 @@ function toggleSidebar(side) {
   document.getElementById(side + '-tab').classList.toggle('hidden');
 }
 </script>
+
+<script src="/static/js/modals/shared-entity-modal.js"></script>
 
 <script src="/static/js/modals/char-edit.js"></script>
 
