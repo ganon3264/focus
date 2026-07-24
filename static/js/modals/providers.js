@@ -430,6 +430,33 @@ function submitProviderModal(e) {
   });
 }
 
+function _saveListPref(key, value) {
+  localStorage.setItem(key, value);
+  fetch('/api/settings', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key: key, value: value }),
+  });
+}
+
+window.sortProviders = function (mode) {
+  _saveListPref('focus_providers_sort', mode);
+  var grid = document.getElementById('providers-grid');
+  if (!grid) return;
+  var cards = Array.from(grid.querySelectorAll('.provider-card'));
+  cards.sort(function (a, b) {
+    var aName = a.dataset.provName || '';
+    var bName = b.dataset.provName || '';
+    var aCreated = a.dataset.provCreated || '';
+    var bCreated = b.dataset.provCreated || '';
+    if (mode === 'az') return aName.localeCompare(bName);
+    if (mode === 'za') return bName.localeCompare(aName);
+    if (mode === 'oldest') return aCreated.localeCompare(bCreated);
+    return bCreated.localeCompare(aCreated);
+  });
+  cards.forEach(function (card) { grid.appendChild(card); });
+};
+
 async function fetchProviderBalances() {
   document.querySelectorAll('[id^="balance-"]').forEach(async el => {
     const providerId = el.id.replace('balance-', '');
@@ -471,14 +498,25 @@ setTimeout(() => {
   const activeType = StateManager.get('provider_type');
   if (activeId) setActiveProvider(activeId, '', activeType);
   fetchProviderBalances();
+  var sv = localStorage.getItem('focus_providers_sort');
+  if (sv && window.sortProviders) window.sortProviders(sv);
 }, 100);
 
 window._currentSecretPrefix = null;
 
 function openSecretsModal(prefix) {
   window._currentSecretPrefix = prefix;
-  document.getElementById('modal-secrets').classList.remove('hidden');
+  var modal = document.getElementById('modal-secrets');
+  modal.classList.remove('hidden');
+  document.querySelectorAll('#modal-secrets .secret-select-btn').forEach(function (btn) {
+    btn.classList.toggle('hidden', !prefix);
+  });
+  document.querySelector('#modal-secrets .secrets-title').textContent = prefix ? 'Select API Key' : 'Manage API Keys';
   fetchSecrets();
+}
+
+function openSecretsManager() {
+  openSecretsModal(null);
 }
 
 async function fetchSecrets() {

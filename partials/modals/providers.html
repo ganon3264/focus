@@ -1,8 +1,12 @@
-{% from "macros.html" import custom_select, icon_key, icon_edit, icon_search, icon_refresh, icon_folder, icon_plus, icon_close %}
+{% from "macros.html" import custom_select, icon_key, icon_plug, icon_edit, icon_search, icon_refresh, icon_database, icon_plus, icon_close, sort_dropdown %}
 <div class="flex flex-col h-full overflow-y-auto">
-  <div class="flex justify-between items-center mb-3" style="padding-bottom: 0.75rem;">
+  <div class="flex justify-between items-center gap-2 mb-3" style="padding-bottom: 0.75rem;">
     <h3 class="sidebar-title mb-0">Select Active Provider</h3>
-    <button class="btn btn-primary text-sm flex items-center gap-1.5" data-action="actionOpenProviderCreateModal">{{ icon_plus(16) }} Add Provider</button>
+    <div class="flex gap-2 items-center shrink-0">
+      {{ sort_dropdown('focus_providers_sort', 'sortProviders') }}
+      <button class="btn btn-secondary btn-sm flex items-center gap-1.5" onclick="openSecretsManager()" style="height: 32px;">{{ icon_key(14) }} Keys</button>
+      <button class="btn btn-primary btn-sm flex items-center gap-1.5" data-action="actionOpenProviderCreateModal" style="height: 32px;">{{ icon_plus(14) }} Add Provider</button>
+    </div>
   </div>
   
   {% if not providers %}
@@ -11,10 +15,10 @@
     </div>
   {% endif %}
 
-  <div class="grid gap-3" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));">
+  <div class="grid gap-3" id="providers-grid" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));">
     {% for prov in providers %}
       {% set params = prov.params_json|default('{}')|from_json %}
-      <div class="provider-card card" id="prov-card-{{ prov.id }}">
+      <div class="provider-card card" id="prov-card-{{ prov.id }}" data-prov-name="{{ prov.name }}" data-prov-created="{{ prov.created_at }}">
         <!-- Display State -->
         <div id="prov-display-{{ prov.id }}" class="p-3 h-full flex flex-col justify-between cursor-pointer" role="button" tabindex="0" data-action="actionSetActiveProvider" data-prov-id="{{ prov.id }}" data-prov-name="{{ prov.name }}" data-prov-type="{{ prov.type }}">
           <div class="flex justify-between items-center mb-1">
@@ -221,7 +225,7 @@
      data-action="actionCloseModals">
   <div class="modal-content flex flex-col p-0" style="max-width: 800px; width: 95vw; height: 75vh; overflow: hidden; background: var(--surface);">
     <div class="modal-header p-4" style="margin-bottom: 0; border-bottom: 1px solid var(--border);">
-      <div class="modal-title">Select API Key</div>
+      <div class="modal-title secrets-title">Select API Key</div>
       <button class="btn btn-secondary" data-action="actionCloseSecrets" aria-label="Close">{{ icon_close(16) }}</button>
     </div>
     
@@ -236,7 +240,7 @@
                <div class="text-xs text-muted font-mono" x-text="sec.preview"></div>
              </div>
              <div class="flex gap-2">
-               <button type="button" class="btn btn-primary btn-sm" @click.stop="selectSecret(sec.name)">Select</button>
+               <button type="button" class="btn btn-primary btn-sm secret-select-btn" @click.stop="selectSecret(sec.name)">Select</button>
                <button type="button" class="btn btn-danger btn-sm" @click.stop="deleteSecret(sec.name)" aria-label="Delete secret">{{ icon_close(16) }}</button>
              </div>
            </div>
@@ -248,7 +252,7 @@
        <div class="flex gap-2">
          <input type="text" x-model="newName" placeholder="Key Name (e.g. My OR Key)" class="form-control text-sm w-1/3">
          <input type="password" x-model="newValue" placeholder="sk-... or JSON" class="form-control text-sm flex-1">
-          <button type="button" class="btn btn-secondary btn-sm" data-action="actionTriggerFileUpload" data-target="sa-file-upload" aria-label="Upload service account JSON" title="Upload JSON">{{ icon_folder() }}</button>
+          <button type="button" class="btn btn-secondary btn-sm" data-action="actionTriggerFileUpload" data-target="sa-file-upload" aria-label="Upload service account JSON" title="Upload JSON">{{ icon_database() }}</button>
          <button type="button" class="btn btn-secondary btn-sm" @click="saveNewSecret(newName, newValue); newName=''; newValue=''">Save</button>
        </div>
        <input type="file" id="sa-file-upload" accept=".json" class="hidden" @change="
@@ -267,7 +271,7 @@
        <h4 class="text-sm font-bold mb-2">Or Use a One-Time Raw Key</h4>
        <div class="flex gap-2">
          <input type="password" x-model="rawKey" placeholder="sk-... or JSON" class="form-control text-sm flex-1">
-          <button type="button" class="btn btn-secondary btn-sm" data-action="actionTriggerFileUpload" data-target="sa-file-upload-raw" aria-label="Upload raw service account JSON" title="Upload JSON">{{ icon_folder() }}</button>
+          <button type="button" class="btn btn-secondary btn-sm" data-action="actionTriggerFileUpload" data-target="sa-file-upload-raw" aria-label="Upload raw service account JSON" title="Upload JSON">{{ icon_database() }}</button>
          <button type="button" class="btn btn-secondary btn-sm" @click="selectRawKey(rawKey); rawKey=''">Use Raw Key</button>
        </div>
        <input type="file" id="sa-file-upload-raw" accept=".json" class="hidden" @change="

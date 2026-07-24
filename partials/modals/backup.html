@@ -1,5 +1,5 @@
 {% from "modal-shell.html" import modal_shell %} {% from "macros.html" import icon_plus,
-icon_folder, icon_upload, icon_search %} {# ── BACKUPS MODAL
+icon_database, icon_upload, icon_search %} {# ── BACKUPS MODAL
 ────────────────────────────────────────────── #} {% call modal_shell('modal-backups', 'Backups',
 max_width='520px', width='90vw') %}
 <div class="flex flex-col gap-4 mt-1">
@@ -18,7 +18,7 @@ max_width='520px', width='90vw') %}
       class="btn btn-secondary flex-1 text-sm flex items-center justify-center gap-1.5"
       data-action="BackupManager.openExportModal"
     >
-      {{ icon_folder(size=14) }} Export
+      {{ icon_database(size=14) }} Export
     </button>
     <button
       type="button"
