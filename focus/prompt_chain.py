@@ -16,7 +16,8 @@ from focus.core.utils import MACRO_MAX_PASSES, variable_group_name
 
 logger = logging.getLogger("focus.prompt_chain")
 
-MAX_IMAGE_B64 = 5 * 1024 * 1024  # 5 MB provider limit on base64 payload
+MAX_IMAGE_B64 = int(3.5 * 1024 * 1024)
+MAX_IMAGE_DIMENSION = 1568
 
 MEDIA_PATTERN = re.compile(r"\{\{media:(\d+)\}\}")
 
@@ -29,69 +30,54 @@ async def _ensure_compressed(orig_path: str, mime: str) -> tuple[Path, str]:
 def _ensure_compressed_sync(orig_path: str, mime: str) -> tuple[Path, str]:
     """Return (compressed_file_path, output_mime) from a disk cache.
 
-    Creates a compressed version on disk if missing or stale.
-    Preserves PNG (with transparency) when possible; falls back to JPEG
-    only when dimension reduction alone can't fit under MAX_IMAGE_B64.
-    Cache invalidation is by mtime: compressed must be newer than original.
+    Creates a compressed WebP version on disk if missing or stale.
+    Caps the longest edge at MAX_IMAGE_DIMENSION before compressing.
+    WebP natively handles alpha, so transparency is preserved without
+    a separate PNG path. Cache invalidation is by mtime.
     """
     orig = Path(orig_path)
     stem = orig.stem
-    png_cache = Path(COMPRESSED_DIR) / f"{stem}.png"
-    jpg_cache = Path(COMPRESSED_DIR) / f"{stem}.jpg"
+    webp_cache = COMPRESSED_DIR / f"{stem}.webp"
 
     try:
         orig_mtime = orig.stat().st_mtime
     except OSError:
         orig_mtime = 0
 
-    if png_cache.exists() and png_cache.stat().st_mtime >= orig_mtime:
-        return png_cache, "image/png"
-    if jpg_cache.exists() and jpg_cache.stat().st_mtime >= orig_mtime:
-        return jpg_cache, "image/jpeg"
+    if webp_cache.exists() and webp_cache.stat().st_mtime >= orig_mtime:
+        return webp_cache, "image/webp"
 
     data = orig.read_bytes()
 
     if len(base64.b64encode(data).decode()) <= MAX_IMAGE_B64:
-        if mime == "image/png":
-            png_cache.write_bytes(data)
-            return png_cache, "image/png"
-        jpg_cache.write_bytes(data)
-        return jpg_cache, "image/jpeg"
+        out_path = COMPRESSED_DIR / f"{stem}{Path(orig_path).suffix or '.png'}"
+        out_path.write_bytes(data)
+        return out_path, mime
 
     img = Image.open(BytesIO(data))
-    has_alpha = img.mode in ("RGBA", "LA", "P")
 
-    if has_alpha:
+    longest = max(img.width, img.height)
+    if longest > MAX_IMAGE_DIMENSION:
+        scale = MAX_IMAGE_DIMENSION / longest
+        w = max(1, int(img.width * scale))
+        h = max(1, int(img.height * scale))
+        img = img.resize((w, h), Image.LANCZOS)
+
+    for quality in (80, 65, 50, 35, 20):
         scale = 1.0
         while scale > 0.05:
-            scale *= 0.8
+            scale *= 0.75
             w = max(1, int(img.width * scale))
             h = max(1, int(img.height * scale))
             resized = img.resize((w, h), Image.LANCZOS)
             buf = BytesIO()
-            resized.save(buf, format="PNG", optimize=True)
+            resized.save(buf, format="WEBP", quality=quality)
             if len(base64.b64encode(buf.getvalue()).decode()) <= MAX_IMAGE_B64:
-                png_cache.write_bytes(buf.getvalue())
-                return png_cache, "image/png"
-        img = img.convert("RGB")
+                webp_cache.write_bytes(buf.getvalue())
+                return webp_cache, "image/webp"
 
-    for quality in (85, 65):
-        scale = 1.0
-        while scale > 0.05:
-            scale *= 0.8
-            w = max(1, int(img.width * scale))
-            h = max(1, int(img.height * scale))
-            resized = img.resize((w, h), Image.LANCZOS)
-            if resized.mode in ("RGBA", "LA", "P"):
-                resized = resized.convert("RGB")
-            buf = BytesIO()
-            resized.save(buf, format="JPEG", quality=quality)
-            if len(base64.b64encode(buf.getvalue()).decode()) <= MAX_IMAGE_B64:
-                jpg_cache.write_bytes(buf.getvalue())
-                return jpg_cache, "image/jpeg"
-
-    jpg_cache.write_bytes(buf.getvalue())
-    return jpg_cache, "image/jpeg"
+    webp_cache.write_bytes(buf.getvalue())
+    return webp_cache, "image/webp"
 
 
 async def _load_media(media_row: dict) -> dict | None:
