@@ -1,0 +1,158 @@
+/* ── Components: floating actions & input ─────────────────────────────────── */
+@layer components {
+  /* ── Message toolbar (right-side hover reveal) ── */
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%) translateX(6px);
+    opacity: 0;
+    pointer-events: none;
+    background: var(--surface);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-radius: var(--radius-md);
+    padding: 0.15rem 0.25rem;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-md);
+    z-index: 10;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+  }
+  .msg:hover .toolbar {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+    pointer-events: auto;
+  }
+
+  /* ── Meta right (date/variant badge, fades on hover) ── */
+  .meta-right {
+    transition: opacity 0.18s ease, transform 0.18s steps(6, end);
+  }
+  .msg:hover .meta-right {
+    opacity: 0;
+    transform: translateX(-6px);
+    pointer-events: none;
+  }
+  @media (max-width: 639px) {
+    .meta-right {
+      display: none !important;
+    }
+  }
+
+  .action-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    font-size: 0.85rem;
+    line-height: 1;
+    transition: all var(--transition);
+  }
+  .action-btn:hover {
+    background: var(--surface-3);
+    color: var(--text);
+  }
+  .action-btn svg,
+  .action-icon svg,
+  .send-btn svg,
+  .btn svg {
+    display: block;
+    pointer-events: none;
+  }
+
+  .input-bar {
+    padding: 0rem 1.5rem 1.5rem;
+    display: flex;
+    justify-content: center;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 20;
+    pointer-events: none;
+  }
+
+  .input-bar-content {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .input-wrapper {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 0.6rem;
+    width: 100%;
+    max-width: min(85%, 820px);
+    transition: border-color var(--transition);
+    pointer-events: auto;
+  }
+  .input-wrapper:focus-within {
+    border-color: var(--accent);
+    box-shadow: var(--shadow-glow);
+  }
+  .input-wrapper textarea {
+    flex: 1;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    color: var(--text);
+    padding: 10px 1rem;
+    resize: none;
+    height: 44px;
+    max-height: 250px;
+    font-family: inherit;
+    font-size: 1rem;
+    line-height: 24px;
+    outline: none;
+    overflow-y: hidden;
+  }
+  .input-wrapper textarea::placeholder {
+    color: var(--text-faint);
+  }
+  .send-btn {
+    background: var(--accent);
+    color: var(--text-on-accent);
+    border: none;
+    border-radius: 18px;
+    width: 44px;
+    height: 44px;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    font-size: 0;
+    transition: all var(--transition);
+    box-shadow: var(--shadow-sm);
+  }
+  .send-btn:hover {
+    background: var(--accent-hover);
+    transform: translateY(-1px);
+  }
+  .send-btn:active {
+    transform: translateY(0) scale(0.95);
+  }
+  .send-btn svg {
+    width: 18px;
+    height: 18px;
+  }
+  .stop-btn {
+    background: var(--danger);
+  }
+  .stop-btn:hover {
+    background: var(--danger-hover);
+  }
+}

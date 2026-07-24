@@ -1,0 +1,202 @@
+/* ── Components: form defaults ────────────────────────────────────────────── */
+@layer components {
+  :where(input, textarea, select) {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: var(--radius-md);
+    padding: 0.5rem 0.75rem;
+    font-family: inherit;
+    font-size: 0.9rem;
+    transition: all var(--transition);
+    outline: none;
+  }
+  input[type='color'] {
+    border: 1px solid var(--border);
+    padding: 0;
+    box-shadow: var(--shadow-sm);
+    transition: all var(--transition);
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+  }
+  input[type='color']:hover {
+    border-color: var(--border-hover);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+  }
+
+  :where(input, textarea, select):focus {
+    border-color: var(--accent);
+    box-shadow: var(--shadow-glow);
+    background: var(--surface-3);
+  }
+  :where(input, textarea, select):focus:not(:focus-visible) {
+    box-shadow: var(--shadow-glow);
+    border-color: var(--accent);
+  }
+  :where(input, textarea, select):focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+/* ── Components: layout ───────────────────────────────────────────────────── */
+@layer components {
+  .app-shell {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+    position: relative;
+  }
+  .left-sidebar {
+    width: var(--sidebar-width-left);
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    z-index: 10;
+    box-shadow: var(--shadow-sm);
+    transition: width var(--transition), opacity var(--transition);
+    overflow: hidden;
+  }
+  .left-sidebar.collapsed {
+    width: 0;
+    opacity: 0;
+  }
+  .main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    background: var(--bg);
+    position: relative;
+  }
+  .right-sidebar {
+    width: var(--sidebar-width-right);
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    z-index: 10;
+    transition: width var(--transition), opacity var(--transition);
+    box-shadow: -2px 0 10px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+  }
+  .right-sidebar.collapsed {
+    width: 0;
+    opacity: 0;
+  }
+
+  .sidebar-inner {
+    width: var(--sidebar-width-left);
+    min-width: var(--sidebar-width-left);
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* Sidebar Sections */
+  .sidebar-section {
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    border-bottom: 1px solid var(--border);
+    scrollbar-gutter: stable;
+  }
+  .sidebar-section:last-child {
+    border-bottom: none;
+  }
+  .sidebar-title {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--text-muted);
+    letter-spacing: 0.05em;
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .sidebar-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    overflow-y: auto;
+    min-height: 0;
+    margin: 0 -0.5rem;
+    padding: 0 0.5rem;
+  }
+
+  .sidebar-item {
+    padding: 0.6rem 0.75rem;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.9rem;
+    transition: background var(--transition), border-color var(--transition), color var(--transition);
+    border: 1px solid transparent;
+    text-decoration: none;
+    color: inherit;
+    position: relative;
+  }
+  .sidebar-item:hover {
+    background: var(--surface-2);
+    border-color: var(--border);
+  }
+  .sidebar-item.active {
+    background: var(--active-bg);
+    border-color: var(--active-border);
+    color: var(--active-text);
+  }
+
+  /* Right Tab Collapse */
+  .right-tab {
+    position: absolute;
+    right: 0;
+    top: 0;
+    height: 100%;
+    width: 40px;
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background var(--transition);
+    z-index: 20;
+    box-shadow: var(--shadow-sm);
+  }
+  .right-tab:hover {
+    background: var(--surface-2);
+    color: var(--accent-hover);
+  }
+
+  /* Left Tab Collapse */
+  .left-tab {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 40px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background var(--transition);
+    z-index: 20;
+    box-shadow: var(--shadow-sm);
+  }
+  .left-tab:hover {
+    background: var(--surface-2);
+    color: var(--accent-hover);
+  }
+}

@@ -1,0 +1,83 @@
+/* ── Animation keyframes (unlayered) ──────────────────────────────────────── */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes gen-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+.gen-pulse {
+  display: inline-block;
+  width: 6px;
+  height: 14px;
+  background: var(--accent);
+  margin-left: 3px;
+  vertical-align: middle;
+  border-radius: 2px;
+  animation: gen-pulse 1s ease-in-out infinite;
+}
+/* Hint tooltip for help icons */
+.hint-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.hint-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  color: var(--text-faint);
+  cursor: help;
+  transition: color var(--transition), background var(--transition);
+  flex-shrink: 0;
+}
+.hint-icon:hover {
+  color: var(--text-muted);
+  background: var(--surface-3);
+}
+#hint-tooltip {
+  position: fixed;
+  display: none;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  white-space: normal;
+  width: max-content;
+  max-width: 280px;
+  pointer-events: none;
+  box-shadow: var(--shadow-md);
+  z-index: calc(var(--z-overlay) + 1);
+  font-weight: 400;
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
