@@ -26,6 +26,15 @@ focus/                     # Backend
 templates/                 # Full-page Jinja2 templates
 partials/                  # HTMX partials (chat/, modals/, personas/, presets/)
 static/
+  css/                     # Split from monolithic style.css (was 1573 lines)
+    variables.css          # :root design tokens
+    base.css               # Reset, scrollbar, reduced motion, @layer base
+    layout.css             # App shell, sidebars, collapse tabs
+    chat.css               # Message list, markdown, reasoning blocks
+    input.css              # Toolbar, input bar, send/stop buttons
+    components.css         # Forms, buttons, modals, cards, arranger
+    utilities.css          # @layer utilities overrides
+    animations.css         # Keyframes, gen-pulse, hint-tooltip
   js/core/                 # state-manager, actions, chat-stream, api-paths
   js/features/             # char-editor, backup-manager
   js/messages/             # message-renderer, message-refresh, reasoning-utils, file-staging, edit-message, delete-mode, message-pruner
