@@ -4,7 +4,9 @@ Uses Python stdlib only.
 Run `./vendor-sync.py` to refresh all vendor files.
 """
 
+import glob
 import hashlib
+import platform
 import stat
 import sys
 import time
@@ -26,11 +28,53 @@ CROPPERJS_VERSION = "2.1.1"
 IDIOMORPH_VERSION = "0.7.4"
 TAILWIND_VERSION = "v4.3.2"
 
+def _is_musl() -> bool:
+    if glob.glob("/lib/ld-musl-*"):
+        return True
+    if Path("/etc/alpine-release").is_file():
+        return True
+    return False
+
+
+def _detect_tailwind_platform() -> tuple[str, str]:
+    os_map = {"linux": "linux", "darwin": "macos", "win32": "windows"}
+    raw_os = os_map.get(sys.platform)
+    if not raw_os:
+        print(_yellow(f"Warning: unsupported platform {sys.platform!r}, falling back to linux-x64"))
+        return "tailwindcss-linux-x64", "bin/tailwindcss-linux-x64"
+
+    machine = platform.machine().lower()
+    arch_map = {"x86_64": "x64", "amd64": "x64", "aarch64": "arm64", "arm64": "arm64"}
+    arch = arch_map.get(machine)
+    if not arch:
+        print(_yellow(f"Warning: unsupported arch {machine!r}, falling back to linux-x64"))
+        return "tailwindcss-linux-x64", "bin/tailwindcss-linux-x64"
+
+    binary = f"tailwindcss-{raw_os}-{arch}"
+
+    # Append .exe on Windows
+    if raw_os == "windows":
+        binary += ".exe"
+
+    # Armv7 is only available on linux; fall back in case it ever pops up on other OSes
+    if machine.startswith("armv7"):
+        if raw_os == "linux":
+            return f"tailwindcss-linux-armv7", f"bin/tailwindcss-linux-armv7"
+        return "tailwindcss-linux-x64", "bin/tailwindcss-linux-x64"
+
+    # Musl variant (Linux only)
+    if raw_os == "linux" and _is_musl():
+        binary += "-musl"
+
+    return binary, f"bin/{binary}"
+
+
+TAILWIND_BINARY, TAILWIND_CHECKSUM_KEY = _detect_tailwind_platform()
 TAILWIND_URL = (
     f"https://github.com/tailwindlabs/tailwindcss/releases/download/"
-    f"{TAILWIND_VERSION}/tailwindcss-linux-x64"
+    f"{TAILWIND_VERSION}/{TAILWIND_BINARY}"
 )
-TAILWIND_DEST = BIN_DIR / "tailwindcss-linux-x64"
+TAILWIND_DEST = BIN_DIR / TAILWIND_BINARY
 
 DOWNLOADS = {
     "htmx2.min.js": (
@@ -84,7 +128,14 @@ CHECKSUMS = {
     "marked.umd.js": "1f0acde4c17e28e4fb233ab358de856bee2f6ac28c7c757a68e2e3725f0db848",
     "purify.min.js": "1009d4715549e1331c1702529ed924260e4c5b5d04e2eb94e2112398a6dd1aa3",
     "sortable.min.js": "bf4241bc73fef7f11c59a283a69fe8051cdd31c6d8ff5a2b9ba219e7831fcf76",
+    # Tailwind CSS CLI — platform variants
     "bin/tailwindcss-linux-x64": "5036c4fb4328e0bcdbb6065c70d8ac9452e0d4c947113a788a8f94fd390425c1",
+    "bin/tailwindcss-linux-arm64": "394ddccc2402cfa3abd97dfba56f3587781a3d6e6ce66e65ceada14beb7664b8",
+    "bin/tailwindcss-linux-x64-musl": "ae828e9e989ecbddb2bef856af8b0308ba162583b4922b3a065b5e26f86b0691",
+    "bin/tailwindcss-linux-arm64-musl": "24a0dd39cbbced9d94f6313a747cc29ab2523a6a7b69204f2151e0af6aad6eef",
+    "bin/tailwindcss-macos-x64": "cef8f110471e889c3c4409055cf8aff33076f58a081867b0dfc6534b290bfbb0",
+    "bin/tailwindcss-macos-arm64": "b800b0659dc64b9f03ede5660244d9415d777d5739ae2889280877ca37be742a",
+    "bin/tailwindcss-windows-x64.exe": "224a62a8351d3b8da9d950a4eb1d7176dc901dc4735b47f816f3dfcbc67d8654",
 }
 
 
@@ -130,7 +181,7 @@ def check() -> int:
         if not dest.is_file():
             missing.append(f"static/vendor/{filename}")
     if not TAILWIND_DEST.is_file():
-        missing.append("bin/tailwindcss-linux-x64")
+        missing.append(f"bin/{TAILWIND_BINARY}")
 
     if missing:
         print(_red("Missing vendor files:"))
@@ -164,18 +215,21 @@ def sync() -> int:
     ok = 0
     fail = 0
 
-    name = "tailwindcss-linux-x64"
-    print(f"  {name} ...", end=" ", flush=True)
+    print(f"  {TAILWIND_BINARY} ...", end=" ", flush=True)
     try:
         data = _download(TAILWIND_URL)
         tmp = TAILWIND_DEST.with_suffix(".tmp")
         tmp.write_bytes(data)
         tmp.rename(TAILWIND_DEST)
-        TAILWIND_DEST.chmod(TAILWIND_DEST.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+        # Make executable (no-op on Windows)
+        try:
+            TAILWIND_DEST.chmod(TAILWIND_DEST.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+        except NotImplementedError:
+            pass
         actual = hashlib.sha256(data).hexdigest()
-        expected = CHECKSUMS.get("bin/tailwindcss-linux-x64")
+        expected = CHECKSUMS.get(TAILWIND_CHECKSUM_KEY)
         if expected and actual != expected:
-            _warn_mismatch([("bin/tailwindcss-linux-x64", expected, actual)])
+            _warn_mismatch([(TAILWIND_CHECKSUM_KEY, expected, actual)])
         print(f"  {len(data):>8} bytes  Tailwind CSS CLI {TAILWIND_VERSION}")
         ok += 1
     except Exception as e:
@@ -210,8 +264,12 @@ def sync() -> int:
 
 
 def main():
-    if len(sys.argv) > 1 and sys.argv[1] == "--check":
-        return check()
+    if len(sys.argv) > 1:
+        if sys.argv[1] == "--check":
+            return check()
+        if sys.argv[1] == "--print-tailwind-path":
+            print(TAILWIND_DEST.relative_to(ROOT))
+            return 0
     return sync()
 
 

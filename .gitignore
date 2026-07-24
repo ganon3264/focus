@@ -7,7 +7,7 @@ __pycache__/
 /.venv/
 *.egg-info/
 /.env
-/bin/tailwindcss-linux-x64
+/bin/tailwindcss-*
 /static/tailwind.css
 /static/vendor/
 /.opencode/

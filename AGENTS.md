@@ -6,9 +6,9 @@ FastAPI (async) + aiosqlite | Jinja2 | HTMX 2.x + Alpine 3.x | Tailwind v4 | uv 
 
 ## Start / Test
 
-- **Start:** `./start.sh` (vendor-sync → tailwind → `uv run main.py`)
-- **Test:** `./test.sh` (`uv run pytest`)
-- **Tailwind:** `./bin/tailwindcss-linux-x64 -i static/tailwind-input.css -o static/tailwind.css --minify` (agent env can't run — USER must run)
+- **Start:** `./start.sh` (Linux/macOS) or `start.bat` (Windows) — vendor-sync → tailwind → `uv run main.py`
+- **Test:** `./test.sh` (Linux/macOS) or `test.bat` (Windows) — `uv run pytest`
+- **Tailwind:** `./bin/tailwindcss-* -i static/tailwind-input.css -o static/tailwind.css --minify` (agent env can't run — USER must run; platform-specific binary downloaded by vendor-sync)
 
 ### Venv / musl note
 

@@ -6,7 +6,7 @@ export FOCUS_DEBUG=1  # set this env var to enable debug logging
 command -v python >/dev/null 2>&1 || { echo >&2 "Error: python is not installed or not on PATH."; exit 1; }
 ./vendor-sync.py --check || ./vendor-sync.py
 
-./bin/tailwindcss-linux-x64 -i static/tailwind-input.css -o static/tailwind.css --minify
+./"$(./vendor-sync.py --print-tailwind-path)" -i static/tailwind-input.css -o static/tailwind.css --minify
 
 if command -v uv &>/dev/null; then
   exec uv run python main.py --host "${FOCUS_HOST:-127.0.0.1}" --port "${FOCUS_PORT:-8000}"

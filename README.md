@@ -15,7 +15,8 @@ A roleplaying thingy, kinda like SillyTavern, but opinionated and personal (and 
 ```
 git clone https://github.com/ganon3264/focus
 cd focus
-./start.sh
+./start.sh          # Linux / macOS
+start.bat           # Windows
 ```
 
 1. Open your browser and the app (default http://127.0.0.1:8000)
