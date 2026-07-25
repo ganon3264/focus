@@ -18,8 +18,8 @@
   function updateSendButtonState() {
     if (!sendBtn || !input) return;
     var text = input.value.trim();
-    var dataList = document.getElementById('message-list-data');
-    var lastRole = dataList ? dataList.getAttribute('data-last-role') : '';
+    var msgs = document.querySelectorAll('#message-list .message');
+    var lastRole = msgs.length > 0 ? msgs[msgs.length - 1].getAttribute('data-role') || '' : '';
     var isRegenMode = !text && (!window.stagedFiles || window.stagedFiles.length === 0) && lastRole === 'user';
 
     if (isRegenMode) {

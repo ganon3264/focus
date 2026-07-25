@@ -140,10 +140,11 @@
     if (state.asstDiv && state.asstDiv.parentNode) {
       state.asstDiv.remove();
     }
-    htmx.ajax('GET', window.api.partials.messageList(state.chatId), {
-      target: '#message-list',
-      swap: 'innerHTML',
-    });
+    if (!state.userMessageId) {
+      var temp = document.getElementById('temp-user-msg');
+      if (temp) temp.remove();
+    }
+    if (typeof updateSendButtonState === 'function') updateSendButtonState();
   }
 
   window.triggerGeneration = async function (chatId, asstDiv, isRegen, continueText, continueReasoning) {

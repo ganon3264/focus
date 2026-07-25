@@ -53,6 +53,7 @@
 
     document.querySelectorAll('.msg-select-checkbox').forEach((cb) => (cb.checked = false));
     lastDeleteSelection = [];
+    if (typeof updateSendButtonState === 'function') updateSendButtonState();
   };
 
   window.bulkDeleteSelected = async function (chatId) {
@@ -70,10 +71,15 @@
           body: JSON.stringify({ message_ids: selected }),
         });
         if (res.ok) {
-          htmx.ajax('GET', window.api.partials.messageList(chatId), {
-            target: '#message-list',
-            swap: 'innerHTML',
-          });
+          try {
+            var listResp = await fetch(window.api.partials.messageList(chatId));
+            if (listResp.ok) {
+              document.getElementById('message-list').innerHTML = await listResp.text();
+              window._postSwapProcess(document.getElementById('message-list'));
+            }
+          } catch (e) {
+            console.error('Failed to refresh message list', e);
+          }
           if (window._refreshChatList) window._refreshChatList(chatId);
         } else {
           alert('Failed to delete messages');
