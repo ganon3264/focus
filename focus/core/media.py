@@ -9,7 +9,7 @@ from pathlib import Path
 
 from PIL import Image
 
-from focus.core.paths import ASSETS_DIR, COMPRESSED_DIR
+from focus.core.paths import COMPRESSED_DIR
 
 logger = logging.getLogger("focus.core.media")
 
@@ -156,16 +156,4 @@ async def load_media(media_row: dict) -> dict | None:
     }
 
 
-def load_tool_image_data_url(rel_path: str) -> str | None:
-    """Read a tool-result image from ``ASSETS_DIR / rel_path`` and return a
-    data: URL for use in API payloads.
 
-    Images are always stored as WebP by :func:`persist_tool_calls`.
-    Returns ``None`` if the file is missing.
-    """
-    img_path = ASSETS_DIR / rel_path
-    if not img_path.exists():
-        logger.warning("Tool image not found: %s", img_path)
-        return None
-    data = img_path.read_bytes()
-    return f"data:image/webp;base64,{base64.b64encode(data).decode('ascii')}"

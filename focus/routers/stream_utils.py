@@ -15,7 +15,7 @@ from focus.db.chats import (
     create_message,
     create_message_with_variant,
 )
-from focus.core.media import load_tool_image_data_url
+from focus.core.tool_media import load_tool_image_data_url
 from focus.prompt_chain import assemble_prompt, build_content
 from focus.routers.providers import get_openrouter_model_modalities
 

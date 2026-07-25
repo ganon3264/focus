@@ -8,6 +8,7 @@ import focus.db as db
 from focus.core.database import get_db
 from focus.core.models import ChatCreate, MessageEdit
 from focus.core.paths import ATTACHMENTS_DIR
+from focus.core.tool_media import extract_image_from_extra, tool_image_url
 from focus.core.utils import read_upload
 
 router = APIRouter()
@@ -158,8 +159,8 @@ async def get_message(chat_id: str, message_id: str, _db=Depends(get_db)):
             "result": tc["result"],
             "is_error": bool(tc["is_error"]),
             "image_data": (
-                f"/assets/{tc['result_image_path']}" if tc.get("result_image_path")
-                else crud.extract_image_from_extra(tc.get("extra_message_json"))
+                tool_image_url(tc['result_image_path']) if tc.get("result_image_path")
+                else extract_image_from_extra(tc.get("extra_message_json"))
             ),
         })
 

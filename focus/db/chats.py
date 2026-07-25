@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import base64
 import json
 import uuid
 from pathlib import Path
@@ -9,7 +8,8 @@ import aiosqlite
 
 from focus.core.card_parser import safe_load_card
 from focus.core.message_render import render_message_segments
-from focus.core.paths import ATTACHMENTS_DIR, TOOL_ASSETS_DIR
+from focus.core.paths import ATTACHMENTS_DIR
+from focus.core.tool_media import persist_tool_image
 from focus.core.utils import now_iso
 from focus.db._core import _db_conn
 
@@ -520,23 +520,14 @@ async def persist_tool_calls(
 
             if result.extra_message:
                 content = result.extra_message.get("content", [])
-                image_part = None
-                for part in content:
-                    if isinstance(part, dict) and part.get("type") == "image_url":
-                        image_part = part
-                        break
-
+                image_part = next(
+                    (p for p in content if isinstance(p, dict) and p.get("type") == "image_url"),
+                    None,
+                )
                 if image_part:
-                    data_url = image_part.get("image_url", {}).get("url", "")
-                    if data_url.startswith("data:"):
-                        header, b64_data = data_url.split(",", 1)
-                        raw = base64.b64decode(b64_data)
-                        tc_id = str(uuid.uuid4())
-                        file_name = f"{tc_id}.webp"
-                        rel_path = f"tool/{file_name}"
-                        TOOL_ASSETS_DIR.mkdir(parents=True, exist_ok=True)
-                        (TOOL_ASSETS_DIR / file_name).write_bytes(raw)
-                        result_image_path = rel_path
+                    result_image_path = persist_tool_image(
+                        image_part.get("image_url", {}).get("url", "")
+                    )
                 else:
                     extra_msg = json.dumps(result.extra_message)
 
