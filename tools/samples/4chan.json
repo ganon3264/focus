@@ -1,0 +1,44 @@
+{
+  "name": "4chan",
+  "description": "Browse the catalogue of any 4chan board and fetch any available thread. Returns formatted markdown with OP content, reply excerpts, and image links.",
+  "command": ["python3", "tools/samples/4chan.py"],
+  "params": [
+    {
+      "name": "action",
+      "type": "string",
+      "description": "'catalog' to list threads on a board page, or 'thread' to fetch a specific thread",
+      "required": true
+    },
+    {
+      "name": "board",
+      "type": "string",
+      "description": "Board name (e.g. 'g', 'pol', 'b', 'po', 'v', 'ck', 'w')",
+      "required": true
+    },
+    {
+      "name": "page",
+      "type": "integer",
+      "description": "Catalog page number (default 1, ignored when action is 'thread')",
+      "required": false
+    },
+    {
+      "name": "thread_id",
+      "type": "integer",
+      "description": "Thread number (required when action is 'thread')",
+      "required": false
+    },
+    {
+      "name": "offset",
+      "type": "integer",
+      "description": "Skip this many replies (thread only, default 0)",
+      "required": false
+    },
+    {
+      "name": "limit",
+      "type": "integer",
+      "description": "Max replies to return (thread only, default 50, max 100)",
+      "required": false
+    }
+  ],
+  "writes": false
+}
