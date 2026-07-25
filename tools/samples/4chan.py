@@ -316,8 +316,6 @@ def main():
         print(json.dumps({"error": "thread_id is required when action is 'thread'"}))
         sys.exit(1)
 
-    time.sleep(REQUEST_DELAY)
-
     try:
         if action == "catalog":
             result = action_catalog(board, page)
@@ -328,6 +326,7 @@ def main():
         sys.exit(1)
 
     print(json.dumps({"output": result}))
+    time.sleep(REQUEST_DELAY)
 
 
 if __name__ == "__main__":
