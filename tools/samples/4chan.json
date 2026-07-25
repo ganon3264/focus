@@ -1,5 +1,5 @@
 {
-  "name": "4chan",
+  "name": "f4chan",
   "description": "Browse the catalogue of any 4chan board and fetch any available thread. Returns formatted markdown with OP content, reply excerpts, and image links.",
   "command": ["python3", "tools/samples/4chan.py"],
   "params": [
