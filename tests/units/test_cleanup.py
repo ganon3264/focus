@@ -16,9 +16,17 @@ from focus.core.paths import (
 )
 from focus.db.cleanup import clean_database, clean_orphaned_assets
 
+try:
+    from tests.helpers import require_assets_sandbox
+except ImportError:
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from tests.helpers import require_assets_sandbox
+
 
 @pytest.fixture(autouse=True)
 def _clean_asset_subdirs():
+    require_assets_sandbox()
     for d in [CHARACTERS_DIR, PERSONAS_DIR, PRESETS_DIR, ATTACHMENTS_DIR, BLOCKS_DIR]:
         if d.exists():
             shutil.rmtree(d, ignore_errors=True)

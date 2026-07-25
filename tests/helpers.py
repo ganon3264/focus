@@ -1,3 +1,22 @@
+import os
+
+
+def require_assets_sandbox():
+    """Require the test sandbox env var to be set.
+
+    Tests that do destructive filesystem operations MUST call this
+    before touching real paths. It prevents accidental destruction of
+    real asset data when test files are run directly (outside pytest's
+    conftest.py redirect) or when the sandbox hasn't been set up.
+    """
+    if os.environ.get("_FOCUS_ASSETS_SANDBOX") != "1":
+        raise RuntimeError(
+            "_FOCUS_ASSETS_SANDBOX is not set to '1'. "
+            "Run tests through pytest so conftest.py can redirect "
+            "assets to an isolated temp directory."
+        )
+
+
 async def create_character(client, name="Test Char", **overrides):
     body = {
         "name": name,

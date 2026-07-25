@@ -12,6 +12,16 @@ import pytest
 # pollute the real assets/ directory.
 _assets_tmp = tempfile.mkdtemp(prefix="focus_test_assets_")
 os.environ["FOCUS_ASSETS_DIR"] = _assets_tmp
+# Sandbox env var — checked by require_assets_sandbox() before any destructive
+# filesystem ops.  Using an env var (not a file marker) prevents the cleanup
+# function itself from accidentally deleting the marker.
+os.environ["_FOCUS_ASSETS_SANDBOX"] = "1"
+
+
+def pytest_configure(config):
+    """Abort the session if the asset sandbox isn't active."""
+    from tests.helpers import require_assets_sandbox
+    require_assets_sandbox()
 
 
 @pytest.fixture(scope="session", autouse=True)
