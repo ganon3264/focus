@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import json
 import uuid
 from pathlib import Path
@@ -8,7 +9,7 @@ import aiosqlite
 
 from focus.core.card_parser import safe_load_card
 from focus.core.message_render import render_message_segments
-from focus.core.paths import ATTACHMENTS_DIR
+from focus.core.paths import ATTACHMENTS_DIR, TOOL_ASSETS_DIR
 from focus.core.utils import now_iso
 from focus.db._core import _db_conn
 
@@ -316,9 +317,10 @@ async def branch_chat(db: aiosqlite.Connection, chat_id: str, message_id: str) -
                 old_tool_calls = [dict(r) for r in await cur4.fetchall()]
             for tc in old_tool_calls:
                 await db.execute(
-                    "INSERT INTO tool_calls (id, chat_id, message_id, variant_id, tool_name, arguments, result, is_error, extra_message_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    "INSERT INTO tool_calls (id, chat_id, message_id, variant_id, tool_name, arguments, result, is_error, extra_message_json, result_image_path, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     (str(uuid.uuid4()), new_chat_id, new_msg_id, new_variant_id, tc["tool_name"],
-                     tc["arguments"], tc["result"], tc["is_error"], tc.get("extra_message_json"), tc["created_at"]),
+                     tc["arguments"], tc["result"], tc["is_error"], tc.get("extra_message_json"),
+                     tc.get("result_image_path"), tc["created_at"]),
                 )
 
     return new_chat_id
@@ -513,12 +515,36 @@ async def persist_tool_calls(
     save_now = now_iso()
     async with _db_conn(db) as conn:
         for call, result in zip(tool_calls_list, results):
-            extra_msg = json.dumps(result.extra_message) if result.extra_message else None
+            extra_msg = None
+            result_image_path = None
+
+            if result.extra_message:
+                content = result.extra_message.get("content", [])
+                image_part = None
+                for part in content:
+                    if isinstance(part, dict) and part.get("type") == "image_url":
+                        image_part = part
+                        break
+
+                if image_part:
+                    data_url = image_part.get("image_url", {}).get("url", "")
+                    if data_url.startswith("data:"):
+                        header, b64_data = data_url.split(",", 1)
+                        raw = base64.b64decode(b64_data)
+                        tc_id = str(uuid.uuid4())
+                        file_name = f"{tc_id}.webp"
+                        rel_path = f"tool/{file_name}"
+                        TOOL_ASSETS_DIR.mkdir(parents=True, exist_ok=True)
+                        (TOOL_ASSETS_DIR / file_name).write_bytes(raw)
+                        result_image_path = rel_path
+                else:
+                    extra_msg = json.dumps(result.extra_message)
+
             await conn.execute(
                 """INSERT INTO tool_calls
-                   (id, chat_id, message_id, variant_id, tool_name, arguments, result, is_error, extra_message_json, created_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   (id, chat_id, message_id, variant_id, tool_name, arguments, result, is_error, extra_message_json, result_image_path, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (str(uuid.uuid4()), chat_id, asst_msg_id, variant_id, call.name,
-                 json.dumps(call.arguments), result.content, int(result.is_error), extra_msg, save_now),
+                 json.dumps(call.arguments), result.content, int(result.is_error), extra_msg, result_image_path, save_now),
             )
         await conn.commit()

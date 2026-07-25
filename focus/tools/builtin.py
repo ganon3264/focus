@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 import base64
+import mimetypes
 import os
 import subprocess
+import tempfile
 from io import BytesIO
 from pathlib import Path
+from urllib.parse import urlparse
+from urllib.request import Request, urlopen
 
 from PIL import Image
 
@@ -12,6 +16,9 @@ from focus.core.media import ensure_compressed_sync
 from focus.tools import ToolParam, ToolSpec
 from focus.tools.external import load_external_tools
 from focus.tools.helpers import TOOL_OUTPUT_TRUNCATE_CHARS
+
+_UA = "Focus/1.0"
+_URL_FETCH_TIMEOUT = 30
 
 
 def execute_shell(command: str, timeout_s: int = 10) -> str:
@@ -51,25 +58,62 @@ def list_dir(path: str) -> str:
     return "\n".join(lines) if lines else "(empty directory)"
 
 
-def read_image(path: str) -> dict:
+def _mime_for(path: str, content_type: str | None = None) -> str:
+    if content_type and content_type.startswith("image/"):
+        return content_type.split(";")[0].strip()
+    guessed, _ = mimetypes.guess_type(path)
+    if guessed and guessed.startswith("image/"):
+        return guessed
+    return "image/png"
+
+
+def _read_image_local(path: str) -> dict:
     p = Path(path)
     if not p.exists():
         raise FileNotFoundError(f"File not found: {path}")
-    suffix = p.suffix.lower()
-    mime_map = {
-        ".png": "image/png",
-        ".jpg": "image/jpeg",
-        ".jpeg": "image/jpeg",
-        ".gif": "image/gif",
-        ".webp": "image/webp",
-    }
-    mime = mime_map.get(suffix, "image/png")
+    mime = _mime_for(path)
     compressed_path, out_mime = ensure_compressed_sync(path, mime)
     data = compressed_path.read_bytes()
     b64 = base64.b64encode(data).decode("ascii")
     with Image.open(BytesIO(data)) as img:
         w, h = img.size
     return {"image": {"base64": b64, "mime": out_mime, "path": path, "width": w, "height": h}}
+
+
+def _read_image_url(url: str) -> dict:
+    try:
+        req = Request(url, headers={"User-Agent": _UA})
+        with urlopen(req, timeout=_URL_FETCH_TIMEOUT) as resp:
+            data = resp.read()
+            content_type = resp.headers.get("Content-Type")
+    except Exception as e:
+        raise RuntimeError(f"Failed to fetch image URL: {e}")
+
+    parsed = urlparse(url)
+    ext = Path(parsed.path).suffix or ""
+    mime = _mime_for(parsed.path, content_type)
+    if not ext:
+        ext = mimetypes.guess_extension(mime.split(";")[0].strip()) or ".png"
+
+    tmp = tempfile.NamedTemporaryFile(suffix=ext, delete=False)
+    try:
+        tmp.write(data)
+        tmp.close()
+        compressed_path, out_mime = ensure_compressed_sync(tmp.name, mime)
+        compressed_data = compressed_path.read_bytes()
+    finally:
+        os.unlink(tmp.name)
+
+    b64 = base64.b64encode(compressed_data).decode("ascii")
+    with Image.open(BytesIO(compressed_data)) as img:
+        w, h = img.size
+    return {"image": {"base64": b64, "mime": out_mime, "path": url, "width": w, "height": h}}
+
+
+def read_image(path: str) -> dict:
+    if path.startswith(("http://", "https://")):
+        return _read_image_url(path)
+    return _read_image_local(path)
 
 
 # ── Tool registry ─────────────────────────────────────────────────────────────
@@ -100,9 +144,10 @@ BUILTIN_TOOLS: list[ToolSpec] = [
     ),
     ToolSpec(
         name="read_image",
-        description="Read an image file and return it as a base64-encoded data URI for the model to view.",
+        description="Read an image file (local path) or fetch an image from a URL and return it as a base64-encoded data URI for the model to view.",
         params=[
-            ToolParam(name="path", type="string", description="Absolute path to the image file"),
+            ToolParam(name="path", type="string",
+                      description="Absolute path to an image file, or an http(s) URL pointing to an image"),
         ],
         writes=False,
         multimodal=True,

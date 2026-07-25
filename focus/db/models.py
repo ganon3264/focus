@@ -204,6 +204,7 @@ class ToolCall:
     result: str | None = None
     is_error: int = 0
     extra_message_json: str | None = None
+    result_image_path: str | None = None
     created_at: str = ""
 
     @staticmethod

@@ -12,5 +12,6 @@ PRESETS_DIR = ASSETS_DIR / "presets"
 ATTACHMENTS_DIR = ASSETS_DIR / "attachments"
 COMPRESSED_DIR = ATTACHMENTS_DIR / "compressed"
 BLOCKS_DIR = ASSETS_DIR / "blocks"
+TOOL_ASSETS_DIR = ASSETS_DIR / "tool"
 
 TOOLS_DIR = Path("tools")

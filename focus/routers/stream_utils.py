@@ -15,6 +15,7 @@ from focus.db.chats import (
     create_message,
     create_message_with_variant,
 )
+from focus.core.media import load_tool_image_data_url
 from focus.prompt_chain import assemble_prompt, build_content
 from focus.routers.providers import get_openrouter_model_modalities
 
@@ -151,7 +152,20 @@ def _append_tool_messages(history: list, tc: dict) -> None:
         "tool_call_id": tc["id"],
         "content": tc["result"] or "",
     })
-    if tc.get("extra_message_json"):
+    if tc.get("result_image_path"):
+        data_url = load_tool_image_data_url(tc["result_image_path"])
+        if data_url:
+            name = tc.get("tool_name", "tool")
+            history.append({
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": f"<{name}>"},
+                    {"type": "image_url", "image_url": {"url": data_url}},
+                    {"type": "text", "text": f"</{name}>"},
+                ],
+                "internal": True,
+            })
+    elif tc.get("extra_message_json"):
         history.append(json.loads(tc["extra_message_json"]))
 
 

@@ -10,6 +10,7 @@ from focus.core.paths import (
     DB_PATH,
     PERSONAS_DIR,
     PRESETS_DIR,
+    TOOL_ASSETS_DIR,
     TOOLS_DIR,
 )
 
@@ -150,6 +151,7 @@ CREATE TABLE IF NOT EXISTS tool_calls (
     result      TEXT,
     is_error    INTEGER NOT NULL DEFAULT 0,
     extra_message_json  TEXT,
+    result_image_path   TEXT,
     created_at  TEXT NOT NULL
 );
 
@@ -209,6 +211,7 @@ def init_directories():
     PRESETS_DIR.mkdir(parents=True, exist_ok=True)
     ATTACHMENTS_DIR.mkdir(parents=True, exist_ok=True)
     COMPRESSED_DIR.mkdir(parents=True, exist_ok=True)
+    TOOL_ASSETS_DIR.mkdir(parents=True, exist_ok=True)
     TOOLS_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -278,6 +281,8 @@ async def init_db():
         col_names = {row[1] for row in await cols.fetchall()}
         if "extra_message_json" not in col_names:
             await db.execute("ALTER TABLE tool_calls ADD COLUMN extra_message_json TEXT")
+        if "result_image_path" not in col_names:
+            await db.execute("ALTER TABLE tool_calls ADD COLUMN result_image_path TEXT")
 
         cols = await db.execute("PRAGMA table_info(chat_tool_states)")
         col_names = {row[1] for row in await cols.fetchall()}

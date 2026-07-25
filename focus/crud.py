@@ -236,7 +236,10 @@ async def get_chat_messages(db: aiosqlite.Connection, chat_id: str) -> list[dict
                     },
                     "result": tc["result"],
                     "is_error": bool(tc["is_error"]),
-                    "image_data": extract_image_from_extra(tc.get("extra_message_json")),
+                    "image_data": (
+                        f"/assets/{tc['result_image_path']}" if tc.get("result_image_path")
+                        else extract_image_from_extra(tc.get("extra_message_json"))
+                    ),
                 }
                 for tc in tcs
             ]
