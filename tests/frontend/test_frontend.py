@@ -64,9 +64,16 @@ def test_template_asset_references(template_name):
 
 
 CRITICAL_ASSETS = [
-    "style.css",
     "tailwind.css",
     "inter.css",
+    "css/variables.css",
+    "css/base.css",
+    "css/layout.css",
+    "css/chat.css",
+    "css/input.css",
+    "css/components.css",
+    "css/utilities.css",
+    "css/animations.css",
     "vendor/inter-variable.woff2",
     "vendor/htmx2.min.js",
     "vendor/alpine.min.js",
@@ -85,20 +92,23 @@ def test_critical_assets_exist():
 
 
 def test_css_valid():
-    """style.css must parse without fatal errors."""
-    css_path = STATIC_DIR / "style.css"
-    css_text = css_path.read_text()
+    """Every split CSS file must parse without fatal errors."""
+    css_dir = STATIC_DIR / "css"
+    for f in sorted(css_dir.glob("*.css")):
+        css_text = f.read_text()
+        cssutils.log.enabled = False
+        sheet = cssutils.parseString(css_text)
+        cssutils.log.enabled = True
 
-    cssutils.log.enabled = False
-    sheet = cssutils.parseString(css_text)
-    cssutils.log.enabled = True
+        from cssutils.css import CSSStyleSheet
 
-    from cssutils.css import CSSStyleSheet
+        assert isinstance(sheet, CSSStyleSheet), f"{f.name} failed to parse"
 
-    assert isinstance(sheet, CSSStyleSheet), "CSS failed to parse"
+    root_css = (css_dir / "variables.css").read_text()
+    assert ":root" in root_css
 
-    assert ":root" in css_text
-    assert ".left-sidebar" in css_text
+    layout_css = (css_dir / "layout.css").read_text()
+    assert ".left-sidebar" in layout_css
 
 
 TEMPLATES_THAT_RENDER = [
@@ -146,8 +156,8 @@ def test_header_integrity():
 
 
 def test_css_has_essential_vars():
-    """CSS defines essential custom properties."""
-    css_text = (STATIC_DIR / "style.css").read_text()
+    """variables.css defines essential custom properties."""
+    css_text = (STATIC_DIR / "css" / "variables.css").read_text()
     for var in ["--bg", "--surface", "--border", "--accent", "--text", "--text-muted",
                  "--radius-sm", "--radius-md", "--transition", "--z-modal"]:
         assert var in css_text, f"Missing CSS variable: {var}"
