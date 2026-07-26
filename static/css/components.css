@@ -628,4 +628,10 @@
   .card:hover .card-image img {
     transform: scale(1.05);
   }
+
+  /* Hint-tooltip text color overrides */
+  .hint-danger   { color: var(--danger) !important; }
+  .hint-accent   { color: var(--accent) !important; }
+  .hint-warning  { color: var(--role-assistant) !important; }
+  .hint-success  { color: var(--role-user) !important; }
 }

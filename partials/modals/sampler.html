@@ -104,7 +104,7 @@
           @blur="$el.value = fmt(parseFloat($el.value) || 0, 0)"
           class="form-control text-xs sampler-input" data-dec="0" />
       </label>
-      <input type="range" min="1" max="128000" step="1"
+      <input type="range" min="256" max="131072" step="256"
         x-model.number="samplers.max_tokens" @change="saveStandard()"
         class="styled-slider" />
     </div>
@@ -172,7 +172,7 @@
           @click="samplers.enable_multimodal = !samplers.enable_multimodal; saveStandard()"
           >Enable Multimodal</label
         >
-        {{ hint_tooltip('Allows sending images and audio to the model as prompt context. Disable if your provider does not support multimodal inputs.') }}
+        {{ hint_tooltip('Allows sending images and audio to the model as prompt context. <span class="hint-warning">Disable if your provider does not support multimodal inputs.</span>') }}
       </div>
       <div
         class="arranger-toggle"
@@ -197,7 +197,7 @@
               class="text-xs mb-0 cursor-pointer"
               @click="samplers.image_format = samplers.image_format === 'png' ? 'webp' : 'png'; saveStandard()"
             >PNG Mode</label>
-            {{ hint_tooltip('Some providers don\'t play nicely with WebP (mainly llama.cpp). Switch if WebP is causing issues.') }}
+            {{ hint_tooltip('<span class="hint-warning">Some APIs don\'t play nicely with WebP (llama.cpp for an example). Switch if WebP is causing issues.</span>') }}
           </div>
           <div
             class="arranger-toggle"
@@ -510,7 +510,7 @@
             @click="samplers.cache_enabled = !samplers.cache_enabled; saveStandard()"
             >Prompt Caching</label
           >
-          {{ hint_tooltip('Enables cache for Anthropic models. Recommended for costs reduction.') }}
+          {{ hint_tooltip('Enables cache for Anthropic models. Recommended for costs reduction. <span class="hint-warning">Check if your prompt preset has any changing macros/variables at its beginning that might invalidate the cache.</span>') }}
         </div>
         <div
           class="arranger-toggle"
@@ -535,7 +535,7 @@
                 @click="samplers.cache_ttl = samplers.cache_ttl === '1h' ? 'ephemeral' : '1h'; saveStandard()"
                 >Extra TTL (1 hour)</label
               >
-              {{ hint_tooltip('By default cache has an expiry time of 5 minutes. This extends it to 1 hour, but this also costs more. Not recommended.') }}
+              {{ hint_tooltip('By default cache has an expiry time of 5 minutes. This extends it to 1 hour, but it also increases cost. <span class="hint-danger">Not recommended.</span>') }}
             </div>
             <div
               class="arranger-toggle"
@@ -552,7 +552,7 @@
             <label class="flex justify-between text-xs mb-1">
               <span class="flex items-center gap-1">
                 Depth of Turns
-                {{ hint_tooltip('Number of User turns to skip from caching. 0 is the latest message sent by user.') }}
+                {{ hint_tooltip('Number of <span class="hint-success">User</span> turns to skip from caching, where 0 would be the latest message sent by the <span class="hint-success">User.</span> <span class="hint-warning">Effectiveness of this setting depends on your preset. No In-Chat entries active → leave at 1. Using one → set this to at least its Depth value.</span>') }}
               </span>
               <input type="text" inputmode="numeric"
                 x-model.number="samplers.cache_depth"

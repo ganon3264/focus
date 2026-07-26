@@ -8,7 +8,7 @@
         class="text-xs mb-0 cursor-pointer"
         @click="toggleEnabled()"
       >Enable Tool Calls</label>
-      {{ hint_tooltip('Allow the assistant to call filesystem tools. Tools execute locally without sandboxing. Be cautious with full-access mode.') }}
+      {{ hint_tooltip('Allow the assistant to call filesystem tools. Tools execute locally without sandboxing. <span class="hint-danger">This might be potentially dangerous!</span>') }}
     </div>
     <div
       class="arranger-toggle"
