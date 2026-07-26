@@ -6,7 +6,7 @@
     {
       "name": "action",
       "type": "string",
-      "description": "'catalog' to list threads on a board page, or 'thread' to fetch a specific thread",
+      "description": "'catalog' to list threads on a board page (optionally filtered by search), or 'thread' to fetch a specific thread (optionally filtered by search)",
       "required": true
     },
     {
@@ -18,7 +18,13 @@
     {
       "name": "page",
       "type": "integer",
-      "description": "Catalog page number (default 1, ignored when action is 'thread')",
+      "description": "Catalog page number (default 1, ignored when action is 'thread' or when search is provided)",
+      "required": false
+    },
+    {
+      "name": "search",
+      "type": "string",
+      "description": "Search term. When action is 'catalog', fetches the full catalog (/{board}/catalog.json — one API call) and returns only threads whose subject or comment matches. When action is 'thread', returns only replies whose comment matches.",
       "required": false
     },
     {

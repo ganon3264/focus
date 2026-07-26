@@ -4,8 +4,12 @@
 Reads JSON from stdin with fields:
   action      "catalog" or "thread"
   board       board name (e.g. "g", "pol")
-  page        catalog page (default 1, catalog only)
+  page        catalog page (default 1, ignored when search is given)
+  search      filter term — catalog searches all pages via /catalog.json (one call),
+              thread filters replies by comment text
   thread_id   thread number (required for thread)
+  offset      skip replies (thread only, default 0)
+  limit       max replies (thread only, default 50)
 
 Returns formatted markdown on stdout.
 """
@@ -22,6 +26,15 @@ USER_AGENT = "Focus/1.0 (4chan sample tool)"
 REQUEST_DELAY = 1.0
 
 _UNIT_SUFFIXES = ["B", "KB", "MB", "GB"]
+
+_TAG_MD = {
+    "br": "\n",
+    "b": "**",
+    "strong": "**",
+    "i": "*",
+    "s": "~~",
+    "pre": "```",
+}
 
 
 def _fmt_size(size_bytes: int) -> str:
@@ -45,34 +58,20 @@ class _CommentToMarkdown(HTMLParser):
 
     def handle_starttag(self, tag, attrs):
         t = tag.lower()
-        if t == "br":
-            self.out.append("\n")
-        elif t in ("strong", "b"):
-            self.out.append("**")
-        elif t == "i":
-            self.out.append("*")
-        elif t == "s":
-            self.out.append("~~")
-        elif t == "pre":
-            self.out.append("```")
-        elif t == "a":
+        if t == "a":
             self._a_href = dict(attrs).get("href", "")
             self.out.append("[")
+        elif t in _TAG_MD:
+            self.out.append(_TAG_MD[t])
 
     def handle_endtag(self, tag):
         t = tag.lower()
-        if t in ("strong", "b"):
-            self.out.append("**")
-        elif t == "i":
-            self.out.append("*")
-        elif t == "s":
-            self.out.append("~~")
-        elif t == "pre":
-            self.out.append("```")
-        elif t == "a":
+        if t == "a":
             href = self._a_href or ""
             self.out.append(f"](" + href + ")")
             self._a_href = None
+        elif t in _TAG_MD:
+            self.out.append(_TAG_MD[t])
 
     def handle_data(self, data):
         self.out.append(data)
@@ -128,6 +127,19 @@ def _file_link_and_desc(post: dict, board: str):
     return url, desc
 
 
+def _format_identity(post: dict) -> str:
+    """Format poster name with tripcode and capcode."""
+    name = html.unescape(post.get("name", "Anonymous"))
+    trip = post.get("trip", "")
+    cap = post.get("capcode", "")
+    name_str = name
+    if trip:
+        name_str += f" {trip}"
+    if cap:
+        name_str += f" ##{cap.upper()}##"
+    return name_str
+
+
 def _op_header(op: dict, board: str) -> list[str]:
     lines = []
     no = op.get("no", "?")
@@ -136,22 +148,13 @@ def _op_header(op: dict, board: str) -> list[str]:
     lines.append(f"# /{board}/ — Thread {no} — {title}")
     lines.append("")
 
-    name = html.unescape(op.get("name", "Anonymous"))
     now = op.get("now", "")
     pid = op.get("id", "")
-    trip = op.get("trip", "")
-    cap = op.get("capcode", "")
-
-    id_str = f" — ID:{pid}" if pid else ""
-    op_line = f"**{name}"
-    if trip:
-        op_line += f" {trip}"
-    if cap:
-        op_line += f" ##{cap.upper()}##"
-    op_line += "**"
+    op_line = f"**{_format_identity(op)}**"
     if now:
         op_line += f" — {now}"
-    op_line += id_str
+    if pid:
+        op_line += f" — ID:{pid}"
     lines.append(op_line)
 
     stats = f"Replies: {op.get('replies', 0)} | Images: {op.get('images', 0)}"
@@ -182,19 +185,9 @@ def _op_header(op: dict, board: str) -> list[str]:
 
 def _reply_header(post: dict) -> str:
     no = post.get("no", "???")
-    name = html.unescape(post.get("name", "Anonymous"))
     now = post.get("now", "")
     pid = post.get("id", "")
-    trip = post.get("trip", "")
-    cap = post.get("capcode", "")
-
-    parts = [f"### Reply #{no}"]
-    name_str = name
-    if trip:
-        name_str += f" {trip}"
-    if cap:
-        name_str += f" ##{cap.upper()}##"
-    parts.append(f"**{name_str}**")
+    parts = [f"### Reply #{no}", f"**{_format_identity(post)}**"]
     if now:
         parts.append(f"*{now}*")
     if pid:
@@ -202,7 +195,76 @@ def _reply_header(post: dict) -> str:
     return " — ".join(parts)
 
 
-def action_catalog(board: str, page: int) -> str:
+def _render_reply(reply: dict, board: str) -> list[str]:
+    lines = [_reply_header(reply), ""]
+    fl = _file_link_and_desc(reply, board)
+    if fl:
+        lines.append(f"- [{fl[1]}]({fl[0]})" if fl[1] else f"- {fl[0]}")
+        lines.append("")
+    com = _decode_com(reply.get("com", "") or "")
+    if com:
+        lines.append(com)
+        lines.append("")
+    return lines
+
+
+def _format_thread_entry(op: dict, board: str) -> list[str]:
+    lines = []
+    no = op.get("no", "?")
+    sub = html.unescape(op.get("sub", "") or "")
+    com = _decode_com(op.get("com", "") or "")
+    replies = op.get("replies", 0)
+    images = op.get("images", 0)
+
+    title = f"Thread {no}" + (f" — \"{sub}\"" if sub else "")
+    lines.append(f"### {title}")
+
+    flags = []
+    for flag in ("sticky", "closed", "bumplimit", "imagelimit"):
+        if op.get(flag):
+            flags.append(flag.capitalize())
+    flag_str = f" [{', '.join(flags)}]" if flags else ""
+    lines.append(f"- Replies: {replies} | Images: {images}{flag_str}")
+
+    fl = _file_link_and_desc(op, board)
+    if fl:
+        lines.append(f"- [{fl[1]}]({fl[0]})" if fl[1] else f"- {fl[0]}")
+
+    if com:
+        snippet = com[:300].replace("\n", " ")
+        if len(com) > 300:
+            snippet += "..."
+        lines.append(f"> {snippet}")
+    lines.append("")
+
+    return lines
+
+
+def action_catalog(board: str, page: int, search_term: str = "") -> str:
+    if search_term:
+        data = _fetch_json(f"/{board}/catalog.json")
+        if not isinstance(data, list):
+            raise RuntimeError(f"Unexpected catalog response type: {type(data).__name__}")
+
+        term_lower = search_term.lower()
+        matched = []
+
+        for page_data in data:
+            threads = page_data.get("threads", []) if isinstance(page_data, dict) else []
+            for t in threads:
+                sub = (t.get("sub", "") or "").lower()
+                com_decoded = _decode_com(t.get("com", "") or "").lower()
+                if term_lower in sub or term_lower in com_decoded:
+                    matched.append(t)
+
+        lines = [f"# /{board}/ — Search: \"{search_term}\"", ""]
+        lines.append(f"**{len(matched)} matching threads**\n")
+
+        for op in matched:
+            lines.extend(_format_thread_entry(op, board))
+
+        return "\n".join(lines).strip()
+
     data = _fetch_json(f"/{board}/{page}.json")
     if isinstance(data, dict) and "threads" in data:
         threads = data["threads"]
@@ -217,37 +279,12 @@ def action_catalog(board: str, page: int) -> str:
     for t in threads:
         posts = t.get("posts") if isinstance(t, dict) else None
         op = posts[0] if posts else t
-        no = op.get("no", "?")
-        sub = html.unescape(op.get("sub", "") or "")
-        com = _decode_com(op.get("com", "") or "")
-        replies = op.get("replies", 0)
-        images = op.get("images", 0)
-
-        title = f"Thread {no}" + (f" — \"{sub}\"" if sub else "")
-        lines.append(f"### {title}")
-
-        flags = []
-        for flag in ("sticky", "closed", "bumplimit", "imagelimit"):
-            if op.get(flag):
-                flags.append(flag.capitalize())
-        flag_str = f" [{', '.join(flags)}]" if flags else ""
-        lines.append(f"- Replies: {replies} | Images: {images}{flag_str}")
-
-        fl = _file_link_and_desc(op, board)
-        if fl:
-            lines.append(f"- [{fl[1]}]({fl[0]})" if fl[1] else f"- {fl[0]}")
-
-        if com:
-            snippet = com[:300].replace("\n", " ")
-            if len(com) > 300:
-                snippet += "..."
-            lines.append(f"> {snippet}")
-        lines.append("")
+        lines.extend(_format_thread_entry(op, board))
 
     return "\n".join(lines).strip()
 
 
-def action_thread(board: str, thread_id: int, offset: int = 0, limit: int = 50) -> str:
+def action_thread(board: str, thread_id: int, offset: int = 0, limit: int = 50, search_term: str = "") -> str:
     data = _fetch_json(f"/{board}/thread/{thread_id}.json")
     if not isinstance(data, dict) or "posts" not in data:
         raise RuntimeError(f"Unexpected response format for thread {thread_id}")
@@ -265,27 +302,36 @@ def action_thread(board: str, thread_id: int, offset: int = 0, limit: int = 50) 
 
     limit = max(0, min(limit, 100))
     offset = max(0, offset)
-    selected = replies[offset:offset + limit]
-    if not selected:
-        lines.append(f"*(no replies at offset {offset} — thread has {len(replies)} replies)*\n")
-        return "\n".join(lines).strip()
 
-    shown_range = f"replies {offset + 1}–{offset + len(selected)}"
-    lines.append(f"---\n\n**{shown_range} of {len(replies)} replies shown**\n")
+    if search_term:
+        term_lower = search_term.lower()
+        filtered = [
+            r for r in replies
+            if term_lower in (_decode_com(r.get("com", "") or "").lower())
+        ]
+
+        if not filtered:
+            lines.append(f"*(no replies matching \"{search_term}\")*\n")
+            return "\n".join(lines).strip()
+
+        selected = filtered[offset:offset + limit]
+        if not selected:
+            lines.append(f"*(no matching replies at offset {offset} — {len(filtered)} total matches)*\n")
+            return "\n".join(lines).strip()
+
+        shown_range = f"replies {offset + 1}–{offset + len(selected)}"
+        lines.append(f"---\n\n**{shown_range} of {len(filtered)} matching replies for \"{search_term}\"**\n")
+    else:
+        selected = replies[offset:offset + limit]
+        if not selected:
+            lines.append(f"*(no replies at offset {offset} — thread has {len(replies)} replies)*\n")
+            return "\n".join(lines).strip()
+
+        shown_range = f"replies {offset + 1}–{offset + len(selected)}"
+        lines.append(f"---\n\n**{shown_range} of {len(replies)} replies shown**\n")
 
     for r in selected:
-        lines.append(_reply_header(r))
-        lines.append("")
-
-        fl = _file_link_and_desc(r, board)
-        if fl:
-            lines.append(f"- [{fl[1]}]({fl[0]})" if fl[1] else f"- {fl[0]}")
-            lines.append("")
-
-        com = _decode_com(r.get("com", "") or "")
-        if com:
-            lines.append(com)
-            lines.append("")
+        lines.extend(_render_reply(r, board))
 
     return "\n".join(lines).strip()
 
@@ -303,6 +349,7 @@ def main():
     thread_id = data.get("thread_id")
     offset = int(data["offset"]) if "offset" in data else 0
     limit = int(data["limit"]) if "limit" in data else 50
+    search_term = data.get("search", "").strip()
 
     if action not in ("catalog", "thread"):
         print(json.dumps({"error": "action must be 'catalog' or 'thread'"}))
@@ -318,9 +365,9 @@ def main():
 
     try:
         if action == "catalog":
-            result = action_catalog(board, page)
+            result = action_catalog(board, page, search_term)
         else:
-            result = action_thread(board, int(thread_id), offset, limit)
+            result = action_thread(board, int(thread_id), offset, limit, search_term)
     except RuntimeError as e:
         print(json.dumps({"error": str(e)}))
         sys.exit(1)
