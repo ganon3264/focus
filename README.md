@@ -7,10 +7,12 @@ A roleplaying thingy, kinda like SillyTavern, but opinionated and personal (and 
 
 <details>
 <summary>More screenshots</summary>
+
 ![Tool calls](screenshots/toolcalls.png)
 ![Samplers (light)](screenshots/samplers-light.png)
 ![Prompt arranger (light)](screenshots/prmpt-arr-light.png)
 ![Providers (OLED)](screenshots/providers-oled.png)
+
 </details>
 
 ## Prerequisites
