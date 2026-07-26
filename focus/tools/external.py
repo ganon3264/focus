@@ -40,6 +40,7 @@ class ExternalToolConfig(BaseModel):
     timeout: int = 30
     writes: bool = False
     multimodal: bool = False
+    category: str = "General"
     params: list[ToolParamDef] = []
 
 
@@ -97,6 +98,7 @@ def _load_single_tool(path: Path) -> ToolSpec:
         writes=config.writes,
         multimodal=config.multimodal,
         handler=handler,
+        category=config.category,
     )
 
 

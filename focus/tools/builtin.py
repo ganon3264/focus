@@ -121,6 +121,7 @@ def read_image(path: str) -> dict:
 BUILTIN_TOOLS: list[ToolSpec] = [
     ToolSpec(
         name="read_file",
+        category="Built-in",
         description=f"Read the contents of a text file from the local filesystem. "
                     f"Truncated if longer than {TOOL_OUTPUT_TRUNCATE_CHARS} chars. "
                     f"Optionally read only the first N lines.",
@@ -135,6 +136,7 @@ BUILTIN_TOOLS: list[ToolSpec] = [
     ),
     ToolSpec(
         name="list_dir",
+        category="Built-in",
         description="List files and directories at a given path. Returns names with a type indicator (file/dir).",
         params=[
             ToolParam(name="path", type="string", description="Absolute path to the directory to list"),
@@ -144,6 +146,7 @@ BUILTIN_TOOLS: list[ToolSpec] = [
     ),
     ToolSpec(
         name="read_image",
+        category="Built-in",
         description="Read an image file (local path) or fetch an image from a URL and return it as a base64-encoded data URI for the model to view.",
         params=[
             ToolParam(name="path", type="string",
@@ -155,6 +158,7 @@ BUILTIN_TOOLS: list[ToolSpec] = [
     ),
     ToolSpec(
         name="execute_shell",
+        category="Built-in",
         description="Execute an arbitrary shell command and return its output.",
         params=[
             ToolParam(name="command", type="string", description="Shell command to execute"),

@@ -14,6 +14,7 @@ async def list_tools():
             "params": [{"name": p.name, "type": p.type} for p in t.params],
             "writes": t.writes,
             "multimodal": t.multimodal,
+            "category": t.category,
         }
         for t in get_all_tools()
     ]

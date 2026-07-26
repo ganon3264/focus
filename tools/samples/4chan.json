@@ -40,5 +40,6 @@
       "required": false
     }
   ],
-  "writes": false
+  "writes": false,
+  "category": "Sample"
 }

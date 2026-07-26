@@ -24,6 +24,7 @@ class ToolSpec:
     writes: bool
     handler: Callable[..., Any]
     multimodal: bool = False
+    category: str = "General"
 
 
 @dataclass

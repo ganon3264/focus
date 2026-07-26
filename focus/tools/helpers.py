@@ -16,11 +16,12 @@ def active_tools(
     all_tools: list,
     read_only: bool,
     disable_multimodal: bool = False,
-    disabled_names: set[str] | None = None,
+    enabled_names: set[str] | None = None,
 ) -> list:
-    filtered = all_tools
-    if disabled_names:
-        filtered = [t for t in filtered if t.name not in disabled_names]
+    if enabled_names is not None:
+        filtered = [t for t in all_tools if t.name in enabled_names]
+    else:
+        filtered = list(all_tools)
     filtered = [t for t in filtered if not (read_only and t.writes)]
     if disable_multimodal:
         filtered = [t for t in filtered if not t.multimodal]

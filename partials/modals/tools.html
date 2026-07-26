@@ -1,5 +1,5 @@
-{% from "macros.html" import hint_tooltip %}
-<div x-data="toolsModal()" class="flex flex-col gap-4 flex-1 min-h-0" @multimodal-changed.window="enableMultimodal = $event.detail.enabled">
+{% from "macros.html" import hint_tooltip, icon_search, icon_chevron_down, sort_dropdown %}
+<div x-data="toolsModal()" id="tools-modal-data" class="flex flex-col gap-4 flex-1 min-h-0" @multimodal-changed.window="enableMultimodal = $event.detail.enabled">
 
   <!-- Enable Tool Calls toggle -->
   <div class="form-group mb-0 flex items-center justify-between shrink-0">
@@ -30,7 +30,7 @@
         class="text-xs mb-0 cursor-pointer"
         @click="toggleReadOnly()"
       >Read-Only Mode</label>
-      {{ hint_tooltip('When enabled, write/execute-capable tools (shell commands) are hidden from the model entirely. The model cannot create, modify, or delete files.') }}
+      {{ hint_tooltip('When enabled, write marked tools are hidden from the model entirely regardless of whether they are individually enabled or not.') }}
     </div>
     <div
       class="arranger-toggle"
@@ -52,47 +52,74 @@
 
   <!-- Available Tools List -->
   <div x-show="enabled && providerSupportsTools" class="flex flex-col flex-1 min-h-0">
-    <div class="flex items-center justify-between mb-2 shrink-0">
-      <div class="text-xs font-bold text-muted">Available Tools</div>
+    <div class="flex items-center gap-2 mb-2 shrink-0">
+      <div class="flex-1 relative">
+        <span class="absolute left-2.5 top-1/2 -translate-y-1/2 flex" style="color:var(--text-muted);pointer-events:none">{{ icon_search(size=14) }}</span>
+        <input
+          type="text"
+          placeholder="Search tools..."
+          x-model="searchQuery"
+          class="text-sm w-full"
+          style="padding-left:2rem;padding-right:0.5rem;padding-top:0.35rem;padding-bottom:0.35rem;background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-md)"
+        >
+      </div>
+      {{ sort_dropdown('focus_tools_sort', 'sortTools') }}
       <button
-        class="text-xs px-2 py-1 rounded cursor-pointer hover:opacity-80"
-        style="background:var(--surface-2);border:1px solid var(--border);color:var(--text-muted)"
+        class="flex items-center text-sm cursor-pointer shrink-0"
+        style="padding:0.35rem 0.5rem;background:var(--surface-2);border:1px solid var(--border);color:var(--text-muted);border-radius:var(--radius-md)"
         @click="reloadTools()"
         x-text="reloading ? 'Reloading...' : 'Reload'"
       ></button>
     </div>
-    <div class="flex-1 overflow-y-auto min-h-[360px] pr-2 scroll-fade grid grid-cols-3 gap-2 auto-rows-max">
-    <template x-for="tool in tools" :key="tool.name">
-      <div
-        class="p-2 rounded-md"
-        style="background:var(--surface-2);border:1px solid var(--border)"
-        :class="(tool.multimodal && !enableMultimodal) || (tool.writes && readOnly) || toolStates[tool.name] === false ? 'opacity-40' : ''"
-      >
-        <div class="flex items-center justify-between gap-1">
-          <div class="text-xs font-bold truncate" x-text="tool.name"></div>
-          <div
-            class="arranger-toggle shrink-0"
-            role="switch"
-            tabindex="0"
-            :class="{ 'active': toolStates[tool.name] !== false }"
-            @click="toggleTool(tool.name)"
-          ></div>
-        </div>
-        <div class="flex items-center gap-1 mt-0.5">
+    <div class="flex-1 overflow-y-auto min-h-[360px] pr-2 scroll-fade">
+    <template x-for="(groupTools, category) in filteredTools" :key="category">
+      <div class="mb-3">
+        <div class="flex items-center gap-1 mb-1.5 cursor-pointer select-none" @click="toggleCategory(category)">
           <span
-            class="text-xs px-1 py-0.5 rounded leading-tight"
-            :style="tool.writes
-              ? 'background:var(--danger-dim);color:var(--danger)'
-              : 'background:var(--accent-faint);color:var(--accent)'"
-            x-text="tool.writes ? 'writes' : 'read-only'"
+            class="text-xs font-bold text-muted uppercase tracking-wider"
+            x-text="category"
           ></span>
           <span
-            x-show="tool.multimodal"
-            class="text-xs px-1 py-0.5 rounded leading-tight"
-            style="background:var(--accent-dim);color:var(--accent)"
-          >multimodal</span>
+            class="text-xs text-muted"
+            :class="openCategories[category] !== false ? 'rotate-180' : ''"
+            style="transition:transform 0.2s;display:inline-flex"
+          >{{ icon_chevron_down(12) }}</span>
         </div>
-        <div class="text-xs text-muted mt-1 leading-snug" x-text="tool.description"></div>
+        <div class="grid grid-cols-3 gap-2 auto-rows-max" x-show="openCategories[category] !== false">
+        <template x-for="tool in groupTools" :key="tool.name">
+          <div
+            class="p-2 rounded-md"
+            style="background:var(--surface-2);border:1px solid var(--border)"
+            :class="(tool.multimodal && !enableMultimodal) || (tool.writes && readOnly) || toolStates[tool.name] !== true ? 'opacity-40' : ''"
+          >
+            <div class="flex items-center justify-between gap-1">
+              <div class="text-xs font-bold truncate" x-text="tool.name"></div>
+              <div
+                class="arranger-toggle shrink-0"
+                role="switch"
+                tabindex="0"
+                :class="{ 'active': toolStates[tool.name] === true }"
+                @click="toggleTool(tool.name)"
+              ></div>
+            </div>
+            <div class="flex items-center gap-1 mt-0.5">
+              <span
+                class="text-xs px-1 py-0.5 rounded leading-tight"
+                :style="tool.writes
+                  ? 'background:var(--danger-dim);color:var(--danger)'
+                  : 'background:var(--accent-faint);color:var(--accent)'"
+                x-text="tool.writes ? 'writes' : 'read-only'"
+              ></span>
+              <span
+                x-show="tool.multimodal"
+                class="text-xs px-1 py-0.5 rounded leading-tight"
+                style="background:var(--accent-dim);color:var(--accent)"
+              >multimodal</span>
+            </div>
+            <div class="text-xs text-muted mt-1 leading-snug" x-text="tool.description"></div>
+          </div>
+        </template>
+        </div>
       </div>
     </template>
     </div>
@@ -111,9 +138,35 @@ document.addEventListener('alpine:init', function () {
 
       tools: [],
       toolStates: {},
+      searchQuery: '',
+      sortMode: localStorage.getItem('focus_tools_sort') || 'az',
+      openCategories: {},
 
       get providerSupportsTools() {
         return !['google_aistudio', 'google_vertex'].includes(this.providerType);
+      },
+
+      get filteredTools() {
+        var q = (this.searchQuery || '').toLowerCase();
+        var mode = this.sortMode;
+        var filtered = this.tools.filter(function (t) {
+          if (!q) return true;
+          return t.name.toLowerCase().indexOf(q) !== -1
+            || t.description.toLowerCase().indexOf(q) !== -1;
+        });
+        filtered.sort(function (a, b) {
+          if (mode === 'az') return a.name.localeCompare(b.name);
+          if (mode === 'za') return b.name.localeCompare(a.name);
+          var catCmp = a.category.localeCompare(b.category);
+          if (catCmp !== 0) return catCmp;
+          return mode === 'oldest' ? b.name.localeCompare(a.name) : a.name.localeCompare(b.name);
+        });
+        var groups = {};
+        filtered.forEach(function (t) {
+          if (!groups[t.category]) groups[t.category] = [];
+          groups[t.category].push(t);
+        });
+        return groups;
       },
 
       init: function () {
@@ -148,7 +201,7 @@ document.addEventListener('alpine:init', function () {
       },
 
       toggleTool: function (name) {
-        var newState = this.toolStates[name] !== false ? false : true;
+        var newState = this.toolStates[name] === true ? false : true;
         this.toolStates[name] = newState;
         var chatId = document.getElementById('send-btn')
           ? document.getElementById('send-btn').dataset.chatId
@@ -162,17 +215,25 @@ document.addEventListener('alpine:init', function () {
         }
       },
 
+      toggleCategory: function (category) {
+        this.openCategories[category] = this.openCategories[category] !== false ? false : true;
+      },
+
       reloadTools: function () {
         var self = this;
-        self.reloading = true;
+        var loadingTimer = setTimeout(function () { self.reloading = true; }, 200);
         fetch('/api/tools/reload', { method: 'POST' })
           .then(function () { return fetch('/api/tools'); })
           .then(function (r) { return r.json(); })
           .then(function (data) {
+            clearTimeout(loadingTimer);
             self.tools = data;
             self.reloading = false;
           })
-          .catch(function () { self.reloading = false; });
+          .catch(function () {
+            clearTimeout(loadingTimer);
+            self.reloading = false;
+          });
       },
 
       _save: function () {
@@ -198,4 +259,10 @@ document.addEventListener('alpine:init', function () {
     };
   });
 });
+
+window.sortTools = function (mode) {
+  _saveListPref('focus_tools_sort', mode);
+  var root = document.getElementById('tools-modal-data');
+  if (root) Alpine.$data(root).sortMode = mode;
+};
 </script>

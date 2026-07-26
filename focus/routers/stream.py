@@ -537,13 +537,13 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
     tools_by_name: dict = {}
     if tools_enabled:
         async with db.execute(
-            "SELECT tool_name FROM chat_tool_states WHERE chat_id = ? AND enabled = 0", (body.chat_id,)
+            "SELECT tool_name FROM chat_tool_states WHERE chat_id = ? AND enabled = 1", (body.chat_id,)
         ) as cur:
-            disabled_tools = {row["tool_name"] for row in await cur.fetchall()}
+            enabled_tools = {row["tool_name"] for row in await cur.fetchall()}
         cur_tools = active_tools(
             get_all_tools(), tool_read_only,
             disable_multimodal=disable_multimodal,
-            disabled_names=disabled_tools,
+            enabled_names=enabled_tools,
         )
         tools_payload = to_provider_tools(cur_tools)
         tools_by_name = {t.name: t for t in cur_tools}

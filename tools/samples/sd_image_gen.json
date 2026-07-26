@@ -29,6 +29,7 @@
       "required": false
     }
   ],
+  "category": "Sample",
   "writes": false,
   "timeout": 300
 }

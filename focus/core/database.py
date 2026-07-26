@@ -187,7 +187,7 @@ CREATE TABLE IF NOT EXISTS generation_usage (
 CREATE TABLE IF NOT EXISTS chat_tool_states (
     chat_id   TEXT NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
     tool_name TEXT NOT NULL,
-    enabled   INTEGER NOT NULL DEFAULT 1,
+    enabled   INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (chat_id, tool_name)
 );
 
