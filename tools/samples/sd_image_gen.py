@@ -12,7 +12,7 @@ SDCPP_BASE_URL = "http://127.0.0.1:1234"
 # --- Generation defaults (Anima 2B v1.0 turbo) ---
 WIDTH = 1024
 HEIGHT = 1024
-NEGATIVE_PROMPT = "worst quality, low quality, score_1, score_2, score_3, artist name, blurry, jpeg artifacts, chromatic aberration"
+NEGATIVE_PROMPT = "worst quality, low quality, score_1, score_2, score_3, artist name, blurry, jpeg artifacts, chromatic aberration, censored"
 STEPS = 10
 CFG_SCALE = 1.0
 SAMPLER = "euler"
