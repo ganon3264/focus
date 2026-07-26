@@ -29,6 +29,7 @@ Place a `.json` file in `tools/` at the project root. It is loaded automatically
 | `params` | `array` | `[]` | List of accepted parameters (see below) |
 | `writes` | `bool` | `false` | When `true`, hidden in read-only mode |
 | `multimodal` | `bool` | `false` | When `true`, tool may return image data (see Script Contract) |
+| `category` | `string` | `"General"` | Sorting group shown in the frontend tools modal |
 | `timeout` | `int` | `30` | Subprocess timeout in seconds |
 
 ### Param object
@@ -101,7 +102,8 @@ Output is truncated at 32,000 characters. Invalid JSON configs are skipped (logg
       "required": true
     }
   ],
-  "writes": false
+  "writes": false,
+  "category": "General"
 }
 ```
 
@@ -130,7 +132,8 @@ Place both files in `tools/`, click reload in the tools modal, and the tool is a
   "command": ["python3", "tools/screenshot.py"],
   "multimodal": true,
   "params": [],
-  "writes": false
+  "writes": false,
+  "category": "General"
 }
 ```
 
