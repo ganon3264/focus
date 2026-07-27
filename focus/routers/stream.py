@@ -27,6 +27,7 @@ from focus.core.utils import (
 from focus.db.chats import rollback_assistant, save_usage, upsert_variant
 from focus.providers import create_provider
 from focus.routers.stream_utils import (
+    PromptCtx,
     get_prompt_context,
     prefill_reasoning,
     prepare_generation_messages,
@@ -51,19 +52,32 @@ _active_generations: dict[str, asyncio.Event] = {}
 class _GenCtx:
     """Bundles all generation-scoped state so we don't thread 14 params."""
     body: StreamRequest
-    provider: Any
-    prov_dict: dict
+    prompt: PromptCtx
     messages: list[dict]
     gen_kwargs: dict
-    asst_msg_id: str
-    next_variant_index: int
-    user_msg_id: str | None
+    provider: Any
+    prov_dict: dict
     tools_enabled: bool
     tools_by_name: dict
     tool_read_only: bool
     disable_multimodal: bool
     stop_event: asyncio.Event | None
     db: aiosqlite.Connection | None
+
+    async def resolve_variant_id(self) -> str:
+        """Return the existing variant id for continue (update in-place),
+        or a new UUID for new messages and regeneration swipes."""
+        if self.body.regenerate and self.body.continue_text and self.prompt.asst_msg_id and self.db:
+            async with self.db.execute(
+                "SELECT mv.id FROM message_variants mv"
+                " JOIN messages m ON mv.message_id = m.id AND mv.variant_index = m.active_index"
+                " WHERE m.id = ?",
+                (self.prompt.asst_msg_id,),
+            ) as cur:
+                row = await cur.fetchone()
+                if row:
+                    return row[0]
+        return str(uuid.uuid4())
 
 
 class _SaveFailed(Exception):
@@ -231,14 +245,22 @@ class _GenAccumulator:
     Tracks accumulated text, meta fields (reasoning, reasoning_details, etc.),
     slice boundaries at tool iterations, and tool-call groups so that
     ``build_segments()`` can reconstruct the iteration-by-iteration rendering.
+
+    When *variant_id* is ``None`` a new UUID is generated automatically.
+    Pass an existing variant_id (e.g. during regeneration) so that tool_calls
+    and usage records are stored under the same id as the message_variants row.
     """
     text: list[str] = field(default_factory=list)
     meta: dict[str, Any] = field(default_factory=dict)
     text_slices: list[int] = field(default_factory=list)
     reasoning_slices: list[int] = field(default_factory=list)
     tool_groups: list[list[dict]] = field(default_factory=list)
-    variant_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    variant_id: str | None = None
     finalized: bool = False
+
+    def __post_init__(self) -> None:
+        if self.variant_id is None:
+            self.variant_id = str(uuid.uuid4())
 
     def add_text(self, chunk: str) -> None:
         self.text.append(chunk)
@@ -319,7 +341,7 @@ async def _run_generation_with_prefill(
     async for event in _run_generation(
         ctx.provider, ctx.messages, ctx.gen_kwargs, ctx.tools_enabled,
         ctx.tools_by_name, ctx.tool_read_only, ctx.disable_multimodal,
-        ctx.body.chat_id, ctx.asst_msg_id, variant_id,
+        ctx.body.chat_id, ctx.prompt.asst_msg_id, variant_id,
         stop_event=ctx.stop_event, db=ctx.db,
     ):
         yield event
@@ -336,22 +358,22 @@ async def _finalize_gen(ctx: _GenCtx, acc: _GenAccumulator, *, success: bool = F
 
     if not success and not has_content:
         if not ctx.body.regenerate:
-            await rollback_assistant(ctx.asst_msg_id, db=ctx.db)
+            await rollback_assistant(ctx.prompt.asst_msg_id, db=ctx.db)
         return
 
     try:
         variant_meta_json = json.dumps(acc.full_variant_meta()) if acc.full_variant_meta() else None
         await upsert_variant(
-            ctx.body.chat_id, ctx.asst_msg_id, ctx.next_variant_index,
+            ctx.body.chat_id, ctx.prompt.asst_msg_id, ctx.prompt.next_variant_index,
             acc.full_text(), ctx.body.regenerate, ctx.prov_dict.get("model", ""),
             variant_id=acc.variant_id, variant_meta=variant_meta_json,
             segments_json=json.dumps(segments) if segments else None,
             db=ctx.db,
         )
     except Exception as e:
-        logger.exception("Failed to save variant for message_id=%s", ctx.asst_msg_id)
+        logger.exception("Failed to save variant for message_id=%s", ctx.prompt.asst_msg_id)
         if not ctx.body.regenerate:
-            await rollback_assistant(ctx.asst_msg_id, db=ctx.db)
+            await rollback_assistant(ctx.prompt.asst_msg_id, db=ctx.db)
         if success:
             raise _SaveFailed(e) from e
 
@@ -371,7 +393,7 @@ async def _handle_event(
         if len(acc.text) % 5 == 0:
             vm = json.dumps(acc.full_variant_meta()) if acc.full_variant_meta() else None
             await upsert_variant(
-                ctx.body.chat_id, ctx.asst_msg_id, ctx.next_variant_index,
+                ctx.body.chat_id, ctx.prompt.asst_msg_id, ctx.prompt.next_variant_index,
                 acc.full_text(), ctx.body.regenerate, ctx.prov_dict.get("model", ""),
                 variant_id=acc.variant_id, variant_meta=vm,
                 db=ctx.db,
@@ -386,7 +408,7 @@ async def _handle_event(
             if len(vals) % 5 == 0:
                 vm = json.dumps(acc.full_variant_meta()) if acc.full_variant_meta() else None
                 await upsert_variant(
-                    ctx.body.chat_id, ctx.asst_msg_id, ctx.next_variant_index,
+                    ctx.body.chat_id, ctx.prompt.asst_msg_id, ctx.prompt.next_variant_index,
                     acc.full_text(), ctx.body.regenerate, ctx.prov_dict.get("model", ""),
                     variant_id=acc.variant_id, variant_meta=vm,
                     db=ctx.db,
@@ -399,7 +421,7 @@ async def _handle_event(
         acc.begin_tool_iteration(event["calls"])
         vm = json.dumps(acc.full_variant_meta()) if acc.full_variant_meta() else None
         await upsert_variant(
-            ctx.body.chat_id, ctx.asst_msg_id, ctx.next_variant_index,
+            ctx.body.chat_id, ctx.prompt.asst_msg_id, ctx.prompt.next_variant_index,
             acc.full_text(), ctx.body.regenerate, ctx.prov_dict.get("model", ""),
             variant_id=acc.variant_id, variant_meta=vm,
             db=ctx.db,
@@ -428,7 +450,7 @@ async def _handle_event(
 
     if t == "usage":
         await save_usage(
-            ctx.body.chat_id, ctx.asst_msg_id, acc.variant_id,
+            ctx.body.chat_id, ctx.prompt.asst_msg_id, acc.variant_id,
             ctx.prov_dict.get("id"), ctx.prov_dict.get("type"),
             ctx.prov_dict.get("model", ""),
             event["usage"],
@@ -440,8 +462,8 @@ async def _handle_event(
         await _finalize_gen(ctx, acc, success=True)
         return {
             "done": True,
-            "message_id": ctx.asst_msg_id,
-            "variant_index": ctx.next_variant_index,
+            "message_id": ctx.prompt.asst_msg_id,
+            "variant_index": ctx.prompt.next_variant_index,
         }
 
     if t == "error":
@@ -453,14 +475,15 @@ async def _handle_event(
 
 async def _stream_generate(ctx: _GenCtx) -> AsyncIterator[str]:
     """Async generator that yields SSE-encoded lines for a streaming response."""
-    acc = _GenAccumulator()
+    variant_id = await ctx.resolve_variant_id()
+    acc = _GenAccumulator(variant_id=variant_id)
 
-    _active_generations[ctx.asst_msg_id] = ctx.stop_event or asyncio.Event()
+    _active_generations[ctx.prompt.asst_msg_id] = ctx.stop_event or asyncio.Event()
 
-    yield f"data: {json.dumps({'type': 'start', 'message_id': ctx.asst_msg_id, 'user_message_id': None if ctx.body.regenerate else ctx.user_msg_id})}\n\n"
+    yield f"data: {json.dumps({'type': 'start', 'message_id': ctx.prompt.asst_msg_id, 'user_message_id': None if ctx.body.regenerate else ctx.prompt.user_msg_id})}\n\n"
 
     try:
-        async for event in _run_generation_with_prefill(ctx, acc.variant_id):
+        async for event in _run_generation_with_prefill(ctx, variant_id):
             payload = await _handle_event(acc, event, ctx)
             if payload is not None:
                 yield f"data: {json.dumps(payload)}\n\n"
@@ -474,17 +497,18 @@ async def _stream_generate(ctx: _GenCtx) -> AsyncIterator[str]:
         await _finalize_gen(ctx, acc)
         raise
     finally:
-        _active_generations.pop(ctx.asst_msg_id, None)
+        _active_generations.pop(ctx.prompt.asst_msg_id, None)
 
 
 
 async def _non_stream_generate(ctx: _GenCtx) -> JSONResponse:
     """Run generation in non-streaming mode and return a JSON response."""
-    acc = _GenAccumulator()
+    variant_id = await ctx.resolve_variant_id()
+    acc = _GenAccumulator(variant_id=variant_id)
 
-    _active_generations[ctx.asst_msg_id] = ctx.stop_event or asyncio.Event()
+    _active_generations[ctx.prompt.asst_msg_id] = ctx.stop_event or asyncio.Event()
     try:
-        async for event in _run_generation_with_prefill(ctx, acc.variant_id):
+        async for event in _run_generation_with_prefill(ctx, variant_id):
             await _handle_event(acc, event, ctx)
             if event["type"] == "error":
                 raise HTTPException(500, event["error"])
@@ -496,14 +520,14 @@ async def _non_stream_generate(ctx: _GenCtx) -> JSONResponse:
     else:
         return JSONResponse({
             "done": True,
-            "message_id": ctx.asst_msg_id,
-            "variant_index": ctx.next_variant_index,
-            "user_message_id": None if ctx.body.regenerate else ctx.user_msg_id,
+            "message_id": ctx.prompt.asst_msg_id,
+            "variant_index": ctx.prompt.next_variant_index,
+            "user_message_id": None if ctx.body.regenerate else ctx.prompt.user_msg_id,
             "full_text": acc.full_text(),
             "variant_meta": acc.full_variant_meta(),
         })
     finally:
-        _active_generations.pop(ctx.asst_msg_id, None)
+        _active_generations.pop(ctx.prompt.asst_msg_id, None)
 
 
 @router.post("/stream")
@@ -525,31 +549,28 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
         body.regenerate, body.user_message, body.attachment_ids,
     )
 
-    ctx = await get_prompt_context(
+    prompt_ctx = await get_prompt_context(
         db, body.chat_id, body.regenerate, body.user_message, body.attachment_ids, persist=True
     )
-    messages = ctx["messages"]
-    asst_msg_id = ctx["asst_msg_id"]
-    next_variant_index = ctx["next_variant_index"]
-    user_msg_id = ctx["user_msg_id"]
+    asst_msg_id = prompt_ctx.asst_msg_id
 
     # Generation-scoped event; registration is handled by _stream_generate / _non_stream_generate
     stop_event = asyncio.Event()
 
     logger.debug(
         "stream: ctx returned asst_msg_id=%s user_msg_id=%s next_variant_index=%d messages=%d",
-        asst_msg_id, user_msg_id, next_variant_index, len(messages),
+        prompt_ctx.asst_msg_id, prompt_ctx.user_msg_id, prompt_ctx.next_variant_index, len(prompt_ctx.messages),
     )
 
     # Continue: update the current variant in-place instead of creating a new swipe
-    if body.continue_text and body.regenerate and asst_msg_id:
-        async with db.execute("SELECT active_index FROM messages WHERE id = ?", (asst_msg_id,)) as cur:
+    if body.continue_text and body.regenerate and prompt_ctx.asst_msg_id:
+        async with db.execute("SELECT active_index FROM messages WHERE id = ?", (prompt_ctx.asst_msg_id,)) as cur:
             row = await cur.fetchone()
         if row is not None:
-            next_variant_index = row[0]
+            prompt_ctx.next_variant_index = row[0]
 
     messages, gen_kwargs = await prepare_generation_messages(
-        prov_dict, body, messages, provider, body.chat_id,
+        prov_dict, body, prompt_ctx.messages, provider, body.chat_id,
     )
 
     use_stream = gen_kwargs.pop("stream_enabled", True)
@@ -586,10 +607,10 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
         _log_outbound_payload(messages, gen_kwargs, prov_dict)
 
     gctx = _GenCtx(
-        body=body, provider=provider, prov_dict=prov_dict,
+        body=body, prompt=prompt_ctx,
         messages=messages, gen_kwargs=gen_kwargs,
-        asst_msg_id=asst_msg_id, next_variant_index=next_variant_index,
-        user_msg_id=user_msg_id, tools_enabled=tools_enabled,
+        provider=provider, prov_dict=prov_dict,
+        tools_enabled=tools_enabled,
         tools_by_name=tools_by_name, tool_read_only=tool_read_only,
         disable_multimodal=disable_multimodal, stop_event=stop_event, db=db,
     )
@@ -626,7 +647,7 @@ async def itemize_prompt(body: ItemizerRequest, db: aiosqlite.Connection = Depen
     ctx = await get_prompt_context(
         db, body.chat_id, body.regenerate, body.user_message, body.attachment_ids, persist=False
     )
-    messages = ctx["messages"]
+    messages = ctx.messages
 
     enc = tiktoken.get_encoding("cl100k_base")
     total_tokens = 0

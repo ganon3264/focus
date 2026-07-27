@@ -2,6 +2,7 @@ import asyncio
 import html
 import json
 import logging
+from dataclasses import dataclass
 from typing import Any
 
 import aiosqlite
@@ -20,6 +21,15 @@ from focus.db.chats import (
 from focus.core.tool_media import load_tool_image_data_url
 from focus.prompt_chain import assemble_prompt, build_content
 from focus.routers.providers import get_openrouter_model_modalities
+
+
+@dataclass
+class PromptCtx:
+    """Typed result of prompt assembly.  Single carrier through the chain."""
+    messages: list[dict]
+    asst_msg_id: str | None
+    next_variant_index: int
+    user_msg_id: str | None
 
 logger = logging.getLogger("focus.routers.stream_utils")
 
@@ -251,7 +261,7 @@ async def get_prompt_context(
     user_message: str,
     attachment_ids: list[str],
     persist: bool = False,
-) -> dict:
+) -> PromptCtx:
     """Load chat state and assemble the full prompt context for generation.
 
     Validates the chat, loads character/persona/preset data, builds macros,
@@ -259,7 +269,7 @@ async def get_prompt_context(
     loads block images for all relevant blocks, and assembles the final
     message list via assemble_prompt().
 
-    Returns dict with keys: messages, asst_msg_id, next_variant_index, user_msg_id.
+    Returns a PromptCtx with assembled messages and history metadata.
     """
     logger.debug(
         "get_prompt_context: chat_id=%s regenerate=%s user_message=%r attachment_ids=%s persist=%s",
@@ -438,12 +448,12 @@ async def get_prompt_context(
         asst_msg_id, user_msg_id, next_variant_index, len(messages),
     )
 
-    return {
-        "messages": messages,
-        "asst_msg_id": asst_msg_id,
-        "next_variant_index": next_variant_index,
-        "user_msg_id": user_msg_id,
-    }
+    return PromptCtx(
+        messages=messages,
+        asst_msg_id=asst_msg_id,
+        next_variant_index=next_variant_index,
+        user_msg_id=user_msg_id,
+    )
 
 
 def filter_unsupported_modalities(messages: list[dict], supported_modalities: list[str] | None) -> list[dict]:
