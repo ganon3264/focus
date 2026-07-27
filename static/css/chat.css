@@ -142,14 +142,14 @@
     background: rgba(0, 0, 0, 0.3);
     color: var(--accent-hover);
     padding: 0.15rem 0.35rem;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     font-family: ui-monospace, monospace;
     font-size: 0.85em;
   }
   .markdown-content pre {
     background: var(--surface-3);
     padding: 1rem;
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-sm);
     white-space: pre-wrap;
     word-break: break-word;
     overflow-wrap: break-word;
@@ -198,7 +198,7 @@
     padding: 0.4em 0.8em;
     margin: 0.2em 0;
     border: 1px dashed var(--border);
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     background: var(--surface-1);
     font-size: 0.85em;
     color: var(--text-muted);
@@ -209,7 +209,7 @@
   .external-media-btn {
     padding: 0.15em 0.6em;
     border: 1px solid var(--border);
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     background: var(--surface-2);
     color: var(--text);
     cursor: pointer;
@@ -326,7 +326,7 @@
     color: var(--text-muted);
     margin: 1rem 0;
     background: var(--surface-2);
-    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   }
   .markdown-content ul {
     list-style-type: disc;

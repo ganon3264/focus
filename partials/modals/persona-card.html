@@ -8,7 +8,7 @@
   <div class="persona-view-full h-full flex flex-col" style="display:{{ 'none' if compact_view else 'flex' }};">
     <div
       class="card-image"
-      style="aspect-ratio: 1/1; border-radius: 12px 12px 0 0; cursor: pointer"
+      style="aspect-ratio: 1/1; border-radius: var(--radius-lg) var(--radius-lg) 0 0; cursor: pointer"
       role="button"
       tabindex="0"
       onclick="selectPersonaModal(this)"
@@ -20,7 +20,7 @@
         src="/{{ p.avatar_path }}"
         alt="{{ p.name }} avatar"
         loading="lazy"
-        style="border-radius: 12px 12px 0 0"
+        style="border-radius: var(--radius-lg) var(--radius-lg) 0 0"
       />
       {% else %}
       <span class="text-3xl">{{ p.name[:1] }}</span>

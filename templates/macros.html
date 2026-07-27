@@ -32,7 +32,7 @@
 
    <div x-show="open" @click.away="open = false" x-transition.opacity.duration.200ms
         class="absolute top-full left-0 right-0 mt-1 z-50 max-h-60 overflow-y-auto"
-        style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); display: none;">
+        style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--shadow-lg); display: none;">
 
       {% for opt in options %}
       <div class="px-3 py-2 cursor-pointer transition-colors duration-150 {{ extra_classes }}"
@@ -73,15 +73,14 @@
        }
      }">
   <button type="button" @click="open = !open"
-          class="form-control flex items-center justify-between gap-1 text-sm cursor-pointer"
-          style="padding: 0.35rem 0.5rem;">
+          class="btn btn-secondary btn-sm flex items-center justify-between gap-1 cursor-pointer">
     <span x-text="label"></span>
     <span class="text-muted" :class="open ? 'rotate-180' : ''"
           style="transition: transform 0.2s; display: inline-flex;">{{ icon_chevron_down(12) }}</span>
   </button>
   <div x-show="open" @click.away="open = false" x-transition.opacity.duration.200ms
        class="absolute top-full right-0 mt-1 z-50"
-       style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); display: none; min-width: 120px;">
+               style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--shadow-lg); display: none; min-width: 120px;">
     <div class="px-3 py-2 cursor-pointer text-sm whitespace-nowrap"
          :class="{ 'text-[var(--accent)] font-medium': active === 'newest' }"
          @click="select('newest')"
@@ -246,7 +245,7 @@
 {% endmacro %}
 
 {% macro media_thumbnail(img, action_name, extra_attrs='') %}
-<div class="relative group" style="width:48px;height:48px;border-radius:4px;overflow:hidden;border:1px solid var(--border);flex-shrink:0" data-image-id="{{ img.id }}"{{ extra_attrs | safe }}>
+<div class="relative group" style="width:48px;height:48px;border-radius:var(--radius-sm);overflow:hidden;border:1px solid var(--border);flex-shrink:0" data-image-id="{{ img.id }}"{{ extra_attrs | safe }}>
   {% if img.mime_type and img.mime_type.startswith('audio/') %}
   <div style="width:100%;height:100%;background:var(--surface-3);display:grid;place-items:center;" title="Audio Attachment">{{ icon_music(24) }}</div>
   {% else %}

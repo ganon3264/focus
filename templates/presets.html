@@ -6,11 +6,11 @@
     <h1 class="text-xl font-bold">Presets</h1>
     <div class="flex gap-3">
       <form onsubmit="createPreset(event)" class="flex gap-2">
-        <input type="text" name="name" placeholder="New preset name" required class="text-sm" style="background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:0.4rem;">
+        <input type="text" name="name" placeholder="New preset name" required class="text-sm" style="background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-sm);padding:0.4rem;">
         <button class="btn btn-primary btn-sm">Create</button>
       </form>
       <form onsubmit="importPreset(event)" class="flex gap-2" enctype="multipart/form-data">
-        <input type="file" name="file" accept=".json" required class="text-sm" style="background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:0.4rem;max-width:180px;">
+        <input type="file" name="file" accept=".json" required class="text-sm" style="background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-sm);padding:0.4rem;max-width:180px;">
         <button class="btn btn-secondary btn-sm">Import</button>
       </form>
     </div>
@@ -26,7 +26,7 @@
 
     <!-- Block editor -->
     <div class="flex-1 flex flex-col gap-2 min-w-0">
-      <div class="flex-1 overflow-auto" id="preset-editor" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1rem;">
+      <div class="flex-1 overflow-auto" id="preset-editor" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:1rem;">
         {% if presets %}
           {% with preset_id = presets[0].id, blocks = presets[0].blocks %}
             {% include "presets/preset-editor.html" %}

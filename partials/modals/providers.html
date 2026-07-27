@@ -4,8 +4,8 @@
     <h3 class="sidebar-title mb-0">Select Active Provider</h3>
     <div class="flex gap-2 items-center shrink-0">
       {{ sort_dropdown('focus_providers_sort', 'sortProviders') }}
-      <button class="btn btn-secondary btn-sm flex items-center gap-1.5" onclick="openSecretsManager()" style="height: 32px;">{{ icon_key(14) }} Keys</button>
-      <button class="btn btn-primary btn-sm flex items-center gap-1.5" data-action="actionOpenProviderCreateModal" style="height: 32px;">{{ icon_plus(14) }} Add Provider</button>
+      <button class="btn btn-secondary btn-sm flex items-center gap-1.5" onclick="openSecretsManager()">{{ icon_key(14) }} Keys</button>
+      <button class="btn btn-primary btn-sm flex items-center gap-1.5" data-action="actionOpenProviderCreateModal">{{ icon_plus(14) }} Add Provider</button>
     </div>
   </div>
   
@@ -165,7 +165,7 @@
   <div class="modal-content flex flex-col p-0" style="max-width: 800px; width: 95vw; height: 80vh; overflow: hidden; background: var(--surface);">
     <div class="modal-header p-4" style="margin-bottom: 0; border-bottom: 1px solid var(--border);">
       <div class="modal-title">Select Model</div>
-      <button class="btn btn-secondary" data-action="actionCloseFetchModels" aria-label="Close">{{ icon_close(16) }}</button>
+      <button class="btn btn-secondary btn-sm" data-action="actionCloseFetchModels" aria-label="Close">{{ icon_close(16) }}</button>
     </div>
     
     <div class="p-4" style="background: var(--surface-2); border-bottom: 1px solid var(--border);">
@@ -226,7 +226,7 @@
   <div class="modal-content flex flex-col p-0" style="max-width: 800px; width: 95vw; height: 75vh; overflow: hidden; background: var(--surface);">
     <div class="modal-header p-4" style="margin-bottom: 0; border-bottom: 1px solid var(--border);">
       <div class="modal-title secrets-title">Select API Key</div>
-      <button class="btn btn-secondary" data-action="actionCloseSecrets" aria-label="Close">{{ icon_close(16) }}</button>
+      <button class="btn btn-secondary btn-sm" data-action="actionCloseSecrets" aria-label="Close">{{ icon_close(16) }}</button>
     </div>
     
     <div class="p-4" style="background: var(--surface-2); border-bottom: 1px solid var(--border);">

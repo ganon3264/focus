@@ -60,13 +60,13 @@
           placeholder="Search tools..."
           x-model="searchQuery"
           class="text-sm w-full"
-          style="padding-left:2rem;padding-right:0.5rem;padding-top:0.35rem;padding-bottom:0.35rem;background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-md)"
+          style="padding-left:2rem;padding-right:0.5rem;padding-top:0.35rem;padding-bottom:0.35rem;background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-sm)"
         >
       </div>
       {{ sort_dropdown('focus_tools_sort', 'sortTools') }}
       <button
         class="flex items-center text-sm cursor-pointer shrink-0"
-        style="padding:0.35rem 0.5rem;background:var(--surface-2);border:1px solid var(--border);color:var(--text-muted);border-radius:var(--radius-md)"
+        style="padding:0.35rem 0.5rem;background:var(--surface-2);border:1px solid var(--border);color:var(--text-muted);border-radius:var(--radius-sm)"
         @click="reloadTools()"
         x-text="reloading ? 'Reloading...' : 'Reload'"
       ></button>

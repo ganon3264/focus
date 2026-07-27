@@ -6,8 +6,8 @@
     <div class="text-xs text-muted">Visualize and estimate tokens for the outbound prompt.</div>
     <div class="flex items-center gap-3">
       <span
-        class="text-sm font-mono bg-surface-2 px-2 py-1 rounded"
-        style="background: var(--surface-2); border: 1px solid var(--border)"
+        class="text-sm font-mono"
+        style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.35rem 0.75rem"
         title="Uses cl100k_base estimation"
       >
         Tokens: <span class="font-bold text-(--active-text)" x-text="totalTokens">...</span>
@@ -27,8 +27,8 @@
     <template x-for="(msg, i) in messages" :key="i">
       <div
         x-data="{ expanded: false }"
-        class="rounded-md overflow-hidden shrink-0"
-        style="border: 1px solid var(--border)"
+        class="overflow-hidden shrink-0"
+        style="border: 1px solid var(--border); border-radius: var(--radius-sm)"
       >
         <div
           class="px-3 py-2 flex justify-between items-center text-xs font-bold uppercase tracking-wider cursor-pointer select-none"
@@ -54,15 +54,15 @@
             <template x-for="(part, j) in msg.parts" :key="j">
               <div
                 x-show="part.type !== 'reasoning'"
-                :class="part.type !== 'text' ? 'text-(--accent) font-mono text-xs p-2 rounded bg-surface-2 border inline-block w-max' : 'whitespace-pre-wrap'"
-                :style="part.type !== 'text' ? 'background: var(--surface-2); border-color: var(--border);' : ''"
+                :class="part.type !== 'text' ? 'text-(--accent) font-mono text-xs p-2 bg-surface-2 border inline-block w-max' : 'whitespace-pre-wrap'"
+                :style="part.type !== 'text' ? 'background: var(--surface-2); border-color: var(--border); border-radius: var(--radius-sm);' : ''"
                 x-text="part.type !== 'text' ? part.text + ' (' + part.tokens + ' tk)' : part.text"
               ></div>
             </template>
             <template x-for="(part, j) in msg.parts" :key="'r'+j">
               <div x-show="part.type === 'reasoning'" x-data="{ rOpen: false }"
-                class="reasoning-itemizer border-l-2 rounded p-2 mt-1"
-                style="border-color: var(--accent); background: var(--surface-2);">
+                class="reasoning-itemizer border-l-2 p-2 mt-1"
+                style="border-color: var(--accent); background: var(--surface-2); border-radius: var(--radius-sm);">
                 <div class="flex items-center justify-between cursor-pointer select-none text-xs text-muted"
                   @click="rOpen = !rOpen">
                   <span class="font-mono" x-text="'reasoning (' + part.tokens + ' tk)'"></span>
