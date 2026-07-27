@@ -17,6 +17,7 @@ from focus.core.logger import get_logger
 from focus.core.models import ItemizerRequest, StreamRequest
 from focus.core.media import set_image_format
 from focus.core.segments import build_segments
+from focus.core.tracked_fields import TRACKED_FIELDS, build_full_meta, get_field, merge_delta
 from focus.core.utils import (
     AUDIO_TOKEN_ESTIMATE,
     _image_dims_from_data_url,
@@ -160,7 +161,7 @@ async def _run_generation(
         for msg in loop_messages:
             msg.pop("internal", None)
         iter_collected: list[str] = []
-        iter_reasoning: list[str] = []
+        iter_meta: dict[str, Any] = {}  # merged per-field values for this iteration
         tool_calls_list: list | None = None
 
         try:
@@ -171,9 +172,15 @@ async def _run_generation(
                 if event["type"] == "token":
                     iter_collected.append(event["text"])
                     yield {"type": "token", "text": event["text"]}
-                elif event["type"] == "reasoning":
-                    iter_reasoning.append(event["text"])
-                    yield {"type": "reasoning", "text": event["text"]}
+                elif event["type"] == "meta":
+                    name = event["field"]
+                    cfg = TRACKED_FIELDS.get(name)
+                    if cfg:
+                        if cfg["merge"] == "append":
+                            merge_delta(iter_meta.setdefault(name, []), name, event["value"])
+                        elif cfg["merge"] == "index":
+                            merge_delta(iter_meta.setdefault(name, {}), name, event["value"])
+                    yield event  # let _handle_event accumulate + forward to SSE
                 elif event["type"] == "usage":
                     yield {"type": "usage", "usage": event["usage"]}
                 elif event["type"] == "tool_calls":
@@ -198,7 +205,7 @@ async def _run_generation(
         try:
             results = await apply_tool_round(
                 loop_messages, tool_calls_list, tools_by_name, tool_read_only,
-                chat_id, asst_msg_id, variant_id, iter_collected, iter_reasoning,
+                chat_id, asst_msg_id, variant_id, iter_collected, iter_meta,
                 disable_multimodal=disable_multimodal, db=db,
             )
         except Exception as e:
@@ -221,13 +228,12 @@ async def _run_generation(
 class _GenAccumulator:
     """Mutable state shared by both stream and non-stream generation paths.
 
-    Tracks accumulated text, reasoning, slice boundaries at tool iterations,
-    and tool-call groups so that ``build_segments()`` (from
-    ``focus/core/segments.py``) can reconstruct the iteration-by-iteration
-    rendering.
+    Tracks accumulated text, meta fields (reasoning, reasoning_details, etc.),
+    slice boundaries at tool iterations, and tool-call groups so that
+    ``build_segments()`` can reconstruct the iteration-by-iteration rendering.
     """
     text: list[str] = field(default_factory=list)
-    reasoning: list[str] = field(default_factory=list)
+    meta: dict[str, Any] = field(default_factory=dict)
     text_slices: list[int] = field(default_factory=list)
     reasoning_slices: list[int] = field(default_factory=list)
     tool_groups: list[list[dict]] = field(default_factory=list)
@@ -237,12 +243,22 @@ class _GenAccumulator:
     def add_text(self, chunk: str) -> None:
         self.text.append(chunk)
 
-    def add_reasoning(self, chunk: str) -> None:
-        self.reasoning.append(chunk)
+    def add_meta(self, name: str, value: Any) -> None:
+        cfg = TRACKED_FIELDS.get(name)
+        if cfg is None:
+            return
+        if cfg["merge"] == "append":
+            merge_delta(self.meta.setdefault(name, []), name, value)
+        elif cfg["merge"] == "index":
+            merge_delta(self.meta.setdefault(name, {}), name, value)
+
+    def get_meta(self, name: str):
+        return get_field(self.meta.get(name), name)
 
     def begin_tool_iteration(self, tool_calls: list) -> list[dict]:
         self.text_slices.append(len(self.text))
-        self.reasoning_slices.append(len(self.reasoning))
+        reasoning_list = self.meta.get("reasoning", [])
+        self.reasoning_slices.append(len(reasoning_list))
         group = [
             {
                 'id': tc.id,
@@ -267,21 +283,26 @@ class _GenAccumulator:
 
     def close_iteration(self) -> None:
         self.text_slices.append(len(self.text))
-        self.reasoning_slices.append(len(self.reasoning))
+        reasoning_list = self.meta.get("reasoning", [])
+        self.reasoning_slices.append(len(reasoning_list))
 
     def build_segments(self) -> list[dict]:
+        reasoning_list = self.meta.get("reasoning", [])
         return build_segments(
             self.text_slices, self.reasoning_slices,
-            self.text, self.reasoning,
+            self.text, reasoning_list,
             tool_call_groups=self.tool_groups if self.tool_groups else None,
         )
 
     def full_text(self) -> str:
         return "".join(self.text)
 
-    def full_reasoning(self) -> str | None:
-        r = "".join(self.reasoning).strip()
-        return r or None
+    def full_variant_meta(self) -> dict:
+        return build_full_meta(self.meta)
+
+    @property
+    def has_content(self) -> bool:
+        return bool(self.full_text() or self.get_meta("reasoning"))
 
 
 async def _run_generation_with_prefill(
@@ -291,7 +312,7 @@ async def _run_generation_with_prefill(
     if not ctx.provider.echoes_prefill:
         pref_r = prefill_reasoning(ctx.body, ctx.messages)
         if pref_r:
-            yield {"type": "reasoning", "text": pref_r}
+            yield {"type": "meta", "field": "reasoning", "value": pref_r}
         if ctx.body.continue_text:
             yield {"type": "token", "text": ctx.body.continue_text}
 
@@ -311,7 +332,7 @@ async def _finalize_gen(ctx: _GenCtx, acc: _GenAccumulator, *, success: bool = F
     acc.finalized = True
     acc.close_iteration()
     segments = acc.build_segments()
-    has_content = bool(acc.full_text() or acc.full_reasoning())
+    has_content = acc.has_content
 
     if not success and not has_content:
         if not ctx.body.regenerate:
@@ -319,10 +340,11 @@ async def _finalize_gen(ctx: _GenCtx, acc: _GenAccumulator, *, success: bool = F
         return
 
     try:
+        variant_meta_json = json.dumps(acc.full_variant_meta()) if acc.full_variant_meta() else None
         await upsert_variant(
             ctx.body.chat_id, ctx.asst_msg_id, ctx.next_variant_index,
             acc.full_text(), ctx.body.regenerate, ctx.prov_dict.get("model", ""),
-            variant_id=acc.variant_id, reasoning=acc.full_reasoning(),
+            variant_id=acc.variant_id, variant_meta=variant_meta_json,
             segments_json=json.dumps(segments) if segments else None,
             db=ctx.db,
         )
@@ -347,31 +369,39 @@ async def _handle_event(
     if t == "token":
         acc.add_text(event["text"])
         if len(acc.text) % 5 == 0:
+            vm = json.dumps(acc.full_variant_meta()) if acc.full_variant_meta() else None
             await upsert_variant(
                 ctx.body.chat_id, ctx.asst_msg_id, ctx.next_variant_index,
                 acc.full_text(), ctx.body.regenerate, ctx.prov_dict.get("model", ""),
-                variant_id=acc.variant_id, reasoning=acc.full_reasoning(),
+                variant_id=acc.variant_id, variant_meta=vm,
                 db=ctx.db,
             )
         return {"token": event["text"]}
 
-    if t == "reasoning":
-        acc.add_reasoning(event["text"])
-        if len(acc.reasoning) % 5 == 0:
-            await upsert_variant(
-                ctx.body.chat_id, ctx.asst_msg_id, ctx.next_variant_index,
-                acc.full_text(), ctx.body.regenerate, ctx.prov_dict.get("model", ""),
-                variant_id=acc.variant_id, reasoning=acc.full_reasoning(),
-                db=ctx.db,
-            )
-        return {"type": "reasoning", "text": event["text"]}
+    if t == "meta":
+        acc.add_meta(event["field"], event["value"])
+        cfg = TRACKED_FIELDS.get(event["field"])
+        if cfg and cfg["merge"] == "append":
+            vals = acc.meta.get(event["field"], [])
+            if len(vals) % 5 == 0:
+                vm = json.dumps(acc.full_variant_meta()) if acc.full_variant_meta() else None
+                await upsert_variant(
+                    ctx.body.chat_id, ctx.asst_msg_id, ctx.next_variant_index,
+                    acc.full_text(), ctx.body.regenerate, ctx.prov_dict.get("model", ""),
+                    variant_id=acc.variant_id, variant_meta=vm,
+                    db=ctx.db,
+                )
+        if cfg and cfg.get("stream_to_sse"):
+            return {"type": event["field"], "text": event["value"] if cfg["merge"] == "append" else event["value"]}
+        return None
 
     if t == "tool_calls":
         acc.begin_tool_iteration(event["calls"])
+        vm = json.dumps(acc.full_variant_meta()) if acc.full_variant_meta() else None
         await upsert_variant(
             ctx.body.chat_id, ctx.asst_msg_id, ctx.next_variant_index,
             acc.full_text(), ctx.body.regenerate, ctx.prov_dict.get("model", ""),
-            variant_id=acc.variant_id, reasoning=acc.full_reasoning(),
+            variant_id=acc.variant_id, variant_meta=vm,
             db=ctx.db,
         )
         return {
@@ -470,7 +500,7 @@ async def _non_stream_generate(ctx: _GenCtx) -> JSONResponse:
             "variant_index": ctx.next_variant_index,
             "user_message_id": None if ctx.body.regenerate else ctx.user_msg_id,
             "full_text": acc.full_text(),
-            "full_reasoning": acc.full_reasoning(),
+            "variant_meta": acc.full_variant_meta(),
         })
     finally:
         _active_generations.pop(ctx.asst_msg_id, None)

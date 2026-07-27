@@ -6,6 +6,7 @@ from collections.abc import AsyncIterator
 from openai import AsyncOpenAI
 
 from ..core.logger import get_logger
+from ..core.tracked_fields import TRACKED_FIELDS
 from ..core.utils import (
     DEFAULT_MAX_TOKENS,
     DEFAULT_OPENAI_COMPAT_BASE_URL,
@@ -15,7 +16,7 @@ from ..core.utils import (
 from ..tools import ToolCall
 from .base import BaseProvider
 
-logger = get_logger("providers.openai")
+logger = get_logger("providers.openai_compat")
 
 
 class OpenAICompatProvider(BaseProvider):
@@ -132,10 +133,18 @@ class OpenAICompatProvider(BaseProvider):
 
                 delta_obj = chunk.choices[0].delta
                 delta = getattr(delta_obj, "content", None)
-                reasoning = getattr(delta_obj, "reasoning_content", None) or getattr(delta_obj, "reasoning", None)
 
-                if not reasoning and hasattr(delta_obj, "model_extra") and delta_obj.model_extra:
-                    reasoning = delta_obj.model_extra.get("reasoning_content") or delta_obj.model_extra.get("reasoning")
+                # Generic extraction for all tracked fields
+                for field_name, cfg in TRACKED_FIELDS.items():
+                    value = None
+                    for key in cfg["delta_keys"]:
+                        value = getattr(delta_obj, key, None)
+                        if value is None and hasattr(delta_obj, "model_extra") and delta_obj.model_extra:
+                            value = delta_obj.model_extra.get(key)
+                        if value:
+                            break
+                    if value:
+                        yield {"type": "meta", "field": field_name, "value": value}
 
                 # Accumulate tool call deltas
                 raw_tool_calls = getattr(delta_obj, "tool_calls", None)
@@ -152,9 +161,6 @@ class OpenAICompatProvider(BaseProvider):
                             if tc.function.arguments:
                                 tool_calls_acc[idx]["args_parts"].append(tc.function.arguments)
 
-                if reasoning:
-                    yield {"type": "reasoning", "text": reasoning}
-
                 if delta:
                     yield {"type": "token", "text": delta}
 
@@ -170,9 +176,16 @@ class OpenAICompatProvider(BaseProvider):
             ptd = getattr(last_usage, "prompt_tokens_details", None)
             if ptd is not None:
                 usage_dict["cached_tokens"] = getattr(ptd, "cached_tokens", 0) or 0
-            ctd = getattr(last_usage, "completion_tokens_details", None)
-            if ctd is not None:
-                usage_dict["reasoning_tokens"] = getattr(ctd, "reasoning_tokens", 0) or 0
+            # reasoning_tokens: check top-level field, then model_extra (OpenRouter),
+            # then completion_tokens_details (OpenAI native)
+            rt = getattr(last_usage, "reasoning_tokens", None)
+            if rt is None and hasattr(last_usage, "model_extra") and last_usage.model_extra:
+                rt = last_usage.model_extra.get("reasoning_tokens")
+            if rt is None:
+                ctd = getattr(last_usage, "completion_tokens_details", None)
+                if ctd is not None:
+                    rt = getattr(ctd, "reasoning_tokens", 0) or 0
+            usage_dict["reasoning_tokens"] = rt or 0
             extra = getattr(last_usage, "model_extra", None) or {}
             if "cost" in extra:
                 usage_dict["cost"] = extra["cost"]

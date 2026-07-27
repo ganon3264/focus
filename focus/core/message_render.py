@@ -5,7 +5,7 @@ import json
 
 def render_message_segments(
     content: str,
-    reasoning: str | None = None,
+    variant_meta: str | None = None,
     segments_json: str | None = None,
 ) -> list[dict]:
     """Split message content into typed segments for template rendering.
@@ -28,8 +28,13 @@ def render_message_segments(
 
     segments: list[dict] = []
 
-    if reasoning:
-        escaped = escape_html(reasoning.strip())
+    try:
+        vm = json.loads(variant_meta) if variant_meta else {}
+    except (TypeError, ValueError):
+        vm = {}
+    reasoning_text = vm.get("reasoning") if isinstance(vm, dict) else None
+    if reasoning_text:
+        escaped = escape_html(reasoning_text.strip())
         segments.append({"type": "reasoning", "html": escaped, "index": 0})
 
     parts = content.split("%%%TOOL_BOUNDARY%%%")

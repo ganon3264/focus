@@ -6,6 +6,7 @@ from typing import Any
 
 from focus.core.macros import apply_macros
 from focus.core.media import load_media
+from focus.core.tracked_fields import TRACKED_FIELDS
 from focus.core.utils import MACRO_MAX_PASSES, variable_group_name
 
 logger = logging.getLogger("focus.prompt_chain")
@@ -212,7 +213,9 @@ async def assemble_prompt(
         if btype == "text":
             text = apply_macros(block["content"], macros).strip()
             content = await build_content(text, images)
-            if content or block.get("reasoning"):
+            if content or any(
+                block.get(cfg["history_key"]) for cfg in TRACKED_FIELDS.values() if cfg.get("preserve_thinking")
+            ):
                 msg = {"role": block["role"], "content": content}
                 if block["role"] == "assistant" and block.get("reasoning"):
                     msg["reasoning"] = apply_macros(block["reasoning"], macros)
@@ -288,7 +291,9 @@ async def assemble_prompt(
                 text = apply_macros(block["content"], macros).strip()
                 images = block_images.get(block["id"], [])
                 content = await build_content(text, images)
-                if content or (block["role"] == "assistant" and block.get("reasoning")):
+                if content or any(
+                    block.get(cfg["history_key"]) for cfg in TRACKED_FIELDS.values() if cfg.get("preserve_thinking")
+                ):
                     msg = {"role": block["role"], "content": content}
                     if block["role"] == "assistant" and block.get("reasoning"):
                         msg["reasoning"] = apply_macros(block["reasoning"], macros)

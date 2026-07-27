@@ -135,7 +135,7 @@ class MessageVariant:
     content: str = ""
     created_at: str = ""
     model_name: str | None = None
-    reasoning: str | None = None
+    variant_meta: str | None = None
     segments_json: str | None = None
 
     @staticmethod

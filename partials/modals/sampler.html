@@ -708,7 +708,7 @@
       },
       get showReasoningToggle() { return ['openai_compat', 'deepseek', 'moonshot'].includes(this.providerType); },
       get showReasoningEffort() { return this.samplers.include_reasoning && ['openai_compat', 'deepseek', 'moonshot'].includes(this.providerType); },
-      get showPreserveThinking() { return this.samplers.include_reasoning && ['openai_compat', 'moonshot', 'deepseek'].includes(this.providerType); },
+      get showPreserveThinking() { return this.samplers.include_reasoning && ['openai_compat', 'moonshot', 'deepseek', 'openrouter'].includes(this.providerType); },
       get showGoogleReasoning() { return ['google_vertex', 'google_aistudio'].includes(this.providerType); },
       get showSendReasoningHistory() { return ['google_vertex', 'google_aistudio'].includes(this.providerType); },
       get showTopA() { return this.providerType === 'openrouter'; },

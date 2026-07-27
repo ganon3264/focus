@@ -184,12 +184,13 @@ async def edit_message_create_variant(
     now = now_iso()
     new_variant_id = str(uuid.uuid4())
 
-    _segments = render_message_segments(content, reasoning)
+    variant_meta = json.dumps({"reasoning": reasoning}) if reasoning else None
+    _segments = render_message_segments(content, variant_meta)
     _segments_json = json.dumps(_segments) if _segments else None
 
     await db.execute(
-        "INSERT INTO message_variants (id, message_id, variant_index, content, created_at, model_name, reasoning, segments_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        (new_variant_id, message_id, new_index, content, now, prev_model, reasoning, _segments_json),
+        "INSERT INTO message_variants (id, message_id, variant_index, content, created_at, model_name, variant_meta, segments_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        (new_variant_id, message_id, new_index, content, now, prev_model, variant_meta, _segments_json),
     )
 
     for att_id in (attachment_ids or []):
@@ -301,9 +302,9 @@ async def branch_chat(db: aiosqlite.Connection, chat_id: str, message_id: str) -
         for v in variants:
             new_variant_id = str(uuid.uuid4())
             await db.execute(
-                "INSERT INTO message_variants (id, message_id, variant_index, content, created_at, model_name, reasoning, segments_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO message_variants (id, message_id, variant_index, content, created_at, model_name, variant_meta, segments_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 (new_variant_id, new_msg_id, v["variant_index"], v["content"], v["created_at"],
-                 v.get("model_name"), v.get("reasoning"), v.get("segments_json")),
+                 v.get("model_name"), v.get("variant_meta"), v.get("segments_json")),
             )
             async with db.execute("SELECT * FROM message_attachments WHERE variant_id = ?", (v["id"],)) as cur3:
                 attachments = [dict(r) for r in await cur3.fetchall()]
@@ -386,7 +387,7 @@ async def upsert_variant(
     regenerate: bool,
     model_name: str = "",
     variant_id: str | None = None,
-    reasoning: str | None = None,
+    variant_meta: str | None = None,
     segments_json: str | None = None,
     db: aiosqlite.Connection | None = None,
 ) -> str:
@@ -401,14 +402,14 @@ async def upsert_variant(
         if existing:
             vid = existing[0]
             await conn.execute(
-                "UPDATE message_variants SET content = ?, model_name = ?, created_at = ?, reasoning = ?, segments_json = ? WHERE id = ?",
-                (content, model_name or None, save_now, reasoning, segments_json, vid),
+                "UPDATE message_variants SET content = ?, model_name = ?, created_at = ?, variant_meta = ?, segments_json = ? WHERE id = ?",
+                (content, model_name or None, save_now, variant_meta, segments_json, vid),
             )
         else:
             vid = variant_id or str(uuid.uuid4())
             await conn.execute(
-                "INSERT INTO message_variants (id, message_id, variant_index, content, created_at, model_name, reasoning, segments_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                (vid, asst_msg_id, variant_index, content, save_now, model_name or None, reasoning, segments_json),
+                "INSERT INTO message_variants (id, message_id, variant_index, content, created_at, model_name, variant_meta, segments_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (vid, asst_msg_id, variant_index, content, save_now, model_name or None, variant_meta, segments_json),
             )
             if regenerate and variant_index > 0:
                 async with conn.execute("SELECT active_index FROM messages WHERE id = ?", (asst_msg_id,)) as act:
@@ -425,7 +426,7 @@ async def upsert_variant(
                             (str(uuid.uuid4()), chat_id, asst_msg_id, vid, att["file_path"], att["mime_type"], save_now),
                         )
 
-        if content or reasoning:
+        if content or variant_meta:
             await conn.execute(
                 "UPDATE messages SET active_index = ? WHERE id = ?",
                 (variant_index, asst_msg_id),

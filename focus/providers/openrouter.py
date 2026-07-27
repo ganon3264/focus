@@ -64,6 +64,9 @@ class OpenRouterProvider(OpenAICompatProvider):
         include_reasoning = kwargs.pop("include_reasoning", False)
         reasoning_effort = kwargs.pop("reasoning_effort", "")
         thinking_budget = kwargs.pop("thinking_budget", 0)
+        reasoning_context = kwargs.pop("reasoning_context", None)
+        reasoning_mode = kwargs.pop("reasoning_mode", None)
+        kwargs.pop("preserve_thinking", None)
 
         if include_reasoning:
             reasoning = {}
@@ -73,6 +76,10 @@ class OpenRouterProvider(OpenAICompatProvider):
                 reasoning["max_tokens"] = thinking_budget
             else:
                 reasoning["max_tokens"] = 2048
+            if reasoning_context:
+                reasoning["context"] = reasoning_context
+            if reasoning_mode:
+                reasoning["mode"] = reasoning_mode
             extra_body["reasoning"] = reasoning
 
             if self.model.startswith("anthropic/claude"):

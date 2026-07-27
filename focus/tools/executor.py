@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 import logging
+from typing import Any
 
+from focus.core.tracked_fields import attach_to_message
 from focus.tools import ToolResult, build_tool_result
 from focus.db.chats import persist_tool_calls
 
@@ -18,7 +20,7 @@ async def apply_tool_round(
     asst_msg_id: str,
     variant_id: str,
     iter_collected: list[str],
-    iter_reasoning: list[str] | None = None,
+    iter_meta: dict[str, Any] | None = None,
     disable_multimodal: bool = False,
     db: aiosqlite.Connection | None = None,
 ) -> list:
@@ -26,10 +28,8 @@ async def apply_tool_round(
     to loop_messages. Returns the ToolResult list so callers can yield SSE events."""
     asst_text = "".join(iter_collected).strip()
     asst_msg: dict = {"role": "assistant", "content": asst_text or None}
-    if iter_reasoning:
-        reasoning_text = "".join(iter_reasoning).strip()
-        if reasoning_text:
-            asst_msg["reasoning"] = reasoning_text
+    if iter_meta:
+        attach_to_message(asst_msg, iter_meta)
     asst_msg["tool_calls"] = [
         {"id": tc.id, "type": "function",
          "function": {"name": tc.name, "arguments": json.dumps(tc.arguments)}}

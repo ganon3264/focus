@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -125,7 +126,7 @@ async def restore_chat(chat_id: str, _db=Depends(get_db)):
 @router.get("/{chat_id}/messages/{message_id}")
 async def get_message(chat_id: str, message_id: str, _db=Depends(get_db)):
     async with _db.execute(
-        """SELECT mv.content, mv.reasoning, mv.id as variant_id
+        """SELECT mv.content, mv.variant_meta, mv.id as variant_id
            FROM messages m
            JOIN message_variants mv ON mv.message_id = m.id AND mv.variant_index = m.active_index
            WHERE m.id = ? AND m.chat_id = ?""",
@@ -134,6 +135,7 @@ async def get_message(chat_id: str, message_id: str, _db=Depends(get_db)):
         row = await cur.fetchone()
     if not row:
         raise HTTPException(404, "Message not found")
+    row = dict(row)
 
     async with _db.execute(
         "SELECT * FROM message_attachments WHERE variant_id = ? ORDER BY created_at",
@@ -148,7 +150,8 @@ async def get_message(chat_id: str, message_id: str, _db=Depends(get_db)):
         tool_calls_rows = await cur.fetchall()
 
     tool_calls = []
-    for tc in tool_calls_rows:
+    for tc_row in tool_calls_rows:
+        tc = dict(tc_row)
         tool_calls.append({
             "id": tc["id"],
             "type": "function",
@@ -164,7 +167,11 @@ async def get_message(chat_id: str, message_id: str, _db=Depends(get_db)):
             ),
         })
 
-    return {"content": row["content"], "reasoning": row["reasoning"], "attachments": attachments, "tool_calls": tool_calls}
+    try:
+        vm = json.loads(row["variant_meta"]) if row.get("variant_meta") else {}
+    except (TypeError, ValueError):
+        vm = {}
+    return {"content": row["content"], "reasoning": vm.get("reasoning"), "attachments": attachments, "tool_calls": tool_calls}
 
 
 @router.delete("/{chat_id}/messages/{message_id}", status_code=204)

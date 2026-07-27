@@ -34,13 +34,14 @@ window.PROVIDER_SAMPLERS = {
     },
   },
   openrouter: {
-    defaults: { top_k: 0, min_p: 0, repetition_penalty: 1.0 },
+    defaults: { top_k: 0, min_p: 0, repetition_penalty: 1.0, preserve_thinking: "tool_only" },
     build(s) {
       const p = {
         top_k: s.top_k,
         min_p: s.min_p,
         repetition_penalty: s.repetition_penalty,
         include_reasoning: s.include_reasoning,
+        preserve_thinking: s.preserve_thinking,
         top_a: s.top_a,
         ...(s.seed >= 0 ? { seed: s.seed } : {}),
         verbosity: s.verbosity || undefined,

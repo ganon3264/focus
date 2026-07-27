@@ -2,6 +2,7 @@ import asyncio
 import html
 import json
 import logging
+from typing import Any
 
 import aiosqlite
 from fastapi import HTTPException
@@ -9,6 +10,7 @@ from fastapi import HTTPException
 import focus.crud as crud
 from focus.core.card_parser import safe_load_card
 from focus.core.macros import build_base_macros
+from focus.core.tracked_fields import attach_to_message, filter_reasoning_details, strip_thinking
 from focus.core.models import StreamRequest
 from focus.db.chats import (
     bind_attachments_to_message,
@@ -96,6 +98,14 @@ async def _append_history_with_tool_calls(
     # Attach tool_calls if this assistant message had them (keyed by variant_id)
     tcs = tool_calls_by_variant.get(row["variant_id"], [])
 
+    # Parse variant_meta once
+    variant_meta: dict[str, Any] = {}
+    if row.get("variant_meta"):
+        try:
+            variant_meta = json.loads(row["variant_meta"])
+        except (TypeError, ValueError):
+            pass
+
     # Split path: when segments carry per-iteration tool boundaries, rebuild
     # the exact generation order (assistant text -> tool_calls -> tool results
     # -> extra user messages -> assistant reaction) instead of merging all
@@ -110,7 +120,7 @@ async def _append_history_with_tool_calls(
         if segments and any(
             s.get("type") == "tool_boundary" and s.get("tool_calls") for s in segments
         ):
-            _append_segmented_tool_history(history, segments, tcs)
+            _append_segmented_tool_history(history, segments, tcs, variant_meta=variant_meta)
             return
 
     content = await build_content(content_text, msg_attachments.get(row["variant_id"], []))
@@ -119,8 +129,8 @@ async def _append_history_with_tool_calls(
         "role": row["role"],
         "content": content,
     }
-    if row["role"] == "assistant" and row.get("reasoning"):
-        entry["reasoning"] = row["reasoning"]
+    if row["role"] == "assistant":
+        attach_to_message(entry, variant_meta)
 
     if tcs and row["role"] == "assistant":
         entry["tool_calls"] = [_tool_calls_payload(tc) for tc in tcs]
@@ -169,7 +179,7 @@ def _append_tool_messages(history: list, tc: dict) -> None:
         history.append(json.loads(tc["extra_message_json"]))
 
 
-def _append_segmented_tool_history(history: list, segments: list, tcs: list) -> None:
+def _append_segmented_tool_history(history: list, segments: list, tcs: list, variant_meta: dict | None = None) -> None:
     """Rebuild per-iteration history from stored segments.
 
     Each ``tool_boundary`` segment with ``tool_calls`` closes an assistant
@@ -181,13 +191,20 @@ def _append_segmented_tool_history(history: list, segments: list, tcs: list) -> 
     a local uuid as PK, so calls are matched to rows by consumption order
     (boundaries are in generation order; rows are loaded ``ORDER BY
     created_at``), validated by tool name.
+
+    When *variant_meta* is provided, tracked fields are attached only to the
+    first assistant entry (the one carrying the initial tool calls) so each
+    turn retains its own unique reasoning signature and preserve_thinking
+    filtering doesn't strip it.
     """
     ordered = list(tcs)  # already ORDER BY created_at from _get_history
     pos = 0
     text_parts: list[str] = []
     reasoning_parts: list[str] = []
+    meta_attached = False
 
     def flush(group: list | None) -> None:
+        nonlocal meta_attached
         text = "".join(text_parts).strip()
         reasoning = "".join(reasoning_parts).strip()
         if not text and not reasoning and not group:
@@ -195,6 +212,9 @@ def _append_segmented_tool_history(history: list, segments: list, tcs: list) -> 
         entry: dict = {"role": "assistant", "content": text}
         if reasoning:
             entry["reasoning"] = reasoning
+        if variant_meta and not meta_attached:
+            attach_to_message(entry, variant_meta)
+            meta_attached = True
         if group:
             entry["tool_calls"] = [_tool_calls_payload(tc) for tc in group]
         history.append(entry)
@@ -580,12 +600,18 @@ async def prepare_generation_messages(
 
         if mode == "off":
             for msg in messages:
-                if msg.get("role") == "assistant" and msg.get("reasoning"):
-                    msg.pop("reasoning")
+                if msg.get("role") == "assistant":
+                    strip_thinking(msg, "off")
         elif mode == "tool_only":
             for msg in messages:
-                if msg.get("role") == "assistant" and msg.get("reasoning") and not msg.get("tool_calls") and msg.get("content"):
-                    msg.pop("reasoning")
+                if msg.get("role") == "assistant":
+                    strip_thinking(msg, "tool_only")
+
+        prov_type = prov_dict.get("type", "")
+        if prov_type not in ("openrouter",):
+            for msg in messages:
+                if msg.get("role") == "assistant":
+                    filter_reasoning_details(msg, prov_type)
 
     if (body.continue_text is not None or body.continue_reasoning) and body.regenerate and provider.supports_prefill:
         prefill_msg = {"role": "assistant", "content": body.continue_text or ""}

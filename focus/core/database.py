@@ -108,7 +108,9 @@ CREATE TABLE IF NOT EXISTS message_variants (
     created_at    TEXT NOT NULL,
     model_name    TEXT,
     reasoning     TEXT,
-    segments_json TEXT
+    segments_json TEXT,
+    reasoning_details TEXT,
+    variant_meta  TEXT
 );
 
 CREATE TABLE IF NOT EXISTS block_images (
@@ -254,6 +256,23 @@ async def init_db():
             await db.execute("ALTER TABLE message_variants ADD COLUMN reasoning TEXT")
         if "segments_json" not in col_names:
             await db.execute("ALTER TABLE message_variants ADD COLUMN segments_json TEXT")
+        if "reasoning_details" not in col_names:
+            await db.execute("ALTER TABLE message_variants ADD COLUMN reasoning_details TEXT")
+        if "variant_meta" not in col_names:
+            await db.execute("ALTER TABLE message_variants ADD COLUMN variant_meta TEXT")
+            await db.execute("""UPDATE message_variants SET variant_meta = json_object(
+                'reasoning', reasoning,
+                'reasoning_details', CASE WHEN reasoning_details IS NOT NULL THEN json(reasoning_details) ELSE NULL END
+            ) WHERE reasoning IS NOT NULL OR reasoning_details IS NOT NULL""")
+        # Drop deprecated columns — SQLite >=3.35.0
+        try:
+            await db.execute("ALTER TABLE message_variants DROP COLUMN reasoning")
+        except Exception:
+            pass
+        try:
+            await db.execute("ALTER TABLE message_variants DROP COLUMN reasoning_details")
+        except Exception:
+            pass
 
         cols = await db.execute("PRAGMA table_info(settings)")
         col_names = {row[1] for row in await cols.fetchall()}
