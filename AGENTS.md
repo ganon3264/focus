@@ -19,7 +19,7 @@ The opencode container runs on Alpine (musl libc), the host may be glibc. Venv s
 ```
 main.py                    # FastAPI app entry
 focus/                     # Backend
-  core/                    # Database, models, paths, utils, logger, macros, card_parser, message_render, segments, media
+  core/                    # Database, models, paths, utils, logger, macros, card_parser, message_render, segments, media, tracked_fields
   providers/               # LLM providers (openai_compat, openrouter, deepseek, moonshot, google_*)
   routers/                 # API routes (pages, chats, characters, presets, providers, personas, stream, tools, settings, exchange, backup)
   tools/                   # Tool system (builtin, external, helpers, provider_adapter)
@@ -70,15 +70,21 @@ Single source of truth (loaded in `<head>`). 5 fields: `character_id`, `persona_
 
 ### Streaming
 
-SSE events: `start | token | reasoning | tool_calls | tool_result | done`.
+SSE events: `start | token | reasoning | reasoning_details | tool_calls | tool_result | done`.
 
 **Frontend** — `stream-events.js`: `StreamState` per generation, `HANDLERS` dispatch via `dispatchStreamEvent()`. `message-builder.js`: `segmentBuilders` factories (text/reasoning/tool_calls). Finalize with `finalizeStreamRender()`.
 
 **Backend** — `_active_generations` maps `message_id → asyncio.Event`. Stop button calls `POST /api/stop-generation/{message_id}` which sets the event — SSE generator drains gracefully instead of `AbortController.abort()`. Both `_stream_generate` (SSE) and `_non_stream_generate` (JSON) share `_run_generation()`.
 
+**Meta events (generic tracked fields)** — instead of hardcoded `reasoning` event extraction, `openai_compat.py` iterates `TRACKED_FIELDS` and yields `{"type": "meta", "field": name, "value": val}` for each. `_handle_event` dispatches to `_GenAccumulator.add_meta()`, checkpoints to DB every 5 values, and forwards to SSE only if `stream_to_sse` is true (reasoning: yes, reasoning_details: no). Prefill uses `{"type": "meta", "field": "reasoning", "value": text}`.
+
+**`_GenAccumulator`** — `meta: dict` replaces separate `text`/`reasoning` lists. Tracked fields are merged per their `merge` mode (`"append"` → list of strings for reasoning, `"index"` → dict keyed by id/index for reasoning_details). `full_variant_meta()` calls `build_full_meta()` to produce the final JSON. `variant_id` is passed in from `resolve_variant_id()` (or generated via `__post_init__`). `has_content` property checks both text and reasoning.
+
+**`_GenCtx` refactor** — generation context bundles `prompt: PromptCtx` (dataclass with `messages`, `asst_msg_id`, `next_variant_index`, `user_msg_id`) instead of individual fields. `resolve_variant_id()` lives on `_GenCtx` — returns existing variant id for continue (update in-place), new UUID for new messages/swipes.
+
 **Segment rendering** — messages split into `text | reasoning | tool_boundary` typed siblings. `build_segments()` (`focus/core/segments.py`) builds `segments_json` from per-iteration slices, stored in `message_variants`. Never use `fullText` for per-segment rendering. Use `preserveOpenStates()` not `innerHTML` to keep reasoning toggles open.
 
-**History reconstruction** — `_append_history_with_tool_calls()` (stream_utils.py) rebuilds the API payload from `segments_json`: each `tool_boundary` with `tool_calls` closes an assistant chunk, emitting `assistant → tool → extra user message (image)` per iteration, so the post-tool reaction text lands *after* the tool results. Reasoning segments store escaped HTML — unescape with `html.unescape`. Legacy segments (boundary without `tool_calls`) fall back to a single merged assistant entry.
+**History reconstruction** — `_append_history_with_tool_calls()` (stream_utils.py) rebuilds the API payload from `segments_json`: each `tool_boundary` with `tool_calls` closes an assistant chunk, emitting `assistant → tool → extra user message (image)` per iteration, so the post-tool reaction text lands *after* the tool results. Reasoning segments store escaped HTML — unescape with `html.unescape`. Legacy segments (boundary without `tool_calls`) fall back to a single merged assistant entry. Tracked fields from `variant_meta` (JSON column) are attached via `attach_to_message()` instead of a standalone `reasoning` column.
 
 ### Tool system
 
@@ -142,6 +148,17 @@ Controls whether past assistant reasoning fields are sent in multi-turn history.
 - **all** — keep everything
 
 Only matters for DeepSeek, Moonshot, openai_compat with `include_reasoning` on.
+
+### Filter reasoning_details
+
+`filter_reasoning_details(msg, prov_type)` (`focus/core/tracked_fields.py:111`) strips `reasoning_details` items whose `format` prefix (e.g. `"anthropic-claude-v1"`, `"openai-responses-v1"`) doesn't match the current provider. Compatible format prefixes are defined in `_COMPATIBLE_FORMATS`:
+- `openrouter` → `None` (pass everything — OpenRouter handles translation server-side)
+- `openai_compat` → `("openai",)`
+- `deepseek` → `("deepseek",)`
+- `moonshot` → `()` (strip all)
+- `google_aistudio` / `google_vertex` → `("google",)`
+
+Skipped for OpenRouter because OpenRouter strips/translates incompatible `reasoning_details` upstream.
 
 ## Critical gotchas
 
