@@ -141,9 +141,6 @@ class GoogleProviderBase(BaseProvider):
                 )
             except Exception:
                 logger.debug("Failed to serialize debug payload", exc_info=True)
-        if self._candidate_count and self._candidate_count > 1:
-            config.candidate_count = self._candidate_count
-
         stream = await self.client.aio.models.generate_content_stream(
             model=self.model,
             contents=contents,
@@ -152,25 +149,23 @@ class GoogleProviderBase(BaseProvider):
 
         last_usage = None
         async for chunk in stream:
-            if hasattr(chunk, "usage_metadata") and chunk.usage_metadata is not None:
+            if chunk.usage_metadata is not None:
                 last_usage = chunk.usage_metadata
 
-            if not chunk.candidates or not chunk.candidates[0].content or not chunk.candidates[0].content.parts:
-                if chunk.text:
-                    yield {"type": "token", "text": chunk.text}
+            if not chunk.candidates or not chunk.candidates[0].content:
                 continue
 
-            for part in chunk.candidates[0].content.parts:
+            parts = chunk.candidates[0].content.parts
+            if not parts:
+                continue
 
-                is_thought = getattr(part, "thought", False) or (part.text and part.text.startswith("THOUGHT:"))
-
-                if is_thought:
-                    clean_text = part.text.replace("THOUGHT:", "") if part.text else ""
-                    if clean_text:
-                        yield {"type": "reasoning", "text": clean_text}
+            for part in parts:
+                if not part.text:
+                    continue
+                if part.thought:
+                    yield {"type": "meta", "field": "reasoning", "value": part.text}
                 else:
-                    if part.text:
-                        yield {"type": "token", "text": part.text}
+                    yield {"type": "token", "text": part.text}
 
         if last_usage is not None:
             yield {"type": "usage", "usage": {
@@ -211,11 +206,14 @@ class GoogleProviderBase(BaseProvider):
 
     @staticmethod
     def _apply_thinking_config(config: dict, model: str, include_reasoning: bool | None, reasoning_effort: str | None):
+        if isinstance(include_reasoning, str):
+            include_reasoning = include_reasoning.lower() in ("true", "1", "yes")
         if include_reasoning is False:
             config["thinking_config"] = types.ThinkingConfig(include_thoughts=False, thinking_level="minimal")
-        elif include_reasoning or "gemini-3.1" in model or "gemini-2.0-flash-thinking" in model:
+            return
+        if include_reasoning is True or include_reasoning is None:
             config.pop("temperature", None)
-            thinking_kwargs = {"include_thoughts": True}
+            kwargs = {"include_thoughts": True}
             if reasoning_effort:
-                thinking_kwargs["thinking_level"] = reasoning_effort
-            config["thinking_config"] = types.ThinkingConfig(**thinking_kwargs)
+                kwargs["thinking_level"] = reasoning_effort
+            config["thinking_config"] = types.ThinkingConfig(**kwargs)

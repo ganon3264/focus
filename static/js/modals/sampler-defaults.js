@@ -57,7 +57,7 @@ window.PROVIDER_SAMPLERS = {
     },
   },
   google_vertex: {
-    defaults: {},
+    defaults: { include_reasoning: true, reasoning_effort: '' },
     build(s) {
       return {
         top_k: s.top_k,
@@ -68,7 +68,7 @@ window.PROVIDER_SAMPLERS = {
     },
   },
   google_aistudio: {
-    defaults: {},
+    defaults: { include_reasoning: true, reasoning_effort: '' },
     build(s) {
       return {
         top_k: s.top_k,
