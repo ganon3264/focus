@@ -139,7 +139,7 @@ BUILTIN_TOOLS: list[ToolSpec] = [
         category="Built-in",
         description="List files and directories at a given path. Returns names with a type indicator (file/dir).",
         params=[
-            ToolParam(name="path", type="string", description="Absolute path to the directory to list"),
+            ToolParam(name="path", type="string", description="Path to the directory to list."),
         ],
         writes=False,
         handler=list_dir,
@@ -150,7 +150,7 @@ BUILTIN_TOOLS: list[ToolSpec] = [
         description="Read an image file (local path) or fetch an image from a URL and return it as a base64-encoded data URI for the model to view.",
         params=[
             ToolParam(name="path", type="string",
-                      description="Absolute path to an image file, or an http(s) URL pointing to an image"),
+                      description="Path to an image file, or an http(s) URL pointing to an image"),
         ],
         writes=False,
         multimodal=True,

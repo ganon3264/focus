@@ -43,8 +43,8 @@ start.bat           # Windows
 | OpenRouter             | ✓ | ✓| ✓\*| ✓\* | Quantization & provider routing, sticky routing by session ID, Claude caching, (*Model dependent) |
 | Deepseek               | ✓ | ✓ | ✓ |✓ | |
 | Moonshot               | ✓ | ✓ | ✓ | ✓ | `prompt_cache_key` support |
-| Google AI Studio         | | ✓ | ✓ | | |
-| Google Vertex AI         | | ✓ | ✓ | | |
+| Google AI Studio         | ✓ | ✓ | ✓ | | |
+| Google Vertex AI         | ✓ | ✓ | ✓ | | |
 
 ## Features
 
@@ -56,7 +56,7 @@ start.bat           # Windows
 - Basic toolcalling support
   - See [TOOLS.md](TOOLS.md) for custom tools
 - Prefill `reasoning_content` support for toolcalls and more complex presets
-  - Actual support for sending `reasoning_content` back properly if model needs it (encrypted thinking not handled yet/if ever)
+  - Actual support for sending `reasoning_content` back properly if model needs it
 - Preset variables exposed in the UI with switches
 - Supports importing SillyTavern's character cards and presets (limitations apply; some macros aren't implemented)
 

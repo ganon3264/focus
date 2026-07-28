@@ -143,7 +143,7 @@ document.addEventListener('alpine:init', function () {
       openCategories: {},
 
       get providerSupportsTools() {
-        return !['google_aistudio', 'google_vertex'].includes(this.providerType);
+        return this.providerType !== 'no_provider';
       },
 
       get filteredTools() {

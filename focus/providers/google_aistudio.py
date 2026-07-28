@@ -23,7 +23,7 @@ class GoogleAIStudioProvider(GoogleProviderBase):
             models.append({"id": model_id, "name": model_id})
         return models
 
-    def _build_config(self, merged: dict, system_instruction: str | None) -> types.GenerateContentConfig:
+    def _build_config(self, merged: dict, system_instruction: str | None, **kwargs) -> types.GenerateContentConfig:
         include_reasoning = merged.get("include_reasoning", None)
         reasoning_effort = merged.get("reasoning_effort", None)
 
@@ -44,6 +44,13 @@ class GoogleAIStudioProvider(GoogleProviderBase):
             if isinstance(stop, str):
                 stop = [stop]
             config_kwargs["stop_sequences"] = stop
+
+        google_tools = kwargs.get("google_tools")
+        if google_tools:
+            config_kwargs["tools"] = google_tools
+            config_kwargs["tool_config"] = types.ToolConfig(
+                function_calling_config=types.FunctionCallingConfig(mode="AUTO"),
+            )
 
         self._apply_thinking_config(config_kwargs, self.model, include_reasoning, reasoning_effort)
 

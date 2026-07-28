@@ -69,7 +69,7 @@ class GoogleVertexProvider(GoogleProviderBase):
             models.append({"id": model_id, "name": model_id})
         return models
 
-    def _build_config(self, merged: dict, system_instruction: str | None) -> types.GenerateContentConfig:
+    def _build_config(self, merged: dict, system_instruction: str | None, **kwargs) -> types.GenerateContentConfig:
         max_tokens = merged.pop("max_tokens", DEFAULT_MAX_TOKENS)
         temperature = merged.pop("temperature", DEFAULT_TEMPERATURE)
         top_p = merged.pop("top_p", None)
@@ -83,6 +83,13 @@ class GoogleVertexProvider(GoogleProviderBase):
             "max_output_tokens": merged.get("max_output_tokens", max_tokens),
             "safety_settings": VERTEX_SAFETY_OFF,
         }
+
+        google_tools = kwargs.get("google_tools")
+        if google_tools:
+            config_args["tools"] = google_tools
+            config_args["tool_config"] = types.ToolConfig(
+                function_calling_config=types.FunctionCallingConfig(mode="AUTO"),
+            )
 
         self._apply_thinking_config(config_args, self.model, include_reasoning, reasoning_effort)
 
