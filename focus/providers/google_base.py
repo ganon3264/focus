@@ -42,6 +42,7 @@ class GoogleProviderBase(BaseProvider):
 
     def __init__(self, api_key: str, model: str, params: dict):
         super().__init__("", api_key, model, params)
+        self._pending_thought_signatures: dict[str, bytes] = {}
 
     @staticmethod
     def _extract_text(content):
@@ -148,11 +149,15 @@ class GoogleProviderBase(BaseProvider):
                         fc_id = tc["id"]
                         fc_name = tc["function"]["name"]
                         fc_args = json.loads(tc["function"]["arguments"]) if isinstance(tc["function"]["arguments"], str) else tc["function"]["arguments"]
-                        parts.append(
-                            types.Part(function_call=types.FunctionCall(
+                        part_kwargs = {
+                            "function_call": types.FunctionCall(
                                 id=fc_id, name=fc_name, args=fc_args,
-                            ))
-                        )
+                            ),
+                        }
+                        ts = tc.get("_thought_signature")
+                        if ts:
+                            part_kwargs["thought_signature"] = ts
+                        parts.append(types.Part(**part_kwargs))
                         pending_fc_names[fc_id] = fc_name
                 contents.append(types.Content(role="model", parts=parts))
             elif role == "tool":
@@ -166,8 +171,24 @@ class GoogleProviderBase(BaseProvider):
                         response={"result": result_text},
                     ))
                 ]
-                contents.append(types.Content(role="tool", parts=parts))
+                contents.append(types.Content(role="user", parts=parts))
         return system_instruction, contents
+
+    def _inject_pending_signatures(self, messages: list[dict]) -> None:
+        """Inject captured thought_signatures into tool_calls dicts before
+        ``_build_contents`` so that function_call parts carry the signature
+        the Gemini API requires on multi-turn tool requests."""
+        if not self._pending_thought_signatures:
+            return
+        for msg in messages:
+            tcs = msg.get("tool_calls")
+            if not tcs:
+                continue
+            for tc in tcs:
+                ts = self._pending_thought_signatures.pop(tc["id"], None)
+                if ts:
+                    tc["_thought_signature"] = ts
+        self._pending_thought_signatures.clear()
 
     async def _do_stream(self, contents, config):
         if logger.isEnabledFor(logging.DEBUG):
@@ -227,6 +248,8 @@ class GoogleProviderBase(BaseProvider):
                             function_calls_acc[fc_id]["name"] = fc.name
                         if fc.args:
                             function_calls_acc[fc_id]["args"].update(fc.args)
+                        if part.thought_signature:
+                            self._pending_thought_signatures[fc_id] = part.thought_signature
                 if part.text:
                     if part.thought:
                         yield {"type": "meta", "field": "reasoning", "value": part.text}
@@ -260,6 +283,10 @@ class GoogleProviderBase(BaseProvider):
         # Convert tools from OpenAI-compatible payload to Google SDK format
         google_tools = self._to_google_tools(merged.pop("tools", None))
         merged.pop("tool_choice", None)  # unused by Google SDK
+
+        # Stamp thought_signatures from the previous streaming round onto
+        # tool_calls dicts so the Gemini API doesn't reject them.
+        self._inject_pending_signatures(messages)
 
         system_instruction, contents = self._build_contents(messages, merged, last_assistant_idx, True)
 
