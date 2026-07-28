@@ -16,11 +16,19 @@ logger = logging.getLogger("focus.core.tool_media")
 
 
 def _format_ext(fmt: str) -> str:
-    return "png" if fmt == "png" else "webp"
+    if fmt == "png":
+        return "png"
+    if fmt == "jpeg":
+        return "jpg"
+    return "webp"
 
 
 def _format_mime(fmt: str) -> str:
-    return "image/png" if fmt == "png" else "image/webp"
+    if fmt == "png":
+        return "image/png"
+    if fmt == "jpeg":
+        return "image/jpeg"
+    return "image/webp"
 
 
 def persist_tool_image(data_url: str) -> str | None:
@@ -45,6 +53,8 @@ def persist_tool_image(data_url: str) -> str | None:
         buf = BytesIO()
         if fmt == "png":
             img.save(buf, format="PNG", optimize=True)
+        elif fmt == "jpeg":
+            img.save(buf, format="JPEG", quality=85)
         else:
             img.save(buf, format="WEBP", quality=85)
         raw = buf.getvalue()
@@ -84,6 +94,8 @@ def load_tool_image_data_url(rel_path: str) -> str | None:
     buf = BytesIO()
     if fmt == "png":
         img.save(buf, format="PNG", optimize=True)
+    elif fmt == "jpeg":
+        img.save(buf, format="JPEG", quality=85)
     else:
         img.save(buf, format="WEBP", quality=85)
     converted = buf.getvalue()

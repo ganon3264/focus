@@ -191,21 +191,28 @@
     >
       <div class="tree-child">
         <span class="tree-dot"></span>
-        <div class="form-group mb-0 flex items-center justify-between">
-          <div class="flex items-center gap-1">
-            <label
-              class="text-xs mb-0 cursor-pointer"
-              @click="samplers.image_format = samplers.image_format === 'png' ? 'webp' : 'png'; saveStandard()"
-            >PNG Mode</label>
-            {{ hint_tooltip('<span class="hint-warning">Some APIs don\'t play nicely with WebP (llama.cpp for an example). Switch if WebP is causing issues.</span>') }}
+        <div class="form-group mb-0">
+          <label class="flex items-center gap-1 text-xs mb-2">
+            <span>Image Format</span>
+            {{ hint_tooltip('WebP offers the best compression and quality; default in most cases. <span class="hint-warning">PNG/JPEG provided for compatibility with llama.cpp and other providers that don\'t support WebP.</span>') }}
+          </label>
+          <div class="flex gap-2 flex-wrap">
+            <button
+              class="btn-tag"
+              :class="samplers.image_format === 'webp' ? 'active' : ''"
+              @click.stop="samplers.image_format = 'webp'; saveStandard()"
+            >WebP</button>
+            <button
+              class="btn-tag"
+              :class="samplers.image_format === 'png' ? 'active' : ''"
+              @click.stop="samplers.image_format = 'png'; saveStandard()"
+            >PNG</button>
+            <button
+              class="btn-tag"
+              :class="samplers.image_format === 'jpeg' ? 'active' : ''"
+              @click.stop="samplers.image_format = 'jpeg'; saveStandard()"
+            >JPEG</button>
           </div>
-          <div
-            class="arranger-toggle"
-            role="switch"
-            tabindex="0"
-            :class="{ 'active': samplers.image_format === 'png' }"
-            @click="samplers.image_format = samplers.image_format === 'png' ? 'webp' : 'png'; saveStandard()"
-          ></div>
         </div>
       </div>
     </div>

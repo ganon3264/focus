@@ -30,11 +30,19 @@ async def ensure_compressed(orig_path: str, mime: str) -> tuple[Path, str]:
 
 
 def _mime_for(fmt: str) -> str:
-    return "image/png" if fmt == "png" else "image/webp"
+    if fmt == "png":
+        return "image/png"
+    if fmt == "jpeg":
+        return "image/jpeg"
+    return "image/webp"
 
 
 def _ext_for(fmt: str) -> str:
-    return "png" if fmt == "png" else "webp"
+    if fmt == "png":
+        return "png"
+    if fmt == "jpeg":
+        return "jpg"
+    return "webp"
 
 
 def ensure_compressed_sync(
@@ -44,7 +52,8 @@ def ensure_compressed_sync(
 
     Creates a compressed version on disk if missing or stale.
     Caps the longest edge at MAX_IMAGE_DIMENSION before compressing.
-    Defaults to WebP; pass target_format="png" for lossless PNG.
+    Defaults to WebP; pass target_format="png" for lossless PNG,
+    or target_format="jpeg" for lossy JPEG.
     Cache invalidation is by mtime.
     """
     if target_format is None:
@@ -93,6 +102,29 @@ def ensure_compressed_sync(
             if len(base64.b64encode(buf.getvalue()).decode()) <= MAX_IMAGE_B64:
                 cache_path.write_bytes(buf.getvalue())
                 return cache_path, out_mime
+        cache_path.write_bytes(buf.getvalue())
+        return cache_path, out_mime
+
+    if target_format == "jpeg":
+        buf = BytesIO()
+        img.save(buf, format="JPEG", quality=85)
+        if len(base64.b64encode(buf.getvalue()).decode()) <= MAX_IMAGE_B64:
+            cache_path.write_bytes(buf.getvalue())
+            return cache_path, out_mime
+
+        for quality in (80, 65, 50, 35, 20):
+            scale = 1.0
+            while scale > 0.05:
+                scale *= 0.75
+                w = max(1, int(img.width * scale))
+                h = max(1, int(img.height * scale))
+                resized = img.resize((w, h), Image.LANCZOS)
+                buf = BytesIO()
+                resized.save(buf, format="JPEG", quality=quality)
+                if len(base64.b64encode(buf.getvalue()).decode()) <= MAX_IMAGE_B64:
+                    cache_path.write_bytes(buf.getvalue())
+                    return cache_path, out_mime
+
         cache_path.write_bytes(buf.getvalue())
         return cache_path, out_mime
 
