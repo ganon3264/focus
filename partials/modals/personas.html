@@ -15,7 +15,7 @@
         >{{ icon_edit(size=14) }} Editor</a
       >
     </div>
-    <div class="flex gap-2 items-center">
+    <div class="flex gap-2 items-center h-8">
       <div class="flex-1 relative">
         <span
           class="absolute left-2.5 top-1/2 -translate-y-1/2 flex"
@@ -26,7 +26,7 @@
           type="text"
           placeholder="Search personas..."
           oninput="filterPersonas(this.value)"
-          class="text-sm w-full"
+          class="text-sm w-full h-full"
           style="
             padding-left: 2rem;
             padding-right: 0.5rem;
@@ -42,12 +42,12 @@
       {{ sort_dropdown('focus_persona_sort', 'sortPersonas') }}
       <button
         onclick="togglePersonaCompactView()"
-        class="btn btn-secondary btn-sm shrink-0"
+        class="btn btn-secondary btn-sm flex items-center justify-center shrink-0 h-full"
         id="persona-view-toggle-btn"
         title="Toggle compact view"
         aria-label="Toggle compact view"
       >
-        {{ icon_grid(size=14) }}
+        {{ icon_grid(size=16) }}
       </button>
     </div>
   </div>

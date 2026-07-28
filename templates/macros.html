@@ -59,7 +59,7 @@
 {% endmacro %}
 
 {% macro sort_dropdown(storage_key, sort_fn) %}
-<div class="relative shrink-0"
+<div class="relative shrink-0 h-full"
      x-data="{
        open: false,
        active: localStorage.getItem('{{ storage_key }}') || 'newest',
@@ -73,7 +73,7 @@
        }
      }">
   <button type="button" @click="open = !open"
-          class="btn btn-secondary btn-sm flex items-center justify-between gap-1 cursor-pointer">
+           class="btn btn-secondary btn-sm flex items-center justify-between gap-1 cursor-pointer h-full">
     <span x-text="label"></span>
     <span class="text-muted" :class="open ? 'rotate-180' : ''"
           style="transition: transform 0.2s; display: inline-flex;">{{ icon_chevron_down(12) }}</span>
