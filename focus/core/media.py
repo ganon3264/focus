@@ -56,6 +56,7 @@ def ensure_compressed_sync(
     or target_format="jpeg" for lossy JPEG.
     Cache invalidation is by mtime.
     """
+    COMPRESSED_DIR.mkdir(parents=True, exist_ok=True)
     if target_format is None:
         target_format = image_format_var.get()
 
