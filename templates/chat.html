@@ -298,14 +298,6 @@ setTimeout(() => {
 
 <script src="/static/js/ui/theme-manager.js"></script>
 <script>
-window.updateContinueButtons = function() {
-  var type = StateManager.get('provider_type');
-  var isGoogle = type === 'google_aistudio' || type === 'google_vertex';
-  document.querySelectorAll('.continue-btn').forEach(function(btn) {
-    btn.classList.toggle('hidden', isGoogle);
-  });
-};
-
 StateManager.on('provider-changed', function() {
   if (window.updateContinueButtons) window.updateContinueButtons();
 });
@@ -369,40 +361,6 @@ window.selectPersona = function(el) {
   el.classList.add('active');
 };
 
-window.handleSwipeNext = function(event, msgId) {
-  try {
-    var res = JSON.parse(event.detail.xhr.response);
-    var sb = document.getElementById('message-' + msgId);
-    if (res.needs_generation) {
-      var ct = sb.querySelector('.swipe-counter');
-      if (ct) ct.textContent = (res.next_variant_index + 1) + '/' + (res.next_variant_index + 1);
-      var chatId = sb.closest('[data-chat-id]') ? sb.closest('[data-chat-id]').dataset.chatId : '';
-      window.triggerGeneration(chatId, sb, true);
-    } else {
-      var chatId = sb.closest('[data-chat-id]') ? sb.closest('[data-chat-id]').dataset.chatId : '';
-      window.refreshSingleMessage(chatId, msgId);
-    }
-  } catch(e) {
-    var sb = document.getElementById('message-' + msgId);
-    var chatId = sb && sb.closest('[data-chat-id]') ? sb.closest('[data-chat-id]').dataset.chatId : '';
-    window.refreshSingleMessage(chatId, msgId);
-  }
-};
-
-window.toggleReasoning = function(btn) {
-  const msg = btn.closest('.msg') || btn.closest('.message');
-  if (!msg) return;
-  const block = msg.querySelector('.reasoning-block:not(.details)');
-  if (!block) return;
-  const content = block.querySelector('.reasoning-content');
-  const isOpen = !msg.classList.contains('reasoning-open');
-  if (isOpen && content && !content.classList.contains('processed')) {
-    content.innerHTML = DOMPurify.sanitize(marked.parse(content.textContent || '', { breaks: true }));
-    content.classList.add('processed');
-  }
-  if (content) content.classList.toggle('hidden', !isOpen);
-  msg.classList.toggle('reasoning-open', isOpen);
-};
 function toggleSidebar(side) {
   document.getElementById(side + '-sidebar').classList.toggle('collapsed');
   document.getElementById(side + '-tab').classList.toggle('hidden');

@@ -6,7 +6,7 @@
       type="checkbox"
       class="w-5 h-5 accent-(--accent) rounded border-(--border) cursor-pointer msg-select-checkbox"
       value="{{ message.id }}"
-      onchange="updateDeleteSelection()"
+      data-action="actionUpdateDeleteSelection"
     />
   </div>
   <div class="message-body">
@@ -46,7 +46,7 @@
             {% endif %}
             {% if message.position != 0 and has_reasoning %}
             <button
-              onclick="toggleReasoning(this)"
+              data-action="actionToggleReasoning"
               class="reasoning-toggle-btn inline-flex items-center gap-1 text-muted hover:text-[--text] transition-colors cursor-pointer"
               style="background:none;border:none;padding:0;font:inherit"
               aria-label="Toggle reasoning"
@@ -79,7 +79,7 @@
           hx-post="/api/chats/{{ chat_id }}/messages/{{ message.id }}/swipe"
           hx-vals='{"direction":"prev"}'
           hx-swap="none"
-          hx-on:htmx:after-request="refreshSingleMessage(this.closest('[data-chat-id]').dataset.chatId, this.closest('[data-message-id]').dataset.messageId)"
+          hx-on:htmx:after-request="actionSwipePrev(event, this)"
         >
           {{ icon_chevron_left() }}
         </button>
@@ -91,7 +91,7 @@
           hx-post="/api/chats/{{ chat_id }}/messages/{{ message.id }}/swipe"
           hx-vals='{"direction":"next"}'
           hx-swap="none"
-          hx-on:htmx:after-request="window.handleSwipeNext(event, '{{ message.id }}')"
+          hx-on:htmx:after-request="actionSwipeNext(event, this)"
         >
           {{ icon_chevron_right() }}
         </button>
@@ -102,7 +102,7 @@
           class="action-btn"
           title="Regenerate"
           aria-label="Regenerate"
-          onclick="window.triggerGeneration(this.closest('[data-chat-id]').dataset.chatId, this.closest('.message'), true)"
+          data-action="actionTriggerRegeneration"
         >
           {{ icon_refresh() }}
         </button>
@@ -110,7 +110,7 @@
           class="action-btn continue-btn"
           title="Continue"
           aria-label="Continue"
-           onclick="window.triggerGeneration(this.closest('[data-chat-id]').dataset.chatId, this.closest('.message'), true, this.closest('.message').dataset.rawContent||'', this.closest('.message').dataset.rawReasoning||'')"
+          data-action="actionContinueGeneration"
         >
           {{ icon_forward() }}
         </button>
@@ -119,7 +119,7 @@
           class="action-btn"
           title="Branch from here"
           aria-label="Branch from this message"
-          onclick="branchFromMessage(this.closest('[data-message-id]').dataset.messageId, this.closest('[data-chat-id]').dataset.chatId)"
+          data-action="actionBranchMessage"
         >
           {{ icon_branch() }}
         </button>
@@ -127,7 +127,7 @@
           class="action-btn"
           title="Edit"
           aria-label="Edit message"
-          onclick="editMessage(this.closest('[data-message-id]').dataset.messageId, this.closest('[data-chat-id]').dataset.chatId)"
+          data-action="actionEditMessage"
         >
           {{ icon_edit() }}
         </button>
@@ -135,7 +135,7 @@
           class="action-btn text-danger"
           title="Delete mode"
           aria-label="Delete messages"
-          onclick="enterDeleteMode(this.closest('[data-message-id]').dataset.messageId)"
+          data-action="actionEnterDeleteMode"
         >
           {{ icon_trash() }}
         </button>

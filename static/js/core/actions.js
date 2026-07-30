@@ -167,3 +167,63 @@ window.actionUploadCharMedia = function (el) {
 window.actionUploadPersonaMedia = function (el) {
   uploadPersonaMedia(el);
 };
+
+/* Message toolbar action adapters — bridge between data-action
+   and message-level generation/branch/edit/delete functions. */ 
+
+window.actionTriggerRegeneration = function (el) {
+  var msg = el.closest('.message');
+  var chatId = msg.dataset.chatId;
+  window.triggerGeneration(chatId, msg, true);
+};
+
+window.actionContinueGeneration = function (el) {
+  var msg = el.closest('.message');
+  var chatId = msg.dataset.chatId;
+  window.triggerGeneration(chatId, msg, true,
+    msg.dataset.rawContent || '', msg.dataset.rawReasoning || '');
+};
+
+window.actionBranchMessage = function (el) {
+  var msg = el.closest('.message');
+  window.branchFromMessage(msg.dataset.messageId, msg.dataset.chatId);
+};
+
+window.actionEditMessage = function (el) {
+  var msg = el.closest('.message');
+  window.editMessage(msg.dataset.messageId, msg.dataset.chatId);
+};
+
+window.actionEnterDeleteMode = function (el) {
+  var msg = el.closest('.message');
+  window.enterDeleteMode(msg.dataset.messageId);
+};
+
+window.actionToggleReasoning = function (el) {
+  var msg = el.closest('.message');
+  if (!msg) return;
+  var block = msg.querySelector('.reasoning-block:not(.details)');
+  if (!block) return;
+  var content = block.querySelector('.reasoning-content');
+  var isOpen = !msg.classList.contains('reasoning-open');
+  if (isOpen && content && !content.classList.contains('processed')) {
+    content.innerHTML = DOMPurify.sanitize(marked.parse(content.textContent || '', { breaks: true }));
+    content.classList.add('processed');
+  }
+  if (content) content.classList.toggle('hidden', !isOpen);
+  msg.classList.toggle('reasoning-open', isOpen);
+};
+
+window.actionUpdateDeleteSelection = function () {
+  updateDeleteSelection();
+};
+
+window.actionSwipePrev = function (event, el) {
+  var msg = el.closest('.message');
+  window.refreshSingleMessage(msg.dataset.chatId, msg.dataset.messageId);
+};
+
+window.actionSwipeNext = function (event, el) {
+  var msgId = el.closest('[data-message-id]').dataset.messageId;
+  window.handleSwipeNext(event, msgId);
+};

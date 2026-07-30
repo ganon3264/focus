@@ -11,86 +11,6 @@
 
   if (!sendBtn || !input || !messageList) return;
 
-  function _setGeneratingUI(generating) {
-    if (generating) {
-      sendBtn.classList.add('hidden');
-      stopBtn.classList.remove('hidden');
-      var fu = document.getElementById('file-upload');
-      if (fu) fu.disabled = true;
-    } else {
-      window._generating = false;
-      window._streamingMessageId = null;
-      currentController = null;
-      sendBtn.classList.remove('hidden');
-      stopBtn.classList.add('hidden');
-      var fu = document.getElementById('file-upload');
-      if (fu) fu.disabled = false;
-    }
-  }
-
-  function _clearStaleContent(asstDiv, continueText, continueReasoning) {
-    if (!asstDiv) return;
-    var staleCalls = asstDiv.querySelectorAll('.tool-calls-stream');
-    for (var si = 0; si < staleCalls.length; si++) staleCalls[si].remove();
-    var staleSections = asstDiv.querySelectorAll('.tool-calls-section');
-    for (var si = 0; si < staleSections.length; si++) staleSections[si].remove();
-
-    var staleBlocks = asstDiv.querySelectorAll('.reasoning-block');
-    for (var k = 0; k < staleBlocks.length; k++) staleBlocks[k].remove();
-
-    var reasoningBtn = asstDiv.querySelector('.reasoning-toggle-btn');
-    if (reasoningBtn) reasoningBtn.classList.add('hidden');
-    asstDiv.classList.remove('reasoning-open');
-
-    // Spinner may be missing because swipe/continue reuse server HTML which has no spinner
-    var spinner = asstDiv.querySelector('.message-spinner');
-    if (!spinner) {
-      spinner = document.createElement('div');
-      spinner.className = 'message-spinner';
-      asstDiv.appendChild(spinner);
-    }
-    spinner.classList.remove('hidden');
-
-    if (continueText || continueReasoning) {
-      var contentDiv = asstDiv.querySelector('.message-content');
-      if (!contentDiv) {
-        contentDiv = document.createElement('div');
-        contentDiv.className = 'message-content markdown-content processed pl-stream';
-        var bodyEl = asstDiv.querySelector('.message-body');
-        if (bodyEl) bodyEl.appendChild(contentDiv);
-      }
-      if (continueText) {
-        var pulse = document.createElement('span');
-        pulse.className = 'gen-pulse';
-        contentDiv.appendChild(pulse);
-      }
-    } else {
-      var contentDivs = asstDiv.querySelectorAll('.message-content');
-      for (var j = 0; j < contentDivs.length; j++) contentDivs[j].remove();
-    }
-  }
-
-  async function _uploadAttachments(chatId, isRegen) {
-    if (isRegen || !window.stagedFiles || window.stagedFiles.length === 0) return [];
-    var filesToUpload = Array.prototype.slice.call(window.stagedFiles);
-    var formData = new FormData();
-    filesToUpload.forEach(function (f) { formData.append('files', f); });
-    try {
-      var res = await fetch(window.api.chatAttachments(chatId), { method: 'POST', body: formData });
-      if (res.ok) {
-        var data = await res.json();
-        dbg('Uploaded %d attachments, ids=%o', data.attachments.length, data.attachments);
-        if (window.clearUploadedFiles) window.clearUploadedFiles(filesToUpload);
-        return data.attachments.map(function (a) { return a.id; });
-      }
-      console.error('[stream] Upload failed with status', res.status);
-    } catch (e) {
-      console.error('[stream] Upload failed', e);
-    }
-    if (window.clearUploadedFiles) window.clearUploadedFiles(filesToUpload);
-    return [];
-  }
-
   async function _handleNonStream(json, state) {
     state.fullText = json.full_text || '';
     state.messageId = json.message_id;
@@ -177,8 +97,8 @@
       currentController = null;
     }
 
-    _setGeneratingUI(true);
-    _clearStaleContent(asstDiv, continueText, continueReasoning);
+    setGeneratingUI(true);
+    clearStaleContent(asstDiv, continueText, continueReasoning);
 
     var state = new window.StreamState(chatId, asstDiv, isRegen, continueText, continueReasoning);
     currentController = state.controller;
@@ -189,7 +109,7 @@
     var attachmentIds = [];
 
     try {
-      attachmentIds = await _uploadAttachments(chatId, isRegen);
+      attachmentIds = await window.uploadStagedAttachments(chatId, isRegen);
 
       dbg('Request body: user_message=%s, regenerate=%s, attachment_ids=%o, stagedFiles=%d',
         window._tempUserMessage || '', isRegen, attachmentIds, window.stagedFiles ? window.stagedFiles.length : 0);
@@ -228,7 +148,8 @@
       if (!useStream) {
         var json = await res.json();
         await _handleNonStream(json, state);
-        _setGeneratingUI(false);
+        setGeneratingUI(false);
+        currentController = null;
         return;
       }
 
@@ -272,7 +193,8 @@
     } catch (err) {
       await _handleStreamError(err, state);
     } finally {
-      _setGeneratingUI(false);
+      setGeneratingUI(false);
+      currentController = null;
     }
   };
 
@@ -352,18 +274,6 @@
     }
   };
 
-  window._postSwapProcess = function (container) {
-    if (!container) return;
-    container.querySelectorAll('.markdown-content:not(.processed)').forEach(function (el) {
-      el.innerHTML = window.renderMessage(el.textContent || '');
-      el.classList.add('processed');
-    });
-    if (window.syncReasoningButtons) window.syncReasoningButtons(container);
-    if (typeof updateSendButtonState === 'function') updateSendButtonState();
-    if (typeof updateContinueButtons === 'function') updateContinueButtons();
-    window.ensureSentinelAndObserver();
-  };
-
   document.addEventListener('DOMContentLoaded', function () {
     var els = document.querySelectorAll('.markdown-content');
     for (var i = 0; i < els.length; i++) {
@@ -385,7 +295,7 @@
 
   document.body.addEventListener('htmx:afterSwap', function (evt) {
     if (evt.detail.target.id === 'message-list') {
-      window._postSwapProcess(evt.detail.target);
+      window.postSwapProcess(evt.detail.target);
     }
   });
 })();

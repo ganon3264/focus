@@ -138,4 +138,24 @@
       }
     });
   }
+
+  window.uploadStagedAttachments = async function (chatId, isRegen) {
+    if (isRegen || !window.stagedFiles || window.stagedFiles.length === 0) return [];
+    var filesToUpload = Array.prototype.slice.call(window.stagedFiles);
+    var formData = new FormData();
+    filesToUpload.forEach(function (f) { formData.append('files', f); });
+    try {
+      var res = await fetch(window.api.chatAttachments(chatId), { method: 'POST', body: formData });
+      if (res.ok) {
+        var data = await res.json();
+        if (window.clearUploadedFiles) window.clearUploadedFiles(filesToUpload);
+        return data.attachments.map(function (a) { return a.id; });
+      }
+      console.error('[file-staging] Upload failed with status', res.status);
+    } catch (e) {
+      console.error('[file-staging] Upload failed', e);
+    }
+    if (window.clearUploadedFiles) window.clearUploadedFiles(filesToUpload);
+    return [];
+  };
 })();

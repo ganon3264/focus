@@ -36,4 +36,19 @@
     }
   }
   window.preserveOpenStates = preserveOpenStates;
+
+  window.toggleReasoning = function (btn) {
+    const msg = btn.closest('.msg') || btn.closest('.message');
+    if (!msg) return;
+    const block = msg.querySelector('.reasoning-block:not(.details)');
+    if (!block) return;
+    const content = block.querySelector('.reasoning-content');
+    const isOpen = !msg.classList.contains('reasoning-open');
+    if (isOpen && content && !content.classList.contains('processed')) {
+      content.innerHTML = DOMPurify.sanitize(marked.parse(content.textContent || '', { breaks: true }));
+      content.classList.add('processed');
+    }
+    if (content) content.classList.toggle('hidden', !isOpen);
+    msg.classList.toggle('reasoning-open', isOpen);
+  };
 })();

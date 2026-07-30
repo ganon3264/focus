@@ -72,10 +72,15 @@
 
   HANDLERS.reasoning = function (state, data) {
     var seg = _findOrCreateSegment(state, 'reasoning', function () {
-      var idx = 0;
+      var rcCount = 0;
       for (var i = 0; i < state.segments.length; i++) {
-        if (state.segments[i].type === 'reasoning') idx++;
+        if (state.segments[i].type === 'reasoning') rcCount++;
       }
+      // If this is the first reasoning block and non-reasoning
+      // segments arrived first, use self-collapsible details (idx > 0)
+      // instead of header-controlled div (idx = 0)
+      var hasPrecedingContent = rcCount === 0 && state.segments.some(function (s) { return s.type !== 'reasoning'; });
+      var idx = hasPrecedingContent ? 1 : rcCount;
       return window.segmentBuilders.reasoning(idx);
     });
     seg.text = (seg.text || '') + (data.text || '');
@@ -133,6 +138,26 @@
     if (state.messageId) {
       state.asstDiv.id = 'message-' + state.messageId;
       state.asstDiv.dataset.messageId = state.messageId;
+    }
+  };
+
+  window.handleSwipeNext = function (event, msgId) {
+    try {
+      var res = JSON.parse(event.detail.xhr.response);
+      var sb = document.getElementById('message-' + msgId);
+      if (res.needs_generation) {
+        var ct = sb.querySelector('.swipe-counter');
+        if (ct) ct.textContent = (res.next_variant_index + 1) + '/' + (res.next_variant_index + 1);
+        var chatId = sb.closest('[data-chat-id]') ? sb.closest('[data-chat-id]').dataset.chatId : '';
+        window.triggerGeneration(chatId, sb, true);
+      } else {
+        var chatId = sb.closest('[data-chat-id]') ? sb.closest('[data-chat-id]').dataset.chatId : '';
+        window.refreshSingleMessage(chatId, msgId);
+      }
+    } catch(e) {
+      var sb = document.getElementById('message-' + msgId);
+      var chatId = sb && sb.closest('[data-chat-id]') ? sb.closest('[data-chat-id]').dataset.chatId : '';
+      window.refreshSingleMessage(chatId, msgId);
     }
   };
 })();

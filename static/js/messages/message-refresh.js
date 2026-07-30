@@ -62,7 +62,7 @@
     }
 
     _refreshChatList(chatId);
-    if (window._postSwapProcess) window._postSwapProcess(document.getElementById('message-list'));
+    if (window.postSwapProcess) window.postSwapProcess(document.getElementById('message-list'));
   }
 
   async function refreshMessagesAfterStream(chatId, userMsgId, asstMsgId) {

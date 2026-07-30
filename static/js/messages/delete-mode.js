@@ -75,7 +75,7 @@
             var listResp = await fetch(window.api.partials.messageList(chatId));
             if (listResp.ok) {
               document.getElementById('message-list').innerHTML = await listResp.text();
-              window._postSwapProcess(document.getElementById('message-list'));
+              window.postSwapProcess(document.getElementById('message-list'));
             }
           } catch (e) {
             console.error('Failed to refresh message list', e);
