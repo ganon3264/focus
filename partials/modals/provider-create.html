@@ -82,11 +82,20 @@
         <span class="opacity-50">{{ icon_search() }}</span>
       </button>
     </div>
+    <template id="prov-form-or-options-init">
+      <div id="prov-form-route-wrapper">{{ custom_select(name="or_route", id="prov-form-or-route", options=[{"value": "", "label": "Auto (Any)"}], selected="", on_change="refreshNoFallbacksVisibility('prov-form')", extra_classes="form-control text-sm w-full") }}</div>
+      <div id="prov-form-or-no-fallbacks-row" class="form-group mb-0 flex items-center justify-between hidden">
+        <label class="text-xs mb-0 cursor-pointer" onclick="toggleNoFallbacks('prov-form')">Lock provider (no fallbacks)</label>
+        <div class="arranger-toggle active" role="switch" tabindex="0" id="prov-form-or-no-fallbacks-toggle" onclick="toggleNoFallbacks('prov-form')"></div>
+        <input type="hidden" name="or_no_fallbacks" id="prov-form-or-no-fallbacks" value="true" />
+      </div>
+      <div id="prov-form-quant-wrapper">{{ custom_select(name="or_quant", id="prov-form-or-quant", options=[{"value": "", "label": "Any"}], selected="", extra_classes="form-control text-sm w-full") }}</div>
+    </template>
 
     <div class="form-group mb-0">
       <label>Provider Routing</label>
       <div id="prov-form-route-wrapper">
-        {{ custom_select(name="or_route", id="prov-form-or-route", options=[{"value": "", "label": "Auto (Any)"}], selected="", extra_classes="form-control text-sm w-full") }}
+        {{ custom_select(name="or_route", id="prov-form-or-route", options=[{"value": "", "label": "Auto (Any)"}], selected="", on_change="refreshNoFallbacksVisibility('prov-form')", extra_classes="form-control text-sm w-full") }}
       </div>
     </div>
     <div

@@ -8,10 +8,11 @@ from jinja2 import FileSystemLoader
 
 import focus.crud as crud
 from focus.core.database import get_db
-from focus.core.logger import DEBUG_MODE
+from focus.core.logger import DEBUG_MODE, get_logger
 from focus.core.macros import MACRO_DEFINITIONS, SPECIAL_TOKENS, apply_macros, build_base_macros
 from focus.core.message_render import render_message_segments
 from focus.core.utils import variable_group_name
+from focus.routers.providers import _fetch_or_endpoints
 from focus.prompt_chain import partition_blocks, resolve_variable_blocks
 
 router = APIRouter()
@@ -507,6 +508,42 @@ async def providers_modal_partial(request: Request, db: aiosqlite.Connection = D
             "request": request,
             "providers": providers,
             "secrets": secrets_present,
+        },
+    )
+
+
+@router.get("/partials/providers/openrouter-options/{model:path}", response_class=HTMLResponse)
+async def get_openrouter_options_partial(
+    request: Request,
+    model: str,
+    route: str = "",
+    quant: str = "",
+):
+    try:
+        endpoints = await _fetch_or_endpoints(model)
+    except Exception:
+        return HTMLResponse(
+            "<div class='text-sm text-danger'>Failed to load options</div>",
+            status_code=500,
+        )
+
+    providers = sorted({ep["provider_name"] for ep in endpoints if ep.get("provider_name")})
+    route_options = [{"value": "", "label": "Auto (Any)"}] + [{"value": p, "label": p} for p in providers]
+
+    quants = sorted({
+        ep["quantization"] for ep in endpoints
+        if ep.get("quantization") and ep["quantization"] != "unknown"
+    })
+    quant_options = [{"value": "", "label": "Any"}] + [{"value": q, "label": q} for q in quants]
+
+    return templates.TemplateResponse(
+        request,
+        "providers-openrouter-options.html",
+        {
+            "route_options": route_options,
+            "selected_route": route,
+            "quant_options": quant_options,
+            "selected_quant": quant,
         },
     )
 

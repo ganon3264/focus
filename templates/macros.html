@@ -5,22 +5,28 @@
 {% set current_label = found[0].label if found else "— Select —" %}
 
 <div class="relative w-full"
-     x-data="{
-        open: false,
-        selectedValue: '{{ selected | replace("'", "\\'") }}',
-        selectedLabel: '{{ _js_str(current_label) }}'
-     }"
-     x-effect="
-        const item = $el.closest('.arranger-item');
-        if (item) {
-            if (open) {
-                item.style.position = 'relative';
-                item.style.zIndex = '50';
-            } else {
-                item.style.zIndex = '';
-            }
-        }
-     ">
+      x-data="{
+         open: false,
+         selectedValue: '{{ selected | replace("'", "\\'") }}',
+         selectedLabel: '{{ _js_str(current_label) }}',
+         init() {
+           this.$el.addEventListener('custom-select:set', (e) => {
+             this.selectedValue = e.detail.value;
+             this.selectedLabel = e.detail.label || e.detail.value;
+           });
+         }
+      }"
+      x-effect="
+         const item = $el.closest('.arranger-item');
+         if (item) {
+             if (open) {
+                 item.style.position = 'relative';
+                 item.style.zIndex = '50';
+             } else {
+                 item.style.zIndex = '';
+             }
+         }
+      ">
 
   <input type="hidden" name="{{ name }}" id="{{ id }}" :value="selectedValue"
          @change.stop="{{ on_change }}">
@@ -37,6 +43,7 @@
       {% for opt in options %}
       <div class="px-3 py-2 cursor-pointer transition-colors duration-150 {{ extra_classes }}"
            :class="{ 'text-[var(--accent)] font-medium': selectedValue === '{{ opt.value | replace("'", "\\'") }}' }"
+           data-value="{{ opt.value }}"
            {% if not loop.last %}style="border-bottom: 1px solid var(--border);"{% endif %}
            @click="
              selectedValue = '{{ opt.value | replace("'", "\\'") }}';

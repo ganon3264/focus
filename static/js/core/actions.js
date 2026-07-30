@@ -56,10 +56,6 @@ window.actionOpenProviderCreateModal = function () {
   openProviderCreateModal();
 };
 
-window.actionOpenProviderEditModal = function (el) {
-  openProviderEditModal(el.dataset.provId);
-};
-
 window.actionSubmitProviderForm = function (el, e) {
   submitProviderForm(el, e);
 };

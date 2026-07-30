@@ -149,7 +149,7 @@ function selectFetchedModel(id, name) {
       display.textContent = name || id;
       display.classList.remove('text-muted');
     }
-    updateOpenRouterOptions(prefix, id);
+    _fetchOROptions(id, '', '');
   } else {
     const input = document.getElementById('model-text-' + prefix);
     if (input) input.value = id;
@@ -158,99 +158,22 @@ function selectFetchedModel(id, name) {
   document.getElementById('modal-fetch-models').classList.add('hidden');
 }
 
-function renderMacroSelect(name, id, options, selectedValue) {
-  let selectedLabel = '— Select —';
-  for (let o of options) {
-    if (o.value === selectedValue) selectedLabel = o.label;
+function _fetchOROptions(modelId, selectedRoute, selectedQuant) {
+  var url = '/partials/providers/openrouter-options/' + encodeURIComponent(modelId);
+  if (selectedRoute || selectedQuant) {
+    url += '?route=' + encodeURIComponent(selectedRoute || '') + '&quant=' + encodeURIComponent(selectedQuant || '');
   }
-  const escapedLabel = selectedLabel.replace(/'/g, "\\'");
-
-  let optionsHtml = '';
-  options.forEach((opt, idx) => {
-    const isFirst = idx === 0;
-    const escOptLabel = opt.label.replace(/'/g, "\\'");
-    optionsHtml += `
-     <div class="px-3 py-2 cursor-pointer transition-colors duration-150 form-control text-sm w-full"
-          ${isFirst ? '' : 'style="border-top: 1px solid var(--border);"'}
-          onmouseover="this.style.background='var(--surface-3)'"
-          onmouseout="this.style.background='transparent'"
-          @click="
-            selectedValue = '${opt.value}';
-            selectedLabel = '${escOptLabel}';
-            open = false;
-            $nextTick(() => {
-                const el = document.getElementById('${id}');
-                el.value = selectedValue;
-                el.dispatchEvent(new Event('change', { bubbles: true }));
-            });
-          "
-     >
-       ${opt.label}
-     </div>
-    `;
-  });
-
-  return `
-    <div class="relative w-full" x-data="{ open: false, selectedValue: '${selectedValue}', selectedLabel: '${escapedLabel}' }">
-      <input type="hidden" name="${name}" id="${id}" :value="selectedValue">
-      <button type="button" @click="open = !open" class="flex justify-between items-center text-left w-full form-control text-sm w-full" style="cursor: pointer;">
-         <span x-text="selectedLabel" class="truncate font-medium"></span>
-         <span class="text-xs text-muted" style="transition: transform 0.2s;" :style="open ? 'transform: rotate(180deg);' : ''">▼</span>
-      </button>
-      <div x-show="open" @click.away="open = false" x-transition.opacity.duration.200ms
-           class="absolute top-full left-0 right-0 mt-1 z-50 max-h-60 overflow-y-auto"
-           style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); display: none;">
-         ${optionsHtml}
-      </div>
-    </div>
-  `;
-}
-
-async function updateOpenRouterOptions(prefix, modelId, selectedRoute, selectedQuant) {
-  if (!modelId) return;
-
-  try {
-    const res = await fetch(api.providerOREndpoint(modelId));
-    if (!res.ok) throw new Error('Failed to fetch endpoints');
-    const data = await res.json();
-
-    const endpoints = data.data?.endpoints || [];
-
-    const routeOptions = [{ value: '', label: 'Auto (Any)' }];
-    const providers = new Set();
-    endpoints.forEach((ep) => {
-      if (ep.provider_name) providers.add(ep.provider_name);
+  fetch(url)
+    .then(function (r) { return r.text(); })
+    .then(function (html) {
+      var temp = document.createElement('div');
+      temp.innerHTML = html;
+      ['prov-form-route-wrapper', 'prov-form-or-no-fallbacks-row', 'prov-form-quant-wrapper'].forEach(function (id) {
+        var newEl = temp.querySelector('#' + id);
+        var oldEl = document.getElementById(id);
+        if (newEl && oldEl) oldEl.replaceWith(newEl);
+      });
     });
-    providers.forEach((p) => {
-      routeOptions.push({ value: p, label: p });
-    });
-
-    const quantOptions = [{ value: '', label: 'Any' }];
-    const quants = new Set();
-    endpoints.forEach((ep) => {
-      if (ep.quantization && ep.quantization !== 'unknown') quants.add(ep.quantization);
-    });
-    quants.forEach((q) => {
-      quantOptions.push({ value: q, label: q });
-    });
-
-    var routeVal = selectedRoute || '';
-    var routeLabel = routeVal || 'Auto (Any)';
-    var quantVal = selectedQuant || '';
-    var quantLabel = quantVal || 'Any';
-
-    const rWrap = document.getElementById(prefix + '-route-wrapper');
-    if (rWrap) {
-      rWrap.innerHTML = renderMacroSelect('or_route', prefix + '-or-route', routeOptions, routeVal);
-      const routeInput = document.getElementById(prefix + '-or-route');
-      if (routeInput) routeInput.addEventListener('change', function () { refreshNoFallbacksVisibility(prefix); });
-    }
-
-    const qWrap = document.getElementById(prefix + '-quant-wrapper');
-    if (qWrap) qWrap.innerHTML = renderMacroSelect('or_quant', prefix + '-or-quant', quantOptions, quantVal);
-  } catch (err) {
-    console.error(err);
-  }
 }
 
 function toggleNoFallbacks(prefix) {
@@ -400,11 +323,25 @@ window.openProviderCreateModal = function () {
   openModal('modal-provider-create');
 };
 
+window.setSelectValue = function (inputId, value) {
+  var input = document.getElementById(inputId);
+  if (!input) return;
+  input.value = value;
+  var container = input.closest('[x-data]');
+  if (container) {
+    var label = value;
+    var opt = container.querySelector('[data-value="' + value.replace(/"/g, '\\"') + '"]');
+    if (opt) label = opt.textContent.trim();
+    container.dispatchEvent(new CustomEvent('custom-select:set', {
+      detail: { value: value, label: label },
+    }));
+  }
+};
+
 function resetProviderForm() {
   var form = document.getElementById('provider-form');
   if (form) form.reset();
-  _setAlpineSelectValue('prov-form-type', 'openai_compat');
-  _setAlpineSelectValue('prov-form-vertex-region', 'global');
+  setSelectValue('prov-form-type', 'openai_compat');
   document.getElementById('prov-form-edit-id').value = '';
   document.getElementById('prov-form-params').value = '{}';
   document.getElementById('api-key-input-prov-form').value = '';
@@ -416,16 +353,21 @@ function resetProviderForm() {
   var nfInput = document.getElementById('prov-form-or-no-fallbacks');
   if (nfToggle) nfToggle.classList.add('active');
   if (nfInput) nfInput.value = 'true';
-  var rWrap = document.getElementById('prov-form-route-wrapper');
-  if (rWrap) rWrap.innerHTML = renderMacroSelect('or_route', 'prov-form-or-route', [{value: '', label: 'Auto (Any)'}], '');
-  var qWrap = document.getElementById('prov-form-quant-wrapper');
-  if (qWrap) qWrap.innerHTML = renderMacroSelect('or_quant', 'prov-form-or-quant', [{value: '', label: 'Any'}], '');
+  var init = document.getElementById('prov-form-or-options-init');
+  if (init) {
+    var clone = init.content.cloneNode(true);
+    ['prov-form-route-wrapper', 'prov-form-or-no-fallbacks-row', 'prov-form-quant-wrapper'].forEach(function (id) {
+      var oldEl = document.getElementById(id);
+      var newEl = clone.querySelector('#' + id);
+      if (oldEl && newEl) oldEl.replaceWith(newEl);
+    });
+  }
   toggleProviderFields('prov-form');
 }
 
 function populateProviderForm(data) {
   document.getElementById('prov-form-name').value = data.name || '';
-  _setAlpineSelectValue('prov-form-type', data.type || 'openai_compat');
+  setSelectValue('prov-form-type', data.type || 'openai_compat');
   document.getElementById('prov-form-base-url').value = data.base_url || '';
   toggleProviderFields('prov-form');
   var params = {};
@@ -450,9 +392,6 @@ function populateProviderForm(data) {
     var savedQuant = params.or_quant || '';
     var savedNoFallbacks = params.or_no_fallbacks !== false;
     if (data.model) {
-      // Set values on default components immediately (no flash)
-      _setAlpineSelectValue('prov-form-or-route', savedRoute);
-      _setAlpineSelectValue('prov-form-or-quant', savedQuant);
       var nfToggle = document.getElementById('prov-form-or-no-fallbacks-toggle');
       var nfInput = document.getElementById('prov-form-or-no-fallbacks');
       if (nfToggle && nfInput) {
@@ -460,45 +399,15 @@ function populateProviderForm(data) {
         nfInput.value = savedNoFallbacks ? 'true' : 'false';
       }
       refreshNoFallbacksVisibility('prov-form');
-      // Then fetch live options in background (replaces with correct values)
-      updateOpenRouterOptions('prov-form', data.model, savedRoute, savedQuant);
+      _fetchOROptions(data.model, savedRoute, savedQuant);
     }
   } else {
     document.getElementById('model-text-prov-form').value = data.model || '';
   }
   if (data.type === 'google_vertex') {
     document.getElementById('prov-form-vertex-project-id').value = params.vertex_project_id || '';
-    _setAlpineSelectValue('prov-form-vertex-region', params.vertex_region || 'global');
+    setSelectValue('prov-form-vertex-region', params.vertex_region || 'global');
   }
-}
-
-function _setAlpineSelectValue(inputId, value) {
-  var input = document.getElementById(inputId);
-  if (!input) return;
-  input.value = value;
-  var container = input.closest('[x-data]');
-  if (container && window.Alpine) {
-    try {
-      var data = Alpine.$data(container);
-      data.selectedValue = value;
-      var label = _findOptionLabel(container, value);
-      if (label) data.selectedLabel = label;
-    } catch (e) {}
-  }
-}
-
-function _findOptionLabel(container, value) {
-  var escaped = value.replace(/'/g, "\\'");
-  var items = container.querySelectorAll('[\\@click]');
-  for (var i = 0; i < items.length; i++) {
-    var attr = items[i].getAttribute('@click');
-    if (attr && attr.indexOf("selectedValue = '" + escaped + "'") !== -1) {
-      var match = attr.match(/selectedLabel\s*=\s*'([^']*?)'/);
-      if (match) return match[1];
-      return items[i].textContent.trim();
-    }
-  }
-  return null;
 }
 
 function _saveListPref(key, value) {
@@ -551,13 +460,6 @@ async function fetchProviderBalances() {
 }
 
 setTimeout(() => {
-  const routeSelect = document.getElementById('prov-form-or-route');
-  if (routeSelect && !routeSelect.dataset.nfInit) {
-    routeSelect.addEventListener('change', function () {
-      refreshNoFallbacksVisibility('prov-form');
-    });
-    routeSelect.dataset.nfInit = '1';
-  }
   const activeId = StateManager.get('provider_id');
   const activeType = StateManager.get('provider_type');
   if (activeId) setActiveProvider(activeId, '', activeType);

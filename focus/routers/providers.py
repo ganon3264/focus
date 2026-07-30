@@ -41,51 +41,6 @@ async def list_providers(_db=Depends(get_db)):
         return out
 
 
-@router.get("/{provider_id}")
-async def get_provider(provider_id: str, _db=Depends(get_db)):
-    async with _db.execute(
-        "SELECT id, name, type, base_url, api_key, model, params_json, created_at FROM providers WHERE id = ?",
-        (provider_id,),
-    ) as cur:
-        row = await cur.fetchone()
-    if not row:
-        raise HTTPException(404, "Provider not found")
-    d = dict(row)
-    ak = d.get("api_key") or ""
-    if ak and not ak.startswith("SECRET:"):
-        d["api_key"] = "__HIDDEN__"
-    elif not ak:
-        d["api_key"] = ""
-    return d
-
-
-@router.patch("/{provider_id}")
-async def update_provider(
-    provider_id: str,
-    body: dict,
-    _db=Depends(get_db),
-):
-    updates = {k: v for k, v in body.items() if k in {"name", "base_url", "api_key", "model", "params_json"}}
-
-    if "api_key" in updates and not updates["api_key"]:
-        del updates["api_key"]
-
-    if "params" in body:
-        updates["params_json"] = json.dumps(body["params"])
-    if not updates:
-        return {"ok": True}
-
-    await db.update_provider(_db, provider_id, updates)
-    await _db.commit()
-    return {"ok": True}
-
-
-@router.delete("/{provider_id}", status_code=204)
-async def delete_provider(provider_id: str, _db=Depends(get_db)):
-    await db.delete_provider(_db, provider_id)
-    await _db.commit()
-
-
 _model_cache = TTLCache()
 _or_cache = TTLCache()
 _balance_cache = TTLCache(ttl=60)
@@ -98,6 +53,13 @@ class FetchModelsRequest(BaseModel):
     params: dict = {}
     provider_id: str | None = None
 
+
+class SecretUpdate(BaseModel):
+    name: str
+    value: str
+
+
+# ── Literal-path routes (must register BEFORE /{provider_id}) ──
 
 @router.post("/fetch_models")
 async def fetch_models(body: FetchModelsRequest, _db=Depends(get_db)):
@@ -168,23 +130,27 @@ async def get_openrouter_models():
         raise HTTPException(500, f"Failed to fetch models: {str(e)}")
 
 
+async def _fetch_or_endpoints(model: str) -> list:
+    """Fetch OpenRouter endpoints for a model. Returns list of endpoint dicts."""
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            f"https://openrouter.ai/api/v1/models/{model}/endpoints",
+            timeout=10,
+        )
+        if resp.status_code == 404:
+            return []
+        resp.raise_for_status()
+        return resp.json().get("data", {}).get("endpoints", [])
+
+
 @router.get("/openrouter/endpoints/{model:path}")
 async def get_openrouter_endpoints(model: str):
     try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(f"https://openrouter.ai/api/v1/models/{model}/endpoints")
-            if resp.status_code == 404:
-                return {"data": {"endpoints": []}}
-            resp.raise_for_status()
-            return resp.json()
+        endpoints = await _fetch_or_endpoints(model)
+        return {"data": {"endpoints": endpoints}}
     except Exception as e:
         logger.exception("Failed to fetch openrouter endpoints for model %s", model)
         raise HTTPException(500, f"Failed to fetch endpoints: {str(e)}")
-
-
-class SecretUpdate(BaseModel):
-    name: str
-    value: str
 
 
 @router.post("/secrets")
@@ -210,6 +176,53 @@ async def delete_secret(name: str, _db=Depends(get_db)):
     await db.delete_secret(_db, name)
     await _db.commit()
     return {"ok": True}
+
+
+# ── Parameterised routes (provider_id-based) ──
+
+@router.get("/{provider_id}")
+async def get_provider(provider_id: str, _db=Depends(get_db)):
+    async with _db.execute(
+        "SELECT id, name, type, base_url, api_key, model, params_json, created_at FROM providers WHERE id = ?",
+        (provider_id,),
+    ) as cur:
+        row = await cur.fetchone()
+    if not row:
+        raise HTTPException(404, "Provider not found")
+    d = dict(row)
+    ak = d.get("api_key") or ""
+    if ak and not ak.startswith("SECRET:"):
+        d["api_key"] = "__HIDDEN__"
+    elif not ak:
+        d["api_key"] = ""
+    return d
+
+
+@router.patch("/{provider_id}")
+async def update_provider(
+    provider_id: str,
+    body: dict,
+    _db=Depends(get_db),
+):
+    updates = {k: v for k, v in body.items() if k in {"name", "base_url", "api_key", "model"}}
+
+    if "api_key" in updates and not updates["api_key"]:
+        del updates["api_key"]
+
+    if "params" in body:
+        updates["params_json"] = json.dumps(body["params"])
+    if not updates:
+        return {"ok": True}
+
+    await db.update_provider(_db, provider_id, updates)
+    await _db.commit()
+    return {"ok": True}
+
+
+@router.delete("/{provider_id}", status_code=204)
+async def delete_provider(provider_id: str, _db=Depends(get_db)):
+    await db.delete_provider(_db, provider_id)
+    await _db.commit()
 
 
 BALANCE_CONFIG = {
