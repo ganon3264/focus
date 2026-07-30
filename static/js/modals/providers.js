@@ -1,10 +1,10 @@
 var PROVIDER_FIELD_CONFIG = {
   openrouter: {
     orFields: true,
-    modelInput: false,
+    modelInput: true,
     baseUrl: false,
     vertexFields: false,
-    modelRequired: false,
+    modelRequired: true,
   },
   google_vertex: {
     orFields: false,
@@ -134,6 +134,7 @@ async function forceFetchModels() {
     window.dispatchEvent(new CustomEvent('models-error', { detail: err.message }));
   }
 }
+window.forceFetchModels = forceFetchModels;
 
 function selectFetchedModel(id, name) {
   const prefix = window._currentFetchPrefix;
@@ -141,18 +142,10 @@ function selectFetchedModel(id, name) {
 
   const type = document.getElementById(prefix + '-type')?.value;
 
+  const input = document.getElementById('model-text-' + prefix);
+  if (input) input.value = id;
   if (type === 'openrouter') {
-    const input = document.getElementById('or-model-input-' + prefix);
-    if (input) {
-      input.value = id;
-      const display = document.getElementById('or-model-display-' + prefix);
-      display.textContent = name || id;
-      display.classList.remove('text-muted');
-    }
     _fetchOROptions(id, '', '');
-  } else {
-    const input = document.getElementById('model-text-' + prefix);
-    if (input) input.value = id;
   }
 
   document.getElementById('modal-fetch-models').classList.add('hidden');
@@ -208,7 +201,6 @@ function extractData(form) {
   const type = data.type || form.querySelector('input[name="type"]').value;
 
   if (type === 'openrouter') {
-    data.model = data.or_model;
     if (!data.model) {
       alert('Please select an OpenRouter model.');
       throw new Error('Model required');
@@ -254,7 +246,6 @@ function extractData(form) {
     }
   }
 
-  delete data.or_model;
   delete data.or_route;
   delete data.or_quant;
   delete data.or_no_fallbacks;
@@ -323,7 +314,7 @@ window.openProviderCreateModal = function () {
   openModal('modal-provider-create');
 };
 
-window.setSelectValue = function (inputId, value) {
+function setSelectValue(inputId, value) {
   var input = document.getElementById(inputId);
   if (!input) return;
   input.value = value;
@@ -346,22 +337,10 @@ function resetProviderForm() {
   document.getElementById('prov-form-params').value = '{}';
   document.getElementById('api-key-input-prov-form').value = '';
   document.getElementById('api-key-display-prov-form').innerHTML = '<span class="text-muted">Select API Key...</span>';
-  document.getElementById('or-model-input-prov-form').value = '';
-  document.getElementById('or-model-display-prov-form').textContent = 'Select Model...';
-  document.getElementById('or-model-display-prov-form').classList.add('text-muted');
   var nfToggle = document.getElementById('prov-form-or-no-fallbacks-toggle');
   var nfInput = document.getElementById('prov-form-or-no-fallbacks');
   if (nfToggle) nfToggle.classList.add('active');
   if (nfInput) nfInput.value = 'true';
-  var init = document.getElementById('prov-form-or-options-init');
-  if (init) {
-    var clone = init.content.cloneNode(true);
-    ['prov-form-route-wrapper', 'prov-form-or-no-fallbacks-row', 'prov-form-quant-wrapper'].forEach(function (id) {
-      var oldEl = document.getElementById(id);
-      var newEl = clone.querySelector('#' + id);
-      if (oldEl && newEl) oldEl.replaceWith(newEl);
-    });
-  }
   toggleProviderFields('prov-form');
 }
 
@@ -383,11 +362,8 @@ function populateProviderForm(data) {
     document.getElementById('api-key-display-prov-form').innerHTML = 'Raw Key (Hidden)';
     document.getElementById('api-key-display-prov-form').classList.remove('text-muted');
   }
+  document.getElementById('model-text-prov-form').value = data.model || '';
   if (data.type === 'openrouter') {
-    document.getElementById('or-model-input-prov-form').value = data.model || '';
-    var display = document.getElementById('or-model-display-prov-form');
-    display.textContent = data.model || 'Select Model...';
-    display.classList.toggle('text-muted', !data.model);
     var savedRoute = params.or_route || '';
     var savedQuant = params.or_quant || '';
     var savedNoFallbacks = params.or_no_fallbacks !== false;
@@ -401,8 +377,6 @@ function populateProviderForm(data) {
       refreshNoFallbacksVisibility('prov-form');
       _fetchOROptions(data.model, savedRoute, savedQuant);
     }
-  } else {
-    document.getElementById('model-text-prov-form').value = data.model || '';
   }
   if (data.type === 'google_vertex') {
     document.getElementById('prov-form-vertex-project-id').value = params.vertex_project_id || '';

@@ -39,7 +39,7 @@ eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'modals', 
   assertEqual(data.api_key, 'sk-test-123', 'openai_compat: api_key preserved');
   assertEqual(data.model, 'gpt-4', 'openai_compat: model preserved');
   assertDeepEqual(data.params, { temperature: 0.7 }, 'openai_compat: params parsed');
-  assert(!data.or_model, 'openai_compat: or_model deleted');
+  assert(!data.or_model, 'openai_compat: or_model absent');
   assert(!data.or_route, 'openai_compat: or_route deleted');
 })();
 
@@ -55,17 +55,16 @@ eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'modals', 
   var form = createMockForm({
     name: 'OR',
     type: 'openrouter',
-    or_model: 'anthropic/claude-3',
+    model: 'anthropic/claude-3',
     or_route: 'fallback',
     or_quant: 'fp16',
     params: '{}',
   });
   var data = extractData(form);
-  assertEqual(data.model, 'anthropic/claude-3', 'openrouter: model from or_model');
+  assertEqual(data.model, 'anthropic/claude-3', 'openrouter: model preserved');
   assertEqual(data.base_url, 'https://openrouter.ai/api/v1', 'openrouter: base_url set');
   assertEqual(data.params.or_route, 'fallback', 'openrouter: or_route in params');
   assertEqual(data.params.or_quant, 'fp16', 'openrouter: or_quant in params');
-  assert(!data.or_model, 'openrouter: or_model deleted');
   assert(!data.or_route, 'openrouter: or_route deleted');
   assert(!data.or_quant, 'openrouter: or_quant deleted');
 })();
@@ -75,7 +74,7 @@ eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'modals', 
   var form = createMockForm({
     name: 'OR Simple',
     type: 'openrouter',
-    or_model: 'openai/gpt-4o',
+    model: 'openai/gpt-4o',
     or_route: '',
     or_quant: '',
     params: '{}',
@@ -88,7 +87,7 @@ eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'modals', 
 
 // ── openrouter — no model alert ──
 (function () {
-  var form = createMockForm({ name: 'Bad OR', type: 'openrouter', or_model: '' });
+  var form = createMockForm({ name: 'Bad OR', type: 'openrouter', model: '' });
   var alerted = false;
   global.alert = function () { alerted = true; };
   var threw = false;
@@ -103,7 +102,7 @@ eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'modals', 
   var form = createMockForm({
     name: 'OR',
     type: 'openrouter',
-    or_model: 'model',
+    model: 'model',
     params: 'not-json',
   });
   var data = extractData(form);

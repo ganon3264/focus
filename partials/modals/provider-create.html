@@ -68,30 +68,8 @@
     </div>
   </div>
 
-  <!-- OpenRouter Dynamic Fields -->
+  <!-- OpenRouter Dynamic Fields (route, no-fallbacks, quant — model uses shared input above) -->
   <div id="prov-form-or-fields" class="hidden flex-col gap-3">
-    <div class="form-group mb-0">
-      <label>Model</label>
-      <input type="hidden" name="or_model" id="or-model-input-prov-form" value="" />
-      <button
-        type="button"
-        class="form-control text-sm w-full flex justify-between items-center cursor-pointer"
-        onclick="openFetchModelModal('prov-form')"
-      >
-        <span id="or-model-display-prov-form" class="truncate text-muted">Select Model...</span>
-        <span class="opacity-50">{{ icon_search() }}</span>
-      </button>
-    </div>
-    <template id="prov-form-or-options-init">
-      <div id="prov-form-route-wrapper">{{ custom_select(name="or_route", id="prov-form-or-route", options=[{"value": "", "label": "Auto (Any)"}], selected="", on_change="refreshNoFallbacksVisibility('prov-form')", extra_classes="form-control text-sm w-full") }}</div>
-      <div id="prov-form-or-no-fallbacks-row" class="form-group mb-0 flex items-center justify-between hidden">
-        <label class="text-xs mb-0 cursor-pointer" onclick="toggleNoFallbacks('prov-form')">Lock provider (no fallbacks)</label>
-        <div class="arranger-toggle active" role="switch" tabindex="0" id="prov-form-or-no-fallbacks-toggle" onclick="toggleNoFallbacks('prov-form')"></div>
-        <input type="hidden" name="or_no_fallbacks" id="prov-form-or-no-fallbacks" value="true" />
-      </div>
-      <div id="prov-form-quant-wrapper">{{ custom_select(name="or_quant", id="prov-form-or-quant", options=[{"value": "", "label": "Any"}], selected="", extra_classes="form-control text-sm w-full") }}</div>
-    </template>
-
     <div class="form-group mb-0">
       <label>Provider Routing</label>
       <div id="prov-form-route-wrapper">
