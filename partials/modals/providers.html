@@ -1,4 +1,4 @@
-{% from "macros.html" import icon_key, icon_edit, icon_refresh, icon_database, icon_plus, icon_close, sort_dropdown %}
+{% from "macros.html" import icon_key, icon_edit, icon_refresh, icon_search, icon_database, icon_plus, icon_close, sort_dropdown %}
 <div class="flex flex-col h-full overflow-y-auto">
   <div class="flex justify-between items-center gap-2 mb-3" style="padding-bottom: 0.75rem;">
     <h3 class="sidebar-title mb-0">Select Active Provider</h3>
@@ -173,6 +173,32 @@
        <div class="mt-2 text-right">
          <button type="button" class="btn btn-danger btn-sm" @click="clearKey()">Clear Key</button>
        </div>
+    </div>
+  </div>
+</div>
+
+<!-- Option Selection Modal (route / quant picker) -->
+<div id="modal-select-option" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-label="Select option" style="z-index: var(--z-modal-sub);"
+     x-data="{ search: '', options: [], title: 'Select', select(value, label) { $dispatch('option-selected', { value: value, label: label }); } }"
+     data-action="actionCloseModals">
+  <div class="modal-content" style="max-width: 400px; width: 95vw; max-height: 60vh; overflow: hidden; background: var(--surface); padding: 0;">
+    <div class="modal-header p-4" style="margin-bottom: 0; border-bottom: 1px solid var(--border);">
+      <div class="modal-title" x-text="title"></div>
+      <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-select-option')" aria-label="Close">{{ icon_close(16) }}</button>
+    </div>
+    <div class="p-4" style="background: var(--surface-2); border-bottom: 1px solid var(--border);">
+      <input type="text" x-model="search" placeholder="Search..." class="form-control" autocomplete="off" autofocus>
+    </div>
+    <div class="flex-1 overflow-y-auto p-2" style="max-height: 40vh; background: var(--surface);">
+      <template x-for="opt in options.filter(o => o.label.toLowerCase().includes(search.toLowerCase()))" :key="opt.value">
+        <div class="p-3 cursor-pointer rounded-md transition-colors hover:bg-[var(--surface-3)]"
+             @click="select(opt.value, opt.label); document.getElementById('modal-select-option').classList.add('hidden')">
+          <span x-text="opt.label" class="text-sm"></span>
+        </div>
+      </template>
+      <div x-show="options.length === 0" class="p-4 text-center text-muted text-sm">
+        No options available. Select an OpenRouter model first.
+      </div>
     </div>
   </div>
 </div>

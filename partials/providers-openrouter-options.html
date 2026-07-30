@@ -1,8 +1,0 @@
-{% from "macros.html" import custom_select %}
-<div id="prov-form-route-wrapper">{{ custom_select(name="or_route", id="prov-form-or-route", options=route_options, selected=selected_route, on_change="refreshNoFallbacksVisibility('prov-form')", extra_classes="form-control text-sm w-full") }}</div>
-<div id="prov-form-or-no-fallbacks-row" class="form-group mb-0 flex items-center justify-between{% if not selected_route %} hidden{% endif %}">
-  <label class="text-xs mb-0 cursor-pointer" onclick="toggleNoFallbacks('prov-form')">Lock provider (no fallbacks)</label>
-  <div class="arranger-toggle active" role="switch" tabindex="0" id="prov-form-or-no-fallbacks-toggle" onclick="toggleNoFallbacks('prov-form')"></div>
-  <input type="hidden" name="or_no_fallbacks" id="prov-form-or-no-fallbacks" value="true" />
-</div>
-<div id="prov-form-quant-wrapper">{{ custom_select(name="or_quant", id="prov-form-or-quant", options=quant_options, selected=selected_quant, extra_classes="form-control text-sm w-full") }}</div>

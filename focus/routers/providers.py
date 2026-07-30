@@ -112,24 +112,6 @@ async def fetch_models(body: FetchModelsRequest, _db=Depends(get_db)):
         raise HTTPException(500, f"Failed to fetch models: {str(e)}")
 
 
-@router.get("/openrouter/models")
-async def get_openrouter_models():
-    cached = await _or_cache.get("models")
-    if cached is not None:
-        return cached
-
-    try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.get("https://openrouter.ai/api/v1/models")
-            resp.raise_for_status()
-            data = resp.json()
-            await _or_cache.set("models", data)
-            return data
-    except Exception as e:
-        logger.exception("Failed to fetch openrouter models")
-        raise HTTPException(500, f"Failed to fetch models: {str(e)}")
-
-
 async def _fetch_or_endpoints(model: str) -> list:
     """Fetch OpenRouter endpoints for a model. Returns list of endpoint dicts."""
     async with httpx.AsyncClient() as client:

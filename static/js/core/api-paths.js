@@ -3,10 +3,6 @@ window.api = {
   chat: function (id) {
     return '/api/chats/' + id;
   },
-  chatRestore: function (id) {
-    return '/api/chats/' + id + '/restore';
-  },
-  chatTrash: '/api/chats/trash',
   chatAttachments: function (chatId) {
     return '/api/chats/' + chatId + '/attachments';
   },
@@ -30,12 +26,8 @@ window.api = {
     return '/api/characters/' + id;
   },
   charImport: '/api/characters/import',
-  charTrash: '/api/characters/trash',
   charRestore: function (charId, delChats) {
     return '/api/characters/' + charId + '/restore?restore_chats=' + delChats;
-  },
-  charHardDelete: function (charId) {
-    return '/api/characters/' + charId + '?hard=true';
   },
   charDelete: function (charId, deleteChats) {
     return '/api/characters/' + charId + '?delete_chats=' + deleteChats;
@@ -79,7 +71,6 @@ window.api = {
   preset: function (id) {
     return '/api/presets/' + id;
   },
-  presetImport: '/api/presets/import',
   presetBlocks: function (presetId) {
     return '/api/presets/' + presetId + '/blocks';
   },
@@ -98,10 +89,6 @@ window.api = {
     return '/api/providers/' + id;
   },
   providerFetchModels: '/api/providers/fetch_models',
-  providerORModels: '/api/providers/openrouter/models',
-  providerOREndpoint: function (modelId) {
-    return '/api/providers/openrouter/endpoints/' + encodeURIComponent(modelId);
-  },
   providerBalance: function (id) {
     return '/api/providers/' + id + '/balance';
   },
@@ -116,7 +103,6 @@ window.api = {
   },
   activeProvider: '/api/settings/active-provider',
   stream: '/api/stream',
-  itemize: '/api/itemize',
 
   cleanDb: '/api/db/clean',
   backups: '/api/backups',

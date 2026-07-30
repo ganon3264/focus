@@ -9,11 +9,9 @@ eval(require('fs').readFileSync(path.join(__dirname, '..', '..', 'static', 'js',
 // ── String constants ──
 assertEqual(api.chats, '/api/chats', 'api.chats');
 assertEqual(api.charImport, '/api/characters/import', 'api.charImport');
-assertEqual(api.charTrash, '/api/characters/trash', 'api.charTrash');
 assertEqual(api.presets, '/api/presets', 'api.presets');
 assertEqual(api.providers, '/api/providers', 'api.providers');
 assertEqual(api.stream, '/api/stream', 'api.stream');
-assertEqual(api.itemize, '/api/itemize', 'api.itemize');
 assertEqual(api.export, '/api/export', 'api.export');
 assertEqual(api.import_, '/api/import', 'api.import_');
 assertEqual(api.cleanDb, '/api/db/clean', 'api.cleanDb');
@@ -32,7 +30,6 @@ assertEqual(api.chatBranch('c1', 'm1'), '/api/chats/c1/messages/m1/branch', 'api
 assertEqual(api.characters('ch1'), '/api/characters/ch1', 'api.characters');
 assertEqual(api.charRestore('ch1', true), '/api/characters/ch1/restore?restore_chats=true', 'api.charRestore with true');
 assertEqual(api.charRestore('ch1', false), '/api/characters/ch1/restore?restore_chats=false', 'api.charRestore with false');
-assertEqual(api.charHardDelete('ch1'), '/api/characters/ch1?hard=true', 'api.charHardDelete');
 assertEqual(api.charDelete('ch1', true), '/api/characters/ch1?delete_chats=true', 'api.charDelete with true');
 assertEqual(api.charDelete('ch1', false), '/api/characters/ch1?delete_chats=false', 'api.charDelete with false');
 assertEqual(api.charImages('ch1'), '/api/characters/ch1/images', 'api.charImages');
@@ -58,7 +55,6 @@ assertEqual(api.presetBlockImage('pr1', 'b1', 'i1'), '/api/presets/pr1/blocks/b1
 
 // ── Provider routes ──
 assertEqual(api.provider('prv1'), '/api/providers/prv1', 'api.provider');
-assertEqual(api.providerOREndpoint('model1'), '/api/providers/openrouter/endpoints/model1', 'api.providerOREndpoint');
 assertEqual(api.providerSecret('sk-test'), '/api/providers/secrets/sk-test', 'api.providerSecret');
 assertEqual(api.providerSecret('my key'), '/api/providers/secrets/my%20key', 'api.providerSecret encodes');
 

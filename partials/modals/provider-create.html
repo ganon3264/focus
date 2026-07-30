@@ -72,9 +72,11 @@
   <div id="prov-form-or-fields" class="hidden flex-col gap-3">
     <div class="form-group mb-0">
       <label>Provider Routing</label>
-      <div id="prov-form-route-wrapper">
-        {{ custom_select(name="or_route", id="prov-form-or-route", options=[{"value": "", "label": "Auto (Any)"}], selected="", on_change="refreshNoFallbacksVisibility('prov-form')", extra_classes="form-control text-sm w-full") }}
-      </div>
+      <input type="hidden" name="or_route" id="prov-form-or-route" value="" />
+      <button type="button" class="form-control text-sm w-full flex justify-between items-center cursor-pointer" onclick="openRouteSelectModal('prov-form')">
+        <span id="or-route-display-prov-form" class="truncate text-muted">Auto (Any)</span>
+        <span class="opacity-50">{{ icon_search() }}</span>
+      </button>
     </div>
     <div
       id="prov-form-or-no-fallbacks-row"
@@ -92,9 +94,11 @@
     </div>
     <div class="form-group mb-0">
       <label>Quantization</label>
-      <div id="prov-form-quant-wrapper">
-        {{ custom_select(name="or_quant", id="prov-form-or-quant", options=[{"value": "", "label": "Any"}], selected="", extra_classes="form-control text-sm w-full") }}
-      </div>
+      <input type="hidden" name="or_quant" id="prov-form-or-quant" value="" />
+      <button type="button" class="form-control text-sm w-full flex justify-between items-center cursor-pointer" onclick="openQuantSelectModal('prov-form')">
+        <span id="or-quant-display-prov-form" class="truncate text-muted">Any</span>
+        <span class="opacity-50">{{ icon_search() }}</span>
+      </button>
     </div>
   </div>
 

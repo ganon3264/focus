@@ -145,28 +145,65 @@ function selectFetchedModel(id, name) {
   const input = document.getElementById('model-text-' + prefix);
   if (input) input.value = id;
   if (type === 'openrouter') {
-    _fetchOROptions(id, '', '');
+    fetchOROptions(id);
   }
 
   document.getElementById('modal-fetch-models').classList.add('hidden');
 }
 
-function _fetchOROptions(modelId, selectedRoute, selectedQuant) {
-  var url = '/partials/providers/openrouter-options/' + encodeURIComponent(modelId);
-  if (selectedRoute || selectedQuant) {
-    url += '?route=' + encodeURIComponent(selectedRoute || '') + '&quant=' + encodeURIComponent(selectedQuant || '');
-  }
-  fetch(url)
-    .then(function (r) { return r.text(); })
-    .then(function (html) {
-      var temp = document.createElement('div');
-      temp.innerHTML = html;
-      ['prov-form-route-wrapper', 'prov-form-or-no-fallbacks-row', 'prov-form-quant-wrapper'].forEach(function (id) {
-        var newEl = temp.querySelector('#' + id);
-        var oldEl = document.getElementById(id);
-        if (newEl && oldEl) oldEl.replaceWith(newEl);
-      });
+var _orRouteOptions = [{ value: '', label: 'Auto (Any)' }];
+var _orQuantOptions = [{ value: '', label: 'Any' }];
+
+function fetchOROptions(modelId) {
+  if (!modelId) { _orRouteOptions = [{ value: '', label: 'Auto (Any)' }]; _orQuantOptions = [{ value: '', label: 'Any' }]; return; }
+  fetch('/api/providers/openrouter/endpoints/' + encodeURIComponent(modelId))
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      var endpoints = (data.data && data.data.endpoints) || [];
+      var providerSet = {};
+      endpoints.forEach(function (ep) { if (ep.provider_name) providerSet[ep.provider_name] = true; });
+      var routeOpts = Object.keys(providerSet).sort();
+      _orRouteOptions = [{ value: '', label: 'Auto (Any)' }];
+      routeOpts.forEach(function (p) { _orRouteOptions.push({ value: p, label: p }); });
+      var quantSet = {};
+      endpoints.forEach(function (ep) { if (ep.quantization && ep.quantization !== 'unknown') quantSet[ep.quantization] = true; });
+      var quantOpts = Object.keys(quantSet).sort();
+      _orQuantOptions = [{ value: '', label: 'Any' }];
+      quantOpts.forEach(function (q) { _orQuantOptions.push({ value: q, label: q }); });
     });
+}
+
+var _optionModalCallback = null;
+
+function openRouteSelectModal(prefix) {
+  try {
+    var data = Alpine.$data(document.getElementById('modal-select-option'));
+    data.options = _orRouteOptions;
+    data.title = 'Select Provider Routing';
+    data.search = '';
+  } catch (e) {}
+  _optionModalCallback = function (value, label) {
+    document.getElementById(prefix + '-or-route').value = value;
+    document.getElementById('or-route-display-' + prefix).textContent = label;
+    document.getElementById('or-route-display-' + prefix).classList.toggle('text-muted', !value);
+    document.getElementById(prefix + '-or-route').dispatchEvent(new Event('change', { bubbles: true }));
+  };
+  openModal('modal-select-option');
+}
+
+function openQuantSelectModal(prefix) {
+  try {
+    var data = Alpine.$data(document.getElementById('modal-select-option'));
+    data.options = _orQuantOptions;
+    data.title = 'Select Quantization';
+    data.search = '';
+  } catch (e) {}
+  _optionModalCallback = function (value, label) {
+    document.getElementById(prefix + '-or-quant').value = value;
+    document.getElementById('or-quant-display-' + prefix).textContent = label;
+    document.getElementById('or-quant-display-' + prefix).classList.toggle('text-muted', !value);
+  };
+  openModal('modal-select-option');
 }
 
 function toggleNoFallbacks(prefix) {
@@ -337,6 +374,10 @@ function resetProviderForm() {
   document.getElementById('prov-form-params').value = '{}';
   document.getElementById('api-key-input-prov-form').value = '';
   document.getElementById('api-key-display-prov-form').innerHTML = '<span class="text-muted">Select API Key...</span>';
+  var routeDisplay = document.getElementById('or-route-display-prov-form');
+  var quantDisplay = document.getElementById('or-quant-display-prov-form');
+  if (routeDisplay) { routeDisplay.textContent = 'Auto (Any)'; routeDisplay.classList.add('text-muted'); }
+  if (quantDisplay) { quantDisplay.textContent = 'Any'; quantDisplay.classList.add('text-muted'); }
   var nfToggle = document.getElementById('prov-form-or-no-fallbacks-toggle');
   var nfInput = document.getElementById('prov-form-or-no-fallbacks');
   if (nfToggle) nfToggle.classList.add('active');
@@ -367,6 +408,10 @@ function populateProviderForm(data) {
     var savedRoute = params.or_route || '';
     var savedQuant = params.or_quant || '';
     var savedNoFallbacks = params.or_no_fallbacks !== false;
+    document.getElementById('or-route-display-prov-form').textContent = savedRoute || 'Auto (Any)';
+    document.getElementById('or-route-display-prov-form').classList.toggle('text-muted', !savedRoute);
+    document.getElementById('or-quant-display-prov-form').textContent = savedQuant || 'Any';
+    document.getElementById('or-quant-display-prov-form').classList.toggle('text-muted', !savedQuant);
     if (data.model) {
       var nfToggle = document.getElementById('prov-form-or-no-fallbacks-toggle');
       var nfInput = document.getElementById('prov-form-or-no-fallbacks');
@@ -375,22 +420,13 @@ function populateProviderForm(data) {
         nfInput.value = savedNoFallbacks ? 'true' : 'false';
       }
       refreshNoFallbacksVisibility('prov-form');
-      _fetchOROptions(data.model, savedRoute, savedQuant);
+      fetchOROptions(data.model);
     }
   }
   if (data.type === 'google_vertex') {
     document.getElementById('prov-form-vertex-project-id').value = params.vertex_project_id || '';
     setSelectValue('prov-form-vertex-region', params.vertex_region || 'global');
   }
-}
-
-function _saveListPref(key, value) {
-  localStorage.setItem(key, value);
-  fetch('/api/settings', {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ key: key, value: value }),
-  });
 }
 
 window.sortProviders = function (mode) {
@@ -434,6 +470,12 @@ async function fetchProviderBalances() {
 }
 
 setTimeout(() => {
+  document.addEventListener('option-selected', function (e) {
+    if (_optionModalCallback) {
+      _optionModalCallback(e.detail.value, e.detail.label);
+      _optionModalCallback = null;
+    }
+  });
   const activeId = StateManager.get('provider_id');
   const activeType = StateManager.get('provider_type');
   if (activeId) setActiveProvider(activeId, '', activeType);
