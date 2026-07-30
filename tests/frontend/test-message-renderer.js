@@ -39,6 +39,9 @@ global.marked = { parse: mockMarkedParse, use: function () {} };
 global.DOMPurify = { sanitize: function (h) { return h; } };
 global.getSvgSprite = function (name, size) { return '<svg>' + name + '</svg>'; };
 
+// Mock remend — identity function; remend's correctness is tested by its own suite
+global.remend = function (t) { return t; };
+
 // Load module
 eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'messages', 'message-renderer.js'), 'utf8'));
 
@@ -85,75 +88,10 @@ eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'messages'
   assertIncludes(html, '<strong>', 'renderMessage: markdown bold rendered (or fallback)');
 })();
 
-// ── closeMarkdown — no-op for plain text ──
+// ── closeMarkdown — delegates to remend ──
 (function () {
-  assertEqual(window.closeMarkdown(''), '', 'closeMarkdown: empty string');
-  assertEqual(window.closeMarkdown('hello world'), 'hello world', 'closeMarkdown: plain text unchanged');
-  assertEqual(window.closeMarkdown('Normal text with nothing open'), 'Normal text with nothing open', 'closeMarkdown: normal text');
-})();
-
-// ── closeMarkdown — unclosed code fence ──
-(function () {
-  assertEqual(window.closeMarkdown('```python\nprint("hi")'), '```python\nprint("hi")\n```', 'closeMarkdown: unclosed code fence gets closing fence');
-  assertEqual(window.closeMarkdown('```\ncode\n```'), '```\ncode\n```', 'closeMarkdown: already closed fence unchanged');
-})();
-
-// ── closeMarkdown — unclosed inline code ──
-(function () {
-  assertEqual(window.closeMarkdown('text `code'), 'text `code`', 'closeMarkdown: unclosed inline code gets closing backtick');
-})();
-
-// ── closeMarkdown — unclosed bold/italic ──
-(function () {
-  assertEqual(window.closeMarkdown('**bold text'), '**bold text**', 'closeMarkdown: unclosed bold');
-  assertEqual(window.closeMarkdown('*italic text'), '*italic text*', 'closeMarkdown: unclosed italic');
-})();
-
-// ── closeMarkdown — markdown inside code fence is ignored ──
-(function () {
-  assertEqual(window.closeMarkdown('```\n**not bold**\n```'), '```\n**not bold**\n```', 'closeMarkdown: bold inside fence not tracked');
-})();
-
-// ── closeMarkdown — constructs inside inline code are ignored ──
-(function () {
-  assertEqual(window.closeMarkdown('`code **not bold**`'), '`code **not bold**`', 'closeMarkdown: bold inside inline code ignored');
-})();
-
-// ── closeMarkdown — multiple unclosed constructs ──
-(function () {
-  var result = window.closeMarkdown('**bold and `code');
-  assert(result.indexOf('`') > 0, 'closeMarkdown: multiple unclosed — backtick added');
-  assert(result.lastIndexOf('**') > result.lastIndexOf('`'), 'closeMarkdown: multiple unclosed — bold added after backtick (LIFO)');
-})();
-
-// ── closeMarkdown — escaped chars skip markdown detection ──
-(function () {
-  assertEqual(window.closeMarkdown('\\*not italic\\*'), '\\*not italic\\*', 'closeMarkdown: escaped asterisks not tracked');
-  assertEqual(window.closeMarkdown('\\`not code\\`'), '\\`not code\\`', 'closeMarkdown: escaped backtick not tracked');
-})();
-
-// ── closeMarkdown — list markers not treated as italic ──
-(function () {
-  assertEqual(window.closeMarkdown('*   **bold item**'), '*   **bold item**', 'closeMarkdown: * list marker not treated as italic');
-  assertEqual(window.closeMarkdown('-   **bold item**'), '-   **bold item**', 'closeMarkdown: - list marker ignored');
-  assertEqual(window.closeMarkdown('+   **bold item**'), '+   **bold item**', 'closeMarkdown: + list marker ignored');
-  assertEqual(window.closeMarkdown('  *   **bold item**'), '  *   **bold item**', 'closeMarkdown: indented list marker ignored');
-  assertEqual(window.closeMarkdown('text\n* **item**'), 'text\n* **item**', 'closeMarkdown: list marker after newline ignored');
-  // regression: inline italic still works
-  assertEqual(window.closeMarkdown('*italic*'), '*italic*', 'closeMarkdown: inline italic still works');
-  assertEqual(window.closeMarkdown('*italic text'), '*italic text*', 'closeMarkdown: unclosed italic still works');
-})();
-
-// ── closeMarkdown — *** bold+italic ──
-(function () {
-  var result = window.closeMarkdown('***everything');
-  assertEqual(result, '***everything***', 'closeMarkdown: *** unclosed bold+italic');
-})();
-
-// ── closeMarkdown — fence then inline code after fence closed ──
-(function () {
-  var result = window.closeMarkdown('```\ncode\n``` `unclosed');
-  assertEqual(result, '```\ncode\n``` `unclosed`', 'closeMarkdown: inline code after closed fence');
+  assertEqual(window.closeMarkdown('hello'), 'hello', 'closeMarkdown: passes through to remend');
+  assertEqual(window.closeMarkdown(''), '', 'closeMarkdown: empty returns empty');
 })();
 
 // ── Result ──

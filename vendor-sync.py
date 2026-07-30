@@ -6,6 +6,7 @@ Run `./vendor-sync.py` to refresh all vendor files.
 
 import glob
 import hashlib
+import re
 import platform
 import stat
 import sys
@@ -26,6 +27,7 @@ DOMPURIFY_VERSION = "3.4.11"
 SORTABLEJS_VERSION = "1.15.7"
 CROPPERJS_VERSION = "2.1.1"
 IDIOMORPH_VERSION = "0.7.4"
+REMEND_VERSION = "1.3.0"
 TAILWIND_VERSION = "v4.3.2"
 
 def _is_musl() -> bool:
@@ -117,6 +119,10 @@ DOWNLOADS = {
         "https://unpkg.com/@fontsource-variable/inter@5.3.0/files/inter-latin-wght-normal.woff2",
         "Inter Variable Font (Latin)",
     ),
+    "remend.js": (
+        f"https://cdn.jsdelivr.net/npm/remend@{REMEND_VERSION}/dist/index.js",
+        f"Remend v{REMEND_VERSION}",
+    ),
 }
 
 CHECKSUMS = {
@@ -136,6 +142,7 @@ CHECKSUMS = {
     "bin/tailwindcss-macos-x64": "cef8f110471e889c3c4409055cf8aff33076f58a081867b0dfc6534b290bfbb0",
     "bin/tailwindcss-macos-arm64": "b800b0659dc64b9f03ede5660244d9415d777d5739ae2889280877ca37be742a",
     "bin/tailwindcss-windows-x64.exe": "224a62a8351d3b8da9d950a4eb1d7176dc901dc4735b47f816f3dfcbc67d8654",
+    "remend.js": "685415bd62f658fd2a652c1dd43bf387740eb4f9d8813e5b605f65855eb51a2c",
 }
 
 
@@ -261,6 +268,9 @@ def sync() -> int:
             # Strip source map references (browsers warn on 404s for .map files we don't ship)
             if dest.suffix in (".js", ".css"):
                 data = data.replace(b"//# sourceMappingURL=", b"// ")
+            # Convert remend ESM export to a global assignment
+            if filename == "remend.js":
+                data = re.sub(rb'export\{([^,}]+) as default.*?\};', rb'window.remend = \1;', data)
             tmp = dest.with_suffix(".tmp")
             tmp.write_bytes(data)
             tmp.rename(dest)
