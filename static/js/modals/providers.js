@@ -410,8 +410,10 @@ function populateProviderForm(data) {
     var savedNoFallbacks = params.or_no_fallbacks !== false;
     document.getElementById('or-route-display-prov-form').textContent = savedRoute || 'Auto (Any)';
     document.getElementById('or-route-display-prov-form').classList.toggle('text-muted', !savedRoute);
+    document.getElementById('prov-form-or-route').value = savedRoute;
     document.getElementById('or-quant-display-prov-form').textContent = savedQuant || 'Any';
     document.getElementById('or-quant-display-prov-form').classList.toggle('text-muted', !savedQuant);
+    document.getElementById('prov-form-or-quant').value = savedQuant;
     if (data.model) {
       var nfToggle = document.getElementById('prov-form-or-no-fallbacks-toggle');
       var nfInput = document.getElementById('prov-form-or-no-fallbacks');
