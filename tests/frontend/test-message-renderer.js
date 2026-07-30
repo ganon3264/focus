@@ -132,6 +132,18 @@ eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'messages'
   assertEqual(window.closeMarkdown('\\`not code\\`'), '\\`not code\\`', 'closeMarkdown: escaped backtick not tracked');
 })();
 
+// ── closeMarkdown — list markers not treated as italic ──
+(function () {
+  assertEqual(window.closeMarkdown('*   **bold item**'), '*   **bold item**', 'closeMarkdown: * list marker not treated as italic');
+  assertEqual(window.closeMarkdown('-   **bold item**'), '-   **bold item**', 'closeMarkdown: - list marker ignored');
+  assertEqual(window.closeMarkdown('+   **bold item**'), '+   **bold item**', 'closeMarkdown: + list marker ignored');
+  assertEqual(window.closeMarkdown('  *   **bold item**'), '  *   **bold item**', 'closeMarkdown: indented list marker ignored');
+  assertEqual(window.closeMarkdown('text\n* **item**'), 'text\n* **item**', 'closeMarkdown: list marker after newline ignored');
+  // regression: inline italic still works
+  assertEqual(window.closeMarkdown('*italic*'), '*italic*', 'closeMarkdown: inline italic still works');
+  assertEqual(window.closeMarkdown('*italic text'), '*italic text*', 'closeMarkdown: unclosed italic still works');
+})();
+
 // ── closeMarkdown — *** bold+italic ──
 (function () {
   var result = window.closeMarkdown('***everything');

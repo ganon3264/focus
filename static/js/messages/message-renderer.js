@@ -50,6 +50,14 @@ window.closeMarkdown = function (text) {
       i++;
       continue;
     }
+    if ((ch === '*' || ch === '-' || ch === '+') && (text[i + 1] === ' ' || text[i + 1] === '\t')) {
+      var atLineStart = true;
+      for (var k = i - 1; k >= 0; k--) {
+        if (text[k] === '\n') break;
+        if (text[k] !== ' ' && text[k] !== '\t') { atLineStart = false; break; }
+      }
+      if (atLineStart) { i++; continue; }
+    }
     if (text.slice(i, i + 2) === '**') {
       var top = stack[stack.length - 1];
       if (top === 'bold') {

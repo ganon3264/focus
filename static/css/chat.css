@@ -350,6 +350,51 @@
   .markdown-content em {
     color: color-mix(in srgb, var(--accent) 55%, var(--text));
   }
+  .markdown-content hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 1.25rem 0;
+  }
+  .markdown-content h1,
+  .markdown-content h2,
+  .markdown-content h3,
+  .markdown-content h4,
+  .markdown-content h5,
+  .markdown-content h6 {
+    color: var(--text);
+    font-weight: 600;
+    line-height: 1.3;
+    margin: 1.25rem 0 0.5rem;
+  }
+  .markdown-content h1 { font-size: 1.5rem; }
+  .markdown-content h2 { font-size: 1.3rem; }
+  .markdown-content h3 { font-size: 1.15rem; }
+  .markdown-content h4 { font-size: 1.05rem; }
+  .markdown-content h5 { font-size: 1rem; }
+  .markdown-content h6 { font-size: 0.9rem; color: var(--text-muted); }
+  .markdown-content table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1rem 0;
+    font-size: 0.9rem;
+  }
+  .markdown-content th,
+  .markdown-content td {
+    border: 1px solid var(--border);
+    padding: 0.45rem 0.7rem;
+    text-align: left;
+  }
+  .markdown-content th {
+    background: var(--surface-2);
+    color: var(--text);
+    font-weight: 600;
+  }
+  .markdown-content td {
+    color: var(--text-muted);
+  }
+  .markdown-content tbody tr:nth-child(even) td {
+    background: var(--surface);
+  }
   .accent-quote {
     color: var(--accent);
   }
