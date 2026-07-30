@@ -13,6 +13,13 @@ var PROVIDER_FIELD_CONFIG = {
     vertexFields: true,
     modelRequired: true,
   },
+  google_aistudio: {
+    orFields: false,
+    modelInput: true,
+    baseUrl: false,
+    vertexFields: false,
+    modelRequired: true,
+  },
   deepseek: {
     orFields: false,
     modelInput: true,
@@ -74,9 +81,6 @@ function toggleProviderFields(prefix) {
 
 window._currentFetchPrefix = null;
 
-/* OpenRouter model selection reuses the same fetch-models modal */
-window.openORModelModal = openFetchModelModal;
-
 function openFetchModelModal(prefix) {
   window._currentFetchPrefix = prefix;
   document.getElementById('modal-fetch-models').classList.remove('hidden');
@@ -89,14 +93,9 @@ async function forceFetchModels() {
 
   window.dispatchEvent(new CustomEvent('models-loading'));
 
-  let type = document.getElementById(prefix + '-type')?.value;
-  if (!type && prefix !== 'new-prov') {
-    type = document.getElementById('edit-prov-type-' + prefix)?.value;
-  }
+  const type = document.getElementById(prefix + '-type')?.value;
 
-  const baseUrlInput =
-    document.querySelector(`#provider-edit-${prefix} input[name="base_url"]`) ||
-    document.querySelector(`#new-prov-baseurl input[name="base_url"]`);
+  const baseUrlInput = document.getElementById(prefix + '-base-url');
   const baseUrl = baseUrlInput ? baseUrlInput.value : '';
 
   const apiKeyInput = document.getElementById('api-key-input-' + prefix);
@@ -104,23 +103,18 @@ async function forceFetchModels() {
 
   let params = {};
   if (type === 'google_vertex') {
-    const regionInput =
-      document.getElementById('edit-prov-vertex-region-' + prefix) ||
-      document.getElementById('new-prov-vertex-region');
-    const projectInput =
-      document.getElementById('edit-prov-vertex-project-id-' + prefix) ||
-      document.getElementById('new-prov-vertex-project-id');
-    if (regionInput) {
-      params.vertex_region = regionInput.value;
-    }
-    if (projectInput) {
-      params.vertex_project_id = projectInput.value;
-    }
+    const regionInput = document.getElementById(prefix + '-vertex-region');
+    const projectInput = document.getElementById(prefix + '-vertex-project-id');
+    if (regionInput) params.vertex_region = regionInput.value;
+    if (projectInput) params.vertex_project_id = projectInput.value;
   }
+
+  const editIdInput = document.getElementById('prov-form-edit-id');
+  const providerId = editIdInput ? editIdInput.value : '';
 
   try {
     let body = { type, base_url: baseUrl, api_key: apiKey, params };
-    if (prefix !== 'new-prov') body.provider_id = prefix;
+    if (providerId) body.provider_id = providerId;
 
     const res = await fetch(api.providerFetchModels, {
       method: 'POST',
@@ -145,9 +139,7 @@ function selectFetchedModel(id, name) {
   const prefix = window._currentFetchPrefix;
   if (!prefix) return;
 
-  const type =
-    document.getElementById(prefix + '-type')?.value ||
-    document.getElementById('edit-prov-type-' + prefix)?.value;
+  const type = document.getElementById(prefix + '-type')?.value;
 
   if (type === 'openrouter') {
     const input = document.getElementById('or-model-input-' + prefix);
@@ -160,9 +152,7 @@ function selectFetchedModel(id, name) {
     updateOpenRouterOptions(prefix, id);
   } else {
     const input = document.getElementById('model-text-' + prefix);
-    if (input) {
-      input.value = id;
-    }
+    if (input) input.value = id;
   }
 
   document.getElementById('modal-fetch-models').classList.add('hidden');
@@ -216,7 +206,7 @@ function renderMacroSelect(name, id, options, selectedValue) {
   `;
 }
 
-async function updateOpenRouterOptions(prefix, modelId) {
+async function updateOpenRouterOptions(prefix, modelId, selectedRoute, selectedQuant) {
   if (!modelId) return;
 
   try {
@@ -244,54 +234,38 @@ async function updateOpenRouterOptions(prefix, modelId) {
       quantOptions.push({ value: q, label: q });
     });
 
-    const routeWrapperId =
-      prefix === 'new-prov' ? 'new-prov-route-wrapper' : 'edit-prov-route-wrapper-' + prefix;
-    const routeInputId =
-      prefix === 'new-prov' ? 'new-prov-or-route' : 'edit-prov-or-route-' + prefix;
-    const rWrap = document.getElementById(routeWrapperId);
+    var routeVal = selectedRoute || '';
+    var routeLabel = routeVal || 'Auto (Any)';
+    var quantVal = selectedQuant || '';
+    var quantLabel = quantVal || 'Any';
+
+    const rWrap = document.getElementById(prefix + '-route-wrapper');
     if (rWrap) {
-      rWrap.innerHTML = renderMacroSelect('or_route', routeInputId, routeOptions, '');
-      refreshNoFallbacksVisibility(prefix);
+      rWrap.innerHTML = renderMacroSelect('or_route', prefix + '-or-route', routeOptions, routeVal);
+      const routeInput = document.getElementById(prefix + '-or-route');
+      if (routeInput) routeInput.addEventListener('change', function () { refreshNoFallbacksVisibility(prefix); });
     }
 
-    const quantWrapperId =
-      prefix === 'new-prov' ? 'new-prov-quant-wrapper' : 'edit-prov-quant-wrapper-' + prefix;
-    const quantInputId =
-      prefix === 'new-prov' ? 'new-prov-or-quant' : 'edit-prov-or-quant-' + prefix;
-    const qWrap = document.getElementById(quantWrapperId);
-    if (qWrap) qWrap.innerHTML = renderMacroSelect('or_quant', quantInputId, quantOptions, '');
+    const qWrap = document.getElementById(prefix + '-quant-wrapper');
+    if (qWrap) qWrap.innerHTML = renderMacroSelect('or_quant', prefix + '-or-quant', quantOptions, quantVal);
   } catch (err) {
     console.error(err);
   }
 }
 
 function toggleNoFallbacks(prefix) {
-  const isNew = prefix === 'new-prov';
-  const toggle = document.getElementById(
-    isNew ? 'new-prov-or-no-fallbacks-toggle' : 'edit-prov-or-no-fallbacks-toggle-' + prefix,
-  );
-  const input = document.getElementById(
-    isNew ? 'new-prov-or-no-fallbacks' : 'edit-prov-or-no-fallbacks-' + prefix,
-  );
+  const toggle = document.getElementById(prefix + '-or-no-fallbacks-toggle');
+  const input = document.getElementById(prefix + '-or-no-fallbacks');
   if (!toggle || !input) return;
   toggle.classList.toggle('active');
   input.value = toggle.classList.contains('active') ? 'true' : 'false';
 }
 
 function refreshNoFallbacksVisibility(prefix) {
-  const isNew = prefix === 'new-prov';
-  const routeInput = document.getElementById(
-    isNew ? 'new-prov-or-route' : 'edit-prov-or-route-' + prefix,
-  );
-  const row = document.getElementById(
-    isNew ? 'new-prov-or-no-fallbacks-row' : 'edit-prov-or-no-fallbacks-row-' + prefix,
-  );
+  const routeInput = document.getElementById(prefix + '-or-route');
+  const row = document.getElementById(prefix + '-or-no-fallbacks-row');
   if (!routeInput || !row) return;
-  if (routeInput.value) {
-    row.classList.remove('hidden');
-  } else {
-    row.classList.add('hidden');
-  }
+  row.classList.toggle('hidden', !routeInput.value);
 }
 
 function setActiveProvider(id, name, type) {
@@ -302,23 +276,6 @@ function setActiveProvider(id, name, type) {
   const sendBtn = document.getElementById('send-btn');
   if (sendBtn) sendBtn.dataset.providerId = id;
   StateManager.setProvider(id, type);
-}
-
-function toggleProviderEdit(id) {
-  const card = document.getElementById('prov-card-' + id);
-  const form = document.getElementById('provider-edit-' + id);
-  const display = document.getElementById('prov-display-' + id);
-  if (form.classList.contains('hidden')) {
-    card.classList.add('col-span-full');
-    form.classList.remove('hidden');
-    form.style.display = 'flex';
-    display.classList.add('hidden');
-  } else {
-    card.classList.remove('col-span-full');
-    form.classList.add('hidden');
-    form.style.display = 'none';
-    display.classList.remove('hidden');
-  }
 }
 
 function extractData(form) {
@@ -384,50 +341,164 @@ function extractData(form) {
   return data;
 }
 
-function saveProviderModal(e, id) {
+function submitProviderForm(el, e) {
   e.preventDefault();
+  const form = window.resolveFormFromEvent(e);
+  if (!form) return;
   let data;
   try {
-    var form = window.resolveFormFromEvent(e);
-    if (!form) return;
     data = extractData(form);
   } catch (err) {
     return;
   }
-  fetch(api.provider(id), {
-    method: 'PATCH',
+  const editId = document.getElementById('prov-form-edit-id').value;
+  const isEdit = !!editId;
+  const url = isEdit ? api.provider(editId) : api.providers;
+  const method = isEdit ? 'PATCH' : 'POST';
+  fetch(url, {
+    method: method,
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
-  }).then(function (r) {
-    if (r.ok)
-        htmx.ajax('GET', api.partials.providersModal, {
-        target: '#providers-modal-body-inner',
-        swap: 'innerHTML',
-      });
-  });
-}
-
-function submitProviderModal(e) {
-  e.preventDefault();
-  let data;
-  try {
-    data = extractData(e.target);
-  } catch (err) {
-    return;
-  }
-  fetch(api.providers, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  }).then(function (r) {
+  }).then(async function (r) {
     if (r.ok) {
       closeModal('modal-provider-create');
       htmx.ajax('GET', api.partials.providersModal, {
         target: '#providers-modal-body-inner',
         swap: 'innerHTML',
       });
+    } else {
+      var errBody;
+      try { errBody = await r.json(); } catch (e) { errBody = await r.text(); }
+      console.error('Provider save failed:', r.status, errBody);
     }
   });
+}
+
+window.openProviderEditModal = async function (id) {
+  resetProviderForm();
+  try {
+    const res = await fetch(api.provider(id));
+    if (!res.ok) return;
+    const data = await res.json();
+    populateProviderForm(data);
+    document.getElementById('prov-form-edit-id').value = id;
+    document.getElementById('prov-form-submit-btn').textContent = 'Save Provider';
+    var titleEl = document.querySelector('#modal-provider-create .modal-title');
+    if (titleEl) titleEl.textContent = 'Edit Provider';
+    openModal('modal-provider-create');
+  } catch (err) {
+    console.error(err);
+  }
+};
+
+window.openProviderCreateModal = function () {
+  resetProviderForm();
+  document.getElementById('prov-form-edit-id').value = '';
+  document.getElementById('prov-form-submit-btn').textContent = 'Add Provider';
+  var titleEl = document.querySelector('#modal-provider-create .modal-title');
+  if (titleEl) titleEl.textContent = 'Add Provider';
+  openModal('modal-provider-create');
+};
+
+function resetProviderForm() {
+  var form = document.getElementById('provider-form');
+  if (form) form.reset();
+  _setAlpineSelectValue('prov-form-type', 'openai_compat');
+  _setAlpineSelectValue('prov-form-vertex-region', 'global');
+  document.getElementById('prov-form-edit-id').value = '';
+  document.getElementById('prov-form-params').value = '{}';
+  document.getElementById('api-key-input-prov-form').value = '';
+  document.getElementById('api-key-display-prov-form').innerHTML = '<span class="text-muted">Select API Key...</span>';
+  document.getElementById('or-model-input-prov-form').value = '';
+  document.getElementById('or-model-display-prov-form').textContent = 'Select Model...';
+  document.getElementById('or-model-display-prov-form').classList.add('text-muted');
+  var nfToggle = document.getElementById('prov-form-or-no-fallbacks-toggle');
+  var nfInput = document.getElementById('prov-form-or-no-fallbacks');
+  if (nfToggle) nfToggle.classList.add('active');
+  if (nfInput) nfInput.value = 'true';
+  var rWrap = document.getElementById('prov-form-route-wrapper');
+  if (rWrap) rWrap.innerHTML = renderMacroSelect('or_route', 'prov-form-or-route', [{value: '', label: 'Auto (Any)'}], '');
+  var qWrap = document.getElementById('prov-form-quant-wrapper');
+  if (qWrap) qWrap.innerHTML = renderMacroSelect('or_quant', 'prov-form-or-quant', [{value: '', label: 'Any'}], '');
+  toggleProviderFields('prov-form');
+}
+
+function populateProviderForm(data) {
+  document.getElementById('prov-form-name').value = data.name || '';
+  _setAlpineSelectValue('prov-form-type', data.type || 'openai_compat');
+  document.getElementById('prov-form-base-url').value = data.base_url || '';
+  toggleProviderFields('prov-form');
+  var params = {};
+  try { params = JSON.parse(data.params_json || '{}'); } catch (e) {}
+  document.getElementById('prov-form-params').value = JSON.stringify(params);
+  var ak = data.api_key || '';
+  if (ak.startsWith('SECRET:')) {
+    document.getElementById('api-key-input-prov-form').value = ak;
+    document.getElementById('api-key-display-prov-form').innerHTML = 'Saved Key: ' + ak.replace('SECRET:', '');
+    document.getElementById('api-key-display-prov-form').classList.remove('text-muted');
+  } else if (ak && ak !== '__HIDDEN__') {
+    document.getElementById('api-key-input-prov-form').value = '';
+    document.getElementById('api-key-display-prov-form').innerHTML = 'Raw Key (Hidden)';
+    document.getElementById('api-key-display-prov-form').classList.remove('text-muted');
+  }
+  if (data.type === 'openrouter') {
+    document.getElementById('or-model-input-prov-form').value = data.model || '';
+    var display = document.getElementById('or-model-display-prov-form');
+    display.textContent = data.model || 'Select Model...';
+    display.classList.toggle('text-muted', !data.model);
+    var savedRoute = params.or_route || '';
+    var savedQuant = params.or_quant || '';
+    var savedNoFallbacks = params.or_no_fallbacks !== false;
+    if (data.model) {
+      // Set values on default components immediately (no flash)
+      _setAlpineSelectValue('prov-form-or-route', savedRoute);
+      _setAlpineSelectValue('prov-form-or-quant', savedQuant);
+      var nfToggle = document.getElementById('prov-form-or-no-fallbacks-toggle');
+      var nfInput = document.getElementById('prov-form-or-no-fallbacks');
+      if (nfToggle && nfInput) {
+        nfToggle.classList.toggle('active', savedNoFallbacks);
+        nfInput.value = savedNoFallbacks ? 'true' : 'false';
+      }
+      refreshNoFallbacksVisibility('prov-form');
+      // Then fetch live options in background (replaces with correct values)
+      updateOpenRouterOptions('prov-form', data.model, savedRoute, savedQuant);
+    }
+  } else {
+    document.getElementById('model-text-prov-form').value = data.model || '';
+  }
+  if (data.type === 'google_vertex') {
+    document.getElementById('prov-form-vertex-project-id').value = params.vertex_project_id || '';
+    _setAlpineSelectValue('prov-form-vertex-region', params.vertex_region || 'global');
+  }
+}
+
+function _setAlpineSelectValue(inputId, value) {
+  var input = document.getElementById(inputId);
+  if (!input) return;
+  input.value = value;
+  var container = input.closest('[x-data]');
+  if (container && window.Alpine) {
+    try {
+      var data = Alpine.$data(container);
+      data.selectedValue = value;
+      var label = _findOptionLabel(container, value);
+      if (label) data.selectedLabel = label;
+    } catch (e) {}
+  }
+}
+
+function _findOptionLabel(container, value) {
+  var escaped = value.replace(/'/g, "\\'");
+  var items = container.querySelectorAll('[\\@click]');
+  for (var i = 0; i < items.length; i++) {
+    var attr = items[i].getAttribute('@click');
+    if (attr && attr.indexOf("selectedValue = '" + escaped + "'") !== -1) {
+      var match = attr.match(/selectedLabel\s*=\s*'([^']*?)'/);
+      if (match) return match[1];
+      return items[i].textContent.trim();
+    }
+  }
+  return null;
 }
 
 function _saveListPref(key, value) {
@@ -480,20 +551,13 @@ async function fetchProviderBalances() {
 }
 
 setTimeout(() => {
-  const createRoute = document.getElementById('new-prov-or-route');
-  if (createRoute && !createRoute.dataset.nfInit) {
-    createRoute.addEventListener('change', function () {
-      refreshNoFallbacksVisibility('new-prov');
+  const routeSelect = document.getElementById('prov-form-or-route');
+  if (routeSelect && !routeSelect.dataset.nfInit) {
+    routeSelect.addEventListener('change', function () {
+      refreshNoFallbacksVisibility('prov-form');
     });
-    createRoute.dataset.nfInit = '1';
+    routeSelect.dataset.nfInit = '1';
   }
-  document.querySelectorAll('[id^="edit-prov-or-route-"]').forEach(function (el) {
-    if (el.dataset.nfInit) return;
-    el.addEventListener('change', function () {
-      refreshNoFallbacksVisibility(el.id.replace('edit-prov-or-route-', ''));
-    });
-    el.dataset.nfInit = '1';
-  });
   const activeId = StateManager.get('provider_id');
   const activeType = StateManager.get('provider_type');
   if (activeId) setActiveProvider(activeId, '', activeType);

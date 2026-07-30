@@ -62,3 +62,23 @@ class TestProviders:
         await client.delete(f"/api/providers/{pid}")
         resp = await client.get("/api/providers/")
         assert resp.json() == []
+
+    async def test_get(self, client):
+        resp = await client.post(
+            "/api/providers/",
+            json={
+                "name": "GetTest",
+                "type": "openai_compat",
+                "model": "gpt-4",
+                "api_key": "sk-test",
+            },
+        )
+        pid = resp.json()["id"]
+        resp = await client.get(f"/api/providers/{pid}")
+        assert resp.status_code == 200
+        assert resp.json()["name"] == "GetTest"
+        assert resp.json()["type"] == "openai_compat"
+
+    async def test_get_not_found(self, client):
+        resp = await client.get("/api/providers/nonexistent")
+        assert resp.status_code == 404

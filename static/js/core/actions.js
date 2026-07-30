@@ -53,41 +53,24 @@
    (which may be called directly from JS with different signatures). */
 
 window.actionOpenProviderCreateModal = function () {
-  openModal("modal-provider-create");
+  openProviderCreateModal();
+};
+
+window.actionOpenProviderEditModal = function (el) {
+  openProviderEditModal(el.dataset.provId);
+};
+
+window.actionSubmitProviderForm = function (el, e) {
+  submitProviderForm(el, e);
 };
 
 window.actionSetActiveProvider = function (el) {
   setActiveProvider(el.dataset.provId, el.dataset.provName, el.dataset.provType);
 };
 
-window.actionToggleProviderEdit = function (el) {
-  toggleProviderEdit(el.dataset.provId);
-};
-
-window.actionSaveProviderModal = function (el, e) {
-  e.preventDefault();
-  saveProviderModal(e, el.dataset.provId);
-};
-
 window.actionOpenThemeModal = function () {
   if (window._saveThemeBackup) window._saveThemeBackup();
   openModal("modal-themes");
-};
-
-window.actionOpenFetchModelModal = function (el) {
-  openFetchModelModal(el.dataset.provId);
-};
-
-window.actionOpenORModelModal = function (el) {
-  openORModelModal(el.dataset.provId);
-};
-
-window.actionToggleNoFallbacks = function (el) {
-  toggleNoFallbacks(el.dataset.provId);
-};
-
-window.actionOpenSecretsModal = function (el) {
-  openSecretsModal(el.dataset.provId);
 };
 
 window.actionCloseModals = function (el, e) {

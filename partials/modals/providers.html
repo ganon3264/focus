@@ -1,4 +1,4 @@
-{% from "macros.html" import custom_select, icon_key, icon_plug, icon_edit, icon_search, icon_refresh, icon_database, icon_plus, icon_close, sort_dropdown %}
+{% from "macros.html" import icon_key, icon_edit, icon_refresh, icon_database, icon_plus, icon_close, sort_dropdown %}
 <div class="flex flex-col h-full overflow-y-auto">
   <div class="flex justify-between items-center gap-2 mb-3" style="padding-bottom: 0.75rem;">
     <h3 class="sidebar-title mb-0">Select Active Provider</h3>
@@ -17,14 +17,13 @@
 
   <div class="grid gap-3" id="providers-grid" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));">
     {% for prov in providers %}
-      {% set params = prov.params_json|default('{}')|from_json %}
       <div class="provider-card card" id="prov-card-{{ prov.id }}" data-prov-name="{{ prov.name }}" data-prov-created="{{ prov.created_at }}">
         <!-- Display State -->
         <div id="prov-display-{{ prov.id }}" class="p-3 h-full flex flex-col justify-between cursor-pointer" role="button" tabindex="0" data-action="actionSetActiveProvider" data-prov-id="{{ prov.id }}" data-prov-name="{{ prov.name }}" data-prov-type="{{ prov.type }}">
           <div class="flex justify-between items-center mb-1">
             <strong class="text-sm">{{ prov.name }}</strong>
             <div class="flex gap-1" onclick="event.stopPropagation()">
-              <button class="btn btn-secondary btn-sm" data-prov-id="{{ prov.id }}" onclick="event.stopPropagation(); toggleProviderEdit('{{ prov.id }}')" aria-label="Edit provider">{{ icon_edit() }}</button>
+              <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); openProviderEditModal('{{ prov.id }}')" aria-label="Edit provider">{{ icon_edit() }}</button>
               <button class="btn btn-danger btn-sm" hx-delete="/api/providers/{{ prov.id }}" hx-confirm="Delete?" hx-swap="none" hx-on:htmx:after-request="htmx.ajax('GET','/partials/providers-modal',{target:'#providers-modal-body-inner',swap:'innerHTML'})" aria-label="Delete provider">{{ icon_close(16) }}</button>
             </div>
           </div>
@@ -36,118 +35,6 @@
           {% endif %}
         </div>
 
-        <!-- Edit Form State -->
-        <form id="provider-edit-{{ prov.id }}" class="hidden flex-col gap-3 w-full p-3" data-action="actionSaveProviderModal" data-prov-id="{{ prov.id }}">
-          <div class="form-group mb-0">
-            <label class="text-xs">Name</label>
-            <input type="text" name="name" value="{{ prov.name }}" class="text-sm form-control w-full" required>
-          </div>
-          
-          <!-- Hidden inputs for type preservation -->
-          <input type="hidden" name="type" id="edit-prov-type-{{ prov.id }}" value="{{ prov.type }}">
-          
-          {% if prov.type == 'openai_compat' %}
-          <div class="form-group mb-0">
-            <label class="text-xs">Base URL</label>
-            <input type="text" name="base_url" value="{{ prov.base_url or '' }}" class="text-sm form-control w-full" placeholder="Base URL">
-          </div>
-          {% endif %}
-          
-          {% if prov.type != 'openrouter' %}
-          <div class="form-group mb-0">
-            <label class="text-xs">Model</label>
-            <div class="flex gap-2">
-              <input type="text" name="model" id="model-text-{{ prov.id }}" value="{{ prov.model }}" class="text-sm form-control w-full" required>
-              <button type="button" class="btn btn-secondary" data-action="actionOpenFetchModelModal" data-prov-id="{{ prov.id }}" aria-label="Fetch models" title="Fetch Models from Provider" style="width: 44px; display: grid; place-items: center;">{{ icon_search(18) }}</button>
-            </div>
-          </div>
-          {% endif %}
-          
-          {% if prov.type == 'google_vertex' %}
-          <div class="form-group mb-0">
-            <label class="text-xs">Project ID</label>
-            <input type="text" name="vertex_project_id" id="edit-prov-vertex-project-id-{{ prov.id }}" value="{{ params.get('vertex_project_id', '') }}" class="text-sm form-control w-full" placeholder="Optional (Uses ADC if blank)">
-          </div>
-          <div class="form-group mb-0">
-            <label class="text-xs">Region</label>
-            {{ custom_select(
-                 name="vertex_region",
-                 id="edit-prov-vertex-region-" ~ prov.id,
-                 options=[
-                   {"value": "global", "label": "Global"},
-                   {"value": "us-central1", "label": "us-central1 (Iowa)"},
-                   {"value": "us-east4", "label": "us-east4 (N. Virginia)"},
-                   {"value": "us-west1", "label": "us-west1 (Oregon)"},
-                   {"value": "us-west4", "label": "us-west4 (Las Vegas)"},
-                   {"value": "europe-west1", "label": "europe-west1 (Belgium)"},
-                   {"value": "europe-west2", "label": "europe-west2 (London)"},
-                   {"value": "europe-west3", "label": "europe-west3 (Frankfurt)"},
-                   {"value": "europe-west4", "label": "europe-west4 (Netherlands)"},
-                   {"value": "europe-west9", "label": "europe-west9 (Paris)"},
-                   {"value": "asia-northeast1", "label": "asia-northeast1 (Tokyo)"},
-                   {"value": "asia-northeast3", "label": "asia-northeast3 (Seoul)"},
-                   {"value": "asia-southeast1", "label": "asia-southeast1 (Singapore)"}
-                 ],
-                 selected=params.get('vertex_region', 'global'),
-                 extra_classes="form-control text-sm w-full"
-               )
-            }}
-          </div>
-          {% endif %}
-          
-          {% if prov.type == 'openrouter' %}
-          <div class="form-group mb-0">
-            <label class="text-xs">Model</label>
-            <input type="hidden" name="or_model" id="or-model-input-{{ prov.id }}" value="{{ prov.model }}">
-            <button type="button" class="form-control text-sm w-full flex justify-between items-center cursor-pointer" data-action="actionOpenORModelModal" data-prov-id="{{ prov.id }}">
-              <span id="or-model-display-{{ prov.id }}" class="truncate">{{ prov.model }}</span>
-              <span class="opacity-50">{{ icon_search() }}</span>
-            </button>
-          </div>
-          <div class="form-group mb-0">
-            <label class="text-xs">Provider Routing</label>
-            <div id="edit-prov-route-wrapper-{{ prov.id }}">
-              {% set r_val = params.get('or_route', '') %}
-              {% set r_options = [{"value": "", "label": "Auto (Any)"}] %}
-              {% if r_val %}{% set _ = r_options.append({"value": r_val, "label": r_val}) %}{% endif %}
-              {{ custom_select(name="or_route", id="edit-prov-or-route-" ~ prov.id, options=r_options, selected=r_val, extra_classes="form-control text-sm w-full") }}
-            </div>
-          </div>
-          <div id="edit-prov-or-no-fallbacks-row-{{ prov.id }}" class="form-group mb-0 flex items-center justify-between {% if not params.get('or_route') %}hidden{% endif %}">
-            <label class="text-xs mb-0 cursor-pointer" data-action="actionToggleNoFallbacks" data-prov-id="{{ prov.id }}">Lock provider (no fallbacks)</label>
-            <div class="arranger-toggle {% if params.get('or_no_fallbacks', True) %}active{% endif %}" role="switch" tabindex="0" id="edit-prov-or-no-fallbacks-toggle-{{ prov.id }}" data-action="actionToggleNoFallbacks" data-prov-id="{{ prov.id }}"></div>
-            <input type="hidden" name="or_no_fallbacks" id="edit-prov-or-no-fallbacks-{{ prov.id }}" value="{% if params.get('or_no_fallbacks', True) %}true{% else %}false{% endif %}">
-          </div>
-          <div class="form-group mb-0">
-            <label class="text-xs">Quantization</label>
-            <div id="edit-prov-quant-wrapper-{{ prov.id }}">
-              {% set q_val = params.get('or_quant', '') %}
-              {% set q_options = [{"value": "", "label": "Any"}] %}
-              {% if q_val %}{% set _ = q_options.append({"value": q_val, "label": q_val}) %}{% endif %}
-              {{ custom_select(name="or_quant", id="edit-prov-or-quant-" ~ prov.id, options=q_options, selected=q_val, extra_classes="form-control text-sm w-full") }}
-            </div>
-          </div>
-          {% endif %}
-
-          <div class="form-group mb-0">
-            <label class="text-xs">API Key</label>
-            <input type="hidden" name="api_key" id="api-key-input-{{ prov.id }}" value="">
-            <button type="button" class="form-control text-sm w-full flex justify-between items-center cursor-pointer" data-action="actionOpenSecretsModal" data-prov-id="{{ prov.id }}">
-              <span id="api-key-display-{{ prov.id }}" class="truncate text-muted">Select API Key...</span>
-              <span class="opacity-50">{{ icon_key() }}</span>
-            </button>
-          </div>
-          
-          <div class="form-group mb-0 hidden">
-            <label class="text-xs">Params JSON</label>
-            <input type="text" name="params" value="{{ prov.params_json or '{}' }}" class="text-sm form-control w-full">
-          </div>
-          
-          <div class="flex gap-2 mt-1 justify-end pt-3" style="border-top: 1px solid var(--border);">
-            <button class="btn btn-secondary btn-sm" style="width: 80px;" type="button" data-action="actionToggleProviderEdit" data-prov-id="{{ prov.id }}">Cancel</button>
-            <button class="btn btn-primary btn-sm" style="width: 80px;" type="submit">Save</button>
-          </div>
-        </form>
       </div>
       {% endfor %}
     </div>

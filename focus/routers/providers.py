@@ -41,6 +41,24 @@ async def list_providers(_db=Depends(get_db)):
         return out
 
 
+@router.get("/{provider_id}")
+async def get_provider(provider_id: str, _db=Depends(get_db)):
+    async with _db.execute(
+        "SELECT id, name, type, base_url, api_key, model, params_json, created_at FROM providers WHERE id = ?",
+        (provider_id,),
+    ) as cur:
+        row = await cur.fetchone()
+    if not row:
+        raise HTTPException(404, "Provider not found")
+    d = dict(row)
+    ak = d.get("api_key") or ""
+    if ak and not ak.startswith("SECRET:"):
+        d["api_key"] = "__HIDDEN__"
+    elif not ak:
+        d["api_key"] = ""
+    return d
+
+
 @router.patch("/{provider_id}")
 async def update_provider(
     provider_id: str,
