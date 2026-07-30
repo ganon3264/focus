@@ -61,6 +61,7 @@
       mimeType: img.mime_type,
       size: 48,
       id: idPrefix ? idPrefix + '-' + img.id : undefined,
+      onClick: function () { openLightbox('/' + (img.image_path || '')); },
       onDelete: function (e) {
         e.preventDefault();
         e.stopPropagation();

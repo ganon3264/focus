@@ -256,7 +256,7 @@
   {% if img.mime_type and img.mime_type.startswith('audio/') %}
   <div style="width:100%;height:100%;background:var(--surface-3);display:grid;place-items:center;" title="Audio Attachment">{{ icon_music(24) }}</div>
   {% else %}
-  <img src="/{{ img.image_path }}" alt="" style="width:100%;height:100%;object-fit:cover;">
+  <img src="/{{ img.image_path }}" alt="" style="width:100%;height:100%;object-fit:cover;cursor:pointer" onclick="openLightbox(this.src)">
   {% endif %}
   <button type="button" aria-label="Delete media" class="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" data-action="{{ action_name }}">{{ icon_close(10) }}</button>
 </div>
