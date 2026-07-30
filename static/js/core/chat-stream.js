@@ -137,13 +137,25 @@
     if (err.name !== 'AbortError') {
       window.showErrorToast(err.message);
     }
-    if (state.asstDiv && state.asstDiv.parentNode) {
-      state.asstDiv.remove();
+
+    // Label the div so refreshMessagesAfterStream can find it
+    if (state.asstDiv && state.messageId) {
+      state.asstDiv.id = 'message-' + state.messageId;
+      state.asstDiv.dataset.messageId = state.messageId;
     }
-    if (!state.userMessageId) {
-      var temp = document.getElementById('temp-user-msg');
-      if (temp) temp.remove();
+
+    // Refresh from server to restore whatever was checkpointed
+    if (state.chatId && state.messageId) {
+      await window.refreshMessagesAfterStream(state.chatId, state.userMessageId, state.messageId);
     }
+
+    // If there's still no messageId (error before SSE start), remove the spinner
+    // so the skeleton isn't stuck in a loading state
+    if (state.asstDiv) {
+      var spinner = state.asstDiv.querySelector('.message-spinner');
+      if (spinner) spinner.remove();
+    }
+
     if (typeof updateSendButtonState === 'function') updateSendButtonState();
   }
 
