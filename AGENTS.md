@@ -35,9 +35,9 @@ static/
     components.css         # Forms, buttons, modals, cards, arranger
     utilities.css          # @layer utilities overrides
     animations.css         # Keyframes, gen-pulse, hint-tooltip
-  js/core/                 # state-manager, actions, chat-stream, api-paths
-  js/features/             # char-editor, backup-manager
-  js/messages/             # message-renderer, message-refresh, reasoning-utils, file-staging, edit-message, delete-mode, message-pruner
+   js/core/                 # state-manager, actions, chat-stream, api-paths
+   js/features/             # char-editor, backup-manager
+   js/messages/             # message-renderer, message-refresh, message-builder, stream-events, post-process, generation-ui, reasoning-utils, file-staging, edit-message, delete-mode, message-pruner
   js/modals/               # providers, edit-entity, char-edit, persona-edit
   js/ui/                   # theme-manager, list-manager, lightbox, scroll-manager, status-panel, confirm, modal, input-bar, media-utils, notifications
   js/utils/                # claude-cache, set-tracker
@@ -61,6 +61,8 @@ Single source of truth (loaded in `<head>`). 5 fields: `character_id`, `persona_
 
 4 delegated listeners on `document`: click / submit / change / input. `data-action` resolves via `window[name]` or dotted path. **Form guard:** click/change/input skip `<form>` elements — form actions only fire on `submit`. So never put `data-action` on a `<form>`, only on the submit button.
 
+**Message toolbar adapters** — `actions.js` also registers action wrappers for message-level buttons (regenerate, continue, branch, edit, delete mode, swipe prev/next, toggle reasoning). Each reads context from `el.closest('.message')` data-* attributes so message templates need no inline JS. The swipe buttons still use `hx-on:htmx:after-request` calling `actionSwipePrev(event, el)` / `actionSwipeNext(event, el)` because data-action doesn't natively handle HTMX events.
+
 ### Modals
 
 - Template: `{% from "modal-shell.html" import modal_shell %} / {% call modal_shell('id', 'Title') %}...{% endcall %}`
@@ -73,6 +75,17 @@ Single source of truth (loaded in `<head>`). 5 fields: `character_id`, `persona_
 SSE events: `start | token | reasoning | reasoning_details | tool_calls | tool_result | done`.
 
 **Frontend** — `stream-events.js`: `StreamState` per generation, `HANDLERS` dispatch via `dispatchStreamEvent()`. `message-builder.js`: `segmentBuilders` factories (text/reasoning/tool_calls). Finalize with `finalizeStreamRender()`.
+
+**`chat-stream.js`** (thin orchestrator in `core/`):
+- Calls `setGeneratingUI()` / `clearStaleContent()` from `generation-ui.js`
+- Calls `uploadStagedAttachments()` from `file-staging.js`
+- Calls `finalizeStreamRender()` from `stream-events.js`
+- Calls `refreshMessagesAfterStream()` from `message-refresh.js`
+- Does NOT touch DOM directly for generation UI state or post-swap processing
+
+**`generation-ui.js`** — `setGeneratingUI(generating)`: toggles send/stop buttons and file-upload. `clearStaleContent(asstDiv, ...)`: removes stale tool-call/reasoning/segments, manages spinner.
+
+**`post-process.js`** — `postSwapProcess(container)`: re-renders unprocessed markdown, syncs reasoning buttons, updates send/continue button state, ensures scroll sentinel. Called from `message-refresh.js` and `delete-mode.js` (no longer coupled to `chat-stream.js`).
 
 **Backend** — `_active_generations` maps `message_id → asyncio.Event`. Stop button calls `POST /api/stop-generation/{message_id}` which sets the event — SSE generator drains gracefully instead of `AbortController.abort()`. Both `_stream_generate` (SSE) and `_non_stream_generate` (JSON) share `_run_generation()`.
 
