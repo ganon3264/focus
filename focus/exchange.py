@@ -1,6 +1,6 @@
 import json
 import logging
-import uuid
+import sqlite3
 from io import BytesIO
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
@@ -10,9 +10,17 @@ import aiosqlite
 from focus.core.models import ExportRequest
 from focus.core.paths import ASSETS_DIR, TOOLS_DIR
 from focus.core.utils import now_iso
+from focus.exchange_remap import PATH_FIELDS, build_id_map, collect_fk_columns, remap_database, remap_path
+from focus.exchange_sanitize import (
+    MAX_IMPORT_ENTRIES,
+    MAX_IMPORT_UNCOMPRESSED_BYTES,
+    is_safe_zip_entry,
+    sanitize_segments_json,
+)
+from focus.tools.external import ExternalToolConfig
 
 logger = logging.getLogger("focus.exchange")
-FOCUS_VERSION = "0.1.0"
+FOCUS_VERSION = "0.2.0"
 
 # Tables in dependency order for export (must include all FKs before dependents)
 EXPORT_TABLES = [
@@ -50,85 +58,22 @@ INSERT_ORDER = [
     "settings",
 ]
 
-# Foreign-key remap rules: (table, column, referenced_table)
-FK_RULES = [
-    ("char_blocks", "character_id", "characters"),
-    ("preset_blocks", "preset_id", "presets"),
-    ("chats", "character_id", "characters"),
-    ("chats", "persona_id", "personas"),
-    ("chats", "preset_id", "presets"),
-    ("messages", "chat_id", "chats"),
-    ("message_variants", "message_id", "messages"),
-    ("message_attachments", "chat_id", "chats"),
-    ("message_attachments", "message_id", "messages"),
-    ("message_attachments", "variant_id", "message_variants"),
-    ("block_images", "block_id", "char_blocks"),
-    ("block_images", "block_id", "preset_blocks"),
-    ("block_images", "block_id", "characters"),
-    ("block_images", "block_id", "personas"),
-    ("block_images", "block_id", "presets"),
-    ("tool_calls", "chat_id", "chats"),
-    ("tool_calls", "message_id", "messages"),
-    ("tool_calls", "variant_id", "message_variants"),
-]
 
-PATH_FIELDS = [
-    ("characters", "image_path"),
-    ("personas", "avatar_path"),
-    ("block_images", "image_path"),
-    ("message_attachments", "file_path"),
-]
+def _asset_entry_name(path_str: str) -> str | None:
+    """Map a stored file path to an ASSETS_DIR-relative archive entry name.
 
-
-def _extract_file_paths(database: dict[str, list[dict]]) -> list[str]:
-    paths: list[str] = []
-    for table, field in PATH_FIELDS:
-        for row in database.get(table, []):
-            val = row.get(field)
-            if val:
-                paths.append(val)
-    return paths
-
-
-def _remap_path(old_path: str, id_map: dict[str, str]) -> str:
-    parts = Path(old_path).parts
-    new_parts = []
-    for part in parts:
-        new_parts.append(id_map.get(part, part))
-    return str(Path(*new_parts))
-
-
-def _remap_attachment_path(old_path: str, id_map: dict[str, str]) -> str:
-    path = Path(old_path)
-    stem = path.stem
-    suffix = path.suffix
-    new_stem = id_map.get(stem, str(uuid.uuid4()))
-    parent = _remap_path(str(path.parent), id_map)
-    return str(Path(parent) / f"{new_stem}{suffix}")
-
-
-def _build_id_map(database: dict[str, list[dict]]) -> dict[str, str]:
-    id_map: dict[str, str] = {}
-    id_columns = {
-        "characters": "id",
-        "personas": "id",
-        "presets": "id",
-        "providers": "id",
-        "char_blocks": "id",
-        "preset_blocks": "id",
-        "chats": "id",
-        "messages": "id",
-        "message_variants": "id",
-        "block_images": "id",
-        "message_attachments": "id",
-        "tool_calls": "id",
-    }
-    for table, id_col in id_columns.items():
-        for row in database.get(table, []):
-            old_id = row.get(id_col)
-            if old_id and old_id not in id_map:
-                id_map[old_id] = str(uuid.uuid4())
-    return id_map
+    Stored paths are cwd-relative (``assets/...``) except tool images, which
+    are ASSETS_DIR-relative (``tool/...``).
+    """
+    candidates = [Path(path_str)]
+    if not candidates[0].is_absolute():
+        candidates.append(ASSETS_DIR / path_str)
+    for cand in candidates:
+        try:
+            return str(cand.resolve().relative_to(ASSETS_DIR.resolve()))
+        except ValueError:
+            continue
+    return None
 
 
 async def _resolve_entity_ids(
@@ -274,7 +219,13 @@ async def export_data(db: aiosqlite.Connection, req: ExportRequest) -> bytes:
         "settings": await _query_table_all(db, "settings"),
     }
 
-    file_paths = _extract_file_paths(database)
+    # Archives must be self-contained and collision-free: rewrite every id,
+    # foreign key, and asset path to fresh values so import can restore
+    # verbatim (see import_data).
+    raw_database = database
+    id_map = build_id_map(database)
+    fk_columns = await collect_fk_columns(db, [t for t in EXPORT_TABLES if t in database])
+    database = remap_database(database, id_map, fk_columns, null_unmapped_fks=True)
 
     buf = BytesIO()
     with ZipFile(buf, "w", ZIP_DEFLATED) as zf:
@@ -309,10 +260,23 @@ async def export_data(db: aiosqlite.Connection, req: ExportRequest) -> bytes:
         zf.writestr("manifest.json", json.dumps(manifest, indent=2, ensure_ascii=False))
         zf.writestr("database.json", json.dumps(database, indent=2, ensure_ascii=False))
 
-        for path_str in file_paths:
-            p = Path(path_str)
-            if p.exists():
-                zf.write(p, str(p))
+        for table, field in PATH_FIELDS:
+            for orig_row, new_row in zip(raw_database.get(table, []), database.get(table, [])):
+                old_path = orig_row.get(field)
+                new_path = new_row.get(field)
+                if not old_path or not new_path:
+                    continue
+                src = Path(old_path)
+                if not src.exists():
+                    src2 = ASSETS_DIR / old_path
+                    if not src2.exists():
+                        continue
+                    src = src2
+                entry = _asset_entry_name(new_path)
+                if entry is None:
+                    logger.warning("Skipping file outside assets dir: %s", old_path)
+                    continue
+                zf.write(src, entry)
 
         if TOOLS_DIR.is_dir():
             for f in sorted(TOOLS_DIR.iterdir()):
@@ -327,108 +291,186 @@ async def _query_table_all(db: aiosqlite.Connection, table: str) -> list[dict]:
         return [dict(r) for r in await cur.fetchall()]
 
 
-def _remap_database(database: dict[str, list[dict]], id_map: dict[str, str]) -> dict[str, list[dict]]:
-    remapped: dict[str, list[dict]] = {}
-    for table, rows in database.items():
-        remapped[table] = []
-        for row in rows:
-            new_row = dict(row)
-            for pk_col in ("id", "name"):
-                if pk_col in new_row and pk_col != "name":
-                    old = new_row[pk_col]
-                    if old in id_map:
-                        new_row[pk_col] = id_map[old]
-            remapped[table].append(new_row)
-
-    # Remap foreign keys
-    for table, fk_col, _ref_table in FK_RULES:
-        if table not in remapped:
-            continue
-        for row in remapped[table]:
-            old = row.get(fk_col)
-            if old and old in id_map:
-                row[fk_col] = id_map[old]
-
-    # Remap file paths
-    for table, field in PATH_FIELDS:
-        if table not in remapped:
-            continue
-        for row in remapped[table]:
-            old_path = row.get(field)
-            if not old_path:
-                continue
-            if table == "message_attachments" and field == "file_path":
-                row[field] = _remap_attachment_path(old_path, id_map)
-            else:
-                row[field] = _remap_path(old_path, id_map)
-
-    return remapped
-
-
 async def import_data(db: aiosqlite.Connection, zip_bytes: bytes) -> dict:
+    total_bytes = 0
+
+    def read_entry(zf: ZipFile, name: str) -> bytes:
+        nonlocal total_bytes
+        buf = bytearray()
+        with zf.open(name) as src:
+            while True:
+                chunk = src.read(1 << 20)
+                if not chunk:
+                    break
+                total_bytes += len(chunk)
+                if total_bytes > MAX_IMPORT_UNCOMPRESSED_BYTES:
+                    raise ValueError("Archive is too large")
+                buf.extend(chunk)
+        return bytes(buf)
+
+    def extract_entry(zf: ZipFile, name: str, dest: Path) -> None:
+        nonlocal total_bytes
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        with zf.open(name) as src, open(dest, "wb") as out:
+            while True:
+                chunk = src.read(1 << 20)
+                if not chunk:
+                    break
+                total_bytes += len(chunk)
+                if total_bytes > MAX_IMPORT_UNCOMPRESSED_BYTES:
+                    raise ValueError("Archive is too large")
+                out.write(chunk)
+
     with ZipFile(BytesIO(zip_bytes)) as zf:
         names = zf.namelist()
+        if len(names) > MAX_IMPORT_ENTRIES:
+            raise ValueError("Archive contains too many entries")
         if "manifest.json" not in names or "database.json" not in names:
             raise ValueError("Invalid .focus archive: missing manifest.json or database.json")
 
-        manifest = json.loads(zf.read("manifest.json"))
-        database = json.loads(zf.read("database.json"))
+        manifest = json.loads(read_entry(zf, "manifest.json"))
+        database = json.loads(read_entry(zf, "database.json"))
 
-    # Validate
+    if not isinstance(manifest, dict) or not isinstance(database, dict):
+        raise ValueError("Invalid .focus archive: bad manifest.json or database.json")
+    for table, rows in database.items():
+        if not isinstance(rows, list) or any(not isinstance(r, dict) for r in rows):
+            raise ValueError(f"Invalid .focus archive: bad rows in table {table!r}")
+
     if manifest.get("app") != "focus":
         logger.warning("Importing archive from unknown app: %s", manifest.get("app"))
 
-    id_map = _build_id_map(database)
+    # Archives before 0.2.0 carried live ids and raw file paths, so import has
+    # to re-id them. Newer archives are self-contained (ids, foreign keys and
+    # asset paths were rewritten at export time) and are restored verbatim.
+    legacy = manifest.get("version", "0.1.0") < FOCUS_VERSION
 
-    remapped = _remap_database(database, id_map)
+    if legacy:
+        id_map = build_id_map(database)
+        fk_columns = await collect_fk_columns(db, [t for t in INSERT_ORDER if t in database])
+        remapped = remap_database(database, id_map, fk_columns)
+    else:
+        id_map = None
+        remapped = database
 
-    # Handle provider name collisions
+    # Handle provider name collisions (bounded)
     async with db.execute("SELECT name FROM providers") as cur:
         existing_names = {r["name"] for r in await cur.fetchall()}
     for row in remapped.get("providers", []):
+        if not isinstance(row.get("name"), str):
+            raise ValueError("Invalid provider row in archive")
         original = row["name"]
-        while row["name"] in existing_names:
-            row["name"] = f"{original} (Imported)"
-        existing_names.add(row["name"])
+        counter = 1
+        candidate = original
+        while candidate in existing_names:
+            suffix = " (Imported)" if counter == 1 else f" (Imported {counter})"
+            candidate = f"{original}{suffix}"
+            counter += 1
+        row["name"] = candidate
+        existing_names.add(candidate)
+
+    assets_abs = ASSETS_DIR.resolve()
+    tools_abs = TOOLS_DIR.resolve()
+    legacy_assets_prefix = "assets/"
+    asset_subdirs = ("characters/", "attachments/", "blocks/", "personas/", "presets/")
 
     with ZipFile(BytesIO(zip_bytes)) as zf:
-        for name in zf.namelist():
-            if name.startswith(str(ASSETS_DIR) + "/"):
-                disk_path = Path(name)
-                dest = Path(_remap_path(str(disk_path), id_map))
+        for name in names:
+            if name in ("manifest.json", "database.json") or name.endswith("/"):
+                continue
+            if not is_safe_zip_entry(name):
+                raise ValueError(f"Unsafe path in archive: {name!r}")
+            if name.startswith("tools/"):
+                rel = Path(name).relative_to("tools")
+                dest = (TOOLS_DIR / rel).resolve()
+                if not dest.is_relative_to(tools_abs):
+                    raise ValueError(f"Unsafe path in archive: {name!r}")
+                if dest.suffix != ".json":
+                    raise ValueError(f"Non-JSON file in tools/: {name!r}")
+                data = read_entry(zf, name)
+                try:
+                    ExternalToolConfig.model_validate(json.loads(data))
+                except Exception as e:
+                    raise ValueError(f"Invalid tool config in archive: {name!r}: {e}")
                 dest.parent.mkdir(parents=True, exist_ok=True)
-                if not dest.exists():
-                    dest.write_bytes(zf.read(name))
-            elif name.startswith("tools/"):
-                dest = TOOLS_DIR / Path(name).relative_to("tools")
-                dest.parent.mkdir(parents=True, exist_ok=True)
-                dest.write_bytes(zf.read(name))
+                dest.write_bytes(data)
+                continue
+            if legacy:
+                if name.startswith("tool/"):
+                    rel = Path(remap_path(name, id_map)).relative_to("tool")
+                    dest = ASSETS_DIR / "tool" / rel
+                elif name.startswith(legacy_assets_prefix):
+                    # Legacy archives stored entries as cwd-relative "assets/..." paths
+                    remapped_path = Path(remap_path(name, id_map))
+                    rel = Path(*remapped_path.parts[1:]) if len(remapped_path.parts) > 1 else Path(".")
+                    dest = ASSETS_DIR / rel
+                elif name.startswith(asset_subdirs):
+                    dest = ASSETS_DIR / remap_path(name, id_map)
+                else:
+                    logger.warning("Ignoring unknown archive entry: %s", name)
+                    continue
+            elif name.startswith("tool/") or name.startswith(asset_subdirs):
+                dest = ASSETS_DIR / name
+            else:
+                logger.warning("Ignoring unknown archive entry: %s", name)
+                continue
+            dest = dest.resolve()
+            if not dest.is_relative_to(assets_abs):
+                raise ValueError(f"Unsafe path in archive: {name!r}")
+            if not dest.exists():
+                extract_entry(zf, name, dest)
 
-    # Insert rows in dependency order
+    # Insert rows in dependency order, inside a single transaction
     counts: dict[str, int] = {}
-    for table in INSERT_ORDER:
-        rows = remapped.get(table, [])
-        if not rows:
-            counts[table] = 0
-            continue
-        if table == "secrets":
+    try:
+        for table in INSERT_ORDER:
+            rows = remapped.get(table, [])
+            if not rows:
+                counts[table] = 0
+                continue
+            if table == "secrets":
+                for row in rows:
+                    if not isinstance(row.get("name"), str) or not isinstance(row.get("value"), str):
+                        raise ValueError("Invalid secrets row in archive")
+                    await db.execute(
+                        "INSERT OR REPLACE INTO secrets (name, value) VALUES (?, ?)",
+                        (row["name"], row["value"]),
+                    )
+                counts[table] = len(rows)
+                continue
+
+            cols = await db.execute(f"PRAGMA table_info({table})")
+            schema_rows = await cols.fetchall()
+            valid_columns = {row[1] for row in schema_rows}
+            required = {row[1] for row in schema_rows if row[3] and row[4] is None}
+
+            filtered: list[dict] = []
             for row in rows:
-                await db.execute(
-                    "INSERT OR REPLACE INTO secrets (name, value) VALUES (?, ?)",
-                    (row["name"], row["value"]),
-                )
-            counts[table] = len(rows)
-            continue
+                frow = {k: v for k, v in row.items() if k in valid_columns}
+                missing = required - frow.keys()
+                if missing:
+                    raise ValueError(
+                        f"Invalid .focus archive: {table} row missing columns: {sorted(missing)}"
+                    )
+                if table == "message_variants" and "segments_json" in frow:
+                    frow["segments_json"] = sanitize_segments_json(frow.get("segments_json"))
+                filtered.append(frow)
 
-        columns = list(rows[0].keys())
-        placeholders = ",".join("?" * len(columns))
-        colnames = ",".join(columns)
-        sql = f"INSERT INTO {table} ({colnames}) VALUES ({placeholders})"
-        for row in rows:
-            await db.execute(sql, [row[c] for c in columns])
-        counts[table] = len(rows)
+            columns = list(filtered[0].keys())
+            placeholders = ",".join("?" * len(columns))
+            colnames = ",".join(columns)
+            sql = f"INSERT INTO {table} ({colnames}) VALUES ({placeholders})"
+            try:
+                for row in filtered:
+                    await db.execute(sql, [row.get(c) for c in columns])
+            except sqlite3.IntegrityError as e:
+                raise ValueError(f"Archive conflicts with existing data: {e}")
+            counts[table] = len(filtered)
 
-    await db.commit()
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        raise
 
     summary = {
         "imported": counts,

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from typing import Any
@@ -83,7 +84,7 @@ async def execute_tool_round(
             continue
         try:
             logger.debug("Executing tool: %s args=%s", call.name, call.arguments)
-            output = tool.handler(**call.arguments)
+            output = await asyncio.to_thread(tool.handler, **call.arguments)
             if hasattr(output, "__await__"):
                 output = await output
             result = build_tool_result(call.id, call.name, output, multimodal=tool.multimodal)

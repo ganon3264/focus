@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 import base64
+import ipaddress
 import mimetypes
 import os
+import socket
 import subprocess
 import tempfile
 from io import BytesIO
 from pathlib import Path
 from urllib.parse import urlparse
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from PIL import Image
 
@@ -19,14 +21,17 @@ from focus.tools.helpers import TOOL_OUTPUT_TRUNCATE_CHARS
 
 _UA = "Focus/1.0"
 _URL_FETCH_TIMEOUT = 30
+_MAX_URL_FETCH_BYTES = 8 * 1024 * 1024
+_MAX_SHELL_TIMEOUT = 60
 
 
 def execute_shell(command: str, timeout_s: int = 10) -> str:
+    timeout = min(max(int(timeout_s or 10), 1), _MAX_SHELL_TIMEOUT)
     result = subprocess.run(
         ["/bin/sh", "-c", command],
         capture_output=True,
         text=True,
-        timeout=timeout_s,
+        timeout=timeout,
     )
     output = result.stdout or ""
     if result.stderr:
@@ -42,10 +47,36 @@ def read_file(path: str, lines: int | None = None) -> str:
         raise FileNotFoundError(f"File not found: {path}")
     if not p.is_file():
         raise ValueError(f"Not a file: {path}")
-    if lines is not None:
-        with p.open(encoding="utf-8", errors="replace") as f:
-            return "".join(f.readline() for _ in range(lines))
-    return p.read_text(encoding="utf-8", errors="replace")
+    max_lines = int(lines) if lines is not None else None
+    if max_lines is not None and max_lines < 0:
+        raise ValueError("lines must be >= 0")
+    chunks: list[str] = []
+    size = 0
+    line_count = 0
+    with p.open(encoding="utf-8", errors="replace") as f:
+        while True:
+            chunk = f.read(8192)
+            if not chunk:
+                break
+            if max_lines is not None:
+                newlines = chunk.count("\n")
+                if line_count + newlines >= max_lines:
+                    need = max_lines - line_count
+                    idx = -1
+                    for _ in range(need):
+                        idx = chunk.index("\n", idx + 1)
+                    chunks.append(chunk[: idx + 1])
+                    break
+                line_count += newlines
+            remaining = TOOL_OUTPUT_TRUNCATE_CHARS - size
+            if len(chunk) > remaining:
+                chunks.append(chunk[:remaining])
+                break
+            chunks.append(chunk)
+            size += len(chunk)
+            if size >= TOOL_OUTPUT_TRUNCATE_CHARS:
+                break
+    return "".join(chunks)
 
 
 def list_dir(path: str) -> str:
@@ -80,14 +111,46 @@ def _read_image_local(path: str) -> dict:
     return {"image": {"base64": b64, "mime": out_mime, "path": path, "width": w, "height": h}}
 
 
+def _check_url_safe(url: str) -> None:
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        raise RuntimeError(f"Blocked URL scheme: {parsed.scheme}")
+    host = parsed.hostname
+    if not host:
+        raise RuntimeError("URL has no host")
+    try:
+        infos = socket.getaddrinfo(host, None)
+    except OSError:
+        raise RuntimeError(f"Could not resolve host: {host}")
+    for info in infos:
+        ip_str = info[4][0].split("%")[0]
+        try:
+            ip = ipaddress.ip_address(ip_str)
+        except ValueError:
+            raise RuntimeError(f"Unparsable address: {ip_str}")
+        if not ip.is_global:
+            raise RuntimeError(f"Blocked non-global address: {ip_str}")
+
+
+class _SafeRedirectHandler(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        new_req = super().redirect_request(req, fp, code, msg, headers, newurl)
+        if new_req is not None:
+            _check_url_safe(newurl)
+        return new_req
+
+
 def _read_image_url(url: str) -> dict:
     try:
-        req = Request(url, headers={"User-Agent": _UA})
-        with urlopen(req, timeout=_URL_FETCH_TIMEOUT) as resp:
-            data = resp.read()
+        _check_url_safe(url)
+        opener = build_opener(_SafeRedirectHandler())
+        with opener.open(Request(url, headers={"User-Agent": _UA}), timeout=_URL_FETCH_TIMEOUT) as resp:
+            data = resp.read(_MAX_URL_FETCH_BYTES + 1)
             content_type = resp.headers.get("Content-Type")
     except Exception as e:
         raise RuntimeError(f"Failed to fetch image URL: {e}")
+    if len(data) > _MAX_URL_FETCH_BYTES:
+        raise RuntimeError("Image URL response too large")
 
     parsed = urlparse(url)
     ext = Path(parsed.path).suffix or ""
@@ -111,8 +174,9 @@ def _read_image_url(url: str) -> dict:
 
 
 def read_image(path: str) -> dict:
-    if path.startswith(("http://", "https://")):
-        return _read_image_url(path)
+    stripped = path.strip()
+    if stripped.lower().startswith(("http://", "https://")):
+        return _read_image_url(stripped)
     return _read_image_local(path)
 
 

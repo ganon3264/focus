@@ -1,15 +1,45 @@
 """Integration tests for the Focus import/export system."""
 
 import json
+import os
+import uuid
 from io import BytesIO
+from pathlib import Path
 from zipfile import ZipFile
 
+import aiosqlite
+import pytest
+
+from focus.core.utils import now_iso
 from tests.helpers import create_character, create_chat, create_persona, create_preset
 
 
 def _extract_database_from_zip(zip_bytes: bytes) -> dict:
     with ZipFile(BytesIO(zip_bytes)) as zf:
         return json.loads(zf.read("database.json"))
+
+
+def _build_archive(database: dict, extra_entries: dict | None = None, version: str = "0.1.0") -> bytes:
+    buf = BytesIO()
+    with ZipFile(buf, "w") as zf:
+        zf.writestr("manifest.json", json.dumps({"app": "focus", "version": version}))
+        zf.writestr("database.json", json.dumps(database))
+        for name, data in (extra_entries or {}).items():
+            zf.writestr(name, data)
+    return buf.getvalue()
+
+
+def _import_archive(client, zip_bytes: bytes, filename: str = "test.focus"):
+    files = {"file": (filename, BytesIO(zip_bytes), "application/zip")}
+    return client.post("/api/import", files=files)
+
+
+async def _read_db(tmp_test_dir, sql: str, params: tuple = ()):
+    db_path = os.path.join(tmp_test_dir, "test.db")
+    async with aiosqlite.connect(db_path) as db:
+        db.row_factory = aiosqlite.Row
+        cur = await db.execute(sql, params)
+        return await cur.fetchall()
 
 
 class TestExport:
@@ -108,7 +138,9 @@ class TestExport:
 
         assert len(db["chats"]) == 1
         assert len(db["characters"]) == 1
-        assert db["characters"][0]["id"] == char["id"]
+        # Export rewrites ids to fresh values; FKs must stay consistent
+        assert db["characters"][0]["id"] != char["id"]
+        assert db["chats"][0]["character_id"] == db["characters"][0]["id"]
         assert len(db["personas"]) >= 1
         assert len(db["presets"]) == 1
 
@@ -178,11 +210,15 @@ class TestImport:
         zip_bytes = resp.content
 
         files = {"file": ("test.focus", BytesIO(zip_bytes), "application/zip")}
-        await client.post("/api/import", files=files)
-        await client.post("/api/import", files=files)
+        first = await client.post("/api/import", files=files)
+        assert first.status_code == 201
+        # Self-contained archives are imported verbatim, so importing the same
+        # archive twice is a conflict instead of a silent duplicate
+        second = await client.post("/api/import", files=files)
+        assert second.status_code == 400
 
         list_resp = await client.get("/api/characters/")
-        assert len(list_resp.json()) == 3
+        assert len(list_resp.json()) == 2
 
     async def test_roundtrip_presets(self, client):
         p = await create_preset(client, "MyPreset")
@@ -225,6 +261,268 @@ class TestImport:
         files = {"file": ("bad.focus", BytesIO(b"not a zip file"), "application/zip")}
         resp = await client.post("/api/import", files=files)
         assert resp.status_code == 500
+
+
+class TestImportSecurity:
+    @pytest.mark.parametrize("version", ["0.1.0", "0.2.0"])
+    async def test_rejects_traversal_in_assets(self, client, version):
+        archive = _build_archive({"characters": []}, {"assets/../../evil.txt": b"pwned"}, version=version)
+        resp = await _import_archive(client, archive)
+        assert resp.status_code == 400
+        assert not any(
+            p.name == "evil.txt" for p in Path(os.environ["FOCUS_ASSETS_DIR"]).rglob("*")
+        )
+
+    async def test_rejects_traversal_in_tools(self, client):
+        archive = _build_archive({"characters": []}, {"tools/../../evil.json": b"{}"})
+        resp = await _import_archive(client, archive)
+        assert resp.status_code == 400
+
+    async def test_rejects_absolute_entries(self, client):
+        archive = _build_archive({"characters": []}, {"/tmp/evil.txt": b"x"})
+        resp = await _import_archive(client, archive)
+        assert resp.status_code == 400
+
+    async def test_rejects_backslash_entries(self, client):
+        archive = _build_archive({"characters": []}, {"assets\\evil.txt": b"x"})
+        resp = await _import_archive(client, archive)
+        assert resp.status_code == 400
+
+    async def test_accepts_legacy_assets_prefix_entries(self, client):
+        # Pre-fix archives stored entries as "assets/attachments/x.png"
+        archive = _build_archive({"characters": []}, {"assets/attachments/old.png": b"png"})
+        resp = await _import_archive(client, archive)
+        assert resp.status_code == 201
+        assert (Path(os.environ["FOCUS_ASSETS_DIR"]) / "attachments" / "old.png").exists()
+
+    async def test_rejects_sql_injection_column_names(self, client):
+        archive = _build_archive({
+            "characters": [{"id) VALUES (('x','y'))--": "z"}],
+        })
+        resp = await _import_archive(client, archive)
+        assert resp.status_code == 400
+        assert (await client.get("/api/characters/")).json() == []
+
+    async def test_rejects_missing_required_columns(self, client):
+        archive = _build_archive({
+            "characters": [{"id": str(uuid.uuid4()), "name": "NoCreatedAt", "card_json": "{}", "is_deleted": 0}],
+        })
+        resp = await _import_archive(client, archive)
+        assert resp.status_code == 400
+
+    async def test_rejects_oversized_archive(self, client, monkeypatch):
+        monkeypatch.setattr("focus.exchange.MAX_IMPORT_UNCOMPRESSED_BYTES", 2048)
+        archive = _build_archive({"characters": []}, {"attachments/x.bin": b"0" * 10000})
+        resp = await _import_archive(client, archive)
+        assert resp.status_code == 400
+        leftover = Path(os.environ["FOCUS_ASSETS_DIR"]) / "attachments" / "x.bin"
+        leftover.unlink(missing_ok=True)
+
+    async def test_rejects_invalid_tool_config(self, client, monkeypatch, tmp_test_dir):
+        fake_tools = Path(tmp_test_dir) / "tools"
+        fake_tools.mkdir(exist_ok=True)
+        monkeypatch.setattr("focus.exchange.TOOLS_DIR", fake_tools)
+        archive = _build_archive({"characters": []}, {"tools/evil.json": b"not json"})
+        resp = await _import_archive(client, archive)
+        assert resp.status_code == 400
+        assert not (fake_tools / "evil.json").exists()
+
+    @pytest.mark.parametrize("version", ["0.1.0", "0.2.0"])
+    async def test_accepts_valid_tool_config(self, client, monkeypatch, tmp_test_dir, version):
+        fake_tools = Path(tmp_test_dir) / "tools"
+        fake_tools.mkdir(exist_ok=True)
+        monkeypatch.setattr("focus.exchange.TOOLS_DIR", fake_tools)
+        config = {
+            "name": "echo_tool",
+            "description": "echoes input",
+            "command": ["echo", "hi"],
+            "timeout": 10,
+            "writes": False,
+            "params": [],
+        }
+        archive = _build_archive({"characters": []}, {"tools/echo.json": json.dumps(config)}, version=version)
+        resp = await _import_archive(client, archive)
+        assert resp.status_code == 201
+        assert (fake_tools / "echo.json").exists()
+
+    async def test_failed_import_rolls_back(self, client):
+        now = now_iso()
+        database = {
+            "characters": [{"id": str(uuid.uuid4()), "name": "R", "image_path": None, "card_json": "{}", "created_at": now, "is_deleted": 0}],
+            "messages": [{"id": str(uuid.uuid4()), "chat_id": "missing-chat", "role": "user", "position": 0, "active_index": 0, "created_at": now}],
+        }
+        archive = _build_archive(database)
+        resp = await _import_archive(client, archive)
+        assert resp.status_code == 400
+        assert (await client.get("/api/characters/")).json() == []
+
+    async def test_v2_import_is_verbatim(self, client, tmp_test_dir):
+        now = now_iso()
+        char_id = str(uuid.uuid4())
+        archive = _build_archive({
+            "characters": [{"id": char_id, "name": "V2", "image_path": None, "card_json": "{}", "created_at": now, "is_deleted": 0}],
+        }, version="0.2.0")
+        resp = await _import_archive(client, archive)
+        assert resp.status_code == 201
+        rows = await _read_db(tmp_test_dir, "SELECT id, name FROM characters")
+        assert rows[0]["id"] == char_id
+
+    async def test_provider_name_dedup_is_bounded(self, client):
+        for name in ("P", "P (Imported)"):
+            resp = await client.post(
+                "/api/providers/",
+                json={
+                    "name": name,
+                    "type": "openai_compat",
+                    "base_url": "http://localhost:8080/v1",
+                    "api_key": "k",
+                    "model": "m",
+                },
+            )
+            assert resp.status_code == 201
+
+        archive = _build_archive({
+            "providers": [{
+                "id": str(uuid.uuid4()), "name": "P", "type": "openai_compat",
+                "base_url": "http://x/v1", "api_key": "k", "model": "m",
+                "params_json": "{}", "created_at": now_iso(),
+            }],
+        })
+        resp = await _import_archive(client, archive)
+        assert resp.status_code == 201
+        names = {p["name"] for p in (await client.get("/api/providers/")).json()}
+        assert "P (Imported 2)" in names
+
+    @pytest.mark.parametrize("version", ["0.1.0", "0.2.0"])
+    async def test_sanitizes_segments_on_import(self, client, tmp_test_dir, version):
+        now = now_iso()
+        char_id = str(uuid.uuid4())
+        chat_id = str(uuid.uuid4())
+        msg_id = str(uuid.uuid4())
+        var_id = str(uuid.uuid4())
+        database = {
+            "characters": [{"id": char_id, "name": "X", "image_path": None, "card_json": "{}", "created_at": now, "is_deleted": 0}],
+            "chats": [{"id": chat_id, "title": "C", "character_id": char_id, "persona_id": None, "preset_id": None, "created_at": now, "updated_at": now, "is_deleted": 0, "tool_calls_enabled": 0, "tool_read_only": 1}],
+            "messages": [{"id": msg_id, "chat_id": chat_id, "role": "assistant", "position": 1, "active_index": 0, "created_at": now}],
+            "message_variants": [{
+                "id": var_id, "message_id": msg_id, "variant_index": 0, "content": "hi",
+                "created_at": now, "model_name": None, "reasoning": None,
+                "segments_json": json.dumps([
+                    {"type": "reasoning", "html": "<img src=x onerror=alert(1)>", "index": 0},
+                ]),
+                "reasoning_details": None, "variant_meta": None,
+            }],
+        }
+        archive = _build_archive(database, version=version)
+        resp = await _import_archive(client, archive)
+        assert resp.status_code == 201
+
+        rows = await _read_db(tmp_test_dir, "SELECT segments_json FROM message_variants")
+        segments = json.loads(rows[0]["segments_json"])
+        assert segments[0]["type"] == "reasoning"
+        assert "<img" not in segments[0]["html"]
+        assert "&lt;img" in segments[0]["html"]
+
+    async def test_nullifies_malformed_segments(self, client, tmp_test_dir):
+        now = now_iso()
+        char_id = str(uuid.uuid4())
+        chat_id = str(uuid.uuid4())
+        msg_id = str(uuid.uuid4())
+        database = {
+            "characters": [{"id": char_id, "name": "X", "image_path": None, "card_json": "{}", "created_at": now, "is_deleted": 0}],
+            "chats": [{"id": chat_id, "title": "C", "character_id": char_id, "persona_id": None, "preset_id": None, "created_at": now, "updated_at": now, "is_deleted": 0, "tool_calls_enabled": 0, "tool_read_only": 1}],
+            "messages": [{"id": msg_id, "chat_id": chat_id, "role": "assistant", "position": 1, "active_index": 0, "created_at": now}],
+            "message_variants": [{
+                "id": str(uuid.uuid4()), "message_id": msg_id, "variant_index": 0,
+                "content": "hi", "created_at": now,
+                "segments_json": "this is not json",
+            }],
+        }
+        archive = _build_archive(database)
+        resp = await _import_archive(client, archive)
+        assert resp.status_code == 201
+        rows = await _read_db(tmp_test_dir, "SELECT segments_json FROM message_variants")
+        assert rows[0]["segments_json"] is None
+
+
+class TestAttachmentRoundtrip:
+    async def test_attachment_files_preserved_on_import(self, client, tmp_test_dir):
+        char = await create_character(client, "AttachChar")
+        chat = await create_chat(client, char["id"])
+
+        files = {"files": ("hello.txt", BytesIO(b"hello attachment"), "text/plain")}
+        resp = await client.post(f"/api/chats/{chat['id']}/attachments", files=files)
+        assert resp.status_code == 201
+        att = resp.json()["attachments"][0]
+        assert Path(att["file_path"]).exists()
+
+        resp = await client.post("/api/export", json={"chats": [chat["id"]]})
+        assert resp.status_code == 200
+        with ZipFile(BytesIO(resp.content)) as zf:
+            assert "attachments" in {n.split("/")[0] for n in zf.namelist()}
+
+        imp = await _import_archive(client, resp.content)
+        assert imp.status_code == 201
+
+        rows = await _read_db(
+            tmp_test_dir,
+            "SELECT file_path FROM message_attachments WHERE file_path != ?",
+            (att["file_path"],),
+        )
+        imported = rows[0]
+        assert imported is not None
+        assert Path(imported["file_path"]).exists()
+
+        for p in (att["file_path"], imported["file_path"]):
+            Path(p).unlink(missing_ok=True)
+
+    async def test_tool_images_preserved_on_import(self, client, tmp_test_dir):
+        chat = await create_chat(client)
+        now = now_iso()
+        msg_id = str(uuid.uuid4())
+        var_id = str(uuid.uuid4())
+
+        from focus.core.paths import ASSETS_DIR
+
+        img_rel = f"tool/test_{uuid.uuid4().hex}/img1.webp"
+        img = ASSETS_DIR / img_rel
+        img.parent.mkdir(parents=True, exist_ok=True)
+        img.write_bytes(b"fake webp")
+        try:
+            db_path = os.path.join(tmp_test_dir, "test.db")
+            async with aiosqlite.connect(db_path) as db:
+                await db.execute(
+                    "INSERT INTO messages (id, chat_id, role, position, active_index, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+                    (msg_id, chat["id"], "assistant", 1, 0, now),
+                )
+                await db.execute(
+                    "INSERT INTO message_variants (id, message_id, variant_index, content, created_at) VALUES (?, ?, ?, ?, ?)",
+                    (var_id, msg_id, 0, "text", now),
+                )
+                await db.execute(
+                    "INSERT INTO tool_calls (id, chat_id, message_id, variant_id, tool_name, arguments, result, is_error, result_image_path, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (str(uuid.uuid4()), chat["id"], msg_id, var_id, "read_image", "{}", "ok", 0, img_rel, now),
+                )
+                await db.commit()
+
+            resp = await client.post("/api/export", json={"chats": [chat["id"]]})
+            assert resp.status_code == 200
+            with ZipFile(BytesIO(resp.content)) as zf:
+                assert img_rel in zf.namelist()
+
+            imp = await _import_archive(client, resp.content)
+            assert imp.status_code == 201
+
+            rows = await _read_db(
+                tmp_test_dir,
+                "SELECT result_image_path FROM tool_calls WHERE result_image_path IS NOT NULL",
+            )
+            assert rows, "tool image path should survive the roundtrip"
+            assert (ASSETS_DIR / rows[0]["result_image_path"]).exists()
+        finally:
+            for p in img.parent.iterdir():
+                p.unlink(missing_ok=True)
+            img.parent.rmdir()
 
 
 class TestEndToEnd:
@@ -272,7 +570,8 @@ class TestCascading:
 
         resp = await client.post("/api/export", json={"chats": [chat["id"]]})
         db = _extract_database_from_zip(resp.content)
-        assert db["characters"][0]["id"] == char["id"]
+        assert db["characters"][0]["id"] != char["id"]
+        assert db["chats"][0]["character_id"] == db["characters"][0]["id"]
 
     async def test_character_export_includes_blocks(self, client):
         c = await create_character(client, "BlockChar")
@@ -289,11 +588,12 @@ class TestCascading:
         resp = await client.post("/api/export", json={"characters": [c["id"]]})
         db = _extract_database_from_zip(resp.content)
         assert len(db["char_blocks"]) == 1
-        assert db["char_blocks"][0]["id"] == block_id
+        assert db["char_blocks"][0]["id"] != block_id
+        assert db["char_blocks"][0]["character_id"] == db["characters"][0]["id"]
 
 
 class TestProvidersAndSecrets:
-    async def test_providers_roundtrip(self, client):
+    async def test_providers_roundtrip(self, client, tmp_test_dir):
         # Create a provider
         resp = await client.post(
             "/api/providers/",
@@ -306,7 +606,6 @@ class TestProvidersAndSecrets:
             },
         )
         assert resp.status_code == 201
-        provider_id = resp.json()["id"]
 
         # Export including providers
         resp = await client.post(
@@ -323,12 +622,9 @@ class TestProvidersAndSecrets:
         assert imp_resp.status_code == 201
         assert imp_resp.json()["imported"]["providers"] >= 1
 
-        # Verify API key survived
-        list_resp = await client.get("/api/providers/")
-        providers = list_resp.json()
-        # Provider with api_key != SECRET: prefix gets it shown directly
-        keys_shown = [p for p in providers if p["id"] == provider_id]
-        assert len(keys_shown) >= 1
+        # Verify API key survived the roundtrip (export rewrites ids, not keys)
+        rows = await _read_db(tmp_test_dir, "SELECT api_key FROM providers")
+        assert any(r["api_key"] == "sk-test-123" for r in rows)
 
     async def test_secrets_roundtrip(self, client):
         # Create a secret

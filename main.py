@@ -3,6 +3,7 @@ import stat
 import time
 from contextlib import asynccontextmanager
 from email.utils import formatdate
+from urllib.parse import urlparse
 
 import anyio
 from fastapi import Depends, FastAPI, Request
@@ -92,6 +93,21 @@ async def log_requests(request: Request, call_next):
     else:
         logger.debug(msg, request.method, request.url.path, color, status, process_time)
     return response
+
+
+@app.middleware("http")
+async def check_origin(request: Request, call_next):
+    if request.method in ("POST", "PUT", "PATCH", "DELETE"):
+        origin = request.headers.get("origin")
+        if origin:
+            host = request.headers.get("host", "")
+            if urlparse(origin).netloc != host:
+                logger.warning(
+                    "Blocked cross-origin %s %s (origin=%s)",
+                    request.method, request.url.path, origin,
+                )
+                return Response(status_code=403, content="Cross-origin request blocked")
+    return await call_next(request)
 
 
 app.include_router(characters.router, prefix="/api/characters", tags=["characters"])
