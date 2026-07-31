@@ -316,7 +316,7 @@ class TestImportSecurity:
         resp = await _import_archive(client, archive)
         assert resp.status_code == 400
         leftover = Path(os.environ["FOCUS_ASSETS_DIR"]) / "attachments" / "x.bin"
-        leftover.unlink(missing_ok=True)
+        assert not leftover.exists()
 
     async def test_rejects_invalid_tool_config(self, client, monkeypatch, tmp_test_dir):
         fake_tools = Path(tmp_test_dir) / "tools"
@@ -356,6 +356,30 @@ class TestImportSecurity:
         assert resp.status_code == 400
         assert (await client.get("/api/characters/")).json() == []
 
+    async def test_failed_import_removes_extracted_files(self, client, monkeypatch, tmp_test_dir):
+        fake_tools = Path(tmp_test_dir) / "tools"
+        fake_tools.mkdir(exist_ok=True)
+        monkeypatch.setattr("focus.exchange.TOOLS_DIR", fake_tools)
+        config = {
+            "name": "echo_tool",
+            "description": "echoes input",
+            "command": ["echo", "hi"],
+            "timeout": 10,
+            "writes": False,
+            "params": [],
+        }
+        now = now_iso()
+        database = {
+            # missing required column (created_at) so the insert fails
+            "characters": [{"id": str(uuid.uuid4()), "name": "R", "image_path": None, "card_json": "{}", "is_deleted": 0}],
+        }
+        archive = _build_archive(database, {"tools/echo.json": json.dumps(config), "attachments/x.png": b"img"})
+        resp = await _import_archive(client, archive)
+        assert resp.status_code == 400
+        assert not (fake_tools / "echo.json").exists()
+        assert not (Path(os.environ["FOCUS_ASSETS_DIR"]) / "attachments" / "x.png").exists()
+        assert (await client.get("/api/characters/")).json() == []
+
     async def test_v2_import_is_verbatim(self, client, tmp_test_dir):
         now = now_iso()
         char_id = str(uuid.uuid4())
@@ -366,6 +390,28 @@ class TestImportSecurity:
         assert resp.status_code == 201
         rows = await _read_db(tmp_test_dir, "SELECT id, name FROM characters")
         assert rows[0]["id"] == char_id
+
+    async def test_v2_minor_10_not_treated_as_legacy(self, client, tmp_test_dir):
+        # "0.10.0" must not compare as older than "0.2.0" lexically
+        now = now_iso()
+        char_id = str(uuid.uuid4())
+        archive = _build_archive({
+            "characters": [{"id": char_id, "name": "V10", "image_path": None, "card_json": "{}", "created_at": now, "is_deleted": 0}],
+        }, version="0.10.0")
+        resp = await _import_archive(client, archive)
+        assert resp.status_code == 201
+        rows = await _read_db(tmp_test_dir, "SELECT id FROM characters")
+        assert rows[0]["id"] == char_id
+
+    async def test_non_string_version_rejected(self, client):
+        archive = _build_archive({"characters": []}, version=2)
+        resp = await _import_archive(client, archive)
+        assert resp.status_code == 400
+
+    async def test_invalid_version_string_rejected(self, client):
+        archive = _build_archive({"characters": []}, version="not.a.version")
+        resp = await _import_archive(client, archive)
+        assert resp.status_code == 400
 
     async def test_provider_name_dedup_is_bounded(self, client):
         for name in ("P", "P (Imported)"):
@@ -523,6 +569,89 @@ class TestAttachmentRoundtrip:
             for p in img.parent.iterdir():
                 p.unlink(missing_ok=True)
             img.parent.rmdir()
+
+
+class TestImportSettings:
+    async def test_does_not_clobber_existing_settings(self, client, tmp_test_dir):
+        resp = await client.patch("/api/settings/", json={"key": "focus_char_view", "value": "cards"})
+        assert resp.status_code == 200
+
+        now = now_iso()
+        archive = _build_archive({
+            "characters": [{"id": str(uuid.uuid4()), "name": "S", "image_path": None, "card_json": "{}", "created_at": now, "is_deleted": 0}],
+            "settings": [
+                {"key": "focus_char_view", "value": "table"},
+                {"key": "new_setting_key", "value": "from-archive"},
+            ],
+        }, version="0.2.0")
+        resp = await _import_archive(client, archive)
+        assert resp.status_code == 201
+
+        settings = (await client.get("/api/settings/")).json()
+        assert settings["focus_char_view"] == "cards"
+        assert settings["new_setting_key"] == "from-archive"
+
+
+class TestDuplicateAttachments:
+    async def test_same_filename_uploads_get_unique_entries(self, client, tmp_test_dir):
+        char = await create_character(client, "DupChar")
+        chat = await create_chat(client, char["id"])
+
+        for _ in range(2):
+            files = {"files": ("image.png", BytesIO(b"png data"), "image/png")}
+            resp = await client.post(f"/api/chats/{chat['id']}/attachments", files=files)
+            assert resp.status_code == 201
+
+        resp = await client.post("/api/export", json={"chats": [chat["id"]]})
+        assert resp.status_code == 200
+        with ZipFile(BytesIO(resp.content)) as zf:
+            entry_names = [n for n in zf.namelist() if n.startswith("attachments/")]
+            assert len(entry_names) == 2
+            assert len(set(entry_names)) == 2
+
+        imp = await _import_archive(client, resp.content)
+        assert imp.status_code == 201
+        rows = await _read_db(tmp_test_dir, "SELECT file_path FROM message_attachments")
+        paths = [r["file_path"] for r in rows]
+        assert len(paths) == len(set(paths))
+        assert all(Path(p).exists() for p in paths)
+
+    async def test_shared_file_path_rows_export_and_import(self, client, tmp_test_dir):
+        char = await create_character(client, "ShareChar")
+        chat = await create_chat(client, char["id"])
+
+        files = {"files": ("image.png", BytesIO(b"shared bytes"), "image/png")}
+        resp = await client.post(f"/api/chats/{chat['id']}/attachments", files=files)
+        assert resp.status_code == 201
+        att = resp.json()["attachments"][0]
+
+        # Simulate a variant/duplicate copy: a second row pointing at the same file
+        now = now_iso()
+        db_path = os.path.join(tmp_test_dir, "test.db")
+        async with aiosqlite.connect(db_path) as db:
+            await db.execute(
+                "INSERT INTO message_attachments (id, chat_id, message_id, variant_id, file_path, mime_type, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (str(uuid.uuid4()), chat["id"], None, None, att["file_path"], "image/png", now),
+            )
+            await db.commit()
+
+        resp = await client.post("/api/export", json={"chats": [chat["id"]]})
+        assert resp.status_code == 200
+        with ZipFile(BytesIO(resp.content)) as zf:
+            names = zf.namelist()
+            assert len([n for n in names if n.startswith("attachments/")]) == 2
+            assert all(names.count(n) == 1 for n in set(names))
+
+        imp = await _import_archive(client, resp.content)
+        assert imp.status_code == 201
+        rows = await _read_db(tmp_test_dir, "SELECT file_path FROM message_attachments")
+        paths = [r["file_path"] for r in rows]
+        # Pre-existing rows keep sharing the original file; the imported rows
+        # must each get their own file.
+        assert paths.count(att["file_path"]) == 2
+        imported_paths = [p for p in paths if p != att["file_path"]]
+        assert len(imported_paths) == len(set(imported_paths))
+        assert all(Path(p).exists() for p in imported_paths)
 
 
 class TestEndToEnd:

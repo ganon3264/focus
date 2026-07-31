@@ -21,6 +21,17 @@ from focus.tools.external import ExternalToolConfig
 
 logger = logging.getLogger("focus.exchange")
 FOCUS_VERSION = "0.2.0"
+FOCUS_VERSION_PARTS = tuple(int(p) for p in FOCUS_VERSION.split("."))
+
+
+def _version_tuple(version) -> tuple[int, ...]:
+    """Parse an archive version string for comparison; reject garbage."""
+    if not isinstance(version, str):
+        raise ValueError("Invalid archive version in manifest")
+    try:
+        return tuple(int(p) for p in version.split("."))
+    except ValueError:
+        raise ValueError("Invalid archive version in manifest")
 
 # Tables in dependency order for export (must include all FKs before dependents)
 EXPORT_TABLES = [
@@ -225,7 +236,7 @@ async def export_data(db: aiosqlite.Connection, req: ExportRequest) -> bytes:
     raw_database = database
     id_map = build_id_map(database)
     fk_columns = await collect_fk_columns(db, [t for t in EXPORT_TABLES if t in database])
-    database = remap_database(database, id_map, fk_columns, null_unmapped_fks=True)
+    database = remap_database(database, id_map, fk_columns, null_unmapped_fks=True, rebase_attachments=True)
 
     buf = BytesIO()
     with ZipFile(buf, "w", ZIP_DEFLATED) as zf:
@@ -260,6 +271,7 @@ async def export_data(db: aiosqlite.Connection, req: ExportRequest) -> bytes:
         zf.writestr("manifest.json", json.dumps(manifest, indent=2, ensure_ascii=False))
         zf.writestr("database.json", json.dumps(database, indent=2, ensure_ascii=False))
 
+        seen_entries: set[str] = set()
         for table, field in PATH_FIELDS:
             for orig_row, new_row in zip(raw_database.get(table, []), database.get(table, [])):
                 old_path = orig_row.get(field)
@@ -276,6 +288,10 @@ async def export_data(db: aiosqlite.Connection, req: ExportRequest) -> bytes:
                 if entry is None:
                     logger.warning("Skipping file outside assets dir: %s", old_path)
                     continue
+                if entry in seen_entries:
+                    logger.warning("Duplicate archive entry, skipping: %s", entry)
+                    continue
+                seen_entries.add(entry)
                 zf.write(src, entry)
 
         if TOOLS_DIR.is_dir():
@@ -293,6 +309,8 @@ async def _query_table_all(db: aiosqlite.Connection, table: str) -> list[dict]:
 
 async def import_data(db: aiosqlite.Connection, zip_bytes: bytes) -> dict:
     total_bytes = 0
+    created: list[Path] = []
+    extracted_dests: set[Path] = set()
 
     def read_entry(zf: ZipFile, name: str) -> bytes:
         nonlocal total_bytes
@@ -310,6 +328,7 @@ async def import_data(db: aiosqlite.Connection, zip_bytes: bytes) -> dict:
 
     def extract_entry(zf: ZipFile, name: str, dest: Path) -> None:
         nonlocal total_bytes
+        created.append(dest)
         dest.parent.mkdir(parents=True, exist_ok=True)
         with zf.open(name) as src, open(dest, "wb") as out:
             while True:
@@ -320,6 +339,7 @@ async def import_data(db: aiosqlite.Connection, zip_bytes: bytes) -> dict:
                 if total_bytes > MAX_IMPORT_UNCOMPRESSED_BYTES:
                     raise ValueError("Archive is too large")
                 out.write(chunk)
+        extracted_dests.add(dest)
 
     with ZipFile(BytesIO(zip_bytes)) as zf:
         names = zf.namelist()
@@ -343,7 +363,8 @@ async def import_data(db: aiosqlite.Connection, zip_bytes: bytes) -> dict:
     # Archives before 0.2.0 carried live ids and raw file paths, so import has
     # to re-id them. Newer archives are self-contained (ids, foreign keys and
     # asset paths were rewritten at export time) and are restored verbatim.
-    legacy = manifest.get("version", "0.1.0") < FOCUS_VERSION
+    # Compare as version tuples: "0.10.0" must not count as older than "0.2.0".
+    legacy = _version_tuple(manifest.get("version", "0.1.0")) < FOCUS_VERSION_PARTS
 
     if legacy:
         id_map = build_id_map(database)
@@ -374,55 +395,58 @@ async def import_data(db: aiosqlite.Connection, zip_bytes: bytes) -> dict:
     legacy_assets_prefix = "assets/"
     asset_subdirs = ("characters/", "attachments/", "blocks/", "personas/", "presets/")
 
-    with ZipFile(BytesIO(zip_bytes)) as zf:
-        for name in names:
-            if name in ("manifest.json", "database.json") or name.endswith("/"):
-                continue
-            if not is_safe_zip_entry(name):
-                raise ValueError(f"Unsafe path in archive: {name!r}")
-            if name.startswith("tools/"):
-                rel = Path(name).relative_to("tools")
-                dest = (TOOLS_DIR / rel).resolve()
-                if not dest.is_relative_to(tools_abs):
+    # Extract files and insert rows inside a single attempt so a failure
+    # rolls back the transaction AND removes files written to disk.
+    counts: dict[str, int] = {}
+    try:
+        with ZipFile(BytesIO(zip_bytes)) as zf:
+            for name in names:
+                if name in ("manifest.json", "database.json") or name.endswith("/"):
+                    continue
+                if not is_safe_zip_entry(name):
                     raise ValueError(f"Unsafe path in archive: {name!r}")
-                if dest.suffix != ".json":
-                    raise ValueError(f"Non-JSON file in tools/: {name!r}")
-                data = read_entry(zf, name)
-                try:
-                    ExternalToolConfig.model_validate(json.loads(data))
-                except Exception as e:
-                    raise ValueError(f"Invalid tool config in archive: {name!r}: {e}")
-                dest.parent.mkdir(parents=True, exist_ok=True)
-                dest.write_bytes(data)
-                continue
-            if legacy:
-                if name.startswith("tool/"):
-                    rel = Path(remap_path(name, id_map)).relative_to("tool")
-                    dest = ASSETS_DIR / "tool" / rel
-                elif name.startswith(legacy_assets_prefix):
-                    # Legacy archives stored entries as cwd-relative "assets/..." paths
-                    remapped_path = Path(remap_path(name, id_map))
-                    rel = Path(*remapped_path.parts[1:]) if len(remapped_path.parts) > 1 else Path(".")
-                    dest = ASSETS_DIR / rel
-                elif name.startswith(asset_subdirs):
-                    dest = ASSETS_DIR / remap_path(name, id_map)
+                if name.startswith("tools/"):
+                    rel = Path(name).relative_to("tools")
+                    dest = (TOOLS_DIR / rel).resolve()
+                    if not dest.is_relative_to(tools_abs):
+                        raise ValueError(f"Unsafe path in archive: {name!r}")
+                    if dest.suffix != ".json":
+                        raise ValueError(f"Non-JSON file in tools/: {name!r}")
+                    data = read_entry(zf, name)
+                    try:
+                        ExternalToolConfig.model_validate(json.loads(data))
+                    except Exception as e:
+                        raise ValueError(f"Invalid tool config in archive: {name!r}: {e}")
+                    dest.parent.mkdir(parents=True, exist_ok=True)
+                    created.append(dest)
+                    dest.write_bytes(data)
+                    continue
+                if legacy:
+                    if name.startswith("tool/"):
+                        rel = Path(remap_path(name, id_map)).relative_to("tool")
+                        dest = ASSETS_DIR / "tool" / rel
+                    elif name.startswith(legacy_assets_prefix):
+                        # Legacy archives stored entries as cwd-relative "assets/..." paths
+                        remapped_path = Path(remap_path(name, id_map))
+                        rel = Path(*remapped_path.parts[1:]) if len(remapped_path.parts) > 1 else Path(".")
+                        dest = ASSETS_DIR / rel
+                    elif name.startswith(asset_subdirs):
+                        dest = ASSETS_DIR / remap_path(name, id_map)
+                    else:
+                        logger.warning("Ignoring unknown archive entry: %s", name)
+                        continue
+                elif name.startswith("tool/") or name.startswith(asset_subdirs):
+                    dest = ASSETS_DIR / name
                 else:
                     logger.warning("Ignoring unknown archive entry: %s", name)
                     continue
-            elif name.startswith("tool/") or name.startswith(asset_subdirs):
-                dest = ASSETS_DIR / name
-            else:
-                logger.warning("Ignoring unknown archive entry: %s", name)
-                continue
-            dest = dest.resolve()
-            if not dest.is_relative_to(assets_abs):
-                raise ValueError(f"Unsafe path in archive: {name!r}")
-            if not dest.exists():
-                extract_entry(zf, name, dest)
+                dest = dest.resolve()
+                if not dest.is_relative_to(assets_abs):
+                    raise ValueError(f"Unsafe path in archive: {name!r}")
+                if not dest.exists() and dest not in extracted_dests:
+                    extract_entry(zf, name, dest)
 
-    # Insert rows in dependency order, inside a single transaction
-    counts: dict[str, int] = {}
-    try:
+        # Insert rows in dependency order, inside a single transaction
         for table in INSERT_ORDER:
             rows = remapped.get(table, [])
             if not rows:
@@ -435,6 +459,18 @@ async def import_data(db: aiosqlite.Connection, zip_bytes: bytes) -> dict:
                     await db.execute(
                         "INSERT OR REPLACE INTO secrets (name, value) VALUES (?, ?)",
                         (row["name"], row["value"]),
+                    )
+                counts[table] = len(rows)
+                continue
+            if table == "settings":
+                # Never clobber the receiving app's live settings; archive
+                # values would reference entities from the exporter's DB.
+                for row in rows:
+                    if not isinstance(row.get("key"), str) or not isinstance(row.get("value"), str):
+                        raise ValueError("Invalid settings row in archive")
+                    await db.execute(
+                        "INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)",
+                        (row["key"], row["value"]),
                     )
                 counts[table] = len(rows)
                 continue
@@ -470,6 +506,15 @@ async def import_data(db: aiosqlite.Connection, zip_bytes: bytes) -> dict:
         await db.commit()
     except Exception:
         await db.rollback()
+        for path in created:
+            path.unlink(missing_ok=True)
+            parent = path.parent
+            while parent not in (assets_abs, tools_abs):
+                try:
+                    parent.rmdir()
+                except OSError:
+                    break
+                parent = parent.parent
         raise
 
     summary = {

@@ -74,6 +74,7 @@ def remap_database(
     id_map: dict[str, str],
     fk_columns: dict[str, set[str]],
     null_unmapped_fks: bool = False,
+    rebase_attachments: bool = False,
 ) -> dict[str, list[dict]]:
     remapped: dict[str, list[dict]] = {}
     for table, rows in database.items():
@@ -99,6 +100,8 @@ def remap_database(
 
     # Remap file paths
     for table, field in PATH_FIELDS:
+        if table == "message_attachments" and rebase_attachments:
+            continue
         if table not in remapped:
             continue
         for row in remapped[table]:
@@ -106,5 +109,16 @@ def remap_database(
             if not old_path:
                 continue
             row[field] = remap_path(old_path, id_map)
+
+    # Attachment rows may share a file on disk (variants/duplicated chats copy
+    # file_path verbatim). Rebase each row onto its own remapped id so every
+    # row maps to a distinct archive entry and a distinct file after import.
+    if rebase_attachments and "message_attachments" in remapped:
+        for row in remapped["message_attachments"]:
+            old_path = row.get("file_path")
+            if not old_path:
+                continue
+            suffix = Path(old_path).suffix or ".bin"
+            row["file_path"] = str(Path(old_path).parent / f"{row['id']}{suffix}")
 
     return remapped
