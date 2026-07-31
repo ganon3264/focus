@@ -29,7 +29,7 @@ from focus.routers import (
 )
 
 
-class CachedStaticFiles(StaticFiles):
+class RevalidatedStaticFiles(StaticFiles):
     async def get_response(self, path: str, scope):
         request_headers = Headers(scope=scope)
         if_none_match = request_headers.get("if-none-match")
@@ -48,7 +48,7 @@ class CachedStaticFiles(StaticFiles):
                         return Response(
                             status_code=304,
                             headers={
-                                "Cache-Control": "public, max-age=31536000, immutable",
+                                "Cache-Control": "public, no-cache",
                                 "ETag": etag,
                                 "Last-Modified": last_modified,
                             }
@@ -57,7 +57,7 @@ class CachedStaticFiles(StaticFiles):
                 pass
 
         response = await super().get_response(path, scope)
-        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        response.headers["Cache-Control"] = "public, no-cache"
         return response
 
 
@@ -122,8 +122,8 @@ app.include_router(settings.router, prefix="/api/settings", tags=["settings"])
 app.include_router(tools.router, prefix="/api", tags=["tools"])
 app.include_router(exchange.router, prefix="/api", tags=["import-export"])
 
-app.mount("/assets", CachedStaticFiles(directory="assets"), name="assets")
-app.mount("/static", CachedStaticFiles(directory="static"), name="static")
+app.mount("/assets", RevalidatedStaticFiles(directory="assets"), name="assets")
+app.mount("/static", RevalidatedStaticFiles(directory="static"), name="static")
 
 
 @app.get("/", include_in_schema=False)
