@@ -87,7 +87,7 @@ async def execute_tool_round(
             output = await asyncio.to_thread(tool.handler, **call.arguments)
             if hasattr(output, "__await__"):
                 output = await output
-            result = build_tool_result(call.id, call.name, output, multimodal=tool.multimodal)
+            result = await build_tool_result(call.id, call.name, output, multimodal=tool.multimodal)
             results.append(result)
         except Exception as e:
             logger.exception("Tool execution failed: %s", call.name)

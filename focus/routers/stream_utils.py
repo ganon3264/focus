@@ -18,7 +18,7 @@ from focus.db.chats import (
     create_message,
     create_message_with_variant,
 )
-from focus.core.tool_media import load_tool_image_data_url
+from focus.core.media import tool_image_data_url
 from focus.prompt_chain import assemble_prompt, build_content
 from focus.routers.providers import get_openrouter_model_modalities
 
@@ -130,7 +130,7 @@ async def _append_history_with_tool_calls(
         if segments and any(
             s.get("type") == "tool_boundary" and s.get("tool_calls") for s in segments
         ):
-            _append_segmented_tool_history(history, segments, tcs, variant_meta=variant_meta)
+            await _append_segmented_tool_history(history, segments, tcs, variant_meta=variant_meta)
             return
 
     content = await build_content(content_text, msg_attachments.get(row["variant_id"], []))
@@ -150,7 +150,7 @@ async def _append_history_with_tool_calls(
     # Insert synthetic tool-role messages after the assistant message,
     # interleaved with any extra_message user messages (e.g. images)
     for tc in tcs:
-        _append_tool_messages(history, tc)
+        await _append_tool_messages(history, tc)
 
 
 def _tool_calls_payload(tc: dict) -> dict:
@@ -164,7 +164,7 @@ def _tool_calls_payload(tc: dict) -> dict:
     }
 
 
-def _append_tool_messages(history: list, tc: dict) -> None:
+async def _append_tool_messages(history: list, tc: dict) -> None:
     """Append a synthetic tool-role message for *tc*, followed by its
     extra_message user message (e.g. a tool-returned image) if present."""
     history.append({
@@ -173,7 +173,7 @@ def _append_tool_messages(history: list, tc: dict) -> None:
         "content": tc["result"] or "",
     })
     if tc.get("result_image_path"):
-        data_url = load_tool_image_data_url(tc["result_image_path"])
+        data_url = await tool_image_data_url(tc["result_image_path"])
         if data_url:
             name = tc.get("tool_name", "tool")
             history.append({
@@ -189,7 +189,7 @@ def _append_tool_messages(history: list, tc: dict) -> None:
         history.append(json.loads(tc["extra_message_json"]))
 
 
-def _append_segmented_tool_history(history: list, segments: list, tcs: list, variant_meta: dict | None = None) -> None:
+async def _append_segmented_tool_history(history: list, segments: list, tcs: list, variant_meta: dict | None = None) -> None:
     """Rebuild per-iteration history from stored segments.
 
     Each ``tool_boundary`` segment with ``tool_calls`` closes an assistant
@@ -213,7 +213,7 @@ def _append_segmented_tool_history(history: list, segments: list, tcs: list, var
     reasoning_parts: list[str] = []
     meta_attached = False
 
-    def flush(group: list | None) -> None:
+    async def flush(group: list | None) -> None:
         nonlocal meta_attached
         text = "".join(text_parts).strip()
         reasoning = "".join(reasoning_parts).strip()
@@ -229,7 +229,7 @@ def _append_segmented_tool_history(history: list, segments: list, tcs: list, var
             entry["tool_calls"] = [_tool_calls_payload(tc) for tc in group]
         history.append(entry)
         for tc in group or []:
-            _append_tool_messages(history, tc)
+            await _append_tool_messages(history, tc)
         text_parts.clear()
         reasoning_parts.clear()
 
@@ -250,8 +250,8 @@ def _append_segmented_tool_history(history: list, segments: list, tcs: list, var
                         "tool_calls/segment mismatch: segment %s vs row %s — order drift?",
                         seg_name, tc["tool_name"],
                     )
-            flush(group)
-    flush(None)
+            await flush(group)
+    await flush(None)
 
 
 async def get_prompt_context(

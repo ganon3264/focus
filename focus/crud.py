@@ -4,7 +4,7 @@ import logging
 import aiosqlite
 
 from focus.core.card_parser import safe_load_card
-from focus.core.tool_media import extract_image_from_extra, tool_image_url
+from focus.core.media import tool_image_url
 
 
 logger = logging.getLogger("focus.crud")
@@ -229,7 +229,7 @@ async def get_chat_messages(db: aiosqlite.Connection, chat_id: str) -> list[dict
                     "is_error": bool(tc["is_error"]),
                     "image_data": (
                         tool_image_url(tc['result_image_path']) if tc.get("result_image_path")
-                        else extract_image_from_extra(tc.get("extra_message_json"))
+                        else None
                     ),
                 }
                 for tc in tcs

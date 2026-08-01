@@ -6,15 +6,10 @@ import mimetypes
 import os
 import socket
 import subprocess
-import tempfile
-from io import BytesIO
 from pathlib import Path
 from urllib.parse import urlparse
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
-from PIL import Image
-
-from focus.core.media import ensure_compressed_sync
 from focus.tools import ToolParam, ToolSpec
 from focus.tools.external import load_external_tools
 from focus.tools.helpers import TOOL_OUTPUT_TRUNCATE_CHARS
@@ -102,13 +97,10 @@ def _read_image_local(path: str) -> dict:
     p = Path(path)
     if not p.exists():
         raise FileNotFoundError(f"File not found: {path}")
+    data = p.read_bytes()
     mime = _mime_for(path)
-    compressed_path, out_mime = ensure_compressed_sync(path, mime)
-    data = compressed_path.read_bytes()
     b64 = base64.b64encode(data).decode("ascii")
-    with Image.open(BytesIO(data)) as img:
-        w, h = img.size
-    return {"image": {"base64": b64, "mime": out_mime, "path": path, "width": w, "height": h}}
+    return {"image": {"base64": b64, "mime": mime, "path": path}}
 
 
 def _check_url_safe(url: str) -> None:
@@ -152,25 +144,9 @@ def _read_image_url(url: str) -> dict:
     if len(data) > _MAX_URL_FETCH_BYTES:
         raise RuntimeError("Image URL response too large")
 
-    parsed = urlparse(url)
-    ext = Path(parsed.path).suffix or ""
-    mime = _mime_for(parsed.path, content_type)
-    if not ext:
-        ext = mimetypes.guess_extension(mime.split(";")[0].strip()) or ".png"
-
-    tmp = tempfile.NamedTemporaryFile(suffix=ext, delete=False)
-    try:
-        tmp.write(data)
-        tmp.close()
-        compressed_path, out_mime = ensure_compressed_sync(tmp.name, mime)
-        compressed_data = compressed_path.read_bytes()
-    finally:
-        os.unlink(tmp.name)
-
-    b64 = base64.b64encode(compressed_data).decode("ascii")
-    with Image.open(BytesIO(compressed_data)) as img:
-        w, h = img.size
-    return {"image": {"base64": b64, "mime": out_mime, "path": url, "width": w, "height": h}}
+    mime = _mime_for(url, content_type)
+    b64 = base64.b64encode(data).decode("ascii")
+    return {"image": {"base64": b64, "mime": mime, "path": url}}
 
 
 def read_image(path: str) -> dict:

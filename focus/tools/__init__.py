@@ -40,3 +40,4 @@ class ToolResult:
     content: str
     is_error: bool = False
     extra_message: dict | None = None
+    image_data_url: str | None = None

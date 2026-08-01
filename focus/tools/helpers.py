@@ -1,6 +1,13 @@
 from __future__ import annotations
 
+import asyncio
+import base64
+from io import BytesIO
 from typing import Any
+
+from PIL import Image
+
+from focus.core.media import compress_image, image_format_var, mime_for
 
 TOOL_OUTPUT_TRUNCATE_CHARS = 32000
 MAX_TOOL_ITERATIONS = 10
@@ -43,7 +50,7 @@ def extract_image_url(result) -> str | None:
     return None
 
 
-def build_tool_result(call_id: str, tool_name: str, output: Any, multimodal: bool = False) -> ToolResult:  # noqa: F821
+async def build_tool_result(call_id: str, tool_name: str, output: Any, multimodal: bool = False) -> ToolResult:  # noqa: F821
     from focus.tools import ToolResult  # lazy to avoid circular import
 
     if isinstance(output, dict) and "image" in output:
@@ -60,16 +67,33 @@ def build_tool_result(call_id: str, tool_name: str, output: Any, multimodal: boo
                 is_error=True,
             )
         b64_data = img["base64"]
-        mime = img.get("mime", "image/png")
-        meta_parts = []
-        w = img.get("width")
-        h = img.get("height")
-        if w and h:
-            meta_parts.append(f"{w}x{h}")
+        raw_mime = img.get("mime", "image/png")
+        try:
+            raw = base64.b64decode(b64_data)
+        except Exception:
+            return ToolResult(
+                call_id=call_id,
+                content="Tool returned invalid base64 image data.",
+                is_error=True,
+            )
+        try:
+            fmt = image_format_var.get()
+            converted = await asyncio.to_thread(compress_image, raw, fmt)
+        except Exception as e:
+            return ToolResult(
+                call_id=call_id,
+                content=f"Tool returned an image that could not be processed: {e}",
+                is_error=True,
+            )
+        out_mime = mime_for(fmt)
+        with Image.open(BytesIO(converted)) as conv_img:
+            w, h = conv_img.size
+        meta_parts = [f"{w}x{h}"]
         path = img.get("path")
         if path:
             meta_parts.append(path)
         meta = f" ({', '.join(meta_parts)})" if meta_parts else ""
+        converted_url = f"data:{out_mime};base64,{base64.b64encode(converted).decode('ascii')}"
         return ToolResult(
             call_id=call_id,
             content=f"SUCCESS: Tool '{tool_name}' returned an image{meta}. It will be appended as a user message.",
@@ -77,11 +101,12 @@ def build_tool_result(call_id: str, tool_name: str, output: Any, multimodal: boo
                 "role": "user",
                 "content": [
                     {"type": "text", "text": f"<{tool_name}>"},
-                    {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64_data}"}},
+                    {"type": "image_url", "image_url": {"url": converted_url}},
                     {"type": "text", "text": f"</{tool_name}>"},
                 ],
                 "internal": True,
             },
+            image_data_url=f"data:{raw_mime};base64,{b64_data}",
         )
 
     return ToolResult(call_id=call_id, content=truncate(str(output)))

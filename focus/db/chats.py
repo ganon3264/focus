@@ -7,9 +7,9 @@ from pathlib import Path
 import aiosqlite
 
 from focus.core.card_parser import safe_load_card
+from focus.core.media import persist_tool_image
 from focus.core.message_render import render_message_segments
 from focus.core.paths import ATTACHMENTS_DIR
-from focus.core.tool_media import persist_tool_image
 from focus.core.utils import now_iso
 from focus.db._core import _db_conn
 
@@ -519,18 +519,10 @@ async def persist_tool_calls(
             extra_msg = None
             result_image_path = None
 
-            if result.extra_message:
-                content = result.extra_message.get("content", [])
-                image_part = next(
-                    (p for p in content if isinstance(p, dict) and p.get("type") == "image_url"),
-                    None,
-                )
-                if image_part:
-                    result_image_path = persist_tool_image(
-                        image_part.get("image_url", {}).get("url", "")
-                    )
-                else:
-                    extra_msg = json.dumps(result.extra_message)
+            if result.image_data_url:
+                result_image_path = persist_tool_image(result.image_data_url)
+            elif result.extra_message:
+                extra_msg = json.dumps(result.extra_message)
 
             await conn.execute(
                 """INSERT INTO tool_calls

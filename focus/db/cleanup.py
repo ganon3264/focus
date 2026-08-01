@@ -104,7 +104,7 @@ async def clean_orphaned_assets(db: aiosqlite.Connection) -> dict:
     # ── Purge compressed cache (no DB rows ever reference these) ──
     purged = 0
     if COMPRESSED_DIR.exists():
-        for f in COMPRESSED_DIR.iterdir():
+        for f in COMPRESSED_DIR.rglob("*"):
             if f.is_file():
                 f.unlink(missing_ok=True)
                 purged += 1
