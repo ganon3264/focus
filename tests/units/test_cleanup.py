@@ -13,6 +13,7 @@ from focus.core.paths import (
     COMPRESSED_DIR,
     PERSONAS_DIR,
     PRESETS_DIR,
+    TOOL_ASSETS_DIR,
 )
 from focus.db.cleanup import clean_database, clean_orphaned_assets
 
@@ -27,7 +28,7 @@ except ImportError:
 @pytest.fixture(autouse=True)
 def _clean_asset_subdirs():
     require_assets_sandbox()
-    for d in [CHARACTERS_DIR, PERSONAS_DIR, PRESETS_DIR, ATTACHMENTS_DIR, BLOCKS_DIR]:
+    for d in [CHARACTERS_DIR, PERSONAS_DIR, PRESETS_DIR, ATTACHMENTS_DIR, BLOCKS_DIR, TOOL_ASSETS_DIR, COMPRESSED_DIR]:
         if d.exists():
             shutil.rmtree(d, ignore_errors=True)
 
@@ -50,6 +51,25 @@ def _uuid_dir(parent: Path) -> Path:
     d = parent / str(uuid.uuid4())
     d.mkdir(parents=True, exist_ok=True)
     return d
+
+
+async def _insert_tool_call(db, image_rel: str | None) -> tuple[str, str]:
+    """Insert a live chat + message + tool_calls row; returns (chat_id, message_id)."""
+    chat_id = uuid.uuid4().hex
+    message_id = uuid.uuid4().hex
+    await db.execute(
+        "INSERT INTO chats (id, title, created_at, updated_at) VALUES (?, ?, ?, ?)",
+        (chat_id, "Chat", "now", "now"),
+    )
+    await db.execute(
+        "INSERT INTO messages (id, chat_id, role, position, created_at) VALUES (?, ?, ?, ?, ?)",
+        (message_id, chat_id, "user", 0, "now"),
+    )
+    await db.execute(
+        "INSERT INTO tool_calls (id, chat_id, message_id, tool_name, arguments, result_image_path, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (uuid.uuid4().hex, chat_id, message_id, "read_image", "{}", image_rel, "now"),
+    )
+    return chat_id, message_id
 
 
 class TestCleanOrphanedAssets:
@@ -180,6 +200,38 @@ class TestCleanOrphanedAssets:
         await db.commit()
         result = await clean_orphaned_assets(db)
         assert avatar.exists()
+        assert not orphan.exists()
+        assert result["orphaned_files"] == 1
+
+    # ── Tool images ──
+
+    async def test_keeps_tool_image_referenced_by_tool_call(self, db):
+        TOOL_ASSETS_DIR.mkdir(parents=True, exist_ok=True)
+        rel = f"tool/{uuid.uuid4()}.png"
+        Path(TOOL_ASSETS_DIR / Path(rel).name).write_bytes(b"img")
+        await _insert_tool_call(db, rel)
+        await db.commit()
+        result = await clean_orphaned_assets(db)
+        assert (TOOL_ASSETS_DIR / Path(rel).name).exists()
+        assert result["orphaned_files"] == 0
+
+    async def test_keeps_tool_image_with_absolute_path(self, db):
+        TOOL_ASSETS_DIR.mkdir(parents=True, exist_ok=True)
+        rel = f"tool/{uuid.uuid4()}.png"
+        img = TOOL_ASSETS_DIR / Path(rel).name
+        img.write_bytes(b"img")
+        await _insert_tool_call(db, str(img))
+        await db.commit()
+        result = await clean_orphaned_assets(db)
+        assert img.exists()
+        assert result["orphaned_files"] == 0
+
+    async def test_removes_orphan_tool_image(self, db):
+        TOOL_ASSETS_DIR.mkdir(parents=True, exist_ok=True)
+        orphan = TOOL_ASSETS_DIR / f"{uuid.uuid4()}.png"
+        orphan.write_bytes(b"img")
+        await db.commit()
+        result = await clean_orphaned_assets(db)
         assert not orphan.exists()
         assert result["orphaned_files"] == 1
 
@@ -570,6 +622,18 @@ class TestCleanDatabase:
         await db.commit()
         result = await clean_database(db)
         assert result["attachments"] == 0
+
+    async def test_clean_database_preserves_tool_images(self, db):
+        TOOL_ASSETS_DIR.mkdir(parents=True, exist_ok=True)
+        kept = TOOL_ASSETS_DIR / f"{uuid.uuid4()}.png"
+        kept.write_bytes(b"img")
+        orphan = TOOL_ASSETS_DIR / f"{uuid.uuid4()}.png"
+        orphan.write_bytes(b"img")
+        await _insert_tool_call(db, f"tool/{kept.name}")
+        await db.commit()
+        result = await clean_database(db)
+        assert kept.exists()
+        assert not orphan.exists()
 
     # ── Counts ──
 

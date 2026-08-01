@@ -14,6 +14,24 @@ from focus.core.paths import (
 )
 
 
+def _asset_relative(path_str: str) -> str | None:
+    """Normalize a stored file path to ASSETS_DIR-relative form.
+
+    DB rows store cwd-relative paths (``assets/...`` for attachments, avatars,
+    blocks) or ASSETS_DIR-relative paths (``tool/...`` for tool images).
+    Returns ``None`` for paths that resolve outside ASSETS_DIR.
+    """
+    candidates = [Path(path_str)]
+    if not candidates[0].is_absolute():
+        candidates.append(ASSETS_DIR / path_str)
+    for cand in candidates:
+        try:
+            return cand.resolve().relative_to(ASSETS_DIR.resolve()).as_posix()
+        except ValueError:
+            continue
+    return None
+
+
 async def clean_database(db: aiosqlite.Connection) -> dict:
     """Purge soft-deleted entities and orphaned files. Returns a dict of counts."""
     counts: dict[str, int] = {}
@@ -77,21 +95,34 @@ async def clean_orphaned_assets(db: aiosqlite.Connection) -> dict:
     # ── Collect known file paths from DB ──
     known: set[str] = set()
 
+    def _known_add(path_str: str | None) -> None:
+        if not path_str:
+            return
+        rel = _asset_relative(path_str)
+        if rel:
+            known.add(rel)
+
     async with db.execute("SELECT image_path FROM characters WHERE image_path IS NOT NULL") as cur:
         async for row in cur:
-            known.add(row["image_path"])
+            _known_add(row["image_path"])
 
     async with db.execute("SELECT avatar_path FROM personas WHERE avatar_path IS NOT NULL") as cur:
         async for row in cur:
-            known.add(row["avatar_path"])
+            _known_add(row["avatar_path"])
 
     async with db.execute("SELECT image_path FROM block_images") as cur:
         async for row in cur:
-            known.add(row["image_path"])
+            _known_add(row["image_path"])
 
     async with db.execute("SELECT file_path FROM message_attachments") as cur:
         async for row in cur:
-            known.add(row["file_path"])
+            _known_add(row["file_path"])
+
+    async with db.execute(
+        "SELECT result_image_path FROM tool_calls WHERE result_image_path IS NOT NULL"
+    ) as cur:
+        async for row in cur:
+            _known_add(row["result_image_path"])
 
     # ── Collect valid entity IDs for directory-level decisions ──
     valid_chars: set[str] = {r[0] async for r in await db.execute("SELECT id FROM characters")}
@@ -136,7 +167,7 @@ async def clean_orphaned_assets(db: aiosqlite.Connection) -> dict:
             continue
         if COMPRESSED_DIR in entry.parents:
             continue
-        if str(entry) not in known:
+        if entry.relative_to(ASSETS_DIR).as_posix() not in known:
             entry.unlink(missing_ok=True)
             orphaned_files += 1
     counts["orphaned_files"] = orphaned_files
