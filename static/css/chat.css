@@ -116,11 +116,15 @@
   }
 
   /* Markdown Content */
+  .message-content,
+  .tool-calls-section,
+  .tool-calls-stream {
+    margin-top: 0.15rem;
+  }
   .message-content {
     line-height: 1.6;
     font-size: 0.95rem;
     color: var(--text);
-    margin-top: 0.15rem;
   }
   .message-content:not(.markdown-content) {
     white-space: pre-wrap;
@@ -255,7 +259,7 @@
     line-height: 1.4;
     background: var(--surface-3);
     border-radius: var(--radius-sm);
-    margin-top: 0.25rem;
+    margin-top: 0;
     font-size: 0.75rem;
   }
   .details .tool-result-body pre {
@@ -268,7 +272,7 @@
     padding: 0.375rem 0.5rem;
     background: var(--surface-3);
     border-radius: var(--radius-sm);
-    margin-top: 0.25rem;
+    margin-top: 0;
     font-size: 0.75rem;
     word-wrap: break-word;
     overflow-wrap: break-word;
@@ -286,6 +290,9 @@
   }
   .reasoning-content p {
     margin: 0.25rem 0;
+  }
+  .reasoning-content > :first-child {
+    margin-top: 0;
   }
   .reasoning-content > :last-child {
     margin-bottom: 0;
