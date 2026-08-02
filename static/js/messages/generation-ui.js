@@ -3,11 +3,13 @@
   var stopBtn = document.getElementById('stop-btn');
 
   window.setGeneratingUI = function (generating) {
+    var attachBtn = document.getElementById('attach-btn');
     if (generating) {
       sendBtn.classList.add('hidden');
       stopBtn.classList.remove('hidden');
       var fu = document.getElementById('file-upload');
       if (fu) fu.disabled = true;
+      if (attachBtn) attachBtn.disabled = true;
     } else {
       window._generating = false;
       window._streamingMessageId = null;
@@ -15,6 +17,7 @@
       stopBtn.classList.add('hidden');
       var fu = document.getElementById('file-upload');
       if (fu) fu.disabled = false;
+      if (attachBtn) attachBtn.disabled = false;
     }
   };
 

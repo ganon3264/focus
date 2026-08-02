@@ -169,6 +169,11 @@
     padding: 0.2rem 0.4rem;
     min-width: 0;
   }
+  .btn-hero {
+    padding: 0.75rem 2rem;
+    font-size: 1rem;
+    border-radius: var(--radius-full);
+  }
   .btn-media-add {
     display: inline-flex;
     align-items: center;

@@ -8,12 +8,12 @@
   </div>
   <div class="input-bar flex-col gap-2 items-center relative">
     <div class="input-bar-content">
-      <div id="staging-area" class="w-full max-w-[820px] flex gap-2 overflow-x-auto empty:hidden pointer-events-auto" style="min-height: 0;"></div>
+      <div id="staging-area" class="staging-area flex gap-2 overflow-x-auto empty:hidden pointer-events-auto"></div>
     
     <!-- Standard Input -->
     <div id="standard-input-container" class="input-wrapper relative w-full">
       <input type="file" id="file-upload" class="hidden" multiple accept="image/*,audio/*">
-       <button class="btn btn-secondary !px-2" style="border: none; background: transparent; color: var(--text-muted);" data-action="actionTriggerFileUpload" data-target="file-upload" title="Attach files" aria-label="Attach files">
+       <button id="attach-btn" class="attach-btn" data-action="actionTriggerFileUpload" data-target="file-upload" title="Attach files" aria-label="Attach files">
         {{ icon_paperclip(20) }}
       </button>
       <textarea id="chat-input" placeholder="Type a message…"></textarea>
@@ -26,7 +26,7 @@
     </div>
 
     <!-- Delete Toolbar -->
-      <div id="delete-toolbar" class="input-wrapper relative w-full hidden justify-between items-center px-4" style="background: var(--surface-2); border-color: var(--danger);">
+      <div id="delete-toolbar" class="input-wrapper delete-toolbar relative w-full hidden justify-between items-center px-4">
         <div class="font-bold text-(--danger)"><span id="delete-selected-count">0</span> Selected for deletion</div>
         <div class="flex gap-2">
           <button class="btn btn-secondary btn-sm" onclick="exitDeleteMode()">Cancel</button>
@@ -52,7 +52,7 @@
     <p class="text-muted max-w-md mb-6 leading-relaxed">
       You don't have any active chats with {{ character.name }}. Start a new conversation!
     </p>
-    <button class="btn btn-primary" onclick="newChat()" style="padding: 0.75rem 2rem; font-size: 1rem; border-radius: var(--radius-full);">
+    <button class="btn btn-primary btn-hero" onclick="newChat()">
       Start Chat
     </button>
     {% else %}
@@ -63,7 +63,7 @@
     <p class="text-muted max-w-md mb-6 leading-relaxed">
       You don't have any active chats open. Select a character from your roster to resume a previous conversation, or start a new one.
     </p>
-    <button class="btn btn-primary" onclick="openModal('modal-characters')" style="padding: 0.75rem 2rem; font-size: 1rem; border-radius: var(--radius-full);">
+    <button class="btn btn-primary btn-hero" onclick="openModal('modal-characters')">
       View Characters
     </button>
     {% endif %}

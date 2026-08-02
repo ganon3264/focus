@@ -13,7 +13,7 @@
   }
   .message-list {
     width: 100%;
-    max-width: min(85%, 820px);
+    max-width: var(--chat-content-width);
     display: flex;
     flex-direction: column;
     gap: 1rem;

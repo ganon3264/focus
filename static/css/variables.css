@@ -65,6 +65,9 @@
   --sidebar-width-left: 310px;
   --sidebar-width-right: 310px;
 
+  /* Shared content column width (message list, input bar, staging area) */
+  --chat-content-width: min(85%, 820px);
+
   /* Role colors for arranger items (user/assistant) */
   --role-user: #10b981;
   --role-assistant: #f59e0b;

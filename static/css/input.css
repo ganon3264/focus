@@ -60,8 +60,54 @@
     background: var(--surface-3);
     color: var(--text);
   }
+  .action-btn:active {
+    transform: scale(0.95);
+  }
+  .action-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .action-btn:disabled {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+  .attach-btn {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-full);
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    transition: all var(--transition);
+  }
+  .attach-btn:hover {
+    background: var(--surface-3);
+    border-color: var(--border-hover);
+    color: var(--text);
+  }
+  .attach-btn:active {
+    transform: scale(0.95);
+  }
+  .attach-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .attach-btn:disabled {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+  .attach-btn.has-files {
+    color: var(--accent);
+    border-color: var(--active-border);
+    background: var(--accent-faint);
+  }
   .action-btn svg,
   .action-icon svg,
+  .attach-btn svg,
   .send-btn svg,
   .btn svg {
     display: block;
@@ -87,6 +133,11 @@
     align-items: center;
     gap: 0.5rem;
   }
+  .staging-area {
+    width: 100%;
+    max-width: var(--chat-content-width);
+    min-height: 0;
+  }
   .input-wrapper {
     display: flex;
     gap: 0.5rem;
@@ -96,9 +147,13 @@
     border-radius: 24px;
     padding: 0.6rem;
     width: 100%;
-    max-width: min(85%, 820px);
+    max-width: var(--chat-content-width);
     transition: border-color var(--transition);
     pointer-events: auto;
+  }
+  .delete-toolbar {
+    background: var(--surface-2);
+    border-color: var(--danger);
   }
   .input-wrapper:focus-within {
     border-color: var(--accent);

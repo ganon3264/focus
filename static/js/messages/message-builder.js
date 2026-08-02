@@ -142,7 +142,7 @@
       img.addEventListener('click', function () { window.openLightbox(img.src); });
       wrapper.appendChild(img);
     } else {
-      wrapper.className = 'h-16 bg-surface-3 px-3 rounded border border-border flex items-center gap-2 text-sm';
+      wrapper.className = 'h-16 bg-(--surface-3) px-3 rounded border border-border flex items-center gap-2 text-sm';
       var iconSpan = document.createElement('span');
       iconSpan.innerHTML = window.getSvgSprite ? window.getSvgSprite('music', 18) : '';
       wrapper.appendChild(iconSpan);

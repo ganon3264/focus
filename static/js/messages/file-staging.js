@@ -11,7 +11,7 @@
     window.stagedFiles.forEach((f, idx) => {
       const el = document.createElement('div');
       el.className =
-        'flex items-center gap-1 bg-surface-2 p-1 rounded border border-border text-xs relative group';
+        'flex items-center gap-1 bg-(--surface-2) p-1 rounded-lg border border-border text-xs relative group';
 
       const url = f.type.startsWith('image/') ? URL.createObjectURL(f) : '';
 
@@ -23,9 +23,6 @@
           name: f.name,
           showName: false,
           onClick: null,
-          onDelete: function (e) {
-            window.removeStagedFile(idx);
-          },
         });
         thumbnail.querySelector('img').src = url;
         URL.revokeObjectURL(url);
@@ -44,7 +41,7 @@
         el.appendChild(thumbnail);
       } else {
         el.innerHTML =
-          '<div class="h-8 w-8 bg-surface-3 flex items-center justify-center rounded shrink-0">' +
+          '<div class="h-8 w-8 bg-(--surface-3) flex items-center justify-center rounded shrink-0">' +
           window.getSvgSprite('music', 24) +
           '</div>';
       }
@@ -57,7 +54,7 @@
 
       var removeBtn = document.createElement('button');
       removeBtn.className =
-        'text-danger hover:text-white hover:bg-danger rounded w-5 h-5 flex items-center justify-center ml-1 transition-colors z-20';
+        'text-danger hover:text-white hover:bg-danger rounded-full w-5 h-5 flex items-center justify-center ml-1 transition-colors z-20';
       removeBtn.innerHTML = window.getSvgSprite('close', 16);
       removeBtn.title = 'Remove';
       removeBtn.addEventListener('click', function () {
@@ -67,6 +64,11 @@
 
       stagingArea.appendChild(el);
     });
+
+    var attachBtn = document.getElementById('attach-btn');
+    if (attachBtn) {
+      attachBtn.classList.toggle('has-files', window.stagedFiles.length > 0);
+    }
 
     if (typeof updateSendButtonState === 'function') {
       updateSendButtonState();

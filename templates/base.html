@@ -106,11 +106,12 @@
         var el = document.querySelector('#svg-sprite svg[data-svg-icon="' + name + '"]');
         if (!el) return '';
         var clone = el.cloneNode(true);
+        var icon = clone.querySelector('svg') || clone;
         if (size) {
-          clone.setAttribute('width', size);
-          clone.setAttribute('height', size);
+          icon.setAttribute('width', size);
+          icon.setAttribute('height', size);
         }
-        return clone.outerHTML;
+        return icon.outerHTML;
       };
 
       /* ── Scroll Fade for .scroll-fade containers ─────────────── */
