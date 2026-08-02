@@ -42,8 +42,7 @@
     }
   }
 
-  /* ── Shared icon-button base ──
-     Covers .action-btn / .attach-btn / .action-icon / .send-btn / .expand-btn */
+  /* ── Shared icon-button base ── */
   .action-btn,
   .attach-btn,
   .action-icon,

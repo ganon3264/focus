@@ -117,7 +117,7 @@
     if (stagedFiles && stagedFiles.length > 0) {
       var attContainer = document.createElement('div');
       attContainer.className = 'flex gap-2 flex-wrap mb-2 pl-stream';
-      stagedFiles.forEach(function (f) { attContainer.appendChild(window.buildAttachmentPreview(f)); });
+      stagedFiles.forEach(function (f) { attContainer.appendChild(buildAttachmentPreview(f)); });
       body.insertBefore(attContainer, null);
     }
 
@@ -130,7 +130,7 @@
     return div;
   };
 
-  window.buildAttachmentPreview = function (file) {
+  function buildAttachmentPreview(file) {
     var wrapper = document.createElement('div');
     wrapper.className = 'relative group';
 
@@ -160,7 +160,7 @@
     return wrapper;
   };
 
-  window.buildToolCallCard = function (call) {
+  function buildToolCallCard(call) {
     var details = document.createElement('details');
     details.className = 'details tool-call';
     details.setAttribute('data-call-id', call.id);
@@ -198,7 +198,7 @@
   // Reasoning block used during streaming
   //   index === 0 → <div>  (no toggle — controlled by message-level button)
   //   index  > 0 → <details> (collapsible, matching server-side template)
-  window.buildReasoningBlock = function (index) {
+  function buildReasoningBlock(index) {
     index = index || 0;
     if (index > 0) {
       var details = document.createElement('details');
@@ -232,13 +232,13 @@
       return el;
     },
     reasoning: function (index) {
-      return window.buildReasoningBlock(index);
+      return buildReasoningBlock(index);
     },
     tool_calls: function (calls) {
       var el = document.createElement('div');
       el.className = 'tool-calls-stream pl-stream';
       for (var ci = 0; ci < calls.length; ci++) {
-        el.appendChild(window.buildToolCallCard(calls[ci]));
+        el.appendChild(buildToolCallCard(calls[ci]));
       }
       return el;
     },

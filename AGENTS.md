@@ -77,7 +77,7 @@ SSE events: `start | token | meta | tool_calls | tool_result | done`.
 - `message-builder.js`: segment builders for text/reasoning/tool_calls; `finalizeStreamRender()` assembles the DOM
 - `generation-ui.js`: toggles send/stop buttons, manages spinner, removes stale content
 - `post-process.js`: re-renders markdown, syncs reasoning buttons, updates UI after swap
-- Messages split into `text | reasoning | tool_boundary` segments (`segments_json` column). Use `preserveOpenStates()` not `innerHTML` to keep reasoning toggles open.
+- Messages split into `text | reasoning | tool_boundary` segments (`segments_json` column). Use `preserveOpenStates()` not `innerHTML` for **in-place re-renders** (e.g. streaming segment updates) to keep reasoning toggles open; fresh nodes swapped in from the server start collapsed by design — do not preserve state across server swaps.
 
 **Backend:**
 - `_active_generations` maps `message_id → asyncio.Event`. Stop via `POST /api/stop-generation/{message_id}`. Both stream (SSE) and non-stream (JSON) share `_run_generation()`.

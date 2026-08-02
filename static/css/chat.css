@@ -221,9 +221,6 @@
   }
 
   /* ── Collapsible <details> sections (tool calls + subsequent reasoning blocks) ── */
-  details.details {
-    padding: 0;
-  }
   .details > summary {
     cursor: pointer;
     user-select: none;

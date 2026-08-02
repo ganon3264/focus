@@ -366,11 +366,6 @@ StateManager.on('persona-changed', function() {
   }
 });
 
-window.loadChatList = function(charId, currentChatId) {
-  var params = '?character_id=' + encodeURIComponent(charId) + '&current_chat_id=' + encodeURIComponent(currentChatId);
-  htmx.ajax('GET', '/partials/chat-list' + params, {target:'#chat-list', swap:'innerHTML'});
-};
-
 function toggleSidebar(side) {
   document.getElementById(side + '-sidebar').classList.toggle('collapsed');
   document.getElementById(side + '-tab').classList.toggle('hidden');

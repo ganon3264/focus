@@ -179,18 +179,7 @@ window.actionEnterDeleteMode = function (el) {
 };
 
 window.actionToggleReasoning = function (el) {
-  var msg = el.closest('.message');
-  if (!msg) return;
-  var block = msg.querySelector('.reasoning-block:not(.details)');
-  if (!block) return;
-  var content = block.querySelector('.reasoning-content');
-  var isOpen = !msg.classList.contains('reasoning-open');
-  if (isOpen && content && !content.classList.contains('processed')) {
-    content.innerHTML = DOMPurify.sanitize(marked.parse(content.textContent || '', { breaks: true }));
-    content.classList.add('processed');
-  }
-  if (content) content.classList.toggle('hidden', !isOpen);
-  msg.classList.toggle('reasoning-open', isOpen);
+  window.toggleReasoning(el);
 };
 
 window.actionUpdateDeleteSelection = function () {

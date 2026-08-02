@@ -26,9 +26,6 @@
   --success-hover: #22c55e;
   --success-dim: rgba(22, 163, 74, 0.15);
 
-  /* Rebranded Tailwind tokens (radii / shadows / font stack) now live in the
-     @theme block in tailwind-input.css — single source of truth. */
-
   /* Z-index scale — lowest to highest */
   --z-modal: 50;
   --z-modal-sub: 100;
@@ -40,7 +37,6 @@
   --modal-backdrop: rgba(0, 0, 0, 0.6);
   --modal-backdrop-heavy: rgba(0, 0, 0, 0.85);
 
-  /* App-only shadow (no Tailwind utility) — keep here, not in @theme */
   --shadow-glow: 0 0 1px 2px var(--accent-dim), 0 0 1px 1px var(--accent);
 
   /* Active/selected highlight — single source of truth */

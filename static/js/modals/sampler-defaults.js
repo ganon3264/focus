@@ -80,7 +80,7 @@ window.PROVIDER_SAMPLERS = {
   },
 };
 
-window.EFFORT_OPTIONS = {
+const EFFORT_OPTIONS = {
   openrouter: [
     { value: 'minimal', label: 'Minimal' },
     { value: 'low', label: 'Low' },
@@ -117,7 +117,7 @@ window.EFFORT_OPTIONS = {
   ],
 };
 
-window.BASE_SAMPLER_DEFAULTS = {
+const BASE_SAMPLER_DEFAULTS = {
   temperature: 1.0,
   max_tokens: 8192,
   top_p: 0.95,
