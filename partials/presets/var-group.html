@@ -21,15 +21,15 @@
       <div class="flex flex-col gap-1 items-stretch w-full min-w-0 sortable-var-options">
         {% for vb in vblocks %}
           {% set vlabel = vb.name.split(':', 1)[1] if ':' in vb.name else 'Option' %}
-          <div class="flex items-center gap-1.5 p-1.5 rounded w-full min-w-0 var-option-item" data-id="{{ vb.id }}" style="background: var(--surface-2); border: 1px solid var(--border);">
+          <div class="flex items-center gap-1.5 rounded w-full min-w-0 var-option-item" data-id="{{ vb.id }}">
             <div class="radio-switch {% if vb.enabled %}active{% endif %}" role="radio" tabindex="0" title="Select option"
                  data-var-id="{{ vb.id }}"
                  onclick="handleVarUpdate(this)">
                <div class="radio-inner"></div>
             </div>
              <span class="text-xs font-semibold truncate flex-1" style="min-width: 0; cursor: pointer;" onclick="this.closest('.var-option-item').querySelector('.radio-switch').click()">{{ vlabel }}</span>
-            <button type="button" class="action-icon" style="flex-shrink: 0;" title="Edit Option" aria-label="Edit option" data-var-id="{{ vb.id }}" data-var-name="{{ vname }}" data-var-label="{{ vlabel }}" onclick="openVarEditModal(this)">{{ icon_edit() }}</button>
-            <button type="button" class="action-icon danger" style="flex-shrink: 0;" title="Delete Option" aria-label="Delete option" data-var-id="{{ vb.id }}" onclick="window.customConfirm('Delete variable option?', function(){ handleVarDelete(this); }.bind(this))">{{ icon_close(16) }}</button>
+            <button type="button" class="action-icon" title="Edit Option" aria-label="Edit option" data-var-id="{{ vb.id }}" data-var-name="{{ vname }}" data-var-label="{{ vlabel }}" onclick="openVarEditModal(this)">{{ icon_edit() }}</button>
+            <button type="button" class="action-icon danger" title="Delete Option" aria-label="Delete option" data-var-id="{{ vb.id }}" onclick="window.customConfirm('Delete variable option?', function(){ handleVarDelete(this); }.bind(this))">{{ icon_close(16) }}</button>
           </div>
         {% endfor %}
         <div class="flex items-center gap-1 p-1.5 rounded w-full min-w-0 radio-add-row" data-var-name="{{ vname }}" onclick="event.stopPropagation(); openVarEditModal(this)">

@@ -27,13 +27,13 @@ window.THEME_STATE = {{ theme_state | tojson | safe }};
 {% endcall %}
 
 {% call modal_shell('modal-itemizer', 'Prompt Itemizer', max_width='700px', content_style='display:flex;flex-direction:column;height:80vh;') %}
-<div class="flex-1 overflow-hidden" style="min-height:0;">
+<div class="flex-1 overflow-hidden min-h-0">
   {% include "modals/itemizer.html" %}
 </div>
 {% endcall %}
 
 {% call modal_shell('modal-characters', 'Characters', max_width='800px', content_style='display:flex;flex-direction:column;height:80vh;') %}
-<div id="characters-modal-body" class="flex-1 overflow-hidden" style="min-height:0;">
+<div id="characters-modal-body" class="flex-1 overflow-hidden min-h-0">
   <div id="characters-modal-body-inner" class="h-full">Loading…</div>
 </div>
 {% endcall %}
@@ -42,7 +42,7 @@ window.THEME_STATE = {{ theme_state | tojson | safe }};
 {% include "modals/edit-entity.html" %}
 
 {% call modal_shell('modal-personas', 'Personas', max_width='800px', content_style='display:flex;flex-direction:column;height:80vh;') %}
-<div id="personas-modal-body" class="flex-1 overflow-hidden" style="min-height:0;">
+<div id="personas-modal-body" class="flex-1 overflow-hidden min-h-0">
   <div id="personas-modal-body-inner" class="h-full">Loading…</div>
 </div>
 {% endcall %}

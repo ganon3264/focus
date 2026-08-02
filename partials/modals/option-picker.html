@@ -1,10 +1,10 @@
 <!-- Option Selection Modal (shared picker: OpenRouter route/quant, theme picker, ...) -->
 {% from "macros.html" import icon_close %}
-<div id="modal-select-option" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-label="Select option" style="z-index: var(--z-modal-sub);"
+<div id="modal-select-option" class="modal-overlay sub hidden" role="dialog" aria-modal="true" aria-label="Select option"
      x-data="{ search: '', options: [], title: 'Select', select(value, label) { $dispatch('option-selected', { value: value, label: label }); } }"
      data-action="actionCloseModals">
   <div class="modal-content" style="max-width: 400px; width: 95vw; max-height: 60vh; overflow: hidden; background: var(--surface); padding: 0;">
-    <div class="modal-header p-4" style="margin-bottom: 0; border-bottom: 1px solid var(--border);">
+    <div class="modal-header divider p-4">
       <div class="modal-title" x-text="title"></div>
       <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-select-option')" aria-label="Close">{{ icon_close(16) }}</button>
     </div>

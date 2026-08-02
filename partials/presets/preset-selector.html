@@ -15,13 +15,13 @@
   <input type="file" accept=".json" style="display:none;" id="preset-import-file" onchange="importPreset(this.files[0])">
 
   <div class="relative">
-    <button type="button" @click="open = !open" class="form-control flex justify-between items-center text-left w-full" style="cursor: pointer;">
+    <button type="button" @click="open = !open" class="form-control flex justify-between items-center text-left w-full cursor-pointer">
        <span x-text="selectedName" class="truncate font-medium"></span>
-        <span class="text-xs text-muted" :class="open ? 'rotate-180' : ''" style="transition: transform 0.2s; display: inline-flex;">{{ icon_chevron_down(12) }}</span>
+        <span class="text-xs text-muted inline-flex transition-transform duration-200" :class="open ? 'rotate-180' : ''">{{ icon_chevron_down(12) }}</span>
     </button>
     <div x-show="open" @click.away="open = false" x-transition.opacity.duration.200ms
-         class="absolute top-full left-0 right-0 mt-1 z-50 max-h-60 overflow-y-auto"
-         style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); display: none;">
+         class="dropdown-panel absolute top-full left-0 right-0 mt-1 z-50 max-h-60 overflow-y-auto"
+         style="display: none;">
        
       <!-- Add + Import icon buttons -->
       <div class="flex gap-1 px-2 py-1.5" style="border-bottom: 1px solid var(--border);">
@@ -41,26 +41,21 @@
       </div>
 
       <!-- Deselect option -->
-      <div class="px-3 py-2 cursor-pointer text-sm text-muted text-center"
-           onmouseover="this.style.background='var(--surface-3)'"
-           onmouseout="this.style.background='transparent'"
-            @click="
-              selectedId = '';
-              selectedName = '— Select Preset —';
-              open = false;
-              StateManager.setPreset(null);
-            "
+      <div class="dropdown-item px-3 py-2 text-sm text-muted text-center"
+           @click="
+             selectedId = '';
+             selectedName = '— Select Preset —';
+             open = false;
+             StateManager.setPreset(null);
+           "
       >
         — Select Preset —
       </div>
 
       {% for p in presets %}
-      <div class="px-3 py-2 cursor-pointer text-sm transition-colors duration-150 flex items-center justify-between gap-1"
+      <div class="dropdown-item px-3 py-2 text-sm flex items-center justify-between gap-1"
            :class="{ 'text-[var(--accent)] font-medium': selectedId === '{{ p.id }}' }"
-           {% if not loop.last %}style="border-bottom: 1px solid var(--border);"{% endif %}
            data-preset-id="{{ p.id }}"
-           onmouseover="this.style.background='var(--surface-3)'"
-           onmouseout="this.style.background='transparent'"
            @click="
              selectedId = '{{ p.id }}';
              selectedName = '{{ p.name | replace("'", "\\'") }}';
@@ -70,16 +65,10 @@
       >
         <span class="truncate flex-1 preset-item-name">{{ p.name }}</span>
         <div class="flex gap-1 shrink-0">
-          <button type="button" title="Rename"
-            style="background:var(--surface-2);border:none;cursor:pointer;padding:2px;color:var(--text-muted);border-radius:4px;display:inline-flex;align-items:center"
-            onmouseover="this.style.background='var(--accent)';this.style.color='var(--text-on-accent)'"
-            onmouseout="this.style.background='var(--surface-2)';this.style.color='var(--text-muted)'"
+          <button type="button" class="btn btn-edit btn-sm btn-compact" title="Rename"
             onclick="event.stopPropagation(); window.openRenameModal(this)"
           >{{ icon_edit(14) }}</button>
-          <button type="button" title="Delete"
-            style="background:var(--surface-2);border:none;cursor:pointer;padding:2px;color:var(--danger);border-radius:4px;display:inline-flex;align-items:center"
-            onmouseover="this.style.background='var(--danger)';this.style.color='var(--text-on-accent)'"
-            onmouseout="this.style.background='var(--surface-2)';this.style.color='var(--danger)'"
+          <button type="button" class="btn btn-delete-icon btn-sm btn-compact" title="Delete"
             onclick="event.stopPropagation(); window.deletePresetById(this.closest('[data-preset-id]').dataset.presetId)"
           >{{ icon_trash(14) }}</button>
         </div>

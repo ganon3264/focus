@@ -134,8 +134,7 @@ media_thumbnail, hint_tooltip %}
             type="number"
             min="0"
             value="{{ block.injection_depth }}"
-            class="form-control"
-            style="width: 56px; padding: 2px 4px; font-size: 0.8rem"
+            class="form-control form-control-xs"
             onchange="handleArrangerBlockUpdate(this, {injection_depth: parseInt(this.value) || 0})"
           />
         </label>
@@ -146,8 +145,7 @@ media_thumbnail, hint_tooltip %}
             type="number"
             min="0"
             value="{{ block.injection_order | default(0) }}"
-            class="form-control"
-            style="width: 56px; padding: 2px 4px; font-size: 0.8rem"
+            class="form-control form-control-xs"
             onchange="handleArrangerBlockUpdate(this, {injection_order: parseInt(this.value) || 0})"
           />
         </label>
@@ -223,8 +221,7 @@ media_thumbnail, hint_tooltip %}
             type="number"
             min="0"
             value="{{ block.injection_depth }}"
-            class="form-control"
-            style="width: 56px; padding: 2px 4px; font-size: 0.8rem"
+            class="form-control form-control-xs"
             onchange="handleArrangerBlockUpdate(this, {injection_depth: parseInt(this.value) || 0})"
           />
         </label>
@@ -235,8 +232,7 @@ media_thumbnail, hint_tooltip %}
             type="number"
             min="0"
             value="{{ block.injection_order | default(0) }}"
-            class="form-control"
-            style="width: 56px; padding: 2px 4px; font-size: 0.8rem"
+            class="form-control form-control-xs"
             onchange="handleArrangerBlockUpdate(this, {injection_order: parseInt(this.value) || 0})"
           />
         </label>
@@ -255,19 +251,7 @@ media_thumbnail, hint_tooltip %}
       {% for img in block.images %} {{ media_thumbnail(img, "deleteBlockMedia", '') }} {% endfor %}
 
       <label
-        class="btn btn-secondary btn-sm"
-        style="
-          height: 48px;
-          padding: 0 0.5rem;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          border-radius: var(--radius-sm);
-          border-style: dashed;
-          flex-shrink: 0;
-          margin: 0;
-        "
+        class="btn btn-secondary btn-sm btn-media-add"
         title="Add Image or Audio"
       >
         {{ icon_plus(20) }}

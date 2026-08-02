@@ -43,14 +43,14 @@
 {% include "modals/provider-create.html" %}
 
 <!-- Universal Model Selection Modal -->
-<div id="modal-fetch-models" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-label="Fetch models" style="z-index: var(--z-modal-sub);"
+<div id="modal-fetch-models" class="modal-overlay sub hidden" role="dialog" aria-modal="true" aria-label="Fetch models"
      x-data="{ search: '', models: [], loading: false, error: '' }"
      @models-loaded.window="models = $event.detail; loading = false; error = ''"
      @models-loading.window="loading = true; error = ''"
      @models-error.window="error = $event.detail; loading = false"
       data-action="actionCloseModals">
   <div class="modal-content flex flex-col p-0" style="max-width: 800px; width: 95vw; height: 80vh; overflow: hidden; background: var(--surface);">
-    <div class="modal-header p-4" style="margin-bottom: 0; border-bottom: 1px solid var(--border);">
+    <div class="modal-header divider p-4">
       <div class="modal-title">Select Model</div>
       <button class="btn btn-secondary btn-sm" data-action="actionCloseFetchModels" aria-label="Close">{{ icon_close(16) }}</button>
     </div>
@@ -106,12 +106,12 @@
 
 
 <!-- Secrets Selection Modal -->
-<div id="modal-secrets" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-label="Secrets" style="z-index: var(--z-modal-sub);"
+<div id="modal-secrets" class="modal-overlay sub hidden" role="dialog" aria-modal="true" aria-label="Secrets"
      x-data="{ secrets: [], rawKey: '', newName: '', newValue: '' }"
      @secrets-loaded.window="secrets = $event.detail"
      data-action="actionCloseModals">
   <div class="modal-content flex flex-col p-0" style="max-width: 800px; width: 95vw; height: 75vh; overflow: hidden; background: var(--surface);">
-    <div class="modal-header p-4" style="margin-bottom: 0; border-bottom: 1px solid var(--border);">
+    <div class="modal-header divider p-4">
       <div class="modal-title secrets-title">Select API Key</div>
       <button class="btn btn-secondary btn-sm" data-action="actionCloseSecrets" aria-label="Close">{{ icon_close(16) }}</button>
     </div>

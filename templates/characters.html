@@ -113,7 +113,7 @@
                 {% for img in char.images %}
                 {{ media_thumbnail(img, "deleteCharMedia", ' id="char-media-' + img.id + '"') }}
                 {% endfor %}
-                <label class="btn btn-secondary btn-sm block-media-btn" style="height: 48px; padding: 0 0.5rem; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: var(--radius-sm); border-style: dashed; flex-shrink: 0; margin: 0;" title="Add Image or Audio">
+                <label class="btn btn-secondary btn-sm btn-media-add block-media-btn" title="Add Image or Audio">
                   {{ icon_plus(20) }}
                   <input type="file" accept="image/*,audio/*" class="hidden block-media-input" data-char-id="{{ char.id }}" onchange="uploadCharMedia(this)">
                 </label>
@@ -197,11 +197,11 @@
               {% for block in char.blocks %}
               <div class="p-3 block-item shadow-xs" id="block-{{ block.id }}" style="background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-md);">
                 <div class="flex justify-between items-center mb-2 gap-2">
-                  <input type="text" class="form-control text-sm font-bold flex-1" style="padding:0.3rem 0.5rem;" value="{{ block.name }}" placeholder="Block Name"
+                  <input type="text" class="form-control form-control-sm text-sm font-bold flex-1" value="{{ block.name }}" placeholder="Block Name"
                     data-char-id="{{ char.id }}" data-block-id="{{ block.id }}"
                     onchange="updateBlock(this, {name: this.value})"
                   >
-                  <select class="form-control text-sm w-28" style="padding:0.3rem 0.5rem;" data-char-id="{{ char.id }}" data-block-id="{{ block.id }}" onchange="updateBlock(this, {role: this.value})">
+                  <select class="form-control form-control-sm text-sm w-28" data-char-id="{{ char.id }}" data-block-id="{{ block.id }}" onchange="updateBlock(this, {role: this.value})">
                     <option value="system" {% if block.role == 'system' %}selected{% endif %}>System</option>
                     <option value="user" {% if block.role == 'user' %}selected{% endif %}>User</option>
                     <option value="assistant" {% if block.role == 'assistant' %}selected{% endif %}>Assistant</option>
@@ -220,9 +220,9 @@
                   {% for img in block.images %}
                   {{ media_thumbnail(img, "deleteCharBlockMedia", '') }}
                   {% endfor %}
-                  <label class="btn btn-secondary btn-sm" style="height: 48px; padding: 0 0.5rem; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: var(--radius-sm); border-style: dashed; flex-shrink: 0; margin: 0;" title="Add Image or Audio">
+                  <label class="btn btn-secondary btn-sm btn-media-add block-media-btn" title="Add Image or Audio">
                     {{ icon_plus(20) }}
-                    <input type="file" accept="image/*,audio/*" class="hidden" data-char-id="{{ char.id }}" data-block-id="{{ block.id }}" onchange="uploadCharBlockMedia(this)">
+                    <input type="file" accept="image/*,audio/*" class="hidden block-media-input" data-char-id="{{ char.id }}" data-block-id="{{ block.id }}" onchange="uploadCharBlockMedia(this)">
                   </label>
                   {% if not block.images %}
                   <span class="text-xs text-muted block-media-placeholder">Add reference image or audio</span>
@@ -259,8 +259,8 @@
 <template id="block-template">
   <div class="p-3 block-item shadow-xs" style="background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-md);">
     <div class="flex justify-between items-center mb-2 gap-2">
-      <input type="text" class="form-control text-sm font-bold flex-1 block-name" style="padding:0.3rem 0.5rem;" value="New Block" placeholder="Block Name">
-      <select class="form-control text-sm w-28 block-role" style="padding:0.3rem 0.5rem;">
+      <input type="text" class="form-control form-control-sm text-sm font-bold flex-1 block-name" value="New Block" placeholder="Block Name">
+      <select class="form-control form-control-sm text-sm w-28 block-role">
         <option value="system" selected>System</option>
         <option value="user">User</option>
         <option value="assistant">Assistant</option>
@@ -273,7 +273,7 @@
     </div>
     
     <div class="char-block-media-section" style="margin-top: 0.5rem; display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
-      <label class="btn btn-secondary btn-sm block-media-btn" style="height: 48px; padding: 0 0.5rem; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: var(--radius-sm); border-style: dashed; flex-shrink: 0; margin: 0;" title="Add Image or Audio">
+      <label class="btn btn-secondary btn-sm btn-media-add block-media-btn" title="Add Image or Audio">
         {{ icon_plus(20) }}
         <input type="file" accept="image/*,audio/*" class="hidden block-media-input">
       </label>

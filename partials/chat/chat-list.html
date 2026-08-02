@@ -18,12 +18,9 @@
     <span class="text-xs text-muted">{{ chat.updated_at[:10] }} {{ chat.updated_at[11:16] }}{% if chat.persona_name %} · {{ chat.persona_name }}{% endif %}</span>
   </a>
   <button
-    class="btn btn-danger action-btn shrink-0"
-    style="opacity: 0; padding: 0.1rem 0.4rem; font-size: 0.8rem"
+    class="btn btn-danger sidebar-delete-btn shrink-0"
     data-chat-id="{{ chat.id }}"
     onclick="event.preventDefault(); deleteChat(this)"
-    onmouseover="this.style.opacity = '1'"
-    onmouseout="this.style.opacity = '0'"
     aria-label="Delete chat"
   >
     {{ icon_close(12) }}
@@ -31,11 +28,6 @@
 </div>
 {% endfor %}
 </div>
-<style>
-  .sidebar-item:hover .action-btn {
-    opacity: 1 !important;
-  }
-</style>
 <script>
   function deleteChat(btn) {
     const chatId = btn.dataset.chatId;

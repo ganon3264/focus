@@ -29,7 +29,7 @@
   </div>
   <div class="sidebar-section">
     <div class="sidebar-title">Tools</div>
-    <div class="grid-cols-3">
+    <div class="grid grid-cols-3 gap-2">
       <button class="btn btn-secondary w-full flex-col gap-0.5 py-2 text-[10px] leading-tight" onclick="openModal('modal-characters')">{{ icon_character(20) }}<span>Characters</span></button>
       <button class="btn btn-secondary w-full flex-col gap-0.5 py-2 text-[10px] leading-tight" onclick="openModal('modal-personas')">{{ icon_masks(20) }}<span>Personas</span></button>
       <button class="btn btn-secondary w-full flex-col gap-0.5 py-2 text-[10px] leading-tight" onclick="openModal('modal-sampler')">{{ icon_sliders(20) }}<span>Samplers</span></button>
@@ -57,5 +57,5 @@
 
 <!-- Collapsed left tab -->
 <div id="left-tab" class="left-tab hidden" onclick="toggleSidebar('left')" role="button" tabindex="0">
-  <div class="sidebar-title" style="writing-mode: vertical-rl; padding: 0.5rem 0; cursor: pointer; color: var(--text);">{{ icon_chevron_left() }} Preset</div>
+  <div class="sidebar-title sidebar-title-v">{{ icon_chevron_left() }} Preset</div>
 </div>

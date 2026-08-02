@@ -31,7 +31,7 @@
       <div class="text-xs text-muted truncate mb-2">{{ char.card.get('description','')[:40] or 'No details' }}</div>
       <div class="flex gap-1 mt-auto">
         <button
-          class="btn btn-secondary btn-sm flex-1"
+          class="btn btn-edit btn-sm flex-1"
           data-char-id="{{ char.id }}"
           data-char-name="{{ char.name }}"
           data-char-desc="{{ char.card.get('description','') }}"
@@ -84,8 +84,7 @@
       </div>
       <div class="flex flex-col gap-1 shrink-0" onclick="event.stopPropagation()">
         <button
-          class="btn btn-secondary btn-sm"
-          style="padding: 0.2rem 0.4rem; min-width: 0"
+          class="btn btn-edit btn-sm btn-compact"
           data-char-id="{{ char.id }}"
           data-char-name="{{ char.name }}"
           data-char-desc="{{ char.card.get('description','') }}"
@@ -98,8 +97,7 @@
           {{ icon_edit(size=12) }}
         </button>
         <button
-          class="btn btn-danger btn-sm"
-          style="padding: 0.2rem 0.4rem; min-width: 0"
+          class="btn btn-danger btn-sm btn-compact"
           data-char-id="{{ char.id }}"
           data-char-name="{{ char.name }}"
           onclick="event.stopPropagation(); promptDeleteChar(this)"

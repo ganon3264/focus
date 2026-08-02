@@ -31,20 +31,19 @@
   <input type="hidden" name="{{ name }}" id="{{ id }}" :value="selectedValue"
          @change.stop="{{ on_change }}">
 
-  <button type="button" @click="open = !open" class="flex justify-between items-center text-left w-full {{ extra_classes }}" style="cursor: pointer;">
+  <button type="button" @click="open = !open" class="flex justify-between items-center text-left w-full cursor-pointer {{ extra_classes }}">
      <span x-text="selectedLabel" class="truncate font-medium"></span>
-     <span class="text-xs text-muted" :class="open ? 'rotate-180' : ''" style="transition: transform 0.2s; display: inline-flex;">{{ icon_chevron_down(12) }}</span>
+     <span class="text-xs text-muted inline-flex transition-transform duration-200" :class="open ? 'rotate-180' : ''">{{ icon_chevron_down(12) }}</span>
    </button>
 
    <div x-show="open" @click.away="open = false" x-transition.opacity.duration.200ms
-        class="absolute top-full left-0 right-0 mt-1 z-50 max-h-60 overflow-y-auto"
-        style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--shadow-lg); display: none;">
+        class="dropdown-panel absolute top-full left-0 right-0 mt-1 z-50 max-h-60 overflow-y-auto"
+        style="display: none;">
 
       {% for opt in options %}
-      <div class="px-3 py-2 cursor-pointer transition-colors duration-150 {{ extra_classes }}"
+      <div class="dropdown-item px-3 py-2 {{ extra_classes }}"
            :class="{ 'text-[var(--accent)] font-medium': selectedValue === '{{ opt.value | replace("'", "\\'") }}' }"
            data-value="{{ opt.value }}"
-           {% if not loop.last %}style="border-bottom: 1px solid var(--border);"{% endif %}
            @click="
              selectedValue = '{{ opt.value | replace("'", "\\'") }}';
              selectedLabel = '{{ _js_str(opt.label) }}';
@@ -55,8 +54,6 @@
                  el.dispatchEvent(new Event('change', { bubbles: true }));
              });
            "
-           onmouseover="this.style.background='var(--surface-3)'"
-           onmouseout="this.style.background='transparent'"
       >
         {{ opt.label }}
       </div>
@@ -82,35 +79,24 @@
   <button type="button" @click="open = !open"
            class="btn btn-secondary btn-sm flex items-center justify-between gap-1 cursor-pointer h-full">
     <span x-text="label"></span>
-    <span class="text-muted" :class="open ? 'rotate-180' : ''"
-          style="transition: transform 0.2s; display: inline-flex;">{{ icon_chevron_down(12) }}</span>
+    <span class="text-muted inline-flex transition-transform duration-200" :class="open ? 'rotate-180' : ''"
+          >{{ icon_chevron_down(12) }}</span>
   </button>
   <div x-show="open" @click.away="open = false" x-transition.opacity.duration.200ms
-       class="absolute top-full right-0 mt-1 z-50"
-               style="background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--shadow-lg); display: none; min-width: 120px;">
-    <div class="px-3 py-2 cursor-pointer text-sm whitespace-nowrap"
+       class="dropdown-panel absolute top-full right-0 mt-1 z-50"
+               style="display: none; min-width: 120px;">
+    <div class="dropdown-item px-3 py-2 text-sm whitespace-nowrap"
          :class="{ 'text-[var(--accent)] font-medium': active === 'newest' }"
-         @click="select('newest')"
-         style="border-bottom: 1px solid var(--border);"
-         onmouseover="this.style.background='var(--surface-3)'"
-         onmouseout="this.style.background='transparent'">Newest</div>
-    <div class="px-3 py-2 cursor-pointer text-sm whitespace-nowrap"
+         @click="select('newest')">Newest</div>
+    <div class="dropdown-item px-3 py-2 text-sm whitespace-nowrap"
          :class="{ 'text-[var(--accent)] font-medium': active === 'oldest' }"
-         @click="select('oldest')"
-         style="border-bottom: 1px solid var(--border);"
-         onmouseover="this.style.background='var(--surface-3)'"
-         onmouseout="this.style.background='transparent'">Oldest</div>
-    <div class="px-3 py-2 cursor-pointer text-sm whitespace-nowrap"
+         @click="select('oldest')">Oldest</div>
+    <div class="dropdown-item px-3 py-2 text-sm whitespace-nowrap"
          :class="{ 'text-[var(--accent)] font-medium': active === 'az' }"
-         @click="select('az')"
-         style="border-bottom: 1px solid var(--border);"
-         onmouseover="this.style.background='var(--surface-3)'"
-         onmouseout="this.style.background='transparent'">A → Z</div>
-    <div class="px-3 py-2 cursor-pointer text-sm whitespace-nowrap"
+         @click="select('az')">A → Z</div>
+    <div class="dropdown-item px-3 py-2 text-sm whitespace-nowrap"
          :class="{ 'text-[var(--accent)] font-medium': active === 'za' }"
-         @click="select('za')"
-         onmouseover="this.style.background='var(--surface-3)'"
-         onmouseout="this.style.background='transparent'">Z → A</div>
+         @click="select('za')">Z → A</div>
   </div>
 </div>
 {% endmacro %}

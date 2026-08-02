@@ -6,7 +6,4 @@
   .max-w-\[130px\] {
     max-width: 130px;
   }
-  .arranger-select > div:hover {
-    background: var(--surface-3);
-  }
 }

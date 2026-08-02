@@ -3,7 +3,7 @@
   .form-group {
     margin-bottom: 1rem;
   }
-  .form-group label {
+  .form-group label:not(.btn) {
     display: block;
     font-size: 0.8rem;
     color: var(--text-muted);
@@ -26,6 +26,14 @@
     border-color: var(--accent);
     box-shadow: var(--shadow-glow);
     background: var(--surface-3);
+  }
+  .form-control-sm {
+    padding: 0.3rem 0.5rem;
+  }
+  .form-control-xs {
+    width: 56px;
+    padding: 2px 4px;
+    font-size: 0.8rem;
   }
 
   .edit-block-ta {
@@ -128,10 +136,66 @@
     background: var(--danger);
     color: var(--text-on-accent);
   }
+  .btn-edit {
+    background: var(--surface-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-sm);
+  }
+  .btn-edit:hover,
+  .btn-edit:focus-visible {
+    background: var(--accent);
+    color: var(--text-on-accent);
+    border-color: var(--accent);
+  }
+  .btn-delete-icon {
+    background: var(--surface-2);
+    color: var(--danger);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-sm);
+  }
+  .btn-delete-icon:hover,
+  .btn-delete-icon:focus-visible {
+    background: var(--danger);
+    color: var(--text-on-accent);
+    border-color: var(--danger);
+  }
   .btn-sm {
     padding: 0.35rem 0.75rem;
     font-size: 0.8rem;
     border-radius: var(--radius-sm);
+  }
+  .btn-compact {
+    padding: 0.2rem 0.4rem;
+    min-width: 0;
+  }
+  .btn-media-add {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 48px;
+    padding: 0 0.5rem;
+    border-style: dashed;
+    flex-shrink: 0;
+    margin: 0;
+  }
+
+  /* Dropdowns */
+  .dropdown-panel {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+  }
+  .dropdown-item {
+    cursor: pointer;
+    transition: background var(--transition), color var(--transition);
+  }
+  .dropdown-item:hover {
+    background: var(--surface-3);
+  }
+  .dropdown-item:not(:last-child) {
+    border-bottom: 1px solid var(--border);
   }
 
   /* Scroll Fade — marker class; mask-image applied dynamically by initScrollFade() */
@@ -208,24 +272,27 @@
 
   /* Variable group containers — compact card */
   .var-group-container {
-    padding: 0.375rem 0.75rem !important;
-    border-radius: var(--radius-sm) !important;
-    box-shadow: none !important;
+    padding: 0.375rem 0.75rem;
+    border-radius: var(--radius-sm);
+    box-shadow: none;
     cursor: pointer;
   }
   .var-group-container:hover {
-    transform: none !important;
-    box-shadow: none !important;
+    transform: none;
+    box-shadow: none;
   }
   .var-option-item {
-    padding: 0.375rem 0.5rem !important;
+    padding: 0.375rem 0.5rem;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
   }
   .var-option-item:hover {
-    border-color: var(--border-hover) !important;
+    border-color: var(--border-hover);
   }
   .var-option-item .action-icon {
-    width: 20px !important;
-    height: 20px !important;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
   }
 
   /* Prompt Arranger Drag & Drop */
@@ -526,6 +593,9 @@
   .modal-overlay.heavy {
     background: var(--modal-backdrop-heavy);
   }
+  .modal-overlay.sub {
+    z-index: var(--z-modal-sub);
+  }
   .modal-content {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -543,6 +613,10 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: 1.5rem;
+  }
+  .modal-header.divider {
+    margin-bottom: 0;
+    border-bottom: 1px solid var(--border);
   }
   .modal-title {
     font-size: 1.15rem;
@@ -575,22 +649,7 @@
     color: var(--active-text);
   }
 
-  /* Cards & Grid */
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: 1.25rem;
-  }
-  .grid-cols-2 {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 0.5rem;
-  }
-  .grid-cols-3 {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0.5rem;
-  }
+  /* Cards */
   .card {
     background: var(--surface-2);
     border: 1px solid var(--border);
@@ -630,8 +689,8 @@
   }
 
   /* Hint-tooltip text color overrides */
-  .hint-danger   { color: var(--danger) !important; }
-  .hint-accent   { color: var(--accent) !important; }
-  .hint-warning  { color: var(--role-assistant) !important; }
-  .hint-success  { color: var(--role-user) !important; }
+  #hint-tooltip .hint-danger   { color: var(--danger); }
+  #hint-tooltip .hint-accent   { color: var(--accent); }
+  #hint-tooltip .hint-warning  { color: var(--role-assistant); }
+  #hint-tooltip .hint-success  { color: var(--role-user); }
 }

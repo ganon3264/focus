@@ -11,7 +11,7 @@
     transition: all var(--transition);
     outline: none;
   }
-  input[type='color'] {
+  :where(input[type='color']) {
     border: 1px solid var(--border);
     padding: 0;
     box-shadow: var(--shadow-sm);
@@ -19,7 +19,7 @@
     cursor: pointer;
     border-radius: var(--radius-sm);
   }
-  input[type='color']:hover {
+  :where(input[type='color']):hover {
     border-color: var(--border-hover);
     box-shadow: var(--shadow-md);
     transform: translateY(-1px);
@@ -155,6 +155,17 @@
     border-color: var(--active-border);
     color: var(--active-text);
   }
+  .sidebar-item .sidebar-delete-btn {
+    opacity: 0;
+    width: 28px;
+    height: 28px;
+    padding: 0.1rem 0.4rem;
+    font-size: 0.8rem;
+  }
+  .sidebar-item:hover .sidebar-delete-btn,
+  .sidebar-item:focus-within .sidebar-delete-btn {
+    opacity: 1;
+  }
 
   /* Right Tab Collapse */
   .right-tab {
@@ -198,5 +209,11 @@
   .left-tab:hover {
     background: var(--surface-2);
     color: var(--accent-hover);
+  }
+  .sidebar-title-v {
+    writing-mode: vertical-rl;
+    padding: 0.5rem 0;
+    cursor: pointer;
+    color: var(--text);
   }
 }
