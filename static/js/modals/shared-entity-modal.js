@@ -58,6 +58,12 @@
             if (grid && grid.querySelectorAll('.card').length === 0) {
               grid.innerHTML = '<div class="text-muted text-center text-sm py-6 border border-dashed border-(--border) rounded-lg">' + cfg.emptyText + '</div>';
             }
+            if (isHard) {
+              if (window.showSuccessToast) window.showSuccessToast(name + ' permanently deleted');
+            } else {
+              var msg = isWithChats ? name + ' & conversations moved to Trash' : name + ' moved to Trash';
+              if (window.showInfoToast) window.showInfoToast(msg);
+            }
           }
         });
       });
@@ -125,6 +131,7 @@
           if (r.ok) {
             var modal = document.getElementById(cfg.trashModalId);
             if (modal) modal.remove();
+            if (window.showSuccessToast) window.showSuccessToast(cfg.entity + ' restored');
             var g = document.getElementById(cfg.gridId);
             if (g) {
               var cid = StateManager.get(cfg.stateKey) || '';
@@ -174,6 +181,7 @@
             if (r.ok) {
               var modal = document.getElementById(cfg.trashModalId);
               if (modal) modal.remove();
+              if (window.showSuccessToast) window.showSuccessToast(name + ' permanently deleted');
               window[fnOpenTrash]();
             }
           });
@@ -221,11 +229,15 @@
           if (r.ok) {
             var data = await r.json();
             if (data.errors && data.errors.length) {
-              alert(
-                'Imported ' + data.imported.length + ' of ' + data.total +
-                ' cards.\n\nErrors:\n' +
-                data.errors.map(function (e) { return '\u2022 ' + e.filename + ': ' + e.error; }).join('\n'),
-              );
+              if (window.showErrorToast) {
+                window.showErrorToast(
+                  'Imported ' + data.imported.length + ' of ' + data.total +
+                  ' cards.\n\nErrors:\n' +
+                  data.errors.map(function (e) { return '\u2022 ' + e.filename + ': ' + e.error; }).join('\n'),
+                );
+              }
+            } else if (window.showSuccessToast) {
+              window.showSuccessToast('Imported ' + data.imported.length + ' ' + cfg.entityLower + 's');
             }
             var g = document.getElementById(cfg.gridId);
             var cid = StateManager.get(cfg.stateKey) || '';
@@ -251,7 +263,9 @@
               });
             }
           } else {
-            r.text().then(function (t) { alert('Import failed: ' + t); });
+            r.text().then(function (t) {
+              if (window.showErrorToast) window.showErrorToast('Import failed: ' + t);
+            });
           }
         });
       };

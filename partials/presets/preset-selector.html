@@ -215,7 +215,8 @@ function confirmRename(){
       if (state.selectedId === pid) {
         state.selectedName = trimmed;
       }
-    } else alert('Failed to rename preset');
+      if (window.showSuccessToast) window.showSuccessToast('Preset renamed');
+    } else if (window.showErrorToast) window.showErrorToast('Failed to rename preset');
   });
 }
 
@@ -226,10 +227,13 @@ function importPreset(file){
   fetch('/api/presets/import', {method: 'POST', body: formData})
     .then(function(r) {
       if (r.ok) return r.json();
-      else r.text().then(function(t) { alert('Import failed: ' + t); });
+      else r.text().then(function(t) { if (window.showErrorToast) window.showErrorToast('Import failed: ' + t); });
     })
     .then(function(data) {
-      if (data && data.id) addAndSelectPreset(data.id, data.name);
+      if (data && data.id) {
+        if (window.showSuccessToast) window.showSuccessToast('Preset imported');
+        addAndSelectPreset(data.id, data.name);
+      }
     });
 }
 
@@ -245,7 +249,7 @@ window.deletePresetById = function(id) {
   window.customConfirm('Delete this preset?', function() {
     fetch('/api/presets/' + id, {method: 'DELETE'})
       .then(function(r){
-        if (!r.ok) { alert('Failed to delete preset'); return; }
+        if (!r.ok) { if (window.showErrorToast) window.showErrorToast('Failed to delete preset'); return; }
         var state = Alpine.$data(document.getElementById('preset-selector-wrapper'));
         if (state.selectedId === id) {
           if (fallbackItem) {
@@ -258,6 +262,7 @@ window.deletePresetById = function(id) {
         }
         var deletedEl = document.querySelector('#preset-selector-wrapper [data-preset-id="' + id + '"]');
         if (deletedEl) deletedEl.remove();
+        if (window.showInfoToast) window.showInfoToast('Preset deleted');
       });
   });
 }

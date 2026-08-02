@@ -21,6 +21,11 @@
   --danger-hover: #f43f5e;
   --danger-dim: rgba(225, 29, 72, 0.15);
 
+  /* Success */
+  --success: #16a34a;
+  --success-hover: #22c55e;
+  --success-dim: rgba(22, 163, 74, 0.15);
+
   /* Radii */
   --radius-sm: 6px;
   --radius-md: 10px;

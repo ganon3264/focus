@@ -135,7 +135,7 @@
       if (window.openModal) window.openModal('modal-edit-message');
       else document.getElementById('modal-edit-message').classList.remove('hidden');
     } catch (err) {
-      alert('Error editing message: ' + err.message);
+      window.showErrorToast('Error editing message: ' + err.message);
     }
   };
 
@@ -226,7 +226,7 @@
         if (window._refreshChatList) window._refreshChatList(chatId);
       }
     } catch (err) {
-      alert('Failed to save edit: ' + err.message);
+      window.showErrorToast('Failed to save edit: ' + err.message);
     }
   };
 
@@ -254,7 +254,7 @@
         window.currentEditAttachments.push(...data.attachments);
         window.renderEditModalAttachments();
       } else {
-        alert('Failed to upload attachment');
+        window.showErrorToast('Failed to upload attachment');
       }
     } catch (err) {
       console.error(err);

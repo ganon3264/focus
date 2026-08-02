@@ -81,8 +81,11 @@
             console.error('Failed to refresh message list', e);
           }
           if (window._refreshChatList) window._refreshChatList(chatId);
+          if (window.showSuccessToast) {
+            window.showSuccessToast(selected.length + ' message' + (selected.length === 1 ? '' : 's') + ' deleted');
+          }
         } else {
-          alert('Failed to delete messages');
+          window.showErrorToast('Failed to delete messages');
         }
       } catch (e) {
         console.error(e);

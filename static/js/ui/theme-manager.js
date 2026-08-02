@@ -112,8 +112,12 @@ window.setSlot = function (slot, themeId) {
   _notify((slot === 'dark' ? 'Dark theme: ' : 'Light theme: ') + theme.name);
 };
 
-function _notify(message) {
-  if (window.showInfoToast) window.showInfoToast(message);
+function _notify(message, opts) {
+  opts = opts || {};
+  var fn = window.showInfoToast;
+  if (opts.type === 'success' && window.showSuccessToast) fn = window.showSuccessToast;
+  else if (opts.type === 'error' && window.showErrorToast) fn = window.showErrorToast;
+  if (fn) fn(message, opts);
 }
 
 // ── CRUD ─────────────────────────────────────────────────────────────────────
@@ -276,14 +280,14 @@ window.themeModalState = function () {
     create: function () {
       var name = this.editName.trim();
       if (!name) {
-        _notify('Enter a theme name first');
+        _notify('Enter a theme name first', { type: 'error', duration: 4000 });
         return;
       }
       var colors = this._readPickers();
       var self = this;
       window.saveTheme(name, colors, null, function (ok, id) {
         if (!ok) return;
-        _notify('Theme "' + name + '" created');
+        _notify('Theme "' + name + '" created', { type: 'success' });
         window.refreshThemes(function () {
           if (id) {
             self.select(id);
@@ -311,7 +315,7 @@ window.themeModalState = function () {
     save: function () {
       var name = this.editName.trim();
       if (!name) {
-        _notify('Enter a theme name first');
+        _notify('Enter a theme name first', { type: 'error', duration: 4000 });
         return;
       }
       var colors = this._readPickers();
@@ -319,7 +323,7 @@ window.themeModalState = function () {
       window.saveTheme(name, colors, this.selectedId, function (ok) {
         if (!ok) return;
         self.dirty = false;
-        _notify('Theme saved');
+        _notify('Theme saved', { type: 'success' });
         window.refreshThemes(function () {
           if (self.selectedId === window.effectiveThemeId()) window.reapplyTheme();
         });
@@ -332,7 +336,7 @@ window.themeModalState = function () {
       window.openConfirmModal('Delete theme "' + name + '"?', function () {
         window.deleteTheme(id, function (ok) {
           if (!ok) return;
-          _notify('Theme deleted');
+          _notify('Theme deleted', { type: 'success' });
           window.refreshThemes();
           window.reapplyTheme();
           self.refresh();
@@ -347,7 +351,7 @@ window.themeModalState = function () {
       window.openConfirmModal('Reset "' + this.editName + '" to its default look?', function () {
         window.resetTheme(id, function (ok) {
           if (!ok) return;
-          _notify('Theme reset to default');
+          _notify('Theme reset to default', { type: 'success' });
           window.refreshThemes(function () {
             self.select(id);
             if (id === window.effectiveThemeId()) window.reapplyTheme();

@@ -113,5 +113,5 @@ function newChat() {
     .then((data) => {
       window.location.href = '/chat/' + data.id;
     })
-    .catch((e) => alert(e.message));
+    .catch((e) => window.showErrorToast(e.message));
 }

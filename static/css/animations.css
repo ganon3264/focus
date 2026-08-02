@@ -81,3 +81,110 @@
     transform: translateY(0);
   }
 }
+
+/* ── Toast system ─────────────────────────────────────────────────────────── */
+.toast-container {
+  position: fixed;
+  top: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: min(92vw, 560px);
+  z-index: var(--z-max);
+  pointer-events: none;
+}
+.toast {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  max-width: min(92vw, 560px);
+  padding: 0.6rem 0.9rem;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  font-size: 0.85rem;
+  line-height: 1.4;
+  pointer-events: auto;
+  animation: toast-in 0.2s ease-out;
+}
+.toast-leave {
+  animation: toast-out 0.2s ease-in forwards;
+}
+.toast-info {
+  background: var(--surface-2);
+  border: 1px solid var(--accent);
+  color: var(--text);
+}
+.toast-success {
+  background: color-mix(in srgb, var(--success) 18%, var(--surface-2));
+  border: 1px solid var(--success);
+  color: var(--success);
+}
+.toast-error {
+  background: color-mix(in srgb, var(--danger) 18%, var(--surface-2));
+  border: 1px solid var(--danger);
+  color: var(--danger);
+}
+.toast-text {
+  flex: 1;
+  min-width: 0;
+  font-weight: 500;
+}
+.toast-error .toast-text {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-weight: 400;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 40vh;
+  overflow-y: auto;
+}
+.toast-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+.toast-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.7rem;
+  transition: background var(--transition), opacity var(--transition);
+}
+.toast-btn:hover {
+  background: rgba(128, 128, 128, 0.18);
+  opacity: 0.85;
+}
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes toast-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}

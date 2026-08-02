@@ -85,7 +85,7 @@
 
     var providerId = sendBtn.dataset.providerId;
     if (!providerId) {
-      alert('No provider configured. Add one in Providers.');
+      window.showErrorToast('No provider configured. Add one in Providers.');
       window._generating = false;
       return;
     }
@@ -204,7 +204,7 @@
 
     if (sendBtn.dataset.mode === 'regen') {
       if (!providerId) {
-        alert('No provider configured. Add one in Providers.');
+        window.showErrorToast('No provider configured. Add one in Providers.');
         return;
       }
       var dataList = document.getElementById('message-list-data');
@@ -220,7 +220,7 @@
     var text = input.value.trim();
     if (!text && (!window.stagedFiles || window.stagedFiles.length === 0)) return;
     if (!providerId) {
-      alert('No provider configured. Add one in Providers.');
+      window.showErrorToast('No provider configured. Add one in Providers.');
       return;
     }
 
@@ -270,7 +270,7 @@
       var d = await r.json();
       window.location.href = '/chat/' + d.id;
     } catch (e) {
-      alert(e.message);
+      window.showErrorToast(e.message);
     }
   };
 

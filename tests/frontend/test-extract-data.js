@@ -85,16 +85,16 @@ eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'modals', 
   assert(!data.params.or_quant, 'openrouter simple: no or_quant in params');
 })();
 
-// ── openrouter — no model alert ──
+// ── openrouter — no model shows error toast ──
 (function () {
   var form = createMockForm({ name: 'Bad OR', type: 'openrouter', model: '' });
-  var alerted = false;
-  global.alert = function () { alerted = true; };
+  var toasted = null;
+  global.showErrorToast = function (msg) { toasted = msg; };
   var threw = false;
   try { extractData(form); } catch (e) { threw = true; }
-  assert(alerted, 'openrouter: no model triggers alert');
+  assert(toasted === 'Please select an OpenRouter model.', 'openrouter: no model triggers error toast');
   assert(threw, 'openrouter: no model throws');
-  global.alert = function () {};
+  delete global.showErrorToast;
 })();
 
 // ── openrouter — invalid params json ──

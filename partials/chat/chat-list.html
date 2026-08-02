@@ -45,6 +45,7 @@
           if (!r.ok) throw new Error('Failed to delete chat');
           const row = btn.closest('.sidebar-item');
           if (row) row.remove();
+          if (window.showInfoToast) window.showInfoToast('Chat deleted');
           const currentChatId = '{{ current_chat_id }}';
           if (chatId === currentChatId) {
             var cid = StateManager.get('character_id');
@@ -52,7 +53,7 @@
           }
         })
         .catch(function (e) {
-          alert(e.message);
+          if (window.showErrorToast) window.showErrorToast(e.message);
         });
     });
   }
@@ -110,6 +111,7 @@
       if (r.ok) {
         const modal = document.getElementById('chat-trash-modal');
         if (modal) modal.remove();
+        if (window.showSuccessToast) window.showSuccessToast('Chat restored');
         htmx.ajax('GET', '/partials/chat-list', {
           target: '#chat-list',
           swap: 'innerHTML',
@@ -124,6 +126,7 @@
         if (r.ok) {
           const modal = document.getElementById('chat-trash-modal');
           if (modal) modal.remove();
+          if (window.showSuccessToast) window.showSuccessToast('Chat permanently deleted');
           openChatTrashModal();
         }
       });

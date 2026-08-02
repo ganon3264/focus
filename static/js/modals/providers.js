@@ -221,6 +221,7 @@ function setActiveProvider(id, name, type) {
   const sendBtn = document.getElementById('send-btn');
   if (sendBtn) sendBtn.dataset.providerId = id;
   StateManager.setProvider(id, type);
+  if (name && window.showInfoToast) window.showInfoToast('Provider: ' + name);
 }
 
 function extractData(form) {
@@ -231,7 +232,9 @@ function extractData(form) {
 
   if (type === 'openrouter') {
     if (!data.model) {
-      alert('Please select an OpenRouter model.');
+      if (window.showErrorToast) {
+        window.showErrorToast('Please select an OpenRouter model.', { duration: 4000 });
+      }
       throw new Error('Model required');
     }
     data.base_url = 'https://openrouter.ai/api/v1';
@@ -309,6 +312,9 @@ function submitProviderForm(el, e) {
         target: '#providers-modal-body-inner',
         swap: 'innerHTML',
       });
+      if (window.showSuccessToast) {
+        window.showSuccessToast(isEdit ? 'Provider updated' : 'Provider added');
+      }
     } else {
       var errBody;
       try { errBody = await r.json(); } catch (e) { errBody = await r.text(); }

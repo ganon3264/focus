@@ -88,7 +88,10 @@
     btn.disabled = true;
     btn.textContent = 'Creating…';
     fetch(window.api.backups, { method: 'POST' })
-      .then(() => M.loadList())
+      .then((r) => {
+        if (r.ok && window.showSuccessToast) window.showSuccessToast('Backup created');
+        return M.loadList();
+      })
       .catch(() => M.loadList())
       .finally(() => {
         btn.disabled = false;
@@ -105,6 +108,7 @@
           .then((r) => r.json())
           .then((d) => {
             if (d.restored) {
+              if (window.showSuccessToast) window.showSuccessToast('Backup restored');
               setStatus(document.getElementById('backup-status'), 'Backup restored successfully.');
               M.loadList();
             }
@@ -122,7 +126,10 @@
         '<div class="text-sm mt-2" style="color:var(--text-muted);">This cannot be undone.</div>',
       function () {
         fetch(window.api.backupDelete(backupId), { method: 'DELETE' })
-          .then(() => M.loadList())
+          .then((r) => {
+            if (r.ok && window.showSuccessToast) window.showSuccessToast('Backup deleted');
+            return M.loadList();
+          })
           .catch(() => M.loadList());
       },
     );
@@ -142,6 +149,9 @@
     fetch(window.api.import_, { method: 'POST', body: fd })
       .then((r) => r.json())
       .then((d) => {
+        if (window.showSuccessToast) {
+          window.showSuccessToast('Imported ' + (d.total_entities || 0) + ' entities.');
+        }
         setStatus(st, 'Imported ' + (d.total_entities || 0) + ' entities.');
         setTimeout(() => {
           location.reload();
@@ -323,8 +333,11 @@
         document.body.removeChild(a);
         URL.revokeObjectURL(u);
         closeModal('modal-export');
+        if (window.showSuccessToast) window.showSuccessToast('Export ready');
       })
-      .catch(() => alert('Export failed.'))
+      .catch(() => {
+        if (window.showErrorToast) window.showErrorToast('Export failed.');
+      })
       .finally(() => {
         btn.disabled = false;
         btn.textContent = 'Export';
@@ -341,6 +354,7 @@
           .then((d) => {
             const parts = [];
             for (var k in d) parts.push(k + ': ' + d[k]);
+            if (window.showInfoToast) window.showInfoToast('Database cleaned: ' + parts.join(', '));
             setStatus(document.getElementById('backup-status'), 'Cleaned: ' + parts.join(', '));
           })
           .catch(() => setStatus(document.getElementById('backup-status'), 'Clean failed.', true));

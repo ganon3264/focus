@@ -76,10 +76,11 @@ function createPreset(e){
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify(data)
   }).then(function(r){
-    if(!r.ok) { r.text().then(function(t){ alert('Failed to create preset: ' + t); }); return; }
+    if(!r.ok) { r.text().then(function(t){ if (window.showErrorToast) window.showErrorToast('Failed to create preset: ' + t); }); return; }
     return r.json();
   }).then(function(result){
     if (!result) return;
+    if (window.showSuccessToast) window.showSuccessToast('Preset created');
     insertPresetSidebar(result.id);
   });
 }
@@ -112,10 +113,13 @@ function importPreset(e){
     method: 'POST',
     body: formData
   }).then(function(r) {
-    if(!r.ok) return r.text().then(function(t){ alert('Import failed: ' + t); });
+    if(!r.ok) return r.text().then(function(t){ if (window.showErrorToast) window.showErrorToast('Import failed: ' + t); });
     return r.json();
   }).then(function(data) {
-    if (data && data.id) insertPresetSidebar(data.id);
+    if (data && data.id) {
+      if (window.showSuccessToast) window.showSuccessToast('Preset imported');
+      insertPresetSidebar(data.id);
+    }
   });
 }
 

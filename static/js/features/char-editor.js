@@ -9,23 +9,30 @@ function importCharPage(e) {
     if (r.ok) {
       const data = await r.json();
       if (data.errors && data.errors.length) {
-        alert(
-          'Imported ' +
-            data.imported.length +
-            ' of ' +
-            data.total +
-            ' cards.\n\nErrors:\n' +
-            data.errors
-              .map(function (e) {
-                return '• ' + e.filename + ': ' + e.error;
-              })
-              .join('\n'),
-        );
+        if (window.showErrorToast) {
+          window.showErrorToast(
+            'Imported ' +
+              data.imported.length +
+              ' of ' +
+              data.total +
+              ' cards.\n\nErrors:\n' +
+              data.errors
+                .map(function (e) {
+                  return '• ' + e.filename + ': ' + e.error;
+                })
+                .join('\n'),
+          );
+        }
+        document.getElementById('import-indicator').classList.add('hidden');
+      } else {
+        if (window.showSuccessToast) {
+          window.showSuccessToast('Imported ' + data.imported.length + ' characters');
+        }
+        setTimeout(() => window.location.reload(), 1000);
       }
-      window.location.reload();
     } else {
       r.text().then((t) => {
-        alert('Import failed: ' + t);
+        if (window.showErrorToast) window.showErrorToast('Import failed: ' + t);
         document.getElementById('import-indicator').classList.add('hidden');
       });
     }
@@ -126,6 +133,7 @@ function saveCharCard(btn) {
     body: JSON.stringify(payload),
   }).then(function (r) {
     if (r.ok) {
+      if (window.showSuccessToast) window.showSuccessToast('Character saved');
       const originalText = btn.innerText;
       btn.innerText = 'Saved!';
       btn.classList.add('bg-green-600', 'border-green-600');

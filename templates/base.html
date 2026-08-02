@@ -193,16 +193,13 @@
     <script src="/static/js/modals/sampler-defaults.js"></script>
     {% block content %}{% endblock %} {% include "modals/confirm.html" %}
 
-    <!-- Info toast (action feedback, e.g. theme changes) -->
+    <!-- Toast stack (action feedback) -->
     <div
-      id="info-toast"
-      class="hidden fixed bottom-6 left-1/2 px-4 py-2 rounded-md shadow-lg text-sm pointer-events-none"
+      id="toast-container"
+      class="toast-container"
       role="status"
       aria-live="polite"
-      style="transform: translateX(-50%); background: var(--surface-2); border: 1px solid var(--accent); color: var(--text); z-index: var(--z-max);"
-    >
-      <span id="info-toast-text"></span>
-    </div>
+    ></div>
 
     <!-- Global Lightbox for Images -->
     <div
