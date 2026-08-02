@@ -6,6 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{% block title %}Focus{% endblock %}</title>
 
+    {% block head_theme_state %}{% endblock %}
+
     <script>
       (function () {
         try {
@@ -14,7 +16,18 @@
           const t = JSON.parse(state);
           const dark =
             !window.matchMedia || window.matchMedia('(prefers-color-scheme: dark)').matches;
-          const palette = dark ? t.darkColors : t.lightColors;
+          // Chat pages embed THEMES + THEME_STATE in <head>; prefer the exact
+          // per-character theme over the cached slot palette (flash-free).
+          let palette = null;
+          if (window.THEMES && window.THEME_STATE && window.THEME_STATE.char_theme_id) {
+            for (var i = 0; i < window.THEMES.length; i++) {
+              if (window.THEMES[i].id === window.THEME_STATE.char_theme_id) {
+                palette = window.THEMES[i].colors || null;
+                break;
+              }
+            }
+          }
+          if (!palette) palette = dark ? t.darkColors : t.lightColors;
           if (!palette) return;
           if (palette['--accent'] && !palette['--accent-hover']) {
             var m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(palette['--accent']);

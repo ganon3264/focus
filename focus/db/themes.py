@@ -120,21 +120,21 @@ async def create_theme(
     return theme_id
 
 
-_UNSET = object()
+UNSET = object()
 
 
 async def update_theme(
     db: aiosqlite.Connection,
     theme_id: str,
-    name=_UNSET,
-    colors=_UNSET,
+    name=UNSET,
+    colors=UNSET,
 ) -> None:
     sets = []
     vals: list = []
-    if name is not _UNSET:
+    if name is not UNSET:
         sets.append("name = ?")
         vals.append(name)
-    if colors is not _UNSET:
+    if colors is not UNSET:
         sets.append("colors_json = ?")
         vals.append(json.dumps(colors))
     if not sets:

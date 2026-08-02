@@ -2,6 +2,12 @@
 {% from "macros.html" import icon_edit, icon_trash, icon_refresh, icon_music, icon_plug, icon_search, icon_list, icon_database, icon_paperclip, icon_plus, icon_stop, icon_send, icon_chat, icon_close, icon_chevron_left, icon_chevron_right, icon_sliders, icon_character, icon_masks, icon_stack, icon_palette, icon_hammer, hint_tooltip %}
 {% from "modal-shell.html" import modal_shell %}
 {% block title %}Chat - Focus{% endblock %}
+{% block head_theme_state %}
+<script>
+window.THEMES = {{ themes | tojson | safe }};
+window.THEME_STATE = {{ theme_state | tojson | safe }};
+</script>
+{% endblock %}
 {% block content %}
 <div class="app-shell">
   {% include "chat/left-pane.html" %}
@@ -299,10 +305,6 @@ setTimeout(() => {
 
 <template id="icon-close-tpl">{{ icon_close(16) }}</template>
 
-<script>
-window.THEMES = {{ themes | tojson | safe }};
-window.THEME_STATE = {{ theme_state | tojson | safe }};
-</script>
 <script src="/static/js/ui/option-picker.js"></script>
 <script src="/static/js/ui/theme-manager.js"></script>
 <script>

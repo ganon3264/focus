@@ -90,9 +90,16 @@ eval(src + '\nwindow.hexToRgb=hexToRgb;window.lightenHex=lightenHex;window.compu
   assertEqual(r.b, 241, 'hexToRgb: blue');
 })();
 
+// ── hexToRgb without # ──
+(function () {
+  var r = hexToRgb('6366f1');
+  assertEqual(r.r, 99, 'hexToRgb without #: red');
+})();
+
 // ── hexToRgb invalid returns null ──
 (function () {
   assertEqual(hexToRgb('invalid'), null, 'hexToRgb invalid returns null');
+  assertEqual(hexToRgb('#xyz'), null, 'hexToRgb short invalid returns null');
 })();
 
 // ── lightenHex ──
@@ -100,6 +107,11 @@ eval(src + '\nwindow.hexToRgb=hexToRgb;window.lightenHex=lightenHex;window.compu
   var l = lightenHex('#6366f1', 15);
   assert(l.length === 7 && l[0] === '#', 'lightenHex returns valid hex');
   assert(l !== '#6366f1', 'lightenHex changes the color');
+})();
+
+// ── lightenHex with invalid returns original ──
+(function () {
+  assertEqual(lightenHex('invalid', 15), 'invalid', 'lightenHex invalid returns input');
 })();
 
 // ── computeAccentDerivatives ──

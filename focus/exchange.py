@@ -20,7 +20,7 @@ from focus.exchange_sanitize import (
 from focus.tools.external import ExternalToolConfig
 
 logger = logging.getLogger("focus.exchange")
-FOCUS_VERSION = "0.2.0"
+FOCUS_VERSION = "0.3.0"
 FOCUS_VERSION_PARTS = tuple(int(p) for p in FOCUS_VERSION.split("."))
 
 
@@ -54,12 +54,12 @@ EXPORT_TABLES = [
 
 # Insertion order: parents before children
 INSERT_ORDER = [
+    "themes",
     "characters",
     "personas",
     "presets",
     "providers",
     "secrets",
-    "themes",
     "char_blocks",
     "preset_blocks",
     "chats",

@@ -159,6 +159,26 @@ class TestExport:
         assert db["personas"] == []
         assert db["chats"] == []
 
+    async def test_export_includes_themes(self, client):
+        resp = await client.post(
+            "/api/themes/",
+            json={"name": "My Theme", "colors": {"--bg": "#0b0d10", "--accent": "#123456"}},
+        )
+        assert resp.status_code == 201
+        theme_id = resp.json()["id"]
+        char = await create_character(client, "Themed")
+        await client.patch(f"/api/characters/{char['id']}", json={"theme_id": theme_id})
+
+        resp = await client.post("/api/export", json={"characters": [char["id"]]})
+        db = _extract_database_from_zip(resp.content)
+
+        # Custom theme travels with the archive, ids remapped consistently
+        theme = next(t for t in db["themes"] if t["name"] == "My Theme")
+        assert theme["is_system"] == 0
+        exported_char = db["characters"][0]
+        assert exported_char["id"] != char["id"]
+        assert exported_char["theme_id"] == theme["id"]
+
 
 class TestImport:
     async def test_roundtrip_characters(self, client):
@@ -185,6 +205,85 @@ class TestImport:
         list_resp = await client.get("/api/characters/")
         chars = list_resp.json()
         assert len(chars) == 4
+
+    async def test_roundtrip_themed_character(self, client, tmp_test_dir):
+        resp = await client.post(
+            "/api/themes/",
+            json={"name": "Teal", "colors": {"--bg": "#0b0d10", "--accent": "#14b8a6"}},
+        )
+        assert resp.status_code == 201
+        theme_id = resp.json()["id"]
+        char = await create_character(client, "Themed")
+        await client.patch(f"/api/characters/{char['id']}", json={"theme_id": theme_id})
+
+        resp = await client.post("/api/export", json={"characters": [char["id"]]})
+        assert resp.status_code == 200
+        zip_bytes = resp.content
+
+        files = {"file": ("test.focus", BytesIO(zip_bytes), "application/zip")}
+        imp_resp = await client.post("/api/import", files=files)
+        assert imp_resp.status_code == 201
+        assert imp_resp.json()["imported"]["themes"] >= 1
+
+        chars = await _read_db(tmp_test_dir, "SELECT id, name, theme_id FROM characters")
+        imported = next(c for c in chars if c["name"] == "Themed" and c["id"] != char["id"])
+        assert imported["theme_id"] is not None, "imported character keeps its theme reference"
+        themes = (await client.get("/api/themes/")).json()
+        assert any(t["id"] == imported["theme_id"] and t["name"] == "Teal" for t in themes)
+
+    async def test_import_modified_builtin_theme_keeps_receiving_seed(self, client):
+        db = {
+            "themes": [
+                {
+                    "id": "builtin-slate",
+                    "name": "Hacked Slate",
+                    "colors_json": '{"--bg": "#ff0000"}',
+                    "is_system": 1,
+                    "created_at": "2026-01-01",
+                }
+            ],
+            "characters": [],
+        }
+        resp = await _import_archive(client, _build_archive(db, version="0.3.0"))
+        assert resp.status_code == 201
+
+        themes = (await client.get("/api/themes/")).json()
+        slate = next(t for t in themes if t["id"] == "builtin-slate")
+        assert slate["name"] == "Slate (Default)", "built-in duplicates are skipped, seed preserved"
+
+    async def test_v2_archive_with_themes_imports_via_legacy_path(self, client, tmp_test_dir):
+        # Versions below 0.3.0 take the legacy remap path; themes and the
+        # characters.theme_id FK must survive it consistently.
+        db = {
+            "themes": [
+                {
+                    "id": "t-1",
+                    "name": "Old Custom",
+                    "colors_json": '{"--accent": "#abcdef"}',
+                    "is_system": 0,
+                    "created_at": "2026-01-01",
+                }
+            ],
+            "characters": [
+                {
+                    "id": "c-1",
+                    "name": "Old",
+                    "card_json": "{}",
+                    "theme_id": "t-1",
+                    "image_path": None,
+                    "created_at": "2026-01-01",
+                    "is_deleted": 0,
+                }
+            ],
+        }
+        resp = await _import_archive(client, _build_archive(db, version="0.2.0"))
+        assert resp.status_code == 201
+
+        rows = await _read_db(tmp_test_dir, "SELECT id, theme_id FROM characters")
+        themes = await _read_db(tmp_test_dir, "SELECT id, name FROM themes")
+        assert len(rows) == 1
+        assert rows[0]["theme_id"] is not None
+        assert any(t["name"] == "Old Custom" and t["id"] == rows[0]["theme_id"] for t in themes)
 
     async def test_import_generates_new_ids(self, client):
         c = await create_character(client, "Original")
@@ -380,19 +479,19 @@ class TestImportSecurity:
         assert not (Path(os.environ["FOCUS_ASSETS_DIR"]) / "attachments" / "x.png").exists()
         assert (await client.get("/api/characters/")).json() == []
 
-    async def test_v2_import_is_verbatim(self, client, tmp_test_dir):
+    async def test_v3_import_is_verbatim(self, client, tmp_test_dir):
         now = now_iso()
         char_id = str(uuid.uuid4())
         archive = _build_archive({
-            "characters": [{"id": char_id, "name": "V2", "image_path": None, "card_json": "{}", "created_at": now, "is_deleted": 0}],
-        }, version="0.2.0")
+            "characters": [{"id": char_id, "name": "V3", "image_path": None, "card_json": "{}", "created_at": now, "is_deleted": 0}],
+        }, version="0.3.0")
         resp = await _import_archive(client, archive)
         assert resp.status_code == 201
         rows = await _read_db(tmp_test_dir, "SELECT id, name FROM characters")
         assert rows[0]["id"] == char_id
 
-    async def test_v2_minor_10_not_treated_as_legacy(self, client, tmp_test_dir):
-        # "0.10.0" must not compare as older than "0.2.0" lexically
+    async def test_v3_minor_10_not_treated_as_legacy(self, client, tmp_test_dir):
+        # "0.10.0" must not compare as older than "0.3.0" lexically
         now = now_iso()
         char_id = str(uuid.uuid4())
         archive = _build_archive({

@@ -198,7 +198,9 @@
       }).then(async function (r) {
         if (!r.ok) return;
         window.closeModal(mid);
-        window.dispatchEvent(new CustomEvent('character-edited', { detail: { id: id } }));
+        if (cfg.dataPrefix === 'Char') {
+          window.dispatchEvent(new CustomEvent('character-edited', { detail: { id: id } }));
+        }
         if (cfg.cardEndpoint && cfg.gridId) {
           var currentId = StateManager.get(cfg.stateKey) || '';
           var gridEl = document.getElementById(cfg.gridId);

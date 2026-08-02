@@ -8,11 +8,13 @@ router = APIRouter()
 
 
 @router.get("/")
+@router.get("")
 async def list_themes(_db=Depends(get_db)):
     return await db_themes.list_themes(_db)
 
 
 @router.post("/", status_code=201)
+@router.post("", status_code=201)
 async def create_theme(body: ThemeCreate, _db=Depends(get_db)):
     name = body.name.strip()
     if not name:
@@ -31,8 +33,8 @@ async def update_theme(theme_id: str, body: ThemeUpdate, _db=Depends(get_db)):
     await db_themes.update_theme(
         _db,
         theme_id,
-        name=body.name if "name" in fields and body.name is not None else db_themes._UNSET,
-        colors=body.colors if "colors" in fields and body.colors is not None else db_themes._UNSET,
+        name=body.name if "name" in fields and body.name is not None else db_themes.UNSET,
+        colors=body.colors if "colors" in fields and body.colors is not None else db_themes.UNSET,
     )
     await _db.commit()
     return {"ok": True}
