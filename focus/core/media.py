@@ -17,7 +17,7 @@ from focus.core.utils import SUFFIX_MIME_MAP
 logger = logging.getLogger("focus.media")
 
 MAX_IMAGE_B64 = int(3.5 * 1024 * 1024)
-MAX_IMAGE_DIMENSION = 1568
+MAX_IMAGE_DIMENSION = 2048
 
 image_format_var = contextvars.ContextVar("image_format", default="webp")
 
