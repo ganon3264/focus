@@ -173,37 +173,29 @@ function fetchOROptions(modelId) {
     });
 }
 
-var _optionModalCallback = null;
-
 function openRouteSelectModal(prefix) {
-  try {
-    var data = Alpine.$data(document.getElementById('modal-select-option'));
-    data.options = _orRouteOptions;
-    data.title = 'Select Provider Routing';
-    data.search = '';
-  } catch (e) {}
-  _optionModalCallback = function (value, label) {
-    document.getElementById(prefix + '-or-route').value = value;
-    document.getElementById('or-route-display-' + prefix).textContent = label;
-    document.getElementById('or-route-display-' + prefix).classList.toggle('text-muted', !value);
-    document.getElementById(prefix + '-or-route').dispatchEvent(new Event('change', { bubbles: true }));
-  };
-  openModal('modal-select-option');
+  window.openOptionPicker(
+    _orRouteOptions,
+    'Select Provider Routing',
+    function (value, label) {
+      document.getElementById(prefix + '-or-route').value = value;
+      document.getElementById('or-route-display-' + prefix).textContent = label;
+      document.getElementById('or-route-display-' + prefix).classList.toggle('text-muted', !value);
+      document.getElementById(prefix + '-or-route').dispatchEvent(new Event('change', { bubbles: true }));
+    },
+  );
 }
 
 function openQuantSelectModal(prefix) {
-  try {
-    var data = Alpine.$data(document.getElementById('modal-select-option'));
-    data.options = _orQuantOptions;
-    data.title = 'Select Quantization';
-    data.search = '';
-  } catch (e) {}
-  _optionModalCallback = function (value, label) {
-    document.getElementById(prefix + '-or-quant').value = value;
-    document.getElementById('or-quant-display-' + prefix).textContent = label;
-    document.getElementById('or-quant-display-' + prefix).classList.toggle('text-muted', !value);
-  };
-  openModal('modal-select-option');
+  window.openOptionPicker(
+    _orQuantOptions,
+    'Select Quantization',
+    function (value, label) {
+      document.getElementById(prefix + '-or-quant').value = value;
+      document.getElementById('or-quant-display-' + prefix).textContent = label;
+      document.getElementById('or-quant-display-' + prefix).classList.toggle('text-muted', !value);
+    },
+  );
 }
 
 function toggleNoFallbacks(prefix) {
@@ -472,12 +464,6 @@ async function fetchProviderBalances() {
 }
 
 setTimeout(() => {
-  document.addEventListener('option-selected', function (e) {
-    if (_optionModalCallback) {
-      _optionModalCallback(e.detail.value, e.detail.label);
-      _optionModalCallback = null;
-    }
-  });
   const activeId = StateManager.get('provider_id');
   const activeType = StateManager.get('provider_type');
   if (activeId) setActiveProvider(activeId, '', activeType);

@@ -1,1 +1,12 @@
-from . import characters, chats, pages, personas, presets, providers, settings, stream, tools  # noqa: F401
+from . import (  # noqa: F401
+    characters,
+    chats,
+    pages,
+    personas,
+    presets,
+    providers,
+    settings,
+    stream,
+    themes,
+    tools,
+)

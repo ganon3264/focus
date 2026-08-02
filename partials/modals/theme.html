@@ -1,16 +1,60 @@
-{% from "modal-shell.html" import modal_shell %} {% call modal_shell('modal-themes', 'Theme
-Customizer', max_width='500px', width='90vw', content_style='', z_index='100') %}
-<div class="flex flex-col gap-4 mt-2">
-  <div class="flex gap-2">
-    <button class="btn btn-secondary flex-1 text-xs" onclick="applyPresetTheme('default')">
-      Slate (Default)
-    </button>
-    <button class="btn btn-secondary flex-1 text-xs" onclick="applyPresetTheme('midnight')">
-      Midnight (OLED)
-    </button>
-    <button class="btn btn-secondary flex-1 text-xs" onclick="applyPresetTheme('light')">
-      Light
-    </button>
+{% from "macros.html" import icon_trash %} {% from "modal-shell.html" import modal_shell %} {% call modal_shell('modal-themes', 'Theme
+Customizer', max_width='520px', width='90vw', content_style='', z_index='100') %}
+<div class="flex flex-col gap-4 mt-2" x-data="themeModalState()" @theme-state-changed.window="refresh()">
+  <div class="flex flex-col gap-1 max-h-56 overflow-y-auto pr-1 scroll-fade">
+    <template x-for="t in themes" :key="t.id">
+      <div
+        class="flex items-center gap-2 p-2 rounded-md cursor-pointer border transition-colors"
+        :class="t.id === selectedId ? 'border-(--active-border) bg-(--active-bg)' : 'border-(--border) hover:bg-(--surface-2)'"
+        @click="switchTo(t.id)"
+      >
+        <span class="flex gap-1 shrink-0">
+          <span class="w-3 h-3 rounded-full border border-(--border)" :style="{ background: (t.colors || {})['--bg'] || '#000' }"></span>
+          <span class="w-3 h-3 rounded-full border border-(--border)" :style="{ background: (t.colors || {})['--surface'] || '#000' }"></span>
+          <span class="w-3 h-3 rounded-full border border-(--border)" :style="{ background: (t.colors || {})['--accent'] || '#000' }"></span>
+        </span>
+        <span class="text-sm font-bold flex-1 truncate" x-text="t.name"></span>
+        <button
+          class="slot-btn w-14"
+          :class="t.id === darkId ? 'slot-active' : ''"
+          @click.stop="setSlot('dark', t.id)"
+          title="Use as dark theme"
+        >
+          Dark
+        </button>
+        <button
+          class="slot-btn w-14"
+          :class="t.id === lightId ? 'slot-active' : ''"
+          @click.stop="setSlot('light', t.id)"
+          title="Use as light theme"
+        >
+          Light
+        </button>
+        <button
+          class="btn btn-danger btn-sm"
+          style="width: 26px; padding: 0.2rem 0; min-width: 0"
+          x-show="!t.is_system"
+          @click.stop="remove(t.id, t.name)"
+          title="Delete theme"
+          aria-label="Delete theme"
+        >
+          {{ icon_trash(size=12) }}
+        </button>
+        <span x-show="t.is_system" style="width: 26px; flex-shrink: 0;"></span>
+      </div>
+    </template>
+    <div x-show="themes.length === 0" class="text-muted text-center text-sm py-4 border border-dashed border-(--border) rounded-lg">
+      No themes yet.
+    </div>
+  </div>
+
+  <div class="text-xs text-muted" x-show="charThemeId">
+    <strong x-text="charName"></strong> has its own theme — it's applied to chats with this character.
+  </div>
+
+  <div class="flex items-stretch gap-2">
+    <input type="text" x-model="editName" placeholder="Theme name" class="form-control flex-1" @input="markDirty()" />
+    <button class="btn btn-secondary shrink-0" @click="create()" title="Create a new theme from the current colors">New</button>
   </div>
 
   <div class="grid grid-cols-2 gap-3" id="theme-color-pickers">
@@ -22,6 +66,7 @@ Customizer', max_width='500px', width='90vw', content_style='', z_index='100') %
         class="w-full h-8 cursor-pointer rounded"
         onchange="previewThemeColor(this)"
         oninput="previewThemeColor(this)"
+        @input="markDirty()"
       />
     </label>
     <label class="flex flex-col gap-1 text-xs font-bold text-muted">
@@ -32,6 +77,7 @@ Customizer', max_width='500px', width='90vw', content_style='', z_index='100') %
         class="w-full h-8 cursor-pointer rounded"
         onchange="previewThemeColor(this)"
         oninput="previewThemeColor(this)"
+        @input="markDirty()"
       />
     </label>
     <label class="flex flex-col gap-1 text-xs font-bold text-muted">
@@ -42,6 +88,7 @@ Customizer', max_width='500px', width='90vw', content_style='', z_index='100') %
         class="w-full h-8 cursor-pointer rounded"
         onchange="previewThemeColor(this)"
         oninput="previewThemeColor(this)"
+        @input="markDirty()"
       />
     </label>
     <label class="flex flex-col gap-1 text-xs font-bold text-muted">
@@ -52,6 +99,7 @@ Customizer', max_width='500px', width='90vw', content_style='', z_index='100') %
         class="w-full h-8 cursor-pointer rounded"
         onchange="previewThemeColor(this)"
         oninput="previewThemeColor(this)"
+        @input="markDirty()"
       />
     </label>
     <label class="flex flex-col gap-1 text-xs font-bold text-muted">
@@ -62,6 +110,7 @@ Customizer', max_width='500px', width='90vw', content_style='', z_index='100') %
         class="w-full h-8 cursor-pointer rounded"
         onchange="previewThemeColor(this)"
         oninput="previewThemeColor(this)"
+        @input="markDirty()"
       />
     </label>
     <label class="flex flex-col gap-1 text-xs font-bold text-muted">
@@ -72,6 +121,7 @@ Customizer', max_width='500px', width='90vw', content_style='', z_index='100') %
         class="w-full h-8 cursor-pointer rounded"
         onchange="previewThemeColor(this)"
         oninput="previewThemeColor(this)"
+        @input="markDirty()"
       />
     </label>
     <label class="flex flex-col gap-1 text-xs font-bold text-muted">
@@ -82,6 +132,7 @@ Customizer', max_width='500px', width='90vw', content_style='', z_index='100') %
         class="w-full h-8 cursor-pointer rounded"
         onchange="previewThemeColor(this)"
         oninput="previewThemeColor(this)"
+        @input="markDirty()"
       />
     </label>
     <label class="flex flex-col gap-1 text-xs font-bold text-muted">
@@ -92,6 +143,7 @@ Customizer', max_width='500px', width='90vw', content_style='', z_index='100') %
         class="w-full h-8 cursor-pointer rounded"
         onchange="previewThemeColor(this)"
         oninput="previewThemeColor(this)"
+        @input="markDirty()"
       />
     </label>
     <label class="flex flex-col gap-1 text-xs font-bold text-muted">
@@ -102,6 +154,7 @@ Customizer', max_width='500px', width='90vw', content_style='', z_index='100') %
         class="w-full h-8 cursor-pointer rounded"
         onchange="previewThemeColor(this)"
         oninput="previewThemeColor(this)"
+        @input="markDirty()"
       />
     </label>
     <label class="flex flex-col gap-1 text-xs font-bold text-muted">
@@ -112,21 +165,52 @@ Customizer', max_width='500px', width='90vw', content_style='', z_index='100') %
         class="w-full h-8 cursor-pointer rounded"
         onchange="previewThemeColor(this)"
         oninput="previewThemeColor(this)"
+        @input="markDirty()"
       />
     </label>
   </div>
 
-  <div class="flex justify-end gap-2 mt-4">
-    <button
-      class="btn btn-secondary"
-      onclick="
-        closeModal('modal-themes');
-        resetThemePreview();
-      "
-    >
-      Cancel
-    </button>
-    <button class="btn btn-primary" onclick="saveCustomTheme()">Save Theme</button>
+  <div class="flex items-center gap-2 mt-4">
+    <span x-show="dirty" class="text-xs font-bold shrink-0" style="color: var(--accent);">
+      Unsaved changes — press Save to apply
+    </span>
+    <div class="flex justify-end gap-2 ml-auto">
+      <button class="btn btn-danger" x-show="selectedId && selectedIsSystem" @click="reset()">Reset</button>
+      <button
+        class="btn btn-secondary"
+        @click="
+          closeModal('modal-themes');
+          resetThemePreview();
+        "
+      >
+        Cancel
+      </button>
+      <button class="btn btn-primary" @click="save()" :disabled="!dirty" :class="dirty ? '' : 'opacity-50'">Save</button>
+    </div>
   </div>
 </div>
+
+<style>
+.slot-btn {
+  font-size: 11px;
+  font-weight: bold;
+  padding: 2px 0;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+.slot-btn:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+.slot-btn.slot-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--text-on-accent);
+}
+</style>
 {% endcall %}

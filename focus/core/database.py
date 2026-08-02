@@ -35,7 +35,16 @@ CREATE TABLE IF NOT EXISTS characters (
     image_path  TEXT,
     card_json   TEXT NOT NULL,
     created_at  TEXT NOT NULL,
-    is_deleted  INTEGER NOT NULL DEFAULT 0
+    is_deleted  INTEGER NOT NULL DEFAULT 0,
+    theme_id    TEXT REFERENCES themes(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS themes (
+    id          TEXT PRIMARY KEY,
+    name        TEXT NOT NULL,
+    colors_json TEXT NOT NULL,
+    is_system   INTEGER NOT NULL DEFAULT 0,
+    created_at  TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS char_blocks (
@@ -302,6 +311,31 @@ async def init_db():
             await db.execute("ALTER TABLE tool_calls ADD COLUMN extra_message_json TEXT")
         if "result_image_path" not in col_names:
             await db.execute("ALTER TABLE tool_calls ADD COLUMN result_image_path TEXT")
+
+        cols = await db.execute("PRAGMA table_info(themes)")
+        col_names = {row[1] for row in await cols.fetchall()}
+        if "id" not in col_names:
+            await db.execute("""
+                CREATE TABLE themes (
+                    id          TEXT PRIMARY KEY,
+                    name        TEXT NOT NULL,
+                    colors_json TEXT NOT NULL,
+                    is_system   INTEGER NOT NULL DEFAULT 0,
+                    created_at  TEXT NOT NULL
+                )
+            """)
+
+        cols = await db.execute("PRAGMA table_info(characters)")
+        col_names = {row[1] for row in await cols.fetchall()}
+        if "theme_id" not in col_names:
+            await db.execute(
+                "ALTER TABLE characters ADD COLUMN theme_id TEXT REFERENCES themes(id) ON DELETE SET NULL"
+            )
+
+        from focus.db.themes import delete_legacy_theme_setting, seed_builtin_themes
+
+        await seed_builtin_themes(db)
+        await delete_legacy_theme_setting(db)
 
         cols = await db.execute("PRAGMA table_info(chat_tool_states)")
         col_names = {row[1] for row in await cols.fetchall()}

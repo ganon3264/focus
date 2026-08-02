@@ -79,6 +79,8 @@ async def update_character(db: aiosqlite.Connection, char_id: str, updates: dict
         raise HTTPException(500, "Character card data is corrupt")
 
     data = card.get("data", card)
+    has_theme = "theme_id" in updates
+    theme_id = updates.pop("theme_id", None)
     data.update(updates)
     card["data"] = data
 
@@ -91,8 +93,15 @@ async def update_character(db: aiosqlite.Connection, char_id: str, updates: dict
     for k, v in extra.items():
         set_clause += f", {k} = ?"
         vals.append(v)
+    if has_theme:
+        set_clause += ", theme_id = ?"
+        vals.append(theme_id or None)
     vals.append(char_id)
-    await db.execute(f"UPDATE characters SET {set_clause} WHERE id = ?", vals)
+    try:
+        await db.execute(f"UPDATE characters SET {set_clause} WHERE id = ?", vals)
+    except aiosqlite.IntegrityError as e:
+        from fastapi import HTTPException
+        raise HTTPException(400, f"Invalid reference: {e}")
 
 
 async def update_character_avatar(db: aiosqlite.Connection, char_id: str, avatar_path: str) -> None:

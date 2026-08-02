@@ -88,7 +88,14 @@ SSE events: `start | token | meta | tool_calls | tool_result | done`.
 
 - Each LLM provider = a module in `providers/` implementing the base interface. `to_provider_tools()` converts ToolSpec → OpenAI-compatible format.
 - Frontend: single shared `provider-form` with `prov-form-*` id prefix. Flow: `resetProviderForm()` → `populateProviderForm(data)` → `extractData(form)` for PATCH/POST.
-- OpenRouter: option pickers use Alpine `modal-select-option`; route/quant stored in hidden inputs.
+- Option pickers (OpenRouter route/quant, character theme, ...): **one shared searchable picker** — `partials/modals/option-picker.html` (included last in `chat.html`; always in DOM, stacks above all modals) + `static/js/ui/option-picker.js` exposing `openOptionPicker(options, title, cb)`. Values land in hidden inputs + display spans.
+
+### Theme system
+
+- Themes live in the `themes` table (built-ins seeded as `is_system` rows with fixed ids `builtin-*`; custom themes CRUD via `/api/themes`). Built-ins are editable in place; `POST /api/themes/{id}/reset` restores their canonical seed values; only custom themes can be deleted.
+- **Pair model**: two global slots — `dark_theme_id` + `light_theme_id` in settings, written via `PUT /api/settings/theme {slot: 'dark'|'light', theme_id}`. The app always follows `prefers-color-scheme`; effective = `characters.theme_id ?? (dark ? dark slot : light slot)`. Want "always dark"? Set both slots to the same theme.
+- `chat_page` embeds `window.THEMES` + `window.THEME_STATE` server-side; `theme-manager.js` applies, caches both slot palettes to `focus-theme-state` (flash-free pre-paint in `base.html`), re-resolves on `matchMedia` change, `character-changed`, and `character-edited` events. Action feedback via `showInfoToast()` (`#info-toast` in `base.html`).
+- Theme modal (`partials/modals/theme.html`): clicking a row selects it for editing; per-row Dark/Light buttons assign the slots (mutually exclusive, `.slot-btn.slot-active`); "New" creates the theme immediately from the typed name + current picker colors (toast, stays open, new theme selected). Live picker preview is NOT saved: `dirty` state (name/pickers vs stored values) enables Save, shows an "Unsaved changes" hint, and prompts before switching themes (`switchTo` + `openConfirmModal`).
 
 ### Macros (`focus/core/macros.py`)
 

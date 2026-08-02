@@ -63,6 +63,8 @@ async def update_character(
     _db=Depends(get_db),
 ):
     updates = body.model_dump(exclude_none=True)
+    if "theme_id" in updates:
+        updates["theme_id"] = updates["theme_id"] or None
     if not updates:
         return {"ok": True}
     await db.update_character(_db, char_id, updates)

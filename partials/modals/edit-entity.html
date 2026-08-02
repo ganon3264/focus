@@ -71,6 +71,20 @@
     </div>
   </div>
 
+  {% if show_theme|default(false) %}
+  <div class="form-group mb-0">
+    <label>Theme</label>
+    <button
+      type="button"
+      class="btn btn-secondary w-full flex items-center justify-center text-sm"
+      onclick="openCharThemePicker()"
+    >
+      <span id="edit-char-theme-label" class="text-muted">Inherit (global)</span>
+    </button>
+    <input type="hidden" name="theme_id" id="edit-char-theme-id" value="" />
+  </div>
+  {% endif %}
+
   <div class="form-group mb-0 mt-2">
     <div class="flex items-center gap-1 mb-1">
       <label class="text-sm font-semibold text-muted block" style="margin-bottom:0">Reference Media</label>

@@ -82,6 +82,8 @@ CRITICAL_ASSETS = [
     "vendor/marked.umd.js",
     "vendor/purify.min.js",
     "vendor/cropper.min.js",
+    "js/ui/option-picker.js",
+    "js/ui/theme-manager.js",
 ]
 
 
@@ -121,6 +123,7 @@ TEMPLATES_THAT_RENDER = [
     ("modals/provider-create.html", {}),
     ("modals/text-expander.html", {}),
     ("modals/theme.html", {}),
+    ("modals/option-picker.html", {}),
     ("modals/export-entities.html", {"entities": []}),
 ]
 

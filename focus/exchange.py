@@ -40,6 +40,7 @@ EXPORT_TABLES = [
     "presets",
     "providers",
     "secrets",
+    "themes",
     "char_blocks",
     "preset_blocks",
     "chats",
@@ -58,6 +59,7 @@ INSERT_ORDER = [
     "presets",
     "providers",
     "secrets",
+    "themes",
     "char_blocks",
     "preset_blocks",
     "chats",
@@ -227,6 +229,7 @@ async def export_data(db: aiosqlite.Connection, req: ExportRequest) -> bytes:
         "block_images": block_image_rows,
         "message_attachments": attachment_rows,
         "tool_calls": await _query_table(db, "tool_calls", "chat_id", chat_ids),
+        "themes": await _query_table_all(db, "themes"),
         "settings": await _query_table_all(db, "settings"),
     }
 
@@ -264,6 +267,7 @@ async def export_data(db: aiosqlite.Connection, req: ExportRequest) -> bytes:
                 "block_images": len(database["block_images"]),
                 "message_attachments": len(database["message_attachments"]),
                 "tool_calls": len(database.get("tool_calls", [])),
+                "themes": len(database.get("themes", [])),
                 "settings": len(database.get("settings", [])),
                 "tools": tool_count,
             },
@@ -471,6 +475,25 @@ async def import_data(db: aiosqlite.Connection, zip_bytes: bytes) -> dict:
                     await db.execute(
                         "INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)",
                         (row["key"], row["value"]),
+                    )
+                counts[table] = len(rows)
+                continue
+            if table == "themes":
+                # Built-in themes ship with the app under fixed ids; skip
+                # duplicates instead of failing the whole archive.
+                for row in rows:
+                    if not isinstance(row.get("id"), str) or not isinstance(row.get("name"), str):
+                        raise ValueError("Invalid themes row in archive")
+                    await db.execute(
+                        "INSERT OR IGNORE INTO themes (id, name, colors_json, is_system, created_at) "
+                        "VALUES (?, ?, ?, ?, ?)",
+                        (
+                            row["id"],
+                            row["name"],
+                            row.get("colors_json") or "{}",
+                            row.get("is_system") or 0,
+                            row.get("created_at") or "",
+                        ),
                     )
                 counts[table] = len(rows)
                 continue

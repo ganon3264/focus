@@ -7,6 +7,7 @@ from fastapi.templating import Jinja2Templates
 from jinja2 import FileSystemLoader
 
 import focus.crud as crud
+import focus.db.themes as db_themes
 from focus.core.database import get_db
 from focus.core.logger import DEBUG_MODE, get_logger
 from focus.core.macros import MACRO_DEFINITIONS, SPECIAL_TOKENS, apply_macros, build_base_macros
@@ -44,6 +45,18 @@ templates.env.globals["macro_definitions"] = MACRO_DEFINITIONS
 templates.env.globals["special_tokens"] = SPECIAL_TOKENS
 
 
+async def _theme_context(db: aiosqlite.Connection, character: dict | None) -> dict:
+    """Theme state for the chat page: dark/light slots + per-character override."""
+    state = await db_themes.get_theme_state(db)
+    if character:
+        state["char_theme_id"] = character.get("theme_id") or None
+        state["char_name"] = character.get("name") or None
+    else:
+        state["char_theme_id"] = None
+        state["char_name"] = None
+    return {"themes": await db_themes.list_themes(db), "theme_state": state}
+
+
 @router.get("/chat", response_class=HTMLResponse)
 async def chat_redirect(request: Request, character_id: str = Query(None), db: aiosqlite.Connection = Depends(get_db)):
     if character_id:
@@ -75,6 +88,8 @@ async def chat_redirect(request: Request, character_id: str = Query(None), db: a
     has_chars = await crud.has_characters(db)
     active_provider = await crud.get_active_provider(db)
 
+    theme_ctx = await _theme_context(db, character)
+
     return templates.TemplateResponse(
         request,
         "chat.html",
@@ -97,6 +112,7 @@ async def chat_redirect(request: Request, character_id: str = Query(None), db: a
             "current_preset_id": preset["id"] if preset else None,
             "active_provider_id": active_provider["provider_id"],
             "active_provider_type": active_provider["provider_type"],
+            **theme_ctx,
         },
     )
 
@@ -132,6 +148,8 @@ async def chat_page(request: Request, chat_id: str, db: aiosqlite.Connection = D
     has_chars = await crud.has_characters(db)
     active_provider = await crud.get_active_provider(db)
 
+    theme_ctx = await _theme_context(db, char)
+
     return templates.TemplateResponse(
         request,
         "chat.html",
@@ -155,6 +173,7 @@ async def chat_page(request: Request, chat_id: str, db: aiosqlite.Connection = D
             "current_preset_id": preset["id"] if preset else None,
             "active_provider_id": active_provider["provider_id"],
             "active_provider_type": active_provider["provider_type"],
+            **theme_ctx,
         },
     )
 

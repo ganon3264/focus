@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 
 import focus.db as db
+import focus.db.themes as db_themes
 from focus.core.database import get_db
-from focus.core.models import ActiveProviderUpdate, SettingsUpdate
+from focus.core.models import ActiveProviderUpdate, SettingsUpdate, ThemeApply
 
 router = APIRouter()
 
@@ -17,6 +18,21 @@ async def get_settings(_db=Depends(get_db)):
 @router.patch("/")
 async def update_setting(body: SettingsUpdate, _db=Depends(get_db)):
     await db.upsert_setting(_db, body.key, body.value)
+    await _db.commit()
+    return {"ok": True}
+
+
+@router.put("/theme")
+async def apply_theme(body: ThemeApply, _db=Depends(get_db)):
+    theme = await db_themes.get_theme(_db, body.theme_id)
+    if not theme:
+        raise HTTPException(404, "Theme not found")
+    if body.slot == "dark":
+        await db.upsert_setting(_db, db_themes.DARK_SLOT_KEY, body.theme_id)
+    elif body.slot == "light":
+        await db.upsert_setting(_db, db_themes.LIGHT_SLOT_KEY, body.theme_id)
+    else:
+        raise HTTPException(422, "slot must be 'dark' or 'light'")
     await _db.commit()
     return {"ok": True}
 

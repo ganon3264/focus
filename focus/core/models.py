@@ -74,6 +74,7 @@ class CharacterUpdate(BaseModel):
     mes_example: str | None = None
     first_mes: str | None = None
     alternate_greetings: list[str] | None = None
+    theme_id: str | None = None
 
 
 class BlockType(StrEnum):
@@ -149,6 +150,21 @@ class ItemizerRequest(BaseModel):
 class SettingsUpdate(BaseModel):
     key: str
     value: str
+
+
+class ThemeCreate(BaseModel):
+    name: str
+    colors: dict[str, str]
+
+
+class ThemeUpdate(BaseModel):
+    name: str | None = None
+    colors: dict[str, str] | None = None
+
+
+class ThemeApply(BaseModel):
+    slot: str  # 'dark' | 'light'
+    theme_id: str
 
 
 class ActiveProviderUpdate(BaseModel):

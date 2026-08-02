@@ -75,6 +75,15 @@
       var name = btn.dataset[P + 'Name'] || '';
       eid('-name').value = name;
       eid('-desc').value = btn.dataset[P + 'Desc'] || '';
+      var themeIdInput = eid('-theme-id');
+      var themeLabel = eid('-theme-label');
+      if (themeIdInput && themeLabel) {
+        var tid = btn.dataset[P + 'Theme'] || '';
+        themeIdInput.value = tid;
+        var theme = window.getTheme ? window.getTheme(tid) : null;
+        themeLabel.textContent = theme ? theme.name : 'Inherit (global)';
+        themeLabel.classList.toggle('text-muted', !theme);
+      }
       var imgPath = btn.dataset[P + 'Image'];
       var prev = eid('-image-preview');
       var ph = eid('-image-placeholder');
@@ -189,6 +198,7 @@
       }).then(async function (r) {
         if (!r.ok) return;
         window.closeModal(mid);
+        window.dispatchEvent(new CustomEvent('character-edited', { detail: { id: id } }));
         if (cfg.cardEndpoint && cfg.gridId) {
           var currentId = StateManager.get(cfg.stateKey) || '';
           var gridEl = document.getElementById(cfg.gridId);

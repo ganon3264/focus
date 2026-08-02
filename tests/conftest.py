@@ -48,10 +48,13 @@ async def client(tmp_test_dir):
     os.environ["FOCUS_BACKUPS_DIR"] = backups_dir
 
     from focus.core.database import SCHEMA
+    from focus.db.themes import seed_builtin_themes
 
     async with aiosqlite.connect(path) as db:
         db.row_factory = aiosqlite.Row
         await db.executescript(SCHEMA)
+        await seed_builtin_themes(db)
+        await db.commit()
 
     from focus.core.database import get_db
     from main import app

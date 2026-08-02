@@ -9,36 +9,39 @@
     <script>
       (function () {
         try {
-          const stored = localStorage.getItem('focus-custom-theme');
-          if (stored) {
-            const theme = JSON.parse(stored);
-            if (theme['--accent'] && !theme['--accent-hover']) {
-              var m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(theme['--accent']);
-              if (m) {
-                var r = parseInt(m[1], 16),
-                  g = parseInt(m[2], 16),
-                  b = parseInt(m[3], 16);
-                var f = 0.15,
-                  l = function (c) {
-                    return Math.round(c + (255 - c) * f);
-                  };
-                var r2 = l(r),
-                  g2 = l(g),
-                  b2 = l(b);
-                theme['--accent-hover'] =
-                  '#' +
-                  [r2, g2, b2]
-                    .map(function (c) {
-                      return c.toString(16).padStart(2, '0');
-                    })
-                    .join('');
-                theme['--accent-dim'] = 'rgba(' + r + ',' + g + ',' + b + ',0.15)';
-                theme['--accent-faint'] = 'rgba(' + r + ',' + g + ',' + b + ',0.05)';
-              }
+          const state = localStorage.getItem('focus-theme-state');
+          if (!state) return;
+          const t = JSON.parse(state);
+          const dark =
+            !window.matchMedia || window.matchMedia('(prefers-color-scheme: dark)').matches;
+          const palette = dark ? t.darkColors : t.lightColors;
+          if (!palette) return;
+          if (palette['--accent'] && !palette['--accent-hover']) {
+            var m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(palette['--accent']);
+            if (m) {
+              var r = parseInt(m[1], 16),
+                g = parseInt(m[2], 16),
+                b = parseInt(m[3], 16);
+              var f = 0.15,
+                l = function (c) {
+                  return Math.round(c + (255 - c) * f);
+                };
+              var r2 = l(r),
+                g2 = l(g),
+                b2 = l(b);
+              palette['--accent-hover'] =
+                '#' +
+                [r2, g2, b2]
+                  .map(function (c) {
+                    return c.toString(16).padStart(2, '0');
+                  })
+                  .join('');
+              palette['--accent-dim'] = 'rgba(' + r + ',' + g + ',' + b + ',0.15)';
+              palette['--accent-faint'] = 'rgba(' + r + ',' + g + ',' + b + ',0.05)';
             }
-            for (const key in theme) {
-              document.documentElement.style.setProperty(key, theme[key]);
-            }
+          }
+          for (const key in palette) {
+            document.documentElement.style.setProperty(key, palette[key]);
           }
         } catch (e) {
           console.error('Error loading theme:', e);
@@ -176,6 +179,17 @@
     <script src="/static/js/modals/edit-entity.js"></script>
     <script src="/static/js/modals/sampler-defaults.js"></script>
     {% block content %}{% endblock %} {% include "modals/confirm.html" %}
+
+    <!-- Info toast (action feedback, e.g. theme changes) -->
+    <div
+      id="info-toast"
+      class="hidden fixed bottom-6 left-1/2 px-4 py-2 rounded-md shadow-lg text-sm pointer-events-none"
+      role="status"
+      aria-live="polite"
+      style="transform: translateX(-50%); background: var(--surface-2); border: 1px solid var(--accent); color: var(--text); z-index: var(--z-max);"
+    >
+      <span id="info-toast-text"></span>
+    </div>
 
     <!-- Global Lightbox for Images -->
     <div

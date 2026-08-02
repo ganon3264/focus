@@ -25,6 +25,7 @@ from focus.routers import (
     providers,
     settings,
     stream,
+    themes,
     tools,
 )
 
@@ -119,6 +120,7 @@ app.include_router(stream.router, prefix="/api", tags=["stream"])
 app.include_router(pages.router)
 app.include_router(backup.router, prefix="/api/backups", tags=["backups"])
 app.include_router(settings.router, prefix="/api/settings", tags=["settings"])
+app.include_router(themes.router, prefix="/api/themes", tags=["themes"])
 app.include_router(tools.router, prefix="/api", tags=["tools"])
 app.include_router(exchange.router, prefix="/api", tags=["import-export"])
 
