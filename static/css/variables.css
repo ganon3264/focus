@@ -26,12 +26,8 @@
   --success-hover: #22c55e;
   --success-dim: rgba(22, 163, 74, 0.15);
 
-  /* Radii */
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 20px;
-  --radius-full: 9999px;
+  /* Rebranded Tailwind tokens (radii / shadows / font stack) now live in the
+     @theme block in tailwind-input.css — single source of truth. */
 
   /* Z-index scale — lowest to highest */
   --z-modal: 50;
@@ -44,10 +40,7 @@
   --modal-backdrop: rgba(0, 0, 0, 0.6);
   --modal-backdrop-heavy: rgba(0, 0, 0, 0.85);
 
-  /* Shadows */
-  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.15);
-  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.4);
+  /* App-only shadow (no Tailwind utility) — keep here, not in @theme */
   --shadow-glow: 0 0 1px 2px var(--accent-dim), 0 0 1px 1px var(--accent);
 
   /* Active/selected highlight — single source of truth */
@@ -55,7 +48,6 @@
   --active-border: color-mix(in srgb, var(--accent) 40%, transparent);
   --active-text: var(--accent-hover);
 
-  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   --transition: 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 
   /* Text-on-accent for buttons — override in theme presets if needed */

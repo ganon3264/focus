@@ -72,12 +72,8 @@
     width: 26px;
     height: 26px;
     border-radius: var(--radius-sm);
-    cursor: pointer;
-    display: grid;
-    place-items: center;
     font-size: 1.1rem;
     opacity: 0;
-    transition: all var(--transition);
     outline: none;
   }
   .textarea-wrapper:hover .expand-btn {
@@ -117,11 +113,15 @@
     box-shadow: var(--shadow-md);
     transform: translateY(-1px);
   }
-  .btn-secondary {
+  .btn-secondary,
+  .btn-edit,
+  .btn-delete-icon {
     background: var(--surface-2);
-    color: var(--text);
     border: 1px solid var(--border);
     box-shadow: var(--shadow-sm);
+  }
+  .btn-secondary {
+    color: var(--text);
   }
   .btn-secondary:hover {
     background: var(--surface-3);
@@ -137,10 +137,7 @@
     color: var(--text-on-accent);
   }
   .btn-edit {
-    background: var(--surface-2);
     color: var(--text);
-    border: 1px solid var(--border);
-    box-shadow: var(--shadow-sm);
   }
   .btn-edit:hover,
   .btn-edit:focus-visible {
@@ -149,10 +146,7 @@
     border-color: var(--accent);
   }
   .btn-delete-icon {
-    background: var(--surface-2);
     color: var(--danger);
-    border: 1px solid var(--border);
-    box-shadow: var(--shadow-sm);
   }
   .btn-delete-icon:hover,
   .btn-delete-icon:focus-visible {
@@ -449,12 +443,8 @@
     width: 24px;
     height: 24px;
     border-radius: var(--radius-sm);
-    display: grid;
-    place-items: center;
     font-size: 0.75rem;
     line-height: 1;
-    cursor: pointer;
-    transition: all var(--transition);
   }
   .action-icon:hover {
     background: var(--border-hover);
@@ -725,4 +715,96 @@
   #hint-tooltip .hint-accent   { color: var(--accent); }
   #hint-tooltip .hint-warning  { color: var(--role-assistant); }
   #hint-tooltip .hint-success  { color: var(--role-user); }
+
+  /* ── Modal extras ────────────────────────────────────────────────────────── */
+
+  /* Theme modal slot assign buttons */
+  .slot-btn {
+    font-size: 11px;
+    font-weight: bold;
+    padding: 2px 0;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+  }
+  .slot-btn:hover {
+    border-color: var(--accent);
+    color: var(--text);
+  }
+  .slot-btn.slot-active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--text-on-accent);
+  }
+
+  /* Sampler modal sliders + numeric inputs */
+  .styled-slider {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 6px;
+    background: var(--surface-2);
+    border-radius: 3px;
+    outline: none;
+    border: 1px solid var(--border);
+  }
+  .styled-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--accent, #6366f1);
+    cursor: pointer;
+  }
+  .styled-slider::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--accent, #6366f1);
+    cursor: pointer;
+    border: none;
+  }
+  .sampler-input {
+    width: 64px;
+    padding: 1px 4px;
+    height: auto;
+    text-align: center;
+    -moz-appearance: textfield;
+  }
+  .sampler-input::-webkit-inner-spin-button,
+  .sampler-input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  /* Sampler tree rows */
+  .tree-child {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    padding-left: 12px;
+  }
+  .tree-child > .tree-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    flex-shrink: 0;
+    margin-top: 5px;
+  }
+  .tree-child > :last-child {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* Provider modal list items */
+  .model-item { border: 1px solid transparent; }
+  .model-item:hover { background: var(--surface-3); border-color: var(--border); }
+
+  .secret-item { border: 1px solid var(--border); background: var(--surface); }
+  .secret-item:hover { border-color: var(--active-text); }
 }

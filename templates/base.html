@@ -64,17 +64,11 @@
 
     <script>window.DEBUG = {{ 'true' if debug else 'false' }};</script>
 
+    {# tailwind.css bundles Tailwind + the css/ modules (imported in
+       tailwind-input.css), so layer order is fixed by the build. #}
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
     <link rel="stylesheet" href="/static/inter.css" />
     <link rel="stylesheet" href="/static/tailwind.css" />
-    <link rel="stylesheet" href="/static/css/variables.css" />
-    <link rel="stylesheet" href="/static/css/base.css" />
-    <link rel="stylesheet" href="/static/css/layout.css" />
-    <link rel="stylesheet" href="/static/css/chat.css" />
-    <link rel="stylesheet" href="/static/css/input.css" />
-    <link rel="stylesheet" href="/static/css/components.css" />
-    <link rel="stylesheet" href="/static/css/utilities.css" />
-    <link rel="stylesheet" href="/static/css/animations.css" />
     <script src="/static/js/core/state-manager.js"></script>
     <script src="/static/vendor/htmx2.min.js"></script>
     <script defer src="/static/vendor/alpine-collapse.min.js"></script>

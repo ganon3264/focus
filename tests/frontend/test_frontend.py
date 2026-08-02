@@ -66,14 +66,6 @@ def test_template_asset_references(template_name):
 CRITICAL_ASSETS = [
     "tailwind.css",
     "inter.css",
-    "css/variables.css",
-    "css/base.css",
-    "css/layout.css",
-    "css/chat.css",
-    "css/input.css",
-    "css/components.css",
-    "css/utilities.css",
-    "css/animations.css",
     "vendor/inter-variable.woff2",
     "vendor/htmx2.min.js",
     "vendor/alpine.min.js",
@@ -111,6 +103,17 @@ def test_css_valid():
 
     layout_css = (css_dir / "layout.css").read_text()
     assert ".left-sidebar" in layout_css
+
+
+def test_tailwind_bundle_contains_custom_css():
+    """The css/ modules are imported by tailwind-input.css; a dropped import
+    must fail here instead of silently losing styles at runtime."""
+    css_text = (STATIC_DIR / "tailwind.css").read_text()
+    for marker in (".arranger-item", ".chat-center", ".slot-btn"):
+        assert marker in css_text, f"tailwind.css is missing bundled rule: {marker}"
+    assert "--radius-md:10px" in css_text.replace(" ", ""), (
+        "tailwind.css missing rebranded --radius-md token"
+    )
 
 
 TEMPLATES_THAT_RENDER = [
@@ -162,5 +165,17 @@ def test_css_has_essential_vars():
     """variables.css defines essential custom properties."""
     css_text = (STATIC_DIR / "css" / "variables.css").read_text()
     for var in ["--bg", "--surface", "--border", "--accent", "--text", "--text-muted",
-                 "--radius-sm", "--radius-md", "--transition", "--z-modal"]:
+                 "--transition", "--z-modal"]:
         assert var in css_text, f"Missing CSS variable: {var}"
+
+
+def test_theme_rebranded_tokens():
+    """Rebranded Tailwind tokens live in @theme in tailwind-input.css (single
+    source of truth), not as bare :root overrides in variables.css."""
+    input_text = (STATIC_DIR / "tailwind-input.css").read_text()
+    for token in ["--radius-sm", "--radius-md", "--radius-xl", "--shadow-sm",
+                  "--shadow-md", "--shadow-lg", "--font-sans"]:
+        assert token in input_text, f"Missing @theme token: {token}"
+    vars_text = (STATIC_DIR / "css" / "variables.css").read_text()
+    for token in ["--radius-sm", "--shadow-sm", "--font-sans"]:
+        assert token not in vars_text, f"{token} must not be redefined in variables.css :root"

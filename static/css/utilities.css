@@ -1,9 +1,0 @@
-/* ── Custom utility overrides ─────────────────────────────────────────────── */
-@layer utilities {
-  .mt-auto {
-    margin-top: auto;
-  }
-  .max-w-\[130px\] {
-    max-width: 130px;
-  }
-}

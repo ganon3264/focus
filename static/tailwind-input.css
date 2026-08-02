@@ -1,13 +1,36 @@
 @import 'tailwindcss';
 
+/* Custom css/ modules — bundled into the single build. Import order fixes the
+   cascade: unlayered rules (variables.css :root, animations.css keyframes) stay
+   unlayered, and @layer blocks append into Tailwind's declared layer order. */
+@import './css/variables.css';
+@import './css/base.css';
+@import './css/layout.css';
+@import './css/chat.css';
+@import './css/input.css';
+@import './css/components.css';
+@import './css/animations.css';
+
 @theme {
   --spacing: 0.25rem;
-  --font-sans: 'Inter', sans-serif;
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   --color-muted: var(--text-muted);
   --color-dark: var(--bg);
   --color-light: var(--text);
   --color-danger: var(--danger);
   --color-border: var(--border);
+
+  /* Design-system rebranding of Tailwind's default tokens — utilities like
+     rounded-md / shadow-sm compile to these vars, so overrides must live here
+     (not in a bare :root rule) to survive Tailwind upgrades. */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-full: 9999px;
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.15);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.4);
 }
 
 @source "../templates";

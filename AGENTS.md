@@ -8,7 +8,7 @@ FastAPI (async) + aiosqlite | Jinja2 | HTMX 2 + Alpine 3 | Tailwind v4 | uv + ha
 
 - **Start:** `./start.sh` — vendor sync → tailwind build → `uv run main.py`
 - **Test:** `./test.sh` — `uv run pytest`
-- **Tailwind:** `./bin/tailwindcss-* -i static/tailwind-input.css -o static/tailwind.css --minify` (must run manually in agent env)
+- **Tailwind:** `./bin/tailwindcss-* -i static/tailwind-input.css -o static/tailwind.css --minify` (must run manually in agent env). The `static/css/` modules are bundled into `tailwind.css` via `@import`s in `tailwind-input.css` — do not add more `<link>` tags in `base.html`; add/replace files under `static/css/` instead. Radius/shadow/font rebranding lives in the `@theme` block, not in `variables.css`.
 
 ## Structure
 
