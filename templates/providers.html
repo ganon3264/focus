@@ -62,11 +62,11 @@ function submitProvider(e){
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify(data)
   }).then(function(r){
-    if(!r.ok) { r.text().then(function(t){ if (window.showErrorToast) window.showErrorToast('Failed to create provider: ' + t); }); return; }
+    if(!r.ok) { r.text().then(function(t){ window.showErrorToast('Failed to create provider: ' + t); }); return; }
     return r.json();
   }).then(function(result){
     if (!result) return;
-    if (window.showSuccessToast) window.showSuccessToast('Provider added');
+    window.showSuccessToast('Provider added');
     var grid = document.getElementById('provider-grid');
     if (!grid) return;
     var div = document.createElement('div');

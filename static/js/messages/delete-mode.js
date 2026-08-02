@@ -71,19 +71,12 @@
           body: JSON.stringify({ message_ids: selected }),
         });
         if (res.ok) {
-          try {
-            var listResp = await fetch(window.api.partials.messageList(chatId));
-            if (listResp.ok) {
-              document.getElementById('message-list').innerHTML = await listResp.text();
-              window.postSwapProcess(document.getElementById('message-list'));
-            }
-          } catch (e) {
-            console.error('Failed to refresh message list', e);
-          }
+          htmx.ajax('GET', window.api.partials.messageList(chatId), {
+            target: '#message-list',
+            swap: 'innerHTML',
+          });
           if (window._refreshChatList) window._refreshChatList(chatId);
-          if (window.showSuccessToast) {
-            window.showSuccessToast(selected.length + ' message' + (selected.length === 1 ? '' : 's') + ' deleted');
-          }
+          window.showSuccessToast(selected.length + ' message' + (selected.length === 1 ? '' : 's') + ' deleted');
         } else {
           window.showErrorToast('Failed to delete messages');
         }

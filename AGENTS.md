@@ -63,7 +63,8 @@ Single source of truth for `character_id`, `persona_id`, `preset_id`, `provider_
 ### Toast system (`static/js/ui/notifications.js`)
 
 - One stack: `#toast-container` in `base.html` (fixed top-center, `z-index: var(--z-max)`, above all modals).
-- API: `showToast(msg, {type, duration})`, aliases `showInfoToast` (accent, 3s), `showSuccessToast` (green, 3s), `showErrorToast` (danger, persists with Copy/Close), `hideErrorToast()`, `hideAllToasts()`.
+- API: `showToast(msg, {type, duration})`, aliases `showInfoToast` (accent, 3s), `showSuccessToast` (green, 3s), `showErrorToast` (danger, persists with Copy/Close), `showImportToast(data, pluralLabel)` (shared import report: error list or success count), `hideErrorToast()`, `hideAllToasts()`.
+- `notifications.js` is loaded in `base.html` above `{% block content %}`, so the API is always defined on every page — call it unguarded.
 - All cards stack as a list; per-card timer with hover-pause; dedup by type+message (refreshes timer); max 5 visible (oldest evicted); fade in/out via `toast-in`/`toast-out` in `animations.css`. Never block with `alert()` — use toasts.
 
 ### Streaming

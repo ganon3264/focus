@@ -179,7 +179,7 @@
             prev.src = '/' + data.avatar_path + '?t=' + new Date().getTime();
             prev.style.display = 'block';
             ph.style.display = 'none';
-            if (window.showInfoToast) window.showInfoToast('Avatar updated');
+            window.showInfoToast('Avatar updated');
           });
       });
       input.value = '';
@@ -199,9 +199,7 @@
       }).then(async function (r) {
         if (!r.ok) return;
         window.closeModal(mid);
-        if (window.showSuccessToast) {
-          window.showSuccessToast(cfg.dataPrefix === 'char' ? 'Character saved' : 'Persona saved');
-        }
+        window.showSuccessToast(cfg.dataPrefix === 'char' ? 'Character saved' : 'Persona saved');
         if (cfg.dataPrefix === 'Char') {
           window.dispatchEvent(new CustomEvent('character-edited', { detail: { id: id } }));
         }

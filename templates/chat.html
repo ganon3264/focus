@@ -61,6 +61,20 @@ window.THEME_STATE = {{ theme_state | tojson | safe }};
 
 {% include "modals/text-expander.html" %}
 
+<!-- RENAME PRESET MODAL -->
+{% call modal_shell('modal-rename-preset', 'Rename Preset', max_width='420px') %}
+<div id="rename-preset-form" x-data="{ renameValue: '', renameTargetId: '' }">
+  <div>
+    <label class="text-xs font-bold text-muted mb-1 block">Preset Name</label>
+    <input type="text" x-model="renameValue" class="form-control" @keydown.enter="confirmRename()">
+  </div>
+  <div class="flex justify-end gap-2 mt-2">
+    <button type="button" class="btn btn-secondary" @click="closeModal('modal-rename-preset')">Cancel</button>
+    <button type="button" class="btn btn-primary" @click="confirmRename()" :disabled="!renameValue.trim()">Save</button>
+  </div>
+</div>
+{% endcall %}
+
 <!-- PROMPT ARRANGER MODAL -->
 {% call modal_shell('modal-arranger', 'Prompt Arranger', max_width='600px', width='90vw', content_style='display:flex;flex-direction:column;height:85vh;padding:1.5rem 1.5rem 0 1.5rem;') %}
 <div id="arranger-modal-body" style="flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 0.5rem 1rem 1rem 1rem;">
@@ -160,31 +174,26 @@ if (!window._varScriptsLoaded) {
   };
 
   window.refreshSingleVarGroup = function(presetId, groupName) {
-    var url = '/partials/preset-variables/' + presetId + '/group/' + encodeURIComponent(groupName);
-    fetch(url)
-      .then(function(r) { return r.text(); })
-      .then(function(html) {
-        var temp = document.createElement('div');
-        temp.innerHTML = html;
-        var newGroup = temp.querySelector('.var-group-container');
-        if (!newGroup) return;
-        if (!newGroup.querySelector('.var-option-item')) {
-          var oldGroup = document.querySelector('.var-group-container[data-group-name="' + CSS.escape(groupName) + '"]');
-          if (oldGroup) oldGroup.remove();
-          var outer = document.getElementById('preset-variables-container-' + presetId);
-          if (outer && !outer.querySelector('.var-group-container')) {
-            var sortable = outer.querySelector('.flex.flex-col.gap-2');
-            if (sortable) sortable.innerHTML = '<div class="text-muted text-sm mb-2">No variables configured.</div>';
-          }
-          return;
+    var sel = '.var-group-container[data-group-name="' + CSS.escape(groupName) + '"]';
+    if (!document.querySelector(sel)) return;
+    htmx.ajax('GET', '/partials/preset-variables/' + presetId + '/group/' + encodeURIComponent(groupName), {
+      target: sel,
+      swap: 'outerHTML',
+    }).then(function() {
+      var group = document.querySelector(sel);
+      if (group && !group.querySelector('.var-option-item')) {
+        group.remove();
+        group = null;
+      }
+      if (!group) {
+        var outer = document.getElementById('preset-variables-container-' + presetId);
+        if (outer && !outer.querySelector('.var-group-container')) {
+          var sortable = outer.querySelector('.flex.flex-col.gap-2');
+          if (sortable) sortable.innerHTML = '<div class="text-muted text-sm mb-2">No variables configured.</div>';
         }
-        var oldGroup = document.querySelector('.var-group-container[data-group-name="' + CSS.escape(groupName) + '"]');
-        if (oldGroup && oldGroup.parentNode) {
-          oldGroup.parentNode.replaceChild(newGroup, oldGroup);
-          htmx.process(newGroup);
-          setTimeout(function() { initVarSortables(presetId); }, 50);
-        }
-      });
+      }
+      setTimeout(function() { initVarSortables(presetId); }, 50);
+    });
   };
 
   window.handleVarUpdate = function(el) {
@@ -360,15 +369,6 @@ StateManager.on('persona-changed', function() {
 window.loadChatList = function(charId, currentChatId) {
   var params = '?character_id=' + encodeURIComponent(charId) + '&current_chat_id=' + encodeURIComponent(currentChatId);
   htmx.ajax('GET', '/partials/chat-list' + params, {target:'#chat-list', swap:'innerHTML'});
-};
-
-window.selectPersona = function(el) {
-  var pid = el.dataset.personaId || '';
-  StateManager.setPersona(pid);
-  document.querySelectorAll('#persona-selector .sidebar-item').forEach(function(item) {
-    item.classList.remove('active');
-  });
-  el.classList.add('active');
 };
 
 function toggleSidebar(side) {

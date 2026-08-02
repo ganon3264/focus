@@ -222,4 +222,55 @@ global.document.body.appendChild(container);
   assert(card.classList.contains('toast-leave'), 'close: card dismissed');
 })();
 
+// ── showImportToast: error report ──
+(function () {
+  resetTimers();
+  container.children.length = 0;
+  window.showImportToast(
+    {
+      imported: [{ id: 1 }, { id: 2 }],
+      total: 4,
+      errors: [
+        { filename: 'a.png', error: 'bad' },
+        { filename: 'b.png', error: 'worse' },
+      ],
+    },
+    'characters',
+  );
+  var card = container.children[0];
+  assert(card.classList.contains('toast-error'), 'import error: variant class');
+  assertEqual(container.children.length, 1, 'import error: single toast');
+  var txt = card.querySelector('.toast-text').textContent;
+  assertIncludes(txt, 'Imported 2 of 4 cards.', 'import error: counts');
+  assertIncludes(txt, '\u2022 a.png: bad', 'import error: first error listed');
+  assertIncludes(txt, '\u2022 b.png: worse', 'import error: second error listed');
+})();
+
+// ── showImportToast: success variant ──
+(function () {
+  resetTimers();
+  container.children.length = 0;
+  window.showImportToast({ imported: [{ id: 1 }], total: 1, errors: [] }, 'personas');
+  var card = container.children[0];
+  assert(card.classList.contains('toast-success'), 'import success: variant class');
+  assertEqual(
+    card.querySelector('.toast-text').textContent,
+    'Imported 1 personas',
+    'import success: message',
+  );
+})();
+
+// ── showImportToast: missing data no-throw ──
+(function () {
+  resetTimers();
+  container.children.length = 0;
+  window.showImportToast(null, 'presets');
+  assertEqual(container.children.length, 1, 'import empty: success fallback toast');
+  assertEqual(
+    container.children[0].querySelector('.toast-text').textContent,
+    'Imported 0 presets',
+    'import empty: zero count message',
+  );
+})();
+
 h.printSummary();

@@ -190,29 +190,6 @@ async def characters_page(request: Request, db: aiosqlite.Connection = Depends(g
     )
 
 
-@router.get("/presets", response_class=HTMLResponse)
-async def presets_page(request: Request, db: aiosqlite.Connection = Depends(get_db)):
-    presets = await crud.get_presets(db)
-
-    var_groups = {}
-    regular_blocks = []
-    if presets:
-        _, regular_blocks, var_groups = partition_blocks(presets[0]["blocks"])
-
-        # Override the blocks of the first preset to only be regular blocks
-        # so the prompt_arranger partial include doesn't duplicate them
-        presets[0]["blocks"] = regular_blocks
-
-    return templates.TemplateResponse(
-        request,
-        "presets.html",
-        {
-            "presets": presets,
-            "var_groups": var_groups,
-        },
-    )
-
-
 @router.get("/providers", response_class=HTMLResponse)
 async def providers_page(request: Request, db: aiosqlite.Connection = Depends(get_db)):
     providers = await crud.get_providers(db)
@@ -323,44 +300,6 @@ async def chat_list_partial(
     )
 
 
-@router.get("/partials/char-selector", response_class=HTMLResponse)
-async def char_selector_partial(request: Request, chat_id: str, db: aiosqlite.Connection = Depends(get_db)):
-    characters = await crud.get_characters(db)
-    current_character_id = None
-    async with db.execute("SELECT character_id FROM chats WHERE id = ?", (chat_id,)) as cur:
-        row = await cur.fetchone()
-        if row:
-            current_character_id = row["character_id"]
-    return templates.TemplateResponse(
-        request,
-        "chat/char-selector.html",
-        {
-            "characters": characters,
-            "chat_id": chat_id,
-            "current_character_id": current_character_id,
-        },
-    )
-
-
-@router.get("/partials/persona-selector", response_class=HTMLResponse)
-async def persona_selector_partial(request: Request, chat_id: str, db: aiosqlite.Connection = Depends(get_db)):
-    personas = await crud.get_personas(db)
-    current_persona_id = None
-    async with db.execute("SELECT persona_id FROM chats WHERE id = ?", (chat_id,)) as cur:
-        row = await cur.fetchone()
-        if row:
-            current_persona_id = row["persona_id"]
-    return templates.TemplateResponse(
-        request,
-        "chat/persona-selector.html",
-        {
-            "personas": personas,
-            "chat_id": chat_id,
-            "current_persona_id": current_persona_id,
-        },
-    )
-
-
 @router.get("/partials/preset-selector", response_class=HTMLResponse)
 async def preset_selector_partial(request: Request, chat_id: str, db: aiosqlite.Connection = Depends(get_db)):
     presets = await crud.get_presets(db)
@@ -410,8 +349,8 @@ async def preset_variables_group_partial(
 
     return templates.TemplateResponse(
         request,
-        "presets/preset-variables.html",
-        {"preset_id": preset_id, "var_groups": {group_name: vblocks}},
+        "presets/var-group.html",
+        {"preset_id": preset_id, "vname": group_name, "vblocks": vblocks},
     )
 
 
@@ -491,21 +430,6 @@ async def prompt_arranger_block_partial(
         request,
         "presets/prompt-block.html",
         {"block": block, "preset_id": preset_id, "counts": counts},
-    )
-
-
-@router.get("/partials/sampler-modal", response_class=HTMLResponse)
-async def sampler_modal_partial(request: Request, db: aiosqlite.Connection = Depends(get_db)):
-    providers = await crud.get_providers(db)
-    active_provider = await crud.get_active_provider(db)
-    return templates.TemplateResponse(
-        request,
-        "modals/sampler.html",
-        {
-            "providers": providers,
-            "active_provider_id": active_provider["provider_id"],
-            "active_provider_type": active_provider["provider_type"],
-        },
     )
 
 
@@ -682,15 +606,3 @@ async def persona_modal_card_partial(
             "request": request,
         },
     )
-
-
-@router.get("/partials/preset-sidebar/{preset_id}", response_class=HTMLResponse)
-async def preset_sidebar_partial(
-    request: Request, preset_id: str, db: aiosqlite.Connection = Depends(get_db)
-):
-    from focus.crud import get_preset
-    p = await get_preset(db, preset_id)
-    if not p:
-        from fastapi import HTTPException
-        raise HTTPException(404)
-    return templates.TemplateResponse(request, "presets/sidebar-item.html", {"p": p})

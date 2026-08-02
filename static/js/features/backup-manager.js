@@ -89,7 +89,7 @@
     btn.textContent = 'Creating…';
     fetch(window.api.backups, { method: 'POST' })
       .then((r) => {
-        if (r.ok && window.showSuccessToast) window.showSuccessToast('Backup created');
+        if (r.ok) window.showSuccessToast('Backup created');
         return M.loadList();
       })
       .catch(() => M.loadList())
@@ -108,7 +108,7 @@
           .then((r) => r.json())
           .then((d) => {
             if (d.restored) {
-              if (window.showSuccessToast) window.showSuccessToast('Backup restored');
+              window.showSuccessToast('Backup restored');
               setStatus(document.getElementById('backup-status'), 'Backup restored successfully.');
               M.loadList();
             }
@@ -127,7 +127,7 @@
       function () {
         fetch(window.api.backupDelete(backupId), { method: 'DELETE' })
           .then((r) => {
-            if (r.ok && window.showSuccessToast) window.showSuccessToast('Backup deleted');
+            if (r.ok) window.showSuccessToast('Backup deleted');
             return M.loadList();
           })
           .catch(() => M.loadList());
@@ -149,9 +149,7 @@
     fetch(window.api.import_, { method: 'POST', body: fd })
       .then((r) => r.json())
       .then((d) => {
-        if (window.showSuccessToast) {
-          window.showSuccessToast('Imported ' + (d.total_entities || 0) + ' entities.');
-        }
+        window.showSuccessToast('Imported ' + (d.total_entities || 0) + ' entities.');
         setStatus(st, 'Imported ' + (d.total_entities || 0) + ' entities.');
         setTimeout(() => {
           location.reload();
@@ -333,10 +331,10 @@
         document.body.removeChild(a);
         URL.revokeObjectURL(u);
         closeModal('modal-export');
-        if (window.showSuccessToast) window.showSuccessToast('Export ready');
+        window.showSuccessToast('Export ready');
       })
       .catch(() => {
-        if (window.showErrorToast) window.showErrorToast('Export failed.');
+        window.showErrorToast('Export failed.');
       })
       .finally(() => {
         btn.disabled = false;
@@ -354,7 +352,7 @@
           .then((d) => {
             const parts = [];
             for (var k in d) parts.push(k + ': ' + d[k]);
-            if (window.showInfoToast) window.showInfoToast('Database cleaned: ' + parts.join(', '));
+            window.showInfoToast('Database cleaned: ' + parts.join(', '));
             setStatus(document.getElementById('backup-status'), 'Cleaned: ' + parts.join(', '));
           })
           .catch(() => setStatus(document.getElementById('backup-status'), 'Clean failed.', true));

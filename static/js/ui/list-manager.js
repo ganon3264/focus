@@ -111,7 +111,7 @@ window.ListManager = {
             });
           } else {
             r.text().then(function (t) {
-              if (window.showErrorToast) window.showErrorToast('Create failed: ' + t);
+              window.showErrorToast('Create failed: ' + t);
             });
           }
         });

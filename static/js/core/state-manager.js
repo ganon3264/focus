@@ -64,8 +64,8 @@
     },
 
     _persist: function (changes) {
-      if (!_chatId) return;
-      fetch('/api/chats/' + _chatId, {
+      if (!_chatId) return null;
+      return fetch('/api/chats/' + _chatId, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(changes),
@@ -101,11 +101,12 @@
     setPreset: function (id) {
       var prev = STATE.preset_id;
       STATE.preset_id = id || null;
-      this._persist({ preset_id: STATE.preset_id });
+      var p = this._persist({ preset_id: STATE.preset_id });
       emit('preset-changed', { prev: prev, value: STATE.preset_id });
       window.dispatchEvent(
         new CustomEvent('preset-changed', { detail: { prev: prev, value: STATE.preset_id } }),
       );
+      return p;
     },
 
     setProvider: function (id, type) {

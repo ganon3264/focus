@@ -1,5 +1,5 @@
 {% set current_preset_list = presets | selectattr('id', 'equalto', current_preset_id) | list %}
-{% from "macros.html" import icon_edit, icon_trash, icon_plus, icon_upload, icon_close, icon_chevron_down %}
+{% from "macros.html" import icon_edit, icon_trash, icon_plus, icon_upload, icon_chevron_down %}
 {% set current_preset = current_preset_list[0] if current_preset_list else none %}
 {% set current_preset_name = current_preset.name if current_preset else '— Select Preset —' %}
 
@@ -7,10 +7,7 @@
      x-data="{ 
         open: false, 
         selectedId: '{{ current_preset_id or '' }}', 
-        selectedName: '{{ current_preset_name | replace("'", "\\'") }}',
-        renaming: false,
-        renameValue: '',
-        renameTargetId: ''
+        selectedName: '{{ current_preset_name | replace("'", "\\'") }}'
      }">
   
   <input type="hidden" id="hidden-preset-id" :value="selectedId">
@@ -75,8 +72,8 @@
         <div class="flex gap-1 shrink-0">
           <button type="button" title="Rename"
             style="background:var(--surface-2);border:none;cursor:pointer;padding:2px;color:var(--text-muted);border-radius:4px;display:inline-flex;align-items:center"
-            onmouseover="this.style.background='var(--surface-3)'"
-            onmouseout="this.style.background='var(--surface-2)'"
+            onmouseover="this.style.background='var(--accent)';this.style.color='var(--text-on-accent)'"
+            onmouseout="this.style.background='var(--surface-2)';this.style.color='var(--text-muted)'"
             onclick="event.stopPropagation(); window.openRenameModal(this)"
           >{{ icon_edit(14) }}</button>
           <button type="button" title="Delete"
@@ -91,113 +88,56 @@
       
     </div>
   </div>
-
-  <!-- Rename modal -->
-  <div class="modal-overlay" role="dialog" aria-modal="true" aria-label="Rename preset" style="z-index: var(--z-modal-high);" x-show="renaming" x-cloak x-transition.opacity @click.self="renaming = false; renameTargetId = ''">
-    <div class="modal-content" style="max-width:420px;width:90vw;">
-      <div class="modal-header">
-        <div class="modal-title">Rename Preset</div>
-        <button type="button" class="btn btn-secondary" aria-label="Close" @click="renaming = false; renameTargetId = ''">{{ icon_close(16) }}</button>
-      </div>
-      <div class="flex flex-col gap-3">
-        <div>
-          <label class="text-xs font-bold text-muted mb-1 block">Preset Name</label>
-          <input type="text" x-model="renameValue" class="form-control" @keydown.enter="confirmRename()">
-        </div>
-        <div class="flex justify-end gap-2 mt-2">
-          <button type="button" class="btn btn-secondary" @click="renaming = false; renameTargetId = ''">Cancel</button>
-          <button type="button" class="btn btn-primary" @click="confirmRename()" :disabled="!renameValue.trim()">Save</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Hidden template for JS-cloned preset items -->
-  <div id="preset-item-template" class="hidden" style="display:none;">
-    <div class="px-3 py-2 cursor-pointer text-sm transition-colors duration-150 flex items-center justify-between gap-1"
-         style="border-bottom: 1px solid var(--border);"
-         data-preset-id="">
-      <span class="truncate flex-1 preset-item-name"></span>
-      <div class="flex gap-1 shrink-0">
-        <button type="button" title="Rename" class="preset-rename-btn"
-          style="background:var(--surface-2);border:none;cursor:pointer;padding:2px;color:var(--text-muted);border-radius:4px;display:inline-flex;align-items:center"
-          onmouseover="this.style.background='var(--surface-3)'"
-          onmouseout="this.style.background='var(--surface-2)'"
-        >{{ icon_edit(14) }}</button>
-        <button type="button" title="Delete" class="preset-delete-btn"
-          style="background:var(--surface-2);border:none;cursor:pointer;padding:2px;color:var(--danger);border-radius:4px;display:inline-flex;align-items:center"
-          onmouseover="this.style.background='var(--danger)';this.style.color='var(--text-on-accent)'"
-          onmouseout="this.style.background='var(--surface-2)';this.style.color='var(--danger)'"
-        >{{ icon_trash(14) }}</button>
-      </div>
-    </div>
-  </div>
 </div>
 
 <script>
-window.addAndSelectPreset = function(id, name) {
-  var wrapper = document.getElementById('preset-selector-wrapper');
-  if (!wrapper) return;
-  var state = Alpine.$data(wrapper);
-  var dropdown = wrapper.querySelector('[x-show="open"]');
-  if (dropdown) {
-    var template = document.getElementById('preset-item-template');
-    var item = template.cloneNode(true);
-    item.removeAttribute('id');
-    item.classList.remove('hidden');
-    item.style.display = '';
-    item.dataset.presetId = id;
-    item.querySelector('.preset-item-name').textContent = name;
+window.refreshPresetSelector = function(pendingId) {
+  var sendBtn = document.getElementById('send-btn');
+  var chatId = sendBtn ? (sendBtn.dataset.chatId || '') : '';
+  htmx.ajax('GET', '/partials/preset-selector?chat_id=' + encodeURIComponent(chatId), {
+    target: '#preset-selector',
+    swap: 'innerHTML',
+  }).then(function() {
+    if (!pendingId) return;
+    var wrapper = document.getElementById('preset-selector-wrapper');
+    if (!wrapper) return;
+    var state = Alpine.$data(wrapper);
+    if (state.selectedId) return;
+    var item = wrapper.querySelector('[data-preset-id="' + pendingId + '"]');
+    if (item) {
+      state.selectedId = pendingId;
+      state.selectedName = item.querySelector('.preset-item-name').textContent;
+    }
+  });
+};
 
-    item.onmouseover = function() { this.style.background = 'var(--surface-3)'; };
-    item.onmouseout = function() { this.style.background = 'transparent'; };
-
-    item.onclick = function() {
-      state.selectedId = id;
-      state.selectedName = name;
-      state.open = false;
-      StateManager.setPreset(id);
-    };
-
-    item.querySelector('.preset-rename-btn').onclick = function(e) {
-      e.stopPropagation();
-      openRenameModal(this);
-    };
-
-    item.querySelector('.preset-delete-btn').onclick = function(e) {
-      e.stopPropagation();
-      deletePresetById(this.closest('[data-preset-id]').dataset.presetId);
-    };
-
-    var firstItem = dropdown.querySelector('.px-3.py-2.cursor-pointer.text-sm.text-muted');
-    dropdown.insertBefore(item, firstItem ? firstItem.nextSibling : null);
-  }
-  state.selectedId = id;
-  state.selectedName = name;
-  state.open = false;
-  StateManager.setPreset(id);
+window.setPresetThenRefresh = function(id) {
+  Promise.resolve(StateManager.setPreset(id)).then(function() {
+    refreshPresetSelector(id);
+  });
 };
 
 window.openRenameModal = function(btn) {
   var item = btn.closest('[data-preset-id]');
-  var state = Alpine.$data(document.getElementById('preset-selector-wrapper'));
-  state.renameTargetId = item.dataset.presetId;
-  state.renameValue = item.querySelector('.preset-item-name').textContent;
-  state.renaming = true;
-  state.open = false;
+  var selectorState = Alpine.$data(document.getElementById('preset-selector-wrapper'));
+  selectorState.open = false;
+  var modalState = Alpine.$data(document.getElementById('rename-preset-form'));
+  modalState.renameTargetId = item.dataset.presetId;
+  modalState.renameValue = item.querySelector('.preset-item-name').textContent;
+  window.openModal('modal-rename-preset');
 };
 
 window.handlePresetCreated = function(evt) {
   try {
     var data = JSON.parse(evt.detail.xhr.response);
-    addAndSelectPreset(data.id, 'New Preset');
+    setPresetThenRefresh(data.id);
   } catch(e) { window.location.reload(); }
 };
 
 function confirmRename(){
-  var state = Alpine.$data(document.getElementById('preset-selector-wrapper'));
-  var pid = state.renameTargetId;
-  var newName = state.renameValue;
+  var modalState = Alpine.$data(document.getElementById('rename-preset-form'));
+  var pid = modalState.renameTargetId;
+  var newName = modalState.renameValue;
   if (!pid || !newName || !newName.trim()) return;
   var trimmed = newName.trim();
   fetch('/api/presets/' + pid, {
@@ -206,8 +146,8 @@ function confirmRename(){
     body: JSON.stringify({name: trimmed})
   }).then(function(r){
     if (r.ok) {
-      state.renaming = false;
-      state.renameTargetId = '';
+      window.closeModal('modal-rename-preset');
+      var state = Alpine.$data(document.getElementById('preset-selector-wrapper'));
       document.querySelectorAll('#preset-selector-wrapper [data-preset-id="' + pid + '"]').forEach(function(el) {
         var nameSpan = el.querySelector('.preset-item-name');
         if (nameSpan) nameSpan.textContent = trimmed;
@@ -215,8 +155,10 @@ function confirmRename(){
       if (state.selectedId === pid) {
         state.selectedName = trimmed;
       }
-      if (window.showSuccessToast) window.showSuccessToast('Preset renamed');
-    } else if (window.showErrorToast) window.showErrorToast('Failed to rename preset');
+      window.showSuccessToast('Preset renamed');
+    } else {
+      window.showErrorToast('Failed to rename preset');
+    }
   });
 }
 
@@ -227,12 +169,12 @@ function importPreset(file){
   fetch('/api/presets/import', {method: 'POST', body: formData})
     .then(function(r) {
       if (r.ok) return r.json();
-      else r.text().then(function(t) { if (window.showErrorToast) window.showErrorToast('Import failed: ' + t); });
+      else r.text().then(function(t) { window.showErrorToast('Import failed: ' + t); });
     })
     .then(function(data) {
       if (data && data.id) {
-        if (window.showSuccessToast) window.showSuccessToast('Preset imported');
-        addAndSelectPreset(data.id, data.name);
+        window.showSuccessToast('Preset imported');
+        setPresetThenRefresh(data.id);
       }
     });
 }
@@ -249,20 +191,15 @@ window.deletePresetById = function(id) {
   window.customConfirm('Delete this preset?', function() {
     fetch('/api/presets/' + id, {method: 'DELETE'})
       .then(function(r){
-        if (!r.ok) { if (window.showErrorToast) window.showErrorToast('Failed to delete preset'); return; }
+        if (!r.ok) { window.showErrorToast('Failed to delete preset'); return; }
         var state = Alpine.$data(document.getElementById('preset-selector-wrapper'));
         if (state.selectedId === id) {
-          if (fallbackItem) {
-            fallbackItem.click();
-          } else {
-            StateManager.setPreset(null);
-            state.selectedId = '';
-            state.selectedName = '— Select Preset —';
-          }
+          var fallbackId = fallbackItem ? fallbackItem.dataset.presetId : null;
+          setPresetThenRefresh(fallbackId);
+        } else {
+          refreshPresetSelector();
         }
-        var deletedEl = document.querySelector('#preset-selector-wrapper [data-preset-id="' + id + '"]');
-        if (deletedEl) deletedEl.remove();
-        if (window.showInfoToast) window.showInfoToast('Preset deleted');
+        window.showSuccessToast('Preset deleted');
       });
   });
 }

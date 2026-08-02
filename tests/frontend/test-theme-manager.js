@@ -48,7 +48,7 @@ global.matchMedia = function () {
 
 // Toast capture
 var _toasts = [];
-global.showInfoToast = function (m) { _toasts.push(m); };
+global.showToast = function (m, opts) { _toasts.push(m); };
 
 // documentElement with style.setProperty capture
 var styleSet = {};

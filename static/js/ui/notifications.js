@@ -10,7 +10,7 @@
   }
 
   function getToastText(card) {
-    var textEl = card.querySelector ? card.querySelector('.toast-text') : null;
+    var textEl = card.querySelector('.toast-text');
     return textEl ? textEl.textContent : '';
   }
 
@@ -63,9 +63,7 @@
     var remove = function () {
       card.remove();
     };
-    if (typeof card.addEventListener === 'function') {
-      card.addEventListener('animationend', remove);
-    }
+    card.addEventListener('animationend', remove);
     setTimeout(remove, EXIT_ANIMATION_MS);
   }
 
@@ -104,11 +102,11 @@
     if (type === 'error') {
       var actions = document.createElement('span');
       actions.className = 'toast-actions';
+      var copyIcon = (window.getSvgSprite ? window.getSvgSprite('copy', 14) : '') || 'Copy';
       var copy = document.createElement('button');
       copy.className = 'toast-btn';
       copy.setAttribute('aria-label', 'Copy error');
-      copy.innerHTML =
-        (window.getSvgSprite ? window.getSvgSprite('copy', 14) : '') || 'Copy';
+      copy.innerHTML = copyIcon;
       copy.addEventListener('click', function () {
         var txt = text.textContent;
         if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -116,8 +114,7 @@
             function () {
               copy.innerHTML = 'Copied!';
               setTimeout(function () {
-                copy.innerHTML =
-                  (window.getSvgSprite ? window.getSvgSprite('copy', 14) : '') || 'Copy';
+                copy.innerHTML = copyIcon;
               }, 1500);
             },
             function () {
@@ -199,18 +196,42 @@
     window.showToast(message, opts);
   };
 
-  window.hideErrorToast = function () {
+  function dismissCards(predicate) {
     var c = getContainer();
     if (!c) return;
-    var children = Array.prototype.slice.call(c.children || []);
-    children.forEach(function (card) {
-      if (card.dataset && card.dataset.toastType === 'error') dismiss(card);
+    Array.prototype.slice.call(c.children || []).forEach(function (card) {
+      if (!predicate || predicate(card)) dismiss(card);
+    });
+  }
+
+  window.hideErrorToast = function () {
+    dismissCards(function (card) {
+      return card.dataset && card.dataset.toastType === 'error';
     });
   };
 
   window.hideAllToasts = function () {
-    var c = getContainer();
-    if (!c) return;
-    Array.prototype.slice.call(c.children || []).forEach(dismiss);
+    dismissCards();
+  };
+
+  window.showImportToast = function (data, pluralLabel) {
+    var imported = (data && data.imported && data.imported.length) || 0;
+    var total = (data && data.total) || 0;
+    if (data && data.errors && data.errors.length) {
+      window.showErrorToast(
+        'Imported ' +
+          imported +
+          ' of ' +
+          total +
+          ' cards.\n\nErrors:\n' +
+          data.errors
+            .map(function (e) {
+              return '\u2022 ' + e.filename + ': ' + e.error;
+            })
+            .join('\n'),
+      );
+    } else {
+      window.showSuccessToast('Imported ' + imported + ' ' + pluralLabel);
+    }
   };
 })();

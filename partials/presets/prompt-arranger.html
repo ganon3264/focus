@@ -176,19 +176,10 @@ overlay_close=true) %}
         params.append('persona_id', StateManager.get('persona_id'));
       var qs = params.toString();
       if (qs) url += '?' + qs;
-      fetch(url)
-        .then(function (r) { return r.text(); })
-        .then(function (html) {
-          var temp = document.createElement('div');
-          temp.innerHTML = html;
-          var newBlock = temp.querySelector('.arranger-item');
-          if (!newBlock) return;
-          var oldBlock = document.querySelector('.arranger-item[data-block-id="' + blockId + '"]');
-          if (oldBlock && oldBlock.parentNode) {
-        oldBlock.parentNode.replaceChild(newBlock, oldBlock);
-        htmx.process(newBlock);
-          }
-        });
+      htmx.ajax('GET', url, {
+        target: '.arranger-item[data-block-id="' + blockId + '"]',
+        swap: 'outerHTML',
+      });
     };
 
     window.addBlock = function (pid, type, btn, nameOverride = null, contentOverride = '') {

@@ -50,24 +50,21 @@ function submitPersona(e){
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify(Object.fromEntries(new FormData(form)))
   }).then(function(r){
-    if(!r.ok) { r.text().then(function(t){ if (window.showErrorToast) window.showErrorToast('Failed to create persona: ' + t); }); return; }
+    if(!r.ok) { r.text().then(function(t){ window.showErrorToast('Failed to create persona: ' + t); }); return; }
     return r.json();
   }).then(function(result){
     if (!result) return;
-    if (window.showSuccessToast) window.showSuccessToast('Persona created');
+    window.showSuccessToast('Persona created');
     var grid = document.getElementById('persona-grid');
     if (!grid) return;
     var emptyMsg = grid.querySelector('.border-dashed');
     if (emptyMsg) emptyMsg.remove();
-    fetch('/partials/persona-card/' + result.id)
-      .then(function(r) { return r.text(); })
-      .then(function(html) {
-        var temp = document.createElement('div');
-        temp.innerHTML = html;
-        grid.insertBefore(temp.firstElementChild, grid.firstChild);
-        htmx.process(grid.firstElementChild);
-        form.reset();
-      });
+    htmx.ajax('GET', '/partials/persona-card/' + result.id, {
+      target: '#persona-grid',
+      swap: 'afterbegin',
+    }).then(function() {
+      form.reset();
+    });
   });
 }
 </script>
