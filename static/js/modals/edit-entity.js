@@ -168,7 +168,7 @@
       if (!id) return;
       openCropModal(input.files[0], function (blob) {
         var fd = new FormData();
-        fd.append('file', blob, 'avatar.png');
+        fd.append('file', blob, 'avatar.webp');
         fetch(cfg.apiAvatar(id), { method: 'POST', body: fd })
           .then(function (r) {
             return r.json();

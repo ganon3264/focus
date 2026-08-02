@@ -92,7 +92,7 @@
         window.stagedFiles[idx] = newFile;
         render();
       },
-      { aspectRatio: NaN },
+      { aspectRatio: NaN, format: 'png' },
     );
   };
 

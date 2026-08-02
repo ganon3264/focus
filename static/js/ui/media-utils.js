@@ -1,30 +1,26 @@
 (function () {
   window.createMediaThumbnail = function (opts) {
     var div = document.createElement('div');
-    div.className = 'relative group';
+    div.className = 'media-thumb relative group';
     var size = opts.size || 48;
-    Object.assign(div.style, {
-      width: size + 'px',
-      height: size + 'px',
-      borderRadius: '4px',
-      overflow: 'hidden',
-      border: '1px solid var(--border)',
-      flexShrink: '0',
-    });
+    div.style.setProperty('--thumb-size', size + 'px');
     if (opts.id) div.id = opts.id;
 
     var isAudio = opts.mimeType && opts.mimeType.startsWith('audio/');
 
     if (isAudio) {
       div.innerHTML =
-        '<div style="width:100%;height:100%;background:var(--surface-3);display:grid;place-items:center;" title="Audio Attachment">' +
+        '<div class="media-thumb-audio" title="Audio Attachment">' +
         window.getSvgSprite('music', 24) +
         '</div>';
     } else {
       var imgSrc = opts.src ? '/' + opts.src : '';
-      var clickAttr = opts.onClick ? 'style="cursor:pointer"' : '';
       div.innerHTML =
-        '<img src="' + imgSrc + '"' + clickAttr + ' style="width:100%;height:100%;object-fit:cover;">';
+        '<img src="' +
+        imgSrc +
+        '" class="media-thumb-img' +
+        (opts.onClick ? ' cursor-pointer' : '') +
+        '">';
       if (opts.onClick) {
         div.querySelector('img').addEventListener('click', opts.onClick);
       }
@@ -33,7 +29,7 @@
     if (opts.onDelete) {
       var btn = document.createElement('button');
       btn.className =
-        'absolute top-0 right-0 w-4 h-4 bg-danger text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10';
+        'media-thumb-close absolute top-0 right-0 w-4 h-4 bg-danger text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10';
       btn.type = 'button';
       btn.innerHTML = window.getSvgSprite('close', 12);
       btn.addEventListener('click', function (e) {

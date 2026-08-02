@@ -470,6 +470,33 @@
     color: var(--danger);
   }
 
+  /* Media thumbnail (shared by server macro + JS createMediaThumbnail) */
+  .media-thumb {
+    width: var(--thumb-size, 48px);
+    height: var(--thumb-size, 48px);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    border: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .media-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .media-thumb-audio {
+    width: 100%;
+    height: 100%;
+    background: var(--surface-3);
+    display: grid;
+    place-items: center;
+  }
+  /* Media thumbnail delete button — inherits the media's corner radius so the
+     top-right corner aligns with the clipped thumbnail edge */
+  .media-thumb-close {
+    border-radius: inherit;
+  }
+
   .arranger-item.bg-role-system,
   .var-group-container.bg-role-system {
     background: var(--active-bg);

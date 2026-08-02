@@ -162,8 +162,6 @@
 
       var wrapper = document.createElement('div');
       wrapper.className = 'relative group shrink-0';
-      thumbnail.style.width = '64px';
-      thumbnail.style.height = '64px';
 
       var deleteBtn = thumbnail.querySelector('button');
       if (deleteBtn) {

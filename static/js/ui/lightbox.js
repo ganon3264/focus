@@ -85,19 +85,21 @@ if (_cropSaveBtn) {
     let getOpts = {};
 
     if (currentCropOptions && currentCropOptions.aspectRatio === 1) {
-      getOpts.width = 512;
-      getOpts.height = 512;
+      getOpts.width = 2048;
+      getOpts.height = 2048;
     }
 
     const cb = currentCropCallback;
     const selection = cropper.getCropperSelection();
     if (!selection) return;
 
+    const fmt = (currentCropOptions && currentCropOptions.format) || 'webp';
+
     selection.$toCanvas(getOpts).then((canvas) => {
       canvas.toBlob((blob) => {
         cb(blob);
         closeCropModal();
-      }, 'image/png');
+      }, 'image/' + fmt, fmt === 'webp' ? 0.9 : undefined);
     });
   });
 }
@@ -109,7 +111,7 @@ function handleAvatarUpload(fileInput, endpoint, successCallback) {
 
   openCropModal(file, (croppedBlob) => {
     const formData = new FormData();
-    formData.append('file', croppedBlob, 'avatar.png');
+    formData.append('file', croppedBlob, 'avatar.webp');
 
     fetch(endpoint, {
       method: 'POST',
