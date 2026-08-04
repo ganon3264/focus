@@ -663,10 +663,8 @@
       get showVerbosity() { return this.providerType === 'openrouter'; },
 
       async init() {
-        await this.loadStandard();
-        await this.loadCustom();
-
-        // Format sampler-inputs on model changes (slider sync, etc.)
+        // Format sampler-inputs on model changes (slider sync, etc.).
+        // Registered before load*() so the initial population also formats.
         this.$watch('samplers', () => {
           this.$nextTick(() => {
             this.$el.querySelectorAll('.sampler-input').forEach(el => {
@@ -684,6 +682,9 @@
             });
           });
         }, { deep: true });
+
+        await this.loadStandard();
+        await this.loadCustom();
 
         // Make global function to retrieve payload
         window.getActiveSamplers = () => {
