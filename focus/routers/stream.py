@@ -1,5 +1,4 @@
 import asyncio
-import copy
 import json
 import logging
 import uuid
@@ -104,27 +103,22 @@ def _log_outbound_payload(
     gen_kwargs: dict,
     prov_dict: dict,
 ) -> None:
-    """Log the full outbound payload with base64 data truncated."""
-    def _truncate_b64(msgs):
-        dump_msgs = copy.deepcopy(msgs)
-        for m in dump_msgs:
-            content = m.get("content")
-            if isinstance(content, list):
-                for part in content:
-                    if part.get("type") == "image_url":
-                        url = part["image_url"].get("url", "")
-                        if url.startswith("data:") and ";base64," in url:
-                            mime, _ = url.split(";base64,", 1)
-                            part["image_url"]["url"] = f"{mime};base64,<data truncated>"
-                    elif part.get("type") == "input_audio":
-                        part["input_audio"]["data"] = "<data truncated>"
-        return dump_msgs
-
-    logger.debug("OUTBOUND PAYLOAD =========================")
+    """Log the outbound payload. Messages are only summarized here — the
+    provider layer logs the full raw payload, so this avoids duplication."""
     logger.debug("Provider: %s (%s)", prov_dict.get("name"), prov_dict.get("model"))
     logger.debug("Samplers:\n%s", json.dumps(gen_kwargs, indent=2))
-    logger.debug("Messages:\n%s", json.dumps(_truncate_b64(messages), indent=2, ensure_ascii=False))
-    logger.debug("==========================================")
+    roles = [m.get("role", "?") for m in messages]
+    attachments = sum(
+        1
+        for m in messages
+        if isinstance(m.get("content"), list)
+        for part in m["content"]
+        if part.get("type") in ("image_url", "input_audio")
+    )
+    summary = f"{len(messages)} msgs ({', '.join(roles)})"
+    if attachments:
+        summary += f" + {attachments} attachment{'s' if attachments > 1 else ''}"
+    logger.debug("Messages: %s", summary)
 
 
 def _format_error(e: Exception) -> str:
