@@ -21,15 +21,12 @@
     var msgs = document.querySelectorAll('#message-list .message');
     var lastRole = msgs.length > 0 ? msgs[msgs.length - 1].getAttribute('data-role') || '' : '';
     var isRegenMode = !text && (!window.stagedFiles || window.stagedFiles.length === 0) && lastRole === 'user';
+    var newMode = isRegenMode ? 'regen' : 'send';
 
-    if (isRegenMode) {
-      sendBtn.innerHTML = window.getSvgSprite('regen', 18);
-      sendBtn.title = 'Regenerate';
-      sendBtn.dataset.mode = 'regen';
-    } else {
-      sendBtn.innerHTML = window.getSvgSprite('send', 18);
-      sendBtn.title = 'Send message';
-      sendBtn.dataset.mode = 'send';
+    if (sendBtn.dataset.mode !== newMode) {
+      sendBtn.innerHTML = window.getSvgSprite(newMode, 18);
+      sendBtn.title = isRegenMode ? 'Regenerate' : 'Send message';
+      sendBtn.dataset.mode = newMode;
     }
   }
 
