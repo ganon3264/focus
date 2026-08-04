@@ -1,5 +1,5 @@
 {% from "macros.html" import icon_help, icon_plus %}
-<div style="flex: 1; min-height: 0; overflow-y: auto;" class="pr-2 scroll-fade">
+<div style="flex: 1; min-height: 0; overflow-y: auto;" class="scroll-fade">
   <div class="arranger-list" id="arranger-list-{{ preset_id }}">
     {% for block in blocks %} {% include "presets/prompt-block.html" %} {% endfor %}
   </div>
@@ -70,9 +70,6 @@
       </div>
     </div>
   </div>
-  <button type="button" class="btn btn-secondary" style="width:36px;flex-shrink:0;display:grid;place-items:center;padding:0;" onclick="openModal('macro-help-modal')" aria-label="Macro reference">
-    {{ icon_help(16) }}
-  </button>
 </div>
 
 <!-- Block Edit Modal -->
@@ -96,38 +93,15 @@ overlay_close=true) %}
     placeholder="Enter reasoning content that will be prefilled before the model response…"
   ></textarea>
 </div>
-<div class="flex justify-end gap-2 mt-3">
-  <button type="button" class="btn btn-secondary" onclick="closeBlockModal()">Cancel</button>
-  <button type="button" class="btn btn-primary" id="block-modal-save" onclick="saveBlockModal()">
-    Save
+<div class="flex items-center justify-between gap-2 mt-3">
+  <button type="button" class="action-btn" onclick="openMacroHelp()" title="Macro reference" aria-label="Macro reference">
+    {{ icon_help(16) }}
   </button>
-</div>
-{% endcall %}
-
-<!-- Macro Help Modal -->
-{% call modal_shell('macro-help-modal', 'Macro Reference', max_width='500px', z_index='100') %}
-<div class="flex flex-col gap-3 max-h-[65vh] overflow-y-auto">
-  <div>
-    <div class="text-xs font-bold text-muted uppercase tracking-wider mb-2">Built-in Macros</div>
-    <div class="grid grid-cols-2 gap-x-3 gap-y-2">
-      {% for key, def in macro_definitions.items() %}
-      <div class="flex items-center gap-2">
-        <code class="font-mono text-xs bg-(--surface-3) px-1.5 py-0.5 rounded whitespace-nowrap">{{ "{{" + key + "}}" }}</code>
-        <span class="text-xs text-muted">{{ def.description }}</span>
-      </div>
-      {% endfor %}
-    </div>
-  </div>
-  <div class="pt-2" style="border-top: 1px solid var(--border)">
-    <div class="text-xs font-bold text-muted uppercase tracking-wider mb-2">Special Tokens</div>
-    <div class="flex flex-col gap-1.5">
-      {% for tok in special_tokens %}
-      <div class="flex items-center gap-2">
-        <code class="font-mono text-xs bg-(--surface-3) px-1.5 py-0.5 rounded whitespace-nowrap">{{ tok.syntax }}</code>
-        <span class="text-xs text-muted">{{ tok.description }}</span>
-      </div>
-      {% endfor %}
-    </div>
+  <div class="flex gap-2">
+    <button type="button" class="btn btn-secondary" onclick="closeBlockModal()">Cancel</button>
+    <button type="button" class="btn btn-primary" id="block-modal-save" onclick="saveBlockModal()">
+      Save
+    </button>
   </div>
 </div>
 {% endcall %}

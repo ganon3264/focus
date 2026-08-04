@@ -1,4 +1,4 @@
-{% from "macros.html" import icon_expand, icon_plus, hint_tooltip %} {% from "modal-shell.html" import modal_shell
+{% from "macros.html" import icon_expand, icon_plus, icon_help, hint_tooltip %} {% from "modal-shell.html" import modal_shell
 %} {% call modal_shell(modal_id, 'Edit ' ~ entity_name, z_index='100') %}
 <form
   id="edit-{{ prefix }}-form"
@@ -111,16 +111,27 @@
     </div>
   </div>
 
-  <div class="flex gap-2 mt-4 justify-end pt-4" style="border-top: 1px solid var(--border)">
+  <div class="flex items-center justify-between gap-2 mt-4 pt-4" style="border-top: 1px solid var(--border)">
     <button
-      class="btn btn-secondary"
-      style="width: 100px"
       type="button"
-      data-action="actionCloseModal" data-modal-id="{{ modal_id }}"
+      class="action-btn"
+      onclick="openMacroHelp()"
+      title="Macro reference"
+      aria-label="Macro reference"
     >
-      Cancel
+      {{ icon_help(16) }}
     </button>
-    <button class="btn btn-primary" style="width: 100px" type="submit">Save</button>
+    <div class="flex gap-2">
+      <button
+        class="btn btn-secondary"
+        style="width: 100px"
+        type="button"
+        data-action="actionCloseModal" data-modal-id="{{ modal_id }}"
+      >
+        Cancel
+      </button>
+      <button class="btn btn-primary" style="width: 100px" type="submit">Save</button>
+    </div>
   </div>
 </form>
 {% endcall %}
