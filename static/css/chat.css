@@ -105,15 +105,6 @@
     min-width: 0;
     margin-top: -0.1rem;
   }
-  .message-header {
-    font-size: 0.9rem;
-    color: var(--text-muted);
-    margin-bottom: 0.5rem;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
 
   /* Markdown Content */
   .message-content,
@@ -143,7 +134,7 @@
     margin-bottom: 0;
   }
   .markdown-content code {
-    background: rgba(0, 0, 0, 0.3);
+    background: color-mix(in srgb, var(--text) 8%, transparent);
     color: var(--accent-hover);
     padding: 0.15rem 0.35rem;
     border-radius: var(--radius-sm);
@@ -203,7 +194,7 @@
     margin: 0.2em 0;
     border: 1px dashed var(--border);
     border-radius: var(--radius-sm);
-    background: var(--surface-1);
+    background: var(--surface-2);
     font-size: 0.85em;
     color: var(--text-muted);
   }
@@ -301,9 +292,6 @@
   /* ── First reasoning block (index 0) — div-based, no details marker ── */
   .reasoning-block:not(.details) {
     margin: 0;
-  }
-  .reasoning-block:not(.details) .reasoning-content.hidden {
-    display: none;
   }
 
   /* ── Message-level reasoning toggle ── */

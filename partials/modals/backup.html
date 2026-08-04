@@ -148,25 +148,14 @@ modal_shell('modal-entity-select', 'Select', max_width='420px', width='90vw', z_
 <div class="flex flex-col gap-3 mt-1">
   <div class="relative">
     <span
-      class="absolute left-2.5 top-1/2 -translate-y-1/2 flex pointer-events-none"
-      style="color: var(--text-muted)"
+      class="absolute left-2.5 top-1/2 -translate-y-1/2 flex text-muted pointer-events-none"
       >{{ icon_search(size=14) }}</span
     >
     <input
       type="text"
       placeholder="Filter..."
       data-action="actionFilterEntityList"
-      class="text-sm w-full"
-      style="
-        padding-left: 2rem;
-        padding-right: 0.5rem;
-        padding-top: 0.35rem;
-        padding-bottom: 0.35rem;
-        background: var(--surface-2);
-        border: 1px solid var(--border);
-        color: var(--text);
-        border-radius: var(--radius-sm);
-      "
+      class="search-input text-sm w-full"
     />
   </div>
   <div id="entity-select-list" class="flex flex-col gap-1 max-h-[45vh] overflow-y-auto">

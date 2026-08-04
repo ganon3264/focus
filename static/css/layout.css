@@ -82,7 +82,7 @@
     flex-shrink: 0;
     z-index: 10;
     transition: width var(--transition), opacity var(--transition);
-    box-shadow: -2px 0 10px rgba(0, 0, 0, 0.05);
+    box-shadow: var(--shadow-edge);
     overflow: hidden;
   }
   .right-sidebar.collapsed {

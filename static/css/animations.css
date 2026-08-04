@@ -42,6 +42,16 @@
     transform: translateY(-8px);
   }
 }
+@keyframes btn-pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
 
 /* ── Animation/overlay components ─────────────────────────────────────────── */
 @layer components {
@@ -130,19 +140,19 @@
     animation: toast-out 0.2s ease-in forwards;
   }
   .toast-info {
-    background: var(--surface-2);
-    border: 1px solid var(--accent);
-    color: var(--text);
+    background: color-mix(in srgb, var(--info) 18%, var(--surface-2));
+    border: 1px solid var(--info);
+    color: color-mix(in srgb, var(--info) 65%, var(--text));
   }
   .toast-success {
     background: color-mix(in srgb, var(--success) 18%, var(--surface-2));
     border: 1px solid var(--success);
-    color: var(--success);
+    color: color-mix(in srgb, var(--success) 65%, var(--text));
   }
   .toast-error {
     background: color-mix(in srgb, var(--danger) 18%, var(--surface-2));
     border: 1px solid var(--danger);
-    color: var(--danger);
+    color: color-mix(in srgb, var(--danger) 65%, var(--text));
   }
   .toast-text {
     flex: 1;
@@ -179,7 +189,7 @@
     transition: background var(--transition), opacity var(--transition);
   }
   .toast-btn:hover {
-    background: rgba(128, 128, 128, 0.18);
+    background: color-mix(in srgb, var(--text) 18%, transparent);
     opacity: 0.85;
   }
 }

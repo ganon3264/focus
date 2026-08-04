@@ -1,0 +1,28 @@
+/*
+ * Tailwind v4 design tokens.
+ *
+ * Defines the tokens that generate Tailwind utilities: `--font-sans` →
+ * `font-sans`, `--radius-*` → `rounded-*`, `--shadow-*` → `shadow-*`.
+ * Also usable directly as `var()` in CSS modules.
+ *
+ * Rebrand radius/shadow/font here, not in `variables.css` (which holds
+ * runtime/semantic tokens: colors, z-index, transitions, layout).
+ */
+@theme {
+  --spacing: 0.25rem;
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --color-muted: var(--text-muted);
+  --color-dark: var(--bg);
+  --color-light: var(--text);
+  --color-danger: var(--danger);
+  --color-border: var(--border);
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-full: 9999px;
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.15);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.4);
+  --shadow-edge: -2px 0 10px rgba(0, 0, 0, 0.05);
+}

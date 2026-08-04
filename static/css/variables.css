@@ -26,10 +26,17 @@
   --success-hover: #22c55e;
   --success-dim: rgba(22, 163, 74, 0.15);
 
+  /* Info */
+  --info: #3b82f6;
+  --info-dim: rgba(59, 130, 246, 0.2);
+
+  /* Warning */
+  --warning: #f59e0b;
+  --warning-dim: rgba(245, 158, 11, 0.2);
+
   /* Z-index scale — lowest to highest */
   --z-modal: 50;
   --z-modal-sub: 100;
-  --z-modal-high: 1000;
   --z-overlay: 10000;
   --z-max: 10010;
 

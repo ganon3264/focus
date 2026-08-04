@@ -54,13 +54,12 @@
   <div x-show="enabled && providerSupportsTools" class="flex flex-col flex-1 min-h-0">
     <div class="flex items-center gap-2 mb-2 shrink-0">
       <div class="flex-1 relative">
-        <span class="absolute left-2.5 top-1/2 -translate-y-1/2 flex" style="color:var(--text-muted);pointer-events:none">{{ icon_search(size=14) }}</span>
+        <span class="absolute left-2.5 top-1/2 -translate-y-1/2 flex text-muted pointer-events-none">{{ icon_search(size=14) }}</span>
         <input
           type="text"
           placeholder="Search tools..."
           x-model="searchQuery"
-          class="text-sm w-full"
-          style="padding-left:2rem;padding-right:0.5rem;padding-top:0.35rem;padding-bottom:0.35rem;background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-sm)"
+          class="search-input text-sm w-full"
         >
       </div>
       {{ sort_dropdown('focus_tools_sort', 'sortTools') }}

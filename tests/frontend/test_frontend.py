@@ -170,12 +170,12 @@ def test_css_has_essential_vars():
 
 
 def test_theme_rebranded_tokens():
-    """Rebranded Tailwind tokens live in @theme in tailwind-input.css (single
+    """Rebranded Tailwind tokens live in @theme in css/tokens.css (single
     source of truth), not as bare :root overrides in variables.css."""
-    input_text = (STATIC_DIR / "tailwind-input.css").read_text()
+    tokens_text = (STATIC_DIR / "css" / "tokens.css").read_text()
     for token in ["--radius-sm", "--radius-md", "--radius-xl", "--shadow-sm",
                   "--shadow-md", "--shadow-lg", "--font-sans"]:
-        assert token in input_text, f"Missing @theme token: {token}"
+        assert token in tokens_text, f"Missing @theme token: {token}"
     vars_text = (STATIC_DIR / "css" / "variables.css").read_text()
     for token in ["--radius-sm", "--shadow-sm", "--font-sans"]:
         assert token not in vars_text, f"{token} must not be redefined in variables.css :root"

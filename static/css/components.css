@@ -35,6 +35,16 @@
     padding: 2px 4px;
     font-size: 0.8rem;
   }
+  .search-input {
+    padding-left: 2rem;
+    padding-right: 0.5rem;
+    padding-top: 0.35rem;
+    padding-bottom: 0.35rem;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: var(--radius-sm);
+  }
 
   .edit-block-ta {
     width: 100%;
@@ -218,7 +228,7 @@
     width: 14px;
     height: 14px;
     border-radius: 50%;
-    background: #fff;
+    background: var(--text-on-accent);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
   }
@@ -712,7 +722,6 @@
 
   /* Hint-tooltip text color overrides */
   #hint-tooltip .hint-danger   { color: var(--danger); }
-  #hint-tooltip .hint-accent   { color: var(--accent); }
   #hint-tooltip .hint-warning  { color: var(--role-assistant); }
   #hint-tooltip .hint-success  { color: var(--role-user); }
 
@@ -747,7 +756,7 @@
     width: 100%;
     height: 6px;
     background: var(--surface-2);
-    border-radius: 3px;
+    border-radius: var(--radius-sm);
     outline: none;
     border: 1px solid var(--border);
   }
@@ -757,14 +766,14 @@
     width: 16px;
     height: 16px;
     border-radius: 50%;
-    background: var(--accent, #6366f1);
+    background: var(--accent);
     cursor: pointer;
   }
   .styled-slider::-moz-range-thumb {
     width: 16px;
     height: 16px;
     border-radius: 50%;
-    background: var(--accent, #6366f1);
+    background: var(--accent);
     cursor: pointer;
     border: none;
   }

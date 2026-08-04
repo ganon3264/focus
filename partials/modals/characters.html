@@ -34,25 +34,14 @@
     <div class="flex gap-2 items-center h-8">
       <div class="flex-1 relative">
         <span
-          class="absolute left-2.5 top-1/2 -translate-y-1/2 flex"
-          style="color: var(--text-muted); pointer-events: none"
+          class="absolute left-2.5 top-1/2 -translate-y-1/2 flex text-muted pointer-events-none"
           >{{ icon_search(size=14) }}</span
         >
         <input
           type="text"
           placeholder="Search characters..."
           oninput="filterCharacters(this.value)"
-          class="text-sm w-full h-full"
-          style="
-            padding-left: 2rem;
-            padding-right: 0.5rem;
-            padding-top: 0.35rem;
-            padding-bottom: 0.35rem;
-            background: var(--surface-2);
-            border: 1px solid var(--border);
-            color: var(--text);
-            border-radius: var(--radius-sm);
-          "
+          class="search-input text-sm w-full h-full"
         />
       </div>
       {{ sort_dropdown('focus_char_sort', 'sortCharacters') }}
