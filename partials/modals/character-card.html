@@ -1,5 +1,4 @@
 {% from "macros.html" import icon_edit, icon_trash %}
-{% set char_greetings = (([char.card.get('first_mes','')] if char.card.get('first_mes') else []) + (char.card.get('alternate_greetings') or [])) %}
 <div
   class="card{% if current_character_id == char.id %} active{% endif %}"
   id="char-card-{{ char.id }}"
@@ -39,7 +38,6 @@
           data-char-image="{{ char.image_path or '' }}"
           data-char-theme="{{ char.theme_id or '' }}"
           data-char-media="{{ char.images | tojson | forceescape }}"
-          data-char-greetings="{{ char_greetings | tojson | forceescape }}"
           onclick="event.stopPropagation(); openEditCharacterModal(this);"
           aria-label="Edit character"
         >
@@ -93,7 +91,6 @@
           data-char-image="{{ char.image_path or '' }}"
           data-char-theme="{{ char.theme_id or '' }}"
           data-char-media="{{ char.images | tojson | forceescape }}"
-          data-char-greetings="{{ char_greetings | tojson | forceescape }}"
           onclick="event.stopPropagation(); openEditCharacterModal(this);"
           aria-label="Edit character"
         >

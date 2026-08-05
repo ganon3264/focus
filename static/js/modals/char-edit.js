@@ -16,12 +16,10 @@ createEditModalHandlers({
   apiAvatar: function (id) {
     return api.charAvatar(id);
   },
-  greetings: true,
-  greetingPrevFn: 'charGreetingPrev',
-  greetingNextFn: 'charGreetingNext',
-  greetingAddFn: 'charGreetingAdd',
-  greetingDeleteFn: 'charGreetingDelete',
-  greetingInputFn: 'charGreetingInput',
+  greetingSectionId: 'edit-char-greeting-section',
+  greetingPartial: function (id) {
+    return '/partials/character-greeting/' + id;
+  },
   modalId: 'modal-edit-character',
   cardEndpoint: '/partials/character-card/',
   gridId: 'char-modal-grid',

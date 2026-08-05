@@ -11,7 +11,7 @@ from focus.core.card_parser import normalise_card, parse_card_bytes, validate_ca
 from focus.core.database import get_db
 from focus.core.models import CharacterCreate, CharacterUpdate, CharBlockCreate, CharBlockUpdate
 from focus.core.paths import BLOCKS_DIR, CHARACTERS_DIR
-from focus.core.utils import read_upload
+from focus.core.utils import clean_greetings_list, merge_greeting_into_list, parse_greetings_json, read_upload
 
 router = APIRouter()
 logger = logging.getLogger("focus.routers.characters")
@@ -65,6 +65,16 @@ async def update_character(
     updates = body.model_dump(exclude_none=True)
     if "theme_id" in updates:
         updates["theme_id"] = updates["theme_id"] or None
+    if body.greetings_json is not None:
+        greetings = parse_greetings_json(body.greetings_json) or []
+        greetings = merge_greeting_into_list(
+            greetings, body.greeting_idx or 0, body.greeting or ""
+        )
+        greetings = clean_greetings_list(greetings)
+        updates["first_mes"] = greetings[0] if greetings else ""
+        updates["alternate_greetings"] = greetings[1:]
+    for key in ("greeting", "greetings_json", "greeting_idx"):
+        updates.pop(key, None)
     if not updates:
         return {"ok": True}
     await db.update_character(_db, char_id, updates)

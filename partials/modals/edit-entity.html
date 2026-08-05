@@ -72,71 +72,7 @@
   </div>
 
   {% if show_greetings|default(false) and prefix == 'char' %}
-  <div class="form-group mb-0">
-    <div class="flex items-center justify-between mb-1">
-      <label class="font-semibold text-muted block" style="margin-bottom:0">Greeting</label>
-      <div class="flex items-center gap-1">
-        <button
-          type="button"
-          class="btn btn-secondary btn-sm btn-compact"
-          id="edit-{{ prefix }}-greeting-prev"
-          data-action="{{ greeting_prev_fn }}"
-          title="Previous greeting"
-          aria-label="Previous greeting"
-        >
-          {{ icon_chevron_left(14) }}
-        </button>
-        <span id="edit-{{ prefix }}-greeting-count" class="text-xs text-muted font-semibold w-9 text-center">0/0</span>
-        <button
-          type="button"
-          class="btn btn-secondary btn-sm btn-compact"
-          id="edit-{{ prefix }}-greeting-next"
-          data-action="{{ greeting_next_fn }}"
-          title="Next greeting"
-          aria-label="Next greeting"
-        >
-          {{ icon_chevron_right(14) }}
-        </button>
-        <button
-          type="button"
-          class="btn btn-secondary btn-edit btn-sm btn-compact"
-          data-action="{{ greeting_add_fn }}"
-          title="Add greeting variant"
-          aria-label="Add greeting variant"
-        >
-          {{ icon_plus(14) }}
-        </button>
-        <button
-          type="button"
-          class="btn btn-secondary btn-delete-icon btn-sm btn-compact"
-          id="edit-{{ prefix }}-greeting-delete"
-          data-action="{{ greeting_delete_fn }}"
-          title="Delete greeting"
-          aria-label="Delete greeting"
-        >
-          {{ icon_trash(14) }}
-        </button>
-      </div>
-    </div>
-    <div class="textarea-wrapper">
-      <textarea
-        name="greeting"
-        id="edit-{{ prefix }}-greeting"
-        rows="4"
-        class="form-control w-full"
-        style="resize: none"
-        data-action="{{ greeting_input_fn }}"
-      ></textarea>
-      <button
-        type="button"
-        class="expand-btn"
-        aria-label="Expand text area"
-        data-action="actionOpenTextExpander" data-target-id="edit-{{ prefix }}-greeting" data-expander-title="Edit {{ entity_name }} Greeting"
-      >
-        {{ icon_expand(18) }}
-      </button>
-    </div>
-  </div>
+  {% include "modals/greeting-section.html" %}
   {% endif %}
 
   {% if show_theme|default(false) %}

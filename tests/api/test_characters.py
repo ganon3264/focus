@@ -109,6 +109,110 @@ class TestCharacters:
         assert card["data"]["first_mes"] == ""
         assert card["data"]["alternate_greetings"] == []
 
+    async def test_update_greetings_modal_merge(self, client):
+        """The edit modal sends greeting + greetings_json + greeting_idx; the
+        server merges the edited variant and maps to first_mes/alternate_greetings."""
+        c = await create_character(
+            client, "Merger", first_mes="Hello", alternate_greetings=["Alt A", "Alt B"]
+        )
+        await client.patch(
+            f"/api/characters/{c['id']}",
+            json={
+                "greeting": "Edited B",
+                "greetings_json": json.dumps(["Hello", "Alt A", "Alt B"]),
+                "greeting_idx": 2,
+            },
+        )
+        resp = await client.get(f"/api/characters/{c['id']}")
+        card = resp.json()["card"]
+        assert card["data"]["first_mes"] == "Hello"
+        assert card["data"]["alternate_greetings"] == ["Alt A", "Edited B"]
+
+    async def test_update_greetings_modal_does_not_leak_fields(self, client):
+        """greeting/greetings_json/greeting_idx must not land in the card data."""
+        c = await create_character(client, "Leak", first_mes="Hi")
+        await client.patch(
+            f"/api/characters/{c['id']}",
+            json={"greeting": "Hi", "greetings_json": json.dumps(["Hi"]), "greeting_idx": 0},
+        )
+        resp = await client.get(f"/api/characters/{c['id']}")
+        card = resp.json()["card"]
+        assert "greeting" not in card["data"]
+        assert "greetings_json" not in card["data"]
+        assert "greeting_idx" not in card["data"]
+
+    async def test_update_greetings_modal_empty_list_typed(self, client):
+        """Typing into an empty list seeds first_mes."""
+        c = await create_character(client, "Fresh", first_mes="")
+        await client.patch(
+            f"/api/characters/{c['id']}",
+            json={"greeting": "Typed first", "greetings_json": "[]", "greeting_idx": 0},
+        )
+        resp = await client.get(f"/api/characters/{c['id']}")
+        card = resp.json()["card"]
+        assert card["data"]["first_mes"] == "Typed first"
+        assert card["data"]["alternate_greetings"] == []
+
+    async def test_update_greetings_modal_whitespace_filtered(self, client):
+        c = await create_character(client, "Spaced", first_mes="Hi", alternate_greetings=["Alt A"])
+        await client.patch(
+            f"/api/characters/{c['id']}",
+            json={
+                "greeting": "Hi",
+                "greetings_json": json.dumps(["Hi", "   ", "", "Alt A"]),
+                "greeting_idx": 0,
+            },
+        )
+        resp = await client.get(f"/api/characters/{c['id']}")
+        card = resp.json()["card"]
+        assert card["data"]["first_mes"] == "Hi"
+        assert card["data"]["alternate_greetings"] == ["Alt A"]
+
+    async def test_update_greetings_modal_add_then_type_then_save(self, client):
+        """Regression: add a variant (empty slot in the working list), type
+        into it, save — the typed text must land in alternate_greetings even
+        though the posted list contains an empty slot."""
+        c = await create_character(client, "NewVariant", first_mes="Hello")
+        await client.patch(
+            f"/api/characters/{c['id']}",
+            json={
+                "greeting": "Fresh variant",
+                "greetings_json": json.dumps(["Hello", ""]),
+                "greeting_idx": 1,
+            },
+        )
+        resp = await client.get(f"/api/characters/{c['id']}")
+        card = resp.json()["card"]
+        assert card["data"]["first_mes"] == "Hello"
+        assert card["data"]["alternate_greetings"] == ["Fresh variant"]
+
+    async def test_update_greetings_modal_add_then_leave_empty(self, client):
+        """An added variant left empty is dropped at save."""
+        c = await create_character(client, "EmptyVariant", first_mes="Hello")
+        await client.patch(
+            f"/api/characters/{c['id']}",
+            json={
+                "greeting": "",
+                "greetings_json": json.dumps(["Hello", ""]),
+                "greeting_idx": 1,
+            },
+        )
+        resp = await client.get(f"/api/characters/{c['id']}")
+        card = resp.json()["card"]
+        assert card["data"]["first_mes"] == "Hello"
+        assert card["data"]["alternate_greetings"] == []
+
+    async def test_update_greetings_modal_clears_all(self, client):
+        c = await create_character(client, "Clear", first_mes="Hi", alternate_greetings=["Alt"])
+        await client.patch(
+            f"/api/characters/{c['id']}",
+            json={"greeting": "", "greetings_json": "[]", "greeting_idx": 0},
+        )
+        resp = await client.get(f"/api/characters/{c['id']}")
+        card = resp.json()["card"]
+        assert card["data"]["first_mes"] == ""
+        assert card["data"]["alternate_greetings"] == []
+
     async def test_soft_delete_and_trash(self, client):
         c = await create_character(client, "Deletable")
         await client.delete(f"/api/characters/{c['id']}")

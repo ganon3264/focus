@@ -1,5 +1,6 @@
 import asyncio
 import base64
+import json
 import logging
 import time
 from datetime import UTC, datetime
@@ -44,6 +45,51 @@ async def read_upload(file: UploadFile) -> bytes:
     if len(data) > MAX_UPLOAD_SIZE:
         raise HTTPException(413, f"File too large ({len(data)} bytes). Maximum is {MAX_UPLOAD_SIZE} bytes.")
     return data
+
+
+def clean_greetings_list(greetings: list | None) -> list[str]:
+    """Keep only non-empty string greetings, preserving order."""
+    if not greetings:
+        return []
+    return [g for g in greetings if isinstance(g, str) and g.strip()]
+
+
+def parse_greetings_json(raw: str | None) -> list[str] | None:
+    """Parse a greeting-list JSON payload. Returns None when absent (caller
+    falls back to stored state); an empty list on malformed input.
+
+    Entries are kept verbatim (empty/whitespace slots for in-progress variants
+    must survive navigation and save) — whitespace filtering happens only when
+    the list is persisted or rebuilt from a card."""
+    if raw is None:
+        return None
+    try:
+        value = json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        value = []
+    if not isinstance(value, list):
+        value = []
+    return [g for g in value if isinstance(g, str)]
+
+
+def merge_greeting_into_list(greetings: list[str], idx: int, value: str) -> list[str]:
+    """Merge an edited greeting value back into the working list. Typing into
+    an empty list seeds it with the typed value."""
+    if value and not greetings:
+        return [value]
+    if greetings and 0 <= idx < len(greetings):
+        greetings[idx] = value
+    return greetings
+
+
+def greetings_from_card(card: dict | None) -> list[str]:
+    """Combined first_mes + alternate_greetings list, whitespace-filtered."""
+    if not card:
+        return []
+    first = card.get("first_mes") or ""
+    alts = card.get("alternate_greetings") or []
+    raw = ([first] if first else []) + list(alts)
+    return clean_greetings_list(raw)
 
 
 class TTLCache:

@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import aiosqlite
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Form, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from jinja2 import FileSystemLoader
@@ -12,7 +12,7 @@ from focus.core.database import get_db
 from focus.core.logger import DEBUG_MODE, get_logger
 from focus.core.macros import MACRO_DEFINITIONS, SPECIAL_TOKENS, apply_macros, build_base_macros
 from focus.core.message_render import render_message_segments
-from focus.core.utils import variable_group_name
+from focus.core.utils import greetings_from_card, merge_greeting_into_list, parse_greetings_json, variable_group_name
 from focus.prompt_chain import partition_blocks, resolve_variable_blocks
 
 router = APIRouter()
@@ -577,6 +577,59 @@ async def character_card_partial(
             "char": char,
             "current_character_id": current_character_id,
             "compact_view": compact_view,
+            "request": request,
+        },
+    )
+
+
+@router.post("/partials/character-greeting/{char_id}", response_class=HTMLResponse)
+async def character_greeting_partial(
+    request: Request,
+    char_id: str,
+    action: str = Form("render"),
+    greeting: str = Form(""),
+    greetings_json: str | None = Form(None),
+    greeting_idx: int = Form(0),
+    db: aiosqlite.Connection = Depends(get_db),
+):
+    from fastapi import HTTPException
+
+    if greetings_json is None:
+        char = await crud.get_character(db, char_id)
+        if not char:
+            raise HTTPException(status_code=404)
+        greetings = greetings_from_card(char.get("card"))
+        idx = 0
+    else:
+        greetings = parse_greetings_json(greetings_json) or []
+        idx = max(0, greeting_idx)
+        greetings = merge_greeting_into_list(greetings, idx, greeting)
+
+    focus = False
+    if action == "prev":
+        idx = max(0, min(idx, len(greetings) - 1) - 1)
+    elif action == "next":
+        idx = min(len(greetings) - 1, idx + 1)
+    elif action == "add":
+        greetings.append("")
+        idx = len(greetings) - 1
+        focus = True
+    elif action == "delete":
+        if greetings:
+            greetings.pop(min(idx, len(greetings) - 1))
+        idx = min(idx, len(greetings) - 1)
+        idx = max(0, idx)
+
+    return templates.TemplateResponse(
+        request,
+        "modals/greeting-section.html",
+        {
+            "prefix": "char",
+            "char_id": char_id,
+            "greetings": greetings,
+            "greeting_idx": idx,
+            "focus": focus,
+            "entity_name": "Character",
             "request": request,
         },
     )

@@ -1,0 +1,100 @@
+{% from "macros.html" import icon_expand, icon_plus, icon_trash, icon_chevron_left, icon_chevron_right %}
+{% set char_id = char_id|default('') %}
+{% set greetings = greetings|default([]) %}
+{% set greeting_idx = greeting_idx|default(0) %}
+{% set focus = focus|default(false) %}
+{% set entity_name = entity_name|default('Character') %}
+<div
+  class="form-group mb-0"
+  id="edit-{{ prefix }}-greeting-section"
+>
+  <div class="flex items-center justify-between mb-1">
+    <label class="font-semibold text-muted block" style="margin-bottom:0">Greeting</label>
+    <div class="flex items-center gap-1">
+      <button
+        type="button"
+        class="btn btn-secondary btn-sm btn-compact"
+        id="edit-{{ prefix }}-greeting-prev"
+        hx-post="/partials/character-greeting/{{ char_id }}"
+        hx-target="#edit-{{ prefix }}-greeting-section"
+        hx-swap="outerHTML"
+        hx-include="closest form"
+        hx-disabled-elt="this"
+        hx-vals='{"action": "prev"}'
+        {% if not greetings or greeting_idx == 0 %}disabled{% endif %}
+        title="Previous greeting"
+        aria-label="Previous greeting"
+      >
+        {{ icon_chevron_left(14) }}
+      </button>
+      <span id="edit-{{ prefix }}-greeting-count" class="text-xs text-muted font-semibold w-9 text-center">{{ (greeting_idx + 1) if greetings else 0 }}/{{ greetings|length }}</span>
+      <button
+        type="button"
+        class="btn btn-secondary btn-sm btn-compact"
+        id="edit-{{ prefix }}-greeting-next"
+        hx-post="/partials/character-greeting/{{ char_id }}"
+        hx-target="#edit-{{ prefix }}-greeting-section"
+        hx-swap="outerHTML"
+        hx-include="closest form"
+        hx-disabled-elt="this"
+        hx-vals='{"action": "next"}'
+        {% if not greetings or greeting_idx >= greetings|length - 1 %}disabled{% endif %}
+        title="Next greeting"
+        aria-label="Next greeting"
+      >
+        {{ icon_chevron_right(14) }}
+      </button>
+      <button
+        type="button"
+        class="btn btn-secondary btn-edit btn-sm btn-compact"
+        hx-post="/partials/character-greeting/{{ char_id }}"
+        hx-target="#edit-{{ prefix }}-greeting-section"
+        hx-swap="outerHTML"
+        hx-include="closest form"
+        hx-disabled-elt="this"
+        hx-vals='{"action": "add"}'
+        title="Add greeting variant"
+        aria-label="Add greeting variant"
+      >
+        {{ icon_plus(14) }}
+      </button>
+      <button
+        type="button"
+        class="btn btn-secondary btn-delete-icon btn-sm btn-compact"
+        id="edit-{{ prefix }}-greeting-delete"
+        hx-post="/partials/character-greeting/{{ char_id }}"
+        hx-target="#edit-{{ prefix }}-greeting-section"
+        hx-swap="outerHTML"
+        hx-include="closest form"
+        hx-disabled-elt="this"
+        hx-confirm="Delete this greeting variant?"
+        hx-vals='{"action": "delete"}'
+        {% if not greetings %}disabled{% endif %}
+        title="Delete greeting"
+        aria-label="Delete greeting"
+      >
+        {{ icon_trash(14) }}
+      </button>
+    </div>
+  </div>
+  <div class="textarea-wrapper">
+    <textarea
+      name="greeting"
+      id="edit-{{ prefix }}-greeting"
+      rows="4"
+      class="form-control w-full"
+      style="resize: none"
+      {% if focus %}autofocus{% endif %}
+    >{{ greetings[greeting_idx] if greetings else '' }}</textarea>
+    <button
+      type="button"
+      class="expand-btn"
+      aria-label="Expand text area"
+      data-action="actionOpenTextExpander" data-target-id="edit-{{ prefix }}-greeting" data-expander-title="Edit {{ entity_name }} Greeting"
+    >
+      {{ icon_expand(18) }}
+    </button>
+  </div>
+  <input type="hidden" name="greetings_json" value='{{ greetings | tojson }}' />
+  <input type="hidden" name="greeting_idx" value="{{ greeting_idx }}" />
+</div>

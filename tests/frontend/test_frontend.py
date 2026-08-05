@@ -123,9 +123,9 @@ TEMPLATES_THAT_RENDER = [
     ("modals/itemizer.html", {}),
     ("modals/confirm.html", {}),
     ("modals/edit-entity.html", {"prefix": "char", "modal_id": "modal-edit-character", "entity_name": "Character", "upload_fn": "uploadCharModalMedia", "avatar_fn": "uploadCharacterAvatar", "submit_fn": "submitEditCharacter"}),
-    ("modals/edit-entity.html", {"prefix": "char", "modal_id": "modal-edit-character", "entity_name": "Character", "upload_fn": "uploadCharModalMedia", "avatar_fn": "uploadCharacterAvatar", "submit_fn": "submitEditCharacter", "show_greetings": True, "greeting_prev_fn": "charGreetingPrev", "greeting_next_fn": "charGreetingNext", "greeting_add_fn": "charGreetingAdd", "greeting_delete_fn": "charGreetingDelete", "greeting_input_fn": "charGreetingInput"}),
+    ("modals/edit-entity.html", {"prefix": "char", "modal_id": "modal-edit-character", "entity_name": "Character", "upload_fn": "uploadCharModalMedia", "avatar_fn": "uploadCharacterAvatar", "submit_fn": "submitEditCharacter", "show_greetings": True}),
     ("modals/edit-entity.html", {"prefix": "persona", "modal_id": "modal-edit-persona", "entity_name": "Persona", "upload_fn": "uploadPersonaMedia", "avatar_fn": "uploadPersonaAvatar", "submit_fn": "submitEditPersona"}),
-    ("modals/edit-entity.html", {"prefix": "persona", "modal_id": "modal-edit-persona", "entity_name": "Persona", "upload_fn": "uploadPersonaMedia", "avatar_fn": "uploadPersonaAvatar", "submit_fn": "submitEditPersona", "show_greetings": True, "greeting_prev_fn": "charGreetingPrev", "greeting_next_fn": "charGreetingNext", "greeting_add_fn": "charGreetingAdd", "greeting_delete_fn": "charGreetingDelete", "greeting_input_fn": "charGreetingInput"}),
+    ("modals/edit-entity.html", {"prefix": "persona", "modal_id": "modal-edit-persona", "entity_name": "Persona", "upload_fn": "uploadPersonaMedia", "avatar_fn": "uploadPersonaAvatar", "submit_fn": "submitEditPersona", "show_greetings": True}),
     ("modals/backup.html", {}),
     ("modals/provider-create.html", {}),
     ("modals/text-expander.html", {}),
@@ -157,71 +157,96 @@ def test_edit_entity_greeting_section_char_only():
         "submit_fn": "sub",
     }
 
-    char_html = tmpl.render(
-        {
-            **base,
-            "prefix": "char",
-            "show_greetings": True,
-            "greeting_prev_fn": "charGreetingPrev",
-            "greeting_next_fn": "charGreetingNext",
-            "greeting_add_fn": "charGreetingAdd",
-            "greeting_delete_fn": "charGreetingDelete",
-            "greeting_input_fn": "charGreetingInput",
-        }
-    )
-    assert "edit-char-greeting" in char_html
+    char_html = tmpl.render({**base, "prefix": "char", "show_greetings": True})
+    assert "edit-char-greeting-section" in char_html
+    assert 'name="greetings_json"' in char_html
+    assert 'name="greeting_idx"' in char_html
+    assert 'hx-post="/partials/character-greeting/' in char_html
+    assert 'id="edit-char-greeting-count"' in char_html
+    assert 'hx-confirm="Delete this greeting variant?"' in char_html
+    section = char_html[char_html.index('id="edit-char-greeting-section"') :]
+    section = section[: section.index('name="greeting_idx"')]
+    assert len(re.findall(r"(?m)^\s*disabled\s*$", section)) == 3, "empty state disables prev/next/delete"
 
     persona_html = tmpl.render(
-        {
-            **base,
-            "prefix": "persona",
-            "show_greetings": True,  # simulate the set-var leak from chat.html
-            "greeting_prev_fn": "charGreetingPrev",
-            "greeting_next_fn": "charGreetingNext",
-            "greeting_add_fn": "charGreetingAdd",
-            "greeting_delete_fn": "charGreetingDelete",
-            "greeting_input_fn": "charGreetingInput",
-        }
+        {**base, "prefix": "persona", "show_greetings": True}  # simulate the set-var leak from chat.html
     )
     assert "Greeting" not in persona_html
     assert "greeting" not in persona_html
 
 
-def test_character_card_greetings_data_attribute():
-    """data-char-greetings on both edit buttons (full + compact view) carries
-    the combined first_mes + alternate_greetings list (whitespace-only entries
-    are filtered by the modal JS at load time, not by the template)."""
-    tmpl = env.get_template("modals/character-card.html")
+def test_greeting_section_renders_with_values():
+    """The greeting section partial renders the active variant, count, hidden
+    working state, and per-position disabled states server-side."""
+    tmpl = env.get_template("modals/greeting-section.html")
 
-    def render(card):
-        char = {
-            "id": "c1",
-            "name": "Test",
-            "image_path": None,
-            "created_at": "2026-01-01",
-            "theme_id": None,
-            "card": card,
-            "images": [],
+    rendered = tmpl.render(
+        {
+            "prefix": "char",
+            "char_id": "c1",
+            "greetings": ["Hi", "Hello", "Howdy"],
+            "greeting_idx": 1,
+            "entity_name": "Character",
         }
-        return tmpl.render(char=char, current_character_id="", compact_view=False)
+    )
+    assert "Hello" in rendered
+    assert "2/3" in rendered
+    assert 'value=\'["Hi", "Hello", "Howdy"]\'' in rendered
+    assert 'name="greeting_idx" value="1"' in rendered
+    assert "hx-post=\"/partials/character-greeting/c1\"" in rendered
+    assert not re.findall(r"(?m)^\s*disabled\s*$", rendered), "middle variant enables all controls"
 
-    def greetings(rendered):
-        return [
-            json.loads(html_module.unescape(m))
-            for m in re.findall(r'data-char-greetings="([^"]*)"', rendered)
-        ]
+    rendered = tmpl.render(
+        {
+            "prefix": "char",
+            "char_id": "c1",
+            "greetings": ["Hi"],
+            "greeting_idx": 0,
+            "entity_name": "Character",
+        }
+    )
+    assert len(re.findall(r"(?m)^\s*disabled\s*$", rendered)) == 2, "first-and-only variant disables prev/next"
 
-    rendered = render({"first_mes": "Hi", "alternate_greetings": ["A", "B"]})
-    assert greetings(rendered) == [["Hi", "A", "B"], ["Hi", "A", "B"]]
+    rendered = tmpl.render(
+        {
+            "prefix": "char",
+            "char_id": "c1",
+            "greetings": [],
+            "greeting_idx": 0,
+            "entity_name": "Character",
+        }
+    )
+    assert "0/0" in rendered
+    assert len(re.findall(r"(?m)^\s*disabled\s*$", rendered)) == 3, "empty list disables all controls"
 
-    rendered = render({"first_mes": "Hi", "alternate_greetings": None})
-    assert greetings(rendered) == [["Hi"], ["Hi"]]
+    rendered = tmpl.render(
+        {
+            "prefix": "char",
+            "char_id": "c1",
+            "greetings": [],
+            "greeting_idx": 0,
+            "focus": True,
+            "entity_name": "Character",
+        }
+    )
+    assert "autofocus" in rendered, "add action renders textarea with autofocus"
 
-    rendered = render({})
-    assert greetings(rendered) == [[], []]
 
-    rendered = render({"first_mes": "", "alternate_greetings": []})
-    assert greetings(rendered) == [[], []]
+def test_character_card_has_no_greetings_data():
+    """The card no longer embeds the greetings list — the edit modal fetches
+    it from the server on open."""
+    tmpl = env.get_template("modals/character-card.html")
+    char = {
+        "id": "c1",
+        "name": "Test",
+        "image_path": None,
+        "created_at": "2026-01-01",
+        "theme_id": None,
+        "card": {"first_mes": "Hi", "alternate_greetings": ["A", "B"]},
+        "images": [],
+    }
+    rendered = tmpl.render(char=char, current_character_id="", compact_view=False)
+    assert "data-char-greetings" not in rendered
 
 
 def test_modal_shell_macro_compiles():

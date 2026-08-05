@@ -75,6 +75,9 @@ class CharacterUpdate(BaseModel):
     first_mes: str | None = None
     alternate_greetings: list[str] | None = None
     theme_id: str | None = None
+    greeting: str | None = None
+    greetings_json: str | None = None
+    greeting_idx: int | None = None
 
 
 class BlockType(StrEnum):
