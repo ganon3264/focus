@@ -58,8 +58,16 @@
 
     var syncGreeting = function () {
       var el = greetingEl();
-      if (!el || greetings.length === 0) return;
-      greetings[gIdx] = el.value;
+      if (!el) return;
+      if (greetings.length === 0) {
+        if (el.value) {
+          greetings = [el.value];
+          gIdx = 0;
+          renderGreeting();
+        }
+      } else {
+        greetings[gIdx] = el.value;
+      }
     };
 
     var renderGreeting = function () {
@@ -77,7 +85,9 @@
     };
 
     var loadGreetings = function (list) {
-      greetings = Array.isArray(list) ? list.filter(function (g) { return g != null; }) : [];
+      greetings = Array.isArray(list)
+        ? list.filter(function (g) { return typeof g === 'string' && g.trim() !== ''; })
+        : [];
       gIdx = 0;
       renderGreeting();
     };
@@ -269,11 +279,13 @@
 
       window[cfg.greetingDeleteFn] = function () {
         if (greetings.length === 0) return;
-        syncGreeting();
-        greetings.splice(gIdx, 1);
-        if (gIdx > greetings.length - 1) gIdx = greetings.length - 1;
-        if (gIdx < 0) gIdx = 0;
-        renderGreeting();
+        window.openConfirmModal('Delete this greeting variant?', function () {
+          syncGreeting();
+          greetings.splice(gIdx, 1);
+          if (gIdx > greetings.length - 1) gIdx = greetings.length - 1;
+          if (gIdx < 0) gIdx = 0;
+          renderGreeting();
+        });
       };
 
       window[cfg.greetingPrevFn] = function () {
@@ -315,7 +327,7 @@
         if (!r.ok) return;
         window.closeModal(mid);
         window.showSuccessToast(cfg.dataPrefix === 'char' ? 'Character saved' : 'Persona saved');
-        if (cfg.dataPrefix === 'Char') {
+        if (cfg.dataPrefix === 'char') {
           window.dispatchEvent(new CustomEvent('character-edited', { detail: { id: id } }));
         }
         if (cfg.cardEndpoint && cfg.gridId) {

@@ -37,6 +37,7 @@ global.openModal = function () {};
 global.closeModal = function () {};
 global.showSuccessToast = function () {};
 global.showInfoToast = function () {};
+global.openConfirmModal = function (message, callback) { callback(); };
 global.FormData = function (form) {
   this._fields = {};
   this.append = function (k, v) { this._fields[k] = v; };
@@ -295,6 +296,47 @@ assert(typeof window.createEditModalHandlers === 'function', 'createEditModalHan
   assertEqual(captured.first_mes, 'Fresh', 'submit maps first variant to first_mes');
   assertDeepEqual(captured.alternate_greetings, ['Alt B'], 'submit maps rest to alternate_greetings');
   assertEqual(captured.greeting, undefined, 'submit strips raw greeting field');
+
+  global.fetch = oldFetch;
+  global.FormData = oldFormData;
+  global.resolveFormFromEvent = oldResolve;
+  doc.getElementById = origGet;
+
+  // ── load filters whitespace-only variants, matching submit ──
+  btn.dataset.charGreetings = JSON.stringify(['Hi', '  ', '', 'B']);
+  doc.getElementById = function (id) { return doc.querySelector('#' + id); };
+  window.openEditG2(btn);
+  assertEqual(count.textContent, '1/2', 'whitespace-only variants filtered on load');
+  assertEqual(ta.value, 'Hi', 'first non-empty greeting shown');
+  window.g2GreetingNext();
+  assertEqual(ta.value, 'B', 'next skips filtered variants');
+
+  // ── syncGreeting fall-through: programmatic edits survive submit ──
+  var fetchFn2 = h.createMockFetch({ ok: true, json: function () { return {}; } });
+  global.fetch = fetchFn2;
+  global.FormData = h.createMockFormData();
+  global.resolveFormFromEvent = function (e) { return e._form; };
+
+  btn.dataset.charGreetings = '[]';
+  window.openEditG2(btn);
+  assertEqual(count.textContent, '0/0', 'reopen with no greetings shows 0/0');
+
+  ta.value = 'Programmatic';
+  window.submitEditG2({ preventDefault: function () {}, _form: { _fields: { name: 'N' } } });
+  captured = JSON.parse(fetchFn2._last().opts.body);
+  assertEqual(captured.first_mes, 'Programmatic', 'submit captures text set without input events');
+  assertDeepEqual(captured.alternate_greetings, [], 'single programmatic greeting stays first_mes');
+
+  // ── delete cancel keeps the variant ──
+  var oldConfirm = global.openConfirmModal;
+  global.openConfirmModal = function () {}; // cancel
+  btn.dataset.charGreetings = JSON.stringify(['Keep me']);
+  window.openEditG2(btn);
+  assertEqual(count.textContent, '1/1', 'reopen with one greeting');
+  window.g2GreetingDelete();
+  assertEqual(count.textContent, '1/1', 'cancel keeps the variant');
+  assertEqual(ta.value, 'Keep me', 'cancel leaves textarea intact');
+  global.openConfirmModal = oldConfirm;
 
   global.fetch = oldFetch;
   global.FormData = oldFormData;

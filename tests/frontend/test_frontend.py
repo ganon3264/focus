@@ -3,6 +3,8 @@
 Checks Jinja2 template compilation, static asset references, and CSS syntax.
 """
 
+import html as html_module
+import json
 import re
 from pathlib import Path
 
@@ -183,6 +185,43 @@ def test_edit_entity_greeting_section_char_only():
     )
     assert "Greeting" not in persona_html
     assert "greeting" not in persona_html
+
+
+def test_character_card_greetings_data_attribute():
+    """data-char-greetings on both edit buttons (full + compact view) carries
+    the combined first_mes + alternate_greetings list (whitespace-only entries
+    are filtered by the modal JS at load time, not by the template)."""
+    tmpl = env.get_template("modals/character-card.html")
+
+    def render(card):
+        char = {
+            "id": "c1",
+            "name": "Test",
+            "image_path": None,
+            "created_at": "2026-01-01",
+            "theme_id": None,
+            "card": card,
+            "images": [],
+        }
+        return tmpl.render(char=char, current_character_id="", compact_view=False)
+
+    def greetings(rendered):
+        return [
+            json.loads(html_module.unescape(m))
+            for m in re.findall(r'data-char-greetings="([^"]*)"', rendered)
+        ]
+
+    rendered = render({"first_mes": "Hi", "alternate_greetings": ["A", "B"]})
+    assert greetings(rendered) == [["Hi", "A", "B"], ["Hi", "A", "B"]]
+
+    rendered = render({"first_mes": "Hi", "alternate_greetings": None})
+    assert greetings(rendered) == [["Hi"], ["Hi"]]
+
+    rendered = render({})
+    assert greetings(rendered) == [[], []]
+
+    rendered = render({"first_mes": "", "alternate_greetings": []})
+    assert greetings(rendered) == [[], []]
 
 
 def test_modal_shell_macro_compiles():

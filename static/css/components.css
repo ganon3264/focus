@@ -87,11 +87,11 @@
     opacity: 0;
     outline: none;
   }
-  .textarea-wrapper:hover .expand-btn {
-    opacity: 1;
-  }
   .textarea-wrapper:focus-within .expand-btn {
     opacity: 0.3;
+  }
+  .textarea-wrapper:hover .expand-btn {
+    opacity: 1;
   }
   .expand-btn:hover {
     color: var(--text);
