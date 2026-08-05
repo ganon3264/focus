@@ -32,6 +32,7 @@
   }
   .form-control-xs {
     width: 56px;
+    height: 20px;
     padding: 2px 4px;
     font-size: 0.8rem;
   }
@@ -79,8 +80,8 @@
     background: var(--surface-3);
     border: 1px solid var(--border);
     color: var(--text-muted);
-    width: 26px;
-    height: 26px;
+    width: var(--control-icon-lg);
+    height: var(--control-icon-lg);
     border-radius: var(--radius-sm);
     font-size: 1.1rem;
     opacity: 0;
@@ -173,6 +174,12 @@
     padding: 0.2rem 0.4rem;
     min-width: 0;
   }
+  .btn-icon {
+    width: var(--control-btn);
+    height: var(--control-btn);
+    padding: 0;
+    flex-shrink: 0;
+  }
   .btn-hero {
     padding: 0.75rem 2rem;
     font-size: 1rem;
@@ -241,8 +248,8 @@
 
   /* Radio Switch for variable options */
   .radio-switch {
-    width: 16px;
-    height: 16px;
+    width: 18px;
+    height: 18px;
     border-radius: 50%;
     border: 2px solid var(--border);
     display: grid;
@@ -259,8 +266,8 @@
     border-color: var(--accent);
   }
   .radio-switch .radio-inner {
-    width: 7px;
-    height: 7px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
     background: transparent;
     transition: all var(--transition);
@@ -297,11 +304,6 @@
   }
   .var-option-item:hover {
     border-color: var(--border-hover);
-  }
-  .var-option-item .action-icon {
-    width: 20px;
-    height: 20px;
-    flex-shrink: 0;
   }
 
   /* Prompt Arranger Drag & Drop */
@@ -357,7 +359,7 @@
   }
   .arranger-handle {
     width: 14px;
-    height: 24px;
+    height: var(--control-slim);
     cursor: grab;
     flex-shrink: 0;
     display: flex;
@@ -450,11 +452,16 @@
     background: var(--surface-3);
     border: 1px solid transparent;
     color: var(--text-muted);
-    width: 24px;
-    height: 24px;
+    width: var(--control-icon);
+    height: var(--control-icon);
     border-radius: var(--radius-sm);
     font-size: 0.75rem;
     line-height: 1;
+  }
+  .action-icon.slim {
+    width: var(--control-slim);
+    height: var(--control-slim);
+    font-size: 0.625rem;
   }
   .action-icon:hover {
     background: var(--border-hover);
@@ -731,7 +738,11 @@
   .slot-btn {
     font-size: 11px;
     font-weight: bold;
-    padding: 2px 0;
+    height: 24px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     border-radius: var(--radius-sm);
     border: 1px solid var(--border);
     background: var(--surface-2);

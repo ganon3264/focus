@@ -31,16 +31,15 @@ Customizer', max_width='520px', width='90vw', content_style='', z_index='100') %
           Light
         </button>
         <button
-          class="btn btn-danger btn-sm"
-          style="width: 26px; padding: 0.2rem 0; min-width: 0"
+          class="action-icon danger"
           x-show="!t.is_system"
           @click.stop="remove(t.id, t.name)"
           title="Delete theme"
           aria-label="Delete theme"
         >
-          {{ icon_trash(size=12) }}
+          {{ icon_trash(size=14) }}
         </button>
-        <span x-show="t.is_system" style="width: 26px; flex-shrink: 0;"></span>
+        <span x-show="t.is_system" style="width: 24px; flex-shrink: 0;"></span>
       </div>
     </template>
     <div x-show="themes.length === 0" class="text-muted text-center text-sm py-4 border border-dashed border-(--border) rounded-lg">

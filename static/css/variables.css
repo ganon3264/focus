@@ -56,6 +56,12 @@
   /* Text-on-accent for buttons — override in theme presets if needed */
   --text-on-accent: white;
 
+  /* Control sizing scale — single source of truth */
+  --control-slim: 18px; /* icon buttons in toggle rows — matches the 32x18 pill height */
+  --control-icon: 24px; /* dense icon buttons: sidebar headers */
+  --control-icon-lg: 28px; /* standalone icon buttons: toolbar, textarea expander */
+  --control-btn: 36px; /* icon-only .btn variant for modal footers */
+
   /* Sidebar widths */
   --sidebar-width-left: 310px;
   --sidebar-width-right: 310px;

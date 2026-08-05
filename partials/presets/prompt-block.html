@@ -59,15 +59,15 @@ media_thumbnail, hint_tooltip %}
       {% if block.block_type != 'chat_history' %}
       <button
         type="button"
-        class="action-icon danger"
+        class="action-icon slim danger"
         title="Delete"
         aria-label="Delete block"
         onclick="promptDeleteBlock(this)"
       >
-        {{ icon_close(16) }}
+        {{ icon_close(12) }}
       </button>
       {% else %}
-      <div style="width: 24px; height: 24px"></div>
+      <div style="width: 18px; height: 18px"></div>
       {% endif %}
     </div>
   </div>

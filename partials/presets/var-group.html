@@ -28,8 +28,8 @@
                <div class="radio-inner"></div>
             </div>
              <span class="text-xs font-semibold truncate flex-1" style="min-width: 0; cursor: pointer;" onclick="this.closest('.var-option-item').querySelector('.radio-switch').click()">{{ vlabel }}</span>
-            <button type="button" class="action-icon" title="Edit Option" aria-label="Edit option" data-var-id="{{ vb.id }}" data-var-name="{{ vname }}" data-var-label="{{ vlabel }}" onclick="openVarEditModal(this)">{{ icon_edit() }}</button>
-            <button type="button" class="action-icon danger" title="Delete Option" aria-label="Delete option" data-var-id="{{ vb.id }}" onclick="window.customConfirm('Delete variable option?', function(){ handleVarDelete(this); }.bind(this))">{{ icon_close(16) }}</button>
+            <button type="button" class="action-icon slim" title="Edit Option" aria-label="Edit option" data-var-id="{{ vb.id }}" data-var-name="{{ vname }}" data-var-label="{{ vlabel }}" onclick="openVarEditModal(this)">{{ icon_edit(12) }}</button>
+            <button type="button" class="action-icon slim danger" title="Delete Option" aria-label="Delete option" data-var-id="{{ vb.id }}" onclick="window.customConfirm('Delete variable option?', function(){ handleVarDelete(this); }.bind(this))">{{ icon_close(12) }}</button>
           </div>
         {% endfor %}
         <div class="flex items-center gap-1 p-1.5 rounded w-full min-w-0 radio-add-row" data-var-name="{{ vname }}" onclick="event.stopPropagation(); openVarEditModal(this)">

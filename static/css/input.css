@@ -81,8 +81,8 @@
     background: transparent;
     border: none;
     color: var(--text-muted);
-    width: 28px;
-    height: 28px;
+    width: var(--control-icon-lg);
+    height: var(--control-icon-lg);
     border-radius: var(--radius-sm);
     font-size: 0.85rem;
     line-height: 1;

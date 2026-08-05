@@ -52,20 +52,19 @@
 
   <!-- Available Tools List -->
   <div x-show="enabled && providerSupportsTools" class="flex flex-col flex-1 min-h-0">
-    <div class="flex items-center gap-2 mb-2 shrink-0">
+    <div class="flex items-center gap-2 mb-2 shrink-0 h-8">
       <div class="flex-1 relative">
         <span class="absolute left-2.5 top-1/2 -translate-y-1/2 flex text-muted pointer-events-none">{{ icon_search(size=14) }}</span>
         <input
           type="text"
           placeholder="Search tools..."
           x-model="searchQuery"
-          class="search-input text-sm w-full"
+          class="search-input text-sm w-full h-full"
         >
       </div>
       {{ sort_dropdown('focus_tools_sort', 'sortTools') }}
       <button
-        class="flex items-center text-sm cursor-pointer shrink-0"
-        style="padding:0.35rem 0.5rem;background:var(--surface-2);border:1px solid var(--border);color:var(--text-muted);border-radius:var(--radius-sm)"
+        class="btn btn-secondary btn-sm flex items-center justify-center shrink-0 h-full"
         @click="reloadTools()"
         x-text="reloading ? 'Reloading...' : 'Reload'"
       ></button>
