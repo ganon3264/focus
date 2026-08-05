@@ -1,11 +1,12 @@
 @echo off
 where uv >nul 2>nul
 if %errorlevel% equ 0 (
-    uv sync --group dev
+    uv sync --locked --group dev
     uv run pytest tests/ -v --cov=focus --cov-report=term-missing %*
 ) else (
     echo UV not found, using regular python venv.
     if not exist ".venv" python -m venv .venv
-    .venv\Scripts\pip install -e ".[test]"
+    .venv\Scripts\pip install --require-hashes -r requirements.lock.txt
+    .venv\Scripts\pip install -e . --no-deps
     .venv\Scripts\pytest tests/ -v --cov=focus --cov-report=term-missing %*
 )

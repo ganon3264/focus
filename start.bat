@@ -11,6 +11,7 @@ if %errorlevel% equ 0 (
 ) else (
     echo UV not found, using regular python venv.
     if not exist ".venv" python -m venv .venv
-    .venv\Scripts\pip install -e .
+    .venv\Scripts\pip install --require-hashes -r requirements.lock.txt
+    .venv\Scripts\pip install -e . --no-deps
     .venv\Scripts\python main.py --host=%FOCUS_HOST% --port=%FOCUS_PORT%
 )

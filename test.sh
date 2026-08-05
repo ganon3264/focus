@@ -2,12 +2,13 @@
 # Run tests with coverage.  Pass extra args, e.g. -k "test_name".
 # Use --no-cov to skip coverage (just tests).
 if command -v uv &>/dev/null; then
-  uv sync --group dev
+  uv sync --locked --group dev
   RUNNER="uv run pytest"
 else
   echo "UV not found, using regular python venv."
   [ -d ".venv" ] || python -m venv .venv
-  .venv/bin/pip install -e ".[test]"
+  .venv/bin/pip install --require-hashes -r requirements.lock.txt
+  .venv/bin/pip install -e . --no-deps
   RUNNER=".venv/bin/pytest"
 fi
 

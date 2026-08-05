@@ -13,6 +13,7 @@ if command -v uv &>/dev/null; then
 else
   echo "UV not found, using regular python venv."
   [ -d ".venv" ] || python -m venv .venv
-  .venv/bin/pip install -e .
+  .venv/bin/pip install --require-hashes -r requirements.lock.txt
+  .venv/bin/pip install -e . --no-deps
   exec .venv/bin/python main.py --host "${FOCUS_HOST:-127.0.0.1}" --port "${FOCUS_PORT:-8000}"
 fi
