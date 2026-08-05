@@ -38,6 +38,7 @@
           data-char-image="{{ char.image_path or '' }}"
           data-char-theme="{{ char.theme_id or '' }}"
           data-char-media="{{ char.images | tojson | forceescape }}"
+          data-char-greetings="{{ (([char.card.get('first_mes','')] if char.card.get('first_mes') else []) + (char.card.get('alternate_greetings') or [])) | tojson | forceescape }}"
           onclick="event.stopPropagation(); openEditCharacterModal(this);"
           aria-label="Edit character"
         >
@@ -91,6 +92,7 @@
           data-char-image="{{ char.image_path or '' }}"
           data-char-theme="{{ char.theme_id or '' }}"
           data-char-media="{{ char.images | tojson | forceescape }}"
+          data-char-greetings="{{ (([char.card.get('first_mes','')] if char.card.get('first_mes') else []) + (char.card.get('alternate_greetings') or [])) | tojson | forceescape }}"
           onclick="event.stopPropagation(); openEditCharacterModal(this);"
           aria-label="Edit character"
         >

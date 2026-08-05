@@ -30,6 +30,58 @@
     };
     var mid = cfg.modalId;
 
+    var greetings = [];
+    var gIdx = 0;
+
+    var greetingEl = function () {
+      return eid('-greeting');
+    };
+    var greetingCountEl = function () {
+      return eid('-greeting-count');
+    };
+    var greetingPrevBtn = function () {
+      return eid('-greeting-prev');
+    };
+    var greetingNextBtn = function () {
+      return eid('-greeting-next');
+    };
+    var greetingDeleteBtn = function () {
+      return eid('-greeting-delete');
+    };
+
+    var setGreetingDisabled = function (el, disabled) {
+      if (!el) return;
+      el.disabled = disabled;
+      el.style.opacity = disabled ? '0.4' : '';
+      el.style.cursor = disabled ? 'not-allowed' : '';
+    };
+
+    var syncGreeting = function () {
+      var el = greetingEl();
+      if (!el || greetings.length === 0) return;
+      greetings[gIdx] = el.value;
+    };
+
+    var renderGreeting = function () {
+      var el = greetingEl();
+      var countEl = greetingCountEl();
+      if (el) {
+        var val = greetings.length ? greetings[gIdx] : '';
+        if (el.value !== val) el.value = val;
+      }
+      if (countEl) countEl.textContent = greetings.length ? (gIdx + 1) + '/' + greetings.length : '0/0';
+      var empty = greetings.length === 0;
+      setGreetingDisabled(greetingPrevBtn(), empty || gIdx === 0);
+      setGreetingDisabled(greetingNextBtn(), empty || gIdx >= greetings.length - 1);
+      setGreetingDisabled(greetingDeleteBtn(), empty);
+    };
+
+    var loadGreetings = function (list) {
+      greetings = Array.isArray(list) ? list.filter(function (g) { return g != null; }) : [];
+      gIdx = 0;
+      renderGreeting();
+    };
+
     window[cfg.uploadFileFn] = function (file) {
       var id = eid('-id').value;
       if (!id) return;
@@ -104,6 +156,15 @@
         )
           el.remove();
       });
+      if (cfg.greetings) {
+        var glist = [];
+        try {
+          glist = JSON.parse(btn.dataset[P + 'Greetings'] || '[]');
+        } catch (e) {
+          console.error(e);
+        }
+        loadGreetings(glist);
+      }
       var phText = s.querySelector('.block-media-placeholder');
       var list = [];
       try {
@@ -185,6 +246,51 @@
       input.value = '';
     };
 
+    if (cfg.greetings) {
+      window[cfg.greetingInputFn] = function () {
+        var el = greetingEl();
+        if (!el) return;
+        if (greetings.length === 0) {
+          greetings = [el.value];
+          renderGreeting();
+        } else {
+          greetings[gIdx] = el.value;
+        }
+      };
+
+      window[cfg.greetingAddFn] = function () {
+        syncGreeting();
+        greetings.push('');
+        gIdx = greetings.length - 1;
+        renderGreeting();
+        var el = greetingEl();
+        if (el) el.focus();
+      };
+
+      window[cfg.greetingDeleteFn] = function () {
+        if (greetings.length === 0) return;
+        syncGreeting();
+        greetings.splice(gIdx, 1);
+        if (gIdx > greetings.length - 1) gIdx = greetings.length - 1;
+        if (gIdx < 0) gIdx = 0;
+        renderGreeting();
+      };
+
+      window[cfg.greetingPrevFn] = function () {
+        if (gIdx <= 0) return;
+        syncGreeting();
+        gIdx -= 1;
+        renderGreeting();
+      };
+
+      window[cfg.greetingNextFn] = function () {
+        if (gIdx >= greetings.length - 1) return;
+        syncGreeting();
+        gIdx += 1;
+        renderGreeting();
+      };
+    }
+
     window[cfg.submitFn] = function (e) {
       e.preventDefault();
       var id = eid('-id').value;
@@ -192,6 +298,15 @@
       var form = window.resolveFormFromEvent(e);
       if (!form) return;
       var data = Object.fromEntries(new FormData(form));
+      if (cfg.greetings) {
+        syncGreeting();
+        delete data.greeting;
+        var list = greetings.filter(function (g) {
+          return g.trim() !== '';
+        });
+        data.first_mes = list[0] || '';
+        data.alternate_greetings = list.slice(1);
+      }
       fetch(cfg.apiGet(id), {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },

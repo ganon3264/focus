@@ -90,6 +90,9 @@
   .textarea-wrapper:hover .expand-btn {
     opacity: 1;
   }
+  .textarea-wrapper:focus-within .expand-btn {
+    opacity: 0.3;
+  }
   .expand-btn:hover {
     color: var(--text);
     background: var(--border-hover);

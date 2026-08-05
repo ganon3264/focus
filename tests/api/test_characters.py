@@ -84,6 +84,31 @@ class TestCharacters:
         assert card["data"]["personality"] == "Grumpy"
         assert card["data"]["description"] == "Desc"
 
+    async def test_update_greetings_round_trip(self, client):
+        c = await create_character(client, "Greeter", first_mes="Hello", alternate_greetings=["Alt A"])
+        await client.patch(
+            f"/api/characters/{c['id']}",
+            json={
+                "first_mes": "New opening",
+                "alternate_greetings": ["Variant 1", "Variant 2"],
+            },
+        )
+        resp = await client.get(f"/api/characters/{c['id']}")
+        card = resp.json()["card"]
+        assert card["data"]["first_mes"] == "New opening"
+        assert card["data"]["alternate_greetings"] == ["Variant 1", "Variant 2"]
+
+    async def test_update_greetings_clears_all(self, client):
+        c = await create_character(client, "NoGreet", first_mes="Hi", alternate_greetings=["Alt"])
+        await client.patch(
+            f"/api/characters/{c['id']}",
+            json={"first_mes": "", "alternate_greetings": []},
+        )
+        resp = await client.get(f"/api/characters/{c['id']}")
+        card = resp.json()["card"]
+        assert card["data"]["first_mes"] == ""
+        assert card["data"]["alternate_greetings"] == []
+
     async def test_soft_delete_and_trash(self, client):
         c = await create_character(client, "Deletable")
         await client.delete(f"/api/characters/{c['id']}")

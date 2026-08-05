@@ -121,7 +121,9 @@ TEMPLATES_THAT_RENDER = [
     ("modals/itemizer.html", {}),
     ("modals/confirm.html", {}),
     ("modals/edit-entity.html", {"prefix": "char", "modal_id": "modal-edit-character", "entity_name": "Character", "upload_fn": "uploadCharModalMedia", "avatar_fn": "uploadCharacterAvatar", "submit_fn": "submitEditCharacter"}),
+    ("modals/edit-entity.html", {"prefix": "char", "modal_id": "modal-edit-character", "entity_name": "Character", "upload_fn": "uploadCharModalMedia", "avatar_fn": "uploadCharacterAvatar", "submit_fn": "submitEditCharacter", "show_greetings": True, "greeting_prev_fn": "charGreetingPrev", "greeting_next_fn": "charGreetingNext", "greeting_add_fn": "charGreetingAdd", "greeting_delete_fn": "charGreetingDelete", "greeting_input_fn": "charGreetingInput"}),
     ("modals/edit-entity.html", {"prefix": "persona", "modal_id": "modal-edit-persona", "entity_name": "Persona", "upload_fn": "uploadPersonaMedia", "avatar_fn": "uploadPersonaAvatar", "submit_fn": "submitEditPersona"}),
+    ("modals/edit-entity.html", {"prefix": "persona", "modal_id": "modal-edit-persona", "entity_name": "Persona", "upload_fn": "uploadPersonaMedia", "avatar_fn": "uploadPersonaAvatar", "submit_fn": "submitEditPersona", "show_greetings": True, "greeting_prev_fn": "charGreetingPrev", "greeting_next_fn": "charGreetingNext", "greeting_add_fn": "charGreetingAdd", "greeting_delete_fn": "charGreetingDelete", "greeting_input_fn": "charGreetingInput"}),
     ("modals/backup.html", {}),
     ("modals/provider-create.html", {}),
     ("modals/text-expander.html", {}),
@@ -138,6 +140,49 @@ def test_template_renders(template_name, context):
     result = tmpl.render(context)
     assert isinstance(result, str)
     assert len(result) > 0
+
+
+def test_edit_entity_greeting_section_char_only():
+    """The greeting editor must render only for the char modal — even if the
+    show_greetings flag leaks from a previous {% set %} in the including page
+    (chat.html renders both entities from the same shared template)."""
+    tmpl = env.get_template("modals/edit-entity.html")
+    base = {
+        "modal_id": "modal-edit-entity",
+        "entity_name": "Entity",
+        "upload_fn": "up",
+        "avatar_fn": "av",
+        "submit_fn": "sub",
+    }
+
+    char_html = tmpl.render(
+        {
+            **base,
+            "prefix": "char",
+            "show_greetings": True,
+            "greeting_prev_fn": "charGreetingPrev",
+            "greeting_next_fn": "charGreetingNext",
+            "greeting_add_fn": "charGreetingAdd",
+            "greeting_delete_fn": "charGreetingDelete",
+            "greeting_input_fn": "charGreetingInput",
+        }
+    )
+    assert "edit-char-greeting" in char_html
+
+    persona_html = tmpl.render(
+        {
+            **base,
+            "prefix": "persona",
+            "show_greetings": True,  # simulate the set-var leak from chat.html
+            "greeting_prev_fn": "charGreetingPrev",
+            "greeting_next_fn": "charGreetingNext",
+            "greeting_add_fn": "charGreetingAdd",
+            "greeting_delete_fn": "charGreetingDelete",
+            "greeting_input_fn": "charGreetingInput",
+        }
+    )
+    assert "Greeting" not in persona_html
+    assert "greeting" not in persona_html
 
 
 def test_modal_shell_macro_compiles():
