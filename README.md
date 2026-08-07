@@ -67,5 +67,4 @@ After using it for a few years I've come to realization that I don't even use va
 
 ## Support
 
-On "if I feel like it" basis, or "this affects me personally" depending on the issue.
-Provided as is.
+I wouldn't want to overpromise anything. I'm just a one person, but if you have a suggestion or a bug report feel free to open an issue. I should respond within a day or two.
