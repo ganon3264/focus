@@ -24,6 +24,7 @@ class PersonaUpdate(BaseModel):
 
 
 @router.get("/")
+@router.get("")
 async def list_personas(_db=Depends(get_db)):
     async with _db.execute("SELECT * FROM personas WHERE is_deleted = 0 ORDER BY name") as cur:
         return [dict(r) for r in await cur.fetchall()]
@@ -38,6 +39,7 @@ async def list_trashed_personas(_db=Depends(get_db)):
 
 
 @router.post("/", status_code=201)
+@router.post("", status_code=201)
 async def create_persona(body: PersonaCreate, _db=Depends(get_db)):
     persona_id = await db.create_persona(_db, body.name, body.description)
     await _db.commit()

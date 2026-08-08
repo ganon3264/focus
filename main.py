@@ -76,7 +76,7 @@ async def lifespan(app: FastAPI):
     logger.info("Focus shutting down.")
 
 
-app = FastAPI(title="Focus", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="Focus", version="0.1.0", lifespan=lifespan, redirect_slashes=False)
 
 
 @app.middleware("http")
@@ -109,6 +109,33 @@ async def check_origin(request: Request, call_next):
                 )
                 return Response(status_code=403, content="Cross-origin request blocked")
     return await call_next(request)
+
+
+def _relativize_location(location: str, host: str) -> str:
+    """Rewrite a same-host absolute redirect Location to a relative path.
+
+    Absolute URLs built from the request scope (e.g. Starlette's trailing-slash
+    redirects) use the backend's internal scheme/host, which is wrong behind a
+    reverse proxy and gets blocked by browsers as mixed content. Foreign hosts
+    are left untouched.
+    """
+    parsed = urlparse(location)
+    if parsed.netloc and parsed.netloc == host:
+        prefix = f"{parsed.scheme}://{parsed.netloc}"
+        return location[len(prefix):] or "/"
+    return location
+
+
+@app.middleware("http")
+async def relative_redirects(request: Request, call_next):
+    response = await call_next(request)
+    if 300 <= response.status_code < 400:
+        location = response.headers.get("location")
+        if location:
+            response.headers["location"] = _relativize_location(
+                location, request.headers.get("host", "")
+            )
+    return response
 
 
 app.include_router(characters.router, prefix="/api/characters", tags=["characters"])

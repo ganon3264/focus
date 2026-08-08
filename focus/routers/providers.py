@@ -16,6 +16,7 @@ logger = get_logger("routers.providers")
 
 
 @router.post("/", status_code=201)
+@router.post("", status_code=201)
 async def create_provider(body: ProviderCreate, _db=Depends(get_db)):
     provider_id = await db.create_provider(
         _db, body.name, body.type, body.base_url, body.api_key, body.model, body.params,
@@ -25,6 +26,7 @@ async def create_provider(body: ProviderCreate, _db=Depends(get_db)):
 
 
 @router.get("/")
+@router.get("")
 async def list_providers(_db=Depends(get_db)):
     async with _db.execute(
         "SELECT id, name, type, base_url, api_key, model, params_json, created_at FROM providers ORDER BY name"

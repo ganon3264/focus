@@ -9,6 +9,7 @@ router = APIRouter()
 
 
 @router.get("/")
+@router.get("")
 async def get_settings(_db=Depends(get_db)):
     async with _db.execute("SELECT key, value FROM settings") as cur:
         rows = await cur.fetchall()
@@ -16,6 +17,7 @@ async def get_settings(_db=Depends(get_db)):
 
 
 @router.patch("/")
+@router.patch("")
 async def update_setting(body: SettingsUpdate, _db=Depends(get_db)):
     await db.upsert_setting(_db, body.key, body.value)
     await _db.commit()

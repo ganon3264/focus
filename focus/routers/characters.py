@@ -46,6 +46,7 @@ async def import_character(
 
 
 @router.post("/", status_code=201)
+@router.post("", status_code=201)
 async def create_character(body: CharacterCreate, _db=Depends(get_db)):
     char_id = await db.create_character(
         _db, body.name, body.description, body.personality,
@@ -111,6 +112,7 @@ async def upload_avatar(
 
 
 @router.get("/")
+@router.get("")
 async def list_characters(_db=Depends(get_db)):
     async with _db.execute(
         "SELECT id, name, image_path, created_at FROM characters WHERE is_deleted = 0 ORDER BY name"

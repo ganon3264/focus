@@ -13,6 +13,7 @@ router = APIRouter()
 
 
 @router.post("/", status_code=201)
+@router.post("", status_code=201)
 async def create_preset(name: str = Form(...), _db=Depends(get_db)):
     preset_id = await db.create_preset(_db, name)
     await _db.commit()
@@ -20,6 +21,7 @@ async def create_preset(name: str = Form(...), _db=Depends(get_db)):
 
 
 @router.get("/")
+@router.get("")
 async def list_presets(_db=Depends(get_db)):
     async with _db.execute("SELECT id, name, created_at FROM presets ORDER BY name") as cur:
         return [dict(r) for r in await cur.fetchall()]

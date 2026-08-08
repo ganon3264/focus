@@ -7,6 +7,7 @@ from focus.core.database import get_db
 router = APIRouter()
 
 
+@router.post("/", status_code=201)
 @router.post("", status_code=201)
 async def api_create_backup(db: aiosqlite.Connection = Depends(get_db)):
     try:
@@ -15,6 +16,7 @@ async def api_create_backup(db: aiosqlite.Connection = Depends(get_db)):
         raise HTTPException(500, f"Failed to create backup: {e}")
 
 
+@router.get("/")
 @router.get("")
 async def api_list_backups():
     return await list_backups()

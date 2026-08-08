@@ -16,6 +16,7 @@ router = APIRouter()
 
 
 @router.post("/", status_code=201)
+@router.post("", status_code=201)
 async def create_chat(body: ChatCreate, _db=Depends(get_db)):
     char_id = body.character_id if body.character_id else None
     pers_id = body.persona_id if body.persona_id else None
@@ -31,6 +32,7 @@ async def create_chat(body: ChatCreate, _db=Depends(get_db)):
 
 
 @router.get("/")
+@router.get("")
 async def list_chats(_db=Depends(get_db)):
     query = """
         SELECT c.*,
