@@ -178,9 +178,19 @@ class TestExport:
         exported_char = db["characters"][0]
         assert exported_char["id"] != char["id"]
         assert exported_char["theme_id"] == theme["id"]
-        # Built-in themes are exported as ordinary themes so imported copies
-        # stay deletable (they'd otherwise be protected is_system rows).
+        # Built-in themes don't travel with the archive
         assert all(t["is_system"] == 0 for t in db["themes"])
+        assert not any(t["id"] == "builtin-slate" for t in db["themes"])
+
+    async def test_export_keeps_builtin_theme_references(self, client):
+        char = await create_character(client, "BuiltinThemed")
+        await client.patch(f"/api/characters/{char['id']}", json={"theme_id": "builtin-midnight"})
+
+        resp = await client.post("/api/export", json={"characters": [char["id"]]})
+        db = _extract_database_from_zip(resp.content)
+
+        assert db["themes"] == []
+        assert db["characters"][0]["theme_id"] == "builtin-midnight"
 
 
 class TestImport:

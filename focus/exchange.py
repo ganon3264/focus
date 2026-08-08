@@ -10,6 +10,7 @@ import aiosqlite
 from focus.core.models import ExportRequest
 from focus.core.paths import ASSETS_DIR, TOOLS_DIR
 from focus.core.utils import now_iso
+from focus.db.themes import BUILTIN_THEMES
 from focus.exchange_remap import PATH_FIELDS, build_id_map, collect_fk_columns, remap_database, remap_path
 from focus.exchange_sanitize import (
     MAX_IMPORT_ENTRIES,
@@ -230,7 +231,7 @@ async def export_data(db: aiosqlite.Connection, req: ExportRequest) -> bytes:
         "message_attachments": attachment_rows,
         "tool_calls": await _query_table(db, "tool_calls", "chat_id", chat_ids),
         "themes": [
-            {**t, "is_system": 0} for t in await _query_table_all(db, "themes")
+            t for t in await _query_table_all(db, "themes") if not t["is_system"]
         ],
         "settings": await _query_table_all(db, "settings"),
     }
@@ -240,6 +241,10 @@ async def export_data(db: aiosqlite.Connection, req: ExportRequest) -> bytes:
     # verbatim (see import_data).
     raw_database = database
     id_map = build_id_map(database)
+    # Built-in themes don't travel with the archive; keep references to them
+    # (characters.theme_id) intact so they resolve to the app's own seeded rows.
+    for bid in BUILTIN_THEMES:
+        id_map.setdefault(bid["id"], bid["id"])
     fk_columns = await collect_fk_columns(db, [t for t in EXPORT_TABLES if t in database])
     database = remap_database(database, id_map, fk_columns, null_unmapped_fks=True, rebase_attachments=True)
 
