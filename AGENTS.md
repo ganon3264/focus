@@ -55,11 +55,16 @@ Single source of truth for `character_id`, `persona_id`, `preset_id`, `provider_
 - **Form guard**: only `submit` events trigger actions on forms. Never put `data-action` on `<form>`.
 - Message toolbar buttons read context from `el.closest('.message')` data-* attributes (no inline JS).
 
-### Modals
+### Modals (`static/js/ui/modal.js`)
 
+- Single lifecycle controller: `ModalController.open(id)` / `close(id, opts)` / `closeTop()` / `isOpen(id)` / `isDirty(id)` / `setDirty(id, bool)` / `refresh(id)` / `onOpen(id, fn)`. Globals `openModal(id)` / `closeModal(id, opts)` are thin wrappers.
 - Template: `modal-shell.html` macro → `{% call modal_shell('id', 'Title') %}...{% endcall %}`
-- Show/hide: toggle `hidden` class (not `style.display`)
+- Show/hide: toggle `hidden` class (not `style.display`) — done by the controller, never manually.
 - z-index layers: base → sub → editors → overlays → confirm (scale by 10× from 50)
+- **Dirty tracking is opt-in via overlay attributes** (rendered by `modal_shell` params `dirty_fields`, `dirty_label`): snapshot is captured automatically on open (fields created before/at open are baselined; fields added later are lazily baselined). `[data-dirty-hint]` gets `.hidden`, `[data-dirty-save]` gets `.disabled` + `.opacity-50`. State changes dispatch `dirty-changed` on `window` (`{id, dirty}`) — used by the rename-preset modal's Alpine UI.
+- Closing a dirty modal prompts via confirm; **save handlers must call `closeModal(id, {discard: true})`** (never `captureDirty`-style resets). Use `ModalController.setDirty(id, true)` for non-field changes (e.g. attachment add/delete).
+- ESC closes: confirm modal (as Cancel) → topmost modal → lightbox. `option-selected` / `custom-select:set` trigger recompute of open modals.
+- Overlays inside htmx-swapped bodies (providers modal) re-register automatically on open.
 
 ### Toast system (`static/js/ui/notifications.js`)
 

@@ -14,7 +14,7 @@
     <div class="flex-1 overflow-y-auto p-2" style="max-height: 40vh; background: var(--surface);">
       <template x-for="opt in options.filter(o => o.label.toLowerCase().includes(search.toLowerCase()))" :key="opt.value">
         <div class="p-3 cursor-pointer rounded-md transition-colors hover:bg-[var(--surface-3)]"
-             @click="select(opt.value, opt.label); document.getElementById('modal-select-option').classList.add('hidden')">
+             @click="select(opt.value, opt.label); closeModal('modal-select-option')">
           <span x-text="opt.label" class="text-sm"></span>
         </div>
       </template>

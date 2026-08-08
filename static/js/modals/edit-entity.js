@@ -135,8 +135,7 @@
           s.lastElementChild.previousElementSibling,
         );
       });
-      document.getElementById(mid).classList.remove('hidden');
-      if (window.captureDirty) window.captureDirty(mid);
+      window.openModal(mid);
     };
 
     window[cfg.uploadFn] = function (input) {
@@ -206,8 +205,7 @@
         body: JSON.stringify(data),
       }).then(async function (r) {
         if (!r.ok) return;
-        if (window.captureDirty) window.captureDirty(mid);
-        window.closeModal(mid);
+        window.closeModal(mid, { discard: true });
         window.showSuccessToast(cfg.dataPrefix === 'char' ? 'Character saved' : 'Persona saved');
         if (cfg.dataPrefix === 'char') {
           window.dispatchEvent(new CustomEvent('character-edited', { detail: { id: id } }));

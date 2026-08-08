@@ -1,7 +1,8 @@
 {% from "macros.html" import icon_expand, icon_plus %} {% from "modal-shell.html" import modal_shell %} {% call
 modal_shell('modal-edit-message', 'Edit Message', max_width='800px',
-content_style='display:flex;flex-direction:column;max-height:90vh;', z_index='100') %}
-<div class="flex-1 overflow-y-auto flex flex-col gap-6 pr-2 scroll-fade min-h-0 px-1" x-data="dirtyModalState({ fields: '.edit-block-ta', label: 'this message' })" @input="markDirty()" @change="markDirty()">
+content_style='display:flex;flex-direction:column;max-height:90vh;', z_index='100',
+dirty_fields='.edit-block-ta', dirty_label='this message') %}
+<div class="flex-1 overflow-y-auto flex flex-col gap-6 pr-2 scroll-fade min-h-0 px-1">
   <input type="hidden" id="edit-msg-id" />
   <input type="hidden" id="edit-msg-chat-id" />
 
@@ -32,18 +33,21 @@ content_style='display:flex;flex-direction:column;max-height:90vh;', z_index='10
     style="background: var(--surface-2); border: 1px solid var(--border); min-height: 3rem"
   ></div>
 </div>
-<div class="flex gap-3 mt-6 pt-4 items-center">
-  <span x-show="dirty" class="text-xs font-bold shrink-0" style="color: var(--accent);">
+<div class="flex items-center gap-2 mt-6 pt-4">
+  <span data-dirty-hint class="text-xs font-bold hidden" style="color: var(--accent);">
     Unsaved changes — press Save to apply
   </span>
-  <button class="btn btn-primary flex-1" onclick="saveMessageEdit()" :disabled="!dirty" :class="dirty ? '' : 'opacity-50'">Save</button>
-  <button
-    class="btn btn-secondary flex-1"
-    type="button"
-    onclick="closeModal('modal-edit-message')"
-  >
-    Cancel
-  </button>
+  <div class="flex items-center gap-2 ml-auto">
+    <button
+      class="btn btn-secondary"
+      style="width: 100px"
+      type="button"
+      onclick="closeModal('modal-edit-message')"
+    >
+      Cancel
+    </button>
+    <button class="btn btn-primary" style="width: 100px" data-dirty-save onclick="saveMessageEdit()">Save</button>
+  </div>
 </div>
 {% endcall %}
 <template id="edit-msg-expand-btn">

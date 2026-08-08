@@ -70,15 +70,15 @@ window.actionOpenThemeModal = function () {
 };
 
 window.actionCloseModals = function (el, e) {
-  if (e.target === el) el.classList.add("hidden");
+  if (e.target === el) closeModal(el.dataset.modalId || el.id);
 };
 
 window.actionCloseFetchModels = function () {
-  document.getElementById("modal-fetch-models").classList.add("hidden");
+  closeModal("modal-fetch-models");
 };
 
 window.actionCloseSecrets = function () {
-  document.getElementById("modal-secrets").classList.add("hidden");
+  closeModal("modal-secrets");
 };
 
 window.actionTriggerFileUpload = function (el) {

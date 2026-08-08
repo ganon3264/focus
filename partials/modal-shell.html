@@ -1,6 +1,6 @@
 {% from "macros.html" import icon_close %} {% macro modal_shell(id, title, max_width='600px',
 width='95vw', content_style='display:flex;flex-direction:column;', z_index='', role='dialog',
-close_fn='closeModal', overlay_close=true, overlay_class='') %}
+overlay_close=true, overlay_class='', dirty_fields='', dirty_label='') %}
 <div
   id="{{ id }}"
   class="modal-overlay hidden {{ overlay_class }}"
@@ -18,6 +18,20 @@ close_fn='closeModal', overlay_close=true, overlay_class='') %}
   overlay_close
   %}
   data-action="actionCloseModal" data-modal-id="{{ id }}"
+  {%
+  endif
+  %}{%
+  if
+  dirty_fields
+  %}
+  data-dirty-fields="{{ dirty_fields }}"
+  {%
+  endif
+  %}{%
+  if
+  dirty_label
+  %}
+  data-dirty-label="{{ dirty_label }}"
   {%
   endif
   %}

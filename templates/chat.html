@@ -65,17 +65,17 @@ window.THEME_STATE = {{ theme_state | tojson | safe }};
 {% include "modals/text-expander.html" %}
 
 <!-- RENAME PRESET MODAL -->
-{% call modal_shell('modal-rename-preset', 'Rename Preset', max_width='420px') %}
-<div id="rename-preset-form" x-data="{ renameValue: '', renameTargetId: '', ...dirtyModalState({ fields: '#rename-preset-form input', label: function () { var el = document.getElementById('rename-preset-form'); return el.dataset.renameOriginal || el.querySelector('input').value; } }) }">
+{% call modal_shell('modal-rename-preset', 'Rename Preset', max_width='420px', dirty_fields='#rename-preset-form input') %}
+<div id="rename-preset-form" x-data="{ renameValue: '', renameTargetId: '', dirty: false }" @dirty-changed.window="if ($event.detail.id === 'modal-rename-preset') dirty = $event.detail.dirty">
   <div>
     <label class="text-xs font-bold text-muted mb-1 block">Preset Name</label>
     <input type="text" x-model="renameValue" class="form-control" @keydown.enter="confirmRename()" @input="markDirty()">
   </div>
-  <div class="flex justify-end gap-2 mt-2 items-center">
+  <div class="flex items-center gap-2 mt-2">
     <span x-show="dirty" class="text-xs font-bold shrink-0" style="color: var(--accent);">
       Unsaved changes — press Save to apply
     </span>
-    <div class="flex gap-2">
+    <div class="flex justify-end gap-2 items-center ml-auto">
       <button type="button" class="btn btn-secondary" @click="closeModal('modal-rename-preset')">Cancel</button>
       <button type="button" class="btn btn-primary" @click="confirmRename()" :disabled="!dirty || !renameValue.trim()" :class="dirty ? '' : 'opacity-50'">Save</button>
     </div>
@@ -101,8 +101,8 @@ window.THEME_STATE = {{ theme_state | tojson | safe }};
 {% endcall %}
 
 <!-- VARIABLE EDIT MODAL -->
-{% call modal_shell('var-edit-modal', 'Edit Variable Option', max_width='500px', width='90vw', z_index='1000', close_fn='closeVarModal', overlay_close=true) %}
-<div class="flex flex-col gap-3" x-data="dirtyModalState({ fields: ['#var-modal-group', '#var-modal-label', '#var-modal-content'], label: function () { var g = document.getElementById('var-modal-group'); var l = document.getElementById('var-modal-label'); return ((g && g.value.trim()) || '') + ((l && l.value.trim()) ? ':' + l.value.trim() : ''); } })" @input="markDirty()" @change="markDirty()">
+{% call modal_shell('var-edit-modal', 'Edit Variable Option', max_width='500px', width='90vw', z_index='1000', overlay_close=true, dirty_fields='#var-modal-group,#var-modal-label,#var-modal-content') %}
+<div class="flex flex-col gap-3">
   <div>
     <div class="flex items-center gap-1 mb-1">
       <label class="text-xs font-bold text-muted block">Variable Group Name</label>
@@ -124,13 +124,13 @@ window.THEME_STATE = {{ theme_state | tojson | safe }};
     </div>
     <textarea id="var-modal-content" rows="6" class="form-control" style="resize:vertical;" placeholder="Enter the text to inject..."></textarea>
   </div>
-  <div class="flex justify-end gap-2 mt-2 items-center">
-    <span x-show="dirty" class="text-xs font-bold shrink-0" style="color: var(--accent);">
+  <div class="flex items-center gap-2 mt-2">
+    <span data-dirty-hint class="text-xs font-bold hidden" style="color: var(--accent);">
       Unsaved changes — press Save to apply
     </span>
-    <div class="flex gap-2">
+    <div class="flex justify-end gap-2 items-center ml-auto">
       <button type="button" class="btn btn-secondary" onclick="closeVarModal()">Cancel</button>
-      <button type="button" class="btn btn-primary" id="var-modal-save" onclick="saveVarModal()" :disabled="!dirty" :class="dirty ? '' : 'opacity-50'">Save</button>
+      <button type="button" class="btn btn-primary" id="var-modal-save" data-dirty-save onclick="saveVarModal()">Save</button>
     </div>
   </div>
 </div>
@@ -264,11 +264,11 @@ if (!window._varScriptsLoaded) {
         .then(function(r) { return r.json(); })
         .then(function(data) {
           document.getElementById('var-modal-content').value = data.content || '';
-          if (window.captureDirty) window.captureDirty('var-edit-modal');
+          window.openModal('var-edit-modal');
         });
+    } else {
+      window.openModal('var-edit-modal');
     }
-    document.getElementById('var-edit-modal').classList.remove('hidden');
-    if (window.captureDirty) window.captureDirty('var-edit-modal');
   };
 
   window.closeVarModal = function() {
@@ -290,8 +290,7 @@ if (!window._varScriptsLoaded) {
         headers: {'Content-Type':'application/json'},
         body: JSON.stringify({name: combinedName, content: content})
       }).then(function(){
-        if (window.captureDirty) window.captureDirty('var-edit-modal');
-        closeVarModal();
+        window.closeModal('var-edit-modal', { discard: true });
         refreshSingleVarGroup(presetId, group);
       });
     } else {
@@ -300,8 +299,7 @@ if (!window._varScriptsLoaded) {
         headers: {'Content-Type':'application/json'},
         body: JSON.stringify({name: combinedName, block_type: 'variable', content: content, role: 'system'})
       }).then(function(){
-        if (window.captureDirty) window.captureDirty('var-edit-modal');
-        closeVarModal();
+        window.closeModal('var-edit-modal', { discard: true });
         reloadPresetVariables(presetId);
       });
     }
@@ -388,7 +386,6 @@ function toggleSidebar(side) {
 </script>
 
 <script src="/static/js/modals/shared-entity-modal.js"></script>
-<script src="/static/js/modals/dirty-state.js"></script>
 
 <script src="/static/js/modals/char-edit.js"></script>
 

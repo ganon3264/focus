@@ -114,7 +114,6 @@ window.openRenameModal = function(btn) {
   modalState.renameTargetId = item.dataset.presetId;
   modalState.renameValue = item.querySelector('.preset-item-name').textContent;
   document.getElementById('rename-preset-form').dataset.renameOriginal = modalState.renameValue;
-  if (window.captureDirty) window.captureDirty('modal-rename-preset');
   window.openModal('modal-rename-preset');
 };
 
@@ -137,8 +136,7 @@ function confirmRename(){
     body: JSON.stringify({name: trimmed})
   }).then(function(r){
     if (r.ok) {
-      if (window.captureDirty) window.captureDirty('modal-rename-preset');
-      window.closeModal('modal-rename-preset');
+      window.closeModal('modal-rename-preset', { discard: true });
       var state = Alpine.$data(document.getElementById('preset-selector-wrapper'));
       document.querySelectorAll('#preset-selector-wrapper [data-preset-id="' + pid + '"]').forEach(function(el) {
         var nameSpan = el.querySelector('.preset-item-name');

@@ -129,8 +129,6 @@
 
       renderEditBlocks(blocks);
 
-      if (window.captureDirty) window.captureDirty('modal-edit-message');
-
       window.currentEditAttachments = data.attachments || [];
       window.renderEditModalAttachments();
 
@@ -213,9 +211,7 @@
         }),
       });
 
-      if (window.captureDirty) window.captureDirty('modal-edit-message');
-
-      if (window.closeModal) window.closeModal('modal-edit-message');
+      if (window.closeModal) window.closeModal('modal-edit-message', { discard: true });
       else document.getElementById('modal-edit-message').classList.add('hidden');
 
       if (typeof refreshSingleMessage === 'function') {
@@ -255,7 +251,7 @@
         var data = await res.json();
         window.currentEditAttachments.push(...data.attachments);
         window.renderEditModalAttachments();
-        if (window.markDirtyModal) window.markDirtyModal('modal-edit-message');
+        if (window.ModalController) window.ModalController.setDirty('modal-edit-message', true);
       } else {
         window.showErrorToast('Failed to upload attachment');
       }
@@ -267,7 +263,7 @@
   window.deleteModalAttachment = function (idx) {
     window.currentEditAttachments.splice(idx, 1);
     window.renderEditModalAttachments();
-    if (window.markDirtyModal) window.markDirtyModal('modal-edit-message');
+    if (window.ModalController) window.ModalController.setDirty('modal-edit-message', true);
   };
 
   if (typeof window.setupDropZone === 'function') {

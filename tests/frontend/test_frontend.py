@@ -175,6 +175,32 @@ def test_edit_entity_greeting_section_char_only():
     assert "greeting" not in persona_html
 
 
+def test_edit_entity_dirty_attrs_render_evaluated():
+    """data-dirty-fields/label must render evaluated, not as raw Jinja.
+
+    Regression: these values are passed to the modal_shell macro as string
+    literals, where Jinja does NOT evaluate embedded {{ }} / {% %} tags —
+    they must be built via concatenation instead."""
+    tmpl = env.get_template("modals/edit-entity.html")
+    base = {
+        "modal_id": "modal-edit-entity",
+        "entity_name": "Entity",
+        "upload_fn": "up",
+        "avatar_fn": "av",
+        "submit_fn": "sub",
+        "show_greetings": False,
+    }
+
+    char_html = tmpl.render({**base, "prefix": "char", "show_theme": True})
+    assert 'data-dirty-fields="#edit-char-name,#edit-char-desc,#edit-char-theme-id"' in char_html
+    assert 'data-dirty-label="#edit-char-name"' in char_html
+    assert "{%" not in char_html.split("data-dirty-fields")[1][:200]
+
+    persona_html = tmpl.render({**base, "prefix": "persona", "show_theme": False})
+    assert 'data-dirty-fields="#edit-persona-name,#edit-persona-desc"' in persona_html
+    assert 'data-dirty-label="#edit-persona-name"' in persona_html
+
+
 def test_greeting_section_renders_with_values():
     """The greeting section partial renders the active variant, count, hidden
     working state, and per-position disabled states server-side."""

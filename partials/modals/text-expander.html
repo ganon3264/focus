@@ -18,7 +18,7 @@ content_style='display:flex;flex-direction:column;height:85vh;padding:1.25rem;',
       _expanderTarget = targetEl;
       document.querySelector('#modal-text-expander .modal-title').innerText = title || 'Edit Text';
       document.getElementById('text-expander-input').value = targetEl.value;
-      document.getElementById('modal-text-expander').classList.remove('hidden');
+      window.openModal('modal-text-expander');
       document.getElementById('text-expander-input').focus();
     };
 

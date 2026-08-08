@@ -74,9 +74,9 @@
 
 <!-- Block Edit Modal -->
 {% from "modal-shell.html" import modal_shell %} {% call modal_shell('block-edit-modal', 'Edit Block
-Content', max_width='640px', width='90vw', z_index='1000', close_fn='closeBlockModal',
-overlay_close=true) %}
-<div class="flex flex-col flex-1 min-h-0 gap-2" x-data="dirtyModalState({ fields: ['#block-modal-textarea', '#block-modal-reasoning'], label: 'this block' })" @input="markDirty()" @change="markDirty()">
+Content', max_width='640px', width='90vw', z_index='1000',
+overlay_close=true, dirty_fields='#block-modal-textarea,#block-modal-reasoning', dirty_label='this block') %}
+<div class="flex flex-col flex-1 min-h-0 gap-2">
 <textarea
   id="block-modal-textarea"
   rows="12"
@@ -95,15 +95,15 @@ overlay_close=true) %}
   ></textarea>
 </div>
 <div class="flex items-center gap-2 mt-3">
-  <span x-show="dirty" class="text-xs font-bold shrink-0" style="color: var(--accent);">
+  <span data-dirty-hint class="text-xs font-bold hidden" style="color: var(--accent);">
     Unsaved changes — press Save to apply
   </span>
-  <div class="flex gap-2" style="margin-left: auto">
+  <div class="flex items-center gap-2 ml-auto">
     <button type="button" class="btn btn-secondary btn-icon" style="width: calc(1lh + 1rem + 2px); height: calc(1lh + 1rem + 2px)" onclick="openMacroHelp()" title="Macro reference" aria-label="Macro reference">
       {{ icon_help(16) }}
     </button>
     <button type="button" class="btn btn-secondary" onclick="closeBlockModal()">Cancel</button>
-    <button type="button" class="btn btn-primary" id="block-modal-save" onclick="saveBlockModal()" :disabled="!dirty" :class="dirty ? '' : 'opacity-50'">
+    <button type="button" class="btn btn-primary" id="block-modal-save" data-dirty-save onclick="saveBlockModal()">
       Save
     </button>
   </div>
@@ -217,8 +217,7 @@ overlay_close=true) %}
         document.getElementById('block-modal-textarea').style.display = '';
       }
 
-      document.getElementById('block-edit-modal').classList.remove('hidden');
-      if (window.captureDirty) window.captureDirty('block-edit-modal');
+      window.openModal('block-edit-modal');
     };
 
     window.closeBlockModal = function () {
@@ -240,8 +239,7 @@ overlay_close=true) %}
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       }).then(function () {
-        if (window.captureDirty) window.captureDirty('block-edit-modal');
-        closeBlockModal();
+        window.closeModal('block-edit-modal', { discard: true });
         refreshSingleBlock(presetId, blockId);
       });
     };

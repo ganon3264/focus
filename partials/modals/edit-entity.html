@@ -1,12 +1,11 @@
 {% from "macros.html" import icon_expand, icon_plus, icon_trash, icon_chevron_left, icon_chevron_right, icon_help, hint_tooltip %} {% from "modal-shell.html" import modal_shell
-%} {% call modal_shell(modal_id, 'Edit ' ~ entity_name, z_index='100') %}
+%} {% call modal_shell(modal_id, 'Edit ' ~ entity_name, z_index='100',
+dirty_fields='#edit-' ~ prefix ~ '-name,#edit-' ~ prefix ~ '-desc' ~ (',#edit-' ~ prefix ~ '-theme-id' if show_theme|default(false) else ''),
+dirty_label='#edit-' ~ prefix ~ '-name') %}
 <form
   id="edit-{{ prefix }}-form"
   class="flex flex-col gap-4 flex-1"
   data-action="{{ submit_fn }}"
-  x-data="dirtyModalState({ fields: ['#edit-{{ prefix }}-name', '#edit-{{ prefix }}-desc'{% if show_theme|default(false) %}, '#edit-{{ prefix }}-theme-id'{% endif %}], label: '#edit-{{ prefix }}-name' })"
-  @input="markDirty()"
-  @change="markDirty()"
 >
   <input type="hidden" name="id" id="edit-{{ prefix }}-id" />
 
@@ -118,11 +117,11 @@
     </div>
   </div>
 
-  <div class="flex items-center gap-2 mt-4 pt-4" style="border-top: 1px solid var(--border)">
-    <span x-show="dirty" class="text-xs font-bold shrink-0" style="color: var(--accent);">
+  <div class="flex items-center gap-2">
+    <span data-dirty-hint class="text-xs font-bold hidden" style="color: var(--accent);">
       Unsaved changes — press Save to apply
     </span>
-    <div class="flex gap-2" style="margin-left: auto">
+    <div class="flex items-center gap-2 ml-auto">
       <button
         type="button"
         class="btn btn-secondary btn-icon"
@@ -141,7 +140,7 @@
       >
         Cancel
       </button>
-      <button class="btn btn-primary" style="width: 100px" type="submit" :disabled="!dirty" :class="dirty ? '' : 'opacity-50'">Save</button>
+      <button class="btn btn-primary" style="width: 100px" type="submit" data-dirty-save>Save</button>
     </div>
   </div>
 </form>
