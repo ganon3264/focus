@@ -178,6 +178,9 @@ class TestExport:
         exported_char = db["characters"][0]
         assert exported_char["id"] != char["id"]
         assert exported_char["theme_id"] == theme["id"]
+        # Built-in themes are exported as ordinary themes so imported copies
+        # stay deletable (they'd otherwise be protected is_system rows).
+        assert all(t["is_system"] == 0 for t in db["themes"])
 
 
 class TestImport:

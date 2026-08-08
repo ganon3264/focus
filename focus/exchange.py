@@ -229,7 +229,9 @@ async def export_data(db: aiosqlite.Connection, req: ExportRequest) -> bytes:
         "block_images": block_image_rows,
         "message_attachments": attachment_rows,
         "tool_calls": await _query_table(db, "tool_calls", "chat_id", chat_ids),
-        "themes": await _query_table_all(db, "themes"),
+        "themes": [
+            {**t, "is_system": 0} for t in await _query_table_all(db, "themes")
+        ],
         "settings": await _query_table_all(db, "settings"),
     }
 
