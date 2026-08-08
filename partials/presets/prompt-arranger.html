@@ -76,6 +76,7 @@
 {% from "modal-shell.html" import modal_shell %} {% call modal_shell('block-edit-modal', 'Edit Block
 Content', max_width='640px', width='90vw', z_index='1000', close_fn='closeBlockModal',
 overlay_close=true) %}
+<div class="flex flex-col flex-1 min-h-0 gap-2" x-data="dirtyModalState({ fields: ['#block-modal-textarea', '#block-modal-reasoning'], label: 'this block' })" @input="markDirty()" @change="markDirty()">
 <textarea
   id="block-modal-textarea"
   rows="12"
@@ -93,16 +94,20 @@ overlay_close=true) %}
     placeholder="Enter reasoning content that will be prefilled before the model response…"
   ></textarea>
 </div>
-<div class="flex items-center justify-between gap-2 mt-3">
-  <button type="button" class="btn btn-secondary btn-icon" onclick="openMacroHelp()" title="Macro reference" aria-label="Macro reference">
-    {{ icon_help(16) }}
-  </button>
-  <div class="flex gap-2">
+<div class="flex items-center gap-2 mt-3">
+  <span x-show="dirty" class="text-xs font-bold shrink-0" style="color: var(--accent);">
+    Unsaved changes — press Save to apply
+  </span>
+  <div class="flex gap-2" style="margin-left: auto">
+    <button type="button" class="btn btn-secondary btn-icon" style="width: calc(1lh + 1rem + 2px); height: calc(1lh + 1rem + 2px)" onclick="openMacroHelp()" title="Macro reference" aria-label="Macro reference">
+      {{ icon_help(16) }}
+    </button>
     <button type="button" class="btn btn-secondary" onclick="closeBlockModal()">Cancel</button>
-    <button type="button" class="btn btn-primary" id="block-modal-save" onclick="saveBlockModal()">
+    <button type="button" class="btn btn-primary" id="block-modal-save" onclick="saveBlockModal()" :disabled="!dirty" :class="dirty ? '' : 'opacity-50'">
       Save
     </button>
   </div>
+</div>
 </div>
 {% endcall %}
 
@@ -213,13 +218,11 @@ overlay_close=true) %}
       }
 
       document.getElementById('block-edit-modal').classList.remove('hidden');
+      if (window.captureDirty) window.captureDirty('block-edit-modal');
     };
 
     window.closeBlockModal = function () {
-      document.getElementById('block-edit-modal').classList.add('hidden');
-      document.getElementById('block-modal-textarea').style.display = '';
-      _currentBlockId = null;
-      _currentPresetId = null;
+      window.closeModal('block-edit-modal');
     };
 
     window.saveBlockModal = function () {
@@ -237,6 +240,7 @@ overlay_close=true) %}
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       }).then(function () {
+        if (window.captureDirty) window.captureDirty('block-edit-modal');
         closeBlockModal();
         refreshSingleBlock(presetId, blockId);
       });

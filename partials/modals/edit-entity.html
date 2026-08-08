@@ -1,9 +1,13 @@
 {% from "macros.html" import icon_expand, icon_plus, icon_trash, icon_chevron_left, icon_chevron_right, icon_help, hint_tooltip %} {% from "modal-shell.html" import modal_shell
 %} {% call modal_shell(modal_id, 'Edit ' ~ entity_name, z_index='100') %}
+{% set has_greeting = show_greetings|default(false) and prefix == 'char' %}
 <form
   id="edit-{{ prefix }}-form"
   class="flex flex-col gap-4 flex-1"
   data-action="{{ submit_fn }}"
+  x-data="dirtyModalState({ fields: ['#edit-{{ prefix }}-name', '#edit-{{ prefix }}-desc'{% if has_greeting %}, '#edit-{{ prefix }}-greeting', '#edit-{{ prefix }}-greeting-section input[name=&quot;greetings_json&quot;]'{% endif %}{% if show_theme|default(false) %}, '#edit-{{ prefix }}-theme-id'{% endif %}], keepBaseline: {% if has_greeting %}['greetings_json']{% else %}[]{% endif %}, label: '#edit-{{ prefix }}-name' })"
+  @input="markDirty()"
+  @change="markDirty()"
 >
   <input type="hidden" name="id" id="edit-{{ prefix }}-id" />
 
@@ -115,17 +119,21 @@
     </div>
   </div>
 
-  <div class="flex items-center justify-between gap-2 mt-4 pt-4" style="border-top: 1px solid var(--border)">
-    <button
-      type="button"
-      class="btn btn-secondary btn-icon"
-      onclick="openMacroHelp()"
-      title="Macro reference"
-      aria-label="Macro reference"
-    >
-      {{ icon_help(16) }}
-    </button>
-    <div class="flex gap-2">
+  <div class="flex items-center gap-2 mt-4 pt-4" style="border-top: 1px solid var(--border)">
+    <span x-show="dirty" class="text-xs font-bold shrink-0" style="color: var(--accent);">
+      Unsaved changes — press Save to apply
+    </span>
+    <div class="flex gap-2" style="margin-left: auto">
+      <button
+        type="button"
+        class="btn btn-secondary btn-icon"
+        style="width: calc(1lh + 1rem + 2px); height: calc(1lh + 1rem + 2px)"
+        onclick="openMacroHelp()"
+        title="Macro reference"
+        aria-label="Macro reference"
+      >
+        {{ icon_help(16) }}
+      </button>
       <button
         class="btn btn-secondary"
         style="width: 100px"
@@ -134,7 +142,7 @@
       >
         Cancel
       </button>
-      <button class="btn btn-primary" style="width: 100px" type="submit">Save</button>
+      <button class="btn btn-primary" style="width: 100px" type="submit" :disabled="!dirty" :class="dirty ? '' : 'opacity-50'">Save</button>
     </div>
   </div>
 </form>

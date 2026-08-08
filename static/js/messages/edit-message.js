@@ -129,6 +129,8 @@
 
       renderEditBlocks(blocks);
 
+      if (window.captureDirty) window.captureDirty('modal-edit-message');
+
       window.currentEditAttachments = data.attachments || [];
       window.renderEditModalAttachments();
 
@@ -210,6 +212,8 @@
           attachment_ids: window.currentEditAttachments.map(function (a) { return a.id; }),
         }),
       });
+
+      if (window.captureDirty) window.captureDirty('modal-edit-message');
 
       if (window.closeModal) window.closeModal('modal-edit-message');
       else document.getElementById('modal-edit-message').classList.add('hidden');

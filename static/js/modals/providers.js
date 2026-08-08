@@ -204,6 +204,7 @@ function toggleNoFallbacks(prefix) {
   if (!toggle || !input) return;
   toggle.classList.toggle('active');
   input.value = toggle.classList.contains('active') ? 'true' : 'false';
+  if (window.refreshDirty) window.refreshDirty('modal-provider-create');
 }
 
 function refreshNoFallbacksVisibility(prefix) {
@@ -305,6 +306,7 @@ function submitProviderForm(el, e) {
     body: JSON.stringify(data),
   }).then(async function (r) {
     if (r.ok) {
+      if (window.captureDirty) window.captureDirty('modal-provider-create');
       closeModal('modal-provider-create');
       htmx.ajax('GET', api.partials.providersModal, {
         target: '#providers-modal-body-inner',
@@ -331,6 +333,7 @@ window.openProviderEditModal = async function (id) {
     var titleEl = document.querySelector('#modal-provider-create .modal-title');
     if (titleEl) titleEl.textContent = 'Edit Provider';
     openModal('modal-provider-create');
+    if (window.captureDirty) window.captureDirty('modal-provider-create');
   } catch (err) {
     console.error(err);
   }
@@ -343,6 +346,7 @@ window.openProviderCreateModal = function () {
   var titleEl = document.querySelector('#modal-provider-create .modal-title');
   if (titleEl) titleEl.textContent = 'Add Provider';
   openModal('modal-provider-create');
+  if (window.captureDirty) window.captureDirty('modal-provider-create');
 };
 
 function setSelectValue(inputId, value) {
@@ -527,6 +531,7 @@ function _setKeyInput(val, displayHtml) {
     display.innerHTML = displayHtml;
     display.classList.remove('text-muted');
   }
+  if (prefix === 'prov-form' && window.refreshDirty) window.refreshDirty('modal-provider-create');
   document.getElementById('modal-secrets').classList.add('hidden');
 }
 

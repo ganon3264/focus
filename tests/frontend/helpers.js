@@ -137,6 +137,7 @@ function makeElement(tag) {
     },
     querySelector: function (sel) { return querySelectorAll(this, sel)[0] || null; },
     querySelectorAll: function (sel) { return querySelectorAll(this, sel); },
+    matches: function (sel) { return matches(el, sel); },
     closest: function (sel) {
       var n = this;
       while (n) {
@@ -244,6 +245,13 @@ function _matchesSimple(el, sel) {
 function matches(el, sel) {
   if (!el || !el.tagName) return false;
   if (sel === '*') return true;
+  if (sel.indexOf(',') !== -1) {
+    var alts = sel.split(',');
+    for (var i = 0; i < alts.length; i++) {
+      if (matches(el, alts[i].trim())) return true;
+    }
+    return false;
+  }
   // Strip pseudo-selectors like :checked before further matching
   var pseudoRe = /:(\w[\w-]*)/;
   var pseudoMatch = pseudoRe.exec(sel);

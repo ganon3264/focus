@@ -6,12 +6,10 @@ FastAPI (async) + aiosqlite | Jinja2 | HTMX 2 + Alpine 3 | Tailwind v4 | uv + ha
 
 ## Start / Test
 
-- **Start:** `./start.sh` — vendor sync → tailwind build → `uv run main.py`
-- **Test:** `./test.sh` — `uv run pytest`
-- **Tailwind:** rebuild command is `./bin/tailwindcss-* -i static/tailwind-input.css -o static/tailwind.css --minify`, run manually (host-side).
-  - The agent container is musl, the host is glibc — the bundled `tailwindcss-linux-x64` binary won't run in-container. Don't attempt it; leave the rebuild to the host.
-  - `static/css/` modules are bundled into `tailwind.css` via `@import`s in `tailwind-input.css`. Don't add `<link>` tags in `base.html`; add/replace files under `static/css/`.
-  - Radius/shadow/font rebranding goes in `static/css/tokens.css` (the `@theme` block), not `variables.css`.
+- Start: `./start.sh` — vendor sync → tailwind build → `uv run main.py`
+- Test: `./test.sh` — `uv run pytest`
+
+- Caution: This Opencode instance runs in a podman container, which is Alpine Linux with musl while user's host machine might differ.
 
 ## Structure
 

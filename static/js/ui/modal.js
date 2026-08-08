@@ -25,6 +25,21 @@
 
   window.closeModal = function (id) {
     var el = document.getElementById(id);
-    if (el) el.classList.add('hidden');
+    if (!el) return;
+    var chk = window._dirtyChecks && window._dirtyChecks[id];
+    if (chk && chk.isDirty && chk.isDirty()) {
+      var label = chk.label ? chk.label() : null;
+      var msg = 'Discard unsaved changes' + (label ? ' to "' + label + '"' : '') + '?';
+      window.openConfirmModal(msg, function () {
+        _closeModal(id);
+      });
+      return;
+    }
+    _closeModal(id);
   };
+
+  function _closeModal(id) {
+    var el = document.getElementById(id);
+    if (el) el.classList.add('hidden');
+  }
 })();

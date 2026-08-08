@@ -1,5 +1,5 @@
 {% from "macros.html" import custom_select, icon_key, icon_search %} {% from "modal-shell.html" import modal_shell %} {% call modal_shell('modal-provider-create', 'Add Provider', max_width='500px', z_index='100') %}
-<form id="provider-form" data-action="actionSubmitProviderForm" class="flex flex-col gap-3 p-4">
+<form id="provider-form" data-action="actionSubmitProviderForm" class="flex flex-col gap-3 p-4" x-data="dirtyModalState({ fields: ['#provider-form input', '#provider-form select', '#provider-form textarea'], label: '#prov-form-name' })" @input="markDirty()" @change="markDirty()">
   <input type="hidden" name="edit_id" id="prov-form-edit-id" value="">
 
   <div class="form-group mb-0">
@@ -131,6 +131,9 @@
     />
   </div>
 
-  <button type="submit" id="prov-form-submit-btn" class="btn btn-primary w-full mt-2 text-sm">Add Provider</button>
+  <span x-show="dirty" class="text-xs font-bold shrink-0" style="color: var(--accent);">
+    Unsaved changes — press Save to apply
+  </span>
+  <button type="submit" id="prov-form-submit-btn" class="btn btn-primary w-full mt-2 text-sm" :disabled="!dirty" :class="dirty ? '' : 'opacity-50'">Add Provider</button>
 </form>
 {% endcall %}

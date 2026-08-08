@@ -6,18 +6,7 @@ content_style='display:flex;flex-direction:column;height:85vh;padding:1.25rem;',
   class="form-control w-full flex-1 mb-4"
   style="resize: none; font-family: ui-monospace, monospace; font-size: 0.9rem; line-height: 1.6"
 ></textarea>
-<div class="flex justify-end gap-3 shrink-0">
-  <button
-    class="btn btn-secondary"
-    onclick="closeModal('modal-text-expander')"
-    style="min-width: 100px"
-  >
-    Cancel
-  </button>
-  <button class="btn btn-primary" onclick="saveTextExpander()" style="min-width: 100px">
-    Save
-  </button>
-</div>
+<p class="text-xs text-muted shrink-0 text-center">Changes apply to the field as you type.</p>
 {% endcall %}
 
 <script>
@@ -33,17 +22,11 @@ content_style='display:flex;flex-direction:column;height:85vh;padding:1.25rem;',
       document.getElementById('text-expander-input').focus();
     };
 
-    window.closeTextExpander = function () {
-      closeModal('modal-text-expander');
-      _expanderTarget = null;
-    };
-
-    window.saveTextExpander = function () {
+    document.getElementById('text-expander-input').addEventListener('input', function () {
       if (_expanderTarget) {
-        _expanderTarget.value = document.getElementById('text-expander-input').value;
-        _expanderTarget.dispatchEvent(new Event('change'));
+        _expanderTarget.value = this.value;
+        _expanderTarget.dispatchEvent(new Event('input', { bubbles: true }));
       }
-      closeTextExpander();
-    };
+    });
   }
 </script>
