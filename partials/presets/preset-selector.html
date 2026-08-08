@@ -113,6 +113,7 @@ window.openRenameModal = function(btn) {
   var modalState = Alpine.$data(document.getElementById('rename-preset-form'));
   modalState.renameTargetId = item.dataset.presetId;
   modalState.renameValue = item.querySelector('.preset-item-name').textContent;
+  document.getElementById('rename-preset-form').dataset.renameOriginal = modalState.renameValue;
   if (window.captureDirty) window.captureDirty('modal-rename-preset');
   window.openModal('modal-rename-preset');
 };

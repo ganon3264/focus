@@ -66,7 +66,7 @@ window.THEME_STATE = {{ theme_state | tojson | safe }};
 
 <!-- RENAME PRESET MODAL -->
 {% call modal_shell('modal-rename-preset', 'Rename Preset', max_width='420px') %}
-<div id="rename-preset-form" x-data="{ renameValue: '', renameTargetId: '', ...dirtyModalState({ fields: '#rename-preset-form input', label: function () { return document.getElementById('rename-preset-form').querySelector('input').value; } }) }">
+<div id="rename-preset-form" x-data="{ renameValue: '', renameTargetId: '', ...dirtyModalState({ fields: '#rename-preset-form input', label: function () { var el = document.getElementById('rename-preset-form'); return el.dataset.renameOriginal || el.querySelector('input').value; } }) }">
   <div>
     <label class="text-xs font-bold text-muted mb-1 block">Preset Name</label>
     <input type="text" x-model="renameValue" class="form-control" @keydown.enter="confirmRename()" @input="markDirty()">

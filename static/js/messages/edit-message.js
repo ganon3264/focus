@@ -255,6 +255,7 @@
         var data = await res.json();
         window.currentEditAttachments.push(...data.attachments);
         window.renderEditModalAttachments();
+        if (window.markDirtyModal) window.markDirtyModal('modal-edit-message');
       } else {
         window.showErrorToast('Failed to upload attachment');
       }
@@ -266,6 +267,7 @@
   window.deleteModalAttachment = function (idx) {
     window.currentEditAttachments.splice(idx, 1);
     window.renderEditModalAttachments();
+    if (window.markDirtyModal) window.markDirtyModal('modal-edit-message');
   };
 
   if (typeof window.setupDropZone === 'function') {

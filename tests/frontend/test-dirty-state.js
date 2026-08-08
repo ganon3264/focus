@@ -1,29 +1,12 @@
-// Unit tests for dirty-state.js — modal dirty tracking + HTMX swap handling
+// Unit tests for dirty-state.js — modal dirty tracking (field comparison)
 var h = require('./helpers.js');
 var assert = h.assert;
 var assertEqual = h.assertEqual;
 var makeElement = h.makeElement;
 
-function createMockMutationObserver() {
-  var instances = [];
-  var Ctor = function (callback) {
-    this._callback = callback;
-    this._target = null;
-    instances.push(this);
-  };
-  Ctor.prototype.observe = function (target) { this._target = target; };
-  Ctor.prototype.disconnect = function () {};
-  Ctor.prototype._add = function (el) {
-    this._callback([{ addedNodes: [el], removedNodes: [] }]);
-  };
-  Ctor._instances = instances;
-  return Ctor;
-}
-
 var doc = h.createMockDocument();
 global.window = global;
 global.document = doc;
-global.MutationObserver = createMockMutationObserver();
 
 var fs = require('fs');
 var path = require('path');
@@ -37,23 +20,7 @@ function makeEl(tag) {
   return el;
 }
 
-function greetingSection(text, list) {
-  var section = makeEl('div');
-  var ta = makeEl('textarea');
-  ta.id = 'edit-greeting';
-  ta.value = text;
-  var hidden = makeEl('input');
-  hidden.setAttribute('type', 'hidden');
-  hidden.setAttribute('name', 'greetings_json');
-  hidden.name = 'greetings_json';
-  hidden.value = JSON.stringify(list);
-  section.appendChild(ta);
-  section.appendChild(hidden);
-  return section;
-}
-
-function setup(initialSection, autoLoad) {
-  if (autoLoad === undefined) autoLoad = true;
+function setup(fields, label) {
   var overlay = makeEl('div');
   overlay.id = 'modal-edit';
   overlay.classList.add('modal-overlay');
@@ -67,37 +34,22 @@ function setup(initialSection, autoLoad) {
   desc.value = '';
   form.appendChild(nameInput);
   form.appendChild(desc);
-  if (initialSection) form.appendChild(initialSection);
   overlay.appendChild(form);
   doc._body.appendChild(overlay);
 
   var state = window.dirtyModalState({
-    fields: ['#edit-name', '#edit-desc', '#edit-greeting', 'input[name="greetings_json"]'],
-    keepBaseline: ['greetings_json'],
-    label: '#edit-name',
+    fields: fields || ['#edit-name', '#edit-desc'],
+    label: label === undefined ? '#edit-name' : label,
   });
   state.$el = form;
-  var before = MutationObserver._instances.length;
   state.init();
-  var observer = MutationObserver._instances[before];
 
-  function swap(section) {
-    if (initialSection) initialSection.remove();
-    form.appendChild(section);
-    initialSection = section;
-    observer._add(section);
-  }
-
-  if (initialSection && autoLoad) observer._add(initialSection);
-
-  function ta() { return form.querySelector('#edit-greeting'); }
-
-  return { state: state, form: form, nameInput: nameInput, desc: desc, swap: swap, ta: ta };
+  return { state: state, form: form, nameInput: nameInput, desc: desc };
 }
 
-// ── init / typing / revert ──
+// ── init / typing / revert / capture ──
 (function () {
-  var s = setup(greetingSection('g0', ['g0']));
+  var s = setup();
   assertEqual(s.state.dirty, false, 'init: clean');
   assertEqual(window._dirtyChecks['modal-edit'].isDirty(), false, 'init: registered check is clean');
 
@@ -108,69 +60,85 @@ function setup(initialSection, autoLoad) {
   s.state.markDirty();
   assertEqual(s.state.dirty, false, 'reverting name: clean');
 
-  s.ta().value = 'edited g0';
+  s.desc.value = 'desc';
   s.state.markDirty();
-  assertEqual(s.state.dirty, true, 'typing greeting: dirty');
-  s.ta().value = 'g0';
-  s.state.markDirty();
-  assertEqual(s.state.dirty, false, 'reverting greeting: clean');
-})();
-
-// ── greeting section swaps (prev/next/add/delete) ──
-(function () {
-  var s = setup(greetingSection('g0', ['g0']));
-  s.ta().value = 'edited g0';
-  s.state.markDirty();
-  assertEqual(s.state.dirty, true, 'edit: dirty before swipe');
-
-  s.swap(greetingSection('g1', ['edited g0', 'g1']));
-  assertEqual(s.state.dirty, true, 'edit + swipe: dirty persists');
-
-  s.swap(greetingSection('g2', ['edited g0', 'g1']));
-  assertEqual(s.state.dirty, true, 'second browse swipe: still dirty');
-
-  s.state.markDirty();
-  assertEqual(s.state.dirty, true, 'recompute after carry: dirty survives');
+  assertEqual(s.state.dirty, true, 'typing desc: dirty');
 
   window.captureDirty('modal-edit');
-  assertEqual(s.state.dirty, false, 'save (capture): clean');
-
-  s.swap(greetingSection('g1', ['edited g0', 'g1']));
-  assertEqual(s.state.dirty, false, 'browse after save: clean');
+  assertEqual(s.state.dirty, false, 'capture: clean');
+  assertEqual(window.captureDirty('nonexistent'), undefined, 'capture: unknown id no-op');
 })();
 
+// ── refreshDirty: recompute from DOM without input events ──
 (function () {
-  var s = setup(greetingSection('g0', ['g0']));
-  s.swap(greetingSection('g1', ['g0']));
-  assertEqual(s.state.dirty, false, 'pure browse: clean');
-
-  s.swap(greetingSection('', ['g0', '']));
-  assertEqual(s.state.dirty, true, 'add variant: dirty');
-
-  s.swap(greetingSection('g0', ['g0']));
-  assertEqual(s.state.dirty, false, 'delete variant back to original: clean');
+  var s = setup();
+  s.nameInput.value = 'Changed';
+  window.refreshDirty('modal-edit');
+  assertEqual(s.state.dirty, true, 'refreshDirty: detects programmatic change');
+  s.nameInput.value = '';
+  window.refreshDirty('modal-edit');
+  assertEqual(s.state.dirty, false, 'refreshDirty: reverting clean');
+  assertEqual(window.refreshDirty('nonexistent'), undefined, 'refreshDirty: unknown id no-op');
 })();
 
+// ── markDirtyModal: forced dirty for non-field changes (attachments) ──
 (function () {
-  var s = setup(null);
-  assertEqual(s.state.dirty, false, 'no section yet: clean');
-  s.swap(greetingSection('g0', ['g0']));
-  assertEqual(s.state.dirty, false, 'first population after open: clean');
+  var s = setup();
+  assertEqual(s.state.dirty, false, 'markDirtyModal: clean before');
+  window.markDirtyModal('modal-edit');
+  assertEqual(s.state.dirty, true, 'markDirtyModal: forced dirty');
+  assertEqual(window._dirtyChecks['modal-edit'].isDirty(), true, 'markDirtyModal: registered check is dirty');
+  window.captureDirty('modal-edit');
+  assertEqual(s.state.dirty, false, 'markDirtyModal: capture clears');
+  assertEqual(window.markDirtyModal('nonexistent'), undefined, 'markDirtyModal: unknown id no-op');
 })();
 
-// ── async greeting load lands after capture: must stay clean ──
+// ── lazy baseline: fields added after init are baselined on first check ──
 (function () {
-  var s = setup(greetingSection('', []), false);
-  assertEqual(s.state.dirty, false, 'stale empty section: clean before load');
-  s.swap(greetingSection('Hello!', ['Hello!']));
-  assertEqual(s.state.dirty, false, 'load lands after capture: clean');
-  s.swap(greetingSection('Bye', ['Hello!']));
-  assertEqual(s.state.dirty, false, 'browse after load: clean');
-  s.ta().value = 'edited';
+  var s = setup(['#edit-name', '#edit-desc', '#edit-late']);
+  var late = makeEl('input');
+  late.id = 'edit-late';
+  late.value = 'seed';
+  s.form.appendChild(late);
   s.state.markDirty();
-  assertEqual(s.state.dirty, true, 'edit after load: dirty');
-  s.swap(greetingSection('Bye', ['edited', 'Hello!']));
-  assertEqual(s.state.dirty, true, 'edit + swipe: dirty persists');
+  assertEqual(s.state.dirty, false, 'late field: first markDirty baselines it, stays clean');
+  late.value = 'changed';
+  s.state.markDirty();
+  assertEqual(s.state.dirty, true, 'late field: change after baseline: dirty');
+})();
+
+// ── untracked fields are exempt from change tracking (greetings) ──
+(function () {
+  var s = setup();
+  var greeting = makeEl('textarea');
+  greeting.id = 'edit-greeting';
+  greeting.value = '';
+  s.form.appendChild(greeting);
+  s.state.markDirty();
+  assertEqual(s.state.dirty, false, 'untracked greeting textarea: typing does not dirty');
+  greeting.value = 'edited greeting';
+  s.state.markDirty();
+  assertEqual(s.state.dirty, false, 'untracked greeting textarea: edit stays clean');
+  window.captureDirty('modal-edit');
+  assertEqual(s.state.dirty, false, 'untracked greeting: capture stays clean');
+})();
+
+// ── label resolution ──
+(function () {
+  var s = setup();
+  s.nameInput.value = '  My Char  ';
+  assertEqual(window._dirtyChecks['modal-edit'].label(), 'My Char', 'label: #id selector, trimmed');
+  assertEqual(window._dirtyChecks['modal-edit'].label(), 'My Char', 'label: repeated call consistent');
+})();
+
+(function () {
+  var s = setup(['#edit-name'], function () { return 'custom label'; });
+  assertEqual(window._dirtyChecks['modal-edit'].label(), 'custom label', 'label: function');
+})();
+
+(function () {
+  var s = setup(['#edit-name'], null);
+  assertEqual(window._dirtyChecks['modal-edit'].label(), null, 'label: none -> null');
 })();
 
 h.printSummary();

@@ -1,11 +1,10 @@
 {% from "macros.html" import icon_expand, icon_plus, icon_trash, icon_chevron_left, icon_chevron_right, icon_help, hint_tooltip %} {% from "modal-shell.html" import modal_shell
 %} {% call modal_shell(modal_id, 'Edit ' ~ entity_name, z_index='100') %}
-{% set has_greeting = show_greetings|default(false) and prefix == 'char' %}
 <form
   id="edit-{{ prefix }}-form"
   class="flex flex-col gap-4 flex-1"
   data-action="{{ submit_fn }}"
-  x-data="dirtyModalState({ fields: ['#edit-{{ prefix }}-name', '#edit-{{ prefix }}-desc'{% if has_greeting %}, '#edit-{{ prefix }}-greeting', '#edit-{{ prefix }}-greeting-section input[name=&quot;greetings_json&quot;]'{% endif %}{% if show_theme|default(false) %}, '#edit-{{ prefix }}-theme-id'{% endif %}], keepBaseline: {% if has_greeting %}['greetings_json']{% else %}[]{% endif %}, label: '#edit-{{ prefix }}-name' })"
+  x-data="dirtyModalState({ fields: ['#edit-{{ prefix }}-name', '#edit-{{ prefix }}-desc'{% if show_theme|default(false) %}, '#edit-{{ prefix }}-theme-id'{% endif %}], label: '#edit-{{ prefix }}-name' })"
   @input="markDirty()"
   @change="markDirty()"
 >

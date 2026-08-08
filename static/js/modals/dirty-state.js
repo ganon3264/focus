@@ -15,8 +15,6 @@
     var state = {
       dirty: false,
       _snapshot: {},
-      _seeded: {},
-      _observer: null,
 
       init: function () {
         self = this;
@@ -31,22 +29,12 @@
           };
         }
         this.capture();
-        this._watch();
-      },
-
-      destroy: function () {
-        if (this._observer) this._observer.disconnect();
-        var id = modalIdOf(this.$el);
-        if (id && checks[id] && checks[id]._self === this) {
-          delete checks[id];
-        }
       },
 
       capture: function () {
         var snap = {};
         this._fields().forEach(function (f) { snap[f.key] = f.el.value || ''; });
         this._snapshot = snap;
-        this._seeded = {};
         this.dirty = false;
       },
 
@@ -62,39 +50,6 @@
           if ((f.el.value || '') !== (baseline || '')) d = true;
         });
         this.dirty = d;
-      },
-
-      _watch: function () {
-        var self = this;
-        var sels = typeof cfg.fields === 'string' ? [cfg.fields] : (cfg.fields || []);
-        var keep = cfg.keepBaseline || [];
-        this._observer = new MutationObserver(function (mutations) {
-          var touched = false;
-          mutations.forEach(function (m) {
-            if (!m.addedNodes) return;
-            Array.prototype.forEach.call(m.addedNodes, function (n) {
-              if (n.nodeType !== 1) return;
-              var els = n.querySelectorAll ? n.querySelectorAll('input,textarea,select') : [];
-              els = Array.prototype.slice.call(els);
-              if (n.matches && n.matches('input,textarea,select')) els.push(n);
-              els.forEach(function (el) {
-                var key = el.id || el.name;
-                if (!key) return;
-                var tracked = sels.some(function (s) { return el.matches(s); });
-                if (!tracked) return;
-                if (keep.indexOf(key) !== -1 && self._seeded[key]) {
-                  touched = true;
-                  return;
-                }
-                self._snapshot[key] = el.value || '';
-                self._seeded[key] = true;
-                touched = true;
-              });
-            });
-          });
-          if (touched) self.markDirty();
-        });
-        this._observer.observe(this.$el, { childList: true, subtree: true });
       },
 
       _fields: function () {
@@ -131,6 +86,11 @@
   window.refreshDirty = function (id) {
     var chk = checks[id];
     if (chk && chk.refresh) chk.refresh();
+  };
+
+  window.markDirtyModal = function (id) {
+    var chk = checks[id];
+    if (chk && chk._self) chk._self.dirty = true;
   };
 
   function refreshVisible() {
