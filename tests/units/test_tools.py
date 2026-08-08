@@ -10,9 +10,15 @@ from focus.core.media import set_image_format
 from focus.tools.builtin import (
     _MAX_SHELL_TIMEOUT,
     _check_url_safe,
+    _mime_for,
+    _read_image_local,
+    _read_image_url,
     execute_shell,
+    get_all_tools,
+    list_dir,
     read_file,
     read_image,
+    reload_tools,
 )
 from focus.tools.helpers import build_tool_result
 
@@ -96,6 +102,131 @@ class TestReadFile:
         with pytest.raises(FileNotFoundError):
             read_file(str(tmp_path / "nope.txt"))
 
+    def test_exact_limit_returns_full(self, tmp_path):
+        f = tmp_path / "exact.txt"
+        f.write_text("y" * 32000)
+        assert len(read_file(str(f))) == 32000
+
+    def test_directory_rejected(self, tmp_path):
+        with pytest.raises(ValueError, match="Not a file"):
+            read_file(str(tmp_path))
+
+
+class TestListDir:
+    def test_lists_entries_sorted(self, tmp_path):
+        (tmp_path / "b.txt").write_text("x")
+        (tmp_path / "a").mkdir()
+        out = list_dir(str(tmp_path))
+        assert out.split("\n") == ["a\tdir", "b.txt\tfile"]
+
+    def test_empty_dir(self, tmp_path):
+        assert list_dir(str(tmp_path)) == "(empty directory)"
+
+    def test_missing_dir_raises(self, tmp_path):
+        with pytest.raises(FileNotFoundError):
+            list_dir(str(tmp_path / "nope"))
+
+
+class TestReadImageLocal:
+    def test_success(self, tmp_path):
+        buf = BytesIO()
+        Image.new("RGB", (4, 4)).save(buf, format="PNG")
+        path = tmp_path / "img.png"
+        path.write_bytes(buf.getvalue())
+        out = _read_image_local(str(path))
+        assert out["image"]["mime"] == "image/png"
+        assert base64.b64decode(out["image"]["base64"]) == buf.getvalue()
+        assert out["image"]["path"] == str(path)
+
+    def test_missing(self, tmp_path):
+        with pytest.raises(FileNotFoundError):
+            _read_image_local(str(tmp_path / "nope.png"))
+
+
+class TestMimeFor:
+    def test_content_type_wins(self):
+        assert _mime_for("x.bin", "image/png; charset=utf-8") == "image/png"
+
+    def test_guess_from_path(self):
+        assert _mime_for("x.jpg") == "image/jpeg"
+
+    def test_fallback_png(self):
+        assert _mime_for("x.unknown") == "image/png"
+
+
+class TestExecuteShellOutput:
+    def test_stderr_appended(self):
+        out = execute_shell("echo out; echo err >&2")
+        assert out.startswith("out")
+        assert "[stderr]\nerr" in out
+
+    def test_non_zero_exit_with_empty_output(self):
+        assert execute_shell("exit 7") == "(exit code 7)"
+
+
+class _FakeUrlResp:
+    def __init__(self, data, content_type="image/png"):
+        self.data = data
+        self.headers = {"Content-Type": content_type}
+
+    def read(self, n):
+        return self.data
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+
+class TestReadImageUrl:
+    def test_success(self, monkeypatch):
+        raw = b"\x89PNG fake-image"
+        opener = type("Opener", (), {"open": lambda self, req, timeout=30: _FakeUrlResp(raw)})()
+        monkeypatch.setattr("focus.tools.builtin.build_opener", lambda *a, **k: opener)
+        out = _read_image_url("https://8.8.8.8/x.png")
+        assert out["image"]["mime"] == "image/png"
+        assert base64.b64decode(out["image"]["base64"]) == raw
+
+    def test_oversize_rejected(self, monkeypatch):
+        opener = type("Opener", (), {"open": lambda self, req, timeout=30: _FakeUrlResp(b"x" * 100)})()
+        monkeypatch.setattr("focus.tools.builtin.build_opener", lambda *a, **k: opener)
+        monkeypatch.setattr("focus.tools.builtin._MAX_URL_FETCH_BYTES", 8)
+        with pytest.raises(RuntimeError, match="too large"):
+            _read_image_url("https://8.8.8.8/x.png")
+
+    def test_fetch_error_wrapped(self, monkeypatch):
+        def bad_opener(*a, **k):
+            raise OSError("connection refused")
+
+        monkeypatch.setattr("focus.tools.builtin.build_opener", bad_opener)
+        with pytest.raises(RuntimeError, match="Failed to fetch"):
+            _read_image_url("https://8.8.8.8/x.png")
+
+    def test_redirect_rechecks_safety(self, monkeypatch):
+        from urllib.request import Request
+
+        from focus.tools.builtin import _SafeRedirectHandler
+
+        checked = []
+        monkeypatch.setattr("focus.tools.builtin._check_url_safe", lambda url: checked.append(url))
+        req = Request("https://example.com/start")
+        handler = _SafeRedirectHandler()
+        new_req = handler.redirect_request(req, None, 302, "moved", {}, "https://8.8.8.8/target")
+        assert new_req is not None
+        assert checked == ["https://8.8.8.8/target"]
+
+
+class TestToolRegistry:
+    def test_get_all_tools_includes_builtins(self):
+        names = {t.name for t in get_all_tools()}
+        assert {"read_file", "list_dir", "read_image", "execute_shell"} <= names
+
+    def test_reload_tools_returns_list(self):
+        tools = reload_tools()
+        assert isinstance(tools, list)
+        assert any(t.name == "read_file" for t in tools)
+
 
 class TestCheckUrlSafe:
     @pytest.mark.parametrize("url", [
@@ -121,6 +252,26 @@ class TestCheckUrlSafe:
     ])
     def test_allows_public_targets(self, url):
         _check_url_safe(url)
+
+    def test_no_host_rejected(self):
+        with pytest.raises(RuntimeError, match="no host"):
+            _check_url_safe("http:///x")
+
+    def test_dns_failure_rejected(self, monkeypatch):
+        def fail(host, port=None):
+            raise OSError("no such host")
+
+        monkeypatch.setattr("focus.tools.builtin.socket.getaddrinfo", fail)
+        with pytest.raises(RuntimeError, match="Could not resolve"):
+            _check_url_safe("http://does-not-exist.example/x")
+
+    def test_unparsable_address_rejected(self, monkeypatch):
+        monkeypatch.setattr(
+            "focus.tools.builtin.socket.getaddrinfo",
+            lambda host, port=None: [((2, 1, 6, "", ("not-an-ip", 0)))],
+        )
+        with pytest.raises(RuntimeError, match="Unparsable"):
+            _check_url_safe("http://weird.example/x")
 
 
 class TestReadImageScheme:
