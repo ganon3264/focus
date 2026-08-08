@@ -2,7 +2,7 @@
 {% from "macros.html" import icon_close %}
 <div id="modal-select-option" class="modal-overlay sub hidden" role="dialog" aria-modal="true" aria-label="Select option"
      x-data="{ search: '', options: [], title: 'Select', select(value, label) { $dispatch('option-selected', { value: value, label: label }); } }"
-     data-action="actionCloseModals">
+     data-action="actionCloseModal">
   <div class="modal-content" style="max-width: 400px; width: 95vw; max-height: 60vh; overflow: hidden; background: var(--surface); padding: 0;">
     <div class="modal-header divider p-4">
       <div class="modal-title" x-text="title"></div>

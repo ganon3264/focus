@@ -102,7 +102,7 @@ overlay_close=true, dirty_fields='#block-modal-textarea,#block-modal-reasoning',
     <button type="button" class="btn btn-secondary btn-icon" style="width: calc(1lh + 1rem + 2px); height: calc(1lh + 1rem + 2px)" onclick="openMacroHelp()" title="Macro reference" aria-label="Macro reference">
       {{ icon_help(16) }}
     </button>
-    <button type="button" class="btn btn-secondary" onclick="closeBlockModal()">Cancel</button>
+    <button type="button" class="btn btn-secondary" data-action="actionCloseModal" data-modal-id="block-edit-modal">Cancel</button>
     <button type="button" class="btn btn-primary" id="block-modal-save" data-dirty-save onclick="saveBlockModal()">
       Save
     </button>
@@ -218,10 +218,6 @@ overlay_close=true, dirty_fields='#block-modal-textarea,#block-modal-reasoning',
       }
 
       window.openModal('block-edit-modal');
-    };
-
-    window.closeBlockModal = function () {
-      window.closeModal('block-edit-modal');
     };
 
     window.saveBlockModal = function () {

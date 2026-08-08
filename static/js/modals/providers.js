@@ -144,7 +144,7 @@ function selectFetchedModel(id, name) {
 
   const input = document.getElementById('model-text-' + prefix);
   if (input) input.value = id;
-  if (window.ModalController) window.ModalController.refresh('modal-provider-create');
+  window.ModalController.refresh('modal-provider-create');
   if (type === 'openrouter') {
     fetchOROptions(id);
   }
@@ -205,7 +205,7 @@ function toggleNoFallbacks(prefix) {
   if (!toggle || !input) return;
   toggle.classList.toggle('active');
   input.value = toggle.classList.contains('active') ? 'true' : 'false';
-  if (window.ModalController) window.ModalController.refresh('modal-provider-create');
+  window.ModalController.refresh('modal-provider-create');
 }
 
 function refreshNoFallbacksVisibility(prefix) {
@@ -529,7 +529,7 @@ function _setKeyInput(val, displayHtml) {
     display.innerHTML = displayHtml;
     display.classList.remove('text-muted');
   }
-  if (prefix === 'prov-form' && window.ModalController) window.ModalController.refresh('modal-provider-create');
+  if (prefix === 'prov-form') window.ModalController.refresh('modal-provider-create');
   closeModal('modal-secrets');
 }
 

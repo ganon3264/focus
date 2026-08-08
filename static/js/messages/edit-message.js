@@ -132,8 +132,7 @@
       window.currentEditAttachments = data.attachments || [];
       window.renderEditModalAttachments();
 
-      if (window.openModal) window.openModal('modal-edit-message');
-      else document.getElementById('modal-edit-message').classList.remove('hidden');
+      window.openModal('modal-edit-message');
     } catch (err) {
       window.showErrorToast('Error editing message: ' + err.message);
     }
@@ -211,8 +210,7 @@
         }),
       });
 
-      if (window.closeModal) window.closeModal('modal-edit-message', { discard: true });
-      else document.getElementById('modal-edit-message').classList.add('hidden');
+      window.closeModal('modal-edit-message', { discard: true });
 
       if (typeof refreshSingleMessage === 'function') {
         refreshSingleMessage(chatId, messageId);
@@ -251,7 +249,7 @@
         var data = await res.json();
         window.currentEditAttachments.push(...data.attachments);
         window.renderEditModalAttachments();
-        if (window.ModalController) window.ModalController.setDirty('modal-edit-message', true);
+        window.ModalController.setDirty('modal-edit-message', true);
       } else {
         window.showErrorToast('Failed to upload attachment');
       }
@@ -263,7 +261,7 @@
   window.deleteModalAttachment = function (idx) {
     window.currentEditAttachments.splice(idx, 1);
     window.renderEditModalAttachments();
-    if (window.ModalController) window.ModalController.setDirty('modal-edit-message', true);
+    window.ModalController.setDirty('modal-edit-message', true);
   };
 
   if (typeof window.setupDropZone === 'function') {

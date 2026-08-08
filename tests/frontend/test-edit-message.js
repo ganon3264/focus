@@ -81,6 +81,7 @@ global._refreshChatList = function () {};
 global.refreshSingleMessage = null;
 global.openModal = function () {};
 global.closeModal = function () {};
+global.ModalController = { setDirty: function () {} };
 global.extractThoughtsSafely = function (text) {
   return { processed: text || '', thoughts: [] };
 };
@@ -138,25 +139,20 @@ assert(typeof window.editMessage === 'function', 'editMessage loaded');
   window.currentEditAttachments = [];
 })();
 
-// ── open/close modal via classList (fallback when openModal absent) ──
+// ── deleteModalAttachment marks the modal dirty via ModalController ──
 (function () {
-  // When both openModal and closeModal are available, they're used.
-  // When not, the fallback uses classList directly.
-  var savedOpen = global.openModal;
-  var savedClose = global.closeModal;
-  global.openModal = null;
-  global.closeModal = null;
-
-  // Test fallback: editMessage stores data but fetch is async
-  // Instead, directly test the modal toggle via the classList fallback pattern
-  modal.classList.add('hidden');
-  // editMessage uses openModal('modal-edit-message') or classList.remove('hidden')
-  // saveMessageEdit uses closeModal('modal-edit-message') or classList.add('hidden')
-  // We can't test these directly (async), so verify the DOM exists
-  assert(modal.id === 'modal-edit-message', 'modal element exists');
-
-  global.openModal = savedOpen;
-  global.closeModal = savedClose;
+  var marked = false;
+  var oldSetDirty = global.ModalController.setDirty;
+  global.ModalController.setDirty = function (id, val) {
+    assertEqual(id, 'modal-edit-message', 'setDirty: modal id');
+    assertEqual(val, true, 'setDirty: true');
+    marked = true;
+  };
+  window.currentEditAttachments = [{ id: 'att1' }];
+  window.deleteModalAttachment(0);
+  assert(marked, 'setDirty called on attachment delete');
+  global.ModalController.setDirty = oldSetDirty;
+  window.currentEditAttachments = [];
 })();
 
 // ── uploadMessageAttachment is safe with empty input ──

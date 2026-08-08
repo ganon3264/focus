@@ -69,25 +69,13 @@ window.actionOpenThemeModal = function () {
   openModal("modal-themes");
 };
 
-window.actionCloseModals = function (el, e) {
-  if (e.target === el) closeModal(el.dataset.modalId || el.id);
-};
-
-window.actionCloseFetchModels = function () {
-  closeModal("modal-fetch-models");
-};
-
-window.actionCloseSecrets = function () {
-  closeModal("modal-secrets");
+window.actionCloseModal = function (el, e) {
+  if (el.classList.contains("modal-overlay") && e.target !== el) return;
+  closeModal(el.dataset.modalId || el.id);
 };
 
 window.actionTriggerFileUpload = function (el) {
   document.getElementById(el.dataset.target).click();
-};
-
-window.actionCloseModal = function (el, e) {
-  if (el.classList.contains("modal-overlay") && e.target !== el) return;
-  closeModal(el.dataset.modalId);
 };
 
 window.actionOpenTextExpander = function (el) {

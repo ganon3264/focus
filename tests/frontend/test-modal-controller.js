@@ -233,6 +233,18 @@ assert(typeof window.closeModal === 'function', 'closeModal wrapper loaded');
   assert(ov.classList.contains('hidden'), 'open twice + ESC: closed exactly once');
 })();
 
+// ── open while already visible does not re-baseline in-progress edits ──
+(function () {
+  var ov = makeModal('modal-visible', '.edit-field');
+  var f = addField(ov, 'edit-field-a', 'x');
+  window.openModal('modal-visible');
+  type(ov, f, 'edited');
+
+  window.openModal('modal-visible');
+  assertEqual(window.ModalController.isDirty('modal-visible'), true, 'open while visible: dirty preserved');
+  window.closeModal('modal-visible', { discard: true });
+})();
+
 // ── ESC closes topmost of stacked modals ──
 (function () {
   var a = makeModal('modal-esc-a', '.edit-field');

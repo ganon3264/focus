@@ -75,12 +75,16 @@
     }
   }
 
+  function applyState(id, d) {
+    setDirtyUI(id, d);
+    emitDirty(id, d);
+  }
+
   function capture(id) {
     var snap = {};
     fieldsOf(id).forEach(function (f) { snap[f.key] = f.el.value || ''; });
     dirtyStates[id] = { snapshot: snap, dirty: false };
-    setDirtyUI(id, false);
-    emitDirty(id, false);
+    applyState(id, false);
   }
 
   function recompute(id) {
@@ -97,8 +101,7 @@
     });
     if (st.dirty !== d) {
       st.dirty = d;
-      setDirtyUI(id, d);
-      emitDirty(id, d);
+      applyState(id, d);
     }
   }
 
@@ -136,7 +139,7 @@
       if (wasHidden && openHooks[id]) {
         openHooks[id].forEach(function (fn) { fn(id); });
       }
-      capture(id);
+      if (wasHidden || !dirtyStates[id]) capture(id);
     },
 
     close: function (id, opts) {
@@ -170,8 +173,7 @@
       var st = dirtyStates[id];
       if (!st) return;
       st.dirty = !!val;
-      setDirtyUI(id, !!val);
-      emitDirty(id, !!val);
+      applyState(id, !!val);
     },
 
     refresh: function (id) {
@@ -210,10 +212,10 @@
   });
 
   // Programmatic pickers (option picker, custom selects) don't fire input events.
-  document.addEventListener('option-selected', refreshOpen);
-  document.addEventListener('custom-select:set', refreshOpen);
+  document.addEventListener('option-selected', recomputeOpen);
+  document.addEventListener('custom-select:set', recomputeOpen);
 
-  function refreshOpen() {
+  function recomputeOpen() {
     stack.slice().forEach(function (id) { recompute(id); });
   }
 
