@@ -15,6 +15,42 @@
     return d.firstElementChild;
   }
 
+  function buildReasoningToggleButton() {
+    var toggleBtn = document.createElement('button');
+    toggleBtn.className = 'reasoning-toggle-btn hidden';
+    toggleBtn.setAttribute('aria-label', 'Toggle reasoning');
+    toggleBtn.addEventListener('click', function () { window.toggleReasoning(toggleBtn); });
+    toggleBtn.appendChild(_chevronSvg());
+    var toggleSpan = document.createElement('span');
+    toggleSpan.textContent = 'Reasoning';
+    toggleBtn.appendChild(toggleSpan);
+    return toggleBtn;
+  }
+
+  // Ensure the message-level reasoning toggle button exists in the meta row,
+  // creating it if the reused server HTML omitted it (e.g. regenerating from a
+  // variant that had no reasoning). A `·` separator is added only when the meta
+  // row already has content (the model name), matching the server template.
+  window.ensureReasoningToggleButton = function (msgEl) {
+    var existing = msgEl.querySelector('.reasoning-toggle-btn');
+    if (existing) return existing;
+
+    var btn = buildReasoningToggleButton();
+    var meta = msgEl.querySelector('.text-muted.flex-wrap');
+    if (meta) {
+      if (meta.children.length > 0) {
+        var dot = document.createElement('span');
+        dot.className = 'text-muted';
+        dot.textContent = '·';
+        meta.appendChild(dot);
+      }
+      meta.appendChild(btn);
+    } else {
+      msgEl.appendChild(btn);
+    }
+    return btn;
+  };
+
   window.buildAssistantSkeleton = function (charName, charImagePath) {
     var div = document.createElement('div');
     div.className = 'message msg';
@@ -56,15 +92,7 @@
     meta.className = 'text-xs text-muted flex items-center gap-1.5 flex-wrap mt-0.5';
     col.appendChild(meta);
 
-    var toggleBtn = document.createElement('button');
-    toggleBtn.className = 'reasoning-toggle-btn hidden';
-    toggleBtn.setAttribute('aria-label', 'Toggle reasoning');
-    toggleBtn.addEventListener('click', function () { window.toggleReasoning(toggleBtn); });
-    toggleBtn.appendChild(_chevronSvg());
-    var toggleSpan = document.createElement('span');
-    toggleSpan.textContent = 'Reasoning';
-    toggleBtn.appendChild(toggleSpan);
-    meta.appendChild(toggleBtn);
+    meta.appendChild(buildReasoningToggleButton());
 
     var content = document.createElement('div');
     content.className = 'message-content markdown-content processed pl-stream';

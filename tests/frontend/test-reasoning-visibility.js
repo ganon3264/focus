@@ -109,6 +109,35 @@ function makeMessage(opts) {
     assert(restoredBlock && restoredBlock.hasAttribute('open'),
       'preserveOpenStates: restores open on matching thinkId');
   })();
+
+  // 7. _updateReasoningButton creates + reveals the button when reasoning exists
+  //    but the reused server HTML has no button (swipe/regenerate streaming).
+  (function () {
+    var created = null;
+    window.ensureReasoningToggleButton = function (msg) {
+      var btn = makeElement('button');
+      btn.classList.add('reasoning-toggle-btn');
+      btn.classList.add('hidden');
+      msg.appendChild(btn);
+      created = btn;
+      return btn;
+    };
+
+    var msg = makeElement('div');
+    msg.classList.add('message');
+
+    var content = makeElement('div');
+    content.classList.add('message-content');
+    var block = makeElement('div');
+    block.classList.add('reasoning-block');
+    content.appendChild(block);
+    msg.appendChild(content);
+
+    window._updateReasoningButton(content);
+    assert(created !== null, '_updateReasoningButton creates a button when reasoning exists');
+    assert(created && !created.classList.contains('hidden'),
+      '_updateReasoningButton reveals the created button');
+  })();
 })();
 
 // ── Result ──

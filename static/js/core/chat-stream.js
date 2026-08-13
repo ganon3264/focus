@@ -58,22 +58,19 @@
       window.showErrorToast(err.message);
     }
 
-    // Label the div so refreshMessagesAfterStream can find it
-    if (state.asstDiv && state.messageId) {
-      state.asstDiv.id = 'message-' + state.messageId;
-      state.asstDiv.dataset.messageId = state.messageId;
+    // Remove the empty/stale assistant skeleton, then restore the list from
+    // the server. Never refresh by message id here — the message may not exist
+    // (rolled back on failure), which would otherwise 404.
+    if (state.asstDiv && state.asstDiv.parentNode) {
+      state.asstDiv.remove();
     }
 
-    // Refresh from server to restore whatever was checkpointed
-    if (state.chatId && state.messageId) {
-      await window.refreshMessagesAfterStream(state.chatId, state.userMessageId, state.messageId);
-    }
-
-    // If there's still no messageId (error before SSE start), remove the spinner
-    // so the skeleton isn't stuck in a loading state
-    if (state.asstDiv) {
-      var spinner = state.asstDiv.querySelector('.message-spinner');
-      if (spinner) spinner.remove();
+    if (state.chatId) {
+      htmx.ajax('GET', window.api.partials.messageList(state.chatId), {
+        target: '#message-list',
+        swap: 'innerHTML',
+      });
+      if (window._refreshChatList) window._refreshChatList(state.chatId);
     }
 
     if (typeof updateSendButtonState === 'function') updateSendButtonState();

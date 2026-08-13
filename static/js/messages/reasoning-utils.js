@@ -2,9 +2,12 @@
   function _updateReasoningButton(contentDiv) {
     const msg = contentDiv.closest('.message');
     if (!msg) return;
-    const btn = msg.querySelector('.reasoning-toggle-btn');
-    if (!btn) return;
+    let btn = msg.querySelector('.reasoning-toggle-btn');
     const hasReasoning = msg.querySelector('.reasoning-block');
+    if (!btn && hasReasoning && window.ensureReasoningToggleButton) {
+      btn = window.ensureReasoningToggleButton(msg);
+    }
+    if (!btn) return;
     btn.classList.toggle('hidden', !hasReasoning);
   }
   window._updateReasoningButton = _updateReasoningButton;
