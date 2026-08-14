@@ -188,6 +188,26 @@ assert(typeof window.closeModal === 'function', 'closeModal wrapper loaded');
   window.closeModal('modal-forced', { discard: true });
 })();
 
+// ── setDirty survives field recompute (attachment + field revert) ──
+(function () {
+  var ov = makeModal('modal-extra', '.edit-field');
+  var f = addField(ov, 'edit-field-a', 'base');
+  window.openModal('modal-extra');
+
+  window.ModalController.setDirty('modal-extra', true);
+  assertEqual(window.ModalController.isDirty('modal-extra'), true, 'extra: setDirty true');
+
+  type(ov, f, 'edited');
+  assertEqual(window.ModalController.isDirty('modal-extra'), true, 'extra: field edit keeps dirty');
+
+  type(ov, f, 'base');
+  assertEqual(window.ModalController.isDirty('modal-extra'), true, 'extra: field revert does not clear attachment dirty');
+
+  window.ModalController.setDirty('modal-extra', false);
+  assertEqual(window.ModalController.isDirty('modal-extra'), false, 'extra: setDirty false clears');
+  window.closeModal('modal-extra', { discard: true });
+})();
+
 // ── lazy baseline: fields added after open are clean until changed ──
 (function () {
   var ov = makeModal('modal-late', '.late-field');

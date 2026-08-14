@@ -1,4 +1,8 @@
 (function () {
+  function isExternalSrc(src) {
+    return typeof src === 'string' && /^(blob:|data:|https?:)/.test(src);
+  }
+
   window.createMediaThumbnail = function (opts) {
     var div = document.createElement('div');
     div.className = 'media-thumb relative group';
@@ -14,7 +18,7 @@
         window.getSvgSprite('music', 24) +
         '</div>';
     } else {
-      var imgSrc = opts.src ? '/' + opts.src : '';
+      var imgSrc = opts.src ? (isExternalSrc(opts.src) ? opts.src : '/' + opts.src) : '';
       div.innerHTML =
         '<img src="' +
         imgSrc +
@@ -57,7 +61,7 @@
       mimeType: img.mime_type,
       size: 48,
       id: idPrefix ? idPrefix + '-' + img.id : undefined,
-      onClick: function () { openLightbox('/' + (img.image_path || '')); },
+      onClick: function () { openLightbox(isExternalSrc(img.image_path) ? img.image_path : '/' + (img.image_path || '')); },
       onDelete: function (e) {
         e.preventDefault();
         e.stopPropagation();

@@ -30,44 +30,112 @@
     };
     var mid = cfg.modalId;
 
+    // Deferred (non-destructive until Save) attachment/avatar state.
+    var workingImages = []; // existing {id,image_path,mime_type} + staged {id,image_path,_file,_objectUrl}
+    var removedIds = [];    // persisted image ids marked for deletion on Save
+    var pendingAvatar = null; // { blob, objectUrl } staged cropped avatar
+    var greetingBaseline = null; // full greeting list captured once after load
+    var pendingGreetingOpen = false; // true while the open-load greeting swap is in flight
+    var tmpCounter = 0;
+
+    function makeObjectUrl(file) {
+      if (typeof URL !== 'undefined' && URL.createObjectURL && file) {
+        try { return URL.createObjectURL(file); } catch (e) { return ''; }
+      }
+      return '';
+    }
+
+    function revokeObjectUrl(url) {
+      if (url && typeof URL !== 'undefined' && URL.revokeObjectURL) {
+        try { URL.revokeObjectURL(url); } catch (e) {}
+      }
+    }
+
+    function setModalDirty(val) {
+      if (window.ModalController) ModalController.setDirty(mid, val);
+    }
+
+    function renderMedia() {
+      var s = sec();
+      if (!s) return;
+      Array.from(s.querySelectorAll('[data-image-id]')).forEach(function (el) {
+        el.remove();
+      });
+      var addBtn = s.querySelector('.block-media-btn');
+      workingImages.forEach(function (m) {
+        var div = window.buildMediaThumbnail(
+          { id: m.id, image_path: m.image_path, mime_type: m.mime_type },
+          function () { window[cfg.deleteFn](m.id); },
+          cfg.mediaIdPrefix,
+        );
+        s.insertBefore(div, addBtn);
+      });
+      var ph = s.querySelector('.block-media-placeholder');
+      if (ph) ph.style.display = workingImages.length ? 'none' : 'block';
+    }
+
+    function reloadArrangerIfActive(id) {
+      if (!window.StateManager || StateManager.get(cfg.stateKey) !== id || !window.reloadPromptArranger) return;
+      var pid =
+        StateManager.get('preset_id') ||
+        (document.getElementById('prompt-arranger') &&
+        document.querySelector('#prompt-arranger .arranger-list')
+          ? document
+              .querySelector('#prompt-arranger .arranger-list')
+              .id.replace('arranger-list-', '')
+          : null);
+      if (pid) window.reloadPromptArranger(pid, 'prompt-arranger');
+    }
+
+    function greetingSection() {
+      return document.getElementById(cfg.idPrefix + '-greeting-section');
+    }
+
+    function fullGreetingList(section) {
+      section = section || greetingSection();
+      if (!section) return null;
+      var ta = section.querySelector('textarea[name="greeting"]');
+      var jsonInput = section.querySelector('input[name="greetings_json"]');
+      var idxInput = section.querySelector('input[name="greeting_idx"]');
+      var list = [];
+      if (jsonInput) {
+        try { list = JSON.parse(jsonInput.value || '[]'); } catch (e) { list = []; }
+      }
+      if (!Array.isArray(list)) list = [];
+      var idx = idxInput ? parseInt(idxInput.value, 10) : 0;
+      if (isNaN(idx) || idx < 0) idx = 0;
+      if (ta) {
+        var value = ta.value;
+        if (value && list.length === 0) list = [value];
+        else if (idx < list.length) list[idx] = value;
+      }
+      return list;
+    }
+
+    function updateGreetingDirty(section) {
+      if (greetingBaseline === null) return;
+      var current = fullGreetingList(section);
+      var changed = JSON.stringify(current) !== JSON.stringify(greetingBaseline);
+      setModalDirty(changed);
+    }
+
     window[cfg.uploadFileFn] = function (file) {
       var id = eid('-id').value;
       if (!id) return;
-      var fd = new FormData();
-      fd.append('file', file);
-      fetch(cfg.apiImages(id), { method: 'POST', body: fd })
-        .then(function (r) {
-          return r.json();
-        })
-        .then(function (data) {
-          var s = sec();
-          if (!s) return;
-          var div = window.buildMediaThumbnail(
-            data,
-            function (e) {
-              window[cfg.deleteFn](data.id);
-            },
-            cfg.mediaIdPrefix,
-          );
-          s.insertBefore(div, s.lastElementChild.previousElementSibling);
-          var ph = s.querySelector('.block-media-placeholder');
-          if (ph) ph.style.display = 'none';
-          if (
-            window.StateManager &&
-            StateManager.get(cfg.stateKey) === id &&
-            window.reloadPromptArranger
-          ) {
-            var pid =
-              StateManager.get('preset_id') ||
-              (document.getElementById('prompt-arranger') &&
-              document.querySelector('#prompt-arranger .arranger-list')
-                ? document
-                    .querySelector('#prompt-arranger .arranger-list')
-                    .id.replace('arranger-list-', '')
-                : null);
-            if (pid) window.reloadPromptArranger(pid, 'prompt-arranger');
-          }
-        });
+      var tempId = 'tmp-' + (++tmpCounter);
+      var objectUrl = '';
+      if (file && file.type && file.type.indexOf('image/') === 0) {
+        objectUrl = makeObjectUrl(file);
+      }
+      workingImages.push({
+        id: tempId,
+        image_path: objectUrl,
+        mime_type: file ? file.type : '',
+        _file: file,
+        _objectUrl: objectUrl,
+      });
+      renderMedia();
+      setModalDirty(true);
     };
 
     window[cfg.openFn] = function (btn) {
@@ -97,45 +165,43 @@
         ph.innerText = name ? name.charAt(0).toUpperCase() : '?';
         ph.style.display = 'block';
       }
-      var s = sec();
-      Array.from(s.children).forEach(function (el) {
-        if (
-          !el.classList.contains('block-media-btn') &&
-          !el.classList.contains('block-media-placeholder')
-        )
-          el.remove();
+
+      if (pendingAvatar && pendingAvatar.objectUrl) revokeObjectUrl(pendingAvatar.objectUrl);
+      pendingAvatar = null;
+      workingImages.forEach(function (m) {
+        if (m._objectUrl) revokeObjectUrl(m._objectUrl);
       });
-      if (cfg.greetingSectionId) {
-        htmx.ajax('POST', cfg.greetingPartial(id), {
-          target: '#' + cfg.greetingSectionId,
-          swap: 'outerHTML',
-        });
-      }
-      var phText = s.querySelector('.block-media-placeholder');
+      workingImages = [];
+      removedIds = [];
+      greetingBaseline = null;
+      pendingGreetingOpen = false;
+
       var list = [];
       try {
         list = JSON.parse(btn.dataset[P + 'Media'] || '[]');
       } catch (e) {
         console.error(e);
       }
-      if (list.length > 0 && phText) {
-        phText.style.display = 'none';
-      } else if (list.length === 0 && phText) {
-        phText.style.display = 'block';
-      }
-      list.forEach(function (img) {
-        s.insertBefore(
-          window.buildMediaThumbnail(
-            img,
-            function (e) {
-              window[cfg.deleteFn](img.id);
-            },
-            cfg.mediaIdPrefix,
-          ),
-          s.lastElementChild.previousElementSibling,
-        );
+      workingImages = list.map(function (img) {
+        return { id: img.id, image_path: img.image_path || '', mime_type: img.mime_type || '' };
       });
-      window.openModal(mid);
+      renderMedia();
+
+      function finishOpen() {
+        window.openModal(mid);
+      }
+
+      if (cfg.greetingSectionId) {
+        pendingGreetingOpen = true;
+        var p = htmx.ajax('POST', cfg.greetingPartial(id), {
+          target: '#' + cfg.greetingSectionId,
+          swap: 'outerHTML',
+        });
+        if (p && typeof p.then === 'function') p.then(finishOpen);
+        else finishOpen();
+      } else {
+        finishOpen();
+      }
     };
 
     window[cfg.uploadFn] = function (input) {
@@ -145,28 +211,20 @@
     };
 
     window[cfg.deleteFn] = function (imageId) {
-      var id = eid('-id').value;
-      if (!id) return;
-      fetch(cfg.apiImage(id, imageId), { method: 'DELETE' }).then(function (r) {
-        if (!r.ok) return;
-        var el = document.getElementById(cfg.mediaIdPrefix + '-' + imageId);
-        if (el) el.remove();
-        if (
-          window.StateManager &&
-          StateManager.get(cfg.stateKey) === id &&
-          window.reloadPromptArranger
-        ) {
-          var pid =
-            StateManager.get('preset_id') ||
-            (document.getElementById('prompt-arranger') &&
-            document.querySelector('#prompt-arranger .arranger-list')
-              ? document
-                  .querySelector('#prompt-arranger .arranger-list')
-                  .id.replace('arranger-list-', '')
-              : null);
-          if (pid) window.reloadPromptArranger(pid, 'prompt-arranger');
+      var idx = -1;
+      for (var i = 0; i < workingImages.length; i++) {
+        if (workingImages[i].id === imageId) {
+          idx = i;
+          break;
         }
-      });
+      }
+      if (idx < 0) return;
+      var item = workingImages[idx];
+      workingImages.splice(idx, 1);
+      if (item._objectUrl) revokeObjectUrl(item._objectUrl);
+      else if (item.id && String(item.id).indexOf('tmp-') !== 0) removedIds.push(item.id);
+      renderMedia();
+      setModalDirty(true);
     };
 
     window[cfg.avatarFn] = function (input) {
@@ -174,20 +232,15 @@
       var id = eid('-id').value;
       if (!id) return;
       openCropModal(input.files[0], function (blob) {
-        var fd = new FormData();
-        fd.append('file', blob, 'avatar.webp');
-        fetch(cfg.apiAvatar(id), { method: 'POST', body: fd })
-          .then(function (r) {
-            return r.json();
-          })
-          .then(function (data) {
-            var prev = eid('-image-preview');
-            var ph = eid('-image-placeholder');
-            prev.src = '/' + data.avatar_path + '?t=' + new Date().getTime();
-            prev.style.display = 'block';
-            ph.style.display = 'none';
-            window.showInfoToast('Avatar updated');
-          });
+        if (pendingAvatar && pendingAvatar.objectUrl) revokeObjectUrl(pendingAvatar.objectUrl);
+        var objectUrl = makeObjectUrl(blob);
+        pendingAvatar = { blob: blob, objectUrl: objectUrl };
+        var prev = eid('-image-preview');
+        var ph = eid('-image-placeholder');
+        prev.src = objectUrl;
+        prev.style.display = 'block';
+        ph.style.display = 'none';
+        setModalDirty(true);
       });
       input.value = '';
     };
@@ -199,36 +252,99 @@
       var form = window.resolveFormFromEvent(e);
       if (!form) return;
       var data = Object.fromEntries(new FormData(form));
-      fetch(cfg.apiGet(id), {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      }).then(async function (r) {
-        if (!r.ok) return;
-        window.closeModal(mid, { discard: true });
-        window.showSuccessToast(cfg.dataPrefix === 'char' ? 'Character saved' : 'Persona saved');
-        if (cfg.dataPrefix === 'char') {
-          window.dispatchEvent(new CustomEvent('character-edited', { detail: { id: id } }));
-        }
-        if (cfg.cardEndpoint && cfg.gridId) {
-          var currentId = StateManager.get(cfg.stateKey) || '';
-          var gridEl = document.getElementById(cfg.gridId);
-          var compactView = gridEl && gridEl.dataset.view === 'compact';
-          var url = cfg.cardEndpoint + id
-            + '?current_' + cfg.stateKey + '=' + encodeURIComponent(currentId)
-            + '&compact_view=' + (compactView ? 'true' : 'false');
-          htmx.ajax('GET', url, {
-            target: '#' + (cfg.stateKey === 'character_id' ? 'char' : 'persona') + '-card-' + id,
-            swap: 'outerHTML',
-          }).then(function () {
-            if (cfg.sortStorageKey && cfg.sortFn && window[cfg.sortFn]) {
-              var val = localStorage.getItem(cfg.sortStorageKey);
-              if (val) window[cfg.sortFn](val);
-            }
+
+      var chain = Promise.resolve();
+      workingImages.forEach(function (m) {
+        if (!m._file) return;
+        chain = chain.then(function () {
+          var fd = new FormData();
+          fd.append('file', m._file);
+          return fetch(cfg.apiImages(id), { method: 'POST', body: fd }).then(function (r) {
+            if (!r.ok) throw new Error('upload');
+            return r.json();
           });
-        }
+        });
       });
+
+      if (pendingAvatar) {
+        chain = chain.then(function () {
+          var fd = new FormData();
+          fd.append('file', pendingAvatar.blob, 'avatar.webp');
+          return fetch(cfg.apiAvatar(id), { method: 'POST', body: fd }).then(function (r) {
+            if (!r.ok) throw new Error('avatar');
+            return r.json();
+          });
+        });
+      }
+
+      chain = chain.then(function () {
+        return Promise.all(
+          removedIds.map(function (imgId) {
+            return fetch(cfg.apiImage(id, imgId), { method: 'DELETE' });
+          }),
+        );
+      });
+
+      chain = chain.then(function () {
+        return fetch(cfg.apiGet(id), {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
+      });
+
+      return chain
+        .then(function (r) {
+          if (!r.ok) return;
+          if (pendingAvatar && pendingAvatar.objectUrl) revokeObjectUrl(pendingAvatar.objectUrl);
+          pendingAvatar = null;
+          window.closeModal(mid, { discard: true });
+          window.showSuccessToast(cfg.dataPrefix === 'char' ? 'Character saved' : 'Persona saved');
+          if (cfg.dataPrefix === 'char') {
+            window.dispatchEvent(new CustomEvent('character-edited', { detail: { id: id } }));
+          }
+          reloadArrangerIfActive(id);
+          if (cfg.cardEndpoint && cfg.gridId) {
+            var currentId = StateManager.get(cfg.stateKey) || '';
+            var gridEl = document.getElementById(cfg.gridId);
+            var compactView = gridEl && gridEl.dataset.view === 'compact';
+            var url = cfg.cardEndpoint + id
+              + '?current_' + cfg.stateKey + '=' + encodeURIComponent(currentId)
+              + '&compact_view=' + (compactView ? 'true' : 'false');
+            htmx.ajax('GET', url, {
+              target: '#' + (cfg.stateKey === 'character_id' ? 'char' : 'persona') + '-card-' + id,
+              swap: 'outerHTML',
+            }).then(function () {
+              if (cfg.sortStorageKey && cfg.sortFn && window[cfg.sortFn]) {
+                var val = localStorage.getItem(cfg.sortStorageKey);
+                if (val) window[cfg.sortFn](val);
+              }
+            });
+          }
+        })
+        .catch(function (err) {
+          console.error(err);
+          if (window.showErrorToast) window.showErrorToast('Failed to save');
+        });
     };
+
+    if (cfg.greetingSectionId) {
+      window.actionGreetingInput = function (el) {
+        var section = el && el.closest ? el.closest('#' + cfg.idPrefix + '-greeting-section') : null;
+        updateGreetingDirty(section);
+      };
+
+      document.addEventListener('htmx:afterSwap', function (e) {
+        var t = e.detail && e.detail.target;
+        if (!t || t.id !== cfg.idPrefix + '-greeting-section') return;
+        if (pendingGreetingOpen) {
+          pendingGreetingOpen = false;
+          greetingBaseline = fullGreetingList();
+          return;
+        }
+        updateGreetingDirty();
+      });
+    }
 
     window.setupDropZone(cfg.dropZoneSelector, function (files) {
       files.forEach(window[cfg.uploadFileFn]);

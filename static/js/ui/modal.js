@@ -83,14 +83,14 @@
   function capture(id) {
     var snap = {};
     fieldsOf(id).forEach(function (f) { snap[f.key] = f.el.value || ''; });
-    dirtyStates[id] = { snapshot: snap, dirty: false };
+    dirtyStates[id] = { snapshot: snap, dirty: false, extra: false };
     applyState(id, false);
   }
 
   function recompute(id) {
     var st = dirtyStates[id];
     if (!st) return;
-    var d = false;
+    var d = !!st.extra;
     fieldsOf(id).forEach(function (f) {
       var base = st.snapshot[f.key];
       if (base === undefined) {
@@ -172,8 +172,8 @@
     setDirty: function (id, val) {
       var st = dirtyStates[id];
       if (!st) return;
-      st.dirty = !!val;
-      applyState(id, !!val);
+      st.extra = !!val;
+      recompute(id);
     },
 
     refresh: function (id) {

@@ -37,11 +37,22 @@ global.openModal = function () {};
 global.closeModal = function () {};
 global.showSuccessToast = function () {};
 global.showInfoToast = function () {};
+global.showErrorToast = function () {};
 global.openConfirmModal = function (message, callback) { callback(); };
 global.FormData = function (form) {
   this._fields = {};
   this.append = function (k, v) { this._fields[k] = v; };
 };
+var setDirtyCalls = [];
+global.ModalController = {
+  setDirty: function (id, val) { setDirtyCalls.push({ id: id, val: val }); },
+};
+var CustomEventCtor = h.createMockCustomEvent();
+global.CustomEvent = CustomEventCtor;
+global.dispatchEvent = function (ev) { CustomEventCtor._events.push(ev); };
+global.localStorage = h.createMockLocalStorage();
+var submitPromise = null;
+var submitFetchFn = null;
 
 // Load module
 eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'modals', 'edit-entity.js'), 'utf8'));
@@ -227,26 +238,14 @@ assert(typeof window.createEditModalHandlers === 'function', 'createEditModalHan
   global.htmx.ajax = oldAjax;
 
   // ── submit forwards greeting fields to the server (no client-side merge) ──
-  var fetchFn = h.createMockFetch({ ok: true, json: function () { return {}; } });
-  var oldFetch = global.fetch;
-  var oldFormData = global.FormData;
-  var oldResolve = global.resolveFormFromEvent;
-  global.fetch = fetchFn;
+  submitFetchFn = h.createMockFetch({ ok: true, json: function () { return {}; } });
+  global.fetch = submitFetchFn;
   global.FormData = h.createMockFormData();
   global.resolveFormFromEvent = function (e) { return e._form; };
 
   var form = { _fields: { name: 'N', greeting: 'Edited', greetings_json: '["Hi","Alt A"]', greeting_idx: '1' } };
-  window.submitEditG2({ preventDefault: function () {}, _form: form });
+  submitPromise = window.submitEditG2({ preventDefault: function () {}, _form: form });
 
-  var body = JSON.parse(fetchFn._last().opts.body);
-  assertEqual(body.greeting, 'Edited', 'submit sends current greeting value');
-  assertEqual(body.greetings_json, '["Hi","Alt A"]', 'submit sends working greeting list');
-  assertEqual(body.greeting_idx, '1', 'submit sends greeting index');
-  assertEqual(body.first_mes, undefined, 'submit does not map first_mes client-side');
-
-  global.fetch = oldFetch;
-  global.FormData = oldFormData;
-  global.resolveFormFromEvent = oldResolve;
   doc.getElementById = origGet;
 
   // ── persona factory without greetingSectionId registers no greeting fns ──
@@ -291,4 +290,14 @@ assert(typeof window.createEditModalHandlers === 'function', 'createEditModalHan
 })();
 
 // ── Result ──
-h.printSummary();
+submitPromise.then(function () {
+  var body = JSON.parse(submitFetchFn._last().opts.body);
+  assertEqual(body.greeting, 'Edited', 'submit sends current greeting value');
+  assertEqual(body.greetings_json, '["Hi","Alt A"]', 'submit sends working greeting list');
+  assertEqual(body.greeting_idx, '1', 'submit sends greeting index');
+  assertEqual(body.first_mes, undefined, 'submit does not map first_mes client-side');
+  h.printSummary();
+}).catch(function (err) {
+  console.error(err);
+  process.exit(1);
+});
