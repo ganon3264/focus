@@ -51,8 +51,19 @@
       }
     }
 
+    // Browsers normalize \r\n/\r to \n in textarea values, while the stored
+    // greetings_json keeps them raw — normalize before comparing so plain
+    // navigation doesn't show up as an edit.
+    function normalizeNewlines(s) {
+      return typeof s === 'string' ? s.replace(/\r\n?/g, '\n') : s;
+    }
+
     function setModalDirty(val) {
       if (window.ModalController) ModalController.setDirty(mid, val);
+    }
+
+    function setGreetingDirty(val) {
+      if (window.ModalController) ModalController.setGreetingDirty(mid, val);
     }
 
     function renderMedia() {
@@ -102,10 +113,11 @@
         try { list = JSON.parse(jsonInput.value || '[]'); } catch (e) { list = []; }
       }
       if (!Array.isArray(list)) list = [];
+      list = list.map(normalizeNewlines);
       var idx = idxInput ? parseInt(idxInput.value, 10) : 0;
       if (isNaN(idx) || idx < 0) idx = 0;
       if (ta) {
-        var value = ta.value;
+        var value = normalizeNewlines(ta.value);
         if (value && list.length === 0) list = [value];
         else if (idx < list.length) list[idx] = value;
       }
@@ -116,7 +128,7 @@
       if (greetingBaseline === null) return;
       var current = fullGreetingList(section);
       var changed = JSON.stringify(current) !== JSON.stringify(greetingBaseline);
-      setModalDirty(changed);
+      setGreetingDirty(changed);
     }
 
     window[cfg.uploadFileFn] = function (file) {
@@ -197,8 +209,15 @@
           target: '#' + cfg.greetingSectionId,
           swap: 'outerHTML',
         });
-        if (p && typeof p.then === 'function') p.then(finishOpen);
-        else finishOpen();
+        if (p && typeof p.then === 'function') {
+          p.then(finishOpen, function () {
+            pendingGreetingOpen = false;
+            console.error('Failed to load greeting section');
+            finishOpen();
+          });
+        } else {
+          finishOpen();
+        }
       } else {
         finishOpen();
       }

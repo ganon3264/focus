@@ -208,6 +208,29 @@ assert(typeof window.closeModal === 'function', 'closeModal wrapper loaded');
   window.closeModal('modal-extra', { discard: true });
 })();
 
+// ── greeting dirtiness is independent of attachment dirtiness ──
+(function () {
+  var ov = makeModal('modal-greeting', '.edit-field');
+  var f = addField(ov, 'edit-field-b', 'base');
+  window.openModal('modal-greeting');
+
+  window.ModalController.setGreetingDirty('modal-greeting', true);
+  assertEqual(window.ModalController.isDirty('modal-greeting'), true, 'greeting: true marks dirty');
+
+  window.ModalController.setGreetingDirty('modal-greeting', false);
+  assertEqual(window.ModalController.isDirty('modal-greeting'), false, 'greeting: false clears when nothing else dirty');
+
+  // attachment staged + greeting revert must NOT clear attachment dirtiness
+  window.ModalController.setDirty('modal-greeting', true);
+  window.ModalController.setGreetingDirty('modal-greeting', true);
+  window.ModalController.setGreetingDirty('modal-greeting', false);
+  assertEqual(window.ModalController.isDirty('modal-greeting'), true, 'greeting: revert keeps attachment dirty');
+
+  window.ModalController.setDirty('modal-greeting', false);
+  assertEqual(window.ModalController.isDirty('modal-greeting'), false, 'greeting: setDirty false clears');
+  window.closeModal('modal-greeting', { discard: true });
+})();
+
 // ── lazy baseline: fields added after open are clean until changed ──
 (function () {
   var ov = makeModal('modal-late', '.late-field');

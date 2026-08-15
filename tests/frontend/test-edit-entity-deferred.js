@@ -24,6 +24,8 @@ doc.createElement = function (tag) {
 };
 
 var setDirtyCalls = [];
+var greetingDirtyCalls = [];
+var openCalls = [];
 var fetchCalls = [];
 var thumbCount = 0;
 
@@ -44,7 +46,7 @@ global.buildMediaThumbnail = function (img, onDelete, idPrefix) {
   el.dataset.imageId = img.id;
   return el;
 };
-global.openModal = function () {};
+global.openModal = function () { openCalls.push(true); };
 global.closeModal = function () {};
 global.showSuccessToast = function () {};
 global.showInfoToast = function () {};
@@ -54,6 +56,7 @@ global.FormData = h.createMockFormData();
 global.resolveFormFromEvent = function (e) { return e._form; };
 global.ModalController = {
   setDirty: function (id, val) { setDirtyCalls.push({ id: id, val: val }); },
+  setGreetingDirty: function (id, val) { greetingDirtyCalls.push({ id: id, val: val }); },
 };
 var CustomEventCtor = h.createMockCustomEvent();
 global.CustomEvent = CustomEventCtor;
@@ -132,29 +135,53 @@ function flush() {
   btn.dataset.charId = 'c1';
   btn.dataset.charMedia = '[{"id":"img1","image_path":"a.png","mime_type":"image/png"}]';
   window.openEditChar(btn);
+
+  // Simulate the greeting section landing. htmx fires htmx:afterSwap
+  // synchronously inside the XHR onload, before the ajax() promise resolves.
+  (doc._handlers['htmx:afterSwap'] || []).forEach(function (fn) {
+    fn({ detail: { target: gsec } });
+  });
+
   await flush();
 
   assertEqual(fetchCalls.length, 0, 'open issues no attachment fetch');
   assertEqual(thumbCount, 1, 'open renders existing media thumbnail');
   assertEqual(setDirtyCalls.length, 0, 'open leaves modal clean');
+  assertEqual(greetingDirtyCalls.length, 0, 'open-load swap baselines greeting without marking dirty');
+  assertEqual(openCalls.length, 1, 'open opens the modal');
 
-  // ── simulate the greeting section landing via htmx:afterSwap ──
+  // ── greeting input marks dirty; revert clears ──
+  greetingDirtyCalls.length = 0;
+  gta.value = 'Hello world';
+  window.actionGreetingInput(gta);
+  assertEqual(greetingDirtyCalls.length, 1, 'greeting edit marks dirty');
+  assertEqual(greetingDirtyCalls[0].val, true, 'greeting edit dirty=true');
+
+  greetingDirtyCalls.length = 0;
+  gta.value = 'Hello';
+  window.actionGreetingInput(gta);
+  assertEqual(greetingDirtyCalls[0].val, false, 'greeting revert clears dirty');
+
+  // ── CRLF in stored greetings normalizes before comparison ──
+  greetingDirtyCalls.length = 0;
+  gj.value = '["Hello","Alt\\r\\nA"]';
+  gidx.value = '0';
+  gta.value = 'Hello';
+  window.openEditChar(btn);
   (doc._handlers['htmx:afterSwap'] || []).forEach(function (fn) {
     fn({ detail: { target: gsec } });
   });
-  assertEqual(setDirtyCalls.length, 0, 'open-load swap baselines without marking dirty');
+  await flush();
+  greetingDirtyCalls.length = 0;
 
-  // ── greeting input marks dirty; revert clears ──
-  setDirtyCalls.length = 0;
-  gta.value = 'Hello world';
-  window.actionGreetingInput(gta);
-  assertEqual(setDirtyCalls.length, 1, 'greeting edit marks dirty');
-  assertEqual(setDirtyCalls[0].val, true, 'greeting edit dirty=true');
-
-  setDirtyCalls.length = 0;
-  gta.value = 'Hello';
-  window.actionGreetingInput(gta);
-  assertEqual(setDirtyCalls[0].val, false, 'greeting revert clears dirty');
+  // swipe to greeting 2: server echoes CRLF in JSON, textarea value is LF
+  gidx.value = '1';
+  gta.value = 'Alt\nA';
+  (doc._handlers['htmx:afterSwap'] || []).forEach(function (fn) {
+    fn({ detail: { target: gsec } });
+  });
+  assertEqual(greetingDirtyCalls.length, 1, 'CRLF nav recomputes dirty');
+  assertEqual(greetingDirtyCalls[0].val, false, 'CRLF greeting nav does not mark dirty');
 
   // ── upload stages locally (no fetch), marks dirty ──
   setDirtyCalls.length = 0;
@@ -197,6 +224,21 @@ function flush() {
   assertEqual(fetchCalls[1].opts.method, 'DELETE', 'delete uses DELETE');
   assertEqual(fetchCalls[2].url, '/api/characters/c1', 'save patches form last');
   assertEqual(fetchCalls[2].opts.method, 'PATCH', 'patch uses PATCH');
+
+  // ── greeting partial failure still opens the modal ──
+  var oldAjax = global.htmx.ajax;
+  global.htmx.ajax = function () { return Promise.reject(new Error('boom')); };
+  openCalls.length = 0;
+  greetingDirtyCalls.length = 0;
+  window.openEditChar(btn);
+  await flush();
+  assertEqual(openCalls.length, 1, 'greeting fetch failure still opens modal');
+
+  // baseline never captured → greeting input is a no-op (no crash, no dirty)
+  gta.value = 'whatever';
+  window.actionGreetingInput(gta);
+  assertEqual(greetingDirtyCalls.length, 0, 'failed load: greeting input ignored (no baseline)');
+  global.htmx.ajax = oldAjax;
 
   h.printSummary();
 })().catch(function (err) {

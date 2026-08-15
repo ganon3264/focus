@@ -83,14 +83,14 @@
   function capture(id) {
     var snap = {};
     fieldsOf(id).forEach(function (f) { snap[f.key] = f.el.value || ''; });
-    dirtyStates[id] = { snapshot: snap, dirty: false, extra: false };
+    dirtyStates[id] = { snapshot: snap, dirty: false, extra: false, greeting: false };
     applyState(id, false);
   }
 
   function recompute(id) {
     var st = dirtyStates[id];
     if (!st) return;
-    var d = !!st.extra;
+    var d = !!st.extra || !!st.greeting;
     fieldsOf(id).forEach(function (f) {
       var base = st.snapshot[f.key];
       if (base === undefined) {
@@ -173,6 +173,13 @@
       var st = dirtyStates[id];
       if (!st) return;
       st.extra = !!val;
+      recompute(id);
+    },
+
+    setGreetingDirty: function (id, val) {
+      var st = dirtyStates[id];
+      if (!st) return;
+      st.greeting = !!val;
       recompute(id);
     },
 
