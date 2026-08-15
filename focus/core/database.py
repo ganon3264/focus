@@ -36,7 +36,9 @@ CREATE TABLE IF NOT EXISTS characters (
     card_json   TEXT NOT NULL,
     created_at  TEXT NOT NULL,
     is_deleted  INTEGER NOT NULL DEFAULT 0,
-    theme_id    TEXT REFERENCES themes(id) ON DELETE SET NULL
+    theme_id    TEXT REFERENCES themes(id) ON DELETE SET NULL,
+    is_favorite INTEGER NOT NULL DEFAULT 0,
+    group_name  TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS themes (
@@ -69,7 +71,9 @@ CREATE TABLE IF NOT EXISTS personas (
     description TEXT NOT NULL DEFAULT '',
     avatar_path TEXT,
     created_at  TEXT NOT NULL,
-    is_deleted  INTEGER NOT NULL DEFAULT 0
+    is_deleted  INTEGER NOT NULL DEFAULT 0,
+    is_favorite INTEGER NOT NULL DEFAULT 0,
+    group_name  TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS preset_blocks (
@@ -297,6 +301,10 @@ async def init_db():
         col_names = {row[1] for row in await cols.fetchall()}
         if "is_deleted" not in col_names:
             await db.execute("ALTER TABLE personas ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0")
+        if "is_favorite" not in col_names:
+            await db.execute("ALTER TABLE personas ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0")
+        if "group_name" not in col_names:
+            await db.execute("ALTER TABLE personas ADD COLUMN group_name TEXT NOT NULL DEFAULT ''")
 
         cols = await db.execute("PRAGMA table_info(chats)")
         col_names = {row[1] for row in await cols.fetchall()}
@@ -331,6 +339,10 @@ async def init_db():
             await db.execute(
                 "ALTER TABLE characters ADD COLUMN theme_id TEXT REFERENCES themes(id) ON DELETE SET NULL"
             )
+        if "is_favorite" not in col_names:
+            await db.execute("ALTER TABLE characters ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0")
+        if "group_name" not in col_names:
+            await db.execute("ALTER TABLE characters ADD COLUMN group_name TEXT NOT NULL DEFAULT ''")
 
         from focus.db.themes import delete_legacy_theme_setting, seed_builtin_themes
 

@@ -156,6 +156,8 @@
       var name = btn.dataset[P + 'Name'] || '';
       eid('-name').value = name;
       eid('-desc').value = btn.dataset[P + 'Desc'] || '';
+      var groupInput = eid('-group');
+      if (groupInput) groupInput.value = btn.dataset[P + 'Group'] || '';
       var themeIdInput = eid('-theme-id');
       var themeLabel = eid('-theme-label');
       if (themeIdInput && themeLabel) {

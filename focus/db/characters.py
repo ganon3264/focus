@@ -81,6 +81,10 @@ async def update_character(db: aiosqlite.Connection, char_id: str, updates: dict
     data = card.get("data", card)
     has_theme = "theme_id" in updates
     theme_id = updates.pop("theme_id", None)
+    has_favorite = "is_favorite" in updates
+    is_favorite = updates.pop("is_favorite", None)
+    has_group = "group_name" in updates
+    group_name = updates.pop("group_name", None)
     data.update(updates)
     card["data"] = data
 
@@ -96,6 +100,12 @@ async def update_character(db: aiosqlite.Connection, char_id: str, updates: dict
     if has_theme:
         set_clause += ", theme_id = ?"
         vals.append(theme_id or None)
+    if has_favorite:
+        set_clause += ", is_favorite = ?"
+        vals.append(1 if is_favorite else 0)
+    if has_group:
+        set_clause += ", group_name = ?"
+        vals.append(group_name or "")
     vals.append(char_id)
     try:
         await db.execute(f"UPDATE characters SET {set_clause} WHERE id = ?", vals)

@@ -78,6 +78,8 @@ class CharacterUpdate(BaseModel):
     greeting: str | None = None
     greetings_json: str | None = None
     greeting_idx: int | None = None
+    is_favorite: bool | None = None
+    group_name: str | None = None
 
 
 class BlockType(StrEnum):

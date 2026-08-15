@@ -84,6 +84,24 @@ class TestCharacters:
         assert card["data"]["personality"] == "Grumpy"
         assert card["data"]["description"] == "Desc"
 
+    async def test_update_favorite_and_group(self, client):
+        c = await create_character(client, "Grouped")
+        await client.patch(
+            f"/api/characters/{c['id']}",
+            json={"is_favorite": True, "group_name": "Fantasy"},
+        )
+        data = (await client.get(f"/api/characters/{c['id']}")).json()
+        assert data["is_favorite"] == 1
+        assert data["group_name"] == "Fantasy"
+
+        await client.patch(
+            f"/api/characters/{c['id']}",
+            json={"is_favorite": False, "group_name": ""},
+        )
+        data = (await client.get(f"/api/characters/{c['id']}")).json()
+        assert data["is_favorite"] == 0
+        assert data["group_name"] == ""
+
     async def test_update_greetings_round_trip(self, client):
         c = await create_character(client, "Greeter", first_mes="Hello", alternate_greetings=["Alt A"])
         await client.patch(
@@ -278,6 +296,21 @@ class TestCharacterModals:
         resp = await client.get("/partials/characters-modal")
         assert resp.status_code == 200
         assert 'class="card active"' not in resp.text
+
+    async def test_modal_renders_group_filter_and_card_attrs(self, client):
+        c = await create_character(client, "Alice")
+        await client.patch(
+            f"/api/characters/{c['id']}",
+            json={"is_favorite": True, "group_name": "Fantasy"},
+        )
+        resp = await client.get("/partials/characters-modal")
+        assert resp.status_code == 200
+        html = resp.text
+        assert 'setCharFilter' in html
+        assert 'getCharFilterGroups' in html
+        assert 'Favorites' in html
+        assert 'data-char-group="Fantasy"' in html
+        assert 'data-char-favorite="1"' in html
 
 
 class TestCharacterImport:

@@ -730,6 +730,48 @@
     transform: scale(1.05);
   }
 
+  /* Card favorite star + group badge */
+  .fav-star {
+    cursor: pointer;
+    line-height: 0;
+    color: var(--text-muted);
+    transition: color var(--transition);
+  }
+  .fav-star .fav-star-outline { display: inline-flex; }
+  .fav-star .fav-star-filled { display: none; }
+  .fav-star.favorite-active { color: var(--accent); }
+  .fav-star.favorite-active .fav-star-outline { display: none; }
+  .fav-star.favorite-active .fav-star-filled { display: inline-flex; }
+
+  .fav-star-inline {
+    background: transparent;
+    border: none;
+    margin: 0;
+    padding: 0.25rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 0;
+  }
+
+  .card-group-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    max-width: 100%;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    background: var(--surface-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-full);
+    padding: 0.1rem 0.5rem;
+  }
+  .card-group-badge span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   /* Hint-tooltip text color overrides */
   #hint-tooltip .hint-danger   { color: var(--danger); }
   #hint-tooltip .hint-warning  { color: var(--role-assistant); }

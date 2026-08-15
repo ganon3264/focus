@@ -1,6 +1,6 @@
 <div class="flex flex-col h-full">
   {% from "macros.html" import icon_edit, icon_trash, icon_search, icon_plus, icon_upload,
-  icon_grid, icon_close, sort_dropdown %}
+  icon_grid, icon_close, sort_dropdown, filter_dropdown %}
   <div class="flex flex-col gap-3 pb-4">
     <h3 class="sidebar-title mb-1">Tools</h3>
     <div class="flex gap-2 h-10">
@@ -32,7 +32,7 @@
       >
     </div>
     <div class="flex gap-2 items-center h-8">
-      <div class="flex-1 relative">
+      <div class="flex-1 relative min-w-0">
         <span
           class="absolute left-2.5 top-1/2 -translate-y-1/2 flex text-muted pointer-events-none"
           >{{ icon_search(size=14) }}</span
@@ -44,6 +44,7 @@
           class="search-input text-sm w-full h-full"
         />
       </div>
+      {{ filter_dropdown('setCharFilter', 'getCharFilterGroups') }}
       {{ sort_dropdown('focus_char_sort', 'sortCharacters') }}
       <button
         onclick="toggleCompactView()"
@@ -134,5 +135,11 @@
     apiEndpoint: '/api/characters',
     cardEndpoint: '/partials/character-card/',
     stateKey: 'character_id',
+    cardPrefix: 'char-card-',
+    dataGroupAttr: 'data-char-group',
+    dataFavoriteAttr: 'data-char-favorite',
+    setFilterFn: 'setCharFilter',
+    getGroupsFn: 'getCharFilterGroups',
+    toggleFavoriteFn: 'toggleCharFavorite',
   });
 </script>

@@ -1,9 +1,11 @@
-{% from "macros.html" import icon_edit, icon_trash %}
+{% from "macros.html" import icon_edit, icon_trash, icon_star, icon_star_filled, icon_folder %}
 <div
   class="card{% if current_character_id == char.id %} active{% endif %}"
   id="char-card-{{ char.id }}"
   data-char-name="{{ char.name | lower }}"
   data-char-created="{{ char.created_at }}"
+  data-char-group="{{ char.get('group_name') or '' }}"
+  data-char-favorite="{{ '1' if char.get('is_favorite') else '0' }}"
 >
   <div class="card-view-full h-full flex flex-col" style="display:{{ 'none' if compact_view else 'flex' }};">
     <div
@@ -27,9 +29,23 @@
       {% endif %}
     </div>
     <div class="card-body" style="padding: 0.75rem">
-      <div class="font-bold text-sm truncate mb-1">{{ char.name }}</div>
+      <div class="flex items-center gap-1.5 mb-1">
+        <div class="font-bold text-sm truncate flex-1 min-w-0">{{ char.name }}</div>
+        {% if char.get('group_name') %}
+        <div class="card-group-badge shrink-0" style="max-width: 50%">{{ icon_folder(10) }}<span>{{ char.get('group_name') }}</span></div>
+        {% endif %}
+      </div>
       <div class="text-xs text-muted truncate mb-2">{{ char.card.get('description','')[:40] or 'No details' }}</div>
       <div class="flex gap-1 mt-auto">
+        <button
+          class="btn btn-secondary btn-sm fav-star{% if char.get('is_favorite') %} favorite-active{% endif %}"
+          onclick="event.stopPropagation(); toggleCharFavorite(this)"
+          aria-label="Toggle favorite"
+          title="Favorite"
+        >
+          <span class="fav-star-outline">{{ icon_star(14) }}</span>
+          <span class="fav-star-filled">{{ icon_star_filled(14) }}</span>
+        </button>
         <button
           class="btn btn-edit btn-sm flex-1"
           data-char-id="{{ char.id }}"
@@ -37,6 +53,7 @@
           data-char-desc="{{ char.card.get('description','') }}"
           data-char-image="{{ char.image_path or '' }}"
           data-char-theme="{{ char.theme_id or '' }}"
+          data-char-group="{{ char.get('group_name') or '' }}"
           data-char-media="{{ char.images | tojson | forceescape }}"
           onclick="event.stopPropagation(); openEditCharacterModal(this);"
           aria-label="Edit character"
@@ -57,7 +74,7 @@
   </div>
   <div class="card-view-compact" style="display:{{ 'block' if compact_view else 'none' }};">
     <div
-      class="flex items-center gap-2.5 p-2.5 cursor-pointer"
+      class="flex items-center gap-2 p-2.5 cursor-pointer"
       role="button"
       tabindex="0"
       onclick="selectCharModal(this)"
@@ -79,8 +96,20 @@
         <span class="text-sm font-bold text-muted">{{ char.name[:1] }}</span>
         {% endif %}
       </div>
+      <button
+        class="fav-star fav-star-inline shrink-0{% if char.get('is_favorite') %} favorite-active{% endif %}"
+        onclick="event.stopPropagation(); toggleCharFavorite(this)"
+        aria-label="Toggle favorite"
+        title="Favorite"
+      >
+        <span class="fav-star-outline">{{ icon_star(14) }}</span>
+        <span class="fav-star-filled">{{ icon_star_filled(14) }}</span>
+      </button>
       <div class="flex-1 min-w-0">
         <div class="font-bold text-sm truncate">{{ char.name }}</div>
+        {% if char.get('group_name') %}
+        <div class="text-xs text-muted truncate">{{ char.get('group_name') }}</div>
+        {% endif %}
       </div>
       <div class="flex flex-col gap-1 shrink-0" onclick="event.stopPropagation()">
         <button
@@ -90,6 +119,7 @@
           data-char-desc="{{ char.card.get('description','') }}"
           data-char-image="{{ char.image_path or '' }}"
           data-char-theme="{{ char.theme_id or '' }}"
+          data-char-group="{{ char.get('group_name') or '' }}"
           data-char-media="{{ char.images | tojson | forceescape }}"
           onclick="event.stopPropagation(); openEditCharacterModal(this);"
           aria-label="Edit character"

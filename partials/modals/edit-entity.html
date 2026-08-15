@@ -1,6 +1,6 @@
 {% from "macros.html" import icon_expand, icon_plus, icon_trash, icon_chevron_left, icon_chevron_right, icon_help, hint_tooltip %} {% from "modal-shell.html" import modal_shell
-%} {% call modal_shell(modal_id, 'Edit ' ~ entity_name, z_index='100',
-dirty_fields='#edit-' ~ prefix ~ '-name,#edit-' ~ prefix ~ '-desc' ~ (',#edit-' ~ prefix ~ '-theme-id' if show_theme|default(false) else ''),
+%} {% call modal_shell(modal_id, 'Edit ' ~ entity_name, max_width='800px', z_index='100',
+dirty_fields='#edit-' ~ prefix ~ '-name,#edit-' ~ prefix ~ '-desc,#edit-' ~ prefix ~ '-group' ~ (',#edit-' ~ prefix ~ '-theme-id' if show_theme|default(false) else ''),
 dirty_label='#edit-' ~ prefix ~ '-name') %}
 <form
   id="edit-{{ prefix }}-form"
@@ -40,7 +40,7 @@ dirty_label='#edit-' ~ prefix ~ '-name') %}
       <input type="file" accept="image/*" class="hidden" data-action="{{ avatar_fn }}" />
     </label>
 
-    <div class="form-group mb-0 flex-1">
+    <div class="form-group mb-0 flex-1 min-w-0">
       <label>Name</label>
       <input
         type="text"
@@ -48,6 +48,17 @@ dirty_label='#edit-' ~ prefix ~ '-name') %}
         id="edit-{{ prefix }}-name"
         required
         class="form-control w-full"
+      />
+    </div>
+
+    <div class="form-group mb-0 flex-1 min-w-0">
+      <label>Group</label>
+      <input
+        type="text"
+        name="group_name"
+        id="edit-{{ prefix }}-group"
+        class="form-control w-full"
+        placeholder="Optional group"
       />
     </div>
   </div>

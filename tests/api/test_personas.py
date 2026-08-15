@@ -24,6 +24,24 @@ class TestPersonas:
         resp = await client.get(f"/api/personas/{p['id']}")
         assert resp.json()["name"] == "New"
 
+    async def test_update_favorite_and_group(self, client):
+        p = await create_persona(client, "Grouped")
+        await client.patch(
+            f"/api/personas/{p['id']}",
+            json={"is_favorite": True, "group_name": "NPCs"},
+        )
+        data = (await client.get(f"/api/personas/{p['id']}")).json()
+        assert data["is_favorite"] == 1
+        assert data["group_name"] == "NPCs"
+
+        await client.patch(
+            f"/api/personas/{p['id']}",
+            json={"is_favorite": False, "group_name": ""},
+        )
+        data = (await client.get(f"/api/personas/{p['id']}")).json()
+        assert data["is_favorite"] == 0
+        assert data["group_name"] == ""
+
     async def test_delete(self, client):
         p = await create_persona(client, "Doomed")
         await client.delete(f"/api/personas/{p['id']}")
@@ -60,3 +78,18 @@ class TestPersonaModals:
         assert 'class="card active"' in html
         assert f'id="persona-card-{p1["id"]}"' in html
         assert f'id="persona-card-{p2["id"]}"' in html
+
+    async def test_modal_renders_group_filter_and_card_attrs(self, client):
+        p = await create_persona(client, "PersonaOne")
+        await client.patch(
+            f"/api/personas/{p['id']}",
+            json={"is_favorite": True, "group_name": "NPCs"},
+        )
+        resp = await client.get("/partials/personas-modal")
+        assert resp.status_code == 200
+        html = resp.text
+        assert 'setPersonaFilter' in html
+        assert 'getPersonaFilterGroups' in html
+        assert 'Favorites' in html
+        assert 'data-persona-group="NPCs"' in html
+        assert 'data-persona-favorite="1"' in html

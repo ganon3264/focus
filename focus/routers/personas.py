@@ -21,6 +21,8 @@ class PersonaCreate(BaseModel):
 class PersonaUpdate(BaseModel):
     name: str | None = None
     description: str | None = None
+    is_favorite: bool | None = None
+    group_name: str | None = None
 
 
 @router.get("/")
@@ -62,6 +64,10 @@ async def update_persona(
     _db=Depends(get_db),
 ):
     updates = body.model_dump(exclude_none=True)
+    if "is_favorite" in updates:
+        updates["is_favorite"] = int(updates["is_favorite"])
+    if "group_name" in updates:
+        updates["group_name"] = updates["group_name"] or ""
     if not updates:
         return {"ok": True}
     await db.update_persona(_db, persona_id, updates)

@@ -14,14 +14,73 @@ function _loadListPref(key, fallback) {
   return fallback;
 }
 
+var _afterSwapHandlers = {};
+
 window.ListManager = {
   setup: function (cfg) {
-    window[cfg.filterFn] = function (query) {
-      var q = (query || '').toLowerCase();
-      document.querySelectorAll('#' + cfg.gridId + ' .card').forEach(function (card) {
-        var name = card.getAttribute(cfg.dataNameAttr) || '';
-        card.style.display = name.indexOf(q) !== -1 ? '' : 'none';
+    var filterState = { query: '', filter: 'all', group: '' };
+
+    function eachCard(fn) {
+      var grid = document.getElementById(cfg.gridId);
+      if (!grid) return;
+      grid.querySelectorAll('.card').forEach(fn);
+    }
+
+    function collectGroups() {
+      var groups = [];
+      eachCard(function (card) {
+        var g = (card.getAttribute(cfg.dataGroupAttr) || '').trim();
+        if (g && groups.indexOf(g) === -1) groups.push(g);
       });
+      groups.sort(function (a, b) { return a.localeCompare(b); });
+      return groups;
+    }
+
+    function applyFilters() {
+      var q = filterState.query.toLowerCase();
+      eachCard(function (card) {
+        var name = (card.getAttribute(cfg.dataNameAttr) || '').toLowerCase();
+        var fav = (card.getAttribute(cfg.dataFavoriteAttr) || '0') === '1';
+        var group = (card.getAttribute(cfg.dataGroupAttr) || '').trim();
+        var ok = name.indexOf(q) !== -1;
+        if (ok && filterState.filter === 'favorites') ok = fav;
+        else if (ok && filterState.filter === 'group' && filterState.group) ok = group === filterState.group;
+        card.style.display = ok ? '' : 'none';
+      });
+    }
+
+    window[cfg.filterFn] = function (query) {
+      filterState.query = query || '';
+      applyFilters();
+    };
+
+    window[cfg.setFilterFn] = function (mode, value) {
+      filterState.filter = mode || 'all';
+      filterState.group = mode === 'group' ? (value || '') : '';
+      applyFilters();
+    };
+
+    window[cfg.toggleFavoriteFn] = function (el) {
+      var card = el.closest('.card');
+      if (!card) return;
+      var id = cfg.cardPrefix ? card.id.replace(cfg.cardPrefix, '') : '';
+      var next = (card.getAttribute(cfg.dataFavoriteAttr) || '0') !== '1';
+      fetch(cfg.apiEndpoint + '/' + id, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_favorite: next }),
+      }).then(function (r) {
+        if (!r.ok) return;
+        card.setAttribute(cfg.dataFavoriteAttr, next ? '1' : '0');
+        card.querySelectorAll('.fav-star').forEach(function (s) {
+          s.classList.toggle('favorite-active', next);
+        });
+        applyFilters();
+      });
+    };
+
+    window[cfg.getGroupsFn] = function () {
+      return collectGroups();
     };
 
     window[cfg.sortFn] = function (mode) {
@@ -127,6 +186,19 @@ window.ListManager = {
       }, 100);
     };
 
+    // Re-apply the active filter after any HTMX swap
+    // (new/import/restore/edit card re-renders).
+    if (_afterSwapHandlers[cfg.gridId]) {
+      document.removeEventListener('htmx:afterSwap', _afterSwapHandlers[cfg.gridId]);
+    }
+    var afterSwapHandler = function () {
+      var grid = document.getElementById(cfg.gridId);
+      if (!grid) return;
+      applyFilters();
+    };
+    _afterSwapHandlers[cfg.gridId] = afterSwapHandler;
+    document.addEventListener('htmx:afterSwap', afterSwapHandler);
+
     (function () {
       var view = _loadListPref(cfg.viewStorageKey);
       if (view === 'compact') {
@@ -136,6 +208,7 @@ window.ListManager = {
       if (sortVal) {
         window[cfg.sortFn](sortVal);
       }
+      applyFilters();
     })();
   },
 };
