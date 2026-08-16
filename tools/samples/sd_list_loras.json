@@ -1,0 +1,17 @@
+{
+  "name": "sd_list_loras",
+  "description": "List all LoRA adapters available on the local SD.cpp server.",
+  "command": ["python3", "tools/samples/sd_image_gen.py"],
+  "multimodal": false,
+  "params": [
+    {
+      "name": "list_loras",
+      "type": "boolean",
+      "description": "Set to true to query and list available LoRAs.",
+      "required": true
+    }
+  ],
+  "category": "Sample",
+  "writes": false,
+  "timeout": 10
+}

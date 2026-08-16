@@ -5,14 +5,17 @@ import sys
 
 import pytest
 
+from focus.tools import ToolParam, ToolSpec
 from focus.tools.external import (
     ExternalToolConfig,
     ToolParamDef,
+    _coerce_array_params,
     _load_single_tool,
     _parse_command,
     _run_external_tool,
     load_external_tools,
 )
+from focus.tools.provider_adapter import to_provider_tools
 
 
 def _script(source: str) -> list[str]:
@@ -101,6 +104,27 @@ class TestLoadSingleTool:
         with pytest.raises(ValueError, match="type must be one of"):
             _load_single_tool(path)
 
+    def test_array_param_with_items(self, tmp_path):
+        cfg = {
+            "name": "arr",
+            "description": "x",
+            "command": "true",
+            "params": [{
+                "name": "loras",
+                "type": "array",
+                "description": "list of loras",
+                "required": False,
+                "items": {"type": "object", "properties": {"name": {"type": "string"}}},
+            }],
+        }
+        path = tmp_path / "arr.json"
+        path.write_text(json.dumps(cfg))
+        spec = _load_single_tool(path)
+        p = spec.params[0]
+        assert p.type == "array"
+        assert p.required is False
+        assert p.items == {"type": "object", "properties": {"name": {"type": "string"}}}
+
     def test_model_validation_errors(self):
         with pytest.raises(ValueError):
             ToolParamDef(name="p", type="bad")
@@ -116,6 +140,58 @@ class TestLoadSingleTool:
         path = tmp_path / "listy.json"
         path.write_text(json.dumps(cfg))
         assert _load_single_tool(path).name == "listy"
+
+
+class TestCoerceArrayParams:
+    def _defs(self):
+        return [ToolParamDef(name="loras", type="array", items={"type": "object"})]
+
+    def test_list_passthrough(self):
+        out = _coerce_array_params({"loras": [{"name": "a"}]}, self._defs())
+        assert out["loras"] == [{"name": "a"}]
+
+    def test_json_string_parsed(self):
+        out = _coerce_array_params({"loras": '[{"name": "a"}]'}, self._defs())
+        assert out["loras"] == [{"name": "a"}]
+
+    def test_plain_string_wrapped(self):
+        out = _coerce_array_params({"loras": "my_lora"}, self._defs())
+        assert out["loras"] == ["my_lora"]
+
+    def test_scalar_wrapped(self):
+        out = _coerce_array_params({"loras": 5}, self._defs())
+        assert out["loras"] == [5]
+
+    def test_none_left_alone(self):
+        out = _coerce_array_params({"loras": None}, self._defs())
+        assert out["loras"] is None
+
+    def test_non_array_params_untouched(self):
+        defs = [ToolParamDef(name="count", type="integer")]
+        out = _coerce_array_params({"count": "5"}, defs)
+        assert out["count"] == "5"
+
+
+def test_to_provider_tools_includes_items():
+    spec = ToolSpec(
+        name="t",
+        description="d",
+        params=[
+            ToolParam(
+                name="loras",
+                type="array",
+                description="l",
+                required=False,
+                items={"type": "string"},
+            )
+        ],
+        writes=False,
+        handler=lambda **kw: None,
+    )
+    payload = to_provider_tools([spec])
+    prop = payload[0]["function"]["parameters"]["properties"]["loras"]
+    assert prop["type"] == "array"
+    assert prop["items"] == {"type": "string"}
 
 
 class TestLoadExternalTools:

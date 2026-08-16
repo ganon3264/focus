@@ -14,6 +14,7 @@ class ToolParam:
     description: str
     required: bool = True
     enum: list[str] | None = None
+    items: dict[str, Any] | None = None
 
 
 @dataclass

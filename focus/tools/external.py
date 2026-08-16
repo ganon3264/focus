@@ -16,7 +16,7 @@ logger = logging.getLogger("focus.tools.external")
 
 EXTERNAL_TOOLS_DIR = TOOLS_DIR
 
-ALLOWED_PARAM_TYPES = {"string", "integer", "boolean", "number"}
+ALLOWED_PARAM_TYPES = {"string", "integer", "boolean", "number", "array"}
 
 
 class ToolParamDef(BaseModel):
@@ -24,6 +24,7 @@ class ToolParamDef(BaseModel):
     type: str
     description: str = ""
     required: bool = True
+    items: dict[str, Any] | None = None
 
     @field_validator("type")
     @classmethod
@@ -48,6 +49,27 @@ def _parse_command(command: str | list[str]) -> list[str]:
     if isinstance(command, str):
         return shlex.split(command)
     return command
+
+
+def _coerce_array_params(params: dict[str, Any], defs: list[ToolParamDef]) -> dict[str, Any]:
+    """Normalize array-typed values so the subprocess always receives a list."""
+    out = dict(params)
+    for p in defs:
+        if p.type != "array":
+            continue
+        value = out.get(p.name)
+        if value is None or isinstance(value, list):
+            continue
+        if isinstance(value, str):
+            try:
+                parsed = json.loads(value)
+            except json.JSONDecodeError:
+                parsed = value
+            if isinstance(parsed, list):
+                out[p.name] = parsed
+                continue
+        out[p.name] = [value]
+    return out
 
 
 def _run_external_tool(command: list[str], params: dict[str, Any], timeout: int = 30) -> Any:
@@ -84,11 +106,13 @@ def _load_single_tool(path: Path) -> ToolSpec:
             type=p.type,
             description=p.description,
             required=p.required,
+            items=p.items,
         )
         for p in config.params
     ]
 
     def handler(**kwargs: Any) -> Any:
+        kwargs = _coerce_array_params(kwargs, config.params)
         return _run_external_tool(command, kwargs, timeout=config.timeout)
 
     return ToolSpec(

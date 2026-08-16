@@ -14,6 +14,8 @@ def to_provider_tools(tools: list[ToolSpec]) -> list[dict]:
             prop: dict[str, Any] = {"type": p.type, "description": p.description}
             if p.enum:
                 prop["enum"] = p.enum
+            if p.items is not None:
+                prop["items"] = p.items
             properties[p.name] = prop
         fn = {
             "name": t.name,

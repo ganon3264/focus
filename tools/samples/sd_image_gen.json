@@ -1,6 +1,6 @@
 {
   "name": "sd_image_gen",
-  "description": "Generate an image using a local SD.cpp instance; config in the .py file. Returns the generated image for the model to view.",
+  "description": "Generate an image using a local SD.cpp instance.",
   "command": ["python3", "tools/samples/sd_image_gen.py"],
   "multimodal": true,
   "params": [
@@ -26,6 +26,26 @@
       "name": "height",
       "type": "integer",
       "description": "Image height in pixels. Default varies by model; safe range is typically 512-1536.",
+      "required": false
+    },
+    {
+      "name": "loras",
+      "type": "array",
+      "description": "List of LoRAs to apply with their multipliers. Example: [{\"name\": \"lora_name_or_file\", \"multiplier\": 0.8}] or [\"lora_name_or_file\"]",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The exact name or filename stem of the LoRA as reported by sd_list_loras."
+          },
+          "multiplier": {
+            "type": "number",
+            "description": "Strength/scale of the LoRA adapter (default: 1.0)."
+          }
+        },
+        "required": ["name"]
+      },
       "required": false
     }
   ],
