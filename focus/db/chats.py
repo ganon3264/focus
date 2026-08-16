@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import html
 import json
 import uuid
 from pathlib import Path
@@ -155,6 +156,13 @@ async def bulk_delete_messages(db: aiosqlite.Connection, chat_id: str, message_i
     return len(message_ids)
 
 
+def _reasoning_from_segments(segments: list[dict]) -> str | None:
+    """Concatenate reasoning text from segment list (segments store escaped HTML)."""
+    parts = [html.unescape(seg.get("html") or "") for seg in segments if seg.get("type") == "reasoning"]
+    text = "\n".join(parts).strip()
+    return text or None
+
+
 async def edit_message_create_variant(
     db: aiosqlite.Connection,
     chat_id: str,
@@ -162,6 +170,7 @@ async def edit_message_create_variant(
     content: str,
     reasoning: str | None = None,
     attachment_ids: list[str] | None = None,
+    segments: list[dict] | None = None,
 ) -> dict:
     async with db.execute(
         "SELECT active_index FROM messages WHERE id = ? AND chat_id = ?", (message_id, chat_id)
@@ -172,10 +181,11 @@ async def edit_message_create_variant(
         raise HTTPException(404, "Message not found")
 
     async with db.execute(
-        "SELECT mv.model_name FROM message_variants mv JOIN messages m ON m.active_index = mv.variant_index WHERE mv.message_id = ? AND m.id = ?",
+        "SELECT mv.id, mv.model_name FROM message_variants mv JOIN messages m ON m.active_index = mv.variant_index WHERE mv.message_id = ? AND m.id = ?",
         (message_id, message_id),
     ) as cur:
         prev = await cur.fetchone()
+    prev_variant_id = prev["id"] if prev else None
     prev_model = prev["model_name"] if prev else None
 
     async with db.execute("SELECT MAX(variant_index) FROM message_variants WHERE message_id = ?", (message_id,)) as cur:
@@ -184,13 +194,22 @@ async def edit_message_create_variant(
     now = now_iso()
     new_variant_id = str(uuid.uuid4())
 
-    variant_meta = json.dumps({"reasoning": reasoning}) if reasoning else None
-    _segments = render_message_segments(content, variant_meta)
-    _segments_json = json.dumps(_segments) if _segments else None
+    if segments is not None:
+        new_content = "\n".join(
+            seg.get("content", "") for seg in segments if seg.get("type") == "text"
+        )
+        reasoning_text = _reasoning_from_segments(segments)
+        variant_meta = json.dumps({"reasoning": reasoning_text}) if reasoning_text else None
+        _segments_json = json.dumps(segments) if segments else None
+    else:
+        new_content = content
+        variant_meta = json.dumps({"reasoning": reasoning}) if reasoning else None
+        _segments = render_message_segments(content, variant_meta)
+        _segments_json = json.dumps(_segments) if _segments else None
 
     await db.execute(
         "INSERT INTO message_variants (id, message_id, variant_index, content, created_at, model_name, variant_meta, segments_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        (new_variant_id, message_id, new_index, content, now, prev_model, variant_meta, _segments_json),
+        (new_variant_id, message_id, new_index, new_content, now, prev_model, variant_meta, _segments_json),
     )
 
     for att_id in (attachment_ids or []):
@@ -207,6 +226,22 @@ async def edit_message_create_variant(
                     "INSERT INTO message_attachments (id, chat_id, message_id, variant_id, file_path, mime_type, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
                     (str(uuid.uuid4()), chat_id, message_id, new_variant_id, att["file_path"], att["mime_type"], now_iso()),
                 )
+
+    if prev_variant_id:
+        async with db.execute(
+            "SELECT * FROM tool_calls WHERE variant_id = ? ORDER BY created_at",
+            (prev_variant_id,),
+        ) as cur:
+            prev_tool_calls = [dict(r) for r in await cur.fetchall()]
+        for tc in prev_tool_calls:
+            await db.execute(
+                """INSERT INTO tool_calls
+                   (id, chat_id, message_id, variant_id, tool_name, arguments, result, is_error, extra_message_json, result_image_path, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (str(uuid.uuid4()), chat_id, message_id, new_variant_id,
+                 tc["tool_name"], tc["arguments"], tc["result"], tc["is_error"],
+                 tc.get("extra_message_json"), tc.get("result_image_path"), tc["created_at"]),
+            )
 
     await db.execute("UPDATE messages SET active_index = ? WHERE id = ?", (new_index, message_id))
     await db.execute("UPDATE chats SET updated_at = ? WHERE id = ?", (now, chat_id))

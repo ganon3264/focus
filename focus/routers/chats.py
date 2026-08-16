@@ -128,7 +128,7 @@ async def restore_chat(chat_id: str, _db=Depends(get_db)):
 @router.get("/{chat_id}/messages/{message_id}")
 async def get_message(chat_id: str, message_id: str, _db=Depends(get_db)):
     async with _db.execute(
-        """SELECT mv.content, mv.variant_meta, mv.id as variant_id
+        """SELECT mv.content, mv.variant_meta, mv.segments_json, mv.id as variant_id
            FROM messages m
            JOIN message_variants mv ON mv.message_id = m.id AND mv.variant_index = m.active_index
            WHERE m.id = ? AND m.chat_id = ?""",
@@ -173,7 +173,21 @@ async def get_message(chat_id: str, message_id: str, _db=Depends(get_db)):
         vm = json.loads(row["variant_meta"]) if row.get("variant_meta") else {}
     except (TypeError, ValueError):
         vm = {}
-    return {"content": row["content"], "reasoning": vm.get("reasoning"), "attachments": attachments, "tool_calls": tool_calls}
+
+    segments = None
+    if row.get("segments_json"):
+        try:
+            segments = json.loads(row["segments_json"])
+        except (TypeError, ValueError):
+            segments = None
+
+    return {
+        "content": row["content"],
+        "reasoning": vm.get("reasoning"),
+        "attachments": attachments,
+        "tool_calls": tool_calls,
+        "segments": segments,
+    }
 
 
 @router.delete("/{chat_id}/messages/{message_id}", status_code=204)
@@ -217,7 +231,7 @@ async def edit_message(
     Previous variants are preserved (swipeable).
     """
     result = await db.edit_message_create_variant(
-        _db, chat_id, message_id, body.content, body.reasoning, body.attachment_ids,
+        _db, chat_id, message_id, body.content, body.reasoning, body.attachment_ids, body.segments,
     )
     await _db.commit()
     return {"ok": True, **result}

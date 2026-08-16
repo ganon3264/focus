@@ -3,12 +3,27 @@
     const msg = contentDiv.closest('.message');
     if (!msg) return;
     let btn = msg.querySelector('.reasoning-toggle-btn');
-    const hasReasoning = msg.querySelector('.reasoning-block');
-    if (!btn && hasReasoning && window.ensureReasoningToggleButton) {
+
+    // The header button only controls the index-0 reasoning block (a plain div,
+    // not a <details>). Later reasoning blocks have their own inline toggles.
+    const blocks = msg.querySelectorAll('.reasoning-block');
+    let hasFirstReasoning = false;
+    for (let i = 0; i < blocks.length; i++) {
+      if (!blocks[i].classList.contains('details')) {
+        hasFirstReasoning = true;
+        break;
+      }
+    }
+
+    if (!hasFirstReasoning) {
+      if (btn) btn.classList.add('hidden');
+      return;
+    }
+    if (!btn && window.ensureReasoningToggleButton) {
       btn = window.ensureReasoningToggleButton(msg);
     }
     if (!btn) return;
-    btn.classList.toggle('hidden', !hasReasoning);
+    btn.classList.remove('hidden');
   }
   window._updateReasoningButton = _updateReasoningButton;
 

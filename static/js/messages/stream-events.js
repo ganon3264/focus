@@ -76,11 +76,11 @@
       for (var i = 0; i < state.segments.length; i++) {
         if (state.segments[i].type === 'reasoning') rcCount++;
       }
-      // If this is the first reasoning block and non-reasoning
-      // segments arrived first, use self-collapsible details (idx > 0)
-      // instead of header-controlled div (idx = 0)
+      // index 0 is reserved for reasoning that arrived before any text or
+      // tool call (header-controlled). Anything else gets an inline toggle
+      // with a unique index (1, 2, ...).
       var hasPrecedingContent = rcCount === 0 && state.segments.some(function (s) { return s.type !== 'reasoning'; });
-      var idx = hasPrecedingContent ? 1 : rcCount;
+      var idx = (rcCount === 0 && !hasPrecedingContent) ? 0 : rcCount + 1;
       return window.segmentBuilders.reasoning(idx);
     });
     seg.text = (seg.text || '') + (data.text || '');

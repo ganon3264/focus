@@ -11,8 +11,8 @@ def render_message_segments(
     """Split message content into typed segments for template rendering.
 
     If *segments_json* is provided (from the stored ``segments_json`` column),
-    it is parsed and returned directly.  Otherwise the legacy parsing path is
-    used (``%%%TOOL_BOUNDARY%%%`` markers).
+    it is parsed and returned directly.  Otherwise a legacy fallback builds
+    segments from ``variant_meta`` reasoning plus the plain ``content`` text.
 
     Returns a flat list of dicts:
       {"type": "text", "content": str}          # raw text (markdown-processed by JS later)
@@ -37,14 +37,8 @@ def render_message_segments(
         escaped = escape_html(reasoning_text.strip())
         segments.append({"type": "reasoning", "html": escaped, "index": 0})
 
-    parts = content.split("%%%TOOL_BOUNDARY%%%")
-
-    for pi, part in enumerate(parts):
-        if part.strip():
-            segments.append({"type": "text", "content": part})
-
-        if pi < len(parts) - 1:
-            segments.append({"type": "tool_boundary"})
+    if content and content.strip():
+        segments.append({"type": "text", "content": content})
 
     return segments
 

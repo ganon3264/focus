@@ -176,5 +176,32 @@ assert(typeof window.editMessage === 'function', 'editMessage loaded');
   global.fetch = oldFetch;
 })();
 
+// ── buildEditBlocks prefers segments and preserves tool boundaries ──
+(function () {
+  var segments = [
+    { type: 'text', content: 'before' },
+    { type: 'tool_boundary', tool_calls: [{ id: 'c1', function: { name: 'read_file', arguments: '{}' } }] },
+    { type: 'reasoning', html: 'think &amp; stuff', index: 1 },
+    { type: 'text', content: 'after' },
+  ];
+  var blocks = window._buildEditBlocks('ignored', segments, 'ignored');
+  assertEqual(blocks.length, 4, 'segments path builds all blocks');
+  assertEqual(blocks[0].type, 'text', 'first text block');
+  assertEqual(blocks[1].type, 'tool_boundary', 'tool boundary preserved');
+  assert(blocks[1].calls && blocks[1].calls.length === 1, 'tool calls preserved');
+  assertEqual(blocks[2].type, 'reasoning', 'reasoning block preserved');
+  assertEqual(blocks[2].content, 'think & stuff', 'reasoning html unescaped');
+  assertEqual(blocks[2].index, 1, 'reasoning index preserved');
+})();
+
+// ── buildEditBlocks legacy fallback has no marker logic ──
+(function () {
+  var blocks = window._buildEditBlocks('plain text', null, 'thoughts');
+  assertEqual(blocks.length, 2, 'fallback builds reasoning + text');
+  assertEqual(blocks[0].type, 'reasoning', 'fallback reasoning first');
+  assertEqual(blocks[0].index, 0, 'fallback reasoning is header-controlled');
+  assertEqual(blocks[1].content, 'plain text', 'fallback text content');
+})();
+
 // ── Result ──
 h.printSummary();

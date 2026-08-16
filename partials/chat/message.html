@@ -37,14 +37,14 @@
           </div>
           {% if message.role == 'assistant' %}
           <div class="text-xs text-muted flex items-center gap-1.5 flex-wrap mt-0.5">
-            {% set has_reasoning = (message.get('segments')|selectattr("type", "equalto", "reasoning")|list|length > 0) if message.get('segments') else message.get('reasoning') %}
+            {% set has_first_reasoning = (message.get('segments')|selectattr("type", "equalto", "reasoning")|selectattr("index", "equalto", 0)|list|length > 0) if message.get('segments') else message.get('reasoning') %}
             {% if message.model_name %}
             <span>{{ message.model_name }}</span>
-            {% if message.position != 0 and has_reasoning %}
+            {% if message.position != 0 and has_first_reasoning %}
             <span class="text-muted">·</span>
             {% endif %}
             {% endif %}
-            {% if message.position != 0 and has_reasoning %}
+            {% if message.position != 0 and has_first_reasoning %}
             <button
               data-action="actionToggleReasoning"
               class="reasoning-toggle-btn inline-flex items-center gap-1 text-muted hover:text-[--text] transition-colors cursor-pointer"

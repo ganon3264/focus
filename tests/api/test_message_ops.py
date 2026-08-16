@@ -94,6 +94,77 @@ class TestEditMessage:
         assert row["variant_count"] == 2
         assert row["content"] == "Edited"
 
+    async def test_edit_preserves_tool_calls(self, client, tmp_test_dir):
+        chat, _, asst_id = await _chat_with_messages(client, _db_path(tmp_test_dir))
+        db_path = _db_path(tmp_test_dir)
+
+        async with aiosqlite.connect(db_path) as db:
+            db.row_factory = aiosqlite.Row
+            cur = await db.execute(
+                "SELECT id FROM message_variants WHERE message_id = ? AND variant_index = 0",
+                (asst_id,),
+            )
+            variant_id = (await cur.fetchone())["id"]
+            await db.execute(
+                """INSERT INTO tool_calls
+                   (id, chat_id, message_id, variant_id, tool_name, arguments, result, is_error, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (str(uuid.uuid4()), chat["id"], asst_id, variant_id,
+                 "read_file", '{"path": "/x"}', "contents", 0, _now_iso()),
+            )
+            await db.execute(
+                "UPDATE message_variants SET segments_json = ? WHERE id = ?",
+                (
+                    json.dumps([
+                        {"type": "text", "content": "before"},
+                        {"type": "tool_boundary", "tool_calls": [{
+                            "id": "call_1",
+                            "type": "function",
+                            "function": {"name": "read_file", "arguments": '{"path": "/x"}'},
+                            "result": "contents",
+                            "is_error": False,
+                        }]},
+                        {"type": "text", "content": "after"},
+                    ]),
+                    variant_id,
+                ),
+            )
+            await db.commit()
+
+        edited_segments = [
+            {"type": "text", "content": "before"},
+            {"type": "tool_boundary", "tool_calls": [{
+                "id": "call_1",
+                "type": "function",
+                "function": {"name": "read_file", "arguments": '{"path": "/x"}'},
+                "result": "contents",
+                "is_error": False,
+            }]},
+            {"type": "text", "content": "edited after"},
+        ]
+        resp = await client.patch(
+            f"/api/chats/{chat['id']}/messages/{asst_id}",
+            json={
+                "content": "before\nedited after",
+                "attachment_ids": [],
+                "segments": edited_segments,
+            },
+        )
+        assert resp.status_code == 200
+
+        msg = await client.get(f"/api/chats/{chat['id']}/messages/{asst_id}")
+        data = msg.json()
+        assert data["tool_calls"], "tool_calls must be preserved on the edited variant"
+        assert data["tool_calls"][0]["function"]["name"] == "read_file"
+        assert data["segments"][1]["tool_calls"], "segments must keep the tool boundary"
+        assert data["segments"][2]["content"] == "edited after"
+
+        async with aiosqlite.connect(db_path) as db:
+            db.row_factory = aiosqlite.Row
+            cur = await db.execute("SELECT COUNT(*) FROM tool_calls WHERE message_id = ?", (asst_id,))
+            count = (await cur.fetchone())[0]
+        assert count == 2, "original + copied tool_calls rows"
+
     async def test_edit_binds_and_copies_attachments(self, client, tmp_test_dir):
         chat, _, asst_id = await _chat_with_messages(client, _db_path(tmp_test_dir))
         upload = await client.post(

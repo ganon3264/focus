@@ -141,7 +141,7 @@ class TestBuildSegments:
             {"type": "reasoning", "html": "first thought", "index": 0},
             {"type": "text", "content": "done"},
             {"type": "tool_boundary"},
-            {"type": "reasoning", "html": "second thought", "index": 1},
+            {"type": "reasoning", "html": "second thought", "index": 2},
         ]
 
     def test_whitespace_only_reasoning_is_skipped(self):
@@ -172,3 +172,20 @@ class TestBuildSegments:
             final_reasoning=[],
         )
         assert result == []
+
+    def test_reasoning_after_tool_call_gets_inline_toggle(self):
+        tool_calls = [
+            [{"id": "call_1", "type": "function", "function": {"name": "read_file", "arguments": "{}"}}],
+        ]
+        result = build_segments(
+            text_slices=[0, 1],
+            reasoning_slices=[0, 1],
+            final_text=["reply"],
+            final_reasoning=["thinking after tool"],
+            tool_call_groups=tool_calls,
+        )
+        assert result == [
+            {"type": "tool_boundary", "tool_calls": tool_calls[0]},
+            {"type": "reasoning", "html": "thinking after tool", "index": 1},
+            {"type": "text", "content": "reply"},
+        ]

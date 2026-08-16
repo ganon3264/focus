@@ -21,18 +21,6 @@ class TestRenderMessageSegments:
     def test_legacy_plain_text(self):
         assert render_message_segments("plain", None) == [{"type": "text", "content": "plain"}]
 
-    def test_legacy_tool_boundary_split(self):
-        result = render_message_segments("before%%%TOOL_BOUNDARY%%%after", None)
-        assert result == [
-            {"type": "text", "content": "before"},
-            {"type": "tool_boundary"},
-            {"type": "text", "content": "after"},
-        ]
-
-    def test_legacy_empty_parts_skipped(self):
-        result = render_message_segments("%%%TOOL_BOUNDARY%%%", None)
-        assert result == [{"type": "tool_boundary"}]
-
     def test_legacy_reasoning_from_variant_meta(self):
         meta = json.dumps({"reasoning": "  think & <care>  "})
         result = render_message_segments("answer", meta)

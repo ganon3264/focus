@@ -130,6 +130,7 @@ class MessageEdit(BaseModel):
     content: str
     reasoning: str | None = None
     attachment_ids: list[str] = Field(default_factory=list)
+    segments: list[dict[str, Any]] | None = None
 
 
 class StreamRequest(BaseModel):

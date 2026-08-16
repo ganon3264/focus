@@ -1,30 +1,45 @@
 (function () {
-  function buildEditBlocks(content, toolCalls, reasoning) {
-    var blocks = [];
-    var toolCallsRendered = false;
+  function unescapeHtml(s) {
+    return (s || '')
+      .replace(/&quot;/g, '"')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&amp;/g, '&');
+  }
 
-    if (reasoning) {
-      blocks.push({ type: 'reasoning', content: reasoning.trim() });
-    }
-
-    var parts = (content || '').split('%%%TOOL_BOUNDARY%%%');
-
-    for (var pi = 0; pi < parts.length; pi++) {
-      var text = parts[pi].trim();
-      if (text) {
-        blocks.push({ type: 'text', content: text });
-      }
-
-      if (pi < parts.length - 1) {
-        var calls = null;
-        if (!toolCallsRendered && toolCalls && toolCalls.length > 0) {
-          calls = toolCalls;
-          toolCallsRendered = true;
+  function buildEditBlocks(content, segments, reasoning) {
+    if (segments && segments.length > 0) {
+      var blocks = [];
+      for (var i = 0; i < segments.length; i++) {
+        var seg = segments[i];
+        if (seg.type === 'text') {
+          if (seg.content && seg.content.trim()) {
+            blocks.push({ type: 'text', content: seg.content });
+          }
+        } else if (seg.type === 'reasoning') {
+          blocks.push({
+            type: 'reasoning',
+            content: unescapeHtml(seg.html || ''),
+            index: seg.index || 0,
+          });
+        } else if (seg.type === 'tool_boundary') {
+          if (seg.tool_calls && seg.tool_calls.length > 0) {
+            blocks.push({ type: 'tool_boundary', calls: seg.tool_calls });
+          } else {
+            blocks.push({ type: 'tool_boundary', calls: null });
+          }
         }
-        blocks.push({ type: 'tool_boundary', calls: calls });
       }
+      return blocks;
     }
 
+    var blocks = [];
+    if (reasoning) {
+      blocks.push({ type: 'reasoning', content: reasoning.trim(), index: 0 });
+    }
+    if (content && content.trim()) {
+      blocks.push({ type: 'text', content: content });
+    }
     return blocks;
   }
 
@@ -121,7 +136,7 @@
       if (!res.ok) throw new Error('Failed to load message');
       var data = await res.json();
 
-      var blocks = buildEditBlocks(data.content, data.tool_calls, data.reasoning);
+      var blocks = buildEditBlocks(data.content, data.segments, data.reasoning);
       window._editBlocks = blocks;
 
       document.getElementById('edit-msg-id').value = messageId;
@@ -180,24 +195,35 @@
     var blocks = window._editBlocks || [];
 
     var textParts = [];
-    var reasoningText = '';
+    var reasoningParts = [];
+    var segments = [];
     for (var i = 0; i < blocks.length; i++) {
       var blk = blocks[i];
       if (blk.type === 'reasoning') {
         var ta = document.querySelector('.edit-block-ta[data-block-idx="' + i + '"]');
         var text = ta ? ta.value.trim() : '';
-        if (text) reasoningText = text;
+        if (text) {
+          reasoningParts.push(text);
+          segments.push({ type: 'reasoning', html: window.escapeHtml(text), index: blk.index || 0 });
+        }
       } else if (blk.type === 'text') {
         var ta = document.querySelector('.edit-block-ta[data-block-idx="' + i + '"]');
         var text = ta ? ta.value.trim() : '';
-        if (text) textParts.push(text);
+        if (text) {
+          textParts.push(text);
+          segments.push({ type: 'text', content: text });
+        }
       } else if (blk.type === 'tool_boundary') {
-        textParts.push('%%%TOOL_BOUNDARY%%%');
+        if (blk.calls && blk.calls.length > 0) {
+          segments.push({ type: 'tool_boundary', tool_calls: blk.calls });
+        } else {
+          segments.push({ type: 'tool_boundary' });
+        }
       }
     }
 
     var content = textParts.join('\n');
-    var reasoning = reasoningText || null;
+    var reasoning = reasoningParts.length > 0 ? reasoningParts.join('\n') : null;
 
     try {
       await fetch(window.api.chatMessage(chatId, messageId), {
@@ -207,6 +233,7 @@
           content: content,
           reasoning: reasoning,
           attachment_ids: window.currentEditAttachments.map(function (a) { return a.id; }),
+          segments: segments,
         }),
       });
 
@@ -267,4 +294,6 @@
   if (typeof window.setupDropZone === 'function') {
     window.setupDropZone('#edit-msg-attachments', window.uploadMessageAttachmentFiles);
   }
+
+  window._buildEditBlocks = buildEditBlocks;
 })();
