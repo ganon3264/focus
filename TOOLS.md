@@ -37,9 +37,16 @@ Place a `.json` file in `tools/` at the project root. It is loaded automatically
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `name` | `string` | — | Parameter name sent to the LLM |
-| `type` | `string` | — | One of: `string`, `integer`, `boolean`, `number` |
+| `type` | `string` | — | One of: `string`, `integer`, `boolean`, `number`, `array` |
 | `description` | `string` | `""` | LLM-facing description |
 | `required` | `bool` | `true` | If `false`, the LLM may omit it |
+| `items` | `object` | `null` | JSON Schema for array elements; used when `type` is `array` |
+
+### Array params
+
+Array-typed params accept a JSON list. A JSON-array string is parsed automatically, and a
+plain scalar/string is wrapped into a single-element list, so the script always receives a
+list for `array` params. Use `items` to describe the element schema sent to providers.
 
 # Script Contract
 
