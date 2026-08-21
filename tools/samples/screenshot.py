@@ -23,6 +23,7 @@ def capture(monitor: str = "current") -> bytes:
             check=True,
             capture_output=True,
             timeout=15,
+            env={**os.environ, "QT_QUICK_BACKEND": "software"},
         )
         with open(tmp_path, "rb") as f:
             return f.read()
