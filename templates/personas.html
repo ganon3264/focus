@@ -59,7 +59,7 @@ function submitPersona(e){
     if (!grid) return;
     var emptyMsg = grid.querySelector('.border-dashed');
     if (emptyMsg) emptyMsg.remove();
-    htmx.ajax('GET', '/partials/persona-card/' + result.id, {
+    hxGet('/partials/persona-card/' + result.id, {
       target: '#persona-grid',
       swap: 'afterbegin',
     }).then(function() {

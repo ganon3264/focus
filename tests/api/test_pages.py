@@ -121,6 +121,42 @@ class TestPresetPartials:
         assert resp.status_code == 200
         assert preset["id"] in resp.text
 
+    async def test_selection_state_oob_fragments(self, client):
+        chat, char, persona, preset = await _seed_chat(client)
+        resp = await client.get(
+            f"/partials/selection-state?chat_id={chat['id']}"
+            f"&preset_id={preset['id']}&character_id={char['id']}&persona_id={persona['id']}"
+        )
+        assert resp.status_code == 200
+        # every selection-dependent pane is an out-of-band swap
+        for target in ("preset-selector", "preset-variables", "arranger-modal-body", "chat-list"):
+            assert f'id="{target}" hx-swap-oob="innerHTML"' in resp.text, target
+        assert preset["id"] in resp.text
+        assert chat["id"] in resp.text
+
+    async def test_selection_state_greeter_no_params(self, client):
+        # No chat / no selection — the greeter state. Must not 500 and must
+        # render the empty-state panes.
+        resp = await client.get("/partials/selection-state")
+        assert resp.status_code == 200
+        assert 'id="preset-selector" hx-swap-oob="innerHTML"' in resp.text
+        assert "Select a preset to edit variables." in resp.text
+        assert "Select a preset first." in resp.text
+
+    async def test_selection_state_reflects_persona_after_patch(self, client):
+        chat, char, _, preset = await _seed_chat(client)
+        persona_b = await create_persona(client, "PersonaB")
+        resp = await client.patch(f"/api/chats/{chat['id']}", json={"persona_id": persona_b["id"]})
+        assert resp.status_code == 200
+
+        resp = await client.get(
+            f"/partials/selection-state?chat_id={chat['id']}"
+            f"&preset_id={preset['id']}&character_id={char['id']}&persona_id={persona_b['id']}"
+        )
+        assert resp.status_code == 200
+        assert "PersonaB" in resp.text
+        assert "PagePersona" not in resp.text
+
     async def test_preset_variables_and_group(self, client):
         _, _, _, preset = await _seed_chat(client)
         resp = await client.get(f"/partials/preset-variables/{preset['id']}")

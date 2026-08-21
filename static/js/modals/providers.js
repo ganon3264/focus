@@ -216,14 +216,7 @@ function refreshNoFallbacksVisibility(prefix) {
 }
 
 function setActiveProvider(id, name, type) {
-  document.querySelectorAll('.provider-card').forEach((el) => el.classList.remove('active'));
-  const card = document.getElementById('prov-card-' + id);
-  if (card) card.classList.add('active');
-
-  const sendBtn = document.getElementById('send-btn');
-  if (sendBtn) sendBtn.dataset.providerId = id;
-  StateManager.setProvider(id, type);
-  if (name) window.showInfoToast('Provider: ' + name);
+  window.applyProvider(id, type, name);
 }
 
 function extractData(form) {
@@ -308,7 +301,7 @@ function submitProviderForm(el, e) {
   }).then(async function (r) {
     if (r.ok) {
       closeModal('modal-provider-create', { discard: true });
-      htmx.ajax('GET', api.partials.providersModal, {
+      hxGet(api.partials.providersModal, {
         target: '#providers-modal-body-inner',
         swap: 'innerHTML',
       });
@@ -470,8 +463,7 @@ async function fetchProviderBalances() {
 
 setTimeout(() => {
   const activeId = StateManager.get('provider_id');
-  const activeType = StateManager.get('provider_type');
-  if (activeId) setActiveProvider(activeId, '', activeType);
+  if (activeId && window.syncProviderHighlight) window.syncProviderHighlight(activeId);
   fetchProviderBalances();
   var sv = localStorage.getItem('focus_providers_sort');
   if (sv && window.sortProviders) window.sortProviders(sv);

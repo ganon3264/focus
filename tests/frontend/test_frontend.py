@@ -87,6 +87,24 @@ def test_critical_assets_exist():
     assert not missing, f"Missing critical assets: {', '.join(missing)}"
 
 
+def test_programmatic_htmx_ajax_only_in_queue():
+    """All programmatic partial reloads must go through hxGet/hxPost so they
+    are serialized by the hx queue and never dropped by htmx's per-source
+    request queue."""
+    allowed = {Path("static/js/core/hx-queue.js").resolve()}
+    offenders = []
+    for root in (STATIC_DIR, PARTIALS_DIR, TEMPLATES_DIR):
+        for p in root.rglob("*"):
+            if p.suffix not in (".js", ".html"):
+                continue
+            if p.resolve() in allowed:
+                continue
+            text = p.read_text(errors="ignore")
+            if "htmx.ajax(" in text:
+                offenders.append(str(p.relative_to(Path(".").resolve())))
+    assert not offenders, f"Direct htmx.ajax() found (use hxGet/hxPost): {offenders}"
+
+
 def test_css_valid():
     """Every split CSS file must parse without fatal errors."""
     css_dir = STATIC_DIR / "css"

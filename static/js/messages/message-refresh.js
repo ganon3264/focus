@@ -74,7 +74,7 @@
     var params = '?current_chat_id=' + encodeURIComponent(chatId);
     var charId = StateManager.get('character_id');
     if (charId) params += '&character_id=' + encodeURIComponent(charId);
-    htmx.ajax('GET', window.api.partials.chatList + params, {
+    hxGet(window.api.partials.chatList + params, {
       target: '#chat-list',
       swap: 'innerHTML',
     });

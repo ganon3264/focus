@@ -1,5 +1,5 @@
 {% from "macros.html" import hint_tooltip, icon_search, icon_chevron_down, sort_dropdown %}
-<div x-data="toolsModal()" id="tools-modal-data" class="flex flex-col gap-4 flex-1 min-h-0" @multimodal-changed.window="enableMultimodal = $event.detail.enabled">
+<div x-data="toolsModal()" id="tools-modal-data" class="flex flex-col gap-4 flex-1 min-h-0" @multimodal-changed.window="enableMultimodal = $event.detail.value" @provider-changed.window="providerType = $event.detail.type || 'openai_compat'">
 
   <!-- Enable Tool Calls toggle -->
   <div class="form-group mb-0 flex items-center justify-between shrink-0">
@@ -130,7 +130,7 @@ document.addEventListener('alpine:init', function () {
     return {
       enabled: false,
       readOnly: true,
-      enableMultimodal: true,
+      enableMultimodal: StateManager.get('multimodal_enabled') !== false,
       providerType: (StateManager && StateManager.get('provider_type')) || 'openai_compat',
       reloading: false,
 
@@ -169,9 +169,7 @@ document.addEventListener('alpine:init', function () {
 
       init: function () {
         var self = this;
-        var chatId = document.getElementById('send-btn')
-          ? document.getElementById('send-btn').dataset.chatId
-          : null;
+        var chatId = StateManager.get('chat_id');
         var promises = [fetch('/api/tools').then(function (r) { return r.json(); }).then(function (data) { self.tools = data; })];
         if (chatId) {
           promises.push(
@@ -201,9 +199,7 @@ document.addEventListener('alpine:init', function () {
       toggleTool: function (name) {
         var newState = this.toolStates[name] === true ? false : true;
         this.toolStates[name] = newState;
-        var chatId = document.getElementById('send-btn')
-          ? document.getElementById('send-btn').dataset.chatId
-          : null;
+        var chatId = StateManager.get('chat_id');
         if (chatId) {
           fetch('/api/chats/' + chatId + '/tool-states', {
             method: 'PUT',
@@ -235,9 +231,7 @@ document.addEventListener('alpine:init', function () {
       },
 
       _save: function () {
-        var chatId = document.getElementById('send-btn')
-          ? document.getElementById('send-btn').dataset.chatId
-          : null;
+        var chatId = StateManager.get('chat_id');
         if (chatId) {
           fetch('/api/chats/' + chatId, {
             method: 'PATCH',

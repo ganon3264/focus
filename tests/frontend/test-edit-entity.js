@@ -54,55 +54,40 @@ global.localStorage = h.createMockLocalStorage();
 var submitPromise = null;
 var submitFetchFn = null;
 
+// Load queue (reloadPromptArranger now goes through hxGet)
+eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'core', 'hx-queue.js'), 'utf8'));
+
 // Load module
 eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'modals', 'edit-entity.js'), 'utf8'));
 
 assert(typeof window.createEditModalHandlers === 'function', 'createEditModalHandlers loaded');
 
-// ── reloadPromptArranger builds URL with query params ──
+// ── reloadPromptArranger reloads #arranger-content with query params ──
 (function () {
-  var lastArgs = null;
-  var oldAjax = global.htmx.ajax;
-  global.htmx.ajax = function (method, url, opts) {
-    lastArgs = { method: method, url: url, opts: opts };
+  var captured = null;
+  var oldHxGet = window.hxGet;
+  window.hxGet = function (url, opts) {
+    captured = { url: url, opts: opts };
+    return Promise.resolve();
   };
 
-  // reloadPromptArranger guards on document.getElementById(targetId)
+  // reloadPromptArranger guards on #arranger-content
   var targetEl = makeElement('div');
-  targetEl.id = 'arranger-modal-body';
+  targetEl.id = 'arranger-content';
   doc._body.appendChild(targetEl);
   var origGet = doc.getElementById;
   doc.getElementById = function (id) {
-    if (id === 'arranger-modal-body') return targetEl;
+    if (id === 'arranger-content') return targetEl;
     return origGet ? origGet(id) : null;
   };
 
-  window.reloadPromptArranger('preset-1', 'arranger-modal-body');
-  assert(!!lastArgs, 'htmx.ajax called');
-  assertEqual(lastArgs.url, '/partials/prompt-arranger/preset-1', 'arranger URL without params');
-  assertEqual(lastArgs.opts.target, '#arranger-modal-body', 'arranger target');
+  window.reloadPromptArranger('preset-1');
+  assert(!!captured, 'hxGet called');
+  assertEqual(captured.url, '/partials/prompt-arranger/preset-1', 'arranger URL without params');
+  assertEqual(captured.opts.target, '#arranger-content', 'arranger target');
 
   doc.getElementById = origGet;
-  global.htmx.ajax = oldAjax;
-})();
-
-// ── getArrangerContainerId returns container id ──
-(function () {
-  var list = makeElement('div');
-  list.id = 'arranger-list-pr1';
-  var parent = makeElement('div');
-  parent.id = 'my-container';
-  parent.appendChild(list);
-  // Set parentElement for the list (makeElement only has parent, not parentElement)
-  Object.defineProperty(list, 'parentElement', { get: function () { return list.parent; } });
-  doc._body.appendChild(parent);
-  doc.getElementById = function (id) {
-    if (id === 'arranger-list-pr1') return list;
-    return null;
-  };
-
-  var result = window.getArrangerContainerId('pr1');
-  assertEqual(result, 'my-container', 'getArrangerContainerId returns parent id');
+  window.hxGet = oldHxGet;
 })();
 
 // ── createEditModalHandlers creates named functions ──
@@ -220,10 +205,11 @@ assert(typeof window.createEditModalHandlers === 'function', 'createEditModalHan
   doc.getElementById = function (id) { return doc.querySelector('#' + id); };
 
   // ── open loads the greeting section from the server ──
-  var lastAjax = null;
-  var oldAjax = global.htmx.ajax;
-  global.htmx.ajax = function (method, url, opts) {
-    lastAjax = { method: method, url: url, opts: opts };
+  var lastPost = null;
+  var oldHxPost = window.hxPost;
+  window.hxPost = function (url, opts) {
+    lastPost = { url: url, opts: opts };
+    return Promise.resolve();
   };
 
   var btn = makeElement('button');
@@ -231,11 +217,11 @@ assert(typeof window.createEditModalHandlers === 'function', 'createEditModalHan
   btn.dataset.charMedia = '[]';
   window.openEditG2(btn);
 
-  assertEqual(lastAjax.method, 'POST', 'open fetches greeting section via POST');
-  assertEqual(lastAjax.url, '/partials/character-greeting/c1', 'open fetches greeting section for char id');
-  assertEqual(lastAjax.opts.target, '#edit-g2-greeting-section', 'open targets greeting section');
-  assertEqual(lastAjax.opts.swap, 'outerHTML', 'open swaps greeting section outerHTML');
-  global.htmx.ajax = oldAjax;
+  assert(!!lastPost, 'open fetches greeting section via hxPost');
+  assertEqual(lastPost.url, '/partials/character-greeting/c1', 'open fetches greeting section for char id');
+  assertEqual(lastPost.opts.target, '#edit-g2-greeting-section', 'open targets greeting section');
+  assertEqual(lastPost.opts.swap, 'outerHTML', 'open swaps greeting section outerHTML');
+  window.hxPost = oldHxPost;
 
   // ── submit forwards greeting fields to the server (no client-side merge) ──
   submitFetchFn = h.createMockFetch({ ok: true, json: function () { return {}; } });

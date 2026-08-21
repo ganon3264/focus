@@ -113,7 +113,8 @@ overlay_close=true, dirty_fields='#block-modal-textarea,#block-modal-reasoning',
 
 <script>
   (function () {
-    const el = document.getElementById('arranger-list-{{ preset_id }}');
+    const presetId = '{{ preset_id }}';
+    const el = document.getElementById('arranger-list-' + presetId);
     if (!el) return;
     if (el._sortable) el._sortable.destroy();
     el._sortable = new Sortable(el, {
@@ -129,15 +130,12 @@ overlay_close=true, dirty_fields='#block-modal-textarea,#block-modal-reasoning',
         const body = ids.map(function (id, idx) {
           return { id: id, position: idx };
         });
-        fetch('/api/presets/' + el.dataset.presetId + '/blocks', {
+        fetch('/api/presets/' + presetId + '/blocks', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ blocks: body }),
         }).then(function () {
-          const container = el.parentElement;
-          if (container && container.id) {
-            reloadPromptArranger(el.dataset.presetId, container.id);
-          }
+          reloadPromptArranger(presetId);
         });
       },
     });
@@ -155,7 +153,7 @@ overlay_close=true, dirty_fields='#block-modal-textarea,#block-modal-reasoning',
         params.append('persona_id', StateManager.get('persona_id'));
       var qs = params.toString();
       if (qs) url += '?' + qs;
-      htmx.ajax('GET', url, {
+      hxGet(url, {
         target: '.arranger-item[data-block-id="' + blockId + '"]',
         swap: 'outerHTML',
       });
@@ -175,15 +173,7 @@ overlay_close=true, dirty_fields='#block-modal-textarea,#block-modal-reasoning',
           role: 'system',
         }),
       }).then(function () {
-        const list = btn ? btn.closest('.arranger-list') : null;
-        const container = list
-          ? list.parentElement
-          : document.getElementById('arranger-modal-body');
-        if (container && container.id) {
-          reloadPromptArranger(pid, container.id);
-        } else {
-          reloadPromptArranger(pid, 'arranger-modal-body');
-        }
+        reloadPromptArranger(pid);
       });
     };
 
@@ -290,7 +280,7 @@ overlay_close=true, dirty_fields='#block-modal-textarea,#block-modal-reasoning',
         fetch(`/api/presets/${presetId}/blocks/${blockId}`, {
           method: 'DELETE',
         }).then((r) => {
-          if (r.ok) reloadPromptArranger(presetId, getArrangerContainerId(presetId));
+          if (r.ok) reloadPromptArranger(presetId);
         });
       });
     };

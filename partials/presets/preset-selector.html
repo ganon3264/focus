@@ -43,10 +43,8 @@
       <!-- Deselect option -->
       <div class="dropdown-item px-3 py-2 text-sm text-muted text-center"
            @click="
-             selectedId = '';
-             selectedName = '— Select Preset —';
              open = false;
-             StateManager.setPreset(null);
+             applyPreset(null);
            "
       >
         — Select Preset —
@@ -57,10 +55,8 @@
            :class="{ 'text-[var(--accent)] font-medium': selectedId === '{{ p.id }}' }"
            data-preset-id="{{ p.id }}"
            @click="
-             selectedId = '{{ p.id }}';
-             selectedName = '{{ p.name | replace("'", "\\'") }}';
              open = false;
-             StateManager.setPreset('{{ p.id }}');
+             applyPreset('{{ p.id }}');
            "
       >
         <span class="truncate flex-1 preset-item-name">{{ p.name }}</span>
@@ -83,32 +79,6 @@
 </div>
 
 <script>
-window.refreshPresetSelector = function(pendingId) {
-  var sendBtn = document.getElementById('send-btn');
-  var chatId = sendBtn ? (sendBtn.dataset.chatId || '') : '';
-  htmx.ajax('GET', '/partials/preset-selector?chat_id=' + encodeURIComponent(chatId), {
-    target: '#preset-selector',
-    swap: 'innerHTML',
-  }).then(function() {
-    if (!pendingId) return;
-    var wrapper = document.getElementById('preset-selector-wrapper');
-    if (!wrapper) return;
-    var state = Alpine.$data(wrapper);
-    if (state.selectedId) return;
-    var item = wrapper.querySelector('[data-preset-id="' + pendingId + '"]');
-    if (item) {
-      state.selectedId = pendingId;
-      state.selectedName = item.querySelector('.preset-item-name').textContent;
-    }
-  });
-};
-
-window.setPresetThenRefresh = function(id) {
-  Promise.resolve(StateManager.setPreset(id)).then(function() {
-    refreshPresetSelector(id);
-  });
-};
-
 window.openDuplicateModal = function(btn) {
   var item = btn.closest('[data-preset-id]');
   var selectorState = Alpine.$data(document.getElementById('preset-selector-wrapper'));
@@ -138,7 +108,7 @@ function confirmDuplicate(){
   }).then(function(data) {
     if (data && data.id) {
       window.closeModal('modal-dup-preset', { discard: true });
-      setPresetThenRefresh(data.id);
+      applyPreset(data.id);
       window.showSuccessToast('Preset duplicated');
     }
   }).catch(function() {});
@@ -158,7 +128,7 @@ window.openRenameModal = function(btn) {
 window.handlePresetCreated = function(evt) {
   try {
     var data = JSON.parse(evt.detail.xhr.response);
-    setPresetThenRefresh(data.id);
+    applyPreset(data.id);
   } catch(e) { window.location.reload(); }
 };
 
@@ -202,7 +172,7 @@ function importPreset(file){
     .then(function(data) {
       if (data && data.id) {
         window.showSuccessToast('Preset imported');
-        setPresetThenRefresh(data.id);
+        applyPreset(data.id);
       }
     });
 }
@@ -223,9 +193,9 @@ window.deletePresetById = function(id) {
         var state = Alpine.$data(document.getElementById('preset-selector-wrapper'));
         if (state.selectedId === id) {
           var fallbackId = fallbackItem ? fallbackItem.dataset.presetId : null;
-          setPresetThenRefresh(fallbackId);
+          applyPreset(fallbackId);
         } else {
-          refreshPresetSelector();
+          refreshPresetList();
         }
         window.showSuccessToast('Preset deleted');
       });

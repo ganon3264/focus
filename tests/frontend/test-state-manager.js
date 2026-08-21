@@ -138,7 +138,7 @@ function reset() {
   assertEqual(cb[0].type, 'openai_compat', 'type is set');
   assertEqual(global._dispatchedEvents.length, 1, 'dispatches window CustomEvent');
   assertEqual(global._dispatchedEvents[0].type, 'provider-changed', 'CustomEvent type');
-  assertDeepEqual(global._dispatchedEvents[0].detail, { id: 'prov1', type: 'openai_compat' }, 'CustomEvent detail');
+  assertDeepEqual(global._dispatchedEvents[0].detail, { prevId: null, prevType: null, id: 'prov1', type: 'openai_compat' }, 'CustomEvent detail');
 
   StateManager.setProvider('prov2', 'google_aistudio');
   assertEqual(cb.length, 2, 'second setProvider fires callback');
@@ -152,7 +152,7 @@ function reset() {
   assertEqual(localStorage.getItem('focus-provider-type'), null, 'removes localStorage type');
 })();
 
-// ── setProvider without type → no CustomEvent ──
+// ── setProvider without type still emits provider-changed ──
 (function () {
   reset();
   StateManager.init({}, null);
@@ -161,7 +161,10 @@ function reset() {
   assertEqual(StateManager.get('provider_type'), null, 'provider_type cleared');
   assertEqual(localStorage.getItem('focus-provider-id'), 'provX', 'id persisted');
   assertEqual(localStorage.getItem('focus-provider-type'), null, 'type not in localStorage');
-  assertEqual(global._dispatchedEvents.length, 0, 'no CustomEvent when type is null');
+  assertEqual(global._dispatchedEvents.length, 1, 'emits provider-changed even when type is null');
+  assertEqual(global._dispatchedEvents[0].type, 'provider-changed', 'CustomEvent type');
+  assertEqual(global._dispatchedEvents[0].detail.id, 'provX', 'detail.id set');
+  assertEqual(global._dispatchedEvents[0].detail.type, null, 'detail.type null');
 })();
 
 // ── getAll() ──
@@ -302,6 +305,51 @@ function reset() {
   StateManager.init({}, null);
   StateManager.off('preset-changed', function () {});
   assert(true, 'off(non-registered) does not throw');
+})();
+
+// ── init sets chat_id from chatId param ──
+(function () {
+  reset();
+  StateManager.init({ character_id: 'c1', preset_id: 'pr1' }, 'chat-42');
+  assertEqual(StateManager.get('chat_id'), 'chat-42', 'init sets chat_id from param');
+  assertEqual(StateManager.get('multimodal_enabled'), null, 'multimodal_enabled defaults to null');
+})();
+
+// ── setChat emits chat-changed ──
+(function () {
+  reset();
+  StateManager.init({}, 'chat-1');
+  var events = [];
+  StateManager.on('chat-changed', function (e) { events.push(e); });
+  StateManager.setChat('chat-2');
+  assertEqual(StateManager.get('chat_id'), 'chat-2', 'setChat updates chat_id');
+  assertEqual(events.length, 1, 'setChat fires callback');
+  assertEqual(events[0].prev, 'chat-1', 'prev chat id');
+  assertEqual(events[0].value, 'chat-2', 'new chat id');
+})();
+
+// ── setMultimodal emits multimodal-changed ──
+(function () {
+  reset();
+  StateManager.init({}, null);
+  var events = [];
+  StateManager.on('multimodal-changed', function (e) { events.push(e); });
+  StateManager.setMultimodal(false);
+  assertEqual(StateManager.get('multimodal_enabled'), false, 'setMultimodal updates state');
+  assertEqual(events.length, 1, 'setMultimodal fires callback');
+  assertEqual(events[0].value, false, 'multimodal value');
+})();
+
+// ── setPreset dispatches a window CustomEvent (single bus) ──
+(function () {
+  reset();
+  StateManager.init({}, 'chat-1');
+  StateManager.setPreset('pr-new');
+  assertEqual(global._dispatchedEvents.length, 1, 'setPreset dispatches one CustomEvent');
+  assertEqual(global._dispatchedEvents[0].type, 'preset-changed', 'CustomEvent type');
+  assertEqual(global._dispatchedEvents[0].detail.prev, null, 'CustomEvent prev');
+  assertEqual(global._dispatchedEvents[0].detail.value, 'pr-new', 'CustomEvent value');
+  assert(!!global._dispatchedEvents[0].detail.persist, 'CustomEvent carries persist promise');
 })();
 
 // ── Result ──

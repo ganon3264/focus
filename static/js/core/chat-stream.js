@@ -66,7 +66,7 @@
     }
 
     if (state.chatId) {
-      htmx.ajax('GET', window.api.partials.messageList(state.chatId), {
+      hxGet(window.api.partials.messageList(state.chatId), {
         target: '#message-list',
         swap: 'innerHTML',
       });
@@ -80,7 +80,7 @@
     if (window._generating) return;
     window._generating = true;
 
-    var providerId = sendBtn.dataset.providerId;
+    var providerId = StateManager.get('provider_id');
     if (!providerId) {
       window.showErrorToast('No provider configured. Add one in Providers.');
       window._generating = false;
@@ -196,8 +196,8 @@
   };
 
   sendBtn.addEventListener('click', async function () {
-    var chatId = sendBtn.dataset.chatId;
-    var providerId = sendBtn.dataset.providerId;
+    var chatId = StateManager.get('chat_id');
+    var providerId = StateManager.get('provider_id');
 
     if (sendBtn.dataset.mode === 'regen') {
       if (!providerId) {
@@ -284,10 +284,6 @@
     var ml = document.getElementById('message-list');
     if (ml) ml.classList.add('ready');
 
-    var savedProvider = StateManager.get('provider_id');
-    if (savedProvider) {
-      sendBtn.dataset.providerId = savedProvider;
-    }
   });
 
   document.body.addEventListener('htmx:afterSwap', function (evt) {

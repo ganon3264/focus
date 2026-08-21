@@ -104,13 +104,15 @@ window.THEME_STATE = {{ theme_state | tojson | safe }};
     Arrange and configure prompt blocks that make up your preset.
     {{ hint_tooltip('Text blocks are fully custom written content. Sentinel types (Character Description, Personality, User Persona, Chat History, Character Blocks) auto-populate from the active character or persona card.') }}
   </div>
-  {% if preset %}
-    {% with preset_id = preset.id, blocks = preset_blocks %}
-      {% include "presets/prompt-arranger.html" %}
-    {% endwith %}
-  {% else %}
-    <div class="text-muted text-center mt-4">Select a preset first.</div>
-  {% endif %}
+  <div id="arranger-content" style="flex: 1; min-height: 0; display: flex; flex-direction: column;">
+    {% if preset %}
+      {% with preset_id = preset.id, blocks = preset_blocks %}
+        {% include "presets/prompt-arranger.html" %}
+      {% endwith %}
+    {% else %}
+      <div class="text-muted text-center mt-4">Select a preset first.</div>
+    {% endif %}
+  </div>
 </div>
 {% endcall %}
 
@@ -196,14 +198,14 @@ if (!window._varScriptsLoaded) {
   };
 
   window.reloadPresetVariables = function(presetId) {
-    htmx.ajax('GET', '/partials/preset-variables/' + presetId, {target: '#preset-variables-container-' + presetId, swap: 'outerHTML'})
+    hxGet('/partials/preset-variables/' + presetId, {target: '#preset-variables-container-' + presetId, swap: 'outerHTML'})
         .then(() => setTimeout(() => initVarSortables(presetId), 50));
   };
 
   window.refreshSingleVarGroup = function(presetId, groupName) {
     var sel = '.var-group-container[data-group-name="' + CSS.escape(groupName) + '"]';
     if (!document.querySelector(sel)) return;
-    htmx.ajax('GET', '/partials/preset-variables/' + presetId + '/group/' + encodeURIComponent(groupName), {
+    hxGet('/partials/preset-variables/' + presetId + '/group/' + encodeURIComponent(groupName), {
       target: sel,
       swap: 'outerHTML',
     }).then(function() {
@@ -352,42 +354,6 @@ StateManager.init({
   provider_id: '{{ active_provider_id or "" }}' || null,
   provider_type: '{{ active_provider_type or "" }}' || null
 }, '{{ chat_id }}');
-
-StateManager.on('preset-changed', function(e) {
-  var addBtn = document.getElementById('preset-add-var-btn');
-  if (e.value) {
-    htmx.ajax('GET', '/partials/preset-variables/' + e.value, {target:'#preset-variables', swap:'innerHTML'});
-    reloadPromptArranger(e.value, 'arranger-modal-body');
-    if (addBtn) {
-      addBtn.dataset.presetId = e.value;
-      addBtn.classList.remove('hidden');
-    }
-  } else {
-    document.getElementById('preset-variables').innerHTML = '';
-    document.getElementById('arranger-modal-body').innerHTML = '<div class="text-muted text-center mt-4">Select a preset first.</div>';
-    if (addBtn) addBtn.classList.add('hidden');
-  }
-});
-
-StateManager.on('character-changed', function() {
-  const pid = StateManager.get('preset_id');
-  if (pid) reloadPromptArranger(pid, 'arranger-modal-body');
-});
-
-StateManager.on('persona-changed', function() {
-  const pid = StateManager.get('preset_id');
-  if (pid) reloadPromptArranger(pid, 'arranger-modal-body');
-  const chatId = document.getElementById('send-btn')?.dataset?.chatId;
-  if (chatId) {
-    var cParams = '?current_chat_id=' + encodeURIComponent(chatId);
-    var charId = StateManager.get('character_id');
-    if (charId) cParams += '&character_id=' + encodeURIComponent(charId);
-    htmx.ajax('GET', '/partials/chat-list' + cParams, {
-      target: '#chat-list',
-      swap: 'innerHTML',
-    });
-  }
-});
 
 function toggleSidebar(side) {
   document.getElementById(side + '-sidebar').classList.toggle('collapsed');

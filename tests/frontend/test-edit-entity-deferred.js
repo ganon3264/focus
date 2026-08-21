@@ -63,6 +63,8 @@ global.CustomEvent = CustomEventCtor;
 global.dispatchEvent = function (ev) { CustomEventCtor._events.push(ev); };
 global.localStorage = h.createMockLocalStorage();
 
+eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'core', 'hx-queue.js'), 'utf8'));
+
 eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'modals', 'edit-entity.js'), 'utf8'));
 
 function makeEl(tag, id, opts) {

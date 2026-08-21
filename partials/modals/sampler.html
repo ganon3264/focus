@@ -683,6 +683,10 @@
           });
         }, { deep: true });
 
+        this.$watch('samplers.enable_multimodal', function (val) {
+          StateManager.setMultimodal(!!val);
+        });
+
         await this.loadStandard();
         await this.loadCustom();
 
@@ -718,10 +722,6 @@
 
           return payload;
         };
-
-        window.dispatchEvent(new CustomEvent('multimodal-changed', {
-          detail: { enabled: this.samplers.enable_multimodal },
-        }));
       },
 
       saveStandard() {
@@ -731,9 +731,6 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ key: key, value: JSON.stringify(this.samplers) }),
         });
-        window.dispatchEvent(new CustomEvent('multimodal-changed', {
-          detail: { enabled: this.samplers.enable_multimodal },
-        }));
       },
 
       saveCustom() {
@@ -758,9 +755,6 @@
           await this.loadStandard();
           await this.loadCustom();
         }
-        window.dispatchEvent(new CustomEvent('multimodal-changed', {
-          detail: { enabled: this.samplers.enable_multimodal },
-        }));
       },
 
       onPresetChanged(e) {

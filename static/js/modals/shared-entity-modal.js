@@ -136,7 +136,7 @@
             if (g) {
               var cid = StateManager.get(cfg.stateKey) || '';
               var cv = g.dataset.view === 'compact';
-              htmx.ajax('GET', cfg.cardEndpoint + id +
+              hxGet(cfg.cardEndpoint + id +
                 '?current_' + cfg.stateKey + '=' + encodeURIComponent(cid) +
                 '&compact_view=' + cv, { target: '#' + cfg.gridId, swap: 'beforeend' })
                 .then(function () {
@@ -144,7 +144,7 @@
                   if (val && window[cfg.sortFn]) window[cfg.sortFn](val);
                 });
             } else {
-              htmx.ajax('GET', cfg.modalEndpoint, {
+              hxGet(cfg.modalEndpoint, {
                 target: '#' + cfg.modalBodyInnerId,
                 swap: 'innerHTML',
               }).then(function () {
@@ -193,27 +193,17 @@
     window[fnSelect] = function (el) {
       var id = el.dataset[cfg.idAttr] || '';
       var name = el.dataset[cfg.nameAttr] || '';
-      var card = el.closest('.card');
-      if (card) {
-        document.querySelectorAll('#' + cfg.gridId + ' .card.active').forEach(function (c) {
-          c.classList.remove('active');
-        });
-        card.classList.add('active');
-      }
       if (cfg.selectMode === 'redirect') {
         window.location.href = (cfg.selectUrl || '/chat') + '?' + cfg.stateKey + '=' + id;
+        return;
+      }
+      closeModal(cfg.modalId);
+      if (cfg.stateKey === 'persona_id') {
+        window.applyPersona(id, name);
+      } else if (cfg.stateKey === 'character_id') {
+        window.applyCharacter(id, name);
       } else {
         StateManager['set' + cfg.fnEntity](id);
-        var statusEl = document.getElementById(cfg.statusId);
-        if (statusEl) statusEl.textContent = name || '...';
-        closeModal(cfg.modalId);
-        var chatId = document.getElementById('send-btn')?.dataset?.chatId;
-        if (chatId) {
-          htmx.ajax('GET', '/partials/message-list/' + chatId, {
-            target: '#message-list',
-            swap: 'innerHTML',
-          });
-        }
       }
     };
 
@@ -235,7 +225,7 @@
             if (g) {
               var fetches = [];
               (data.imported || []).forEach(function (entry) {
-                fetches.push(htmx.ajax('GET', cfg.cardEndpoint + entry.id +
+                fetches.push(hxGet(cfg.cardEndpoint + entry.id +
                   '?current_' + cfg.stateKey + '=' + encodeURIComponent(cid) +
                   '&compact_view=' + cv, { target: '#' + cfg.gridId, swap: 'beforeend' }));
               });
@@ -244,7 +234,7 @@
                 if (val && window[cfg.sortFn]) window[cfg.sortFn](val);
               });
             } else {
-              htmx.ajax('GET', cfg.modalEndpoint, {
+              hxGet(cfg.modalEndpoint, {
                 target: '#' + cfg.modalBodyInnerId,
                 swap: 'innerHTML',
               }).then(function () {

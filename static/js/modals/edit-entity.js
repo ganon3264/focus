@@ -1,6 +1,8 @@
 (function () {
-  window.reloadPromptArranger = function (presetId, targetId) {
-    if (!document.getElementById(targetId)) return;
+  window.reloadPromptArranger = function (presetId) {
+    // The arranger content lives inside a stable #arranger-content wrapper
+    // (header hint stays outside it), so reloading only swaps the content.
+    if (!document.getElementById('arranger-content')) return Promise.resolve();
     var url = '/partials/prompt-arranger/' + presetId;
     var params = new URLSearchParams();
     if (StateManager.get('character_id'))
@@ -9,14 +11,7 @@
       params.append('persona_id', StateManager.get('persona_id'));
     var query = params.toString();
     if (query) url += '?' + query;
-    htmx.ajax('GET', url, { target: '#' + targetId, swap: 'innerHTML' });
-  };
-
-  window.getArrangerContainerId = function (presetId) {
-    var list = document.getElementById('arranger-list-' + presetId);
-    return list && list.parentElement && list.parentElement.id
-      ? list.parentElement.id
-      : 'arranger-modal-body';
+    return hxGet(url, { target: '#arranger-content', swap: 'innerHTML' });
   };
 
   window.createEditModalHandlers = function (cfg) {
@@ -87,15 +82,8 @@
 
     function reloadArrangerIfActive(id) {
       if (!window.StateManager || StateManager.get(cfg.stateKey) !== id || !window.reloadPromptArranger) return;
-      var pid =
-        StateManager.get('preset_id') ||
-        (document.getElementById('prompt-arranger') &&
-        document.querySelector('#prompt-arranger .arranger-list')
-          ? document
-              .querySelector('#prompt-arranger .arranger-list')
-              .id.replace('arranger-list-', '')
-          : null);
-      if (pid) window.reloadPromptArranger(pid, 'prompt-arranger');
+      var pid = StateManager.get('preset_id');
+      if (pid) window.reloadPromptArranger(pid);
     }
 
     function greetingSection() {
@@ -207,7 +195,7 @@
 
       if (cfg.greetingSectionId) {
         pendingGreetingOpen = true;
-        var p = htmx.ajax('POST', cfg.greetingPartial(id), {
+        var p = hxPost(cfg.greetingPartial(id), {
           target: '#' + cfg.greetingSectionId,
           swap: 'outerHTML',
         });
@@ -332,7 +320,7 @@
             var url = cfg.cardEndpoint + id
               + '?current_' + cfg.stateKey + '=' + encodeURIComponent(currentId)
               + '&compact_view=' + (compactView ? 'true' : 'false');
-            htmx.ajax('GET', url, {
+            hxGet(url, {
               target: '#' + (cfg.stateKey === 'character_id' ? 'char' : 'persona') + '-card-' + id,
               swap: 'outerHTML',
             }).then(function () {

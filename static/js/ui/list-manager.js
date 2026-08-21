@@ -162,7 +162,7 @@ window.ListManager = {
               var url = cfg.cardEndpoint + id
                 + '?current_' + cfg.stateKey + '=' + encodeURIComponent(currentId)
                 + '&compact_view=' + (compactView ? 'true' : 'false');
-              htmx.ajax('GET', url, { target: '#' + cfg.gridId, swap: 'beforeend' })
+              hxGet(url, { target: '#' + cfg.gridId, swap: 'beforeend' })
                 .then(function () {
                   var val = localStorage.getItem(cfg.sortStorageKey);
                   if (val && window[cfg.sortFn]) window[cfg.sortFn](val);

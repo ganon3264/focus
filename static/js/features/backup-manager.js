@@ -231,7 +231,7 @@
       type === 'characters' ? 'Characters' : type === 'personas' ? 'Personas' : 'Presets';
     if (title) title.textContent = 'Select ' + label;
     const url = window.api.partials.exportEntities + '?type=' + type;
-    htmx.ajax('GET', url, { target: '#entity-select-list', swap: 'innerHTML' }).then(function () {
+    hxGet(url, { target: '#entity-select-list', swap: 'innerHTML' }).then(function () {
       M._applyEntitySelection(type);
     });
     openModal('modal-entity-select');
@@ -241,7 +241,7 @@
     if (!type) return;
     const url =
       window.api.partials.exportEntities + '?type=' + type + '&filter=' + encodeURIComponent(query);
-    htmx.ajax('GET', url, { target: '#entity-select-list', swap: 'innerHTML' }).then(function () {
+    hxGet(url, { target: '#entity-select-list', swap: 'innerHTML' }).then(function () {
       M._applyEntitySelection(type);
     });
   };

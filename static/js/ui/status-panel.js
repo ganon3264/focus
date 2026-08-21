@@ -90,16 +90,6 @@ document.body.addEventListener('htmx:afterSwap', function (evt) {
   }
 });
 
-document.addEventListener('DOMContentLoaded', function () {
-  const presetSelect = document.querySelector('#preset-selector select');
-  if (presetSelect && presetSelect.value) {
-    htmx.ajax('GET', window.api.partials.promptArranger(presetSelect.value), {
-      target: '#prompt-arranger',
-      swap: 'innerHTML',
-    });
-  }
-});
-
 function newChat() {
   fetch(window.api.chats, {
     method: 'POST',

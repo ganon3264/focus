@@ -31,6 +31,9 @@ global.window.api = {
 global.URL = { createObjectURL: function () { return 'blob:url'; }, revokeObjectURL: function () {} };
 global.Blob = function () {};
 
+// Load queue (backup-manager reloads go through hxGet)
+eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'core', 'hx-queue.js'), 'utf8'));
+
 // Load module
 eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'features', 'backup-manager.js'), 'utf8'));
 

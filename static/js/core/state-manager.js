@@ -5,14 +5,18 @@
     preset_id: null,
     provider_id: null,
     provider_type: null,
+    chat_id: null,
+    multimodal_enabled: null,
   };
   var LISTENERS = {};
-  var _chatId = null;
 
   function emit(event, data) {
     (LISTENERS[event] || []).forEach(function (fn) {
       fn(data);
     });
+    if (window.dispatchEvent && window.CustomEvent) {
+      window.dispatchEvent(new CustomEvent(event, { detail: data }));
+    }
   }
 
   window.StateManager = {
@@ -24,10 +28,12 @@
           preset_id: null,
           provider_id: null,
           provider_type: null,
+          chat_id: null,
+          multimodal_enabled: null,
         },
         state,
       );
-      _chatId = chatId || null;
+      if (chatId) STATE.chat_id = chatId;
       if (!STATE.provider_id) {
         STATE.provider_id = localStorage.getItem('focus-provider-id') || null;
       }
@@ -64,8 +70,8 @@
     },
 
     _persist: function (changes) {
-      if (!_chatId) return null;
-      return fetch('/api/chats/' + _chatId, {
+      if (!STATE.chat_id) return null;
+      return fetch('/api/chats/' + STATE.chat_id, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(changes),
@@ -87,25 +93,24 @@
     setCharacter: function (id) {
       var prev = STATE.character_id;
       STATE.character_id = id || null;
-      this._persist({ character_id: STATE.character_id });
-      emit('character-changed', { prev: prev, value: STATE.character_id });
+      var p = this._persist({ character_id: STATE.character_id });
+      emit('character-changed', { prev: prev, value: STATE.character_id, persist: p });
+      return p;
     },
 
     setPersona: function (id) {
       var prev = STATE.persona_id;
       STATE.persona_id = id || null;
-      this._persist({ persona_id: STATE.persona_id });
-      emit('persona-changed', { prev: prev, value: STATE.persona_id });
+      var p = this._persist({ persona_id: STATE.persona_id });
+      emit('persona-changed', { prev: prev, value: STATE.persona_id, persist: p });
+      return p;
     },
 
     setPreset: function (id) {
       var prev = STATE.preset_id;
       STATE.preset_id = id || null;
       var p = this._persist({ preset_id: STATE.preset_id });
-      emit('preset-changed', { prev: prev, value: STATE.preset_id });
-      window.dispatchEvent(
-        new CustomEvent('preset-changed', { detail: { prev: prev, value: STATE.preset_id } }),
-      );
+      emit('preset-changed', { prev: prev, value: STATE.preset_id, persist: p });
       return p;
     },
 
@@ -121,12 +126,18 @@
         id: STATE.provider_id,
         type: STATE.provider_type,
       });
-      if (type)
-        window.dispatchEvent(
-          new CustomEvent('provider-changed', {
-            detail: { id: STATE.provider_id, type: STATE.provider_type },
-          }),
-        );
+    },
+
+    setChat: function (id) {
+      var prev = STATE.chat_id;
+      STATE.chat_id = id || null;
+      emit('chat-changed', { prev: prev, value: STATE.chat_id });
+    },
+
+    setMultimodal: function (enabled) {
+      var prev = STATE.multimodal_enabled;
+      STATE.multimodal_enabled = !!enabled;
+      emit('multimodal-changed', { prev: prev, value: STATE.multimodal_enabled });
     },
   };
 })();

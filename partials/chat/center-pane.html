@@ -17,7 +17,7 @@
         {{ icon_paperclip(20) }}
       </button>
       <textarea id="chat-input" placeholder="Type a message…"></textarea>
-       <button id="send-btn" class="send-btn" aria-label="Send message" data-chat-id="{{ chat_id }}" data-provider-id="{{ providers[0].id if providers else '' }}">
+       <button id="send-btn" class="send-btn" aria-label="Send message">
         {{ icon_send() }}
       </button>
        <button id="stop-btn" class="send-btn stop-btn hidden" aria-label="Stop generating">
@@ -30,7 +30,7 @@
         <div class="font-bold text-(--danger)"><span id="delete-selected-count">0</span> Selected for deletion</div>
         <div class="flex gap-2">
           <button class="btn btn-secondary btn-sm" onclick="exitDeleteMode()">Cancel</button>
-          <button class="btn btn-danger btn-sm" data-chat-id="{{ chat_id }}" onclick="bulkDeleteSelected(this.dataset.chatId || document.getElementById('send-btn').dataset.chatId)">Delete Selected</button>
+          <button class="btn btn-danger btn-sm" data-chat-id="{{ chat_id }}" onclick="bulkDeleteSelected(this.dataset.chatId || StateManager.get('chat_id'))">Delete Selected</button>
         </div>
       </div>
     </div>

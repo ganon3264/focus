@@ -30,7 +30,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: 'New Preset' }),
         }).then(() =>
-          htmx.ajax('GET', '/partials/presets-modal', {
+          hxGet('/partials/presets-modal', {
             target: '#presets-modal-body',
             swap: 'innerHTML',
           }),
@@ -62,7 +62,7 @@
         method: 'DELETE',
       }).then((r) => {
         if (r.ok)
-          htmx.ajax('GET', '/partials/presets-modal', {
+          hxGet('/partials/presets-modal', {
             target: '#presets-modal-body',
             swap: 'innerHTML',
           });
@@ -72,7 +72,7 @@
 
   function loadPresetModal(el) {
     var pid = el.dataset.presetId || '';
-    htmx.ajax('GET', '/partials/preset-editor/' + pid, {
+    hxGet('/partials/preset-editor/' + pid, {
       target: '#preset-modal-editor',
       swap: 'innerHTML',
     });

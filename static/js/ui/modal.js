@@ -247,20 +247,49 @@
   }
 
   ModalController.onOpen('modal-characters', function () {
-    if (needsFetch('#characters-modal-body-inner'))
-      htmx.ajax('GET', window.api.partials.charactersModal + '?current_character_id=' + (StateManager.get('character_id') || ''), { target: '#characters-modal-body-inner', swap: 'innerHTML' });
+    var fetchP = needsFetch('#characters-modal-body-inner')
+      ? hxGet(window.api.partials.charactersModal + '?current_character_id=' + (StateManager.get('character_id') || ''), { target: '#characters-modal-body-inner', swap: 'innerHTML' })
+      : Promise.resolve();
+    fetchP.then(function () {
+      if (window.syncCardHighlight)
+        window.syncCardHighlight({ gridId: 'char-modal-grid', stateKey: 'character_id', cardPrefix: 'char-card-' });
+    });
   });
 
   ModalController.onOpen('modal-personas', function () {
-    if (needsFetch('#personas-modal-body-inner'))
-      htmx.ajax('GET', window.api.partials.personasModal + '?current_persona_id=' + (StateManager.get('persona_id') || ''), { target: '#personas-modal-body-inner', swap: 'innerHTML' });
+    var fetchP = needsFetch('#personas-modal-body-inner')
+      ? hxGet(window.api.partials.personasModal + '?current_persona_id=' + (StateManager.get('persona_id') || ''), { target: '#personas-modal-body-inner', swap: 'innerHTML' })
+      : Promise.resolve();
+    fetchP.then(function () {
+      if (window.syncCardHighlight)
+        window.syncCardHighlight({ gridId: 'persona-modal-grid', stateKey: 'persona_id', cardPrefix: 'persona-card-' });
+    });
   });
 
   ModalController.onOpen('modal-providers', function () {
-    htmx.ajax('GET', window.api.partials.providersModal, { target: '#providers-modal-body-inner', swap: 'innerHTML' });
+    hxGet(window.api.partials.providersModal, { target: '#providers-modal-body-inner', swap: 'innerHTML' })
+      .then(function () {
+        if (window.syncProviderHighlight) window.syncProviderHighlight(StateManager.get('provider_id'));
+      });
   });
 
   ModalController.onOpen('modal-backups', function () {
     if (window.BackupManager) BackupManager.loadList();
+  });
+
+  ModalController.onOpen('modal-arranger', function () {
+    var pid = StateManager.get('preset_id');
+    var body = document.getElementById('arranger-modal-body');
+    if (!body) return;
+    if (!pid) {
+      if (document.querySelector('#arranger-modal-body [data-preset-id]')) {
+        body.innerHTML = '<div class="text-muted text-center mt-4">Select a preset first.</div>';
+      }
+      return;
+    }
+    var current = document.querySelector('#arranger-modal-body [data-preset-id]');
+    if (!current || current.dataset.presetId !== pid) {
+      window.reloadPromptArranger(pid);
+    }
   });
 })();

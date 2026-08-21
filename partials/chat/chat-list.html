@@ -104,10 +104,9 @@
         const modal = document.getElementById('chat-trash-modal');
         if (modal) modal.remove();
         window.showSuccessToast('Chat restored');
-        htmx.ajax('GET', '/partials/chat-list', {
-          target: '#chat-list',
-          swap: 'innerHTML',
-        });
+        // _refreshChatList filters by the current character; a bare
+        // /partials/chat-list would show every character's chats.
+        window._refreshChatList(StateManager.get('chat_id'));
       }
     });
   };

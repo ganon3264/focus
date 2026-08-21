@@ -242,7 +242,7 @@
       if (typeof refreshSingleMessage === 'function') {
         refreshSingleMessage(chatId, messageId);
       } else {
-        htmx.ajax('GET', window.api.partials.messageList(chatId), {
+        hxGet(window.api.partials.messageList(chatId), {
           target: '#message-list',
           swap: 'innerHTML',
         });

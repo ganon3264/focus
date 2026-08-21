@@ -300,6 +300,46 @@ async def chat_list_partial(
     )
 
 
+@router.get("/partials/selection-state", response_class=HTMLResponse)
+async def selection_state_partial(
+    request: Request,
+    chat_id: str = Query(None),
+    preset_id: str = Query(None),
+    character_id: str = Query(None),
+    persona_id: str = Query(None),
+    db: aiosqlite.Connection = Depends(get_db),
+):
+    """Render every selection-dependent pane as one OOB-swap response.
+
+    Selection ids come from the client's StateManager (single source of
+    truth) as query params. applyX awaits the persist PATCH before calling
+    this, so the chat list reads the committed chats.persona_id.
+    """
+    presets = await crud.get_presets(db)
+    preset = await crud.get_preset(db, preset_id) if preset_id else None
+    blocks = preset["blocks"] if preset else []
+    _, regular_blocks, var_groups = partition_blocks(blocks)
+
+    counts = await crud.get_counts(db, character_id or None, persona_id or None)
+    chats_sidebar = await crud.get_chats_sidebar(db, character_id or None)
+
+    return templates.TemplateResponse(
+        request,
+        "chat/selection-state.html",
+        {
+            "chat_id": chat_id,
+            "current_chat_id": chat_id,
+            "presets": presets,
+            "current_preset_id": preset_id,
+            "preset": preset,
+            "preset_blocks": regular_blocks,
+            "var_groups": var_groups,
+            "counts": counts,
+            "chats": chats_sidebar,
+        },
+    )
+
+
 @router.get("/partials/preset-selector", response_class=HTMLResponse)
 async def preset_selector_partial(request: Request, chat_id: str, db: aiosqlite.Connection = Depends(get_db)):
     presets = await crud.get_presets(db)
