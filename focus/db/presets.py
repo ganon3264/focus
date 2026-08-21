@@ -6,6 +6,7 @@ from pathlib import Path
 
 import aiosqlite
 
+from focus.core.paths import PRESETS_DIR
 from focus.core.utils import now_iso, variable_group_name
 
 
@@ -29,6 +30,60 @@ async def create_preset(db: aiosqlite.Connection, name: str) -> str:
         defaults,
     )
     return preset_id
+
+
+async def duplicate_preset(db: aiosqlite.Connection, source_preset_id: str, name: str) -> str:
+    async with db.execute("SELECT * FROM presets WHERE id = ?", (source_preset_id,)) as cur:
+        src = await cur.fetchone()
+    if not src:
+        raise ValueError("Source preset not found")
+
+    new_preset_id = str(uuid.uuid4())
+    await db.execute(
+        "INSERT INTO presets (id, name, created_at) VALUES (?, ?, ?)",
+        (new_preset_id, name, now_iso()),
+    )
+
+    async with db.execute(
+        "SELECT * FROM preset_blocks WHERE preset_id = ? ORDER BY position, rowid",
+        (source_preset_id,),
+    ) as cur:
+        blocks = await cur.fetchall()
+
+    dst_blocks_dir = PRESETS_DIR / new_preset_id / "blocks"
+
+    for b in blocks:
+        new_block_id = str(uuid.uuid4())
+        await db.execute(
+            """INSERT INTO preset_blocks
+               (id, preset_id, name, content, reasoning, role, enabled, position, block_type, injection_depth, injection_order)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (new_block_id, new_preset_id, b["name"], b["content"], b["reasoning"],
+             b["role"], b["enabled"], b["position"], b["block_type"],
+             b["injection_depth"], b["injection_order"]),
+        )
+
+        async with db.execute(
+            "SELECT * FROM block_images WHERE block_id = ? ORDER BY position", (b["id"],)
+        ) as cur:
+            images = await cur.fetchall()
+        for img in images:
+            new_img_id = str(uuid.uuid4())
+            src_path = Path(img["image_path"])
+            dst_blocks_dir.mkdir(parents=True, exist_ok=True)
+            dst_path = dst_blocks_dir / f"{new_img_id}{src_path.suffix}"
+            try:
+                dst_path.write_bytes(src_path.read_bytes())
+            except OSError:
+                dst_path = src_path
+            await db.execute(
+                """INSERT INTO block_images (id, block_id, block_source, image_path, mime_type, position, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                (new_img_id, new_block_id, img["block_source"], str(dst_path),
+                 img["mime_type"], img["position"], img["created_at"]),
+            )
+
+    return new_preset_id
 
 
 async def update_preset(db: aiosqlite.Connection, preset_id: str, name: str) -> None:

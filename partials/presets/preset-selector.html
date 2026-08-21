@@ -1,5 +1,5 @@
 {% set current_preset_list = presets | selectattr('id', 'equalto', current_preset_id) | list %}
-{% from "macros.html" import icon_edit, icon_trash, icon_plus, icon_upload, icon_chevron_down %}
+{% from "macros.html" import icon_edit, icon_trash, icon_plus, icon_upload, icon_chevron_down, icon_copy %}
 {% set current_preset = current_preset_list[0] if current_preset_list else none %}
 {% set current_preset_name = current_preset.name if current_preset else '— Select Preset —' %}
 
@@ -65,6 +65,9 @@
       >
         <span class="truncate flex-1 preset-item-name">{{ p.name }}</span>
         <div class="flex gap-1 shrink-0">
+          <button type="button" class="btn btn-edit btn-sm btn-compact" title="Duplicate"
+            onclick="event.stopPropagation(); window.openDuplicateModal(this)"
+          >{{ icon_copy(14) }}</button>
           <button type="button" class="btn btn-edit btn-sm btn-compact" title="Rename"
             onclick="event.stopPropagation(); window.openRenameModal(this)"
           >{{ icon_edit(14) }}</button>
@@ -105,6 +108,41 @@ window.setPresetThenRefresh = function(id) {
     refreshPresetSelector(id);
   });
 };
+
+window.openDuplicateModal = function(btn) {
+  var item = btn.closest('[data-preset-id]');
+  var selectorState = Alpine.$data(document.getElementById('preset-selector-wrapper'));
+  selectorState.open = false;
+  var modalState = Alpine.$data(document.getElementById('dup-preset-form'));
+  modalState.dupSourceId = item.dataset.presetId;
+  modalState.dupValue = item.querySelector('.preset-item-name').textContent + ' Copy';
+  window.openModal('modal-dup-preset');
+};
+
+function confirmDuplicate(){
+  var modalState = Alpine.$data(document.getElementById('dup-preset-form'));
+  var sourceId = modalState.dupSourceId;
+  var newName = modalState.dupValue;
+  if (!sourceId || !newName || !newName.trim()) return;
+  var trimmed = newName.trim();
+  fetch('/api/presets/' + sourceId + '/duplicate', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({name: trimmed})
+  }).then(function(r) {
+    if (!r.ok) {
+      window.showErrorToast('Failed to duplicate preset');
+      throw new Error('duplicate failed');
+    }
+    return r.json();
+  }).then(function(data) {
+    if (data && data.id) {
+      window.closeModal('modal-dup-preset', { discard: true });
+      setPresetThenRefresh(data.id);
+      window.showSuccessToast('Preset duplicated');
+    }
+  }).catch(function() {});
+}
 
 window.openRenameModal = function(btn) {
   var item = btn.closest('[data-preset-id]');

@@ -83,6 +83,20 @@ window.THEME_STATE = {{ theme_state | tojson | safe }};
 </div>
 {% endcall %}
 
+<!-- DUPLICATE PRESET MODAL -->
+{% call modal_shell('modal-dup-preset', 'Duplicate Preset', max_width='420px') %}
+<div id="dup-preset-form" x-data="{ dupValue: '', dupSourceId: '' }">
+  <div>
+    <label class="text-xs font-bold text-muted mb-1 block">Preset Name</label>
+    <input type="text" x-model="dupValue" class="form-control" @keydown.enter="confirmDuplicate()">
+  </div>
+  <div class="flex justify-end gap-2 items-center mt-2">
+    <button type="button" class="btn btn-secondary" @click="closeModal('modal-dup-preset')">Cancel</button>
+    <button type="button" class="btn btn-primary" @click="confirmDuplicate()" :disabled="!dupValue.trim()" :class="dupValue.trim() ? '' : 'opacity-50'">Duplicate</button>
+  </div>
+</div>
+{% endcall %}
+
 <!-- PROMPT ARRANGER MODAL -->
 {% call modal_shell('modal-arranger', 'Prompt Arranger', max_width='600px', width='90vw', content_style='display:flex;flex-direction:column;height:85vh;padding:1.5rem 1.5rem 0 1.5rem;') %}
 <div id="arranger-modal-body" style="flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 0.5rem 1rem 1rem 1rem;">

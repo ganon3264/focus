@@ -41,6 +41,29 @@ class TestPresets:
         resp = await client.get(f"/api/presets/{p['id']}")
         assert resp.status_code == 404
 
+    async def test_duplicate(self, client):
+        p = await create_preset(client, "Original")
+        detail = await client.get(f"/api/presets/{p['id']}")
+        block = next(b for b in detail.json()["blocks"] if b["block_type"] == "text")
+        await client.patch(f"/api/presets/{p['id']}/blocks/{block['id']}", json={"content": "Custom content"})
+
+        resp = await client.post(f"/api/presets/{p['id']}/duplicate", json={"name": "Original Copy"})
+        assert resp.status_code == 201
+        dup_id = resp.json()["id"]
+        assert dup_id != p["id"]
+
+        dup = await client.get(f"/api/presets/{dup_id}")
+        assert dup.json()["name"] == "Original Copy"
+        orig = await client.get(f"/api/presets/{p['id']}")
+        assert [b["block_type"] for b in dup.json()["blocks"]] == [b["block_type"] for b in orig.json()["blocks"]]
+        dup_text = next(b for b in dup.json()["blocks"] if b["block_type"] == "text")
+        assert dup_text["content"] == "Custom content"
+        assert dup_text["id"] != block["id"]
+
+    async def test_duplicate_missing_source(self, client):
+        resp = await client.post("/api/presets/nope/duplicate", json={"name": "Copy"})
+        assert resp.status_code == 404
+
 
 class TestPresetLifecycle:
     async def test_set_preset_on_chat(self, client):

@@ -45,6 +45,20 @@ async def get_preset(preset_id: str, _db=Depends(get_db)):
     return result
 
 
+@router.post("/{preset_id}/duplicate", status_code=201)
+async def duplicate_preset(
+    preset_id: str,
+    body: PresetUpdate,
+    _db=Depends(get_db),
+):
+    try:
+        new_id = await db.duplicate_preset(_db, preset_id, body.name)
+    except ValueError:
+        raise HTTPException(404, "Preset not found")
+    await _db.commit()
+    return {"id": new_id}
+
+
 @router.patch("/{preset_id}")
 async def update_preset(
     preset_id: str,
