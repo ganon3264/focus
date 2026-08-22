@@ -39,6 +39,16 @@
     if (fn) fn(el, e);
   });
 
+  // WAI-ARIA switch pattern: Space is the canonical activator, Enter is
+  // conventionally accepted. preventDefault stops page scroll on Space.
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== " " && e.key !== "Enter") return;
+    var el = e.target.closest('[role="switch"]');
+    if (!el) return;
+    e.preventDefault();
+    el.click();
+  });
+
   document.addEventListener("input", function (e) {
     var el = e.target.closest("[data-action]");
     if (!el) return;

@@ -1,4 +1,4 @@
-{% from "macros.html" import icon_plus, icon_close, hint_tooltip %}
+{% from "macros.html" import icon_plus, icon_close, icon_expand, hint_tooltip %}
 <div
   x-data="samplerModal()"
   @provider-changed.window="onProviderChanged($event.detail)"
@@ -530,19 +530,24 @@
 
   <!-- Custom Tab -->
   <div x-show="tab === 'custom'" class="flex flex-col gap-2 overflow-y-auto pr-2 pb-2 h-full">
-    <div class="text-xs text-muted mb-2">Add custom fields sent directly to the provider.</div>
+    <div class="text-xs text-muted mb-2 flex items-center gap-1">
+      Add custom fields sent directly to the provider. Values are sent as JSON when parseable, otherwise as plain text.
+      {{ hint_tooltip('Fields are merged into the provider request body. Disable reasoning in llama.cpp: key <span class="hint-success">chat_template_kwargs</span>, value <span class="hint-success">{"enable_thinking": false}</span>.') }}
+    </div>
 
     <template x-for="(item, index) in customFields" :key="index">
       <div
         class="flex items-center gap-2 mb-2 p-2 rounded-md"
         style="background: var(--surface-2); border: 1px solid var(--border)"
       >
-        <input
-          type="checkbox"
-          x-model="item.enabled"
-          @change="saveCustom()"
+        <div
+          class="arranger-toggle"
+          role="switch"
+          tabindex="0"
+          :class="{ active: item.enabled }"
+          @click="item.enabled = !item.enabled; saveCustom()"
           title="Enable/Disable"
-        />
+        ></div>
         <input
           type="text"
           x-model="item.key"
@@ -550,29 +555,26 @@
           placeholder="Key"
           class="form-control text-sm flex-1"
         />
-        <select x-model="item.type" @change="saveCustom()" class="form-control text-sm w-24">
-          <option value="string">String</option>
-          <option value="number">Number</option>
-          <option value="boolean">Bool</option>
-          <option value="json">JSON</option>
-        </select>
         <input
-          x-show="item.type !== 'boolean'"
           type="text"
+          :id="'custom-value-' + index"
           x-model="item.value"
           @change="saveCustom()"
-          placeholder="Value"
+          @input.debounce.750ms="saveCustom()"
+          placeholder="Value (text or JSON)"
           class="form-control text-sm flex-1"
+          :style="isBrokenStructuredJson(item.value) ? 'border-color: var(--danger)' : ''"
+          :title="isBrokenStructuredJson(item.value) ? 'Looks like JSON but does not parse — will be sent as plain text' : ''"
         />
-        <select
-          x-show="item.type === 'boolean'"
-          x-model="item.value"
-          @change="saveCustom()"
-          class="form-control text-sm flex-1"
-        >
-          <option value="true">True</option>
-          <option value="false">False</option>
-        </select>
+        <button
+          type="button"
+          class="btn btn-secondary btn-sm"
+          data-expander-title="Edit Value"
+          :data-target-id="'custom-value-' + index"
+          onclick="openTextExpander(document.getElementById(this.dataset.targetId), this.dataset.expanderTitle)"
+          aria-label="Expand value editor"
+          title="Expand"
+        >{{ icon_expand(16) }}</button>
         <button
           class="btn btn-danger btn-sm"
           @click="removeCustom(index)"
@@ -630,12 +632,20 @@
             const settings = await r.json();
             const saved = settings[ck];
             if (saved) {
-              this.customFields = JSON.parse(saved);
+              // Normalize away the removed per-item 'type' field
+              this.customFields = JSON.parse(saved).map(({ enabled, key, value }) => ({ enabled, key, value }));
               return;
             }
           }
         } catch (e) {}
         this.customFields = [];
+      },
+
+      isBrokenStructuredJson(v) {
+        if (typeof v !== 'string') return false;
+        const t = v.trim();
+        if (!t.startsWith('{') && !t.startsWith('[')) return false;
+        try { JSON.parse(t); return false; } catch (e) { return true; }
       },
 
       get effortOptions() {
@@ -707,13 +717,12 @@
           }
           payload.image_format = this.samplers.image_format;
 
-          // Add enabled custom fields
+          // Add enabled custom fields — values are sent as JSON when
+          // parseable, otherwise as plain text
           for (const item of this.customFields) {
             if (item.enabled && item.key) {
               let val = item.value;
-              if (item.type === 'number') val = Number(val);
-              else if (item.type === 'boolean') val = val === 'true';
-              else if (item.type === 'json') {
+              if (typeof val === 'string' && val.trim() !== '') {
                 try { val = JSON.parse(val); } catch (e) {}
               }
               payload[item.key] = val;
@@ -782,7 +791,7 @@
       },
 
       addCustom() {
-        this.customFields.push({ enabled: true, key: '', type: 'string', value: '' });
+        this.customFields.push({ enabled: true, key: '', value: '' });
         this.saveCustom();
       },
 
