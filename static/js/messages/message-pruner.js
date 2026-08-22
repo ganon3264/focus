@@ -19,7 +19,7 @@
     var topBound = st - range;
     var botBound = st + vh + range;
 
-    var streamId = window._streamingMessageId;
+    var streamId = window.Generation ? window.Generation.streamingId() : null;
 
     var toPrune = [];
     var msgs = ml.querySelectorAll('.message');

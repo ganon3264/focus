@@ -94,11 +94,9 @@
         try {
           const payload = {
             chat_id: chatId,
-            user_message:
-              window._tempUserMessage ||
-              (document.getElementById('user-input')
-                ? document.getElementById('user-input').value
-                : ''),
+            user_message: document.getElementById('chat-input')
+              ? document.getElementById('chat-input').value
+              : '',
             attachment_ids: window.stagedFiles
               ? window.stagedFiles.map((f) => f.id).filter((id) => id)
               : [], // Can't easily send raw files here, just getting existing IDs

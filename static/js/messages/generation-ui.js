@@ -11,8 +11,6 @@
       if (fu) fu.disabled = true;
       if (attachBtn) attachBtn.disabled = true;
     } else {
-      window._generating = false;
-      window._streamingMessageId = null;
       sendBtn.classList.remove('hidden');
       stopBtn.classList.add('hidden');
       var fu = document.getElementById('file-upload');
@@ -55,7 +53,14 @@
       if (continueText) {
         var pulse = document.createElement('span');
         pulse.className = 'gen-pulse';
-        contentDiv.appendChild(pulse);
+        // Sit inline at the end of the last text block — appended to the
+        // content div itself it would land on its own line below the <p>.
+        var textBlocks = contentDiv.querySelectorAll('p, li, h1, h2, h3, h4, h5, h6');
+        if (textBlocks.length) {
+          textBlocks[textBlocks.length - 1].appendChild(pulse);
+        } else {
+          contentDiv.appendChild(pulse);
+        }
       }
     } else {
       var contentDivs = asstDiv.querySelectorAll('.message-content');

@@ -173,3 +173,16 @@ document.addEventListener('click', function (e) {
     btn.classList.remove('copied');
   }, 2000);
 });
+
+// Initial render for server-side markdown that ships unprocessed.
+document.addEventListener('DOMContentLoaded', function () {
+  var els = document.querySelectorAll('.markdown-content:not(.processed)');
+  for (var i = 0; i < els.length; i++) {
+    els[i].innerHTML = window.renderMessage(els[i].textContent || '');
+    els[i].classList.add('processed');
+  }
+  if (window.syncReasoningButtons) window.syncReasoningButtons(document);
+
+  var ml = document.getElementById('message-list');
+  if (ml) ml.classList.add('ready');
+});

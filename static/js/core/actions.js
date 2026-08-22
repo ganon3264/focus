@@ -141,19 +141,30 @@ window.actionUploadPersonaMedia = function (el) {
 window.actionTriggerRegeneration = function (el) {
   var msg = el.closest('.message');
   var chatId = msg.dataset.chatId;
-  window.triggerGeneration(chatId, msg, true);
+  window.Generation.begin(chatId, msg, { isRegen: true });
 };
 
 window.actionContinueGeneration = function (el) {
   var msg = el.closest('.message');
   var chatId = msg.dataset.chatId;
-  window.triggerGeneration(chatId, msg, true,
-    msg.dataset.rawContent || '', msg.dataset.rawReasoning || '');
+  window.Generation.begin(chatId, msg, {
+    isRegen: true,
+    continueText: msg.dataset.rawContent || '',
+    continueReasoning: msg.dataset.rawReasoning || '',
+  });
 };
 
 window.actionBranchMessage = function (el) {
   var msg = el.closest('.message');
-  window.branchFromMessage(msg.dataset.messageId, msg.dataset.chatId);
+  var messageId = msg.dataset.messageId;
+  var chatId = msg.dataset.chatId;
+  fetch(window.api.chatBranch(chatId, messageId), { method: 'POST' })
+    .then(function (r) {
+      if (!r.ok) throw new Error('Branch failed');
+      return r.json();
+    })
+    .then(function (d) { window.location.href = '/chat/' + d.id; })
+    .catch(function (e) { window.showErrorToast(e.message); });
 };
 
 window.actionEditMessage = function (el) {
@@ -181,5 +192,20 @@ window.actionSwipePrev = function (event, el) {
 
 window.actionSwipeNext = function (event, el) {
   var msgId = el.closest('[data-message-id]').dataset.messageId;
-  window.handleSwipeNext(event, msgId);
+  try {
+    var res = JSON.parse(event.detail.xhr.response);
+    var sb = document.getElementById('message-' + msgId);
+    var chatId = sb && sb.closest('[data-chat-id]') ? sb.closest('[data-chat-id]').dataset.chatId : '';
+    if (res.needs_generation) {
+      var ct = sb.querySelector('.swipe-counter');
+      if (ct) ct.textContent = (res.next_variant_index + 1) + '/' + (res.next_variant_index + 1);
+      window.Generation.begin(chatId, sb, { isRegen: true });
+    } else {
+      window.refreshSingleMessage(chatId, msgId);
+    }
+  } catch (e) {
+    var sb2 = document.getElementById('message-' + msgId);
+    var chatId2 = sb2 && sb2.closest('[data-chat-id]') ? sb2.closest('[data-chat-id]').dataset.chatId : '';
+    window.refreshSingleMessage(chatId2, msgId);
+  }
 };

@@ -1,3 +1,7 @@
+// Pure SSE event layer: StreamState, HANDLERS table, dispatch, finalize.
+// Lifecycle (fetch, stop escalation) lives in core/generation-session.js;
+// this module never touches fetch/abort state. Handlers record outcomes on
+// the state object instead of throwing — the session loop decides what to do.
 (function () {
   var dbg = function () {};
   if (window.DEBUG) {
@@ -37,26 +41,64 @@
     this.fullText = '';
     this.messageId = null;
     this.userMessageId = null;
+    this.done = false;
+    this.errorMsg = null;
     this.segments = [];
     this.controller = new AbortController();
   };
 
+  // ── Identity adoption (shared by stream and non-stream paths) ──
+
+  window.adoptUserMessageId = function (state) {
+    if (!state.userMessageId || state.isRegen) return;
+    var tempUserMsg = document.getElementById('temp-user-msg');
+    if (tempUserMsg) {
+      tempUserMsg.id = 'message-' + state.userMessageId;
+      tempUserMsg.dataset.messageId = state.userMessageId;
+    }
+  };
+
+  window.bindAssistantIdentity = function (state) {
+    if (!state.messageId) return;
+    state.asstDiv.id = 'message-' + state.messageId;
+    state.asstDiv.dataset.messageId = state.messageId;
+  };
+
+  // ── Render coalescing: at most one markdown pass per frame ──
+  var _rafId = null;
+
+  function flushRenders(state) {
+    _rafId = null;
+    var firstRendered = null;
+    for (var i = 0; i < state.segments.length; i++) {
+      var seg = state.segments[i];
+      if (seg.type === 'text' && seg.dirty) {
+        window.preserveOpenStates(seg.el, function () { return window.renderMessage(seg.content); });
+        seg.dirty = false;
+        if (!firstRendered) firstRendered = seg.el;
+      }
+    }
+    if (firstRendered && window._updateReasoningButton) window._updateReasoningButton(firstRendered);
+    if (firstRendered && window.autoScroll && window.scrollSentinel) {
+      window.scrollSentinel.scrollIntoView({ block: 'end', behavior: 'instant' });
+    }
+  }
+
+  function scheduleFlush(state) {
+    if (_rafId !== null) return;
+    _rafId = requestAnimationFrame(function () { flushRenders(state); });
+  }
+
+  // ── Handlers ──
   var HANDLERS = {};
 
   HANDLERS.start = function (state, data) {
     state.messageId = data.message_id;
-    window._streamingMessageId = data.message_id;
     state.userMessageId = data.user_message_id;
 
     dbg('SSE start: message_id=%s, user_message_id=%s', data.message_id, data.user_message_id);
 
-    if (state.userMessageId && !state.isRegen) {
-      var tempUserMsg = document.getElementById('temp-user-msg');
-      if (tempUserMsg) {
-        tempUserMsg.id = 'message-' + state.userMessageId;
-        tempUserMsg.dataset.messageId = state.userMessageId;
-      }
-    }
+    window.adoptUserMessageId(state);
   };
 
   HANDLERS.tool_calls = function (state, data) {
@@ -89,75 +131,61 @@
     if (window._updateReasoningButton) window._updateReasoningButton(state.asstDiv);
   };
 
+  // Only fields with stream_to_sse reach the wire; currently that's reasoning.
+  HANDLERS.meta = function (state, data) {
+    if (data.field === 'reasoning') HANDLERS.reasoning(state, data);
+  };
+
   HANDLERS.token = function (state, data) {
-    state.fullText += data.token;
+    state.fullText += data.text;
     var seg = _findOrCreateSegment(state, 'text', function () {
       return window.segmentBuilders.text();
     });
-    seg.content = (seg.content || '') + data.token;
-    window.preserveOpenStates(seg.el, function () { return window.renderMessage(seg.content); });
-    if (window._updateReasoningButton) window._updateReasoningButton(seg.el);
-    if (window.autoScroll && window.scrollSentinel) {
-      window.scrollSentinel.scrollIntoView({ behavior: 'smooth' });
-    }
+    seg.content = (seg.content || '') + data.text;
+    seg.dirty = true;
+    scheduleFlush(state);
   };
 
   HANDLERS.done = function (state, data) {
+    state.done = true;
     state.messageId = data.message_id;
     dbg('SSE done: message_id=%s', data.message_id);
   };
 
   HANDLERS.error = function (state, data) {
-    throw new Error(data.error);
+    state.errorMsg = data.error;
   };
 
   window.dispatchStreamEvent = function (state, json) {
-    if (json.type === 'tool_calls') { HANDLERS.tool_calls(state, json); return; }
-    if (json.type === 'tool_result') { HANDLERS.tool_result(state, json); return; }
-    if (json.type === 'reasoning') { HANDLERS.reasoning(state, json); return; }
-    if (json.type === 'start') { HANDLERS.start(state, json); return; }
-    if (json.done) { HANDLERS.done(state, json); return; }
-    if (json.error) { HANDLERS.error(state, json); return; }
-    if (json.token !== undefined) { HANDLERS.token(state, json); return; }
+    var handler = HANDLERS[json.type];
+    if (!handler) {
+      console.warn('[stream] unknown SSE event type:', json.type, json);
+      return;
+    }
+    handler(state, json);
   };
 
   window.finalizeStreamRender = function (state) {
+    // Cancel a pending frame and render everything left dirty right now —
+    // the DOM must be complete before the post-stream server refresh.
+    if (_rafId !== null) {
+      cancelAnimationFrame(_rafId);
+      _rafId = null;
+    }
     for (var si = 0; si < state.segments.length; si++) {
       var seg = state.segments[si];
-      if (seg.type === 'text') {
+      if (seg.type === 'text' && seg.dirty) {
         window.preserveOpenStates(seg.el, function () { return window.renderMessage(seg.content); });
+        seg.dirty = false;
       }
     }
     if (window._updateReasoningButton) {
       var firstText = null;
-      for (var si = 0; si < state.segments.length; si++) {
-        if (state.segments[si].type === 'text') { firstText = state.segments[si].el; break; }
+      for (var sj = 0; sj < state.segments.length; sj++) {
+        if (state.segments[sj].type === 'text') { firstText = state.segments[sj].el; break; }
       }
       window._updateReasoningButton(firstText || state.asstDiv);
     }
-    if (state.messageId) {
-      state.asstDiv.id = 'message-' + state.messageId;
-      state.asstDiv.dataset.messageId = state.messageId;
-    }
-  };
-
-  window.handleSwipeNext = function (event, msgId) {
-    try {
-      var res = JSON.parse(event.detail.xhr.response);
-      var sb = document.getElementById('message-' + msgId);
-      if (res.needs_generation) {
-        var ct = sb.querySelector('.swipe-counter');
-        if (ct) ct.textContent = (res.next_variant_index + 1) + '/' + (res.next_variant_index + 1);
-        var chatId = sb.closest('[data-chat-id]') ? sb.closest('[data-chat-id]').dataset.chatId : '';
-        window.triggerGeneration(chatId, sb, true);
-      } else {
-        var chatId = sb.closest('[data-chat-id]') ? sb.closest('[data-chat-id]').dataset.chatId : '';
-        window.refreshSingleMessage(chatId, msgId);
-      }
-    } catch(e) {
-      var sb = document.getElementById('message-' + msgId);
-      var chatId = sb && sb.closest('[data-chat-id]') ? sb.closest('[data-chat-id]').dataset.chatId : '';
-      window.refreshSingleMessage(chatId, msgId);
-    }
+    window.bindAssistantIdentity(state);
   };
 })();

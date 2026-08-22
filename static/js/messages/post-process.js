@@ -18,4 +18,10 @@
     if (typeof updateContinueButtons === 'function') updateContinueButtons();
     window.ensureSentinelAndObserver();
   };
+
+  document.body.addEventListener('htmx:afterSwap', function (evt) {
+    if (evt.detail.target.id === 'message-list') {
+      window.postSwapProcess(evt.detail.target);
+    }
+  });
 })();

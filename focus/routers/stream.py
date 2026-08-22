@@ -43,6 +43,10 @@ from focus.tools.provider_adapter import to_provider_tools
 router = APIRouter()
 logger = get_logger("routers.stream")
 
+# Mid-stream partial-save cadence. Wall-clock based (not token-count) so the
+# write rate is independent of provider speed and reply length.
+_CHECKPOINT_INTERVAL_SECS = 2.0
+
 # Track active streaming generations for graceful stop (message_id → Event)
 _active_generations: dict[str, asyncio.Event] = {}
 
@@ -246,6 +250,7 @@ class _GenAccumulator:
     """
     text: list[str] = field(default_factory=list)
     meta: dict[str, Any] = field(default_factory=dict)
+    last_checkpoint: float = 0.0
     text_slices: list[int] = field(default_factory=list)
     reasoning_slices: list[int] = field(default_factory=list)
     tool_groups: list[list[dict]] = field(default_factory=list)
@@ -372,6 +377,26 @@ async def _finalize_gen(ctx: _GenCtx, acc: _GenAccumulator, *, success: bool = F
             raise _SaveFailed(e) from e
 
 
+async def _checkpoint_variant(ctx: _GenCtx, acc: _GenAccumulator) -> None:
+    """Mid-stream partial save. Cadence decided by callers (timed / forced)."""
+    vm = json.dumps(acc.full_variant_meta()) if acc.full_variant_meta() else None
+    await upsert_variant(
+        ctx.body.chat_id, ctx.prompt.asst_msg_id, ctx.prompt.next_variant_index,
+        acc.full_text(), ctx.body.regenerate, ctx.prov_dict.get("model", ""),
+        variant_id=acc.variant_id, variant_meta=vm,
+        db=ctx.db,
+    )
+
+
+async def _maybe_checkpoint(ctx: _GenCtx, acc: _GenAccumulator) -> None:
+    """Persist partials at most once per ``_CHECKPOINT_INTERVAL_SECS``."""
+    now = asyncio.get_running_loop().time()
+    if now - acc.last_checkpoint < _CHECKPOINT_INTERVAL_SECS:
+        return
+    acc.last_checkpoint = now
+    await _checkpoint_variant(ctx, acc)
+
+
 async def _handle_event(
     acc: _GenAccumulator, event: dict, ctx: _GenCtx
 ) -> dict | None:
@@ -384,42 +409,21 @@ async def _handle_event(
 
     if t == "token":
         acc.add_text(event["text"])
-        if len(acc.text) % 5 == 0:
-            vm = json.dumps(acc.full_variant_meta()) if acc.full_variant_meta() else None
-            await upsert_variant(
-                ctx.body.chat_id, ctx.prompt.asst_msg_id, ctx.prompt.next_variant_index,
-                acc.full_text(), ctx.body.regenerate, ctx.prov_dict.get("model", ""),
-                variant_id=acc.variant_id, variant_meta=vm,
-                db=ctx.db,
-            )
-        return {"token": event["text"]}
+        await _maybe_checkpoint(ctx, acc)
+        return {"type": "token", "text": event["text"]}
 
     if t == "meta":
         acc.add_meta(event["field"], event["value"])
         cfg = TRACKED_FIELDS.get(event["field"])
         if cfg and cfg["merge"] == "append":
-            vals = acc.meta.get(event["field"], [])
-            if len(vals) % 5 == 0:
-                vm = json.dumps(acc.full_variant_meta()) if acc.full_variant_meta() else None
-                await upsert_variant(
-                    ctx.body.chat_id, ctx.prompt.asst_msg_id, ctx.prompt.next_variant_index,
-                    acc.full_text(), ctx.body.regenerate, ctx.prov_dict.get("model", ""),
-                    variant_id=acc.variant_id, variant_meta=vm,
-                    db=ctx.db,
-                )
+            await _maybe_checkpoint(ctx, acc)
         if cfg and cfg.get("stream_to_sse"):
-            return {"type": event["field"], "text": event["value"] if cfg["merge"] == "append" else event["value"]}
+            return {"type": "meta", "field": event["field"], "text": event["value"]}
         return None
 
     if t == "tool_calls":
         acc.begin_tool_iteration(event["calls"])
-        vm = json.dumps(acc.full_variant_meta()) if acc.full_variant_meta() else None
-        await upsert_variant(
-            ctx.body.chat_id, ctx.prompt.asst_msg_id, ctx.prompt.next_variant_index,
-            acc.full_text(), ctx.body.regenerate, ctx.prov_dict.get("model", ""),
-            variant_id=acc.variant_id, variant_meta=vm,
-            db=ctx.db,
-        )
+        await _checkpoint_variant(ctx, acc)
         return {
             "type": "tool_calls",
             "calls": [
@@ -455,14 +459,14 @@ async def _handle_event(
     if t == "done":
         await _finalize_gen(ctx, acc, success=True)
         return {
-            "done": True,
+            "type": "done",
             "message_id": ctx.prompt.asst_msg_id,
             "variant_index": ctx.prompt.next_variant_index,
         }
 
     if t == "error":
         await _finalize_gen(ctx, acc)
-        return {"error": event["error"]}
+        return {"type": "error", "error": event["error"]}
 
     return None
 
@@ -484,7 +488,7 @@ async def _stream_generate(ctx: _GenCtx) -> AsyncIterator[str]:
             if event["type"] in ("done", "error"):
                 return
     except _SaveFailed as e:
-        yield f"data: {json.dumps({'error': f'Generation succeeded but save failed: {_format_error(e)}'})}\n\n"
+        yield f"data: {json.dumps({'type': 'error', 'error': f'Generation succeeded but save failed: {_format_error(e)}'})}\n\n"
     except GeneratorExit:
         await _finalize_gen(ctx, acc)
     except asyncio.CancelledError:

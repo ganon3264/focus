@@ -182,9 +182,9 @@ class TestStreamingGeneration:
         assert events[0]["type"] == "start"
         assert events[0]["message_id"] is not None
         assert events[0]["user_message_id"] is not None
-        tokens = [e["token"] for e in events if "token" in e]
+        tokens = [e["text"] for e in events if e.get("type") == "token"]
         assert tokens == ["Hello", " world"]
-        done = [e for e in events if e.get("done") is True]
+        done = [e for e in events if e.get("type") == "done"]
         assert done and done[0]["message_id"] == events[0]["message_id"]
 
         asst = await _assistant_variant(_db_path(tmp_test_dir), chat["id"])
@@ -213,7 +213,7 @@ class TestStreamingGeneration:
         assert usage[5] == events[0]["message_id"]
 
     async def test_midstream_checkpoint_saves_variant(self, client, tmp_test_dir, patch_provider):
-        """The every-5-tokens checkpoint upsert must not corrupt the final save."""
+        """Multi-token streams must produce a correct final save (no checkpoint corruption)."""
         chat, prov_id = await _setup(client)
         fake = FakeProvider([
             [{"type": "token", "text": f"w{i}"} for i in range(7)] + [{"type": "done"}],
@@ -222,10 +222,50 @@ class TestStreamingGeneration:
 
         resp = await _stream(client, chat["id"], prov_id)
         events = await _consume_sse_events(resp)
-        assert len([e for e in events if "token" in e]) == 7
+        assert len([e for e in events if e.get("type") == "token"]) == 7
 
         asst = await _assistant_variant(_db_path(tmp_test_dir), chat["id"])
         assert asst["content"] == "".join(f"w{i}" for i in range(7))
+
+    async def test_timed_midstream_checkpoint(self, client, tmp_test_dir, patch_provider, monkeypatch):
+        """With the checkpoint interval at zero, partial text must hit the DB
+        while the generation is still in flight (wall-clock driven)."""
+        from focus.routers import stream as stream_module
+        monkeypatch.setattr(stream_module, "_CHECKPOINT_INTERVAL_SECS", 0)
+
+        chat, prov_id = await _setup(client)
+        release = asyncio.Event()
+
+        class GatedProvider(FakeProvider):
+            async def stream_complete(self, messages, **kwargs):
+                yield {"type": "token", "text": "partial-"}
+                await release.wait()
+                yield {"type": "done"}
+
+        fake = GatedProvider([])
+        patch_provider(fake)
+
+        db_path = _db_path(tmp_test_dir)
+        task = asyncio.create_task(_stream(client, chat["id"], prov_id))
+        deadline = time.monotonic() + 5
+        content = None
+        while time.monotonic() < deadline:
+            row = await _fetchone(
+                db_path,
+                "SELECT mv.content FROM messages m JOIN message_variants mv ON mv.message_id = m.id "
+                "WHERE m.chat_id = ? AND m.role = 'assistant' AND m.position > 0",
+                chat["id"],
+            )
+            if row:
+                content = row[0]
+                break
+            await asyncio.sleep(0.01)
+        assert content == "partial-", "timed checkpoint must persist partial text mid-stream"
+
+        release.set()
+        await asyncio.wait_for(task, 10)
+        asst = await _assistant_variant(db_path, chat["id"])
+        assert asst["content"] == "partial-"
 
     async def test_meta_reasoning_persisted(self, client, tmp_test_dir, patch_provider):
         chat, prov_id = await _setup(client)
@@ -245,7 +285,7 @@ class TestStreamingGeneration:
 
         resp = await _stream(client, chat["id"], prov_id)
         events = await _consume_sse_events(resp)
-        reasoning_events = [e["text"] for e in events if e.get("type") == "reasoning"]
+        reasoning_events = [e["text"] for e in events if e.get("type") == "meta" and e.get("field") == "reasoning"]
         assert reasoning_events == ["thinking ", "more"]
 
         asst = await _assistant_variant(_db_path(tmp_test_dir), chat["id"])
@@ -410,9 +450,9 @@ class TestStreamingGeneration:
         resp = await asyncio.wait_for(task, 10)
         events = await _consume_sse_events(resp)
         assert events[0]["type"] == "start"
-        tokens = [e["token"] for e in events if "token" in e]
+        tokens = [e["text"] for e in events if e.get("type") == "token"]
         assert tokens == ["first"], "tokens after the stop request must be dropped"
-        assert events[-1]["done"] is True
+        assert events[-1]["type"] == "done"
 
         asst = await _assistant_variant(db_path, chat["id"])
         assert asst["content"] == "first"
@@ -484,9 +524,9 @@ class TestStreamingGeneration:
             continue_reasoning="pre-reason",
         )
         events = await _consume_sse_events(resp)
-        reasoning_events = [e["text"] for e in events if e.get("type") == "reasoning"]
+        reasoning_events = [e["text"] for e in events if e.get("type") == "meta" and e.get("field") == "reasoning"]
         assert reasoning_events == ["pre-reason"]
-        tokens = [e["token"] for e in events if "token" in e]
+        tokens = [e["text"] for e in events if e.get("type") == "token"]
         assert tokens == ["cont", " rest"]
 
         asst = await _assistant_variant(db_path, chat["id"])

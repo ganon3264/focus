@@ -77,7 +77,7 @@ global.document = doc;
 global.requestAnimationFrame = function (fn) { fn(); };
 global.htmx = { process: function () {} };
 global.syncReasoningButtons = function () {};
-global._streamingMessageId = null;
+global.Generation = { streamingId: function () { return global._streamingMessageId || null; } };
 global.Map = Map;
 
 // Load module (IIFE, exports window.pruneMessages, _isMessagePruned, _unpruneMessage)

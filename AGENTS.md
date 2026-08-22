@@ -9,8 +9,6 @@ FastAPI (async) + aiosqlite | Jinja2 | HTMX 2 + Alpine 3 | Tailwind v4 | uv + ha
 - Start: `./start.sh` — vendor sync → tailwind build → `uv run main.py`
 - Test: `./test.sh` — `uv run pytest`
 
-- Caution: This Opencode instance runs in a podman container, which is Alpine Linux with musl while user's host machine might differ.
-
 ## Structure
 
 ```
@@ -27,7 +25,7 @@ partials/                # HTMX fragments (chat/, modals/, personas/, presets/)
 static/
   css/                   # Custom CSS modules
   js/
-    core/                # state-manager, actions, chat-stream, api-paths
+    core/                # state-manager, actions, generation-session, chat-controls, api-paths
     messages/            # Streaming, rendering, editing, pruning
     modals/              # Config forms, editors
     ui/                  # Theme, scroll, lightbox, notifications, etc.
@@ -69,26 +67,54 @@ Single source of truth for `character_id`, `persona_id`, `preset_id`, `provider_
 ### Toast system (`static/js/ui/notifications.js`)
 
 - One stack: `#toast-container` in `base.html` (fixed top-center, `z-index: var(--z-max)`, above all modals).
-- API: `showToast(msg, {type, duration})`, aliases `showInfoToast` (accent, 3s), `showSuccessToast` (green, 3s), `showErrorToast` (danger, persists with Copy/Close), `showImportToast(data, pluralLabel)` (shared import report: error list or success count), `hideErrorToast()`, `hideAllToasts()`.
+- API: `showToast(msg, {type, duration})`, aliases `showInfoToast` (accent, 3s), `showSuccessToast` (green, 3s), `showErrorToast` (danger, persists with Copy/Close), `showImportToast(data, pluralLabel)` (shared import report: error list or success count), `hideErrorToast()`, `hideInfoToast()`, `hideAllToasts()`.
 - `notifications.js` is loaded in `base.html` above `{% block content %}`, so the API is always defined on every page — call it unguarded.
 - All cards stack as a list; per-card timer with hover-pause; dedup by type+message (refreshes timer); max 5 visible (oldest evicted); fade in/out via `toast-in`/`toast-out` in `animations.css`. Never block with `alert()` — use toasts.
 
 ### Streaming
 
-SSE events: `start | token | meta | tool_calls | tool_result | done`.
+SSE payloads are uniform envelopes — always `{"type": "<event>", ...}` with events
+`start | token | meta | tool_calls | tool_result | done | error`. Dispatch is a
+table lookup (`HANDLERS[json.type]`); unknown types log a warning, never vanish silently.
+
+**Ownership:** cross-module state goes through the module that owns it
+(`StateManager` for ids, `Generation` for the generation lifecycle) — never
+`window._foo` handoffs.
 
 **Frontend:**
-- `chat-stream.js` orchestrates: `setGeneratingUI()` → `uploadStagedAttachments()` → `finalizeStreamRender()` → `refreshMessagesAfterStream()`
-- `stream-events.js`: `StreamState` per generation, `HANDLERS` dispatch via `dispatchStreamEvent()`
-- `message-builder.js`: segment builders for text/reasoning/tool_calls; `finalizeStreamRender()` assembles the DOM
-- `generation-ui.js`: toggles send/stop buttons, manages spinner, removes stale content
-- `post-process.js`: re-renders markdown, syncs reasoning buttons, updates UI after swap
+- `core/generation-session.js`: single owner of the generation lifecycle —
+  AbortController, active flag, streaming message id, SSE read loop, and the
+  stop-escalation ladder. API: `Generation.begin(chatId, asstDiv, opts)` /
+  `Generation.stop()` / `.isActive()` / `.streamingId()`.
+- **Stop contract:** stop = POST `/api/stop-generation/{id}` (with its own 4s
+  timeout) and wait for the normal `done` event; if the POST fails or no `done`
+  arrives within 8s, the client hard-aborts. That is safe: Starlette cancels
+  the SSE generator on disconnect, which persists partials server-side.
+  Feedback via toasts ("Stopping…" → "Generation stopped").
+- `ui/chat-controls.js`: send-button glue (builds user message div, calls
+  `Generation.begin`).
+- `stream-events.js`: `StreamState` per generation, `HANDLERS` dispatch via
+  `dispatchStreamEvent()`. Handlers record outcomes on the state object
+  (`state.done`, `state.errorMsg`) — they never throw.
+- Token renders are rAF-coalesced (one markdown pass per frame, trailing
+  edge); `finalizeStreamRender()` force-flushes before the post-stream refresh.
+- `message-builder.js`: segment builders for text/reasoning/tool_calls.
+- `generation-ui.js`: toggles send/stop buttons, spinner, `clearStaleContent()`.
+- `post-process.js`: re-renders markdown, syncs reasoning buttons, updates UI
+  after swap (also owns the `htmx:afterSwap` hook).
 - Messages split into `text | reasoning | tool_boundary` segments (`segments_json` column). Use `preserveOpenStates()` not `innerHTML` for **in-place re-renders** (e.g. streaming segment updates) to keep reasoning toggles open; fresh nodes swapped in from the server start collapsed by design — do not preserve state across server swaps.
+- **Continue invariant:** the stream always delivers the complete text —
+  providers with `echoes_prefill=True` resend the partial themselves, others
+  get it synthesized server-side. The frontend never seeds content; on
+  continue it binds the existing `.message-content` div as an empty first
+  segment so tokens replace its contents in place.
 
 **Backend:**
 - `_active_generations` maps `message_id → asyncio.Event`. Stop via `POST /api/stop-generation/{message_id}`. Both stream (SSE) and non-stream (JSON) share `_run_generation()`.
-- Meta events (reasoning, reasoning_details) handled via `TRACKED_FIELDS` in `tracked_fields.py`. Each field has a `merge` mode (`append`/`index`) and `stream_to_sse` flag.
-- On continue: server emits existing content as synthetic SSE events before real tokens. `prepare_generation_messages()` appends prefill to API context.
+- Meta events (reasoning, reasoning_details) handled via `TRACKED_FIELDS` in `tracked_fields.py`. Each field has a `merge` mode (`append`/`index`) and `stream_to_sse` flag; only `stream_to_sse` fields reach the wire as `meta` events.
+- Mid-stream partial saves are wall-clock driven: `_maybe_checkpoint()` writes at most once per `_CHECKPOINT_INTERVAL_SECS` (independent of provider speed and reply length), forced at tool boundaries and on done/error.
+- On continue: `prepare_generation_messages()` appends the prefill to API context; for non-echo providers `_run_generation_with_prefill()` synthesizes the existing content as SSE events before real tokens.
+- `echoes_prefill` is a per-provider-*type* default (openai_compat=True), not a per-server fact — known sharp edge for endpoints that behave differently than their type suggests.
 
 ### Tool system
 
@@ -121,4 +147,4 @@ SSE events: `start | token | meta | tool_calls | tool_result | done`.
 
 - **`x-show` needs `x-cloak`** — Alpine loads `defer`, so overlays using `x-show` without `x-cloak` flash visible during HTML parsing.
 - **`:last-of-type` isn't "last with this class"** — the scroll sentinel shares the same tag. Use `querySelectorAll('.message')` and take the last NodeList element.
-- **Call `window.pruneMessages()` after HTMX swaps** — `message-pruner.js` replaces off-screen messages with placeholders. Check `window._isMessagePruned(id)` before DOM ops. `window._streamingMessageId` is excluded.
+- **Call `window.pruneMessages()` after HTMX swaps** — `message-pruner.js` replaces off-screen messages with placeholders. Check `window._isMessagePruned(id)` before DOM ops. The streaming message (`Generation.streamingId()`) is excluded.
