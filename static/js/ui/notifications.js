@@ -210,6 +210,12 @@
     });
   };
 
+  window.hideInfoToast = function () {
+    dismissCards(function (card) {
+      return card.dataset && card.dataset.toastType === 'info';
+    });
+  };
+
   window.hideAllToasts = function () {
     dismissCards();
   };

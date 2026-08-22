@@ -4,6 +4,27 @@
   }
 
   var currentController = null;
+  // Stop-request escalation: the stop POST gets a hard timeout, and even a
+  // successful one only waits this long for the server's `done` before the
+  // stream is force-aborted (server-side disconnect cancel saves partials).
+  var STOP_POST_TIMEOUT_MS = 4000;
+  var STOP_DRAIN_TIMEOUT_MS = 8000;
+  var pendingStop = null;
+
+  function clearPendingStop() {
+    if (pendingStop) {
+      clearTimeout(pendingStop.timer);
+      pendingStop = null;
+    }
+  }
+
+  function abortCurrent() {
+    if (currentController) {
+      currentController.abort();
+      currentController = null;
+    }
+  }
+
   var sendBtn = document.getElementById('send-btn');
   var stopBtn = document.getElementById('stop-btn');
   var input = document.getElementById('chat-input');
@@ -177,6 +198,12 @@
 
       window.finalizeStreamRender(state);
 
+      if (pendingStop) {
+        clearPendingStop();
+        window.hideInfoToast();
+        window.showSuccessToast('Generation stopped');
+      }
+
       dbg('Refreshing messages: chatId=%s, userMsgId=%s, asstMsgId=%s',
         chatId, state.userMessageId, state.messageId);
       await window.refreshMessagesAfterStream(chatId, state.userMessageId, state.messageId);
@@ -190,6 +217,7 @@
     } catch (err) {
       await _handleStreamError(err, state);
     } finally {
+      clearPendingStop();
       setGeneratingUI(false);
       currentController = null;
     }
@@ -245,19 +273,40 @@
   });
 
   stopBtn.addEventListener('click', function () {
-    if (!currentController) return;
+    if (!currentController || pendingStop) return;
     var msgId = window._streamingMessageId;
-    if (msgId) {
-      fetch('/api/stop-generation/' + encodeURIComponent(msgId), { method: 'POST' }).catch(function () {
-        if (currentController) {
-          currentController.abort();
-          currentController = null;
-        }
-      });
-    } else {
-      currentController.abort();
-      currentController = null;
+    if (!msgId) {
+      abortCurrent();
+      return;
     }
+
+    window.showInfoToast('Stopping generation…', { duration: 6000 });
+
+    // The stop POST itself must not hang on a flaky connection — give it its
+    // own timeout and fall back to a hard abort.
+    var postCtl = new AbortController();
+    var postTimer = setTimeout(function () { postCtl.abort(); }, STOP_POST_TIMEOUT_MS);
+    fetch('/api/stop-generation/' + encodeURIComponent(msgId), {
+      method: 'POST',
+      signal: postCtl.signal,
+    }).catch(function () {
+      clearPendingStop();
+      abortCurrent();
+      window.hideInfoToast();
+      window.showSuccessToast('Generation stopped');
+    }).finally(function () {
+      clearTimeout(postTimer);
+    });
+
+    // Watchdog: if the server hasn't confirmed with `done` in time, cut the
+    // connection. Starlette cancels the generator on disconnect, so partials
+    // still get persisted server-side.
+    pendingStop = { timer: setTimeout(function () {
+      pendingStop = null;
+      abortCurrent();
+      window.hideInfoToast();
+      window.showSuccessToast('Generation stopped');
+    }, STOP_DRAIN_TIMEOUT_MS) };
   });
 
   window.branchFromMessage = async function (messageId, chatId) {
