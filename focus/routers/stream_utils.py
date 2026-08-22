@@ -305,8 +305,6 @@ async def get_prompt_context(
         ) as cur:
             char_own_blocks = [dict(r) for r in await cur.fetchall()]
 
-    macros = build_base_macros(char_data)
-
     persona: dict | None = None
     if chat["persona_id"]:
         async with db.execute("SELECT * FROM personas WHERE id = ?", (chat["persona_id"],)) as cur:

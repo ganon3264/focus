@@ -361,8 +361,7 @@ async def preset_selector_partial(request: Request, chat_id: str, db: aiosqlite.
 
 @router.get("/partials/preset-variables/{preset_id}", response_class=HTMLResponse)
 async def preset_variables_partial(request: Request, preset_id: str, db: aiosqlite.Connection = Depends(get_db)):
-    preset = await crud.get_preset(db, preset_id)
-    blocks = preset["blocks"] if preset else []
+    blocks = await crud.get_preset_blocks(db, preset_id)
 
     var_groups = {}
     for b in blocks:
@@ -379,8 +378,7 @@ async def preset_variables_partial(request: Request, preset_id: str, db: aiosqli
 async def preset_variables_group_partial(
     request: Request, preset_id: str, group_name: str, db: aiosqlite.Connection = Depends(get_db)
 ):
-    preset = await crud.get_preset(db, preset_id)
-    blocks = preset["blocks"] if preset else []
+    blocks = await crud.get_preset_blocks(db, preset_id)
 
     vblocks = [
         b for b in blocks
@@ -402,8 +400,7 @@ async def preset_editor_partial(
     persona_id: str = Query(None),
     db: aiosqlite.Connection = Depends(get_db),
 ):
-    preset = await crud.get_preset(db, preset_id)
-    blocks = preset["blocks"] if preset else []
+    blocks = await crud.get_preset_blocks(db, preset_id)
 
     counts = await crud.get_counts(db, character_id or None, persona_id or None)
     _, regular_blocks, var_groups = partition_blocks(blocks)
@@ -428,8 +425,7 @@ async def prompt_arranger_partial(
     persona_id: str = Query(None),
     db: aiosqlite.Connection = Depends(get_db),
 ):
-    preset = await crud.get_preset(db, preset_id)
-    blocks = preset["blocks"] if preset else []
+    blocks = await crud.get_preset_blocks(db, preset_id)
 
     counts = await crud.get_counts(db, character_id or None, persona_id or None)
 
@@ -457,8 +453,7 @@ async def prompt_arranger_block_partial(
     persona_id: str = Query(None),
     db: aiosqlite.Connection = Depends(get_db),
 ):
-    preset = await crud.get_preset(db, preset_id)
-    blocks = preset["blocks"] if preset else []
+    blocks = await crud.get_preset_blocks(db, preset_id)
     block = next((b for b in blocks if b["id"] == block_id), None)
     if not block:
         from fastapi import HTTPException

@@ -73,19 +73,7 @@ async def get_characters(db: aiosqlite.Connection) -> list[dict]:
         characters = [dict(r) for r in rows]
     for c in characters:
         c["card"] = safe_load_card(c) or {}
-    # Batch-load blocks for all characters
-    if characters:
-        ids = [c["id"] for c in characters]
-        placeholders = ",".join("?" * len(ids))
-        async with db.execute(
-            f"SELECT * FROM char_blocks WHERE character_id IN ({placeholders}) ORDER BY position, rowid", ids
-        ) as cur:
-            block_rows = await cur.fetchall()
-        blocks_by_char: dict[str, list[dict]] = {}
-        for br in block_rows:
-            blocks_by_char.setdefault(br["character_id"], []).append(dict(br))
-        for c in characters:
-            c["blocks"] = blocks_by_char.get(c["id"], [])
+    await _attach_blocks(db, characters, "char_blocks", "character_id", "blocks")
     await attach_images(characters, db)
     return characters
 
@@ -105,20 +93,31 @@ async def get_character(db: aiosqlite.Connection, character_id: str) -> dict | N
 async def get_presets(db: aiosqlite.Connection) -> list[dict]:
     async with db.execute("SELECT * FROM presets ORDER BY created_at DESC") as cur:
         presets = [dict(r) for r in await cur.fetchall()]
-    # Batch-load blocks for all presets
-    if presets:
-        ids = [p["id"] for p in presets]
-        placeholders = ",".join("?" * len(ids))
-        async with db.execute(
-            f"SELECT * FROM preset_blocks WHERE preset_id IN ({placeholders}) ORDER BY position, rowid", ids
-        ) as cur:
-            block_rows = await cur.fetchall()
-        blocks_by_preset: dict[str, list[dict]] = {}
-        for br in block_rows:
-            blocks_by_preset.setdefault(br["preset_id"], []).append(dict(br))
-        for p in presets:
-            p["blocks"] = blocks_by_preset.get(p["id"], [])
+    await _attach_blocks(db, presets, "preset_blocks", "preset_id", "blocks")
     return presets
+
+
+async def _attach_blocks(db: aiosqlite.Connection, rows: list[dict], table: str, fk_col: str, key: str) -> None:
+    """Batch-load child blocks for entity rows and attach them under *key*."""
+    if not rows:
+        return
+    ids = [r["id"] for r in rows]
+    placeholders = ",".join("?" * len(ids))
+    async with db.execute(
+        f"SELECT * FROM {table} WHERE {fk_col} IN ({placeholders}) ORDER BY position, rowid", ids
+    ) as cur:
+        block_rows = await cur.fetchall()
+    by_parent: dict[str, list[dict]] = {}
+    for br in block_rows:
+        by_parent.setdefault(br[fk_col], []).append(dict(br))
+    for r in rows:
+        r[key] = by_parent.get(r["id"], [])
+
+
+async def get_preset_blocks(db: aiosqlite.Connection, preset_id: str | None) -> list[dict]:
+    if not preset_id:
+        return []
+    return await load_entity_blocks(db, "preset_blocks", "preset_id", preset_id)
 
 
 async def get_preset(db: aiosqlite.Connection, preset_id: str) -> dict | None:
@@ -271,37 +270,33 @@ async def get_chats_sidebar(db: aiosqlite.Connection, character_id: str = None) 
 
 
 async def get_counts(db: aiosqlite.Connection, character_id: str | None, persona_id: str | None) -> dict:
-    counts = {"char_blocks": 0, "char_attachments": 0, "persona_attachments": 0}
+    """Counts mirror assemble_prompt's block_id-keyed image lookups (source is ignored there too).
+
+    char_attachments: direct character images → injected with description/personality.
+    char_block_attachments: images on the character's own blocks → injected at those blocks.
+    persona_attachments: direct persona images → injected with the persona text.
+    """
+    counts = {
+        "char_blocks": 0,
+        "char_attachments": 0,
+        "char_block_attachments": 0,
+        "persona_attachments": 0,
+    }
 
     if character_id:
-        async with db.execute("SELECT id FROM char_blocks WHERE character_id = ?", (character_id,)) as cur:
-            char_blocks_rows = await cur.fetchall()
-            counts["char_blocks"] = len(char_blocks_rows)
-
-            async with db.execute(
-                "SELECT COUNT(*) FROM block_images WHERE block_id = ? AND block_source = 'char'",
-                (character_id,),
-            ) as img_cur:
-                row = await img_cur.fetchone()
-                counts["char_attachments"] += row[0] if row else 0
-
-            if char_blocks_rows:
-                block_ids = [r["id"] for r in char_blocks_rows]
-                placeholders = ",".join("?" * len(block_ids))
-                async with db.execute(
-                    f"SELECT COUNT(*) FROM block_images WHERE block_id IN ({placeholders}) AND block_source = 'char'",
-                    block_ids,
-                ) as img_cur:
-                    row = await img_cur.fetchone()
-                    counts["char_attachments"] += row[0] if row else 0
+        async with db.execute("SELECT COUNT(*) FROM char_blocks WHERE character_id = ?", (character_id,)) as cur:
+            counts["char_blocks"] = (await cur.fetchone())[0]
+        async with db.execute("SELECT COUNT(*) FROM block_images WHERE block_id = ?", (character_id,)) as cur:
+            counts["char_attachments"] = (await cur.fetchone())[0]
+        async with db.execute(
+            "SELECT COUNT(*) FROM block_images WHERE block_id IN (SELECT id FROM char_blocks WHERE character_id = ?)",
+            (character_id,),
+        ) as cur:
+            counts["char_block_attachments"] = (await cur.fetchone())[0]
 
     if persona_id:
-        async with db.execute(
-            "SELECT COUNT(*) FROM block_images WHERE block_id = ? AND block_source = 'char'",
-            (persona_id,),
-        ) as img_cur:
-            row = await img_cur.fetchone()
-            counts["persona_attachments"] += row[0] if row else 0
+        async with db.execute("SELECT COUNT(*) FROM block_images WHERE block_id = ?", (persona_id,)) as cur:
+            counts["persona_attachments"] = (await cur.fetchone())[0]
 
     return counts
 
