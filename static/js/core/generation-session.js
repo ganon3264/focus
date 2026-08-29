@@ -35,24 +35,41 @@
     }
   }
 
+  // Failure recovery: no spinner left behind, no wiped message left behind, and
+  // no node carrying an id the server knows nothing about. Never refresh by
+  // message id here — the message may not exist (rolled back on failure), which
+  // would otherwise 404, so the whole list is re-rendered.
   function handleFailure(state, message, name) {
     console.error('[stream] Failure: name=%s, message=%s', name, message);
     if (name !== 'AbortError') {
       window.showErrorToast(message);
     }
 
-    // Remove the empty/stale assistant skeleton, then restore the list from
-    // the server. Never refresh by message id here — the message may not exist
-    // (rolled back on failure), which would otherwise 404.
-    if (state.asstDiv && state.asstDiv.parentNode) {
-      state.asstDiv.remove();
+    var asstDiv = state.asstDiv;
+    if (asstDiv) {
+      var spinner = asstDiv.querySelector('.message-spinner');
+      if (spinner) spinner.remove();
+      if (state.isRegen) {
+        // This node is a real message: clearStaleContent wiped its content for
+        // the retry. Put it back so a failed regenerate never erases a message
+        // the server still has, even when the refresh below cannot run.
+        if (state.prevHTML != null) {
+          asstDiv.innerHTML = state.prevHTML;
+          if (window.htmx) window.htmx.process(asstDiv);
+        }
+      } else {
+        // Our own skeleton. A list swap can detach the reference we hold, so
+        // also drop the live node sharing the id before it outlives us.
+        if (!asstDiv.parentNode && asstDiv.id) {
+          var live = document.getElementById(asstDiv.id);
+          if (live && live !== asstDiv) live.remove();
+        }
+        asstDiv.remove();
+      }
     }
 
     if (state.chatId) {
-      hxGet(window.api.partials.messageList(state.chatId), {
-        target: '#message-list',
-        swap: 'innerHTML',
-      });
+      window.refreshChatMessages(state.chatId).catch(function () {});
       if (window._refreshChatList) window._refreshChatList(state.chatId);
     }
 
@@ -110,6 +127,7 @@
       abortCurrent();
 
       setGeneratingUI(true);
+      var prevHTML = opts.isRegen ? asstDiv.innerHTML : null;
       clearStaleContent(asstDiv, opts.continueText, opts.continueReasoning);
 
       var state = new window.StreamState(chatId, asstDiv, !!opts.isRegen, opts.continueText, opts.continueReasoning);
@@ -127,6 +145,7 @@
         }
       }
 
+      state.prevHTML = prevHTML;
       _state = state;
       _controller = state.controller;
 
@@ -174,27 +193,34 @@
         var decoder = new TextDecoder();
         var buffer = '';
 
-        while (true) {
-          var result = await reader.read();
-          if (result.done) break;
-          buffer += decoder.decode(result.value, { stream: true });
-          var lines = buffer.split('\n');
-          buffer = lines.pop();
-          for (var i = 0; i < lines.length; i++) {
-            var line = lines[i];
-            if (!line.startsWith('data: ')) continue;
-            var raw = line.slice(6).trim();
-            if (!raw) continue;
-            var parsed;
-            try {
-              parsed = JSON.parse(raw);
-            } catch (e) {
-              continue;
+        try {
+          while (true) {
+            var result = await reader.read();
+            if (result.done) break;
+            buffer += decoder.decode(result.value, { stream: true });
+            var lines = buffer.split('\n');
+            buffer = lines.pop();
+            for (var i = 0; i < lines.length; i++) {
+              var line = lines[i];
+              if (!line.startsWith('data: ')) continue;
+              var raw = line.slice(6).trim();
+              if (!raw) continue;
+              var parsed;
+              try {
+                parsed = JSON.parse(raw);
+              } catch (e) {
+                continue;
+              }
+              window.dispatchStreamEvent(state, parsed);
+              if (state.errorMsg) break;
             }
-            window.dispatchStreamEvent(state, parsed);
             if (state.errorMsg) break;
           }
-          if (state.errorMsg) break;
+        } finally {
+          // Leaving the loop on `error` (or an abort) stops reading mid-body;
+          // cancelling hands the connection back instead of pinning it open
+          // with data the server may still be writing.
+          reader.cancel().catch(function () {});
         }
 
         if (state.errorMsg) {
@@ -212,7 +238,19 @@
 
         dbg('Refreshing messages: chatId=%s, userMsgId=%s, asstMsgId=%s',
           chatId, state.userMessageId, state.messageId);
-        await window.refreshMessagesAfterStream(chatId, state.userMessageId, state.messageId);
+        // A node that was adopted from a different message id means client and
+        // server disagree about which rows exist — only a full re-render fixes
+        // that. And a refresh failure must never take the generated message
+        // (already saved) down with it.
+        try {
+          if (state.identityChanged) {
+            await window.refreshChatMessages(chatId);
+          } else {
+            await window.refreshMessagesAfterStream(chatId, state.userMessageId, state.messageId);
+          }
+        } catch (refreshErr) {
+          console.error('[stream] post-stream refresh failed:', refreshErr);
+        }
 
         if (window.updateClaudeCache && window.APP_PROVIDERS) {
           var doneProvider = window.APP_PROVIDERS.find(function (p) { return p.id === providerId; });
@@ -235,8 +273,18 @@
       if (!_controller || _pendingStop) return;
       var msgId = streamingId();
       if (!msgId) {
+        // Nothing registered server-side yet, so there is nothing to drain —
+        // still report it, otherwise the press looks swallowed.
         abortCurrent();
+        window.showSuccessToast('Generation stopped');
         return;
+      }
+
+      function resolveStop() {
+        clearPendingStop();
+        abortCurrent();
+        window.hideInfoToast();
+        window.showSuccessToast('Generation stopped');
       }
 
       window.showInfoToast('Stopping generation…', { duration: 6000 });
@@ -248,24 +296,18 @@
       fetch('/api/stop-generation/' + encodeURIComponent(msgId), {
         method: 'POST',
         signal: postCtl.signal,
-      }).catch(function () {
-        clearPendingStop();
-        abortCurrent();
-        window.hideInfoToast();
-        window.showSuccessToast('Generation stopped');
-      }).finally(function () {
+      }).then(function (res) {
+        // 404 means the generation already ended, so no `done` is on its way;
+        // resolve now instead of holding the UI for the whole drain watchdog.
+        if (res.status === 404) resolveStop();
+      }).catch(resolveStop).finally(function () {
         clearTimeout(postTimer);
       });
 
       // Watchdog: if the server hasn't confirmed with `done` in time, cut the
       // connection. Starlette cancels the generator on disconnect, so partials
       // still get persisted server-side.
-      _pendingStop = { timer: setTimeout(function () {
-        _pendingStop = null;
-        abortCurrent();
-        window.hideInfoToast();
-        window.showSuccessToast('Generation stopped');
-      }, STOP_DRAIN_TIMEOUT_MS) };
+      _pendingStop = { timer: setTimeout(resolveStop, STOP_DRAIN_TIMEOUT_MS) };
     },
   };
 

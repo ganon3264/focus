@@ -3,6 +3,7 @@ from datetime import UTC
 
 import aiosqlite
 
+from focus.core.logger import get_logger
 from focus.core.paths import (
     ATTACHMENTS_DIR,
     CHARACTERS_DIR,
@@ -360,5 +361,13 @@ async def init_db():
                     PRIMARY KEY (chat_id, tool_name)
                 )
             """)
+
+        from focus.db.chats import delete_stranded_assistant_messages
+
+        stranded = await delete_stranded_assistant_messages(db)
+        if stranded:
+            get_logger("core.database").info(
+                "Dropped %d assistant message(s) left without content", stranded
+            )
 
         await db.commit()

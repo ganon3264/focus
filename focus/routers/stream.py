@@ -3,15 +3,17 @@ import json
 import logging
 import uuid
 from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from typing import Any
 
 import aiosqlite
+import anyio
 import tiktoken
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse, StreamingResponse
 
-from focus.core.database import get_db
+from focus.core.database import DB_PATH, get_db
 from focus.core.logger import get_logger
 from focus.core.models import ItemizerRequest, StreamRequest
 from focus.core.media import set_image_format
@@ -49,6 +51,30 @@ _CHECKPOINT_INTERVAL_SECS = 2.0
 
 # Track active streaming generations for graceful stop (message_id → Event)
 _active_generations: dict[str, asyncio.Event] = {}
+
+
+@asynccontextmanager
+async def _detached_conn(db: aiosqlite.Connection | None) -> AsyncIterator[aiosqlite.Connection]:
+    """Open a standalone connection to the same database file as *db*.
+
+    Post-disconnect writes need a connection that survives the response, but
+    they must not silently retarget ``DB_PATH`` — the file is read back from
+    *db* so injected/overridden connections keep working.
+    """
+    path = str(DB_PATH)
+    if db is not None:
+        try:
+            async with db.execute("PRAGMA database_list") as cur:
+                row = await cur.fetchone()
+            if row and row[2]:
+                path = row[2]
+        except Exception:
+            logger.debug("Could not resolve database file from request connection; "
+                         "falling back to DB_PATH")
+    async with aiosqlite.connect(path) as conn:
+        conn.row_factory = aiosqlite.Row
+        await conn.execute("PRAGMA foreign_keys=ON")
+        yield conn
 
 
 @dataclass
@@ -346,18 +372,31 @@ async def _run_generation_with_prefill(
         yield event
 
 
-async def _finalize_gen(ctx: _GenCtx, acc: _GenAccumulator, *, success: bool = False) -> None:
-    """Idempotent final save. Persists variant or rolls back the empty assistant slot."""
+async def _finalize_gen(
+    ctx: _GenCtx,
+    acc: _GenAccumulator,
+    *,
+    success: bool = False,
+    conn: aiosqlite.Connection | None = None,
+) -> None:
+    """Idempotent final save. Persists variant or rolls back the empty assistant slot.
+
+    *conn* overrides the request-scoped connection (see ``_finalize_detached``).
+    ``acc.finalized`` is set only once the write actually completed: a save cut
+    short by cancellation must stay retryable, otherwise the assistant row is
+    stranded without a variant — invisible to history and to the message list.
+    """
     if acc.finalized:
         return
-    acc.finalized = True
+    db = conn if conn is not None else ctx.db
     acc.close_iteration()
     segments = acc.build_segments()
     has_content = acc.has_content
 
     if not success and not has_content:
         if not ctx.body.regenerate:
-            await rollback_assistant(ctx.prompt.asst_msg_id, db=ctx.db)
+            await rollback_assistant(ctx.prompt.asst_msg_id, db=db)
+        acc.finalized = True
         return
 
     try:
@@ -367,14 +406,31 @@ async def _finalize_gen(ctx: _GenCtx, acc: _GenAccumulator, *, success: bool = F
             acc.full_text(), ctx.body.regenerate, ctx.prov_dict.get("model", ""),
             variant_id=acc.variant_id, variant_meta=variant_meta_json,
             segments_json=json.dumps(segments) if segments else None,
-            db=ctx.db,
+            db=db,
         )
+        acc.finalized = True
     except Exception as e:
         logger.exception("Failed to save variant for message_id=%s", ctx.prompt.asst_msg_id)
         if not ctx.body.regenerate:
-            await rollback_assistant(ctx.prompt.asst_msg_id, db=ctx.db)
+            await rollback_assistant(ctx.prompt.asst_msg_id, db=db)
+        acc.finalized = True
         if success:
             raise _SaveFailed(e) from e
+
+
+async def _finalize_detached(ctx: _GenCtx, acc: _GenAccumulator) -> None:
+    """Finalize after the client hung up mid-generation.
+
+    A disconnect is delivered as a pending cancellation from Starlette's cancel
+    scope, so the first await inside the handler would abort immediately and the
+    partial (or the rollback) would be silently lost, stranding an empty
+    assistant row. Shielding lets the write finish, and it runs on a connection
+    of its own because the request's connection is being torn down alongside
+    the response.
+    """
+    with anyio.CancelScope(shield=True):
+        async with _detached_conn(ctx.db) as conn:
+            await _finalize_gen(ctx, acc, conn=conn)
 
 
 async def _checkpoint_variant(ctx: _GenCtx, acc: _GenAccumulator) -> None:
@@ -490,9 +546,9 @@ async def _stream_generate(ctx: _GenCtx) -> AsyncIterator[str]:
     except _SaveFailed as e:
         yield f"data: {json.dumps({'type': 'error', 'error': f'Generation succeeded but save failed: {_format_error(e)}'})}\n\n"
     except GeneratorExit:
-        await _finalize_gen(ctx, acc)
+        await _finalize_detached(ctx, acc)
     except asyncio.CancelledError:
-        await _finalize_gen(ctx, acc)
+        await _finalize_detached(ctx, acc)
         raise
     finally:
         _active_generations.pop(ctx.prompt.asst_msg_id, None)
@@ -513,7 +569,7 @@ async def _non_stream_generate(ctx: _GenCtx) -> JSONResponse:
     except _SaveFailed as e:
         raise HTTPException(500, f"Generation succeeded but save failed: {_format_error(e)}")
     except asyncio.CancelledError:
-        await _finalize_gen(ctx, acc)
+        await _finalize_detached(ctx, acc)
         raise HTTPException(499, "Request cancelled")
     else:
         return JSONResponse({

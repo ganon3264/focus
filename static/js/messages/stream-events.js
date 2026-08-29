@@ -60,6 +60,11 @@
 
   window.bindAssistantIdentity = function (state) {
     if (!state.messageId) return;
+    var known = state.asstDiv.dataset.messageId;
+    // Reusing an existing node (regenerate/continue/swipe) that already belongs
+    // to another message: the server answered for a row the DOM did not expect,
+    // so a single-node refresh would not be enough to resynchronise.
+    if (known && known !== String(state.messageId)) state.identityChanged = true;
     state.asstDiv.id = 'message-' + state.messageId;
     state.asstDiv.dataset.messageId = state.messageId;
   };
@@ -186,6 +191,10 @@
       }
       window._updateReasoningButton(firstText || state.asstDiv);
     }
+    // Generation is over: the spinner must not depend on the post-stream refresh
+    // finding this node (it does not, if the row has nothing stored).
+    var spinner = state.asstDiv.querySelector('.message-spinner');
+    if (spinner) spinner.remove();
     window.bindAssistantIdentity(state);
   };
 })();

@@ -482,6 +482,23 @@ async def rollback_assistant(
         await conn.commit()
 
 
+async def delete_stranded_assistant_messages(db: aiosqlite.Connection) -> int:
+    """Drop assistant rows that never received a variant; returns the count.
+
+    A generation that died between slot creation and its final save leaves an
+    assistant message with no content. Both the prompt history and the message
+    list join messages onto variants, so such a row is invisible while still
+    claiming a position — and a later regenerate skips past it onto a brand new
+    slot instead of reusing it. Runs at startup, when no generation is in flight.
+    """
+    cur = await db.execute(
+        "DELETE FROM messages"
+        " WHERE role = 'assistant'"
+        " AND NOT EXISTS (SELECT 1 FROM message_variants mv WHERE mv.message_id = messages.id)"
+    )
+    return cur.rowcount
+
+
 async def save_usage(
     chat_id: str,
     message_id: str,

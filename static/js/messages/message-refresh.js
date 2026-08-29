@@ -84,4 +84,14 @@
     await _refreshMessageNodes(chatId, [messageId]);
   }
   window.refreshSingleMessage = refreshSingleMessage;
+
+  // Full re-render of the message list. Use this whenever client and server may
+  // disagree about *which* messages exist (or their order) — a single-node
+  // refresh only patches content of nodes both sides already have.
+  window.refreshChatMessages = function (chatId) {
+    return hxGet(window.api.partials.messageList(chatId), {
+      target: '#message-list',
+      swap: 'innerHTML',
+    });
+  };
 })();
