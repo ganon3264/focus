@@ -1,5 +1,4 @@
 import json
-from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
@@ -7,10 +6,11 @@ from pydantic import BaseModel
 import focus.crud as crud
 import focus.db as db
 from focus.core.database import get_db
+from focus.core.media import tool_image_url
 from focus.core.models import ChatCreate, MessageEdit
 from focus.core.paths import ATTACHMENTS_DIR
-from focus.core.media import tool_image_url
 from focus.core.utils import read_upload
+from focus.extensions.triggers import schedule_trigger
 
 router = APIRouter()
 
@@ -234,6 +234,8 @@ async def edit_message(
         _db, chat_id, message_id, body.content, body.reasoning, body.attachment_ids, body.segments,
     )
     await _db.commit()
+    # Fire-and-forget: auto-run extensions subscribed to the edit event.
+    await schedule_trigger(_db, chat_id, "edit", message_id)
     return {"ok": True, **result}
 
 
@@ -251,6 +253,8 @@ async def swipe_message(
     """
     result = await db.swipe_message(_db, chat_id, message_id, direction)
     await _db.commit()
+    # Fire-and-forget: auto-run extensions subscribed to the swipe event.
+    await schedule_trigger(_db, chat_id, "swipe", message_id)
     return {"ok": True, **result}
 
 

@@ -2,6 +2,8 @@
 /assets/
 /tools/*
 !/tools/samples/
+/extensions/*
+!/extensions/samples/
 __pycache__/
 *.pyc
 /.venv/

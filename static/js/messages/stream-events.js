@@ -157,6 +157,19 @@
     dbg('SSE done: message_id=%s', data.message_id);
   };
 
+  // A generation_end extension ran and its result is surfaced as a toast.
+  HANDLERS.extension = function (state, data) {
+    (data.logs || []).forEach(function (log) {
+      var msg = log.message || '';
+      if (log.level === 'error') { if (window.showErrorToast) window.showErrorToast(msg); }
+      else if (log.level === 'success') { if (window.showSuccessToast) window.showSuccessToast(msg); }
+      else { if (window.showInfoToast) window.showInfoToast(msg); }
+    });
+    if (data.status === 'error') {
+      if (window.showErrorToast) window.showErrorToast(data.error || (data.name + ' failed'));
+    }
+  };
+
   HANDLERS.error = function (state, data) {
     state.errorMsg = data.error;
   };

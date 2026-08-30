@@ -7,9 +7,10 @@ from fastapi.templating import Jinja2Templates
 from jinja2 import FileSystemLoader
 
 import focus.crud as crud
+import focus.db.extensions as db_extensions
 import focus.db.themes as db_themes
 from focus.core.database import get_db
-from focus.core.logger import DEBUG_MODE, get_logger
+from focus.core.logger import DEBUG_MODE
 from focus.core.macros import MACRO_DEFINITIONS, SPECIAL_TOKENS, apply_macros, build_base_macros
 from focus.core.message_render import render_message_segments
 from focus.core.utils import greetings_from_card, merge_greeting_into_list, parse_greetings_json, variable_group_name
@@ -147,6 +148,7 @@ async def chat_page(request: Request, chat_id: str, db: aiosqlite.Connection = D
 
     has_chars = await crud.has_characters(db)
     active_provider = await crud.get_active_provider(db)
+    enabled_extensions = await db_extensions.get_enabled_extensions(db, chat_id)
 
     theme_ctx = await _theme_context(db, char)
 
@@ -173,6 +175,7 @@ async def chat_page(request: Request, chat_id: str, db: aiosqlite.Connection = D
             "current_preset_id": preset["id"] if preset else None,
             "active_provider_id": active_provider["provider_id"],
             "active_provider_type": active_provider["provider_type"],
+            "enabled_extensions": enabled_extensions,
             **theme_ctx,
         },
     )
@@ -228,6 +231,7 @@ async def message_list_partial(request: Request, chat_id: str, db: aiosqlite.Con
         persona = await crud.get_persona(db, chat.get("persona_id"))
 
     _resolve_macros_for_display(messages, char, persona)
+    enabled_extensions = await db_extensions.get_enabled_extensions(db, chat_id)
 
     return templates.TemplateResponse(
         request,
@@ -237,6 +241,7 @@ async def message_list_partial(request: Request, chat_id: str, db: aiosqlite.Con
             "chat_id": chat_id,
             "character": char,
             "persona": persona,
+            "enabled_extensions": enabled_extensions,
         },
     )
 
@@ -266,6 +271,7 @@ async def single_message_partial(
         persona = await crud.get_persona(db, chat.get("persona_id"))
 
     _resolve_macros_for_display([message], char, persona)
+    enabled_extensions = await db_extensions.get_enabled_extensions(db, chat_id)
 
     return templates.TemplateResponse(
         request,
@@ -277,6 +283,7 @@ async def single_message_partial(
             "persona": persona,
             "msg_index": msg_index,
             "is_latest": is_latest,
+            "enabled_extensions": enabled_extensions,
         },
     )
 

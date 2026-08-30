@@ -207,6 +207,18 @@ CREATE TABLE IF NOT EXISTS chat_tool_states (
     PRIMARY KEY (chat_id, tool_name)
 );
 
+CREATE TABLE IF NOT EXISTS extension_states (
+    chat_id   TEXT NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
+    name      TEXT NOT NULL,
+    enabled   INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (chat_id, name)
+);
+
+CREATE TABLE IF NOT EXISTS extension_configs (
+    name        TEXT PRIMARY KEY,
+    config_json TEXT NOT NULL DEFAULT '{}'
+);
+
 CREATE INDEX IF NOT EXISTS idx_gen_usage_message ON generation_usage(message_id);
 CREATE INDEX IF NOT EXISTS idx_gen_usage_chat    ON generation_usage(chat_id);
 """

@@ -98,3 +98,59 @@ def test_reasoning_button_class_unchanged():
         "cursor-pointer",
     ):
         assert required in btn, f"Missing existing class '{required}' in: {btn}"
+
+
+class _Ext:
+    def __init__(self, name, description, roles, triggers=None, icon=""):
+        self.name = name
+        self.description = description
+        self.roles = roles
+        self.triggers = triggers if triggers is not None else ["manual"]
+        self.icon = icon
+
+
+def _render_with_extensions(enabled_extensions, role="assistant"):
+    return env.get_template("chat/message.html").render(
+        message={
+            "id": "m1", "role": role, "position": 1, "active_index": 0,
+            "variant_count": 1, "content": "Hello", "model_name": "m",
+            "created_at": "2024-01-01T00:00:00+00:00", "attachments": [],
+        },
+        character={"name": "Assistant", "image_path": None},
+        persona={"name": "User", "avatar_path": None},
+        is_latest=True, msg_index=1, chat_id="c1",
+        enabled_extensions=enabled_extensions,
+    )
+
+
+def test_extension_button_rendered_for_matching_role():
+    html = _render_with_extensions([_Ext("caps_rewrite", "Rewrite it", ["assistant"])])
+    assert "data-action=\"actionRunExtension\"" in html
+    assert "data-ext-name=\"caps_rewrite\"" in html
+    assert "Rewrite it" in html
+
+
+def test_extension_button_absent_for_nonmatching_role():
+    html = _render_with_extensions([_Ext("tts", "Read aloud", ["user"])], role="assistant")
+    assert "actionRunExtension" not in html
+
+
+def test_extension_button_absent_when_none_enabled():
+    html = _render_with_extensions([])
+    assert "actionRunExtension" not in html
+
+
+def test_extension_button_absent_for_non_manual_trigger():
+    # An extension that only auto-runs (e.g. on generation_end) has no toolbar button.
+    html = _render_with_extensions([_Ext("auto_rewrite", "Rewrite", ["assistant"], triggers=["generation_end"])])
+    assert "actionRunExtension" not in html
+
+
+def test_extension_uses_custom_icon():
+    icon = "<svg viewBox='0 0 24 24'><path d='M0 0'/></svg>"
+    html = _render_with_extensions([_Ext("tts", "Read aloud", ["assistant"], icon=icon)])
+    assert icon in html
+    # The raw SVG must be wrapped in a sized `.ext-icon` span so an
+    # un-specified `viewBox` doesn't blow out the toolbar button.
+    assert 'class="ext-icon w-4 h-4 shrink-0"' in html
+    assert f'class="ext-icon w-4 h-4 shrink-0">{icon}' in html

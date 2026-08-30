@@ -15,8 +15,8 @@ from fastapi.responses import JSONResponse, StreamingResponse
 
 from focus.core.database import DB_PATH, get_db
 from focus.core.logger import get_logger
-from focus.core.models import ItemizerRequest, StreamRequest
 from focus.core.media import set_image_format
+from focus.core.models import ItemizerRequest, StreamRequest
 from focus.core.segments import build_segments
 from focus.core.tracked_fields import TRACKED_FIELDS, build_full_meta, get_field, merge_delta
 from focus.core.utils import (
@@ -26,6 +26,7 @@ from focus.core.utils import (
     resolve_secret_key,
 )
 from focus.db.chats import rollback_assistant, save_usage, upsert_variant
+from focus.extensions.triggers import run_trigger_sync, schedule_trigger
 from focus.providers import create_provider
 from focus.routers.stream_utils import (
     PromptCtx,
@@ -527,6 +528,32 @@ async def _handle_event(
     return None
 
 
+async def _generation_end_extensions(ctx: _GenCtx) -> AsyncIterator[dict]:
+    """Await generation_end triggers and yield one SSE event per extension.
+
+    Runs before ``done`` so the rewrite is the active variant by the time the
+    client reloads it, and surfaces success/error as toasts.
+    """
+    if not ctx.prompt.asst_msg_id or ctx.db is None:
+        return
+    try:
+        summaries = await run_trigger_sync(
+            ctx.db, ctx.body.chat_id, "generation_end", ctx.prompt.asst_msg_id,
+        )
+    except Exception as e:
+        logger.exception("generation_end triggers failed for chat=%s", ctx.body.chat_id)
+        summaries = [{"extension": "extension", "status": "error", "error": str(e), "logs": [], "content": None}]
+    for s in summaries:
+        yield {
+            "type": "extension",
+            "name": s["extension"],
+            "status": s["status"],
+            "error": s["error"],
+            "content": s["content"],
+            "logs": s["logs"],
+        }
+
+
 async def _stream_generate(ctx: _GenCtx) -> AsyncIterator[str]:
     """Async generator that yields SSE-encoded lines for a streaming response."""
     variant_id = await ctx.resolve_variant_id()
@@ -539,9 +566,17 @@ async def _stream_generate(ctx: _GenCtx) -> AsyncIterator[str]:
     try:
         async for event in _run_generation_with_prefill(ctx, variant_id):
             payload = await _handle_event(acc, event, ctx)
+            if event["type"] == "done":
+                # Wait for generation_end rewrites so the reply finalizes as the
+                # rewritten swipe, and emit their result for client toasts.
+                async for ext_event in _generation_end_extensions(ctx):
+                    yield f"data: {json.dumps(ext_event)}\n\n"
+                if payload is not None:
+                    yield f"data: {json.dumps(payload)}\n\n"
+                return
             if payload is not None:
                 yield f"data: {json.dumps(payload)}\n\n"
-            if event["type"] in ("done", "error"):
+            if event["type"] == "error":
                 return
     except _SaveFailed as e:
         yield f"data: {json.dumps({'type': 'error', 'error': f'Generation succeeded but save failed: {_format_error(e)}'})}\n\n"
@@ -572,6 +607,9 @@ async def _non_stream_generate(ctx: _GenCtx) -> JSONResponse:
         await _finalize_detached(ctx, acc)
         raise HTTPException(499, "Request cancelled")
     else:
+        # Non-stream has no SSE channel, so generation_end stays fire-and-forget.
+        if ctx.prompt.asst_msg_id and ctx.db is not None:
+            await schedule_trigger(ctx.db, ctx.body.chat_id, "generation_end", ctx.prompt.asst_msg_id)
         return JSONResponse({
             "done": True,
             "message_id": ctx.prompt.asst_msg_id,
@@ -606,7 +644,6 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
     prompt_ctx = await get_prompt_context(
         db, body.chat_id, body.regenerate, body.user_message, body.attachment_ids, persist=True
     )
-    asst_msg_id = prompt_ctx.asst_msg_id
 
     # Generation-scoped event; registration is handled by _stream_generate / _non_stream_generate
     stop_event = asyncio.Event()
@@ -615,6 +652,12 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
         "stream: ctx returned asst_msg_id=%s user_msg_id=%s next_variant_index=%d messages=%d",
         prompt_ctx.asst_msg_id, prompt_ctx.user_msg_id, prompt_ctx.next_variant_index, len(prompt_ctx.messages),
     )
+
+    # Fire-and-forget: auto-run extensions subscribed to generation_start.
+    # Fresh sends target the user message; regenerates target the assistant slot.
+    gen_start_target = prompt_ctx.user_msg_id or prompt_ctx.asst_msg_id
+    if gen_start_target:
+        await schedule_trigger(db, body.chat_id, "generation_start", gen_start_target)
 
     # Continue: update the current variant in-place instead of creating a new swipe
     if body.continue_text and body.regenerate and prompt_ctx.asst_msg_id:

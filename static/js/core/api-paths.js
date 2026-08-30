@@ -84,6 +84,19 @@ window.api = {
     return '/api/presets/' + presetId + '/blocks/' + blockId + '/images/' + imageId;
   },
 
+  extensions: '/api/extensions',
+  extensionsConfig: '/api/extensions/config',
+  extensionConfig: function (name) {
+    return '/api/extensions/' + encodeURIComponent(name) + '/config';
+  },
+  extensionRun: function (name) {
+    return '/api/extensions/' + encodeURIComponent(name) + '/run';
+  },
+  chatExtensions: function (chatId) {
+    return '/api/chats/' + chatId + '/extensions';
+  },
+  extensionReload: '/api/extensions/reload',
+
   providers: '/api/providers',
   provider: function (id) {
     return '/api/providers/' + id;

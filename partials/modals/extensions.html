@@ -1,0 +1,256 @@
+{% from "macros.html" import hint_tooltip, icon_search, icon_chevron_down, icon_check, icon_key %}
+<div x-data="extensionsModal()" id="extensions-modal-data" class="flex flex-col gap-4 flex-1 min-h-0">
+
+  <div class="flex items-center gap-2 mb-2 shrink-0 h-8">
+    <div class="flex-1 relative">
+      <span class="absolute left-2.5 top-1/2 -translate-y-1/2 flex text-muted pointer-events-none">{{ icon_search(size=14) }}</span>
+      <input
+        type="text"
+        placeholder="Search extensions..."
+        x-model="searchQuery"
+        class="search-input text-sm w-full h-full"
+      >
+    </div>
+    <button
+      class="btn btn-secondary btn-sm flex items-center justify-center shrink-0 h-full"
+      @click="reload()"
+      x-text="reloading ? 'Reloading...' : 'Reload'"
+    ></button>
+  </div>
+
+  <div class="text-xs text-muted mb-1 shrink-0">
+    Extensions run as trusted scripts with no sandbox — verify the code before installing. They can read
+    your database and files with your privileges.
+    {{ hint_tooltip('Extensions are triggered from the message toolbar, unlike tools which the model calls mid-generation. <span class="hint-danger">Treat them like tools: only install code you trust.</span>') }}
+  </div>
+
+  <div x-show="!loaded" class="text-muted text-sm">Loading…</div>
+
+  <div class="flex-1 overflow-y-auto min-h-[360px] pr-2 scroll-fade">
+    <template x-for="(groupExtensions, category) in grouped" :key="category">
+      <div class="mb-3">
+        <div class="flex items-center gap-1 mb-1.5 cursor-pointer select-none" @click="toggleCategory(category)">
+          <span class="text-xs font-bold text-muted uppercase tracking-wider" x-text="category"></span>
+          <span
+            class="text-xs text-muted"
+            :class="openCategories[category] !== false ? 'rotate-180' : ''"
+            style="transition:transform 0.2s;display:inline-flex"
+          >{{ icon_chevron_down(12) }}</span>
+        </div>
+        <div class="flex flex-col gap-2" x-show="openCategories[category] !== false">
+          <template x-for="ext in groupExtensions" :key="ext.name">
+            <div
+              class="p-2 rounded-md"
+              style="background:var(--surface-2);border:1px solid var(--border)"
+              :class="!enabled(ext.name) ? 'opacity-60' : ''"
+            >
+              <div class="flex items-center justify-between gap-1">
+                <div class="flex items-center gap-1.5 min-w-0">
+                  <span
+                    x-show="ext.icon"
+                    x-html="ext.icon"
+                    class="ext-icon w-4 h-4 shrink-0 text-muted"
+                  ></span>
+                  <div class="text-xs font-bold truncate" x-text="ext.name"></div>
+                </div>
+                <div
+                  class="arranger-toggle shrink-0"
+                  role="switch"
+                  tabindex="0"
+                  :class="{ 'active': enabled(ext.name) }"
+                  @click="toggle(ext.name)"
+                ></div>
+              </div>
+              <div class="text-xs text-muted mt-1 leading-snug" x-text="ext.description"></div>
+              <div class="flex flex-wrap gap-1 mt-1">
+                <template x-for="trig in ext.triggers" :key="trig">
+                  <span
+                    class="text-xs px-1 py-0.5 rounded leading-tight"
+                    style="background:var(--surface-3);color:var(--text-muted)"
+                    x-text="trig"
+                  ></span>
+                </template>
+              </div>
+
+              <div x-show="ext.params && ext.params.length" class="mt-2">
+                <button
+                  class="text-xs font-bold flex items-center gap-1 cursor-pointer"
+                  style="color:var(--accent)"
+                  @click="toggleConfig(ext.name)"
+                >
+                  <span :class="openConfigs[ext.name] ? 'rotate-180' : ''" style="transition:transform 0.2s;display:inline-flex">{{ icon_chevron_down(10) }}</span>
+                  Configure
+                </button>
+                <div x-show="openConfigs[ext.name]" x-cloak class="mt-2 flex flex-col gap-2">
+                  <template x-for="p in ext.params" :key="p.name">
+                    <div class="flex items-center gap-2">
+                      <label class="text-xs text-muted w-40 shrink-0" x-text="(p.description || p.name)"></label>
+                      <template x-if="p.type === 'boolean'">
+                        <div
+                          class="arranger-toggle shrink-0"
+                          role="switch"
+                          tabindex="0"
+                          :class="{ 'active': !!configs[ext.name][p.name] }"
+                          @click="configs[ext.name][p.name] = !configs[ext.name][p.name]"
+                        ></div>
+                      </template>
+                      <template x-if="p.type === 'string' && p.enum && p.enum.length">
+                        <select
+                          class="form-control flex-1"
+                          x-model="configs[ext.name][p.name]"
+                        >
+                          <template x-for="opt in p.enum" :key="opt">
+                            <option :value="opt" x-text="opt"></option>
+                          </template>
+                        </select>
+                      </template>
+                      <template x-if="p.type !== 'boolean' && !(p.type === 'string' && p.enum && p.enum.length)">
+                        <input
+                          class="form-control flex-1"
+                          :type="p.type === 'integer' || p.type === 'number' ? 'number' : (p.type === 'array' ? 'text' : 'text')"
+                          x-model="configs[ext.name][p.name]"
+                          :placeholder="p.default != null ? String(p.default) : ''"
+                        >
+                      </template>
+                    </div>
+                  </template>
+                  <div class="flex justify-end mt-1">
+                    <button class="btn btn-primary btn-sm" @click="saveConfig(ext.name)">Save</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </template>
+
+    <div x-show="loaded && overallCount === 0" class="text-muted text-sm">No extensions found. Drop a <code>.json</code> spec + script into <code>extensions/</code>.</div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('alpine:init', function () {
+  Alpine.data('extensionsModal', function () {
+    return {
+      extensions: [],
+      states: {},
+      configs: {},
+      openCategories: {},
+      openConfigs: {},
+      searchQuery: '',
+      reloading: false,
+      loaded: false,
+
+      get overallCount() { return this.extensions.length; },
+
+      get grouped() {
+        var q = (this.searchQuery || '').toLowerCase();
+        var filtered = this.extensions.filter(function (e) {
+          if (!q) return true;
+          return e.name.toLowerCase().indexOf(q) !== -1
+            || (e.description || '').toLowerCase().indexOf(q) !== -1;
+        });
+        var groups = {};
+        filtered.forEach(function (e) {
+          if (!groups[e.category]) groups[e.category] = [];
+          groups[e.category].push(e);
+        });
+        return groups;
+      },
+
+      enabled: function (name) { return this.states[name] === true; },
+
+      init: function () {
+        var self = this;
+        var chatId = StateManager.get('chat_id');
+        var p1 = fetch('/api/extensions')
+          .then(function (r) { return r.json(); })
+          .then(function (data) { self.extensions = data; self._loadConfigs(); });
+        var p2 = chatId
+          ? fetch('/api/chats/' + chatId + '/extensions')
+              .then(function (r) { return r.json(); })
+              .then(function (data) { self.states = data.states || {}; })
+              .catch(function () {})
+          : Promise.resolve();
+        Promise.all([p1, p2]).then(function () { self.loaded = true; });
+      },
+
+      _loadConfigs: function () {
+        var self = this;
+        fetch('/api/extensions/config')
+          .then(function (r) { return r.json(); })
+          .then(function (cfg) {
+            self.extensions.forEach(function (e) {
+              var defaults = {};
+              (e.params || []).forEach(function (p) { defaults[p.name] = p.default; });
+              self.configs[e.name] = Object.assign({}, defaults, cfg[e.name] || {});
+            });
+          });
+      },
+
+      toggle: function (name) {
+        var self = this;
+        var next = this.states[name] !== true;
+        this.states[name] = next;
+        var chatId = StateManager.get('chat_id');
+        if (!chatId) return;
+        var body = {};
+        body[name] = next;
+        fetch('/api/chats/' + chatId + '/extensions', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ states: body }),
+        }).then(function (r) {
+          if (!r.ok) throw new Error('Failed to update extension state');
+          if (window.refreshChatMessages) window.refreshChatMessages(chatId);
+          if (window.showSuccessToast) window.showSuccessToast((next ? 'Enabled ' : 'Disabled ') + name);
+        }).catch(function (e) {
+          self.states[name] = !next;
+          if (window.showErrorToast) window.showErrorToast(e.message || 'Failed to update extension state');
+        });
+      },
+
+      toggleCategory: function (category) {
+        this.openCategories[category] = this.openCategories[category] !== false ? false : true;
+      },
+
+      toggleConfig: function (name) {
+        this.openConfigs[name] = this.openConfigs[name] !== false ? false : true;
+      },
+
+      saveConfig: function (name) {
+        var self = this;
+        fetch('/api/extensions/' + encodeURIComponent(name) + '/config', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(this.configs[name] || {}),
+        }).then(function (r) {
+          if (!r.ok) throw new Error('Save failed');
+          window.showSuccessToast('Saved ' + name + ' config');
+        }).catch(function (e) {
+          window.showErrorToast(e.message);
+        });
+      },
+
+      reload: function () {
+        var self = this;
+        var timer = setTimeout(function () { self.reloading = true; }, 200);
+        fetch('/api/extensions/reload', { method: 'POST' })
+          .then(function () { return fetch('/api/extensions'); })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            clearTimeout(timer);
+            self.extensions = data;
+            self.reloading = false;
+            self._loadConfigs();
+          })
+          .catch(function () {
+            clearTimeout(timer);
+            self.reloading = false;
+          });
+      },
+    };
+  });
+});
+</script>

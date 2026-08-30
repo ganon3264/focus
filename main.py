@@ -19,6 +19,7 @@ from focus.routers import (
     characters,
     chats,
     exchange,
+    extensions,
     pages,
     personas,
     presets,
@@ -150,6 +151,7 @@ app.include_router(settings.router, prefix="/api/settings", tags=["settings"])
 app.include_router(themes.router, prefix="/api/themes", tags=["themes"])
 app.include_router(tools.router, prefix="/api", tags=["tools"])
 app.include_router(exchange.router, prefix="/api", tags=["import-export"])
+app.include_router(extensions.router, prefix="/api", tags=["extensions"])
 
 app.mount("/assets", RevalidatedStaticFiles(directory="assets"), name="assets")
 app.mount("/static", RevalidatedStaticFiles(directory="static"), name="static")

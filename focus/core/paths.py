@@ -15,3 +15,4 @@ BLOCKS_DIR = ASSETS_DIR / "blocks"
 TOOL_ASSETS_DIR = ASSETS_DIR / "tool"
 
 TOOLS_DIR = Path("tools")
+EXTENSIONS_DIR = Path("extensions")

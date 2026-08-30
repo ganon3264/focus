@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import icon_edit, icon_trash, icon_refresh, icon_music, icon_plug, icon_search, icon_list, icon_database, icon_paperclip, icon_plus, icon_stop, icon_send, icon_chat, icon_close, icon_chevron_left, icon_chevron_right, icon_sliders, icon_character, icon_masks, icon_stack, icon_palette, icon_hammer, hint_tooltip %}
+{% from "macros.html" import icon_edit, icon_trash, icon_refresh, icon_music, icon_plug, icon_extensions, icon_search, icon_list, icon_database, icon_paperclip, icon_plus, icon_stop, icon_send, icon_chat, icon_close, icon_chevron_left, icon_chevron_right, icon_sliders, icon_character, icon_masks, icon_stack, icon_palette, icon_hammer, hint_tooltip %}
 {% from "modal-shell.html" import modal_shell %}
 {% block title %}Chat - Focus{% endblock %}
 {% block head_theme_state %}
@@ -24,6 +24,10 @@ window.THEME_STATE = {{ theme_state | tojson | safe }};
 
 {% call modal_shell('modal-tools', 'Tool Calls', max_width='700px', content_style='display:flex;flex-direction:column;overflow:hidden;') %}
 {% include "modals/tools.html" %}
+{% endcall %}
+
+{% call modal_shell('modal-extensions', 'Extensions', max_width='700px', content_style='display:flex;flex-direction:column;overflow:hidden;') %}
+{% include "modals/extensions.html" %}
 {% endcall %}
 
 {% call modal_shell('modal-itemizer', 'Prompt Itemizer', max_width='700px', content_style='display:flex;flex-direction:column;height:80vh;') %}
@@ -376,4 +380,5 @@ window.APP_PROVIDERS = {{ providers | tojson | safe }};
 
 <script src="/static/js/ui/status-panel.js"></script>
 <script src="/static/js/messages/message-pruner.js"></script>
+<script src="/static/js/features/extensions.js"></script>
 {% endblock %}

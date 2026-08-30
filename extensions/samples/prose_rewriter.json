@@ -1,0 +1,20 @@
+{
+  "name": "prose_rewriter",
+  "description": "Rewrite the AI's reply with a local prose-rewriter model (llama.cpp text completion)",
+  "command": ["python3", "extensions/samples/prose_rewriter.py"],
+  "timeout": 120,
+  "category": "Writing",
+  "icon": "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 20h9'/><path d='M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z'/></svg>",
+  "roles": ["assistant"],
+  "needs": ["message"],
+  "triggers": ["manual", "generation_end"],
+  "params": [
+    {"name": "base_url", "type": "string", "description": "llama.cpp server base URL", "default": "http://localhost:8080"},
+    {"name": "mode", "type": "string", "description": "edit block (see model card): match/inflate/compress", "default": "match", "enum": ["match", "inflate", "compress"]},
+    {"name": "max_tokens", "type": "integer", "description": "n_predict", "default": 512},
+    {"name": "temperature", "type": "number", "default": 0.9},
+    {"name": "top_p", "type": "number", "default": 0.9},
+    {"name": "min_words", "type": "integer", "description": "Below this the model pads/invents — pass through", "default": 15},
+    {"name": "min_bytes", "type": "integer", "description": "Byte floor — pass through below this", "default": 80}
+  ]
+}
