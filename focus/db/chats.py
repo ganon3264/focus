@@ -163,6 +163,40 @@ def _reasoning_from_segments(segments: list[dict]) -> str | None:
     return text or None
 
 
+def _load_source_segments(segments_json: str | None) -> list[dict] | None:
+    """Parse the stored segment list, or return ``None`` when unusable."""
+    if not segments_json:
+        return None
+    try:
+        segments = json.loads(segments_json)
+    except (TypeError, ValueError):
+        return None
+    return segments if isinstance(segments, list) and segments else None
+
+
+def _merge_text_into_segments(segments: list[dict], content: str) -> list[dict]:
+    """Clone *segments*, replacing the text portion with *content*, preserving structure.
+
+    Text and structure are interleaved, so a single flat *content* can only occupy
+    the first text slot; later text segments are dropped. Structural segments
+    (reasoning, tool_boundary) are kept verbatim so a content-only rewrite never
+    loses them. Extensions that need exact per-slot text ordering must supply
+    ``segments`` directly.
+    """
+    out: list[dict] = []
+    replaced = False
+    for seg in segments:
+        if seg.get("type") == "text":
+            if not replaced:
+                out.append({"type": "text", "content": content})
+                replaced = True
+        else:
+            out.append(seg)
+    if not replaced:
+        out.append({"type": "text", "content": content})
+    return out
+
+
 async def edit_message_create_variant(
     db: aiosqlite.Connection,
     chat_id: str,
@@ -181,12 +215,18 @@ async def edit_message_create_variant(
         raise HTTPException(404, "Message not found")
 
     async with db.execute(
-        "SELECT mv.id, mv.model_name FROM message_variants mv JOIN messages m ON m.active_index = mv.variant_index WHERE mv.message_id = ? AND m.id = ?",
+        "SELECT mv.id, mv.model_name, mv.segments_json, mv.variant_meta FROM message_variants mv JOIN messages m ON m.active_index = mv.variant_index WHERE mv.message_id = ? AND m.id = ?",
         (message_id, message_id),
     ) as cur:
         prev = await cur.fetchone()
     prev_variant_id = prev["id"] if prev else None
     prev_model = prev["model_name"] if prev else None
+    source_meta: dict = {}
+    if prev and prev["variant_meta"]:
+        try:
+            source_meta = json.loads(prev["variant_meta"])
+        except (TypeError, ValueError):
+            source_meta = {}
 
     async with db.execute("SELECT MAX(variant_index) FROM message_variants WHERE message_id = ?", (message_id,)) as cur:
         max_row = await cur.fetchone()
@@ -194,18 +234,32 @@ async def edit_message_create_variant(
     now = now_iso()
     new_variant_id = str(uuid.uuid4())
 
+    # Resolve the authoritative segment list. Structure is always preserved:
+    # explicit segments win; otherwise we clone the source's segments and swap
+    # only the text, so reasoning + tool boundaries are never dropped.
     if segments is not None:
-        new_content = "\n".join(
-            seg.get("content", "") for seg in segments if seg.get("type") == "text"
-        )
-        reasoning_text = _reasoning_from_segments(segments)
-        variant_meta = json.dumps({"reasoning": reasoning_text}) if reasoning_text else None
-        _segments_json = json.dumps(segments) if segments else None
+        resolved = segments
     else:
-        new_content = content
-        variant_meta = json.dumps({"reasoning": reasoning}) if reasoning else None
-        _segments = render_message_segments(content, variant_meta)
-        _segments_json = json.dumps(_segments) if _segments else None
+        src_segments = _load_source_segments(prev["segments_json"]) if prev else None
+        if src_segments and any(
+            s.get("type") in ("reasoning", "tool_boundary") for s in src_segments
+        ):
+            resolved = _merge_text_into_segments(src_segments, content)
+        else:
+            vm = {"reasoning": reasoning} if reasoning else None
+            resolved = render_message_segments(content, json.dumps(vm) if vm else None)
+
+    new_content = "\n".join(
+        seg.get("content", "") for seg in resolved if seg.get("type") == "text"
+    )
+    reason_text = _reasoning_from_segments(resolved)
+    meta = dict(source_meta)
+    if reason_text:
+        meta["reasoning"] = reason_text
+    else:
+        meta.pop("reasoning", None)
+    variant_meta = json.dumps(meta) if meta else None
+    _segments_json = json.dumps(resolved) if resolved else None
 
     await db.execute(
         "INSERT INTO message_variants (id, message_id, variant_index, content, created_at, model_name, variant_meta, segments_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",

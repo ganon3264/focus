@@ -1,9 +1,16 @@
 import asyncio
+import json
 import os
+import uuid
+from datetime import UTC, datetime
 
 import aiosqlite
 
 from tests.helpers import create_character, create_chat, create_persona
+
+
+def _now_iso() -> str:
+    return datetime.now(UTC).isoformat()
 
 
 class _FakeProvider:
@@ -69,6 +76,66 @@ class TestExtensionsApi:
         # The rewritten content is now the active variant (a new swipe).
         resp = await client.get(f"/api/chats/{chat['id']}/messages/{msg['id']}")
         assert resp.json()["content"] == "HELLO WORLD"
+
+    async def test_rewrite_preserves_reasoning_and_tool_calls(self, client, tmp_test_dir):
+        """A content-only rewrite over a message with reasoning + tool calls keeps
+        both, because the variant is cloned from the source (segments + meta)."""
+        char = await create_character(client, "Char", first_mes="Hello world")
+        chat = await create_chat(client, character_id=char["id"])
+        msg = (await client.get(f"/api/chats/{chat['id']}")).json()["messages"][0]
+
+        db_path = _db_path(tmp_test_dir)
+        async with aiosqlite.connect(db_path) as db:
+            db.row_factory = aiosqlite.Row
+            cur = await db.execute(
+                "SELECT id FROM message_variants WHERE message_id = ? AND variant_index = 0",
+                (msg["id"],),
+            )
+            variant_id = (await cur.fetchone())["id"]
+            await db.execute(
+                """INSERT INTO tool_calls
+                   (id, chat_id, message_id, variant_id, tool_name, arguments, result, is_error, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (str(uuid.uuid4()), chat["id"], msg["id"], variant_id,
+                 "read_file", '{"path": "/x"}', "contents", 0, _now_iso()),
+            )
+            await db.execute(
+                "UPDATE message_variants SET segments_json = ?, variant_meta = ? WHERE id = ?",
+                (
+                    json.dumps([
+                        {"type": "text", "content": "before"},
+                        {"type": "tool_boundary", "tool_calls": [{
+                            "id": "call_1", "type": "function",
+                            "function": {"name": "read_file", "arguments": '{"path": "/x"}'},
+                            "result": "contents", "is_error": False,
+                        }]},
+                        {"type": "reasoning", "html": "source thinking", "index": 0},
+                        {"type": "text", "content": "after"},
+                    ]),
+                    json.dumps({"reasoning": "source thinking"}),
+                    variant_id,
+                ),
+            )
+            await db.commit()
+
+        await client.put(
+            f"/api/chats/{chat['id']}/extensions",
+            json={"states": {"caps_rewrite": True}},
+        )
+        resp = await client.post(
+            "/api/extensions/caps_rewrite/run",
+            json={"chat_id": chat["id"], "message_id": msg["id"]},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["swipe_created"] is True
+
+        got = (await client.get(f"/api/chats/{chat['id']}/messages/{msg['id']}")).json()
+        assert got["reasoning"] == "source thinking", "reasoning must survive the rewrite"
+        assert got["tool_calls"], "tool calls must survive the rewrite"
+        assert got["tool_calls"][0]["function"]["name"] == "read_file"
+        seg_types = [s["type"] for s in got["segments"]]
+        assert "tool_boundary" in seg_types
+        assert "reasoning" in seg_types
 
     async def test_read_text_returns_content(self, client):
         char = await create_character(client, "Char", first_mes="Speak this")

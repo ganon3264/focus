@@ -165,6 +165,71 @@ class TestEditMessage:
             count = (await cur.fetchone())[0]
         assert count == 2, "original + copied tool_calls rows"
 
+    async def test_edit_content_only_preserves_reasoning_and_tool_calls(self, client, tmp_test_dir):
+        """A content-only rewrite (no segments, no reasoning) keeps the source's
+        reasoning + tool calls: structure is cloned from the source variant so it
+        is never rebuilt from a flat string."""
+        chat, _, asst_id = await _chat_with_messages(client, _db_path(tmp_test_dir))
+        db_path = _db_path(tmp_test_dir)
+
+        async with aiosqlite.connect(db_path) as db:
+            db.row_factory = aiosqlite.Row
+            cur = await db.execute(
+                "SELECT id FROM message_variants WHERE message_id = ? AND variant_index = 0",
+                (asst_id,),
+            )
+            variant_id = (await cur.fetchone())["id"]
+            await db.execute(
+                """INSERT INTO tool_calls
+                   (id, chat_id, message_id, variant_id, tool_name, arguments, result, is_error, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (str(uuid.uuid4()), chat["id"], asst_id, variant_id,
+                 "read_file", '{"path": "/x"}', "contents", 0, _now_iso()),
+            )
+            await db.execute(
+                "UPDATE message_variants SET segments_json = ?, variant_meta = ? WHERE id = ?",
+                (
+                    json.dumps([
+                        {"type": "text", "content": "before"},
+                        {"type": "tool_boundary", "tool_calls": [{
+                            "id": "call_1",
+                            "type": "function",
+                            "function": {"name": "read_file", "arguments": '{"path": "/x"}'},
+                            "result": "contents",
+                            "is_error": False,
+                        }]},
+                        {"type": "reasoning", "html": "source thinking", "index": 0},
+                        {"type": "text", "content": "after"},
+                    ]),
+                    json.dumps({"reasoning": "source thinking"}),
+                    variant_id,
+                ),
+            )
+            await db.commit()
+
+        # Flat content-only rewrite — no segments, no reasoning echoed back.
+        resp = await client.patch(
+            f"/api/chats/{chat['id']}/messages/{asst_id}",
+            json={"content": "REWRITTEN", "attachment_ids": []},
+        )
+        assert resp.status_code == 200
+
+        msg = await client.get(f"/api/chats/{chat['id']}/messages/{asst_id}")
+        data = msg.json()
+        assert data["content"] == "REWRITTEN"
+        assert data["reasoning"] == "source thinking", "reasoning must survive the rewrite"
+        assert data["tool_calls"], "tool_calls must survive the rewrite"
+        assert data["tool_calls"][0]["function"]["name"] == "read_file"
+        seg_types = [s["type"] for s in data["segments"]]
+        assert "tool_boundary" in seg_types, "tool_boundary segment must be preserved"
+        assert "reasoning" in seg_types, "reasoning segment must be preserved"
+
+        async with aiosqlite.connect(db_path) as db:
+            db.row_factory = aiosqlite.Row
+            cur = await db.execute("SELECT COUNT(*) FROM tool_calls WHERE message_id = ?", (asst_id,))
+            count = (await cur.fetchone())[0]
+        assert count == 2, "original + copied tool_calls rows"
+
     async def test_edit_binds_and_copies_attachments(self, client, tmp_test_dir):
         chat, _, asst_id = await _chat_with_messages(client, _db_path(tmp_test_dir))
         upload = await client.post(

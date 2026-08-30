@@ -67,6 +67,60 @@ class TestRealExtension:
         assert out["content"] == "Short."
         assert out["status"] == "done"
 
+    def test_prose_rewriter_segments_preserve_structure(self):
+        import json as _json
+        import subprocess
+        import threading
+        from http.server import BaseHTTPRequestHandler, HTTPServer
+
+        class _Probe(BaseHTTPRequestHandler):
+            def do_POST(self):
+                n = int(self.headers.get("Content-Length", 0))
+                self.rfile.read(n)
+                payload = _json.dumps({"content": "REWRITTEN <|im_end|>"}).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(payload)))
+                self.end_headers()
+                self.wfile.write(payload)
+
+            def log_message(self, *args):
+                pass
+
+        server = HTTPServer(("127.0.0.1", 0), _Probe)
+        port = server.server_address[1]
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            spec = find_extension("prose_rewriter")
+            env = {
+                "target": {
+                    "content": "This is a long enough first sentence to clear the floor. " + "It goes on here for a bit more so it definitely crosses the byte limit.",
+                    "segments": [
+                        {"type": "text", "content": "This is a long enough first sentence to clear the floor. It goes on here for a bit more so it definitely crosses the byte limit."},
+                        {"type": "tool_boundary", "tool_calls": [{
+                            "id": "call_1", "type": "function",
+                            "function": {"name": "read_file", "arguments": "{}"},
+                            "result": "contents", "is_error": False,
+                        }]},
+                        {"type": "text", "content": "And here is a second text segment that is also long enough to be rewritten on its own."},
+                    ],
+                },
+                "config": {"base_url": f"http://127.0.0.1:{port}"},
+            }
+            proc = subprocess.run(spec.command, input=_json.dumps(env), capture_output=True, text=True, timeout=30)
+            assert proc.returncode == 0
+            out = _json.loads(proc.stdout)
+            assert out["status"] == "done"
+            assert out["action"]["type"] == "create_swipe"
+            segs = out["action"]["segments"]
+            assert [s["type"] for s in segs] == ["text", "tool_boundary", "text"]
+            assert segs[0]["content"] == "REWRITTEN"
+            assert segs[1]["tool_calls"], "tool boundary must be preserved verbatim"
+            assert segs[2]["content"] == "REWRITTEN"
+        finally:
+            server.shutdown()
+
     def test_prose_rewriter_calls_llamacpp_completion(self):
         import json as _json
         import subprocess

@@ -132,8 +132,25 @@ Return **one JSON object on stdout**. Non-JSON stdout is treated as plain text c
 
 | `action.type` | Effect |
 |---|---|
-| `create_swipe` | Write a **new variant** (a swipe) of `message_id` with `content`. The rewrite case. |
+| `create_swipe` | Write a **new variant** (a swipe) of `message_id`. The rewrite case. |
 | *(none)* | If `files` are present they are attached to the target message. The TTS case. |
+
+#### Rewriting preserves structure
+
+A rewrite variant is a **clone of the source message**, not a fresh rebuild. The
+source's reasoning and tool calls (and their position in the message) are always
+carried over — they are never dropped or flattened.
+
+- With **`action.content` only** (the simple case) the rewritten text replaces the
+  source's spoken text. Single-text messages are exact. If the source interleaves
+  text around a tool call or reasoning block, the structure is kept but the text is
+  consolidated into the first text slot (the source's ordering of tool calls and
+  reasoning is preserved).
+- With **`action.segments`** you take full control: copy `target.segments`, rewrite
+  each `text` segment in place, and return them. This is the exact path for messages
+  that interleave text with tool calls / reasoning (e.g. `[text][tool][text]`), and
+  is what makes a rewrite behave like a hand-edit. Non-`text` segments (reasoning,
+  tool_boundary) stay just as they were.
 
 ### `files`
 
