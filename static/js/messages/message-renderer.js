@@ -1,7 +1,11 @@
 window.escapeHtml = function (text) {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
+  // Escape for both text and (double-quoted) attribute contexts: & < > " '
+  return String(text == null ? '' : text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 };
 
 window.extractThoughtsSafely = function (text) {

@@ -74,7 +74,7 @@
       img.addEventListener('click', function () { window.openLightbox(img.src); });
       avatar.appendChild(img);
     } else {
-      avatar.textContent = window.escapeHtml((charName || 'A')[0]);
+      avatar.textContent = (charName || 'A')[0];
     }
     flex.appendChild(avatar);
 
@@ -85,7 +85,7 @@
     var nameEl = document.createElement('div');
     nameEl.className = 'text-sm font-medium';
     nameEl.style.cssText = 'color:var(--text)';
-    nameEl.textContent = window.escapeHtml(charName);
+    nameEl.textContent = charName;
     col.appendChild(nameEl);
 
     var meta = document.createElement('div');
@@ -128,7 +128,7 @@
       img.addEventListener('click', function () { window.openLightbox(img.src); });
       avatar.appendChild(img);
     } else {
-      avatar.textContent = window.escapeHtml((personaName || 'Y')[0]);
+      avatar.textContent = (personaName || 'Y')[0];
     }
     flex.appendChild(avatar);
 
@@ -139,7 +139,7 @@
     var nameEl = document.createElement('div');
     nameEl.className = 'text-sm font-medium';
     nameEl.style.cssText = 'color:var(--text)';
-    nameEl.textContent = window.escapeHtml(personaName);
+    nameEl.textContent = personaName;
     col.appendChild(nameEl);
 
     if (stagedFiles && stagedFiles.length > 0) {
@@ -198,14 +198,14 @@
 
     var code = document.createElement('code');
     code.className = 'font-bold';
-    code.textContent = window.escapeHtml(call.name);
+    code.textContent = call.name;
     summary.appendChild(code);
 
     var argStr = JSON.stringify(call.arguments);
     if (argStr !== '{}') {
       var argSpan = document.createElement('span');
       argSpan.className = 'truncate max-w-[300px]';
-      argSpan.textContent = window.escapeHtml(argStr);
+      argSpan.textContent = argStr;
       summary.appendChild(argSpan);
     }
 

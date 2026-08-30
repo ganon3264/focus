@@ -18,7 +18,7 @@
         name = id.dataset[cfg.nameAttr] || name;
         id = id.dataset[cfg.idAttr];
       }
-      var html = '<div class="mb-4 text-sm" style="color:var(--text);">Delete ' + cfg.entityLower + ' <strong>' + name + '</strong>?</div>' +
+      var html = '<div class="mb-4 text-sm" style="color:var(--text);">Delete ' + cfg.entityLower + ' <strong>' + window.escapeHtml(name) + '</strong>?</div>' +
         '<div class="flex flex-col gap-3">' +
         '<label class="flex items-start gap-3 cursor-pointer p-3 rounded-lg hover:bg-(--surface-3) transition-colors border border-(--border)">' +
         '<div class="mt-0.5"><input type="radio" name="' + cfg.entityLower + '_delete_option" value="soft" checked class="w-4 h-4 cursor-pointer" style="accent-color: var(--accent);"></div>' +
@@ -80,23 +80,23 @@
           } else {
             items.forEach(function (item) {
               var imgUrl = item[cfg.imageField];
-              var initial = item.name.charAt(0);
+              var initial = window.escapeHtml((item.name || '?').charAt(0));
               bodyHtml +=
                 '<div class="flex justify-between items-center p-3 border border-(--border) rounded-lg bg-(--surface-2)">' +
                 '<div class="flex items-center gap-3">' +
                 '<div class="w-10 h-10 rounded-full overflow-hidden bg-(--surface-3) flex items-center justify-center border border-(--border)">';
               if (imgUrl) {
-                bodyHtml += '<img src="/' + imgUrl + '" loading="lazy" class="w-full h-full object-cover">';
+                bodyHtml += '<img src="/' + window.escapeHtml(imgUrl) + '" loading="lazy" class="w-full h-full object-cover">';
               } else {
                 bodyHtml += '<span class="text-sm font-bold text-muted">' + initial + '</span>';
               }
               bodyHtml +=
                 '</div>' +
-                '<span class="font-bold text-sm" style="color:var(--text);">' + item.name + '</span>' +
+                '<span class="font-bold text-sm" style="color:var(--text);">' + window.escapeHtml(item.name) + '</span>' +
                 '</div>' +
                 '<div class="flex gap-2">' +
-                '<button class="btn btn-secondary btn-sm" onclick="' + fnRestore + '(\'' + item.id + '\')">Restore</button>' +
-                '<button class="btn btn-danger btn-sm" onclick="' + fnHardDelete + '(\'' + item.id + '\', \'' + item.name.replace(/'/g, "\\'") + '\')">Delete Forever</button>' +
+                '<button class="btn btn-secondary btn-sm" data-id="' + window.escapeHtml(item.id) + '" onclick="' + fnRestore + '(this)">Restore</button>' +
+                '<button class="btn btn-danger btn-sm" data-id="' + window.escapeHtml(item.id) + '" data-name="' + window.escapeHtml(item.name) + '" onclick="' + fnHardDelete + '(this)">Delete Forever</button>' +
                 '</div></div>';
             });
           }
@@ -121,7 +121,8 @@
     }
 
     // ----- restore -----
-    window[fnRestore] = function (id) {
+    window[fnRestore] = function (el) {
+      var id = el.dataset ? el.dataset.id : el;
       function doRestore(restoreChats) {
         var url = cfg.apiBase + '/' + id + '/restore';
         if (restoreChats !== undefined) {
@@ -173,9 +174,11 @@
     };
 
     // ----- hardDelete -----
-    window[fnHardDelete] = function (id, name) {
+    window[fnHardDelete] = function (el) {
+      var id = el.dataset ? el.dataset.id : el;
+      var name = el.dataset ? el.dataset.name : '';
       window.customConfirm(
-        'Permanently delete <strong>' + name + '</strong>? This cannot be undone.',
+        'Permanently delete <strong>' + window.escapeHtml(name) + '</strong>? This cannot be undone.',
         function () {
           fetch(cfg.apiBase + '/' + id + '?hard=true', { method: 'DELETE' }).then(function (r) {
             if (r.ok) {

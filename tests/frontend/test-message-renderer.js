@@ -51,6 +51,8 @@ eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'messages'
   assertEqual(window.escapeHtml('plain text'), 'plain text', 'escapeHtml leaves plain text');
   assertEqual(window.escapeHtml(''), '', 'escapeHtml handles empty string');
   assertEqual(window.escapeHtml('a & b'), 'a &amp; b', 'escapeHtml escapes ampersands');
+  assertEqual(window.escapeHtml("it's a 'test'"), 'it&#39;s a &#39;test&#39;', 'escapeHtml escapes single quotes');
+  assertEqual(window.escapeHtml(null), '', 'escapeHtml handles null');
 })();
 
 // ── extractThoughtsSafely — no thoughts ──
