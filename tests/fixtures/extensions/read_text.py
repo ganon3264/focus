@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
-"""Demo extension: read the ``text`` segments of the target message.
+"""Test fixture: read the ``text`` segments of the target message.
 
-This is the read side of the contract — no model, no network. Swap the body
-for a real TTS engine (edge-tts, etc.) and return a ``files`` entry for audio.
+Exercises the read side of the contract. Not a shipped sample.
 """
 import json
 import sys

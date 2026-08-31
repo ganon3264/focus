@@ -3,10 +3,28 @@ import json
 import os
 import uuid
 from datetime import UTC, datetime
+from pathlib import Path
 
 import aiosqlite
+import pytest
 
+import focus.extensions.loader as ext_loader
 from tests.helpers import create_character, create_chat, create_persona
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _use_test_fixture_extensions():
+    """Point the extension loader at tests/fixtures/extensions.
+
+    caps_rewrite / attach_note / read_text are test-only vehicles for the extension
+    framework — they are not shipped samples, so they live under tests/.
+    """
+    original = ext_loader.EXTENSIONS_DIR
+    ext_loader.EXTENSIONS_DIR = Path("tests/fixtures/extensions").resolve()
+    ext_loader._cache = None
+    yield
+    ext_loader.EXTENSIONS_DIR = original
+    ext_loader._cache = None
 
 
 def _now_iso() -> str:

@@ -236,65 +236,18 @@ via llama.cpp's raw **text completion** endpoint (`/completion`), *not* the Open
 compat route — its template uses `source`/`edit` roles no chat API models have. The
 extension is wired to `generation_end` so every reply is auto-rewritten as a swipe.
 
-```json
-{
-  "name": "prose_rewriter",
-  "description": "Rewrite the AI's reply with a local prose-rewriter model (llama.cpp text completion)",
-  "command": ["python3", "extensions/prose_rewriter.py"],
-  "category": "Writing",
-  "roles": ["assistant"],
-  "needs": ["message"],
-  "triggers": ["manual", "generation_end"],
-  "params": [
-    {"name": "base_url", "type": "string", "default": "http://localhost:8080"},
-    {"name": "mode", "type": "string", "default": "match", "enum": ["match", "inflate", "compress"]},
-    {"name": "max_tokens", "type": "integer", "default": 512},
-    {"name": "temperature", "type": "number", "default": 0.9},
-    {"name": "top_p", "type": "number", "default": 0.9},
-    {"name": "min_words", "type": "integer", "default": 15},
-    {"name": "min_bytes", "type": "integer", "default": 80}
-  ]
-}
-```
+The model breaks down on long input, so the sample never feeds a reply whole: it splits
+into paragraphs (blank-line separated) and rewrites each sequentially, sub-chunks any single
+paragraph over `max_chunk_chars` at **sentence boundaries**, and leaves fenced code blocks
+untouched. Paragraph separators are preserved when it rejoins; set `split: false` for a
+single whole-reply pass. Key config:
 
-```python
-#!/usr/bin/env python3
-import json, sys, urllib.request
+- `base_url` — llama.cpp server URL
+- `mode` — `match` | `inflate` | `compress`
+- `max_tokens`, `temperature`, `top_p` — completion params
+- `min_words`, `min_bytes` — pass-through floor (the model pads/invents on short input)
+- `max_chunk_chars` — split budget for a single rewrite call
+- `split` — `true` to rewrite paragraph-by-paragraph, `false` for a single pass
 
-req = json.load(sys.stdin)
-cfg = req.get("config", {})
-text = (req["target"].get("content") or "").strip()
-
-base_url = (cfg.get("base_url") or "http://localhost:8080").rstrip("/")
-mode = cfg.get("mode", "match")
-max_tokens = int(cfg.get("max_tokens", 512))
-
-# The model pads and invents on short input — pass through unchanged.
-if len(text) < int(cfg.get("min_bytes", 80)) or len(text.split()) < int(cfg.get("min_words", 15)):
-    print(json.dumps({"status": "done", "content": text,
-                      "logs": [{"level": "info", "message": "input too short — left unchanged"}]}))
-    sys.exit(0)
-
-prompt = ("<|im_start|>source\n" + text + "<|im_end|>\n"
-          "<|im_start|>edit\n" + mode + "<|im_end|>\n"
-          "<|im_start|>rewrite\n")
-
-body = {"prompt": prompt, "n_predict": max_tokens,
-        "temperature": float(cfg.get("temperature", 0.9)),
-        "top_p": float(cfg.get("top_p", 0.9)),
-        "stop": ["<|im_end|>"]}
-http_req = urllib.request.Request(base_url + "/completion",
-    data=json.dumps(body).encode(), headers={"Content-Type": "application/json"}, method="POST")
-with urllib.request.urlopen(http_req, timeout=120) as resp:
-    out = json.loads(resp.read())
-
-completion = (out.get("content") or "").strip()
-if completion.endswith("<|im_end|>"):
-    completion = completion[:-len("<|im_end|>")].strip()
-
-print(json.dumps({
-    "status": "done",
-    "action": {"type": "create_swipe", "content": completion},
-    "logs": [{"level": "success", "message": f"Rewrote reply ({mode}) with prose-rewriter"}],
-}))
-```
+See `extensions/samples/prose_rewriter.py` and `prose_rewriter.json` for the working
+implementation.

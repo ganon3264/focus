@@ -95,14 +95,32 @@
                         ></div>
                       </template>
                       <template x-if="p.type === 'string' && p.enum && p.enum.length">
-                        <select
-                          class="form-control flex-1"
-                          x-model="configs[ext.name][p.name]"
-                        >
-                          <template x-for="opt in p.enum" :key="opt">
-                            <option :value="opt" x-text="opt"></option>
-                          </template>
-                        </select>
+                        <div class="relative flex-1" x-data="{ open: false }" @click.away="open = false">
+                          <button
+                            type="button"
+                            @click="open = !open"
+                            class="form-control flex items-center justify-between gap-1 text-left cursor-pointer"
+                          >
+                            <span class="truncate" x-text="configs[ext.name][p.name]"></span>
+                            <span class="text-xs text-muted inline-flex transition-transform duration-200 shrink-0" :class="open ? 'rotate-180' : ''">{{ icon_chevron_down(12) }}</span>
+                          </button>
+                          <div
+                            x-show="open"
+                            x-transition.opacity.duration.200ms
+                            class="dropdown-panel absolute top-full left-0 right-0 mt-1 z-50 max-h-60 overflow-y-auto"
+                            style="display: none;"
+                          >
+                            <template x-for="opt in p.enum" :key="opt">
+                              <div
+                                class="dropdown-item px-3 py-2 text-sm"
+                                :class="{ 'text-[var(--accent)] font-medium': configs[ext.name][p.name] === opt }"
+                                @click="configs[ext.name][p.name] = opt; open = false"
+                              >
+                                <span x-text="opt"></span>
+                              </div>
+                            </template>
+                          </div>
+                        </div>
                       </template>
                       <template x-if="p.type !== 'boolean' && !(p.type === 'string' && p.enum && p.enum.length)">
                         <input

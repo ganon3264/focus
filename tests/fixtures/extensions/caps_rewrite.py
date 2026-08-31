@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
-"""Demo extension: rewrite a message to ALL CAPS by creating a new swipe.
+"""Test fixture: rewrite a message to ALL CAPS by creating a new swipe.
 
-Shows the write side of the contract. Replace the transform with a call to an
-external model (using ``secrets`` + ``config``) for a real rewrite.
+Exercises the create_swipe write path. Not a shipped sample.
 """
 import json
 import sys

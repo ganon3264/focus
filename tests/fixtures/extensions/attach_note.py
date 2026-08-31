@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
-"""Demo extension: attach a text note to the target message.
+"""Test fixture: attach a text note to the target message.
 
-Shows the ``files`` side of the contract — a TTS extension would return an
-``audio/mpeg`` entry here instead of ``text/plain``.
+Exercises the ``files`` attachment path. Not a shipped sample.
 """
 import base64
 import json
