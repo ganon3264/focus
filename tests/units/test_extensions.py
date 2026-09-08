@@ -46,34 +46,48 @@ def _prompt_source(prompt: str) -> str:
 
 class TestExtensionSpec:
     def test_valid_spec(self):
-        spec = ExtensionSpec.model_validate({
-            "name": "x",
-            "description": "desc",
-            "command": ["python3", "x.py"],
-        })
+        spec = ExtensionSpec.model_validate(
+            {
+                "name": "x",
+                "description": "desc",
+                "command": ["python3", "x.py"],
+            }
+        )
         assert spec.roles == ["assistant"]
         assert spec.needs == ["message"]
 
     def test_rejects_bad_role(self):
         with pytest.raises(Exception):
-            ExtensionSpec.model_validate({
-                "name": "x", "description": "", "command": ["echo"],
-                "roles": ["system"],
-            })
+            ExtensionSpec.model_validate(
+                {
+                    "name": "x",
+                    "description": "",
+                    "command": ["echo"],
+                    "roles": ["system"],
+                }
+            )
 
     def test_rejects_bad_needs(self):
         with pytest.raises(Exception):
-            ExtensionSpec.model_validate({
-                "name": "x", "description": "", "command": ["echo"],
-                "needs": ["bogus"],
-            })
+            ExtensionSpec.model_validate(
+                {
+                    "name": "x",
+                    "description": "",
+                    "command": ["echo"],
+                    "needs": ["bogus"],
+                }
+            )
 
     def test_rejects_bad_param_type(self):
         with pytest.raises(Exception):
-            ExtensionSpec.model_validate({
-                "name": "x", "description": "", "command": ["echo"],
-                "params": [{"name": "p", "type": "weird"}],
-            })
+            ExtensionSpec.model_validate(
+                {
+                    "name": "x",
+                    "description": "",
+                    "command": ["echo"],
+                    "params": [{"name": "p", "type": "weird"}],
+                }
+            )
 
 
 class TestRealExtension:
@@ -86,6 +100,7 @@ class TestRealExtension:
 
     def test_prose_rewriter_script_compiles(self):
         import py_compile
+
         py_compile.compile("extensions/samples/prose_rewriter.py", doraise=True)
 
     def test_prose_rewriter_prompt_floors(self):
@@ -93,6 +108,7 @@ class TestRealExtension:
         # through unchanged rather than call the server and fabricate.
         import json as _json
         import subprocess
+
         spec = find_extension("prose_rewriter")
         proc = subprocess.run(
             spec.command,
@@ -134,15 +150,29 @@ class TestRealExtension:
             spec = find_extension("prose_rewriter")
             env = {
                 "target": {
-                    "content": "This is a long enough first sentence to clear the floor. " + "It goes on here for a bit more so it definitely crosses the byte limit.",
+                    "content": "This is a long enough first sentence to clear the floor. "
+                    + "It goes on here for a bit more so it definitely crosses the byte limit.",
                     "segments": [
-                        {"type": "text", "content": "This is a long enough first sentence to clear the floor. It goes on here for a bit more so it definitely crosses the byte limit."},
-                        {"type": "tool_boundary", "tool_calls": [{
-                            "id": "call_1", "type": "function",
-                            "function": {"name": "read_file", "arguments": "{}"},
-                            "result": "contents", "is_error": False,
-                        }]},
-                        {"type": "text", "content": "And here is a second text segment that is also long enough to be rewritten on its own."},
+                        {
+                            "type": "text",
+                            "content": "This is a long enough first sentence to clear the floor. It goes on here for a bit more so it definitely crosses the byte limit.",
+                        },
+                        {
+                            "type": "tool_boundary",
+                            "tool_calls": [
+                                {
+                                    "id": "call_1",
+                                    "type": "function",
+                                    "function": {"name": "read_file", "arguments": "{}"},
+                                    "result": "contents",
+                                    "is_error": False,
+                                }
+                            ],
+                        },
+                        {
+                            "type": "text",
+                            "content": "And here is a second text segment that is also long enough to be rewritten on its own.",
+                        },
                     ],
                 },
                 "config": {"base_url": f"http://127.0.0.1:{port}"},
@@ -189,7 +219,9 @@ class TestRealExtension:
         try:
             spec = find_extension("prose_rewriter")
             env = {
-                "target": {"content": "A paragraph long enough to clear the fifteen-word floor and the eighty-byte floor so that the model will actually run for real now."},
+                "target": {
+                    "content": "A paragraph long enough to clear the fifteen-word floor and the eighty-byte floor so that the model will actually run for real now."
+                },
                 "config": {"base_url": f"http://127.0.0.1:{port}"},
             }
             proc = subprocess.run(spec.command, input=_json.dumps(env), capture_output=True, text=True, timeout=30)
@@ -232,7 +264,10 @@ class TestRealExtension:
             spec = find_extension("prose_rewriter")
             sentence = "The quick brown fox jumps over the lazy dog."
             content = " ".join([sentence] * 60)  # one long paragraph, no blank lines
-            env = {"target": {"content": content}, "config": {"base_url": f"http://127.0.0.1:{port}", "max_chunk_chars": 1500}}
+            env = {
+                "target": {"content": content},
+                "config": {"base_url": f"http://127.0.0.1:{port}", "max_chunk_chars": 1500},
+            }
             proc = subprocess.run(spec.command, input=_json.dumps(env), capture_output=True, text=True, timeout=30)
             assert proc.returncode == 0
             out = _json.loads(proc.stdout)
@@ -288,43 +323,129 @@ class TestRealExtension:
             server.shutdown()
 
 
+class TestAudioCppTTS:
+    @staticmethod
+    def _run(spec, env):
+        proc = subprocess.run(spec.command, input=_json.dumps(env), capture_output=True, text=True, timeout=30)
+        assert proc.returncode == 0, proc.stderr
+        return _json.loads(proc.stdout)
+
+    def test_spec(self):
+        spec = find_extension("audiocpp_tts")
+        assert spec is not None
+        assert spec.category == "Voice"
+        assert spec.roles == ["assistant"]
+        assert spec.needs == ["message"]
+        assert spec.triggers == ["manual"]
+        assert spec.timeout == 300
+        assert any(p.name == "model" and p.enum for p in spec.params)
+        assert any(p.name == "voice" and p.enum for p in spec.params)
+        assert any(p.name == "text_pattern" and p.type == "string" for p in spec.params)
+        assert any(p.name == "unload_others" and p.type == "boolean" and p.default is True for p in spec.params)
+
+    def test_script_compiles(self):
+        import py_compile
+
+        py_compile.compile("extensions/samples/audiocpp_tts.py", doraise=True)
+
+    def test_requires_model(self):
+        spec = find_extension("audiocpp_tts")
+        out = self._run(
+            spec,
+            {
+                "target": {"segments": [{"type": "text", "content": "hi"}]},
+                "config": {"base_url": "http://127.0.0.1:8080"},
+            },
+        )
+        assert out["status"] == "error"
+        assert "model" in out["error"]
+
+    def test_empty_text_is_noop(self):
+        spec = find_extension("audiocpp_tts")
+        out = self._run(
+            spec,
+            {
+                "target": {"segments": [{"type": "text", "content": ""}], "content": ""},
+                "config": {"model": "pocket-tts"},
+            },
+        )
+        assert out["status"] == "done"
+        assert out.get("files", []) == []
+
+    @staticmethod
+    def _load_module():
+        import importlib.util
+
+        spec = importlib.util.spec_from_file_location("audiocpp_tts", "extensions/samples/audiocpp_tts.py")
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+
+    def test_text_pattern_quotes(self):
+        # Capture group reads just the quoted phrases.
+        assert self._load_module()._apply_pattern('He said "hello" then "world"', r'"([^"]+)"') == "hello world"
+
+    def test_text_pattern_no_group(self):
+        # Without a group the whole match is spoken.
+        assert self._load_module()._apply_pattern("use 3 then 4 tokens", r"\d+") == "3 4"
+
+    def test_text_pattern_no_match(self):
+        assert self._load_module()._apply_pattern("nothing here", r'"([^"]+)"') == ""
+
+    def test_text_pattern_invalid_raises(self):
+        with pytest.raises(Exception):
+            self._load_module()._apply_pattern("text", "([")
+
+
 class TestResultParsing:
     @pytest.mark.asyncio
     async def test_parses_json_result(self):
-        spec = ExtensionSpec.model_validate({
-            "name": "x", "description": "",
-            "command": ["python3", "-c", "print('{\"status\":\"done\",\"content\":\"hi\"}')"],
-        })
+        spec = ExtensionSpec.model_validate(
+            {
+                "name": "x",
+                "description": "",
+                "command": ["python3", "-c", 'print(\'{"status":"done","content":"hi"}\')'],
+            }
+        )
         result = await run_extension(spec, {})
         assert result.status == "done"
         assert result.content == "hi"
 
     @pytest.mark.asyncio
     async def test_plain_stdout_is_content(self):
-        spec = ExtensionSpec.model_validate({
-            "name": "x", "description": "",
-            "command": ["python3", "-c", "print('hello')"],
-        })
+        spec = ExtensionSpec.model_validate(
+            {
+                "name": "x",
+                "description": "",
+                "command": ["python3", "-c", "print('hello')"],
+            }
+        )
         result = await run_extension(spec, {})
         assert result.status == "done"
         assert result.content == "hello\n"
 
     @pytest.mark.asyncio
     async def test_nonzero_exit_is_error(self):
-        spec = ExtensionSpec.model_validate({
-            "name": "x", "description": "",
-            "command": ["python3", "-c", "import sys; sys.exit(3)"],
-        })
+        spec = ExtensionSpec.model_validate(
+            {
+                "name": "x",
+                "description": "",
+                "command": ["python3", "-c", "import sys; sys.exit(3)"],
+            }
+        )
         result = await run_extension(spec, {})
         assert result.status == "error"
         assert "exit code 3" in result.error
 
     @pytest.mark.asyncio
     async def test_error_key_marks_error(self):
-        spec = ExtensionSpec.model_validate({
-            "name": "x", "description": "",
-            "command": ["python3", "-c", "print('{\"error\":\"boom\"}')"],
-        })
+        spec = ExtensionSpec.model_validate(
+            {
+                "name": "x",
+                "description": "",
+                "command": ["python3", "-c", 'print(\'{"error":"boom"}\')'],
+            }
+        )
         result = await run_extension(spec, {})
         assert result.status == "error"
         assert result.error == "boom"
@@ -333,8 +454,10 @@ class TestResultParsing:
     async def test_bad_action_type_kept_for_validation_but_ignored(self):
         # Unknown action types are accepted by the model (deferred to apply_actions),
         # so a spec that returns one should still validate.
-        result = ExtensionResult.model_validate({
-            "status": "done",
-            "action": {"type": "unknown_future_action", "content": "x"},
-        })
+        result = ExtensionResult.model_validate(
+            {
+                "status": "done",
+                "action": {"type": "unknown_future_action", "content": "x"},
+            }
+        )
         assert result.action.type == "unknown_future_action"

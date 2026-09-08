@@ -109,6 +109,9 @@ class ExtensionResult(BaseModel):
     action: ExtensionAction | None = None
     files: list[ExtensionFile] = Field(default_factory=list)
     logs: list[ExtensionLog] = Field(default_factory=list)
+    # When False, returned files are NOT persisted as message attachments — they
+    # are handed to the client for immediate consumption (e.g. playing audio).
+    attach: bool = True
 
     @field_validator("status")
     @classmethod

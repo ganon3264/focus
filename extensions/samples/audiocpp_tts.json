@@ -1,0 +1,74 @@
+{
+  "name": "audiocpp_tts",
+  "description": "Read the assistant's reply aloud using an audio.cpp server (/v1/audio/speech)",
+  "command": [
+    "python3",
+    "extensions/samples/audiocpp_tts.py"
+  ],
+  "timeout": 300,
+  "category": "Voice",
+  "icon": "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M11 5 6 9H2v6h4l5 4z'/><path d='M15.54 8.46a5 5 0 0 1 0 7.07'/><path d='M19.07 4.93a10 10 0 0 1 0 14.14'/></svg>",
+  "roles": [
+    "assistant"
+  ],
+  "needs": [
+    "message"
+  ],
+  "triggers": [
+    "manual"
+  ],
+  "params": [
+    {
+      "name": "base_url",
+      "type": "string",
+      "description": "audio.cpp server base URL",
+      "default": "http://localhost:8081"
+    },
+    {
+      "name": "model",
+      "type": "string",
+      "description": "Model id registered on the audio.cpp server",
+      "default": "dots_tts_soar_q8_0",
+      "enum": [
+        "dots_tts_soar_q8_0",
+        "dots_tts_mf_q8_0"
+      ]
+    },
+    {
+      "name": "voice",
+      "type": "string",
+      "description": "Voice id (leave blank to use the server default)",
+      "default": "demo_1_man",
+      "enum": [
+        "demo_1_man",
+        "demo_2_man",
+        "demo_3_woman",
+        "demo_4_woman"
+      ]
+    },
+    {
+      "name": "text_pattern",
+      "type": "string",
+      "description": "Regex to choose which text to speak; empty = whole message. Capture groups speak only the captured text. The double quotes ARE part of the pattern \u2014 copy `\"([^\"]+)\"` as-is to read the text between double quotes.",
+      "default": ""
+    },
+    {
+      "name": "max_tokens",
+      "type": "integer",
+      "description": "Cap on generated audio length (0 = model default)",
+      "default": 0
+    },
+    {
+      "name": "seed",
+      "type": "string",
+      "description": "Optional generation seed (full uint64 as a string)",
+      "default": ""
+    },
+    {
+      "name": "unload_others",
+      "type": "boolean",
+      "description": "Unload other loaded models when switching (frees VRAM; off keeps multiple models resident)",
+      "default": true
+    }
+  ]
+}

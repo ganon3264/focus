@@ -114,22 +114,40 @@ class TestExtensionsApi:
                 """INSERT INTO tool_calls
                    (id, chat_id, message_id, variant_id, tool_name, arguments, result, is_error, created_at)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (str(uuid.uuid4()), chat["id"], msg["id"], variant_id,
-                 "read_file", '{"path": "/x"}', "contents", 0, _now_iso()),
+                (
+                    str(uuid.uuid4()),
+                    chat["id"],
+                    msg["id"],
+                    variant_id,
+                    "read_file",
+                    '{"path": "/x"}',
+                    "contents",
+                    0,
+                    _now_iso(),
+                ),
             )
             await db.execute(
                 "UPDATE message_variants SET segments_json = ?, variant_meta = ? WHERE id = ?",
                 (
-                    json.dumps([
-                        {"type": "text", "content": "before"},
-                        {"type": "tool_boundary", "tool_calls": [{
-                            "id": "call_1", "type": "function",
-                            "function": {"name": "read_file", "arguments": '{"path": "/x"}'},
-                            "result": "contents", "is_error": False,
-                        }]},
-                        {"type": "reasoning", "html": "source thinking", "index": 0},
-                        {"type": "text", "content": "after"},
-                    ]),
+                    json.dumps(
+                        [
+                            {"type": "text", "content": "before"},
+                            {
+                                "type": "tool_boundary",
+                                "tool_calls": [
+                                    {
+                                        "id": "call_1",
+                                        "type": "function",
+                                        "function": {"name": "read_file", "arguments": '{"path": "/x"}'},
+                                        "result": "contents",
+                                        "is_error": False,
+                                    }
+                                ],
+                            },
+                            {"type": "reasoning", "html": "source thinking", "index": 0},
+                            {"type": "text", "content": "after"},
+                        ]
+                    ),
                     json.dumps({"reasoning": "source thinking"}),
                     variant_id,
                 ),
@@ -188,6 +206,28 @@ class TestExtensionsApi:
         assert len(got.json()["attachments"]) == 1
         assert got.json()["attachments"][0]["mime_type"] == "text/plain"
 
+    async def test_play_only_file_not_attached(self, client):
+        """A result with ``attach: false`` returns the file for playback but never
+        persists it as a message attachment, so the model never sees it."""
+        char = await create_character(client, "Char", first_mes="hi")
+        chat = await create_chat(client, character_id=char["id"])
+        msg = (await client.get(f"/api/chats/{chat['id']}")).json()["messages"][0]
+
+        resp = await client.post(
+            "/api/extensions/play_note/run",
+            json={"chat_id": chat["id"], "message_id": msg["id"]},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "done"
+        assert data["attachments_added"] == 0
+        assert len(data["files"]) == 1
+        assert data["files"][0]["mime"] == "text/plain"
+        assert data["files"][0]["length"] > 0
+
+        got = await client.get(f"/api/chats/{chat['id']}/messages/{msg['id']}")
+        assert got.json()["attachments"] == []
+
     async def test_list_extensions(self, client):
         resp = await client.get("/api/extensions")
         assert resp.status_code == 200
@@ -217,13 +257,45 @@ class TestExtensionsApi:
         )
         assert resp.status_code == 404
 
+    async def test_test_endpoint_read_text(self, client):
+        resp = await client.post("/api/extensions/read_text/test", json={})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "done"
+        assert data["content"] == "Hello from the audio.cpp TTS test."
+        assert data["files"] == []
+
+    async def test_test_endpoint_custom_text(self, client):
+        resp = await client.post("/api/extensions/read_text/test", json={"text": "Custom test phrase"})
+        assert resp.status_code == 200
+        assert resp.json()["content"] == "Custom test phrase"
+
+    async def test_test_endpoint_reports_files_without_writing(self, client):
+        """attach_note returns a file; the test endpoint reports it but never binds it."""
+        char = await create_character(client, "Char", first_mes="hi")
+        chat = await create_chat(client, character_id=char["id"])
+        msg = (await client.get(f"/api/chats/{chat['id']}")).json()["messages"][0]
+
+        resp = await client.post("/api/extensions/attach_note/test", json={"text": "probe"})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "done"
+        assert len(data["files"]) == 1
+        assert data["files"][0]["mime"] == "text/plain"
+        assert data["files"][0]["length"] > 0
+
+        got = await client.get(f"/api/chats/{chat['id']}/messages/{msg['id']}")
+        assert got.json()["attachments"] == []
+
+    async def test_test_endpoint_unknown_extension_404(self, client):
+        resp = await client.post("/api/extensions/nope/test", json={})
+        assert resp.status_code == 404
+
     async def test_generation_end_trigger_auto_rewrites(self, client, tmp_test_dir, monkeypatch):
         char = await create_character(client, "Char")
         persona = await create_persona(client, "P")
         chat = await create_chat(client, character_id=char["id"], persona_id=persona["id"])
-        resp = await client.post(
-            "/api/providers/", json={"name": "T", "type": "openai_compat", "model": "m"}
-        )
+        resp = await client.post("/api/providers/", json={"name": "T", "type": "openai_compat", "model": "m"})
         prov_id = resp.json()["id"]
 
         # Enable caps_rewrite (it subscribes to generation_end) for this chat.
@@ -232,24 +304,41 @@ class TestExtensionsApi:
             json={"states": {"caps_rewrite": True}},
         )
 
-        fake = _FakeProvider([
-            {"type": "token", "text": "Hello"},
-            {"type": "usage", "usage": {
-                "prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2,
-                "cached_tokens": 0, "reasoning_tokens": 0,
-            }},
-            {"type": "done"},
-        ])
+        fake = _FakeProvider(
+            [
+                {"type": "token", "text": "Hello"},
+                {
+                    "type": "usage",
+                    "usage": {
+                        "prompt_tokens": 1,
+                        "completion_tokens": 1,
+                        "total_tokens": 2,
+                        "cached_tokens": 0,
+                        "reasoning_tokens": 0,
+                    },
+                },
+                {"type": "done"},
+            ]
+        )
         import focus.providers as providers_mod
         from focus.routers import stream as stream_module
+
         monkeypatch.setattr(providers_mod, "create_provider", lambda row: fake)
         monkeypatch.setattr(stream_module, "create_provider", lambda row: fake)
 
-        resp = await client.post("/api/stream", json={
-            "chat_id": chat["id"], "provider_id": prov_id, "user_message": "hi",
-            "samplers": {"stream_enabled": True}, "regenerate": False, "attachment_ids": [],
-            "tools_enabled": False, "tool_read_only": True,
-        })
+        resp = await client.post(
+            "/api/stream",
+            json={
+                "chat_id": chat["id"],
+                "provider_id": prov_id,
+                "user_message": "hi",
+                "samplers": {"stream_enabled": True},
+                "regenerate": False,
+                "attachment_ids": [],
+                "tools_enabled": False,
+                "tool_read_only": True,
+            },
+        )
         assert resp.status_code == 200
 
         # The generation_end trigger runs in the background; poll for the swipe.
@@ -262,5 +351,3 @@ class TestExtensionsApi:
         assert len(variants) == 2, f"expected original + rewritten variant, got {variants}"
         assert variants[0]["content"] == "Hello"
         assert variants[1]["content"] == "HELLO"
-
-

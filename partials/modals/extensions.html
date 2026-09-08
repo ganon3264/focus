@@ -84,7 +84,7 @@
                 <div x-show="openConfigs[ext.name]" x-cloak class="mt-2 flex flex-col gap-2">
                   <template x-for="p in ext.params" :key="p.name">
                     <div class="flex items-center gap-2">
-                      <label class="text-xs text-muted w-40 shrink-0" x-text="(p.description || p.name)"></label>
+                      <label class="text-xs text-muted w-40 shrink-0" x-html="renderDesc(p.description || p.name)"></label>
                       <template x-if="p.type === 'boolean'">
                         <div
                           class="arranger-toggle shrink-0"
@@ -132,8 +132,35 @@
                       </template>
                     </div>
                   </template>
-                  <div class="flex justify-end mt-1">
+                  <div class="flex justify-end gap-2 mt-1">
+                    <button
+                      class="btn btn-secondary btn-sm"
+                      @click="testConfig(ext.name)"
+                      :disabled="testingConfig === ext.name"
+                      :class="testingConfig === ext.name ? 'opacity-60 cursor-not-allowed' : ''"
+                    >
+                      <span x-text="testingConfig === ext.name ? 'Testing…' : 'Test'"></span>
+                    </button>
                     <button class="btn btn-primary btn-sm" @click="saveConfig(ext.name)">Save</button>
+                  </div>
+
+                  <div
+                    x-show="testResult[ext.name]"
+                    x-cloak
+                    class="mt-2 flex flex-col gap-1 p-2 rounded-md"
+                    style="background:var(--surface-3);border:1px solid var(--border)"
+                  >
+                    <div
+                      class="text-xs leading-snug"
+                      :class="testResult[ext.name] && testResult[ext.name].status === 'error' ? 'text-red-500' : 'text-muted'"
+                      x-text="testSummary(ext.name)"
+                    ></div>
+                    <audio
+                      x-show="testAudio[ext.name]"
+                      :src="testAudio[ext.name]"
+                      controls
+                      class="w-full h-10"
+                    ></audio>
                   </div>
                 </div>
               </div>
@@ -158,6 +185,9 @@ document.addEventListener('alpine:init', function () {
       openConfigs: {},
       searchQuery: '',
       reloading: false,
+      testingConfig: null,
+      testResult: {},
+      testAudio: {},
       loaded: false,
 
       get overallCount() { return this.extensions.length; },
@@ -249,6 +279,88 @@ document.addEventListener('alpine:init', function () {
         }).catch(function (e) {
           window.showErrorToast(e.message);
         });
+      },
+
+      base64ToBlob: function (b64, mime) {
+        var bin = atob(b64);
+        var bytes = new Uint8Array(bin.length);
+        for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        return new Blob([bytes], { type: mime });
+      },
+
+      // Render extension-param descriptions, highlighting backtick code as a
+      // coloured span (so regex examples read as copy-paste text, not prose).
+      renderDesc: function (s) {
+        if (!s) return '';
+        var esc = String(s)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+        return esc.replace(/`([^`]+)`/g, function (_, code) {
+          return '<code style="color:var(--accent);background:var(--surface-3);padding:0 .25em;border-radius:4px;font-family:monospace;word-break:break-all">' + code + '</code>';
+        });
+      },
+
+      testSummary: function (name) {
+        var r = this.testResult[name];
+        if (!r) return '';
+        if (r.status === 'error') return r.error || 'Test failed';
+        if (r.logs && r.logs.length) return r.logs[r.logs.length - 1].message;
+        if (r.files && r.files.length) return 'Generated ' + r.files[0].name + ' (' + r.files[0].length + ' bytes)';
+        return 'Test passed';
+      },
+
+      testConfig: function (name) {
+        var self = this;
+        this.testingConfig = name;
+
+        if (this.testAudio[name]) {
+          URL.revokeObjectURL(this.testAudio[name]);
+          this.testAudio[name] = null;
+        }
+
+        fetch('/api/extensions/' + encodeURIComponent(name) + '/test', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ config: this.configs[name] || {} }),
+        })
+          .then(function (r) {
+            return r.json();
+          })
+          .then(function (data) {
+            self.testingConfig = null;
+            self.testResult[name] = data;
+
+            (data.logs || []).forEach(function (log) {
+              var msg = log.level === 'error' ? 'showErrorToast'
+                : log.level === 'success' ? 'showSuccessToast'
+                : log.level === 'warning' ? 'showToast'
+                : 'showInfoToast';
+              if (window[msg]) window[msg](log.message || '');
+            });
+
+            if (data.status === 'error') {
+              window.showErrorToast(data.error || 'Test failed');
+              return;
+            }
+            if (data.files && data.files.length) {
+              var f = data.files[0];
+              if (f.mime && f.mime.indexOf('audio/') === 0) {
+                self.testAudio[name] = URL.createObjectURL(self.base64ToBlob(f.data, f.mime));
+              } else {
+                window.showInfoToast('Test produced ' + f.name + ' (' + f.length + ' bytes)');
+              }
+            } else if (data.content) {
+              window.showInfoToast('OK: ' + String(data.content).slice(0, 200));
+            } else {
+              window.showSuccessToast('Test passed');
+            }
+          })
+          .catch(function (e) {
+            self.testingConfig = null;
+            window.showErrorToast(e.message || 'Test failed');
+          });
       },
 
       reload: function () {

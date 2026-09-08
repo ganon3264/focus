@@ -9,6 +9,26 @@
     });
   }
 
+  function _playAudio(base64, mime) {
+    var bin = atob(base64);
+    var bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    var url = URL.createObjectURL(new Blob([bytes], { type: mime }));
+    var a = new Audio(url);
+    a.onended = function () { URL.revokeObjectURL(url); };
+    a.play().catch(function () {});
+  }
+
+  // Delegate to the run response: an audio ``files`` entry is played in the
+  // browser, not persisted to the message (which would feed it back to the
+  // model as input_audio on later turns).
+  function playReturnedAudio(data) {
+    var f = (data.files || []).find(function (x) {
+      return x.mime && x.mime.indexOf('audio/') === 0;
+    });
+    if (f) _playAudio(f.data, f.mime);
+  }
+
   // Called via data-action="actionRunExtension" on message toolbar buttons.
   window.actionRunExtension = function (el) {
     var name = el.dataset.extName;
@@ -43,6 +63,7 @@
           window.showErrorToast(data.error || 'Extension failed');
           return;
         }
+        playReturnedAudio(data);
         if (data.content && data.logs && !data.logs.length) {
           window.showInfoToast(String(data.content).slice(0, 200));
         }

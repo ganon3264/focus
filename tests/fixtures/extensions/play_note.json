@@ -1,0 +1,11 @@
+{
+  "name": "play_note",
+  "description": "Test fixture: return a file without attaching it (attach=false)",
+  "command": ["python3", "tests/fixtures/extensions/play_note.py"],
+  "category": "Demo",
+  "icon": "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M11 5 6 9H2v6h4l5 4z'/></svg>",
+  "roles": ["assistant"],
+  "needs": ["message"],
+  "triggers": ["manual"],
+  "params": []
+}

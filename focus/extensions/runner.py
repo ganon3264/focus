@@ -138,8 +138,7 @@ async def build_envelope(
 
     if "transcript" in spec.needs:
         envelope["transcript"] = [
-            {"role": m["role"], "content": m.get("content", ""), "segments": m.get("segments")}
-            for m in messages
+            {"role": m["role"], "content": m.get("content", ""), "segments": m.get("segments")} for m in messages
         ]
 
     return envelope, target, chat
@@ -149,9 +148,7 @@ async def _collect_secrets(db: aiosqlite.Connection, names: list[str]) -> dict[s
     if not names:
         return {}
     placeholders = ",".join("?" * len(names))
-    async with db.execute(
-        f"SELECT name, value FROM secrets WHERE name IN ({placeholders})", names
-    ) as cur:
+    async with db.execute(f"SELECT name, value FROM secrets WHERE name IN ({placeholders})", names) as cur:
         rows = await cur.fetchall()
     return {row["name"]: row["value"] for row in rows}
 
@@ -180,6 +177,7 @@ async def apply_actions(
     attachments_added = 0
     swipe_created = False
     new_variant: dict | None = None
+    files_out: list[dict] = []
 
     for f in result.files:
         try:
@@ -187,9 +185,11 @@ async def apply_actions(
         except Exception:
             logs.append({"level": "error", "message": f"invalid base64 in file {f.name}"})
             continue
-        att = await create_attachment(db, chat["id"], f.name, data, f.mime)
-        await bind_attachments_to_message(db, chat["id"], target["id"], target.get("variant_id"), [att["id"]])
-        attachments_added += 1
+        files_out.append({"name": f.name, "mime": f.mime, "data": f.data, "length": len(data)})
+        if result.attach:
+            att = await create_attachment(db, chat["id"], f.name, data, f.mime)
+            await bind_attachments_to_message(db, chat["id"], target["id"], target.get("variant_id"), [att["id"]])
+            attachments_added += 1
     if attachments_added:
         logs.append({"level": "success", "message": f"attached {attachments_added} file(s)"})
 
@@ -198,7 +198,13 @@ async def apply_actions(
         content = action.content if action.content is not None else (result.content or "")
         message_id = action.message_id or target["id"]
         res = await edit_message_create_variant(
-            db, chat["id"], message_id, content, action.reasoning, None, action.segments,
+            db,
+            chat["id"],
+            message_id,
+            content,
+            action.reasoning,
+            None,
+            action.segments,
         )
         swipe_created = True
         new_variant = res
@@ -216,4 +222,5 @@ async def apply_actions(
         "attachments_added": attachments_added,
         "content": result.content,
         "logs": logs,
+        "files": files_out,
     }
