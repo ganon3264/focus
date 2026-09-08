@@ -1,5 +1,6 @@
-// Send-button wiring: turns input text / staged files / regen mode into a
-// Generation.begin call. Pure UI glue — lifecycle lives in the session.
+// Send-button wiring: turns input text / staged files into a Generation.begin
+// call. The server decides whether that becomes a new turn or a reply to the
+// pending user turn. Pure UI glue — lifecycle lives in the session.
 (function () {
   var sendBtn = document.getElementById('send-btn');
   var input = document.getElementById('chat-input');
@@ -20,34 +21,31 @@
   sendBtn.addEventListener('click', async function () {
     var chatId = StateManager.get('chat_id');
     var providerId = StateManager.get('provider_id');
-
-    if (sendBtn.dataset.mode === 'regen') {
-      if (!providerId) {
-        window.showErrorToast('No provider configured. Add one in Providers.');
-        return;
-      }
-      var asstDiv = buildSkeleton();
-      asstDiv.scrollIntoView({ behavior: 'smooth' });
-      window.Generation.begin(chatId, asstDiv, { isRegen: true });
-      return;
-    }
-
     var text = input.value.trim();
-    if (!text && (!window.stagedFiles || window.stagedFiles.length === 0)) return;
+    var hasFiles = !!(window.stagedFiles && window.stagedFiles.length > 0);
+
+    var dataList = document.getElementById('message-list-data');
+    var lastRole = dataList ? dataList.getAttribute('data-last-role') || '' : '';
+
+    // The server owns whether this is a new turn or a reply to a pending user
+    // turn; the button only decides whether there is anything to send at all.
+    if (!text && !hasFiles && lastRole !== 'user') return;
+
     if (!providerId) {
       window.showErrorToast('No provider configured. Add one in Providers.');
       return;
     }
 
-    var existingTemp = document.getElementById('temp-user-msg');
-    if (existingTemp) existingTemp.remove();
+    if (text || hasFiles) {
+      var existingTemp = document.getElementById('temp-user-msg');
+      if (existingTemp) existingTemp.remove();
 
-    var dataList = document.getElementById('message-list-data');
-    var personaName = dataList ? dataList.getAttribute('data-persona-name') || 'You' : 'You';
-    var personaAvatar = dataList ? dataList.getAttribute('data-persona-avatar') : '';
+      var personaName = dataList ? dataList.getAttribute('data-persona-name') || 'You' : 'You';
+      var personaAvatar = dataList ? dataList.getAttribute('data-persona-avatar') : '';
 
-    var userDiv = window.buildUserMessageDiv(text, personaName, personaAvatar, window.stagedFiles);
-    messageList.insertBefore(userDiv, window.scrollSentinel);
+      var userDiv = window.buildUserMessageDiv(text, personaName, personaAvatar, window.stagedFiles);
+      messageList.insertBefore(userDiv, window.scrollSentinel);
+    }
 
     var asstDiv = buildSkeleton();
     asstDiv.scrollIntoView({ behavior: 'smooth' });

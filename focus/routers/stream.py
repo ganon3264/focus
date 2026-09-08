@@ -30,6 +30,7 @@ from focus.extensions.triggers import run_trigger_sync, schedule_trigger
 from focus.providers import create_provider
 from focus.routers.stream_utils import (
     PromptCtx,
+    _last_active_role,
     get_prompt_context,
     prefill_reasoning,
     prepare_generation_messages,
@@ -640,6 +641,27 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
         body.chat_id, prov_dict["name"], prov_dict.get("model", "?"),
         body.regenerate, body.user_message, body.attachment_ids,
     )
+
+    # Server owns the send-vs-regenerate decision. A client whose DOM drifted
+    # (e.g. a stop whose partial save landed after the post-abort refresh) must
+    # not be able to turn a typed message into a swipe on the previous reply.
+    if body.regenerate:
+        if body.user_message.strip() or body.attachment_ids:
+            logger.warning(
+                "Ignoring regenerate=True for chat=%s: user message/attachments present",
+                body.chat_id,
+            )
+            body.regenerate = False
+        elif (
+            body.continue_text is None
+            and not body.continue_reasoning
+            and await _last_active_role(db, body.chat_id) == "user"
+        ):
+            logger.warning(
+                "Ignoring regenerate=True for chat=%s: last turn is a user message",
+                body.chat_id,
+            )
+            body.regenerate = False
 
     prompt_ctx = await get_prompt_context(
         db, body.chat_id, body.regenerate, body.user_message, body.attachment_ids, persist=True

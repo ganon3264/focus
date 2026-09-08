@@ -125,6 +125,9 @@ function makeElement(tag) {
       }
     },
     insertBefore: function (newEl, refEl) {
+      // Real DOM moves an already-attached node instead of duplicating it.
+      var cur = this.children.indexOf(newEl);
+      if (cur >= 0) this.children.splice(cur, 1);
       if (refEl) {
         var idx = this.children.indexOf(refEl);
         if (idx >= 0) this.children.splice(idx, 0, newEl);

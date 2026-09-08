@@ -18,14 +18,16 @@
   function updateSendButtonState() {
     if (!sendBtn || !input) return;
     var text = input.value.trim();
-    var msgs = document.querySelectorAll('#message-list .message');
-    var lastRole = msgs.length > 0 ? msgs[msgs.length - 1].getAttribute('data-role') || '' : '';
-    var isRegenMode = !text && (!window.stagedFiles || window.stagedFiles.length === 0) && lastRole === 'user';
-    var newMode = isRegenMode ? 'regen' : 'send';
+    // The last role comes from the server-rendered list metadata, not from
+    // scanning DOM nodes (which can lag behind the server after a stop).
+    var dataList = document.getElementById('message-list-data');
+    var lastRole = dataList ? dataList.getAttribute('data-last-role') || '' : '';
+    var isReplyMode = !text && (!window.stagedFiles || window.stagedFiles.length === 0) && lastRole === 'user';
+    var newMode = isReplyMode ? 'reply' : 'send';
 
     if (sendBtn.dataset.mode !== newMode) {
-      sendBtn.innerHTML = window.getSvgSprite(newMode, 18);
-      sendBtn.title = isRegenMode ? 'Regenerate' : 'Send message';
+      sendBtn.innerHTML = window.getSvgSprite(isReplyMode ? 'regen' : 'send', 18);
+      sendBtn.title = isReplyMode ? 'Generate reply' : 'Send message';
       sendBtn.dataset.mode = newMode;
     }
   }

@@ -1,72 +1,147 @@
 (function () {
-  function _replaceMessageNode(doc, msgId, inDeleteMode) {
-    const newMsg = doc.getElementById('message-' + msgId);
-    if (!newMsg) return;
-
-    let oldMsg = document.getElementById('message-' + msgId);
-    if (!oldMsg) {
-      const ph = document.querySelector('.message-placeholder[data-msg-id="' + msgId + '"]');
-      if (ph) oldMsg = ph;
-    }
-
-    if (!oldMsg) return;
-
-    newMsg.style.setProperty('animation', 'none', 'important');
-    oldMsg.replaceWith(newMsg);
-    htmx.process(newMsg);
-    newMsg.querySelectorAll('.markdown-content:not(.processed)').forEach(function (el) {
+  function _processNode(node, inDeleteMode) {
+    if (window.htmx && window.htmx.process) window.htmx.process(node);
+    node.querySelectorAll('.markdown-content:not(.processed)').forEach(function (el) {
       el.innerHTML = window.renderMessage(el.textContent || '');
       el.classList.add('processed');
     });
-    window.syncReasoningButtons(newMsg);
+    if (window.syncReasoningButtons) window.syncReasoningButtons(node);
     if (inDeleteMode) {
-      const cb = newMsg.querySelector('.delete-mode-checkbox');
+      var cb = node.querySelector('.delete-mode-checkbox');
       if (cb) cb.classList.remove('hidden');
-      const actions = newMsg.querySelector('.normal-mode-actions');
+      var actions = node.querySelector('.normal-mode-actions');
       if (actions) actions.classList.add('hidden');
-    }
-    if (window._isMessagePruned && window._isMessagePruned(msgId)) {
-      window._unpruneMessage(msgId);
     }
     if (window.formatTimestamps) window.formatTimestamps();
   }
 
-  async function _refreshMessageNodes(chatId, msgIds) {
-    if (msgIds.length === 0) return;
+  function _inDeleteMode() {
+    var bar = document.getElementById('delete-toolbar');
+    return !!(bar && !bar.classList.contains('hidden'));
+  }
 
-    var existingMsg = document.getElementById('message-' + msgIds[0]);
-    var doc;
-    if (existingMsg && msgIds.length === 1) {
-      var msgIndex = parseInt(existingMsg.getAttribute('data-msg-index')) || 1;
-      var msgList = document.getElementById('message-list');
-      var msgs = msgList ? msgList.querySelectorAll('.message') : [];
-      var isLatest = msgs.length > 0 ? existingMsg === msgs[msgs.length - 1] : false;
-      var url = '/partials/message/' + chatId + '/' + msgIds[0] + '?msg_index=' + msgIndex + '&is_latest=' + isLatest;
-      var resp = await fetch(url);
-      if (!resp.ok) return;
-      doc = new DOMParser().parseFromString(await resp.text(), 'text/html');
-    } else {
-      var resp = await fetch(window.api.partials.messageList(chatId));
-      if (!resp.ok) return;
-      doc = new DOMParser().parseFromString(await resp.text(), 'text/html');
-      var newSentinel = doc.getElementById('message-list-data');
-      var oldSentinel = document.getElementById('message-list-data');
-      if (newSentinel && oldSentinel) oldSentinel.replaceWith(newSentinel);
+  function _replaceMessageNode(doc, msgId, inDeleteMode) {
+    var newMsg = doc.getElementById('message-' + msgId);
+    if (!newMsg) return;
+
+    var oldMsg = document.getElementById('message-' + msgId);
+    if (!oldMsg) {
+      var ph = document.querySelector('.message-placeholder[data-msg-id="' + msgId + '"]');
+      if (ph) oldMsg = ph;
+    }
+    if (!oldMsg) return;
+
+    newMsg.style.setProperty('animation', 'none', 'important');
+    oldMsg.replaceWith(newMsg);
+    _processNode(newMsg, inDeleteMode);
+    if (window._isMessagePruned && window._isMessagePruned(msgId)) {
+      window._unpruneMessage(msgId);
+    }
+  }
+
+  function _findLiveNode(container, id) {
+    var node = document.getElementById(id);
+    if (node && node.parentNode === container) return node;
+    var msgId = id.indexOf('message-') === 0 ? id.slice('message-'.length) : id;
+    return container.querySelector('.message-placeholder[data-msg-id="' + msgId + '"]');
+  }
+
+  // Reorder the container's message nodes to match *orderedIds* (the server's
+  // position order): reuse live nodes, insert missing ones via *createNode*,
+  // drop nodes the server no longer has, and keep the sentinel last. Returns
+  // the freshly inserted nodes so the caller can post-process them.
+  function _reconcileOrder(container, orderedIds, dataDiv, sentinel, getNode, createNode) {
+    var inserted = [];
+    var cursor = dataDiv ? dataDiv.nextElementSibling : container.firstElementChild;
+
+    orderedIds.forEach(function (id) {
+      var node = getNode(id);
+      var isNew = false;
+      if (!node) {
+        node = createNode(id);
+        isNew = true;
+      }
+      if (!node) return;
+      if (node !== cursor) container.insertBefore(node, cursor);
+      if (isNew) inserted.push(node);
+      cursor = node.nextElementSibling;
+    });
+
+    var wanted = {};
+    orderedIds.forEach(function (id) { wanted[id] = true; });
+
+    var extras = container.querySelectorAll('.message');
+    for (var i = extras.length - 1; i >= 0; i--) {
+      if (!wanted[extras[i].id]) extras[i].remove();
+    }
+    var placeholders = container.querySelectorAll('.message-placeholder');
+    for (var j = placeholders.length - 1; j >= 0; j--) {
+      if (!wanted['message-' + placeholders[j].dataset.msgId]) placeholders[j].remove();
     }
 
-    var inDeleteMode = document.getElementById('delete-toolbar') &&
-      !document.getElementById('delete-toolbar').classList.contains('hidden');
+    if (sentinel && container.children[container.children.length - 1] !== sentinel) {
+      container.appendChild(sentinel);
+    }
+    return inserted;
+  }
+  window._reconcileOrder = _reconcileOrder;
 
-    for (var i = 0; i < msgIds.length; i++) {
-      _replaceMessageNode(doc, msgIds[i], inDeleteMode);
+  // Server-authoritative refresh: the server renders the ordered list, and the
+  // DOM is rearranged to match it instead of trusting the order nodes happened
+  // to be appended in. *changedIds* are re-rendered from the server; pass null
+  // to re-render every message.
+  async function _reconcileMessageList(chatId, changedIds) {
+    var container = document.getElementById('message-list');
+    if (!container) return;
+
+    var resp = await fetch(window.api.partials.messageList(chatId));
+    if (!resp.ok) return;
+    var doc = new DOMParser().parseFromString(await resp.text(), 'text/html');
+
+    var orderedIds = Array.prototype.map.call(doc.querySelectorAll('.message'), function (n) {
+      return n.id;
+    });
+
+    var newData = doc.getElementById('message-list-data');
+    var oldData = container.querySelector('#message-list-data');
+    if (newData && oldData) oldData.replaceWith(newData);
+
+    var inDeleteMode = _inDeleteMode();
+
+    // When the live node set diverges from the server's (a message the client
+    // never saw, or one it thinks still exists), re-render every message so
+    // per-message state like `data-msg-index` stays correct.
+    var liveCount = container.querySelectorAll('.message').length
+      + container.querySelectorAll('.message-placeholder').length;
+    var missing = orderedIds.some(function (id) { return !_findLiveNode(container, id); });
+    var toReplace = (changedIds == null || missing || liveCount !== orderedIds.length)
+      ? orderedIds
+      : changedIds;
+    for (var i = 0; i < toReplace.length; i++) {
+      _replaceMessageNode(doc, toReplace[i], inDeleteMode);
+    }
+
+    var inserted = _reconcileOrder(
+      container,
+      orderedIds,
+      container.querySelector('#message-list-data'),
+      container.querySelector('#scroll-sentinel'),
+      function (id) { return _findLiveNode(container, id); },
+      function (id) { return doc.getElementById(id); },
+    );
+
+    for (var k = 0; k < inserted.length; k++) {
+      inserted[k].style.setProperty('animation', 'none', 'important');
+      _processNode(inserted[k], inDeleteMode);
     }
 
     _refreshChatList(chatId);
-    if (window.postSwapProcess) window.postSwapProcess(document.getElementById('message-list'));
+    if (window.postSwapProcess) window.postSwapProcess(container);
+    if (window.pruneMessages) window.pruneMessages();
   }
 
   async function refreshMessagesAfterStream(chatId, userMsgId, asstMsgId) {
-    await _refreshMessageNodes(chatId, [userMsgId, asstMsgId].filter(Boolean));
+    await _reconcileMessageList(chatId, [userMsgId, asstMsgId].filter(Boolean));
   }
   window.refreshMessagesAfterStream = refreshMessagesAfterStream;
 
@@ -80,8 +155,29 @@
     });
   };
 
+  // Swipe/edit/extension updates never change order, so they keep the cheaper
+  // single-node endpoint. A node that is gone (pruned away) falls back to the
+  // full reconcile.
   async function refreshSingleMessage(chatId, messageId) {
-    await _refreshMessageNodes(chatId, [messageId]);
+    var existingMsg = document.getElementById('message-' + messageId);
+    if (!existingMsg) {
+      await _reconcileMessageList(chatId, [messageId]);
+      return;
+    }
+
+    var msgIndex = parseInt(existingMsg.getAttribute('data-msg-index')) || 1;
+    var msgList = document.getElementById('message-list');
+    var msgs = msgList ? msgList.querySelectorAll('.message') : [];
+    var isLatest = msgs.length > 0 ? existingMsg === msgs[msgs.length - 1] : false;
+    var url = '/partials/message/' + chatId + '/' + messageId
+      + '?msg_index=' + msgIndex + '&is_latest=' + isLatest;
+    var resp = await fetch(url);
+    if (!resp.ok) return;
+
+    var doc = new DOMParser().parseFromString(await resp.text(), 'text/html');
+    _replaceMessageNode(doc, messageId, _inDeleteMode());
+    _refreshChatList(chatId);
+    if (window.postSwapProcess) window.postSwapProcess(document.getElementById('message-list'));
   }
   window.refreshSingleMessage = refreshSingleMessage;
 

@@ -39,7 +39,7 @@
   // no node carrying an id the server knows nothing about. Never refresh by
   // message id here — the message may not exist (rolled back on failure), which
   // would otherwise 404, so the whole list is re-rendered.
-  function handleFailure(state, message, name) {
+  async function handleFailure(state, message, name) {
     console.error('[stream] Failure: name=%s, message=%s', name, message);
     if (name !== 'AbortError') {
       window.showErrorToast(message);
@@ -69,7 +69,14 @@
     }
 
     if (state.chatId) {
-      window.refreshChatMessages(state.chatId).catch(function () {});
+      // Await the re-render: the session must not be released (and the UI
+      // re-enabled) while a full-list swap is still in flight, or the swap
+      // would wipe whatever the user sends next.
+      try {
+        await window.refreshChatMessages(state.chatId);
+      } catch (e) {
+        console.error('[stream] post-failure refresh failed:', e);
+      }
       if (window._refreshChatList) window._refreshChatList(state.chatId);
     }
 
@@ -224,7 +231,7 @@
         }
 
         if (state.errorMsg) {
-          handleFailure(state, state.errorMsg, 'Error');
+          await handleFailure(state, state.errorMsg, 'Error');
           return;
         }
 
@@ -259,7 +266,7 @@
           }
         }
       } catch (err) {
-        handleFailure(state, err.message, err.name);
+        await handleFailure(state, err.message, err.name);
       } finally {
         clearPendingStop();
         setGeneratingUI(false);

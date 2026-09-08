@@ -44,6 +44,22 @@ async def _make_assistant_slot(db: aiosqlite.Connection, chat_id: str) -> str:
     return asst_id
 
 
+async def _last_active_role(db: aiosqlite.Connection, chat_id: str) -> str | None:
+    """Role of the last message that has an active variant.
+
+    Joined on the active variant so stranded assistant rows (created but never
+    saved) cannot masquerade as the last turn.
+    """
+    async with db.execute(
+        "SELECT m.role FROM messages m"
+        " JOIN message_variants mv ON mv.message_id = m.id AND mv.variant_index = m.active_index"
+        " WHERE m.chat_id = ? ORDER BY m.position DESC LIMIT 1",
+        (chat_id,),
+    ) as cur:
+        row = await cur.fetchone()
+    return row["role"] if row else None
+
+
 async def _get_history(db: aiosqlite.Connection, chat_id: str, regenerate: bool):
     """Load message history and message attachments for a chat.
 
@@ -340,6 +356,13 @@ async def get_prompt_context(
     if regenerate and asst_msg_id is None and persist:
         asst_msg_id = await _make_assistant_slot(db, chat_id)
         next_variant_index = 0
+
+    # An empty send means "reply to the pending user turn". With an assistant
+    # turn last there is nothing to reply to, so refuse instead of stacking a
+    # second assistant message.
+    if persist and not regenerate and not (user_message.strip() or attachment_ids):
+        if await _last_active_role(db, chat_id) != "user":
+            raise HTTPException(400, "Nothing to reply to")
 
     user_msg_id = None
     if not regenerate:

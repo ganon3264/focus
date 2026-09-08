@@ -74,6 +74,36 @@ async def _assistant_variant(db_path: str, chat_id: str) -> dict | None:
     return dict(row) if row else None
 
 
+async def _insert_message(db_path, chat_id, role, position, content="") -> str:
+    msg_id = str(uuid.uuid4())
+    now = _now_iso()
+    async with aiosqlite.connect(db_path) as db:
+        await db.execute("PRAGMA foreign_keys=ON")
+        await db.execute(
+            "INSERT INTO messages (id, chat_id, role, position, active_index, created_at)"
+            " VALUES (?, ?, ?, ?, 0, ?)",
+            (msg_id, chat_id, role, position, now),
+        )
+        if content is not None:
+            await db.execute(
+                "INSERT INTO message_variants (id, message_id, variant_index, content, created_at)"
+                " VALUES (?, ?, 0, ?, ?)",
+                (str(uuid.uuid4()), msg_id, content, now),
+            )
+        await db.commit()
+    return msg_id
+
+
+async def _message_rows(db_path, chat_id):
+    return await _fetchall(
+        db_path,
+        "SELECT m.role, m.position, m.id,"
+        " (SELECT COUNT(*) FROM message_variants mv WHERE mv.message_id = m.id) AS vcount"
+        " FROM messages m WHERE m.chat_id = ? ORDER BY m.position",
+        chat_id,
+    )
+
+
 class FakeProvider:
     """Provider that replays a scripted list of event rounds.
 
@@ -550,6 +580,74 @@ class TestStreamingGeneration:
         assert await _assistant_variant(_db_path(tmp_test_dir), chat["id"]) is None, (
             "failed empty generation must roll back the assistant slot"
         )
+
+
+class TestTurnDecision:
+    """The server owns whether a request is a new turn or a regenerate."""
+
+    async def test_regenerate_with_user_message_becomes_new_turn(self, client, tmp_test_dir, patch_provider):
+        chat, prov_id = await _setup(client)
+        patch_provider(FakeProvider([[{"type": "token", "text": "one"}, {"type": "done"}]]))
+        await _stream(client, chat["id"], prov_id, user_message="First")
+        db_path = _db_path(tmp_test_dir)
+
+        patch_provider(FakeProvider([[{"type": "token", "text": "two"}, {"type": "done"}]]))
+        resp = await _stream(
+            client, chat["id"], prov_id,
+            user_message="Second", regenerate=True,
+        )
+        assert resp.status_code == 200
+        await _consume_sse_events(resp)
+
+        rows = await _message_rows(db_path, chat["id"])
+        assert [r["role"] for r in rows] == ["user", "assistant", "user", "assistant"]
+        assert [r["position"] for r in rows] == [0, 1, 2, 3]
+        assert all(r["vcount"] == 1 for r in rows), (
+            "a user message must never be turned into a variant of the previous turn"
+        )
+
+    async def test_empty_send_replies_to_pending_user_turn(self, client, tmp_test_dir, patch_provider):
+        chat, prov_id = await _setup(client)
+        db_path = _db_path(tmp_test_dir)
+        await _insert_message(db_path, chat["id"], "assistant", 0, "Greeting")
+        await _insert_message(db_path, chat["id"], "user", 1, "Pending")
+
+        patch_provider(FakeProvider([[{"type": "token", "text": "reply"}, {"type": "done"}]]))
+        resp = await _stream(client, chat["id"], prov_id, user_message="", regenerate=False)
+        assert resp.status_code == 200
+        await _consume_sse_events(resp)
+
+        rows = await _message_rows(db_path, chat["id"])
+        assert [r["role"] for r in rows] == ["assistant", "user", "assistant"]
+        assert rows[-1]["position"] == 2
+        assert rows[0]["vcount"] == 1, "the greeting must not receive a variant"
+
+    async def test_regenerate_with_pending_user_turn_becomes_reply(self, client, tmp_test_dir, patch_provider):
+        chat, prov_id = await _setup(client)
+        db_path = _db_path(tmp_test_dir)
+        await _insert_message(db_path, chat["id"], "assistant", 0, "Greeting")
+        await _insert_message(db_path, chat["id"], "user", 1, "Pending")
+
+        patch_provider(FakeProvider([[{"type": "token", "text": "reply"}, {"type": "done"}]]))
+        resp = await _stream(client, chat["id"], prov_id, user_message="", regenerate=True)
+        assert resp.status_code == 200
+        await _consume_sse_events(resp)
+
+        rows = await _message_rows(db_path, chat["id"])
+        assert [r["role"] for r in rows] == ["assistant", "user", "assistant"]
+        assert rows[0]["vcount"] == 1, "the greeting must not receive a variant"
+
+    async def test_empty_send_with_assistant_last_is_rejected(self, client, tmp_test_dir, patch_provider):
+        chat, prov_id = await _setup(client)
+        db_path = _db_path(tmp_test_dir)
+        await _insert_message(db_path, chat["id"], "assistant", 0, "Greeting")
+        await _insert_message(db_path, chat["id"], "user", 1, "Hi")
+        await _insert_message(db_path, chat["id"], "assistant", 2, "Hello")
+
+        patch_provider(FakeProvider([[{"type": "token", "text": "nope"}, {"type": "done"}]]))
+        resp = await _stream(client, chat["id"], prov_id, user_message="", regenerate=False)
+        assert resp.status_code == 400
+        assert "Nothing to reply to" in resp.json()["detail"]
 
 
 class TestItemize:
