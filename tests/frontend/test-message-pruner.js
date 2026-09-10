@@ -196,25 +196,19 @@ assert(typeof window.pruneMessages === 'function', 'pruneMessages loaded');
     '_forgetPruned leaves the placeholder in the DOM');
 })();
 
-// ── pruning is suspended while delete mode is active ──
+// ── restore applies delete-mode chrome through the hook ──
 (function () {
-  var bar = makeElement('div');
-  bar.id = 'delete-toolbar'; // visible (no 'hidden' class)
-  var orig = doc.getElementById;
-  doc.getElementById = function (id) {
-    if (id === 'delete-toolbar') return bar;
-    return orig(id);
-  };
+  var hookedMsg = null;
+  global.applyDeleteModeToNode = function (msg) { hookedMsg = msg; };
 
-  addMsg('message-delete-mode', 77777);
+  addMsg('message-hook-test', 66666);
   window.pruneMessages();
-  assert(!window._isMessagePruned('delete-mode'), 'no pruning while the delete toolbar is visible');
+  assert(window._isMessagePruned('hook-test'), 'hook-test is pruned');
 
-  bar.classList.add('hidden');
-  window.pruneMessages();
-  assert(window._isMessagePruned('delete-mode'), 'pruning resumes once delete mode exits');
+  var restored = window._unpruneMessage('hook-test');
+  assert(!!hookedMsg && hookedMsg === restored, 'restore calls applyDeleteModeToNode on the node');
 
-  doc.getElementById = orig;
+  delete global.applyDeleteModeToNode;
 })();
 
 // ── Result ──

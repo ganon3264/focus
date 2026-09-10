@@ -12,11 +12,6 @@
     var ml = document.getElementById('message-list');
     if (!cc || !ml) return;
 
-    // Delete mode needs every node in the DOM to select/render checkboxes, so
-    // suspend culling while its toolbar is up.
-    var toolbar = document.getElementById('delete-toolbar');
-    if (toolbar && !toolbar.classList.contains('hidden')) return;
-
     var vh = cc.clientHeight;
     if (vh < 100) return;
     var st = cc.scrollTop;
@@ -49,9 +44,8 @@
       var rect = ph.getBoundingClientRect();
       var phTop = rect.top + st;
       var phBot = rect.bottom + st;
-      if (phBot >= topBound && phTop <= botBound) {
-        var stored = _pruned.get(phId);
-        if (stored) toRestore.push({ el: ph, id: phId, html: stored.html });
+      if (phBot >= topBound && phTop <= botBound && _pruned.has(phId)) {
+        toRestore.push(phId);
       }
     }
 
@@ -66,18 +60,7 @@
     }
 
     for (var l = 0; l < toRestore.length; l++) {
-      var r = toRestore[l];
-      var temp = document.createElement('div');
-      temp.innerHTML = r.html;
-      var msg = temp.firstElementChild;
-      if (msg) {
-        r.el.replaceWith(msg);
-        if (typeof htmx !== 'undefined') htmx.process(msg);
-        if (typeof syncReasoningButtons === 'function') {
-          syncReasoningButtons(msg);
-        }
-      }
-      _pruned.delete(r.id);
+      if (window._unpruneMessage) window._unpruneMessage(toRestore[l]);
     }
     if (window.formatTimestamps) window.formatTimestamps();
   }
@@ -118,6 +101,7 @@
       if (typeof syncReasoningButtons === 'function') {
         syncReasoningButtons(msg);
       }
+      if (window.applyDeleteModeToNode) window.applyDeleteModeToNode(msg);
       _pruned.delete(id);
       return msg;
     }

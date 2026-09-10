@@ -9,6 +9,8 @@ var doc = h.createMockDocument();
 doc.body.addEventListener = function () {};
 
 var calls = { htmx: 0, sync: 0, format: 0, send: 0, sentinel: 0 };
+var deleteActive = false;
+var applied = [];
 
 var sandbox = {
   console: console,
@@ -20,6 +22,8 @@ var sandbox = {
   formatTimestamps: function () { calls.format++; },
   updateSendButtonState: function () { calls.send++; },
   ensureSentinelAndObserver: function () { calls.sentinel++; },
+  isDeleteModeActive: function () { return deleteActive; },
+  applyDeleteModeToNode: function (msg) { applied.push(msg); },
 };
 sandbox.window = sandbox;
 vm.createContext(sandbox);
@@ -51,12 +55,13 @@ function makeContainer() {
   message.appendChild(actions);
   container.appendChild(message);
 
-  return { container: container, md: md, cb: cb, actions: actions };
+  return { container: container, md: md, message: message, cb: cb, actions: actions };
 }
 
 // ── outside delete mode: renders content, leaves checkboxes hidden ──
 (function () {
   var t = makeContainer();
+  applied.length = 0;
   process(t.container);
   assert(calls.htmx === 1, 'htmx.process is applied to new nodes');
   assert(t.md.classList.contains('processed'), 'unprocessed markdown is rendered');
@@ -64,22 +69,20 @@ function makeContainer() {
   assert(calls.sync === 1, 'reasoning buttons are synced');
   assert(calls.format === 1, 'timestamps are formatted');
   assert(t.cb.classList.contains('hidden'), 'checkboxes stay hidden outside delete mode');
+  assert(applied.length === 0, 'no delete chrome outside delete mode');
   assert(calls.send === 1, 'send button state is updated');
   assert(calls.sentinel === 1, 'sentinel observer is ensured');
 })();
 
-// ── inside delete mode: reveals checkboxes and hides normal actions ──
+// ── inside delete mode: delegates chrome to applyDeleteModeToNode ──
 (function () {
-  var toolbar = h.makeElement('div');
-  toolbar.id = 'delete-toolbar';
-  doc.body.appendChild(toolbar);
-
+  deleteActive = true;
+  applied.length = 0;
   var t = makeContainer();
   process(t.container);
-  assert(!t.cb.classList.contains('hidden'), 'checkboxes are revealed in delete mode');
-  assert(t.actions.classList.contains('hidden'), 'normal actions are hidden in delete mode');
-
-  toolbar.classList.add('hidden');
+  assert(applied.length === 1, 'delete chrome is delegated for each message');
+  assert(applied[0] === t.message, 'the message node is handed to applyDeleteModeToNode');
+  deleteActive = false;
 })();
 
 // ── missing container is a no-op ──

@@ -1,9 +1,4 @@
 (function () {
-  function inDeleteMode() {
-    var bar = document.getElementById('delete-toolbar');
-    return !!(bar && !bar.classList.contains('hidden'));
-  }
-
   window.updateContinueButtons = function () {
     var type = StateManager.get('provider_type');
     var isGoogle = type === 'google_aistudio' || type === 'google_vertex';
@@ -25,12 +20,9 @@
     });
     if (window.syncReasoningButtons) window.syncReasoningButtons(container);
     if (window.formatTimestamps) window.formatTimestamps();
-    if (inDeleteMode()) {
+    if (window.isDeleteModeActive && window.isDeleteModeActive() && window.applyDeleteModeToNode) {
       container.querySelectorAll('.message').forEach(function (msg) {
-        var cb = msg.querySelector('.delete-mode-checkbox');
-        if (cb) cb.classList.remove('hidden');
-        var actions = msg.querySelector('.normal-mode-actions');
-        if (actions) actions.classList.add('hidden');
+        window.applyDeleteModeToNode(msg);
       });
     }
     if (typeof updateSendButtonState === 'function') updateSendButtonState();

@@ -191,8 +191,8 @@ window.actionToggleReasoning = function (el) {
   window.toggleReasoning(el);
 };
 
-window.actionUpdateDeleteSelection = function () {
-  updateDeleteSelection();
+window.actionUpdateDeleteSelection = function (el) {
+  updateDeleteSelection(el);
 };
 
 window.actionSwipePrev = function (event, el) {
