@@ -182,5 +182,92 @@ var reconcile = sandbox.window._reconcileOrder;
     'sentinel is moved back to the end');
 })();
 
-console.log('\n' + (failures === 0 ? 'all passed' : failures + ' failures'));
-process.exit(failures > 0 ? 1 : 0);
+// 7. Full reconcile replaces live nodes (incl. the streaming skeleton) even
+//    when pruned placeholders exist. Regression: placeholders are keyed by bare
+//    id, orderedIds are DOM ids, and the full-replace path must convert back to
+//    bare ids before calling _replaceMessageNode.
+(function () {
+  var doc = h.createMockDocument();
+
+  function styled(tag) {
+    var el = h.makeElement(tag);
+    el.style = { setProperty: function () {}, removeProperty: function () {}, getPropertyValue: function () { return ''; } };
+    el.replaceWith = function (n) {
+      if (!this.parent) return;
+      var i = this.parent.children.indexOf(this);
+      if (i >= 0) this.parent.children.splice(i, 1, n);
+      n.parent = this.parent;
+    };
+    return el;
+  }
+  function phFor(id) {
+    var p = styled('div');
+    p.classList.add('message-placeholder');
+    p.dataset.msgId = id;
+    return p;
+  }
+  function msg(id) {
+    var m = styled('div');
+    m.classList.add('message');
+    m.id = id;
+    return m;
+  }
+
+  var container = styled('div');
+  container.id = 'message-list';
+  var data = styled('div');
+  data.id = 'message-list-data';
+  container.appendChild(data);
+  container.appendChild(phFor('1'));          // pruned, bare key
+  container.appendChild(phFor('2'));
+  var skeleton = msg('message-3');            // live streaming skeleton
+  container.appendChild(skeleton);
+  var sentinel = styled('div');
+  sentinel.id = 'scroll-sentinel';
+  container.appendChild(sentinel);
+  doc._body.appendChild(container);
+
+  var server = { 1: msg('message-1'), 2: msg('message-2'), 3: msg('message-3'), 4: msg('message-4') };
+  var parsedDoc = {
+    getElementById: function (id) { return server[id.replace('message-', '')] || null; },
+    querySelectorAll: function (sel) {
+      return sel === '.message' ? [server[1], server[2], server[3], server[4]] : [];
+    },
+  };
+
+  var sandbox = {
+    console: console,
+    document: doc,
+    DOMParser: function () { this.parseFromString = function () { return parsedDoc; }; },
+    fetch: function () { return Promise.resolve({ ok: true, text: function () { return Promise.resolve('<html/>'); } }); },
+    hxGet: function () { return Promise.resolve(); },
+    StateManager: { get: function () { return null; } },
+    htmx: { process: function () {} },
+    renderMessage: function (t) { return t; },
+    formatTimestamps: function () {},
+    syncReasoningButtons: function () {},
+    postSwapProcess: function () {},
+    pruneMessages: function () {},
+    _refreshChatList: function () {},
+  };
+  sandbox.window = sandbox;
+  sandbox.window.api = { partials: { messageList: function (id) { return '/partials/message-list/' + id; } } };
+  vm.createContext(sandbox);
+  vm.runInContext(
+    fs.readFileSync(path.join(__dirname, '..', '..', 'static/js/messages/message-refresh.js'), 'utf8'),
+    sandbox,
+  );
+
+  sandbox.window.refreshMessagesAfterStream('chat-1', '1', '3').then(function () {
+    check(doc.getElementById('message-3') === server[3], 'skeleton replaced by the server node');
+    check(doc.getElementById('message-3') !== skeleton, 'skeleton node is no longer attached');
+    check(container.querySelectorAll('.message-placeholder').length === 0, 'pruned placeholders replaced');
+    check(doc.getElementById('message-4') === server[4], 'genuinely missing message is inserted');
+    check(container.children[container.children.length - 1] === sentinel, 'sentinel stays last');
+    console.log('\n' + (failures === 0 ? 'all passed' : failures + ' failures'));
+    process.exit(failures > 0 ? 1 : 0);
+  }).catch(function (e) {
+    console.error('FAIL: reconcile threw: ' + e.message);
+    process.exit(1);
+  });
+})();

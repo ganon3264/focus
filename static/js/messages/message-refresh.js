@@ -39,11 +39,14 @@
     }
   }
 
+  function _bareId(id) {
+    return id && id.indexOf('message-') === 0 ? id.slice('message-'.length) : id;
+  }
+
   function _findLiveNode(container, id) {
     var node = document.getElementById(id);
     if (node && node.parentNode === container) return node;
-    var msgId = id.indexOf('message-') === 0 ? id.slice('message-'.length) : id;
-    return container.querySelector('.message-placeholder[data-msg-id="' + msgId + '"]');
+    return container.querySelector('.message-placeholder[data-msg-id="' + _bareId(id) + '"]');
   }
 
   // Reorder the container's message nodes to match *orderedIds* (the server's
@@ -115,7 +118,7 @@
       + container.querySelectorAll('.message-placeholder').length;
     var missing = orderedIds.some(function (id) { return !_findLiveNode(container, id); });
     var toReplace = (changedIds == null || missing || liveCount !== orderedIds.length)
-      ? orderedIds
+      ? orderedIds.map(_bareId)
       : changedIds;
     for (var i = 0; i < toReplace.length; i++) {
       _replaceMessageNode(doc, toReplace[i], inDeleteMode);

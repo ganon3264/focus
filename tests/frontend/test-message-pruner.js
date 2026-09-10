@@ -169,5 +169,17 @@ assert(typeof window.pruneMessages === 'function', 'pruneMessages loaded');
   assert(!window._isMessagePruned('msg-prune-test'), '_isMessagePruned false after restore');
 })();
 
+// ── placeholders use bare ids (the DOM `message-` prefix is stripped) ──
+(function () {
+  var msgBare = addMsg('message-bare-test', 99999);
+  window.pruneMessages();
+  var ph = ml.querySelector('.message-placeholder[data-msg-id="bare-test"]');
+  assert(!!ph, 'placeholder data-msg-id is the bare message id');
+  assert(window._isMessagePruned('bare-test'), '_isMessagePruned true for bare id');
+  assert(!window._isMessagePruned('message-bare-test'), '_isMessagePruned false for prefixed DOM id');
+  var restored = window._unpruneMessage('bare-test');
+  assert(!!restored && restored.id === 'message-bare-test', 'unprune restores the prefixed DOM node');
+})();
+
 // ── Result ──
 h.printSummary();

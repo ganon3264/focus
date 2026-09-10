@@ -7,6 +7,12 @@
     return document.querySelector('.chat-center');
   }
 
+  // Placeholders and the pruned map are keyed by bare message id, matching the
+  // rest of the frontend (`message-` is only the DOM id prefix).
+  function _bareId(id) {
+    return id && id.indexOf('message-') === 0 ? id.slice('message-'.length) : id;
+  }
+
   function pruneMessages() {
     var cc = _getCC();
     var ml = document.getElementById('message-list');
@@ -25,8 +31,8 @@
     var msgs = ml.querySelectorAll('.message');
     for (var i = 0; i < msgs.length; i++) {
       var msg = msgs[i];
-      var id = msg.id;
-      if (!id || _pruned.has(id) || id === streamId || id === 'streaming-message') continue;
+      var id = _bareId(msg.id);
+      if (!id || _pruned.has(id) || id === streamId || msg.id === 'streaming-message') continue;
       var rect = msg.getBoundingClientRect();
       var msgTop = rect.top + st;
       var msgBot = rect.bottom + st;
