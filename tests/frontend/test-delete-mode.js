@@ -170,5 +170,30 @@ function selectedValues() {
   assert(delHidden, 'delete-mode-checkbox hidden after exit');
 })();
 
+// ── messages restored from placeholders get visible checkboxes on entry ──
+(function () {
+  var ph = makeElement('div');
+  ph.classList.add('message-placeholder');
+  ph.dataset.msgId = 'msg4';
+  messageList.appendChild(ph);
+
+  global._unpruneMessage = function (id) {
+    var restored = addMessageToDOM(id);
+    // A node restored from a stored snapshot arrives with a hidden checkbox.
+    restored.querySelector('.delete-mode-checkbox').classList.add('hidden');
+    var placeholder = messageList.querySelector('.message-placeholder[data-msg-id="' + id + '"]');
+    if (placeholder) placeholder.remove();
+    return restored;
+  };
+
+  window.enterDeleteMode(null);
+  var restored = messageList.querySelector('.message[data-message-id="msg4"]');
+  assert(!!restored, 'placeholder was restored');
+  assert(!restored.querySelector('.delete-mode-checkbox').classList.contains('hidden'),
+    'restored message checkbox is visible');
+  window.exitDeleteMode();
+  delete global._unpruneMessage;
+})();
+
 // ── Result ──
 h.printSummary();

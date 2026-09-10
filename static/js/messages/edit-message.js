@@ -241,12 +241,8 @@
 
       if (typeof refreshSingleMessage === 'function') {
         refreshSingleMessage(chatId, messageId);
-      } else {
-        hxGet(window.api.partials.messageList(chatId), {
-          target: '#message-list',
-          swap: 'innerHTML',
-        });
-        if (window._refreshChatList) window._refreshChatList(chatId);
+      } else if (window.refreshMessageList) {
+        window.refreshMessageList(chatId, [messageId]);
       }
     } catch (err) {
       window.showErrorToast('Failed to save edit: ' + err.message);

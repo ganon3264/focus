@@ -196,5 +196,26 @@ assert(typeof window.pruneMessages === 'function', 'pruneMessages loaded');
     '_forgetPruned leaves the placeholder in the DOM');
 })();
 
+// ── pruning is suspended while delete mode is active ──
+(function () {
+  var bar = makeElement('div');
+  bar.id = 'delete-toolbar'; // visible (no 'hidden' class)
+  var orig = doc.getElementById;
+  doc.getElementById = function (id) {
+    if (id === 'delete-toolbar') return bar;
+    return orig(id);
+  };
+
+  addMsg('message-delete-mode', 77777);
+  window.pruneMessages();
+  assert(!window._isMessagePruned('delete-mode'), 'no pruning while the delete toolbar is visible');
+
+  bar.classList.add('hidden');
+  window.pruneMessages();
+  assert(window._isMessagePruned('delete-mode'), 'pruning resumes once delete mode exits');
+
+  doc.getElementById = orig;
+})();
+
 // ── Result ──
 h.printSummary();

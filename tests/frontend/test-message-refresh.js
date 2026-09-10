@@ -246,6 +246,7 @@ var reconcile = sandbox.window._reconcileOrder;
     document: doc,
     DOMParser: function () { this.parseFromString = function () { return parsedDoc; }; },
     fetch: function () { return Promise.resolve({ ok: true, text: function () { return Promise.resolve('<html/>'); } }); },
+    hxFetch: function () { return sandbox.fetch(); },
     hxGet: function () { return Promise.resolve(); },
     StateManager: { get: function () { return null; } },
     htmx: { process: function () {} },

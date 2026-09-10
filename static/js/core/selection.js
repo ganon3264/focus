@@ -100,10 +100,8 @@
   function reloadMessageList() {
     var chatId = StateManager.get('chat_id');
     if (!chatId || !byId('message-list')) return Promise.resolve();
-    return hxGet('/partials/message-list/' + chatId, {
-      target: '#message-list',
-      swap: 'innerHTML',
-    });
+    if (window.refreshMessageList) return window.refreshMessageList(chatId, null);
+    return Promise.resolve();
   }
 
   function afterPersist(persist, reloadMessages) {

@@ -12,6 +12,11 @@
     var ml = document.getElementById('message-list');
     if (!cc || !ml) return;
 
+    // Delete mode needs every node in the DOM to select/render checkboxes, so
+    // suspend culling while its toolbar is up.
+    var toolbar = document.getElementById('delete-toolbar');
+    if (toolbar && !toolbar.classList.contains('hidden')) return;
+
     var vh = cc.clientHeight;
     if (vh < 100) return;
     var st = cc.scrollTop;
@@ -128,18 +133,6 @@
         pruneMessages();
         window.addEventListener('load', pruneMessages);
       }, 150);
-    }
-  });
-
-  document.addEventListener('htmx:beforeSwap', function (evt) {
-    if (evt.detail.target && evt.detail.target.id === 'message-list') {
-      _pruned.clear();
-    }
-  });
-
-  document.addEventListener('htmx:afterSettle', function (evt) {
-    if (evt.detail.target && evt.detail.target.closest('#message-list')) {
-      schedule();
     }
   });
 

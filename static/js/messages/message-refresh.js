@@ -70,7 +70,7 @@
     var container = document.getElementById('message-list');
     if (!container) return;
 
-    var resp = await fetch(window.api.partials.messageList(chatId));
+    var resp = await window.hxFetch(window.api.partials.messageList(chatId));
     if (!resp.ok) return;
     var doc = new DOMParser().parseFromString(await resp.text(), 'text/html');
 
@@ -147,7 +147,7 @@
     var isLatest = msgs.length > 0 ? existingMsg === msgs[msgs.length - 1] : false;
     var url = '/partials/message/' + chatId + '/' + messageId
       + '?msg_index=' + msgIndex + '&is_latest=' + isLatest;
-    var resp = await fetch(url);
+    var resp = await window.hxFetch(url);
     if (!resp.ok) return;
 
     var doc = new DOMParser().parseFromString(await resp.text(), 'text/html');

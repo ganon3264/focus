@@ -37,12 +37,4 @@
     if (typeof updateContinueButtons === 'function') updateContinueButtons();
     window.ensureSentinelAndObserver();
   };
-
-  window.postSwapProcess = window.processMessageList;
-
-  document.body.addEventListener('htmx:afterSwap', function (evt) {
-    if (evt.detail.target.id === 'message-list') {
-      window.processMessageList(evt.detail.target);
-    }
-  });
 })();

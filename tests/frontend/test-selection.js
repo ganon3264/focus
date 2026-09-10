@@ -82,11 +82,18 @@ global.Alpine = {
 
 var calls = [];
 var resolvers = [];
+var messageReloads = [];
 global.htmx = {
   ajax: function (method, url, opts) {
     calls.push({ method: method, url: url, opts: opts });
     return new Promise(function (resolve) { resolvers.push(resolve); });
   },
+};
+
+// Message-list reloads now go through the unified renderer, not htmx.
+global.window.refreshMessageList = function (chatId, changedIds) {
+  messageReloads.push({ chatId: chatId, changedIds: changedIds });
+  return Promise.resolve();
 };
 
 // ── load modules under test ──
@@ -103,6 +110,7 @@ function flush() {
 function resetRequests() {
   calls.length = 0;
   resolvers.length = 0;
+  messageReloads.length = 0;
 }
 
 async function presetScenario() {
@@ -135,13 +143,11 @@ async function personaScenario() {
 
   window.applyPersona('p9', 'Persona Nine');
   await flush();
-  assertEqual(calls.length, 1, 'persona change reloads selection-state first');
+  assertEqual(calls.length, 1, 'persona change reloads selection-state');
   assertIncludes(calls[0].url, '/partials/selection-state?chat_id=chat-1', 'selection-state URL');
-
-  resolvers.shift()();
-  await flush();
-  assertEqual(calls.length, 2, 'message-list reloads after selection-state resolves');
-  assertIncludes(calls[1].url, '/partials/message-list/chat-1', 'message-list URL');
+  assertEqual(messageReloads.length, 1, 'persona change reloads the message list');
+  assertEqual(messageReloads[0].chatId, 'chat-1', 'message-list reload targets the chat');
+  assertEqual(messageReloads[0].changedIds, null, 'message-list reload re-renders all messages');
 
   resolvers.shift()();
   await flush();
@@ -155,13 +161,11 @@ async function characterScenario() {
 
   window.applyCharacter('c9', 'Char Nine');
   await flush();
-  assertEqual(calls.length, 1, 'character change reloads selection-state first');
+  assertEqual(calls.length, 1, 'character change reloads selection-state');
   assertIncludes(calls[0].url, '/partials/selection-state?chat_id=chat-1', 'selection-state URL');
-
-  resolvers.shift()();
-  await flush();
-  assertEqual(calls.length, 2, 'message-list reloads after selection-state resolves');
-  assertIncludes(calls[1].url, '/partials/message-list/chat-1', 'message-list URL');
+  assertEqual(messageReloads.length, 1, 'character change reloads the message list');
+  assertEqual(messageReloads[0].chatId, 'chat-1', 'message-list reload targets the chat');
+  assertEqual(messageReloads[0].changedIds, null, 'message-list reload re-renders all messages');
 
   resolvers.shift()();
   await flush();

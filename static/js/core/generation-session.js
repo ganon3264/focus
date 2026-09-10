@@ -77,7 +77,6 @@
       } catch (e) {
         console.error('[stream] post-failure refresh failed:', e);
       }
-      if (window._refreshChatList) window._refreshChatList(state.chatId);
     }
 
     if (typeof updateSendButtonState === 'function') updateSendButtonState();

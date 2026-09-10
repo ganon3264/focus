@@ -14,16 +14,17 @@
     document.getElementById('delete-toolbar').classList.remove('hidden');
     document.getElementById('delete-toolbar').classList.add('flex');
 
-    document.querySelectorAll('.normal-mode-actions').forEach((el) => el.classList.add('hidden'));
-    document
-      .querySelectorAll('.delete-mode-checkbox')
-      .forEach((el) => el.classList.remove('hidden'));
-
-    // Unprune all messages so DOM operations see every message
+    // Unprune every placeholder first so the visibility/selection pass below
+    // sees all nodes — restored nodes carry their snapshot's hidden checkbox.
     document.querySelectorAll('.message-placeholder').forEach(function (ph) {
       var id = ph.dataset.msgId;
       if (id && window._unpruneMessage) window._unpruneMessage(id);
     });
+
+    document.querySelectorAll('.normal-mode-actions').forEach((el) => el.classList.add('hidden'));
+    document
+      .querySelectorAll('.delete-mode-checkbox')
+      .forEach((el) => el.classList.remove('hidden'));
 
     if (startMessageId) {
       let foundStart = false;
@@ -79,11 +80,11 @@
           body: JSON.stringify({ message_ids: selected }),
         });
         if (res.ok) {
-          hxGet(window.api.partials.messageList(chatId), {
-            target: '#message-list',
-            swap: 'innerHTML',
-          });
-          if (window._refreshChatList) window._refreshChatList(chatId);
+          if (window.refreshMessageList) {
+            await window.refreshMessageList(chatId, null);
+          } else if (window._refreshChatList) {
+            window._refreshChatList(chatId);
+          }
           window.showSuccessToast(selected.length + ' message' + (selected.length === 1 ? '' : 's') + ' deleted');
         } else {
           window.showErrorToast('Failed to delete messages');
@@ -95,13 +96,4 @@
       window.exitDeleteMode();
     });
   };
-
-  document.body.addEventListener('htmx:afterSettle', function (e) {
-    if (e.target.id === 'message-list') {
-      const toolbar = document.getElementById('delete-toolbar');
-      if (toolbar && !toolbar.classList.contains('hidden')) {
-        window.enterDeleteMode();
-      }
-    }
-  });
 })();

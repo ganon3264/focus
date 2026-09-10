@@ -25,10 +25,4 @@
   } else {
     formatTimestamps();
   }
-
-  document.addEventListener('htmx:afterSettle', function (e) {
-    if (e.detail.target && e.detail.target.closest('#message-list')) {
-      formatTimestamps();
-    }
-  });
 })();

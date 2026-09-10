@@ -108,8 +108,8 @@ table lookup (`HANDLERS[json.type]`); unknown types log a warning, never vanish 
   edge); `finalizeStreamRender()` force-flushes before the post-stream refresh.
 - `message-builder.js`: segment builders for text/reasoning/tool_calls.
 - `generation-ui.js`: toggles send/stop buttons, spinner, `clearStaleContent()`.
-- `post-process.js`: re-renders markdown, syncs reasoning buttons, updates UI
-  after swap (also owns the `htmx:afterSwap` hook).
+- `message-refresh.js` owns the message-list DOM: `refreshMessageList(chatId, changedIds)` fetches the server partial and reconciles it in place (reorder / reuse / insert / drop), preserving scroll, open reasoning, and pruned stubs. `refreshMessagesAfterStream` and `refreshChatMessages` delegate to it; `refreshSingleMessage` is the cheap one-node path (swipe/edit) with a full-reconcile fallback. All partial fetches go through `hxFetch` so they share one serializer with `hxGet`/`hxPost`.
+- `post-process.js`: `processMessageList(container)` is the single post-render pass (markdown, reasoning, timestamps, delete-mode visibility, toolbar state, sentinel). The renderer calls it once; it is not tied to htmx events.
 - Messages split into `text | reasoning | tool_boundary` segments (`segments_json` column). Use `preserveOpenStates()` not `innerHTML` for **in-place re-renders** (e.g. streaming segment updates) to keep reasoning toggles open; fresh nodes swapped in from the server start collapsed by design — do not preserve state across server swaps.
 - **Continue invariant:** the stream always delivers the complete text —
   providers with `echoes_prefill=True` resend the partial themselves, others
@@ -155,4 +155,4 @@ table lookup (`HANDLERS[json.type]`); unknown types log a warning, never vanish 
 
 - **`x-show` needs `x-cloak`** — Alpine loads `defer`, so overlays using `x-show` without `x-cloak` flash visible during HTML parsing.
 - **`:last-of-type` isn't "last with this class"** — the scroll sentinel shares the same tag. Use `querySelectorAll('.message')` and take the last NodeList element.
-- **Call `window.pruneMessages()` after HTMX swaps** — `message-pruner.js` replaces off-screen messages with placeholders. Check `window._isMessagePruned(id)` before DOM ops. The streaming message (`Generation.streamingId()`) is excluded.
+- **Never htmx-swap `#message-list`** — the list is rendered by `refreshMessageList()`, which reconciles in place and calls `pruneMessages()` itself. `message-pruner.js` replaces off-screen messages with placeholders; check `window._isMessagePruned(id)` before DOM ops. The streaming message is excluded, and culling is suspended while the delete toolbar is visible.

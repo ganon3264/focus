@@ -1,5 +1,4 @@
-// Contract tests for post-process.js — the single post-render pass shared by
-// the in-place reconcile and htmx-swapped partials.
+// Contract tests for post-process.js — the single post-render pass for messages.
 var fs = require('fs');
 var path = require('path');
 var vm = require('vm');
@@ -31,7 +30,6 @@ vm.runInContext(
 
 var process = sandbox.window.processMessageList;
 assert(typeof process === 'function', 'processMessageList exported');
-assert(sandbox.window.postSwapProcess === process, 'postSwapProcess is an alias of processMessageList');
 
 function makeContainer() {
   var container = h.makeElement('div');

@@ -8,11 +8,17 @@ global.window = global;
 
 var calls = [];
 var resolvers = [];
+var fetchCalls = [];
+var fetchResolvers = [];
 global.htmx = {
   ajax: function (method, url, opts) {
     calls.push({ method: method, url: url, opts: opts });
     return new Promise(function (resolve) { resolvers.push(resolve); });
   },
+};
+global.fetch = function (url, opts) {
+  fetchCalls.push({ url: url, opts: opts });
+  return new Promise(function (resolve) { fetchResolvers.push(resolve); });
 };
 
 var fs = require('fs');
@@ -53,6 +59,36 @@ async function main() {
 
   resolvers.shift()();
   await next;
+
+  // hxFetch shares the same serializer as hxGet/hxPost.
+  fetchCalls.length = 0;
+  fetchResolvers.length = 0;
+  var f1 = hxFetch('/f1');
+  var f2 = hxFetch('/f2');
+  await flush();
+  assertEqual(fetchCalls.length, 1, 'second hxFetch is queued behind the first');
+  assertEqual(fetchCalls[0].url, '/f1', 'first fetch issued first');
+  fetchResolvers.shift()({ ok: true });
+  await flush();
+  assertEqual(fetchCalls.length, 2, 'second hxFetch runs after the first resolves');
+  fetchResolvers.shift()({ ok: true });
+  await Promise.all([f1, f2]);
+
+  // And it orders against htmx requests too.
+  calls.length = 0;
+  resolvers.length = 0;
+  fetchCalls.length = 0;
+  fetchResolvers.length = 0;
+  var f3 = hxFetch('/f3');
+  var g = hxGet('/g', {});
+  await flush();
+  assertEqual(fetchCalls.length, 1, 'fetch issued before a queued hxGet');
+  assertEqual(calls.length, 0, 'hxGet waits for the fetch');
+  fetchResolvers.shift()({ ok: true });
+  await flush();
+  assertEqual(calls.length, 1, 'hxGet runs once the fetch resolves');
+  resolvers.shift()();
+  await Promise.all([f3, g]);
 
   h.printSummary();
 }
