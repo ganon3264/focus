@@ -80,6 +80,9 @@ global.syncReasoningButtons = function () {};
 global.Generation = { streamingId: function () { return global._streamingMessageId || null; } };
 global.Map = Map;
 
+// Load identity module first — pruner routes all id translation through it.
+eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'messages', 'message-identity.js'), 'utf8'));
+
 // Load module (IIFE, exports window.pruneMessages, _isMessagePruned, _unpruneMessage)
 eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'messages', 'message-pruner.js'), 'utf8'));
 
@@ -176,9 +179,21 @@ assert(typeof window.pruneMessages === 'function', 'pruneMessages loaded');
   var ph = ml.querySelector('.message-placeholder[data-msg-id="bare-test"]');
   assert(!!ph, 'placeholder data-msg-id is the bare message id');
   assert(window._isMessagePruned('bare-test'), '_isMessagePruned true for bare id');
-  assert(!window._isMessagePruned('message-bare-test'), '_isMessagePruned false for prefixed DOM id');
+  assert(window._isMessagePruned('message-bare-test'), '_isMessagePruned normalizes a prefixed DOM id');
   var restored = window._unpruneMessage('bare-test');
   assert(!!restored && restored.id === 'message-bare-test', 'unprune restores the prefixed DOM node');
+  assert(!window._isMessagePruned('bare-test'), 'unprune cleared the pruned entry');
+})();
+
+// ── _forgetPruned drops a stale entry without touching the DOM ──
+(function () {
+  addMsg('message-forget-test', 88888);
+  window.pruneMessages();
+  assert(window._isMessagePruned('forget-test'), 'forget-test is pruned');
+  window._forgetPruned('forget-test');
+  assert(!window._isMessagePruned('forget-test'), '_forgetPruned drops the entry');
+  assert(!!ml.querySelector('.message-placeholder[data-msg-id="forget-test"]'),
+    '_forgetPruned leaves the placeholder in the DOM');
 })();
 
 // ── Result ──

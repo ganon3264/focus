@@ -7,12 +7,6 @@
     return document.querySelector('.chat-center');
   }
 
-  // Placeholders and the pruned map are keyed by bare message id, matching the
-  // rest of the frontend (`message-` is only the DOM id prefix).
-  function _bareId(id) {
-    return id && id.indexOf('message-') === 0 ? id.slice('message-'.length) : id;
-  }
-
   function pruneMessages() {
     var cc = _getCC();
     var ml = document.getElementById('message-list');
@@ -31,8 +25,8 @@
     var msgs = ml.querySelectorAll('.message');
     for (var i = 0; i < msgs.length; i++) {
       var msg = msgs[i];
-      var id = _bareId(msg.id);
-      if (!id || _pruned.has(id) || id === streamId || msg.id === 'streaming-message') continue;
+      var id = MessageIdentity.bare(msg);
+      if (!id || _pruned.has(id) || id === streamId || id === 'streaming-message') continue;
       var rect = msg.getBoundingClientRect();
       var msgTop = rect.top + st;
       var msgBot = rect.bottom + st;
@@ -92,16 +86,21 @@
   }
 
   window._isMessagePruned = function (msgId) {
-    return _pruned.has(msgId);
+    return _pruned.has(MessageIdentity.bare(msgId));
+  };
+
+  window._forgetPruned = function (msgId) {
+    _pruned.delete(MessageIdentity.bare(msgId));
   };
 
   window._unpruneMessage = function (msgId) {
-    var stored = _pruned.get(msgId);
+    var id = MessageIdentity.bare(msgId);
+    var stored = _pruned.get(id);
     if (!stored) return null;
 
-    var ph = document.querySelector('.message-placeholder[data-msg-id="' + msgId + '"]');
+    var ph = MessageIdentity.placeholder(id);
     if (!ph) {
-      _pruned.delete(msgId);
+      _pruned.delete(id);
       return null;
     }
 
@@ -114,10 +113,10 @@
       if (typeof syncReasoningButtons === 'function') {
         syncReasoningButtons(msg);
       }
-      _pruned.delete(msgId);
+      _pruned.delete(id);
       return msg;
     }
-      _pruned.delete(msgId);
+      _pruned.delete(id);
       return null;
   };
 

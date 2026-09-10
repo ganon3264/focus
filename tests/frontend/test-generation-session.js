@@ -20,6 +20,7 @@ function assert(cond, msg) {
 
 var ROOT = path.join(__dirname, '..', '..');
 var MODULES = [
+  'static/js/messages/message-identity.js',
   'static/js/messages/stream-events.js',
   'static/js/core/generation-session.js',
 ];

@@ -21,32 +21,23 @@
   }
 
   function _replaceMessageNode(doc, msgId, inDeleteMode) {
-    var newMsg = doc.getElementById('message-' + msgId);
+    var id = MessageIdentity.bare(msgId);
+    var newMsg = doc.getElementById(MessageIdentity.domId(id));
     if (!newMsg) return;
 
-    var oldMsg = document.getElementById('message-' + msgId);
-    if (!oldMsg) {
-      var ph = document.querySelector('.message-placeholder[data-msg-id="' + msgId + '"]');
-      if (ph) oldMsg = ph;
-    }
+    var oldMsg = MessageIdentity.node(id) || MessageIdentity.placeholder(id);
     if (!oldMsg) return;
 
     newMsg.style.setProperty('animation', 'none', 'important');
     oldMsg.replaceWith(newMsg);
     _processNode(newMsg, inDeleteMode);
-    if (window._isMessagePruned && window._isMessagePruned(msgId)) {
-      window._unpruneMessage(msgId);
-    }
-  }
-
-  function _bareId(id) {
-    return id && id.indexOf('message-') === 0 ? id.slice('message-'.length) : id;
+    if (window._forgetPruned) window._forgetPruned(id);
   }
 
   function _findLiveNode(container, id) {
-    var node = document.getElementById(id);
+    var node = MessageIdentity.node(id);
     if (node && node.parentNode === container) return node;
-    return container.querySelector('.message-placeholder[data-msg-id="' + _bareId(id) + '"]');
+    return MessageIdentity.placeholder(id, container);
   }
 
   // Reorder the container's message nodes to match *orderedIds* (the server's
@@ -79,7 +70,11 @@
     }
     var placeholders = container.querySelectorAll('.message-placeholder');
     for (var j = placeholders.length - 1; j >= 0; j--) {
-      if (!wanted['message-' + placeholders[j].dataset.msgId]) placeholders[j].remove();
+      var ph = placeholders[j];
+      if (!wanted[MessageIdentity.domId(ph.dataset.msgId)]) {
+        if (window._forgetPruned) window._forgetPruned(ph.dataset.msgId);
+        ph.remove();
+      }
     }
 
     if (sentinel && container.children[container.children.length - 1] !== sentinel) {
@@ -118,7 +113,7 @@
       + container.querySelectorAll('.message-placeholder').length;
     var missing = orderedIds.some(function (id) { return !_findLiveNode(container, id); });
     var toReplace = (changedIds == null || missing || liveCount !== orderedIds.length)
-      ? orderedIds.map(_bareId)
+      ? orderedIds.map(function (id) { return MessageIdentity.bare(id); })
       : changedIds;
     for (var i = 0; i < toReplace.length; i++) {
       _replaceMessageNode(doc, toReplace[i], inDeleteMode);
@@ -162,7 +157,7 @@
   // single-node endpoint. A node that is gone (pruned away) falls back to the
   // full reconcile.
   async function refreshSingleMessage(chatId, messageId) {
-    var existingMsg = document.getElementById('message-' + messageId);
+    var existingMsg = MessageIdentity.node(messageId);
     if (!existingMsg) {
       await _reconcileMessageList(chatId, [messageId]);
       return;

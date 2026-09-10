@@ -27,6 +27,10 @@ function makeSandbox() {
   sandbox.window.api = { partials: { messageList: function (id) { return '/partials/message-list/' + id; } } };
   vm.createContext(sandbox);
   vm.runInContext(
+    fs.readFileSync(path.join(__dirname, '..', '..', 'static/js/messages/message-identity.js'), 'utf8'),
+    sandbox,
+  );
+  vm.runInContext(
     fs.readFileSync(path.join(__dirname, '..', '..', 'static/js/messages/message-refresh.js'), 'utf8'),
     sandbox,
   );
@@ -253,6 +257,10 @@ var reconcile = sandbox.window._reconcileOrder;
   sandbox.window = sandbox;
   sandbox.window.api = { partials: { messageList: function (id) { return '/partials/message-list/' + id; } } };
   vm.createContext(sandbox);
+  vm.runInContext(
+    fs.readFileSync(path.join(__dirname, '..', '..', 'static/js/messages/message-identity.js'), 'utf8'),
+    sandbox,
+  );
   vm.runInContext(
     fs.readFileSync(path.join(__dirname, '..', '..', 'static/js/messages/message-refresh.js'), 'utf8'),
     sandbox,

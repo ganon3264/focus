@@ -53,7 +53,7 @@
     if (!state.userMessageId || state.isRegen) return;
     var tempUserMsg = document.getElementById('temp-user-msg');
     if (tempUserMsg) {
-      tempUserMsg.id = 'message-' + state.userMessageId;
+      tempUserMsg.id = MessageIdentity.domId(state.userMessageId);
       tempUserMsg.dataset.messageId = state.userMessageId;
     }
   };
@@ -65,7 +65,7 @@
     // to another message: the server answered for a row the DOM did not expect,
     // so a single-node refresh would not be enough to resynchronise.
     if (known && known !== String(state.messageId)) state.identityChanged = true;
-    state.asstDiv.id = 'message-' + state.messageId;
+    state.asstDiv.id = MessageIdentity.domId(state.messageId);
     state.asstDiv.dataset.messageId = state.messageId;
   };
 

@@ -47,6 +47,14 @@ Single source of truth for `character_id`, `persona_id`, `preset_id`, `provider_
 - Read via `.get('key')` or `.getAll()`.
 - React via `.on('event', fn)` — callback gets `{ prev, value }`. Alpine: listen `@event.window`.
 
+### Message identity — `static/js/messages/message-identity.js`
+
+Single source of truth for message id translation. A message is identified by its **bare** id, carried on the node as `data-message-id`. Two derived forms are never written by hand:
+- DOM node `#message-<id>` → `MessageIdentity.domId(id)` / `MessageIdentity.node(id)`
+- pruned stub `.message-placeholder[data-msg-id="<id>"]` → `MessageIdentity.placeholder(id, root)`
+
+The pruner's `_pruned` map is keyed by bare id (`MessageIdentity.bare`); `_forgetPruned(id)` drops a stale entry. All id reads/writes in `message-pruner.js`, `message-refresh.js`, `stream-events.js`, and `core/actions.js` go through this module.
+
 ### Action dispatch — `static/js/core/actions.js`
 
 `data-action="fnName"` on elements → delegated `document` listeners (click, submit, change, input).

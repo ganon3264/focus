@@ -204,7 +204,7 @@ window.actionSwipeNext = function (event, el) {
   var msgId = el.closest('[data-message-id]').dataset.messageId;
   try {
     var res = JSON.parse(event.detail.xhr.response);
-    var sb = document.getElementById('message-' + msgId);
+    var sb = MessageIdentity.node(msgId);
     var chatId = sb && sb.closest('[data-chat-id]') ? sb.closest('[data-chat-id]').dataset.chatId : '';
     if (res.needs_generation) {
       var ct = sb.querySelector('.swipe-counter');
@@ -214,7 +214,7 @@ window.actionSwipeNext = function (event, el) {
       window.refreshSingleMessage(chatId, msgId);
     }
   } catch (e) {
-    var sb2 = document.getElementById('message-' + msgId);
+    var sb2 = MessageIdentity.node(msgId);
     var chatId2 = sb2 && sb2.closest('[data-chat-id]') ? sb2.closest('[data-chat-id]').dataset.chatId : '';
     window.refreshSingleMessage(chatId2, msgId);
   }
