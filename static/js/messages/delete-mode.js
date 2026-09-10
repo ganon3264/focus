@@ -41,6 +41,14 @@
     updateDeleteSelection();
   };
 
+  // Re-apply delete mode after a message-list render. The renderer calls this
+  // directly so it unprunes and restores selection the same way the htmx
+  // swap's afterSettle hook used to.
+  window.reapplyDeleteMode = function () {
+    var bar = document.getElementById('delete-toolbar');
+    if (bar && !bar.classList.contains('hidden')) window.enterDeleteMode();
+  };
+
   window.exitDeleteMode = function () {
     document.getElementById('delete-toolbar').classList.remove('flex');
     document.getElementById('delete-toolbar').classList.add('hidden');

@@ -239,6 +239,8 @@ var reconcile = sandbox.window._reconcileOrder;
     },
   };
 
+  var processCalls = 0;
+  var reapplyCalls = 0;
   var sandbox = {
     console: console,
     document: doc,
@@ -250,7 +252,8 @@ var reconcile = sandbox.window._reconcileOrder;
     renderMessage: function (t) { return t; },
     formatTimestamps: function () {},
     syncReasoningButtons: function () {},
-    postSwapProcess: function () {},
+    processMessageList: function () { processCalls++; },
+    reapplyDeleteMode: function () { reapplyCalls++; },
     pruneMessages: function () {},
     _refreshChatList: function () {},
   };
@@ -272,6 +275,19 @@ var reconcile = sandbox.window._reconcileOrder;
     check(container.querySelectorAll('.message-placeholder').length === 0, 'pruned placeholders replaced');
     check(doc.getElementById('message-4') === server[4], 'genuinely missing message is inserted');
     check(container.children[container.children.length - 1] === sentinel, 'sentinel stays last');
+    check(processCalls === 1, 'the single processing pass runs exactly once');
+    check(reapplyCalls === 1, 'delete mode is re-applied by the renderer');
+
+    // refreshChatMessages must delegate to the same in-place renderer.
+    var server3b = msg('message-3');
+    server[3] = server3b;
+    processCalls = 0;
+    reapplyCalls = 0;
+    return sandbox.window.refreshChatMessages('chat-1');
+  }).then(function () {
+    check(doc.getElementById('message-3') === server[3], 'refreshChatMessages uses the reconcile renderer');
+    check(processCalls === 1, 'full reload also runs exactly one processing pass');
+    check(reapplyCalls === 1, 'full reload re-applies delete mode');
     console.log('\n' + (failures === 0 ? 'all passed' : failures + ' failures'));
     process.exit(failures > 0 ? 1 : 0);
   }).catch(function (e) {

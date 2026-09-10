@@ -248,6 +248,14 @@ function _matchesSimple(el, sel) {
 function matches(el, sel) {
   if (!el || !el.tagName) return false;
   if (sel === '*') return true;
+  // Handle :not(selector)
+  var notMatch = /:not\(([^)]+)\)/.exec(sel);
+  if (notMatch) {
+    var inner = notMatch[1];
+    var base = sel.replace(notMatch[0], '');
+    if (base && !matches(el, base)) return false;
+    return !matches(el, inner);
+  }
   // Strip pseudo-selectors like :checked before further matching
   var pseudoRe = /:(\w[\w-]*)/;
   var pseudoMatch = pseudoRe.exec(sel);
