@@ -3,6 +3,7 @@ import json
 from focus.routers.stream_utils import (
     _append_history_with_tool_calls,
     apply_claude_caching,
+    drop_foreign_reasoning_details,
     filter_unsupported_modalities,
 )
 
@@ -201,17 +202,65 @@ def _seg_call(provider_id, name="sd_image_gen"):
             "function": {"name": name, "arguments": "{}"}}
 
 
-def _row(segments=None, reasoning=None):
+def _row(segments=None, reasoning=None, model_name=None):
     return {
         "role": "assistant",
         "content": "pre-tool text\npost-tool reaction",
         "reasoning": reasoning,
         "variant_id": "v1",
+        "model_name": model_name,
         "segments_json": json.dumps(segments) if segments is not None else None,
     }
 
 
+class TestDropForeignReasoningDetails:
+    def test_openrouter_drops_details_from_other_model(self):
+        msgs = [{
+            "role": "assistant",
+            "content": "hi",
+            "reasoning": "plain text",
+            "reasoning_details": [{"format": "anthropic-claude-v1", "text": "x"}],
+            "_src_model": "anthropic/claude-opus-4.6",
+        }]
+        drop_foreign_reasoning_details(msgs, is_openrouter=True, current_model="moonshotai/kimi-k3")
+        assert "reasoning_details" not in msgs[0]
+        assert msgs[0]["reasoning"] == "plain text"
+        assert "_src_model" not in msgs[0]
+
+    def test_openrouter_keeps_details_from_same_model(self):
+        msgs = [{
+            "role": "assistant",
+            "content": "hi",
+            "reasoning_details": [{"format": "anthropic-claude-v1", "text": "x"}],
+            "_src_model": "anthropic/claude-opus-4.6",
+        }]
+        drop_foreign_reasoning_details(msgs, is_openrouter=True, current_model="anthropic/claude-opus-4.6")
+        assert "reasoning_details" in msgs[0]
+        assert "_src_model" not in msgs[0]
+
+    def test_openrouter_keeps_details_without_source_model(self):
+        msgs = [{"role": "assistant", "content": "hi", "reasoning_details": [{"text": "x"}]}]
+        drop_foreign_reasoning_details(msgs, is_openrouter=True, current_model="moonshotai/kimi-k3")
+        assert "reasoning_details" in msgs[0]
+
+    def test_non_openrouter_only_clears_tag(self):
+        msgs = [{
+            "role": "assistant",
+            "content": "hi",
+            "reasoning_details": [{"format": "anthropic-claude-v1", "text": "x"}],
+            "_src_model": "anthropic/claude-opus-4.6",
+        }]
+        drop_foreign_reasoning_details(msgs, is_openrouter=False, current_model="moonshotai/kimi-k3")
+        assert "reasoning_details" in msgs[0]
+        assert "_src_model" not in msgs[0]
+
+
 class TestAppendHistoryWithToolCalls:
+    async def test_source_model_attached_from_variant(self):
+        history = []
+        await _append_history_with_tool_calls(history, _row(None, model_name="moonshotai/kimi-k3"), {}, {})
+        assert history[0]["_src_model"] == "moonshotai/kimi-k3"
+
     async def test_segments_split_preserves_generation_order(self):
         segments = [
             {"type": "reasoning", "html": "thinking &amp; stuff", "index": 0},

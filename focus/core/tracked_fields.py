@@ -13,6 +13,7 @@ TRACKED_FIELDS: dict[str, dict] = {
     "reasoning_details": {
         "delta_keys": ("reasoning_details",),
         "merge": "index",
+        "accumulate_keys": ("text", "summary"),
         "preserve_thinking": True,
         "history_key": "reasoning_details",
         "stream_to_sse": False,
@@ -41,8 +42,9 @@ def merge_delta(store: list | dict, name: str, value: Any) -> None:
             if key is not None:
                 existing = d.get(key)
                 if existing:
-                    if item.get("text"):
-                        existing["text"] = (existing.get("text") or "") + item["text"]
+                    for acc_key in cfg.get("accumulate_keys", ("text",)):
+                        if item.get(acc_key):
+                            existing[acc_key] = (existing.get(acc_key) or "") + item[acc_key]
                     if item.get("signature"):
                         existing["signature"] = item["signature"]
                 else:

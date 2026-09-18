@@ -146,7 +146,9 @@ async def _append_history_with_tool_calls(
         if segments and any(
             s.get("type") == "tool_boundary" and s.get("tool_calls") for s in segments
         ):
-            await _append_segmented_tool_history(history, segments, tcs, variant_meta=variant_meta)
+            await _append_segmented_tool_history(
+                history, segments, tcs, variant_meta=variant_meta, model_name=row.get("model_name")
+            )
             return
 
     content = await build_content(content_text, msg_attachments.get(row["variant_id"], []))
@@ -157,6 +159,7 @@ async def _append_history_with_tool_calls(
     }
     if row["role"] == "assistant":
         attach_to_message(entry, variant_meta)
+        entry["_src_model"] = row.get("model_name")
 
     if tcs and row["role"] == "assistant":
         entry["tool_calls"] = [_tool_calls_payload(tc) for tc in tcs]
@@ -205,7 +208,9 @@ async def _append_tool_messages(history: list, tc: dict) -> None:
         history.append(json.loads(tc["extra_message_json"]))
 
 
-async def _append_segmented_tool_history(history: list, segments: list, tcs: list, variant_meta: dict | None = None) -> None:
+async def _append_segmented_tool_history(
+    history: list, segments: list, tcs: list, variant_meta: dict | None = None, model_name: str | None = None
+) -> None:
     """Rebuild per-iteration history from stored segments.
 
     Each ``tool_boundary`` segment with ``tool_calls`` closes an assistant
@@ -240,6 +245,7 @@ async def _append_segmented_tool_history(history: list, segments: list, tcs: lis
             entry["reasoning"] = reasoning
         if variant_meta and not meta_attached:
             attach_to_message(entry, variant_meta)
+            entry["_src_model"] = model_name
             meta_attached = True
         if group:
             entry["tool_calls"] = [_tool_calls_payload(tc) for tc in group]
@@ -581,6 +587,21 @@ def apply_claude_caching(
     return messages
 
 
+def drop_foreign_reasoning_details(messages: list[dict], is_openrouter: bool, current_model: str) -> None:
+    """Clear the internal source-model tag, dropping foreign reasoning_detail blocks.
+
+    OpenRouter normalizes reasoning across backends, but the detail blocks it
+    returns carry backend-specific schemas (Anthropic signatures, OpenAI
+    encrypted blobs) that are only valid for the model that produced them.
+    When a chat switches models mid-conversation, only the plaintext
+    ``reasoning`` field may be replayed for foreign turns.
+    """
+    for msg in messages:
+        src_model = msg.pop("_src_model", None)
+        if is_openrouter and msg.get("role") == "assistant" and src_model and src_model != current_model:
+            msg.pop("reasoning_details", None)
+
+
 async def prepare_generation_messages(
     prov_dict: dict,
     body: StreamRequest,
@@ -611,6 +632,13 @@ async def prepare_generation_messages(
 
     for msg in messages:
         msg.pop("_greeting", None)
+
+    drop_foreign_reasoning_details(
+        messages,
+        prov_dict.get("type") == "openrouter",
+        prov_dict.get("model", ""),
+    )
+
     if prov_dict.get("type", "") not in ("google_aistudio", "google_vertex"):
         for msg in messages:
             msg.pop("thought_signature", None)
