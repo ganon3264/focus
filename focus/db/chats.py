@@ -13,6 +13,7 @@ from focus.core.message_render import render_message_segments
 from focus.core.paths import ATTACHMENTS_DIR
 from focus.core.utils import now_iso
 from focus.db._core import _db_conn
+from focus.tools.helpers import clamp_tool_iterations
 
 
 async def create_chat(
@@ -64,8 +65,13 @@ async def create_greeting_messages(
 
 
 async def update_chat(db: aiosqlite.Connection, chat_id: str, updates: dict) -> None:
-    allowed = {"title", "preset_id", "character_id", "persona_id", "tool_calls_enabled", "tool_read_only"}
+    allowed = {
+        "title", "preset_id", "character_id", "persona_id",
+        "tool_calls_enabled", "tool_read_only", "max_tool_iterations",
+    }
     updates = {k: v for k, v in updates.items() if k in allowed}
+    if "max_tool_iterations" in updates:
+        updates["max_tool_iterations"] = clamp_tool_iterations(updates["max_tool_iterations"])
     if not updates:
         return
     cols = ", ".join(f"{k} = ?" for k in updates)

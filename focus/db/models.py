@@ -107,6 +107,7 @@ class Chat:
     is_deleted: int = 0
     tool_calls_enabled: int = 0
     tool_read_only: int = 1
+    max_tool_iterations: int = 25
 
     @staticmethod
     def from_row(row: aiosqlite.Row) -> Chat:

@@ -438,6 +438,105 @@ class TestStreamingGeneration:
         assert results[0]["is_error"] is True
         assert "read-only" in results[0]["result"]
 
+    async def test_tool_iteration_cap_still_finalizes(self, client, tmp_test_dir, patch_provider):
+        """Hitting the per-chat tool iteration cap must emit done and persist segments.
+
+        Regression: the loop used to fall off the end without a done event, so
+        _finalize_gen never ran and the last checkpoint's NULL segments_json
+        wiped every tool-call boundary from the re-rendered message.
+        """
+        chat, prov_id = await _setup(client)
+        patch = await client.patch(f"/api/chats/{chat['id']}", json={"max_tool_iterations": 3})
+        assert patch.status_code == 200
+
+        rounds = [
+            [
+                {"type": "token", "text": f"step{i} "},
+                {"type": "tool_calls", "calls": [
+                    ToolCall(id=f"c{i}", name="no_such_tool", arguments={}),
+                ]},
+            ]
+            for i in range(3)
+        ]
+        fake = FakeProvider(rounds)
+        patch_provider(fake)
+
+        resp = await _stream(
+            client, chat["id"], prov_id,
+            user_message="go", tools_enabled=True, tool_read_only=False,
+        )
+        events = await _consume_sse_events(resp)
+        assert events[-1]["type"] == "done", "iteration cap must still signal completion"
+        assert fake.calls == 3
+
+        asst = await _assistant_variant(_db_path(tmp_test_dir), chat["id"])
+        assert asst["content"] == "".join(f"step{i} " for i in range(3))
+        segments = json.loads(asst["segments_json"])
+        boundaries = [s for s in segments if s["type"] == "tool_boundary"]
+        assert len(boundaries) == 3
+        assert [b["tool_calls"][0]["id"] for b in boundaries] == [f"c{i}" for i in range(3)]
+
+        tool_rows = await _fetchall(
+            _db_path(tmp_test_dir),
+            "SELECT COUNT(*) FROM tool_calls WHERE chat_id = ?",
+            chat["id"],
+        )
+        assert tool_rows[0][0] == 3
+
+        stored = await _fetchone(
+            _db_path(tmp_test_dir),
+            "SELECT max_tool_iterations FROM chats WHERE id = ?",
+            chat["id"],
+        )
+        assert stored[0] == 3
+
+    async def test_max_tool_iterations_clamped(self, client, tmp_test_dir):
+        chat, _ = await _setup(client)
+        db_path = _db_path(tmp_test_dir)
+
+        stored = await _fetchone(
+            db_path, "SELECT max_tool_iterations FROM chats WHERE id = ?", chat["id"]
+        )
+        assert stored[0] == 25, "default cap is 25"
+
+        for sent, expected in ((0, 0), (-5, 0), (9999, 100)):
+            await client.patch(f"/api/chats/{chat['id']}", json={"max_tool_iterations": sent})
+            stored = await _fetchone(
+                db_path, "SELECT max_tool_iterations FROM chats WHERE id = ?", chat["id"]
+            )
+            assert stored[0] == expected, f"{sent} must clamp to {expected}"
+
+    async def test_zero_tool_iterations_means_unlimited(self, client, tmp_test_dir, patch_provider):
+        """0 disables the cap; the loop ends only when the model stops calling tools."""
+        chat, prov_id = await _setup(client)
+        await client.patch(f"/api/chats/{chat['id']}", json={"max_tool_iterations": 0})
+
+        rounds = [
+            [
+                {"type": "token", "text": f"step{i} "},
+                {"type": "tool_calls", "calls": [
+                    ToolCall(id=f"c{i}", name="no_such_tool", arguments={}),
+                ]},
+            ]
+            for i in range(5)
+        ]
+        rounds.append([{"type": "token", "text": "final"}, {"type": "done"}])
+        fake = FakeProvider(rounds)
+        patch_provider(fake)
+
+        resp = await _stream(
+            client, chat["id"], prov_id,
+            user_message="go", tools_enabled=True, tool_read_only=False,
+        )
+        events = await _consume_sse_events(resp)
+        assert events[-1]["type"] == "done"
+        assert fake.calls == 6
+
+        asst = await _assistant_variant(_db_path(tmp_test_dir), chat["id"])
+        segments = json.loads(asst["segments_json"])
+        boundaries = [s for s in segments if s["type"] == "tool_boundary"]
+        assert len(boundaries) == 5
+
     async def test_stop_generation_mid_stream(self, client, tmp_test_dir, patch_provider):
         chat, prov_id = await _setup(client)
         started = asyncio.Event()

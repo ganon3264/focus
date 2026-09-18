@@ -4,7 +4,13 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-from .helpers import MAX_TOOL_ITERATIONS, active_tools, build_tool_result, extract_image_url
+from .helpers import (
+    DEFAULT_MAX_TOOL_ITERATIONS,
+    active_tools,
+    build_tool_result,
+    clamp_tool_iterations,
+    extract_image_url,
+)
 
 
 @dataclass

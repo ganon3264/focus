@@ -41,6 +41,27 @@
     ></div>
   </div>
 
+  <!-- Max Tool Iterations (shown when enabled) -->
+  <div
+    x-show="enabled"
+    x-transition.opacity.duration.200ms
+    class="form-group mb-0 shrink-0"
+  >
+    <label class="flex justify-between text-xs mb-1">
+      <span class="flex items-center gap-1">
+        Max Tool Iterations
+        {{ hint_tooltip('How many assistant/tool rounds the model may chain in a single turn before generation stops. Raise it for long multi-step tasks. Set to <span class="hint-warning">0 for unlimited</span>.') }}
+      </span>
+      <input type="text" inputmode="numeric"
+        x-model.number="maxIterations"
+        @change="saveMaxIterations()"
+        class="form-control text-xs sampler-input" data-dec="0" />
+    </label>
+    <input type="range" min="0" max="100" step="1"
+      x-model.number="maxIterations" @change="saveMaxIterations()"
+      class="styled-slider" />
+  </div>
+
   <!-- Provider notice for non-supporting providers -->
   <div
     x-show="enabled && !providerSupportsTools"
@@ -130,6 +151,7 @@ document.addEventListener('alpine:init', function () {
     return {
       enabled: false,
       readOnly: true,
+      maxIterations: 25,
       enableMultimodal: StateManager.get('multimodal_enabled') !== false,
       providerType: (StateManager && StateManager.get('provider_type')) || 'openai_compat',
       reloading: false,
@@ -178,6 +200,8 @@ document.addEventListener('alpine:init', function () {
               .then(function (chat) {
                 self.enabled = chat.tool_calls_enabled === 1 || chat.tool_calls_enabled === true;
                 self.readOnly = chat.tool_read_only !== 0 && chat.tool_read_only !== false;
+                if (chat.max_tool_iterations != null) self.maxIterations = chat.max_tool_iterations;
+                self.normalizeIterations();
                 self.toolStates = chat.tool_states || {};
               })
               .catch(function () {})
@@ -193,6 +217,17 @@ document.addEventListener('alpine:init', function () {
 
       toggleReadOnly: function () {
         this.readOnly = !this.readOnly;
+        this._save();
+      },
+
+      normalizeIterations: function () {
+        var v = parseInt(this.maxIterations, 10);
+        if (!isFinite(v)) v = 25;
+        this.maxIterations = Math.max(0, Math.min(100, v));
+      },
+
+      saveMaxIterations: function () {
+        this.normalizeIterations();
         this._save();
       },
 
@@ -239,6 +274,7 @@ document.addEventListener('alpine:init', function () {
             body: JSON.stringify({
               tool_calls_enabled: this.enabled,
               tool_read_only: this.readOnly,
+              max_tool_iterations: this.maxIterations,
             }),
           });
         }

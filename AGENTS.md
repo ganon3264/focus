@@ -129,7 +129,7 @@ table lookup (`HANDLERS[json.type]`); unknown types log a warning, never vanish 
 - Data model: `ToolSpec`, `ToolParam`, `ToolCall`, `ToolResult` in `tools/__init__.py`
 - Builtin: `read_file`, `list_dir`, `read_image`, `execute_shell`. Each has a `writes` flag for read-only filtering.
 - External: JSON configs in `tools/` (recursive scan, 2 levels, skip hidden dirs). Format: `ExternalToolConfig(name, description, command, timeout, writes, params)`.
-- Iteration: `_run_generation()` loops up to `MAX_TOOL_ITERATIONS`. Per iteration: stream → detect `tool_calls` → break → execute → emit results → loop.
+- Iteration: `_run_generation()` loops up to the chat's `max_tool_iterations` (default 25; `0` = unlimited; otherwise clamped 1–100; set in the tools modal). Per iteration: stream → detect `tool_calls` → break → execute → emit results → loop. Hitting a finite cap still emits `done` so the variant is finalized.
 
 ### Provider system
 

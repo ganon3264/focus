@@ -10,7 +10,19 @@ from PIL import Image
 from focus.core.media import compress_image, image_format_var, mime_for
 
 TOOL_OUTPUT_TRUNCATE_CHARS = 32000
-MAX_TOOL_ITERATIONS = 10
+
+DEFAULT_MAX_TOOL_ITERATIONS = 25
+MIN_TOOL_ITERATIONS = 0  # 0 = unlimited
+HARD_MAX_TOOL_ITERATIONS = 100
+
+
+def clamp_tool_iterations(value: Any) -> int:
+    """Clamp a tool-iteration budget. 0 is preserved as "unlimited"."""
+    try:
+        value = int(value)
+    except (TypeError, ValueError):
+        return DEFAULT_MAX_TOOL_ITERATIONS
+    return max(MIN_TOOL_ITERATIONS, min(HARD_MAX_TOOL_ITERATIONS, value))
 
 
 def truncate(text: str, max_chars: int = TOOL_OUTPUT_TRUNCATE_CHARS) -> str:

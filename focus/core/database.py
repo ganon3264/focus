@@ -102,7 +102,8 @@ CREATE TABLE IF NOT EXISTS chats (
     updated_at         TEXT NOT NULL,
     is_deleted         INTEGER NOT NULL DEFAULT 0,
     tool_calls_enabled INTEGER NOT NULL DEFAULT 0,
-    tool_read_only     INTEGER NOT NULL DEFAULT 1
+    tool_read_only     INTEGER NOT NULL DEFAULT 1,
+    max_tool_iterations INTEGER NOT NULL DEFAULT 25
 );
 
 CREATE TABLE IF NOT EXISTS messages (
@@ -325,6 +326,8 @@ async def init_db():
             await db.execute("ALTER TABLE chats ADD COLUMN tool_calls_enabled INTEGER NOT NULL DEFAULT 0")
         if "tool_read_only" not in col_names:
             await db.execute("ALTER TABLE chats ADD COLUMN tool_read_only INTEGER NOT NULL DEFAULT 1")
+        if "max_tool_iterations" not in col_names:
+            await db.execute("ALTER TABLE chats ADD COLUMN max_tool_iterations INTEGER NOT NULL DEFAULT 25")
 
         cols = await db.execute("PRAGMA table_info(tool_calls)")
         col_names = {row[1] for row in await cols.fetchall()}

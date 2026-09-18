@@ -189,3 +189,41 @@ class TestBuildSegments:
             {"type": "reasoning", "html": "thinking after tool", "index": 1},
             {"type": "text", "content": "reply"},
         ]
+
+
+class TestAccumulatorSnapshot:
+    """Mid-stream checkpoints must keep the in-flight tool boundary."""
+
+    def test_snapshot_includes_latest_tool_boundary(self):
+        from focus.routers.stream import _GenAccumulator
+        from focus.tools import ToolCall
+
+        acc = _GenAccumulator()
+        acc.add_text("pre")
+        acc.begin_tool_iteration([
+            ToolCall(id="c1", name="list_dir", arguments={"path": "."}),
+        ])
+        acc.add_text("-reaction")
+
+        snapshot = acc.build_segments(snapshot=True)
+        assert [s["type"] for s in snapshot] == ["text", "tool_boundary", "text"]
+        assert snapshot[1]["tool_calls"][0]["id"] == "c1"
+        assert snapshot[2]["content"] == "-reaction"
+
+        # The finalized build (after close_iteration) is identical.
+        acc.close_iteration()
+        assert acc.build_segments() == snapshot
+
+    def test_snapshot_includes_multiple_tool_boundaries(self):
+        from focus.routers.stream import _GenAccumulator
+        from focus.tools import ToolCall
+
+        acc = _GenAccumulator()
+        acc.add_text("first")
+        acc.begin_tool_iteration([ToolCall(id="c1", name="read_file", arguments={})])
+        acc.add_text("second")
+        acc.begin_tool_iteration([ToolCall(id="c2", name="read_file", arguments={})])
+
+        snapshot = acc.build_segments(snapshot=True)
+        boundaries = [s for s in snapshot if s["type"] == "tool_boundary"]
+        assert [b["tool_calls"][0]["id"] for b in boundaries] == ["c1", "c2"]

@@ -5,6 +5,7 @@ import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
+from itertools import count
 from typing import Any
 
 import aiosqlite
@@ -36,8 +37,9 @@ from focus.routers.stream_utils import (
     prepare_generation_messages,
 )
 from focus.tools import (
-    MAX_TOOL_ITERATIONS,
+    DEFAULT_MAX_TOOL_ITERATIONS,
     active_tools,
+    clamp_tool_iterations,
     extract_image_url,
 )
 from focus.tools.builtin import get_all_tools
@@ -94,6 +96,7 @@ class _GenCtx:
     disable_multimodal: bool
     stop_event: asyncio.Event | None
     db: aiosqlite.Connection | None
+    max_tool_iterations: int = DEFAULT_MAX_TOOL_ITERATIONS
 
     async def resolve_variant_id(self) -> str:
         """Return the existing variant id for continue (update in-place),
@@ -174,6 +177,7 @@ async def _run_generation(
     variant_id: str = "",
     stop_event: asyncio.Event | None = None,
     db: aiosqlite.Connection | None = None,
+    max_tool_iterations: int = DEFAULT_MAX_TOOL_ITERATIONS,
 ) -> AsyncIterator[dict]:
     """Run the tool-calling iteration loop.
 
@@ -193,7 +197,12 @@ async def _run_generation(
     """
     loop_messages: list = list(messages)
 
-    for _iteration in range(MAX_TOOL_ITERATIONS if tools_enabled else 1):
+    # A budget of 0 means unlimited; otherwise the loop stops after that many
+    # tool rounds. n.b. ``count()`` is infinite — the only exits are the model
+    # declining to call tools, a stop request, or a provider/generation error.
+    iteration_budget = max_tool_iterations if tools_enabled else 1
+    iterations = count() if iteration_budget == 0 else range(iteration_budget)
+    for _iteration in iterations:
         if stop_event and stop_event.is_set():
             yield {"type": "done"}
             return
@@ -262,6 +271,15 @@ async def _run_generation(
                 "image_url": extract_image_url(r) or None,
             }
 
+    # Only reachable when the model kept requesting tools through the final
+    # permitted iteration. Emit done anyway so the caller finalizes; otherwise
+    # the last mid-stream checkpoint is all that is persisted and its stale
+    # segment list silently drops every tool call from the rendered message.
+    logger.warning(
+        "Tool iteration cap (%d) reached for chat_id=%s; finalizing without a closing response",
+        iteration_budget, chat_id,
+    )
+    yield {"type": "done"}
 
 
 @dataclass
@@ -335,10 +353,19 @@ class _GenAccumulator:
         reasoning_list = self.meta.get("reasoning", [])
         self.reasoning_slices.append(len(reasoning_list))
 
-    def build_segments(self) -> list[dict]:
+    def build_segments(self, snapshot: bool = False) -> list[dict]:
         reasoning_list = self.meta.get("reasoning", [])
+        text_slices = self.text_slices
+        reasoning_slices = self.reasoning_slices
+        if snapshot and self.tool_groups:
+            # Mid-stream snapshots have no trailing close slice yet (only
+            # _finalize_gen calls close_iteration). Synthesize one at the
+            # current position so the most recent tool group renders as a
+            # boundary instead of being dropped.
+            text_slices = text_slices + [len(self.text)]
+            reasoning_slices = reasoning_slices + [len(reasoning_list)]
         return build_segments(
-            self.text_slices, self.reasoning_slices,
+            text_slices, reasoning_slices,
             self.text, reasoning_list,
             tool_call_groups=self.tool_groups if self.tool_groups else None,
         )
@@ -370,6 +397,7 @@ async def _run_generation_with_prefill(
         ctx.tools_by_name, ctx.tool_read_only, ctx.disable_multimodal,
         ctx.body.chat_id, ctx.prompt.asst_msg_id, variant_id,
         stop_event=ctx.stop_event, db=ctx.db,
+        max_tool_iterations=ctx.max_tool_iterations,
     ):
         yield event
 
@@ -436,12 +464,19 @@ async def _finalize_detached(ctx: _GenCtx, acc: _GenAccumulator) -> None:
 
 
 async def _checkpoint_variant(ctx: _GenCtx, acc: _GenAccumulator) -> None:
-    """Mid-stream partial save. Cadence decided by callers (timed / forced)."""
+    """Mid-stream partial save. Cadence decided by callers (timed / forced).
+
+    Segments must be written even on a partial save: ``upsert_variant``'s
+    UPDATE assigns every column, so omitting them would null out the segment
+    structure and drop tool-call boundaries from a mid-stream re-render.
+    """
     vm = json.dumps(acc.full_variant_meta()) if acc.full_variant_meta() else None
+    segments = acc.build_segments(snapshot=True)
     await upsert_variant(
         ctx.body.chat_id, ctx.prompt.asst_msg_id, ctx.prompt.next_variant_index,
         acc.full_text(), ctx.body.regenerate, ctx.prov_dict.get("model", ""),
         variant_id=acc.variant_id, variant_meta=vm,
+        segments_json=json.dumps(segments) if segments else None,
         db=ctx.db,
     )
 
@@ -705,11 +740,18 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
 
 
     tools_by_name: dict = {}
+    max_tool_iterations = DEFAULT_MAX_TOOL_ITERATIONS
     if tools_enabled:
         async with db.execute(
             "SELECT tool_name FROM chat_tool_states WHERE chat_id = ? AND enabled = 1", (body.chat_id,)
         ) as cur:
             enabled_tools = {row["tool_name"] for row in await cur.fetchall()}
+        async with db.execute(
+            "SELECT max_tool_iterations FROM chats WHERE id = ?", (body.chat_id,)
+        ) as cur:
+            chat_row = await cur.fetchone()
+        if chat_row and chat_row["max_tool_iterations"] is not None:
+            max_tool_iterations = clamp_tool_iterations(chat_row["max_tool_iterations"])
         cur_tools = active_tools(
             get_all_tools(), tool_read_only,
             disable_multimodal=disable_multimodal,
@@ -732,6 +774,7 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
         tools_enabled=tools_enabled,
         tools_by_name=tools_by_name, tool_read_only=tool_read_only,
         disable_multimodal=disable_multimodal, stop_event=stop_event, db=db,
+        max_tool_iterations=max_tool_iterations,
     )
 
     # Dispatch
