@@ -609,11 +609,14 @@ class TestStreamingGeneration:
             samplers={"stream_enabled": False},
         )
         assert resp.status_code == 200
-        data = resp.json()
-        assert data["done"] is True
-        assert data["full_text"] == "Json mode"
-        assert data["user_message_id"] is not None
-        assert data["variant_meta"] == {}
+        assert resp.headers["content-type"].startswith("text/event-stream")
+        events = await _consume_sse_events(resp)
+        assert events[0]["type"] == "start"
+        # Buffered mode never emits per-delta tokens; the finished text is
+        # replayed as a single token just before done.
+        tokens = [e["text"] for e in events if e.get("type") == "token"]
+        assert tokens == ["Json mode"]
+        assert events[-1]["type"] == "done"
 
         asst = await _assistant_variant(_db_path(tmp_test_dir), chat["id"])
         assert asst["content"] == "Json mode"
@@ -783,3 +786,265 @@ class TestItemize:
         parts = user["parts"]
         assert [p["type"] for p in parts] == ["text", "text", "image"]
         assert parts[-1]["tokens"] > 0
+
+
+class RetryableError(Exception):
+    """Provider error carrying an HTTP status for retry classification."""
+
+    def __init__(self, status):
+        super().__init__(f"HTTP {status}")
+        self.status_code = status
+
+
+async def _set_retry(client, prov_id, **retry):
+    resp = await client.patch(f"/api/providers/{prov_id}", json={"params": {"retry": retry}})
+    assert resp.status_code == 200
+
+
+class TestAutoRetry:
+    async def test_retries_before_first_token_then_succeeds(self, client, tmp_test_dir, patch_provider):
+        chat, prov_id = await _setup(client)
+        await _set_retry(client, prov_id, base_delay=0, max_delay=0)
+        fake = FakeProvider([
+            RetryableError(429),
+            [{"type": "token", "text": "Hi"}, {"type": "done"}],
+        ])
+        patch_provider(fake)
+
+        events = await _consume_sse_events(await _stream(client, chat["id"], prov_id))
+        retries = [e for e in events if e.get("type") == "retry"]
+        assert len(retries) == 1
+        assert retries[0]["attempt"] == 1 and retries[0]["max"] == 3
+        assert [e["text"] for e in events if e.get("type") == "token"] == ["Hi"]
+        assert fake.calls == 2
+
+        asst = await _assistant_variant(_db_path(tmp_test_dir), chat["id"])
+        assert asst["content"] == "Hi"
+
+    async def test_disabled_retry_surfaces_error_immediately(self, client, patch_provider):
+        chat, prov_id = await _setup(client)
+        await _set_retry(client, prov_id, enabled=False)
+        fake = FakeProvider([RetryableError(429)])
+        patch_provider(fake)
+
+        events = await _consume_sse_events(await _stream(client, chat["id"], prov_id))
+        assert [e.get("type") for e in events if e.get("type") == "retry"] == []
+        assert any(e.get("type") == "error" for e in events)
+        assert fake.calls == 1
+
+    async def test_max_retries_exhausted(self, client, patch_provider):
+        chat, prov_id = await _setup(client)
+        await _set_retry(client, prov_id, base_delay=0, max_delay=0)
+        fake = FakeProvider([
+            RetryableError(503), RetryableError(503),
+            RetryableError(503), RetryableError(503),
+        ])
+        patch_provider(fake)
+
+        events = await _consume_sse_events(await _stream(client, chat["id"], prov_id))
+        assert len([e for e in events if e.get("type") == "retry"]) == 3
+        assert any(e.get("type") == "error" for e in events)
+        assert fake.calls == 4
+
+    async def test_no_retry_after_token_emitted(self, client, patch_provider):
+        chat, prov_id = await _setup(client)
+        await _set_retry(client, prov_id, base_delay=0, max_delay=0)
+
+        class FailAfterTokenProvider:
+            supports_prefill = True
+            echoes_prefill = True
+            supports_tools = True
+
+            def __init__(self):
+                self.calls = 0
+
+            async def stream_complete(self, messages, **kwargs):
+                self.calls += 1
+                yield {"type": "token", "text": "partial"}
+                raise RetryableError(429)
+
+        fake = FailAfterTokenProvider()
+        patch_provider(fake)
+
+        events = await _consume_sse_events(await _stream(client, chat["id"], prov_id))
+        assert [e for e in events if e.get("type") == "retry"] == []
+        assert any(e.get("type") == "error" for e in events)
+        assert fake.calls == 1
+
+    async def test_non_retryable_status_not_retried(self, client, patch_provider):
+        chat, prov_id = await _setup(client)
+        await _set_retry(client, prov_id, base_delay=0, max_delay=0)
+        fake = FakeProvider([RetryableError(401)])
+        patch_provider(fake)
+
+        events = await _consume_sse_events(await _stream(client, chat["id"], prov_id))
+        assert [e for e in events if e.get("type") == "retry"] == []
+        assert any(e.get("type") == "error" for e in events)
+        assert fake.calls == 1
+
+    async def test_extra_status_code_extends_retry_set(self, client, patch_provider):
+        chat, prov_id = await _setup(client)
+        await _set_retry(client, prov_id, base_delay=0, max_delay=0, extra_statuses=[418])
+        fake = FakeProvider([
+            RetryableError(418),
+            [{"type": "token", "text": "ok"}, {"type": "done"}],
+        ])
+        patch_provider(fake)
+
+        events = await _consume_sse_events(await _stream(client, chat["id"], prov_id))
+        assert len([e for e in events if e.get("type") == "retry"]) == 1
+        assert [e["text"] for e in events if e.get("type") == "token"] == ["ok"]
+        assert fake.calls == 2
+
+    async def test_empty_response_is_an_error(self, client, tmp_test_dir, patch_provider):
+        chat, prov_id = await _setup(client)
+        fake = FakeProvider([[{"type": "done"}]])
+        patch_provider(fake)
+
+        events = await _consume_sse_events(await _stream(client, chat["id"], prov_id))
+        errors = [e for e in events if e.get("type") == "error"]
+        assert errors and "empty" in errors[0]["error"].lower()
+
+        # The eagerly-inserted assistant row must be rolled back, not left blank.
+        asst = await _assistant_variant(_db_path(tmp_test_dir), chat["id"])
+        assert asst is None
+        assert fake.calls == 1
+
+    async def test_empty_response_reports_safety_finish_reason(self, client, patch_provider):
+        chat, prov_id = await _setup(client)
+        fake = FakeProvider([[{"type": "done", "finish_reason": "SAFETY"}]])
+        patch_provider(fake)
+
+        events = await _consume_sse_events(await _stream(client, chat["id"], prov_id))
+        errors = [e for e in events if e.get("type") == "error"]
+        assert errors
+        assert "safety" in errors[0]["error"].lower()
+        assert "SAFETY" in errors[0]["error"]
+
+    async def test_new_generation_supersedes_retrying_one(
+        self, client, tmp_test_dir, patch_provider
+    ):
+        """A newer generation in the same chat must stop an older one that is
+        sleeping in a retry backoff, instead of letting it keep retrying on a
+        stale provider (e.g. after the user swapped the API key)."""
+        chat, prov_id = await _setup(client)
+        await _set_retry(client, prov_id, base_delay=10, max_delay=10)
+
+        class FirstFailsThenSucceeds:
+            supports_prefill = True
+            echoes_prefill = True
+            supports_tools = True
+
+            def __init__(self):
+                self.calls = 0
+                self.first_call = asyncio.Event()
+
+            async def stream_complete(self, messages, **kwargs):
+                self.calls += 1
+                if self.calls == 1:
+                    self.first_call.set()
+                    raise RetryableError(429)
+                yield {"type": "token", "text": "second"}
+                yield {"type": "done"}
+
+        fake = FirstFailsThenSucceeds()
+        patch_provider(fake)
+
+        task1 = asyncio.create_task(_stream(client, chat["id"], prov_id, user_message="One"))
+        await asyncio.wait_for(fake.first_call.wait(), 5)
+        await asyncio.sleep(0.05)  # settle into the 10s retry backoff
+
+        events2 = await _consume_sse_events(
+            await _stream(client, chat["id"], prov_id, user_message="Two")
+        )
+        assert [e["text"] for e in events2 if e.get("type") == "token"] == ["second"]
+
+        events1 = await _consume_sse_events(await asyncio.wait_for(task1, 10))
+        assert [e for e in events1 if e.get("type") in ("done", "error")] == []
+        # The superseded run must not have reached the provider again.
+        assert fake.calls == 2
+
+        # Only the winning generation's variant exists; the stale run neither
+        # saved its (empty) output nor stranded an assistant slot.
+        variants = await _fetchall(
+            _db_path(tmp_test_dir),
+            "SELECT mv.content FROM messages m JOIN message_variants mv ON mv.message_id = m.id"
+            " WHERE m.chat_id = ? AND m.role = 'assistant' AND m.position > 0",
+            chat["id"],
+        )
+        assert [v["content"] for v in variants] == ["second"]
+
+    async def test_provider_update_stops_retrying_generation(self, client, patch_provider):
+        """Editing a provider's request config (e.g. swapping the API key) must
+        stop generations bound to it instead of letting them retry the old key."""
+        chat, prov_id = await _setup(client)
+        await _set_retry(client, prov_id, base_delay=10, max_delay=10)
+
+        class FirstFails:
+            supports_prefill = True
+            echoes_prefill = True
+            supports_tools = True
+
+            def __init__(self):
+                self.calls = 0
+                self.first_call = asyncio.Event()
+
+            async def stream_complete(self, messages, **kwargs):
+                self.calls += 1
+                if self.calls == 1:
+                    self.first_call.set()
+                    raise RetryableError(429)
+                yield {"type": "token", "text": "should not happen"}
+                yield {"type": "done"}
+
+        fake = FirstFails()
+        patch_provider(fake)
+
+        task = asyncio.create_task(_stream(client, chat["id"], prov_id))
+        await asyncio.wait_for(fake.first_call.wait(), 5)
+        await asyncio.sleep(0.05)  # settle into the retry backoff
+
+        resp = await client.patch(f"/api/providers/{prov_id}", json={"model": "gpt-4o"})
+        assert resp.status_code == 200
+
+        events = await _consume_sse_events(await asyncio.wait_for(task, 10))
+        assert fake.calls == 1, "the changed provider must not be retried again"
+        assert events[-1]["type"] == "done"
+
+    async def test_buffered_mode_emits_retry_events(self, client, tmp_test_dir, patch_provider):
+        """Non-stream (buffered) mode still surfaces retry events, while only
+        replaying the finished text once so nothing partial is ever rendered."""
+        chat, prov_id = await _setup(client)
+        await _set_retry(client, prov_id, base_delay=0, max_delay=0)
+        fake = FakeProvider([
+            RetryableError(429),
+            [{"type": "token", "text": "Recovered"}, {"type": "done"}],
+        ])
+        patch_provider(fake)
+
+        resp = await _stream(client, chat["id"], prov_id, samplers={"stream_enabled": False})
+        events = await _consume_sse_events(resp)
+        assert len([e for e in events if e.get("type") == "retry"]) == 1
+        assert [e["text"] for e in events if e.get("type") == "token"] == ["Recovered"]
+        assert events[-1]["type"] == "done"
+        assert fake.calls == 2
+
+        asst = await _assistant_variant(_db_path(tmp_test_dir), chat["id"])
+        assert asst["content"] == "Recovered"
+
+    async def test_stream_flag_plumbs_to_provider(self, client, patch_provider):
+        """`stream_enabled` must reach the provider as `stream` (API mode),
+        not just select the transport."""
+        chat, prov_id = await _setup(client)
+
+        streaming = FakeProvider([[{"type": "token", "text": "x"}, {"type": "done"}]])
+        patch_provider(streaming)
+        await _consume_sse_events(await _stream(client, chat["id"], prov_id))
+        assert streaming.all_kwargs[0]["stream"] is True
+
+        buffered = FakeProvider([[{"type": "token", "text": "y"}, {"type": "done"}]])
+        patch_provider(buffered)
+        await _consume_sse_events(
+            await _stream(client, chat["id"], prov_id, samplers={"stream_enabled": False})
+        )
+        assert buffered.all_kwargs[0]["stream"] is False

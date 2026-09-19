@@ -200,6 +200,14 @@ async def update_provider(
 
     await db.update_provider(_db, provider_id, updates)
     await _db.commit()
+
+    # The active provider object is baked into any in-flight request; stop
+    # generations still bound to it when the change affects the request so they
+    # can't keep retrying with the old key/model/params.
+    if {"base_url", "api_key", "model", "params_json"} & updates.keys():
+        from focus.routers.stream import stop_generations_for_provider
+
+        stop_generations_for_provider(provider_id)
     return {"ok": True}
 
 
@@ -207,6 +215,9 @@ async def update_provider(
 async def delete_provider(provider_id: str, _db=Depends(get_db)):
     await db.delete_provider(_db, provider_id)
     await _db.commit()
+    from focus.routers.stream import stop_generations_for_provider
+
+    stop_generations_for_provider(provider_id)
 
 
 BALANCE_CONFIG = {

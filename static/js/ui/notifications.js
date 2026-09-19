@@ -70,6 +70,7 @@
   window.showToast = function (message, opts) {
     opts = opts || {};
     var type = opts.type || 'info';
+    var id = opts.id || null;
     var duration =
       opts.duration !== undefined ? opts.duration : type === 'error' ? 0 : DEFAULT_DURATION;
     var c = getContainer();
@@ -79,11 +80,20 @@
     for (var i = 0; i < children.length; i++) {
       var existing = children[i];
       if (existing._dismissed) continue;
-      if (
-        existing.dataset &&
+      if (!existing.dataset) continue;
+      // A stable id lets callers update one toast in place (live countdowns
+      // etc.) without the text-content dedup below stacking new cards.
+      var sameId = id && existing.dataset.toastId === id;
+      var sameText =
+        !id &&
+        !existing.dataset.toastId &&
         existing.dataset.toastType === type &&
-        getToastText(existing) === message
-      ) {
+        getToastText(existing) === message;
+      if (sameId || sameText) {
+        if (getToastText(existing) !== message) {
+          var textEl = existing.querySelector('.toast-text');
+          if (textEl) textEl.textContent = message;
+        }
         armTimer(existing, duration);
         return existing;
       }
@@ -93,6 +103,7 @@
     card.className = 'toast toast-' + type;
     card.setAttribute('role', type === 'error' ? 'alert' : 'status');
     card.dataset.toastType = type;
+    if (id) card.dataset.toastId = id;
 
     var text = document.createElement('span');
     text.className = 'toast-text';
@@ -213,6 +224,12 @@
   window.hideInfoToast = function () {
     dismissCards(function (card) {
       return card.dataset && card.dataset.toastType === 'info';
+    });
+  };
+
+  window.hideToast = function (id) {
+    dismissCards(function (card) {
+      return card.dataset && card.dataset.toastId === id;
     });
   };
 

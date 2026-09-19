@@ -18,6 +18,7 @@ from focus.core.database import DB_PATH, get_db
 from focus.core.logger import get_logger
 from focus.core.media import set_image_format
 from focus.core.models import ItemizerRequest, StreamRequest
+from focus.core.retry import RetryConfig, classify, delay_for, is_retryable
 from focus.core.segments import build_segments
 from focus.core.tracked_fields import TRACKED_FIELDS, build_full_meta, get_field, merge_delta
 from focus.core.utils import (
@@ -53,8 +54,81 @@ logger = get_logger("routers.stream")
 # write rate is independent of provider speed and reply length.
 _CHECKPOINT_INTERVAL_SECS = 2.0
 
-# Track active streaming generations for graceful stop (message_id → Event)
-_active_generations: dict[str, asyncio.Event] = {}
+@dataclass
+class _ActiveGeneration:
+    """A registered in-flight generation.
+
+    ``stop_event`` is the graceful-stop signal used by the stop endpoint.
+    ``superseded`` marks a generation that a newer request has replaced: it
+    must terminate without persisting anything that could clobber the new one.
+    """
+
+    chat_id: str
+    stop_event: asyncio.Event
+    provider_id: str | None = None
+    superseded: bool = False
+
+
+# Track active generations for graceful stop (message_id → record).
+_active_generations: dict[str, _ActiveGeneration] = {}
+
+
+def _register_generation(
+    message_id: str,
+    chat_id: str,
+    stop_event: asyncio.Event,
+    provider_id: str | None = None,
+) -> _ActiveGeneration:
+    """Register a generation, superseding any prior one in the same chat.
+
+    A client that moves on (new send, regenerate, another tab) leaves the old
+    request's server task alive. While it is sleeping in a retry backoff it
+    won't notice the disconnect until its next write, so it would keep retrying
+    on a stale provider/key. Superseding it here makes the old loop stop at its
+    next checkpoint.
+    """
+    record = _ActiveGeneration(
+        chat_id=chat_id, stop_event=stop_event, provider_id=provider_id
+    )
+    if not message_id:
+        return record
+    for existing_id, existing in list(_active_generations.items()):
+        if existing.chat_id == chat_id:
+            logger.warning(
+                "Superseding generation for message_id=%s (chat=%s) with %s",
+                existing_id, chat_id, message_id,
+            )
+            existing.superseded = True
+            existing.stop_event.set()
+    _active_generations[message_id] = record
+    return record
+
+
+def _unregister_generation(message_id: str, record: _ActiveGeneration) -> None:
+    """Drop *record*, unless a newer generation already replaced it."""
+    if _active_generations.get(message_id) is record:
+        _active_generations.pop(message_id, None)
+
+
+def stop_generations_for_provider(provider_id: str) -> int:
+    """Gracefully stop active generations bound to *provider_id*.
+
+    Called when a provider's request-affecting config changes (API key, base
+    URL, model, params) or it is deleted, so an in-flight retry loop can't keep
+    hammering the stale provider object. Partials are kept; this is a user-style
+    stop, not a supersede.
+    """
+    stopped = 0
+    for record in _active_generations.values():
+        if record.provider_id == provider_id:
+            record.stop_event.set()
+            stopped += 1
+    if stopped:
+        logger.info(
+            "Stopping %d active generation(s) for changed provider=%s",
+            stopped, provider_id,
+        )
+    return stopped
 
 
 @asynccontextmanager
@@ -97,6 +171,8 @@ class _GenCtx:
     stop_event: asyncio.Event | None
     db: aiosqlite.Connection | None
     max_tool_iterations: int = DEFAULT_MAX_TOOL_ITERATIONS
+    retry_config: RetryConfig = field(default_factory=RetryConfig)
+    active_gen: _ActiveGeneration | None = None
 
     async def resolve_variant_id(self) -> str:
         """Return the existing variant id for continue (update in-place),
@@ -164,6 +240,48 @@ def _format_error(e: Exception) -> str:
     return msg
 
 
+async def _sleep_or_stop(delay: float, stop_event: asyncio.Event | None) -> bool:
+    """Sleep for *delay*, returning True if a stop was requested instead."""
+    if stop_event is None:
+        await asyncio.sleep(delay)
+        return False
+    try:
+        await asyncio.wait_for(stop_event.wait(), timeout=delay)
+        return True
+    except TimeoutError:
+        return False
+
+
+def _stop_terminal_event(active: _ActiveGeneration | None) -> dict:
+    """Terminal event for a stop: a superseded run discards, a user stop keeps."""
+    if active is not None and active.superseded:
+        return {"type": "superseded"}
+    return {"type": "done"}
+
+
+_SAFETY_FINISH_HINTS = (
+    "safety", "recitation", "block", "prohibited", "spii", "content_filter", "image_safety",
+)
+
+
+def _empty_response_error(finish_reason: str | None) -> str:
+    """Explain a generation that produced no text, reasoning, or tool calls."""
+    reason = (finish_reason or "").lower()
+    if any(hint in reason for hint in _SAFETY_FINISH_HINTS):
+        return (
+            "The provider returned no content — the response was likely blocked by its "
+            f"safety filter (finish_reason={finish_reason})."
+        )
+    if "length" in reason or "max_tokens" in reason:
+        return (
+            "The provider returned no content before hitting the token limit "
+            f"(finish_reason={finish_reason})."
+        )
+    if reason:
+        return f"The provider returned an empty response (finish_reason={finish_reason})."
+    return "The provider returned an empty response."
+
+
 async def _run_generation(
     provider,
     messages: list[dict],
@@ -175,9 +293,10 @@ async def _run_generation(
     chat_id: str = "",
     asst_msg_id: str = "",
     variant_id: str = "",
-    stop_event: asyncio.Event | None = None,
+    active_gen: _ActiveGeneration | None = None,
     db: aiosqlite.Connection | None = None,
     max_tool_iterations: int = DEFAULT_MAX_TOOL_ITERATIONS,
+    retry_config: RetryConfig | None = None,
 ) -> AsyncIterator[dict]:
     """Run the tool-calling iteration loop.
 
@@ -187,8 +306,15 @@ async def _run_generation(
       {"type": "tool_calls",  "calls": [ToolCall, ...]}
       {"type": "tool_result", "call_id": str, "name": str,
                                "result": str, "is_error": bool}
+      {"type": "usage",       "usage": dict}
+      {"type": "retry",       "attempt": int, "max": int,
+                              "delay": float, "reason": str}
       {"type": "done"}
+      {"type": "superseded"}
       {"type": "error",       "error": str}
+
+    ``superseded`` is emitted instead of ``done`` when a newer request for the
+    same chat replaced this one; the caller must not persist anything.
 
     GeneratorExit and CancelledError are deliberately not caught here;
     the caller (``_stream_generate`` or ``_non_stream_generate``) is
@@ -196,15 +322,21 @@ async def _run_generation(
     thrown at the outer generator's yield points.
     """
     loop_messages: list = list(messages)
+    stop_event = active_gen.stop_event if active_gen else None
 
     # A budget of 0 means unlimited; otherwise the loop stops after that many
     # tool rounds. n.b. ``count()`` is infinite — the only exits are the model
     # declining to call tools, a stop request, or a provider/generation error.
+    gen_had_content = False
+    any_tool_calls = False
+    last_finish_reason: str | None = None
+    waited_total = 0.0
+
     iteration_budget = max_tool_iterations if tools_enabled else 1
     iterations = count() if iteration_budget == 0 else range(iteration_budget)
     for _iteration in iterations:
         if stop_event and stop_event.is_set():
-            yield {"type": "done"}
+            yield _stop_terminal_event(active_gen)
             return
         # Strip internal metadata before sending to the provider
         for msg in loop_messages:
@@ -213,36 +345,89 @@ async def _run_generation(
         iter_meta: dict[str, Any] = {}  # merged per-field values for this iteration
         tool_calls_list: list | None = None
 
-        try:
-            async for event in provider.stream_complete(loop_messages, **gen_kwargs):
-                if stop_event and stop_event.is_set():
-                    yield {"type": "done"}
-                    return
-                if event["type"] == "token":
-                    iter_collected.append(event["text"])
-                    yield {"type": "token", "text": event["text"]}
-                elif event["type"] == "meta":
-                    name = event["field"]
-                    cfg = TRACKED_FIELDS.get(name)
-                    if cfg:
-                        if cfg["merge"] == "append":
-                            merge_delta(iter_meta.setdefault(name, []), name, event["value"])
-                        elif cfg["merge"] == "index":
-                            merge_delta(iter_meta.setdefault(name, {}), name, event["value"])
-                    yield event  # let _handle_event accumulate + forward to SSE
-                elif event["type"] == "usage":
-                    yield {"type": "usage", "usage": event["usage"]}
-                elif event["type"] == "tool_calls":
-                    tool_calls_list = event["calls"]
-                    break
-                elif event["type"] == "done":
-                    break
-        except Exception as e:
-            logger.exception("Completion failed for chat_id=%s", chat_id)
-            yield {"type": "error", "error": _format_error(e)}
-            return
+        # Auto-retry: a fresh attempt budget per tool iteration. Only failures
+        # that produced no client-visible event are retried; once a token (or
+        # reasoning/meta) has been streamed the client has rendered it and a
+        # replay would duplicate output.
+        attempt = 0
+        while True:
+            attempt_emitted = False
+            stream_finished = False
+            try:
+                async for event in provider.stream_complete(loop_messages, **gen_kwargs):
+                    if stop_event and stop_event.is_set():
+                        yield _stop_terminal_event(active_gen)
+                        return
+                    attempt_emitted = True
+                    if event["type"] == "token":
+                        gen_had_content = True
+                        iter_collected.append(event["text"])
+                        yield {"type": "token", "text": event["text"]}
+                    elif event["type"] == "meta":
+                        gen_had_content = True
+                        name = event["field"]
+                        cfg = TRACKED_FIELDS.get(name)
+                        if cfg:
+                            if cfg["merge"] == "append":
+                                merge_delta(iter_meta.setdefault(name, []), name, event["value"])
+                            elif cfg["merge"] == "index":
+                                merge_delta(iter_meta.setdefault(name, {}), name, event["value"])
+                        yield event  # let _handle_event accumulate + forward to SSE
+                    elif event["type"] == "usage":
+                        yield {"type": "usage", "usage": event["usage"]}
+                    elif event["type"] == "tool_calls":
+                        any_tool_calls = True
+                        tool_calls_list = event["calls"]
+                        break
+                    elif event["type"] == "done":
+                        last_finish_reason = event.get("finish_reason")
+                        break
+                stream_finished = True
+            except Exception as e:
+                cls = classify(e)
+                can_retry = (
+                    not attempt_emitted
+                    and retry_config is not None
+                    and is_retryable(retry_config, cls)
+                    and attempt < retry_config.max_retries
+                )
+                delay = delay_for(attempt, retry_config, cls.retry_after) if retry_config else 0.0
+                if (
+                    can_retry
+                    and delay <= retry_config.hard_cap
+                    and waited_total + delay <= retry_config.total_budget
+                ):
+                    logger.warning(
+                        "Provider error for chat_id=%s (attempt %d/%d, %s); retrying in %.1fs: %s",
+                        chat_id, attempt + 1, retry_config.max_retries, cls.kind, delay, _format_error(e),
+                    )
+                    yield {
+                        "type": "retry",
+                        "attempt": attempt + 1,
+                        "max": retry_config.max_retries,
+                        "delay": round(delay, 2),
+                        "reason": _format_error(e),
+                    }
+                    if await _sleep_or_stop(delay, stop_event):
+                        yield _stop_terminal_event(active_gen)
+                        return
+                    waited_total += delay
+                    attempt += 1
+                    continue
+                logger.exception("Completion failed for chat_id=%s", chat_id)
+                yield {"type": "error", "error": _format_error(e)}
+                return
+            if stream_finished:
+                break
 
         if not tool_calls_list:
+            if not gen_had_content and not any_tool_calls:
+                logger.warning(
+                    "Empty response for chat_id=%s (finish_reason=%s)",
+                    chat_id, last_finish_reason,
+                )
+                yield {"type": "error", "error": _empty_response_error(last_finish_reason)}
+                return
             yield {"type": "done"}
             return
 
@@ -396,8 +581,9 @@ async def _run_generation_with_prefill(
         ctx.provider, ctx.messages, ctx.gen_kwargs, ctx.tools_enabled,
         ctx.tools_by_name, ctx.tool_read_only, ctx.disable_multimodal,
         ctx.body.chat_id, ctx.prompt.asst_msg_id, variant_id,
-        stop_event=ctx.stop_event, db=ctx.db,
+        active_gen=ctx.active_gen, db=ctx.db,
         max_tool_iterations=ctx.max_tool_iterations,
+        retry_config=ctx.retry_config,
     ):
         yield event
 
@@ -421,9 +607,12 @@ async def _finalize_gen(
     db = conn if conn is not None else ctx.db
     acc.close_iteration()
     segments = acc.build_segments()
-    has_content = acc.has_content
+    # Tool-call-only rounds carry no text/reasoning but must still persist their
+    # segments; anything else without content is an empty run (stop/supersede
+    # before the first token) that must not create a blank variant.
+    has_persistable = acc.has_content or bool(acc.tool_groups)
 
-    if not success and not has_content:
+    if not has_persistable:
         if not ctx.body.regenerate:
             await rollback_assistant(ctx.prompt.asst_msg_id, db=db)
         acc.finalized = True
@@ -539,6 +728,19 @@ async def _handle_event(
             "image_url": event.get("image_url") or None,
         }
 
+    if t == "retry":
+        return event
+
+    if t == "superseded":
+        # A newer generation owns this conversation now. Discard partial work so
+        # it cannot clobber the new run; an empty fresh-send slot is still
+        # rolled back so it doesn't strand an invisible assistant row.
+        if acc.has_content or acc.tool_groups:
+            acc.finalized = True
+        else:
+            await _finalize_gen(ctx, acc)
+        return None
+
     if t == "usage":
         await save_usage(
             ctx.body.chat_id, ctx.prompt.asst_msg_id, acc.variant_id,
@@ -595,7 +797,11 @@ async def _stream_generate(ctx: _GenCtx) -> AsyncIterator[str]:
     variant_id = await ctx.resolve_variant_id()
     acc = _GenAccumulator(variant_id=variant_id)
 
-    _active_generations[ctx.prompt.asst_msg_id] = ctx.stop_event or asyncio.Event()
+    active = _register_generation(
+        ctx.prompt.asst_msg_id, ctx.body.chat_id,
+        ctx.stop_event or asyncio.Event(), ctx.prov_dict.get("id"),
+    )
+    ctx.active_gen = active
 
     yield f"data: {json.dumps({'type': 'start', 'message_id': ctx.prompt.asst_msg_id, 'user_message_id': None if ctx.body.regenerate else ctx.prompt.user_msg_id})}\n\n"
 
@@ -610,6 +816,9 @@ async def _stream_generate(ctx: _GenCtx) -> AsyncIterator[str]:
                 if payload is not None:
                     yield f"data: {json.dumps(payload)}\n\n"
                 return
+            if event["type"] == "superseded":
+                # This stream was replaced by a newer request; close it silently.
+                return
             if payload is not None:
                 yield f"data: {json.dumps(payload)}\n\n"
             if event["type"] == "error":
@@ -622,40 +831,64 @@ async def _stream_generate(ctx: _GenCtx) -> AsyncIterator[str]:
         await _finalize_detached(ctx, acc)
         raise
     finally:
-        _active_generations.pop(ctx.prompt.asst_msg_id, None)
+        _unregister_generation(ctx.prompt.asst_msg_id, active)
 
 
 
-async def _non_stream_generate(ctx: _GenCtx) -> JSONResponse:
-    """Run generation in non-streaming mode and return a JSON response."""
+async def _non_stream_generate(ctx: _GenCtx) -> AsyncIterator[str]:
+    """Buffered generation over an SSE transport.
+
+    The provider response is accumulated server-side exactly as before — nothing
+    partial is ever rendered, which matters for providers whose safety filtering
+    differs between streaming and buffered calls (e.g. Google). The transport is
+    still SSE so live retry feedback reaches the client; the finished text is
+    replayed as a single token just before ``done``.
+    """
     variant_id = await ctx.resolve_variant_id()
     acc = _GenAccumulator(variant_id=variant_id)
 
-    _active_generations[ctx.prompt.asst_msg_id] = ctx.stop_event or asyncio.Event()
+    active = _register_generation(
+        ctx.prompt.asst_msg_id, ctx.body.chat_id,
+        ctx.stop_event or asyncio.Event(), ctx.prov_dict.get("id"),
+    )
+    ctx.active_gen = active
+
+    yield f"data: {json.dumps({'type': 'start', 'message_id': ctx.prompt.asst_msg_id, 'user_message_id': None if ctx.body.regenerate else ctx.prompt.user_msg_id})}\n\n"
+
     try:
         async for event in _run_generation_with_prefill(ctx, variant_id):
-            await _handle_event(acc, event, ctx)
+            payload = await _handle_event(acc, event, ctx)
+            if event["type"] == "retry":
+                if payload is not None:
+                    yield f"data: {json.dumps(payload)}\n\n"
+                continue
+            if event["type"] == "superseded":
+                # Replaced by a newer request; close silently (accumulator was
+                # finalized as a discard by _handle_event).
+                return
             if event["type"] == "error":
-                raise HTTPException(500, event["error"])
+                if payload is not None:
+                    yield f"data: {json.dumps(payload)}\n\n"
+                return
+            if event["type"] == "done":
+                # generation_end stays fire-and-forget in buffered mode.
+                if ctx.prompt.asst_msg_id and ctx.db is not None:
+                    await schedule_trigger(ctx.db, ctx.body.chat_id, "generation_end", ctx.prompt.asst_msg_id)
+                text = acc.full_text()
+                if text:
+                    yield f"data: {json.dumps({'type': 'token', 'text': text})}\n\n"
+                if payload is not None:
+                    yield f"data: {json.dumps(payload)}\n\n"
+                return
     except _SaveFailed as e:
-        raise HTTPException(500, f"Generation succeeded but save failed: {_format_error(e)}")
+        yield f"data: {json.dumps({'type': 'error', 'error': f'Generation succeeded but save failed: {_format_error(e)}'})}\n\n"
+    except GeneratorExit:
+        await _finalize_detached(ctx, acc)
     except asyncio.CancelledError:
         await _finalize_detached(ctx, acc)
-        raise HTTPException(499, "Request cancelled")
-    else:
-        # Non-stream has no SSE channel, so generation_end stays fire-and-forget.
-        if ctx.prompt.asst_msg_id and ctx.db is not None:
-            await schedule_trigger(ctx.db, ctx.body.chat_id, "generation_end", ctx.prompt.asst_msg_id)
-        return JSONResponse({
-            "done": True,
-            "message_id": ctx.prompt.asst_msg_id,
-            "variant_index": ctx.prompt.next_variant_index,
-            "user_message_id": None if ctx.body.regenerate else ctx.prompt.user_msg_id,
-            "full_text": acc.full_text(),
-            "variant_meta": acc.full_variant_meta(),
-        })
+        raise
     finally:
-        _active_generations.pop(ctx.prompt.asst_msg_id, None)
+        _unregister_generation(ctx.prompt.asst_msg_id, active)
 
 
 @router.post("/stream")
@@ -667,6 +900,12 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
     Supports an iterative tool-calling loop when tools_enabled=True.
     """
     provider, prov_dict = await _load_provider(db, body.provider_id)
+
+    try:
+        prov_params = json.loads(prov_dict.get("params_json") or "{}")
+    except json.JSONDecodeError:
+        prov_params = {}
+    retry_config = RetryConfig.from_params(prov_params)
 
     fmt = (body.samplers or {}).get("image_format", "webp")
     set_image_format(fmt)
@@ -727,7 +966,10 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
         prov_dict, body, prompt_ctx.messages, provider, body.chat_id,
     )
 
-    use_stream = gen_kwargs.pop("stream_enabled", True)
+    # `stream_enabled` selects both the provider API mode and the transport:
+    # true -> live streaming, false -> a buffered provider call (SSE still).
+    use_stream = bool(gen_kwargs.pop("stream_enabled", True))
+    gen_kwargs["stream"] = use_stream
 
     # Tool calling setup
     tools_enabled = body.tools_enabled
@@ -774,15 +1016,14 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
         tools_enabled=tools_enabled,
         tools_by_name=tools_by_name, tool_read_only=tool_read_only,
         disable_multimodal=disable_multimodal, stop_event=stop_event, db=db,
-        max_tool_iterations=max_tool_iterations,
+        max_tool_iterations=max_tool_iterations, retry_config=retry_config,
     )
 
-    # Dispatch
-    if not use_stream:
-        return await _non_stream_generate(gctx)
-
+    # Dispatch — both modes use an SSE transport; buffered mode just doesn't
+    # forward tokens until the response is complete.
+    generator = _stream_generate(gctx) if use_stream else _non_stream_generate(gctx)
     return StreamingResponse(
-        _stream_generate(gctx),
+        generator,
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
@@ -795,11 +1036,11 @@ async def stop_generation(message_id: str):
     The SSE generator checks this event between tokens and drains gracefully,
     sending a ``done`` event so the frontend's read loop completes normally.
     """
-    event = _active_generations.get(message_id)
-    if not event:
+    record = _active_generations.get(message_id)
+    if not record:
         logger.warning("Stop requested for unknown message_id=%s", message_id)
         raise HTTPException(404, "No active generation found")
-    event.set()
+    record.stop_event.set()
     logger.info("Graceful stop requested for message_id=%s", message_id)
     return {"ok": True}
 

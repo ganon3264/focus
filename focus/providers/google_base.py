@@ -190,94 +190,139 @@ class GoogleProviderBase(BaseProvider):
                     tc["_thought_signature"] = ts
         self._pending_thought_signatures.clear()
 
+    def _log_payload(self, contents, config) -> None:
+        if not logger.isEnabledFor(logging.DEBUG):
+            return
+        try:
+            contents_dump = [c.model_dump(exclude_none=True) for c in contents]
+            config_dump = config.model_dump(exclude_none=True) if config else {}
+
+            def _sanitize(o):
+                if isinstance(o, dict):
+                    return {k: _sanitize(v) for k, v in o.items()}
+                if isinstance(o, list):
+                    return [_sanitize(v) for v in o]
+                if isinstance(o, bytes):
+                    return f"<bytes len={len(o)}>"
+                return o
+
+            logger.debug(
+                "GOOGLE RAW PAYLOAD:\nmodel=%s\ncontents=\n%s\nconfig=\n%s",
+                self.model,
+                json.dumps(_sanitize(contents_dump), indent=2, ensure_ascii=False),
+                json.dumps(_sanitize(config_dump), indent=2, ensure_ascii=False),
+            )
+        except Exception:
+            logger.debug("Failed to serialize debug payload", exc_info=True)
+
+    def _consume_response(self, response, function_calls_acc: dict[str, dict]):
+        """Parse one response (stream chunk or full GenerateContentResponse).
+
+        Mutates *function_calls_acc* and captures thought signatures; returns
+        ``(events, finish_reason, usage_metadata)``.
+        """
+        events: list[dict] = []
+        usage = getattr(response, "usage_metadata", None)
+        candidates = getattr(response, "candidates", None) or []
+        if not candidates:
+            return events, None, usage
+
+        finish_reason = getattr(candidates[0], "finish_reason", None)
+        content = candidates[0].content
+        if not content or not content.parts:
+            return events, finish_reason, usage
+
+        for part in content.parts:
+            if part.function_call:
+                fc = part.function_call
+                fc_id = fc.id or ""
+                if fc_id not in function_calls_acc:
+                    function_calls_acc[fc_id] = {"id": fc_id, "name": fc.name or "", "args": {}}
+                if fc_id:
+                    if fc.name:
+                        function_calls_acc[fc_id]["name"] = fc.name
+                    if fc.args:
+                        function_calls_acc[fc_id]["args"].update(fc.args)
+                    if part.thought_signature:
+                        self._pending_thought_signatures[fc_id] = part.thought_signature
+            if part.text:
+                if part.thought:
+                    events.append({"type": "meta", "field": "reasoning", "value": part.text})
+                else:
+                    events.append({"type": "token", "text": part.text})
+        return events, finish_reason, usage
+
+    def _final_events(self, function_calls_acc, last_usage, finish_reason) -> list[dict]:
+        events: list[dict] = []
+        if function_calls_acc:
+            calls = [
+                ToolCall(id=fc["id"], name=fc["name"], arguments=fc["args"])
+                for fc in function_calls_acc.values()
+            ]
+            events.append({"type": "tool_calls", "calls": calls})
+        if last_usage is not None:
+            events.append({"type": "usage", "usage": {
+                "prompt_tokens": getattr(last_usage, "prompt_token_count", 0) or 0,
+                "completion_tokens": getattr(last_usage, "candidates_token_count", 0) or 0,
+                "total_tokens": getattr(last_usage, "total_token_count", 0) or 0,
+                "cached_tokens": getattr(last_usage, "cached_content_token_count", 0) or 0,
+            }})
+        done: dict = {"type": "done"}
+        if finish_reason:
+            done["finish_reason"] = finish_reason
+        events.append(done)
+        return events
+
     async def _do_stream(self, contents, config):
-        if logger.isEnabledFor(logging.DEBUG):
-            try:
-                import json as _json
-
-                contents_dump = [c.model_dump(exclude_none=True) for c in contents]
-                config_dump = config.model_dump(exclude_none=True) if config else {}
-
-                def _sanitize(o):
-                    if isinstance(o, dict):
-                        return {k: _sanitize(v) for k, v in o.items()}
-                    if isinstance(o, list):
-                        return [_sanitize(v) for v in o]
-                    if isinstance(o, bytes):
-                        return f"<bytes len={len(o)}>"
-                    return o
-
-                contents_dump = _sanitize(contents_dump)
-                config_dump = _sanitize(config_dump)
-                logger.debug(
-                    "GOOGLE RAW PAYLOAD:\nmodel=%s\ncontents=\n%s\nconfig=\n%s",
-                    self.model,
-                    _json.dumps(contents_dump, indent=2, ensure_ascii=False),
-                    _json.dumps(config_dump, indent=2, ensure_ascii=False),
-                )
-            except Exception:
-                logger.debug("Failed to serialize debug payload", exc_info=True)
+        self._log_payload(contents, config)
         stream = await self.client.aio.models.generate_content_stream(
             model=self.model,
             contents=contents,
             config=config,
         )
 
-        # Accumulate function calls across streaming chunks
         function_calls_acc: dict[str, dict] = {}
         last_usage = None
+        finish_reason = None
         async for chunk in stream:
-            if chunk.usage_metadata is not None:
-                last_usage = chunk.usage_metadata
+            events, chunk_finish, chunk_usage = self._consume_response(chunk, function_calls_acc)
+            if chunk_finish:
+                finish_reason = str(chunk_finish)
+            if chunk_usage is not None:
+                last_usage = chunk_usage
+            for e in events:
+                yield e
 
-            if not chunk.candidates or not chunk.candidates[0].content:
-                continue
+        for e in self._final_events(function_calls_acc, last_usage, finish_reason):
+            yield e
 
-            parts = chunk.candidates[0].content.parts
-            if not parts:
-                continue
+    async def _do_generate(self, contents, config):
+        """Non-streaming counterpart: one call, replayed through the same events."""
+        self._log_payload(contents, config)
+        response = await self.client.aio.models.generate_content(
+            model=self.model,
+            contents=contents,
+            config=config,
+        )
 
-            for part in parts:
-                if part.function_call:
-                    fc = part.function_call
-                    fc_id = fc.id or ""
-                    if fc_id not in function_calls_acc:
-                        function_calls_acc[fc_id] = {"id": fc_id, "name": fc.name or "", "args": {}}
-                    if fc_id:
-                        if fc.name:
-                            function_calls_acc[fc_id]["name"] = fc.name
-                        if fc.args:
-                            function_calls_acc[fc_id]["args"].update(fc.args)
-                        if part.thought_signature:
-                            self._pending_thought_signatures[fc_id] = part.thought_signature
-                if part.text:
-                    if part.thought:
-                        yield {"type": "meta", "field": "reasoning", "value": part.text}
-                    else:
-                        yield {"type": "token", "text": part.text}
-
-        if function_calls_acc:
-            calls = [
-                ToolCall(id=fc["id"], name=fc["name"], arguments=fc["args"])
-                for fc in function_calls_acc.values()
-            ]
-            yield {"type": "tool_calls", "calls": calls}
-
-        if last_usage is not None:
-            yield {"type": "usage", "usage": {
-                "prompt_tokens": getattr(last_usage, "prompt_token_count", 0) or 0,
-                "completion_tokens": getattr(last_usage, "candidates_token_count", 0) or 0,
-                "total_tokens": getattr(last_usage, "total_token_count", 0) or 0,
-                "cached_tokens": getattr(last_usage, "cached_content_token_count", 0) or 0,
-            }}
+        function_calls_acc: dict[str, dict] = {}
+        events, finish_reason, usage = self._consume_response(response, function_calls_acc)
+        for e in events:
+            yield e
+        for e in self._final_events(
+            function_calls_acc, usage, str(finish_reason) if finish_reason else None
+        ):
+            yield e
 
     async def stream_complete(self, messages: list[dict], **kwargs):
-        """Stream tokens from a Google Gemini model.
+        """Produce a Google Gemini completion as an event stream.
 
-        Builds contents with thought signatures, streams via _do_stream,
-        and retries once without thought_signature on failure.
+        Builds contents with thought signatures (required on functionCall parts
+        for multi-turn tool calling). ``stream`` (default True) selects the
+        upstream API: ``generate_content_stream`` or ``generate_content``.
         """
         merged = {**self.params, **kwargs}
+        stream_requested = merged.pop("stream", True)
         last_assistant_idx = self._find_last_assistant_with_signature(messages)
 
         # Convert tools from OpenAI-compatible payload to Google SDK format
@@ -292,19 +337,9 @@ class GoogleProviderBase(BaseProvider):
 
         config = self._build_config(merged, system_instruction, google_tools=google_tools)
 
-        try:
-            async for chunk in self._do_stream(contents, config):
-                yield chunk
-        except Exception:
-            if last_assistant_idx is not None:
-                logger.debug("First stream attempt failed, retrying without thought_signature", exc_info=True)
-                _, contents_retry = self._build_contents(messages, merged, last_assistant_idx, False)
-                async for chunk in self._do_stream(contents_retry, config):
-                    yield chunk
-            else:
-                raise
-
-        yield {"type": "done"}
+        runner = self._do_stream if stream_requested else self._do_generate
+        async for chunk in runner(contents, config):
+            yield chunk
 
     def _build_config(self, merged: dict, system_instruction: str | None, **kwargs) -> types.GenerateContentConfig:
         raise NotImplementedError

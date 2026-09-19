@@ -374,7 +374,17 @@ function createMockForm(fields, queryMap) {
       }
       if (sel.indexOf('name="') >= 0) {
         var m = sel.match(/name="([^"]+)"/);
-        if (m) return { value: fields[m[1]] !== undefined ? String(fields[m[1]]) : '' };
+        if (m) {
+          var name = m[1];
+          var raw = fields[name] !== undefined ? String(fields[name]) : '';
+          var entry = { value: raw };
+          if (name === 'retry_enabled') {
+            entry.value = fields[name] !== undefined ? raw : 'true';
+          } else if (name === 'retry_rate_limit' || name === 'retry_server_error' || name === 'retry_timeout') {
+            entry.checked = raw !== 'false';
+          }
+          return entry;
+        }
       }
       return null;
     },

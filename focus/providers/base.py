@@ -54,11 +54,16 @@ class BaseProvider(ABC):
         messages: list[dict],
         **kwargs,
     ) -> AsyncIterator[dict]:
-        """Stream a completion, yielding dict events.
+        """Produce a completion, yielding dict events.
 
         Event types:
           {"type": "token", "text": str}
           {"type": "tool_calls", "calls": list[ToolCall]}
           {"type": "usage", "usage": dict}
           {"type": "done"}
+
+        ``stream`` (default True) selects the upstream API mode: a normal
+        streaming request, or one non-streaming call whose complete response is
+        replayed through the same events. The event contract is identical
+        either way; callers never need to know which was used.
         """

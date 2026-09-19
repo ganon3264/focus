@@ -25,6 +25,19 @@
     transform: translateY(-1px);
   }
 
+  /* Native number spinners look out of place against the themed inputs and are
+     inconsistent across browsers — render number fields as plain text boxes. */
+  :where(input[type='number']) {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+  :where(input[type='number'])::-webkit-outer-spin-button,
+  :where(input[type='number'])::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    appearance: none;
+    margin: 0;
+  }
+
   :where(input, textarea, select):focus {
     border-color: var(--accent);
     box-shadow: var(--shadow-glow);

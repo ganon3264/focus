@@ -59,12 +59,30 @@ def _usage(**kw) -> Obj:
     return Obj(**defaults)
 
 
+def _completion(*, content=None, tool_calls=None, reasoning=None,
+                reasoning_content=None, usage=None, finish_reason="stop",
+                model_extra=None) -> Obj:
+    """Stand-in for a non-streaming ``ChatCompletion``."""
+    message = Obj(
+        content=content,
+        tool_calls=tool_calls,
+        reasoning=reasoning,
+        reasoning_content=reasoning_content,
+        model_extra=model_extra,
+    )
+    return Obj(choices=[Obj(message=message, finish_reason=finish_reason)], usage=usage)
+
+
 class FakeOpenAIClient:
     """Async-context-manager stand-in for AsyncOpenAI that captures the
-    request kwargs and yields scripted chunks from ``create``."""
+    request kwargs and yields scripted chunks from ``create``.
 
-    def __init__(self, chunks=None):
+    With ``stream=False`` it returns ``completion`` directly (a single object),
+    mirroring the real SDK."""
+
+    def __init__(self, chunks=None, completion=None):
         self.chunks = chunks or []
+        self.completion = completion
         self.request = None
 
     async def __aenter__(self):
@@ -83,6 +101,8 @@ class FakeOpenAIClient:
 
     async def create(self, **kwargs):
         self.request = kwargs
+        if kwargs.get("stream") is False:
+            return self.completion
 
         async def _gen():
             for c in self.chunks:
@@ -243,6 +263,53 @@ class TestOpenAICompatProvider:
         provider._get_client = lambda: client  # type: ignore[method-assign]
         await _collect(provider)
         assert client.request["model"] == "m"
+
+    async def test_non_streaming_replays_complete_response(self):
+        completion = _completion(
+            content="Hello world",
+            usage=_usage(prompt_tokens=10, completion_tokens=5, total_tokens=15),
+        )
+        provider = OpenAICompatProvider("http://x", "k", "gpt-4o", {})
+        client = FakeOpenAIClient([], completion=completion)
+        provider._get_client = lambda: client  # type: ignore[method-assign]
+
+        events = await _collect(provider, stream=False)
+
+        assert client.request["stream"] is False
+        assert "stream_options" not in client.request
+        assert [e["text"] for e in events if e["type"] == "token"] == ["Hello world"]
+        usage = next(e["usage"] for e in events if e["type"] == "usage")
+        assert usage["total_tokens"] == 15
+        assert events[-1] == {"type": "done", "finish_reason": "stop"}
+
+    async def test_non_streaming_reasoning_and_tool_calls(self):
+        tc = Obj(id="c1", function=Obj(name="read_file", arguments='{"path": "/x"}'))
+        completion = _completion(
+            tool_calls=[tc],
+            reasoning_content="thinking",
+            finish_reason="tool_calls",
+        )
+        provider = OpenAICompatProvider("http://x", "k", "m", {})
+        client = FakeOpenAIClient([], completion=completion)
+        provider._get_client = lambda: client  # type: ignore[method-assign]
+
+        events = await _collect(provider, stream=False)
+
+        assert {"type": "meta", "field": "reasoning", "value": "thinking"} in events
+        calls = next(e for e in events if e["type"] == "tool_calls")["calls"]
+        assert calls[0].id == "c1"
+        assert calls[0].name == "read_file"
+        assert calls[0].arguments == {"path": "/x"}
+        assert all(e["type"] != "done" for e in events)
+
+    async def test_non_streaming_finish_reason_surfaces_safety(self):
+        completion = _completion(content="", finish_reason="content_filter")
+        provider = OpenAICompatProvider("http://x", "k", "m", {})
+        client = FakeOpenAIClient([], completion=completion)
+        provider._get_client = lambda: client  # type: ignore[method-assign]
+
+        events = await _collect(provider, stream=False)
+        assert events[-1] == {"type": "done", "finish_reason": "content_filter"}
 
 
 class TestOpenRouterProvider:

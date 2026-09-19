@@ -39,13 +39,16 @@ def _make_provider(cls=GoogleProviderBase, api_key="k", model="m", params=None):
 
 
 class FakeGenAIClient:
-    """Stand-in for genai.Client capturing the generate_content_stream args."""
+    """Stand-in for genai.Client capturing generate_content[_stream] args."""
 
-    def __init__(self, chunks=None):
+    def __init__(self, chunks=None, response=None):
         self.chunks = chunks or []
+        self.response = response
         self.config = None
         self.contents = None
         self.model = None
+        self.stream_calls = 0
+        self.generate_calls = 0
 
     @property
     def aio(self):
@@ -56,6 +59,7 @@ class FakeGenAIClient:
         return self
 
     async def generate_content_stream(self, model, contents, config):
+        self.stream_calls += 1
         self.model = model
         self.contents = contents
         self.config = config
@@ -65,6 +69,13 @@ class FakeGenAIClient:
                 yield c
 
         return _gen()
+
+    async def generate_content(self, model, contents, config):
+        self.generate_calls += 1
+        self.model = model
+        self.contents = contents
+        self.config = config
+        return self.response
 
 
 async def _collect(provider, messages=None, **kwargs):
@@ -275,6 +286,62 @@ class TestDoStream:
         assert events == [{"type": "done"}]
 
 
+class TestNonStreaming:
+    def _provider_with_client(self, response):
+        provider = _make_provider()
+        provider.client = FakeGenAIClient(response=response)
+        provider._build_config = lambda *a, **k: None
+        return provider
+
+    async def test_text_and_usage_from_generate_content(self):
+        response = Obj(
+            usage_metadata=Obj(
+                prompt_token_count=10, candidates_token_count=5,
+                total_token_count=15, cached_content_token_count=2,
+            ),
+            candidates=[Obj(finish_reason="STOP", content=Obj(parts=[
+                Obj(function_call=None, text="visible", thought=False, thought_signature=None),
+                Obj(function_call=None, text="hidden", thought=True, thought_signature=None),
+            ]))],
+        )
+        provider = self._provider_with_client(response)
+        events = await _collect(provider, stream=False)
+
+        assert events[0] == {"type": "token", "text": "visible"}
+        assert events[1] == {"type": "meta", "field": "reasoning", "value": "hidden"}
+        usage = next(e for e in events if e["type"] == "usage")["usage"]
+        assert usage["prompt_tokens"] == 10
+        assert usage["cached_tokens"] == 2
+        assert events[-1]["type"] == "done"
+        assert events[-1]["finish_reason"] == "STOP"
+        assert provider.client.generate_calls == 1
+        assert provider.client.stream_calls == 0
+
+    async def test_function_call_and_signature_captured(self):
+        response = Obj(
+            usage_metadata=None,
+            candidates=[Obj(finish_reason="STOP", content=Obj(parts=[
+                Obj(function_call=Obj(id="fc1", name="read_file", args={"path": "/a"}),
+                    text=None, thought=False, thought_signature=b"sig1"),
+            ]))],
+        )
+        provider = self._provider_with_client(response)
+        events = await _collect(provider, stream=False)
+
+        calls = next(e for e in events if e["type"] == "tool_calls")["calls"]
+        assert calls[0].id == "fc1"
+        assert calls[0].name == "read_file"
+        assert calls[0].arguments == {"path": "/a"}
+        assert provider._pending_thought_signatures == {"fc1": b"sig1"}
+
+    async def test_empty_response_still_dones(self):
+        provider = self._provider_with_client(Obj(usage_metadata=None, candidates=[]))
+        events = await _collect(provider, stream=False)
+        assert events == [{"type": "done"}]
+        assert provider.client.generate_calls == 1
+        assert provider.client.stream_calls == 0
+
+
 class TestStreamComplete:
     async def test_yields_done_and_builds_config(self, monkeypatch):
         provider = _make_provider()
@@ -290,15 +357,14 @@ class TestStreamComplete:
         assert [e["type"] for e in events] == ["token", "done"]
         assert client.config == "cfg"
 
-    async def test_retries_without_signature_on_failure(self, monkeypatch):
+    async def test_failure_propagates_without_retry(self, monkeypatch):
         provider = _make_provider()
         calls = []
 
         async def fake_do_stream(contents, config):
             calls.append(contents)
-            if len(calls) == 1:
-                raise RuntimeError("signature rejected")
-            yield {"type": "token", "text": "retried"}
+            raise RuntimeError("signature rejected")
+            yield  # pragma: no cover
 
         monkeypatch.setattr(provider, "_do_stream", fake_do_stream)
         monkeypatch.setattr(provider, "_build_config", lambda *a, **k: None)
@@ -306,9 +372,9 @@ class TestStreamComplete:
             {"role": "user", "content": "q"},
             {"role": "assistant", "content": "prev", "thought_signature": base64.b64encode(b"s").decode()},
         ]
-        events = await _collect(provider, messages)
-        assert [e["type"] for e in events] == ["token", "done"]
-        assert len(calls) == 2
+        with pytest.raises(RuntimeError):
+            await _collect(provider, messages)
+        assert len(calls) == 1
 
     async def test_failure_without_signature_reraises(self, monkeypatch):
         provider = _make_provider()

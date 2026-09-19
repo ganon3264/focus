@@ -54,6 +54,8 @@ function makeEnv() {
     refreshes: [],
     generatingUI: [],
     listFetches: [],
+    infoHides: 0,
+    retryHides: 0,
   };
 
   var sandbox = {
@@ -65,6 +67,8 @@ function makeEnv() {
     document: doc,
     setTimeout: setTimeout,
     clearTimeout: clearTimeout,
+    setInterval: setInterval,
+    clearInterval: clearInterval,
     JSON: JSON,
     Math: Math,
     Date: Date,
@@ -95,7 +99,8 @@ function makeEnv() {
     showSuccessToast: function (m) { env.toasts.push({ type: 'success', msg: m }); },
     showInfoToast: function (m) { env.toasts.push({ type: 'info', msg: m }); },
     hideErrorToast: function () {},
-    hideInfoToast: function () {},
+    hideInfoToast: function () { env.infoHides++; },
+    hideToast: function () { env.retryHides++; },
     setGeneratingUI: function (on) { env.generatingUI.push(on); },
     clearStaleContent: function () {},
     uploadStagedAttachments: function () { return Promise.resolve([]); },
@@ -128,6 +133,14 @@ function makeEnv() {
     scrollSentinel: sentinel,
   };
   sandbox.window = sandbox;
+  var _listeners = {};
+  sandbox.addEventListener = function (name, fn) {
+    (_listeners[name] = _listeners[name] || []).push(fn);
+  };
+  sandbox.dispatchEvent = function (ev) {
+    (_listeners[ev.type] || []).forEach(function (fn) { fn(ev); });
+    return true;
+  };
   vm.createContext(sandbox);
   MODULES.forEach(function (rel) {
     vm.runInContext(fs.readFileSync(path.join(ROOT, rel), 'utf8'), sandbox, { filename: rel });
@@ -232,6 +245,83 @@ function stalledStream(url, reqOpts, startMessageId) {
 
 var tests = [];
 function test(name, fn) { tests.push({ name: name, fn: fn }); }
+
+test('transparent retry shows an info toast and clears it on done', function () {
+  var env = makeEnv();
+  return drive(env, [
+    { data: { type: 'start', message_id: 'm1', user_message_id: 'u1' } },
+    { data: { type: 'retry', attempt: 1, max: 3, delay: 2, reason: 'HTTP 429' } },
+    { data: { type: 'token', text: 'hi' } },
+    { data: { type: 'done', message_id: 'm1' } },
+  ]).then(function () {
+    assert(env.toasts.some(function (t) { return t.type === 'info' && /^Retrying \(1\/3\) in \d+s/.test(t.msg); }),
+      'retry is surfaced as an info toast');
+    assert(env.retryHides >= 1, 'retry toast is cleared once the stream completes');
+    assert(!env.Generation.isActive(), 'session is idle after a retried stream');
+  });
+});
+
+test('retry feedback names the attempt, countdown and reason', function () {
+  var env = makeEnv();
+  return drive(env, [
+    { data: { type: 'start', message_id: 'm1', user_message_id: 'u1' } },
+    { data: { type: 'retry', attempt: 2, max: 4, delay: 30, reason: 'HTTP 429: rate limited' } },
+    { data: { type: 'token', text: 'hi' } },
+    { data: { type: 'done', message_id: 'm1' } },
+  ]).then(function () {
+    assert(env.toasts.some(function (t) {
+      return t.type === 'info' && /^Retrying \(2\/4\) in 30s/.test(t.msg) && /HTTP 429/.test(t.msg);
+    }), 'retry toast reports attempt, countdown and reason');
+    assert(env.retryHides >= 1, 'retry toast is hidden on completion');
+    assert(env.toasts.some(function (t) {
+      return t.type === 'success' && /Recovered after 1 retry/.test(t.msg);
+    }), 'recovery is confirmed once the retried stream completes');
+  });
+});
+
+test('buffered stream shows retry feedback and renders the replayed full text', function () {
+  var env = makeEnv();
+  return drive(env, [
+    { data: { type: 'start', message_id: 'm1', user_message_id: 'u1' } },
+    { data: { type: 'retry', attempt: 1, max: 3, delay: 2, reason: 'HTTP 429' } },
+    // Buffered mode: no per-delta tokens, one replay of the finished text.
+    { data: { type: 'token', text: 'Complete reply' } },
+    { data: { type: 'done', message_id: 'm1' } },
+  ]).then(function (r) {
+    assert(env.toasts.some(function (t) {
+      return t.type === 'info' && /^Retrying \(1\/3\)/.test(t.msg);
+    }), 'buffered mode surfaces retry feedback');
+    assert(Array.prototype.some.call(r.asst.querySelectorAll('.message-content'), function (el) {
+      return el.innerHTML === 'Complete reply';
+    }), 'buffered mode renders the replayed full text');
+    assert(!env.Generation.isActive(), 'buffered session is idle afterwards');
+  });
+});
+
+test('switching provider cancels the running generation', function () {
+  var env = makeEnv();
+  var asst = newAssistant('streaming-message');
+  env.messageList.appendChild(asst);
+  var stopPosted = false;
+  env.sandbox.fetch = function (url, reqOpts) {
+    if (url === '/api/stream') return Promise.resolve(stalledStream(url, reqOpts, 'm1'));
+    if (url.indexOf('/api/stop-generation/') === 0) {
+      stopPosted = true;
+      return Promise.resolve({ ok: true, status: 200 });
+    }
+    return Promise.resolve({ ok: true, status: 200, text: function () { return Promise.resolve(''); } });
+  };
+  var settled = false;
+  env.Generation.begin('chat-1', asst, {}).then(function () { settled = true; });
+  return new Promise(function (res) { setTimeout(res, 30); })
+    .then(function () { env.sandbox.dispatchEvent({ type: 'provider-changed' }); })
+    .then(function () { return new Promise(function (res) { setTimeout(res, 50); }); })
+    .then(function () {
+      assert(stopPosted, 'provider switch posts a server-side stop');
+      assert(settled, 'provider switch settles the generation session');
+      assert(!env.Generation.isActive(), 'session is idle after a provider switch');
+    });
+});
 
 test('provider error releases the session', function () {
   var env = makeEnv();

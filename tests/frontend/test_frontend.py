@@ -3,8 +3,6 @@
 Checks Jinja2 template compilation, static asset references, and CSS syntax.
 """
 
-import html as html_module
-import json
 import re
 from pathlib import Path
 
@@ -332,3 +330,20 @@ def test_theme_rebranded_tokens():
     vars_text = (STATIC_DIR / "css" / "variables.css").read_text()
     for token in ["--radius-sm", "--shadow-sm", "--font-sans"]:
         assert token not in vars_text, f"{token} must not be redefined in variables.css :root"
+
+
+@pytest.mark.parametrize("template_name", ALL_TEMPLATES)
+def test_renderable_templates_have_balanced_divs(template_name):
+    """Every template that renders without context must close all its <div>s.
+
+    A stray closing tag silently ends a container early and pushes the rest of
+    the markup out of it (e.g. a modal's Save button). Templates that need
+    render context are skipped.
+    """
+    try:
+        source = env.get_template(template_name).render()
+    except Exception:
+        pytest.skip("template requires render context")
+    assert source.count("<div") == source.count("</div>"), (
+        f"{template_name}: unbalanced <div> tags"
+    )

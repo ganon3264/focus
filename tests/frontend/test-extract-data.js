@@ -19,6 +19,17 @@ global.htmx = { ajax: function () { return Promise.resolve(); } };
 global.openModal = function () {};
 global.closeModal = function () {};
 
+var DEFAULT_RETRY = {
+  enabled: true,
+  max_retries: 3,
+  base_delay: 2,
+  max_delay: 30,
+  on_rate_limit: true,
+  on_server_error: true,
+  on_timeout: true,
+  extra_statuses: [],
+};
+
 // Load module
 eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'modals', 'providers.js'), 'utf8'));
 
@@ -38,7 +49,7 @@ eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'modals', 
   assertEqual(data.base_url, 'http://localhost:8080/v1', 'openai_compat: base_url preserved');
   assertEqual(data.api_key, 'sk-test-123', 'openai_compat: api_key preserved');
   assertEqual(data.model, 'gpt-4', 'openai_compat: model preserved');
-  assertDeepEqual(data.params, { temperature: 0.7 }, 'openai_compat: params parsed');
+  assertDeepEqual(data.params, { temperature: 0.7, retry: DEFAULT_RETRY }, 'openai_compat: params parsed');
   assert(!data.or_model, 'openai_compat: or_model absent');
   assert(!data.or_route, 'openai_compat: or_route deleted');
 })();
@@ -142,7 +153,41 @@ eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'modals', 
   assertEqual(data.model, 'gemini-2.0-flash', 'aistudio: model preserved');
   assert(!data.base_url, 'aistudio: base_url omitted');
   assertEqual(data.api_key, 'sk-ai', 'aistudio: api_key preserved');
-  assertDeepEqual(data.params, { foo: 'bar' }, 'aistudio: params parsed');
+  assertDeepEqual(data.params, { foo: 'bar', retry: DEFAULT_RETRY }, 'aistudio: params parsed');
+})();
+
+// ── retry config parsed from form ──
+(function () {
+  var form = createMockForm({
+    name: 'R', type: 'openai_compat', model: 'm', params: '{}',
+    retry_enabled: 'true',
+    retry_max_retries: '5',
+    retry_base_delay: '1.5',
+    retry_max_delay: '45',
+    retry_rate_limit: 'false',
+    retry_server_error: 'true',
+    retry_timeout: 'false',
+    retry_extra_statuses: '408, 425, nope, 999',
+  });
+  var data = extractData(form);
+  assertDeepEqual(data.params.retry, {
+    enabled: true,
+    max_retries: 5,
+    base_delay: 1.5,
+    max_delay: 45,
+    on_rate_limit: false,
+    on_server_error: true,
+    on_timeout: false,
+    extra_statuses: [408, 425],
+  }, 'retry: config parsed from form');
+  assert(!data.retry_enabled && !data.retry_extra_statuses, 'retry: form fields removed from top level');
+})();
+
+// ── retry disabled ──
+(function () {
+  var form = createMockForm({ name: 'R', type: 'openai_compat', model: 'm', params: '{}', retry_enabled: 'false' });
+  var data = extractData(form);
+  assertEqual(data.params.retry.enabled, false, 'retry: disabled flag preserved');
 })();
 
 // ── deepseek ──

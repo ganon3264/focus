@@ -219,6 +219,52 @@ function setActiveProvider(id, name, type) {
   window.applyProvider(id, type, name);
 }
 
+function parseStatusCodes(raw) {
+  var values = [];
+  var dropped = [];
+  (raw || '').split(/[,\s]+/).forEach(function (tok) {
+    if (!tok) return;
+    var n = parseInt(tok, 10);
+    if (String(n) === tok && n >= 100 && n <= 599) {
+      if (values.indexOf(n) === -1) values.push(n);
+    } else {
+      dropped.push(tok);
+    }
+  });
+  values.sort(function (a, b) { return a - b; });
+  return { values: values, dropped: dropped };
+}
+
+function collectRetryConfig(form) {
+  var codes = parseStatusCodes((form.querySelector('[name="retry_extra_statuses"]') || {}).value || '');
+  var enabledEl = form.querySelector('[name="retry_enabled"]');
+  var maxEl = form.querySelector('[name="retry_max_retries"]');
+  var baseEl = form.querySelector('[name="retry_base_delay"]');
+  var maxDelayEl = form.querySelector('[name="retry_max_delay"]');
+  var rateEl = form.querySelector('[name="retry_rate_limit"]');
+  var serverEl = form.querySelector('[name="retry_server_error"]');
+  var timeoutEl = form.querySelector('[name="retry_timeout"]');
+
+  function num(el, fallback) {
+    var v = el ? parseFloat(el.value) : NaN;
+    return isNaN(v) ? fallback : v;
+  }
+
+  return {
+    config: {
+      enabled: enabledEl ? enabledEl.value === 'true' : true,
+      max_retries: Math.max(0, Math.min(10, Math.round(num(maxEl, 3)))),
+      base_delay: num(baseEl, 2),
+      max_delay: num(maxDelayEl, 30),
+      on_rate_limit: rateEl ? !!rateEl.checked : true,
+      on_server_error: serverEl ? !!serverEl.checked : true,
+      on_timeout: timeoutEl ? !!timeoutEl.checked : true,
+      extra_statuses: codes.values,
+    },
+    dropped: codes.dropped,
+  };
+}
+
 function extractData(form) {
   const data = Object.fromEntries(new FormData(form));
   if (data.api_key === '__HIDDEN__' || data.api_key === '') delete data.api_key;
@@ -271,11 +317,26 @@ function extractData(form) {
     }
   }
 
+  if (!data.params || typeof data.params !== 'object') data.params = {};
+  var retryResult = collectRetryConfig(form);
+  data.params.retry = retryResult.config;
+  if (retryResult.dropped.length && window.showInfoToast) {
+    window.showInfoToast('Ignored invalid retry status code(s): ' + retryResult.dropped.join(', '), { duration: 4000 });
+  }
+
   delete data.or_route;
   delete data.or_quant;
   delete data.or_no_fallbacks;
   delete data.vertex_region;
   delete data.vertex_project_id;
+  delete data.retry_enabled;
+  delete data.retry_max_retries;
+  delete data.retry_base_delay;
+  delete data.retry_max_delay;
+  delete data.retry_rate_limit;
+  delete data.retry_server_error;
+  delete data.retry_timeout;
+  delete data.retry_extra_statuses;
 
   return data;
 }
@@ -356,6 +417,63 @@ function setSelectValue(inputId, value) {
   }
 };
 
+function setInputValue(id, value) {
+  var el = document.getElementById(id);
+  if (el) el.value = value;
+}
+
+function setInputChecked(id, value) {
+  var el = document.getElementById(id);
+  if (el) el.checked = !!value;
+}
+
+function openRetryModal() {
+  openModal('modal-provider-retry');
+  refreshRetryHint();
+}
+
+function toggleRetryEnabled(prefix) {
+  var toggle = document.getElementById(prefix + '-retry-toggle');
+  var input = document.getElementById(prefix + '-retry-enabled');
+  if (!toggle || !input) return;
+  toggle.classList.toggle('active');
+  input.value = toggle.classList.contains('active') ? 'true' : 'false';
+  window.ModalController.refresh('modal-provider-create');
+  refreshRetryHint();
+}
+
+function refreshRetryHint() {
+  var hint = document.getElementById('prov-form-retry-hint');
+  var enabled = document.getElementById('prov-form-retry-enabled');
+  if (!hint || !enabled) return;
+  var anyClass = ['prov-form-retry-rate', 'prov-form-retry-server', 'prov-form-retry-timeout'].some(function (id) {
+    var el = document.getElementById(id);
+    return el && el.checked;
+  });
+  var extra = document.getElementById('prov-form-retry-extra');
+  var hasCodes = extra ? parseStatusCodes(extra.value).values.length > 0 : false;
+  var inactive = enabled.value === 'true' && !anyClass && !hasCodes;
+  hint.classList.toggle('hidden', !inactive);
+}
+
+function setRetryForm(retry) {
+  retry = retry || {};
+  var enabled = retry.enabled !== false;
+  var toggle = document.getElementById('prov-form-retry-toggle');
+  var enabledInput = document.getElementById('prov-form-retry-enabled');
+  if (toggle) toggle.classList.toggle('active', enabled);
+  if (enabledInput) enabledInput.value = enabled ? 'true' : 'false';
+  setInputValue('prov-form-retry-max', retry.max_retries != null ? retry.max_retries : 3);
+  setInputValue('prov-form-retry-base', retry.base_delay != null ? retry.base_delay : 2);
+  setInputValue('prov-form-retry-max-delay', retry.max_delay != null ? retry.max_delay : 30);
+  setInputChecked('prov-form-retry-rate', retry.on_rate_limit !== false);
+  setInputChecked('prov-form-retry-server', retry.on_server_error !== false);
+  setInputChecked('prov-form-retry-timeout', retry.on_timeout !== false);
+  var extra = Array.isArray(retry.extra_statuses) ? retry.extra_statuses.join(', ') : '';
+  setInputValue('prov-form-retry-extra', extra);
+  refreshRetryHint();
+}
+
 function resetProviderForm() {
   var form = document.getElementById('provider-form');
   if (form) form.reset();
@@ -372,6 +490,7 @@ function resetProviderForm() {
   var nfInput = document.getElementById('prov-form-or-no-fallbacks');
   if (nfToggle) nfToggle.classList.add('active');
   if (nfInput) nfInput.value = 'true';
+  setRetryForm({});
   toggleProviderFields('prov-form');
 }
 
@@ -419,6 +538,7 @@ function populateProviderForm(data) {
     document.getElementById('prov-form-vertex-project-id').value = params.vertex_project_id || '';
     setSelectValue('prov-form-vertex-region', params.vertex_region || 'global');
   }
+  setRetryForm(params.retry || {});
 }
 
 window.sortProviders = function (mode) {

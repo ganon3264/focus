@@ -273,4 +273,31 @@ global.document.body.appendChild(container);
   );
 })();
 
+// ── Id-keyed toasts: update in place, no stacking ──
+(function () {
+  resetTimers();
+  container.children.length = 0;
+  window.showToast('Retrying (1/3) in 30s', { id: 'gen-retry', duration: 0 });
+  window.showToast('Retrying (1/3) in 29s', { id: 'gen-retry', duration: 0 });
+  assertEqual(container.children.length, 1, 'id: repeated updates reuse one card');
+  assertEqual(
+    container.children[0].querySelector('.toast-text').textContent,
+    'Retrying (1/3) in 29s',
+    'id: card text is updated in place',
+  );
+  assertEqual(container.children[0].dataset.toastId, 'gen-retry', 'id: stored on the card');
+})();
+
+// ── hideToast: only the matching id is dismissed ──
+(function () {
+  resetTimers();
+  container.children.length = 0;
+  window.showToast('Retrying (1/3) in 30s', { id: 'gen-retry', duration: 0 });
+  window.showToast('Keep me', { id: 'other', duration: 0 });
+  window.hideToast('gen-retry');
+  var alive = container.children.filter(function (c) { return !c._dismissed; });
+  assertEqual(alive.length, 1, 'hideToast: unrelated id stays');
+  assertEqual(alive[0].dataset.toastId, 'other', 'hideToast: target dismissed');
+})();
+
 h.printSummary();

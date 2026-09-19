@@ -75,14 +75,14 @@ The pruner's `_pruned` map is keyed by bare id (`MessageIdentity.bare`); `_forge
 ### Toast system (`static/js/ui/notifications.js`)
 
 - One stack: `#toast-container` in `base.html` (fixed top-center, `z-index: var(--z-max)`, above all modals).
-- API: `showToast(msg, {type, duration})`, aliases `showInfoToast` (accent, 3s), `showSuccessToast` (green, 3s), `showErrorToast` (danger, persists with Copy/Close), `showImportToast(data, pluralLabel)` (shared import report: error list or success count), `hideErrorToast()`, `hideInfoToast()`, `hideAllToasts()`.
+- API: `showToast(msg, {type, duration|id})`, aliases `showInfoToast` (accent, 3s), `showSuccessToast` (green, 3s), `showErrorToast` (danger, persists with Copy/Close), `showImportToast(data, pluralLabel)` (shared import report: error list or success count), `hideErrorToast()`, `hideInfoToast()`, `hideToast(id)`, `hideAllToasts()`.
 - `notifications.js` is loaded in `base.html` above `{% block content %}`, so the API is always defined on every page — call it unguarded.
-- All cards stack as a list; per-card timer with hover-pause; dedup by type+message (refreshes timer); max 5 visible (oldest evicted); fade in/out via `toast-in`/`toast-out` in `animations.css`. Never block with `alert()` — use toasts.
+- All cards stack as a list; per-card timer with hover-pause; dedup by `id` when given, else by type+message (refreshes timer and updates the text in place); max 5 visible (oldest evicted); fade in/out via `toast-in`/`toast-out` in `animations.css`. Never block with `alert()` — use toasts.
 
 ### Streaming
 
 SSE payloads are uniform envelopes — always `{"type": "<event>", ...}` with events
-`start | token | meta | tool_calls | tool_result | done | error`. Dispatch is a
+`start | token | meta | retry | tool_calls | tool_result | done | error`. Dispatch is a
 table lookup (`HANDLERS[json.type]`); unknown types log a warning, never vanish silently.
 
 **Ownership:** cross-module state goes through the module that owns it
@@ -118,7 +118,9 @@ table lookup (`HANDLERS[json.type]`); unknown types log a warning, never vanish 
   segment so tokens replace its contents in place.
 
 **Backend:**
-- `_active_generations` maps `message_id → asyncio.Event`. Stop via `POST /api/stop-generation/{message_id}`. Both stream (SSE) and non-stream (JSON) share `_run_generation()`.
+- `_active_generations` maps `message_id → _ActiveGeneration` (`chat_id`, `provider_id`, stop event, `superseded`). Stop via `POST /api/stop-generation/{message_id}`. Registering a generation supersedes any other in the same chat; editing/deleting a provider stops its active generations (`stop_generations_for_provider`). Both modes share `_run_generation()`. The sampler toggle `stream_enabled` is translated to the provider's `stream` kwarg by `stream()`; `false` (`_non_stream_generate`) makes the provider call non-streaming, keeps the same SSE transport, buffers server-side and replays the finished text as one `token` before `done` — so retry/error feedback still reaches the client while no partial content is ever shown (important for providers whose safety filtering differs when streaming).
+- Non-stream is NOT a separate JSON response: `/api/stream` always answers `text/event-stream`. The client only distinguishes buffered vs live by what the server emits.
+- Auto-retry (`focus/core/retry.py` + `_run_generation`): provider failures that occur before the first token are retried server-side with backoff, honoring `Retry-After`; once any token/meta has streamed the failure is surfaced instead (a replay would duplicate output). Config is per-provider in `params.retry` (toggle + advanced); each retry emits a `retry` SSE event (`attempt`, `max`, `delay`, `reason`) that the frontend renders as one live info toast (`Retrying (n/m) in Ns — reason`, countdown ticking, id `gen-retry`), then a brief `Recovered after N retries` success toast on completion. A completely empty completion is surfaced as an error, never retried.
 - Meta events (reasoning, reasoning_details) handled via `TRACKED_FIELDS` in `tracked_fields.py`. Each field has a `merge` mode (`append`/`index`) and `stream_to_sse` flag; only `stream_to_sse` fields reach the wire as `meta` events.
 - Mid-stream partial saves are wall-clock driven: `_maybe_checkpoint()` writes at most once per `_CHECKPOINT_INTERVAL_SECS` (independent of provider speed and reply length), forced at tool boundaries and on done/error.
 - On continue: `prepare_generation_messages()` appends the prefill to API context; for non-echo providers `_run_generation_with_prefill()` synthesizes the existing content as SSE events before real tokens.
@@ -133,7 +135,7 @@ table lookup (`HANDLERS[json.type]`); unknown types log a warning, never vanish 
 
 ### Provider system
 
-- Each LLM provider = a module in `providers/` implementing the base interface. `to_provider_tools()` converts ToolSpec → OpenAI-compatible format.
+- Each LLM provider = a module in `providers/` implementing the base interface. `stream_complete(messages, stream=True, **kwargs)` always yields the same event stream; `stream` selects the *upstream API mode* — `provider.stream_complete(..., stream=False)` must make one complete call (`chat.completions.create(stream=False)` / `generate_content`) and replay it as `token`/`meta`/`tool_calls`/`usage`/`done`. `openai_compat` branches inline; `google_base` dispatches `_do_stream` vs `_do_generate`. `to_provider_tools()` converts ToolSpec → OpenAI-compatible format.
 - Frontend: single shared `provider-form` with `prov-form-*` id prefix. Flow: `resetProviderForm()` → `populateProviderForm(data)` → `extractData(form)` for PATCH/POST.
 - Option pickers (OpenRouter route/quant, character theme, ...): **one shared searchable picker** — `partials/modals/option-picker.html` (included last in `chat.html`; always in DOM, stacks above all modals) + `static/js/ui/option-picker.js` exposing `openOptionPicker(options, title, cb)`. Values land in hidden inputs + display spans.
 

@@ -1,4 +1,4 @@
-{% from "macros.html" import custom_select, icon_key, icon_search %} {% from "modal-shell.html" import modal_shell %} {% call modal_shell('modal-provider-create', 'Add Provider', max_width='500px', z_index='100',
+{% from "macros.html" import custom_select, icon_key, icon_search, hint_tooltip %} {% from "modal-shell.html" import modal_shell %} {% call modal_shell('modal-provider-create', 'Add Provider', max_width='500px', z_index='100',
 dirty_fields='#provider-form input,#provider-form select,#provider-form textarea',
 dirty_label='#prov-form-name') %}
 <form id="provider-form" data-action="actionSubmitProviderForm" class="flex flex-col gap-3 p-4">
@@ -69,6 +69,63 @@ dirty_label='#prov-form-name') %}
       </button>
     </div>
   </div>
+
+  <!-- Auto-retry (applies to every provider type) -->
+  <div class="form-group mb-0" style="border-top: 1px solid var(--border); padding-top: 0.75rem;">
+    <div class="flex items-center justify-between">
+      <label class="text-sm mb-0 cursor-pointer" onclick="toggleRetryEnabled('prov-form')">Auto-retry failed requests</label>
+      <div class="flex items-center gap-2">
+        <button type="button" class="btn-link" onclick="openRetryModal()">More…</button>
+        <div
+          class="arranger-toggle active"
+          role="switch"
+          tabindex="0"
+          id="prov-form-retry-toggle"
+          aria-label="Auto-retry failed requests"
+          onclick="toggleRetryEnabled('prov-form')"
+        ></div>
+      </div>
+      <input type="hidden" name="retry_enabled" id="prov-form-retry-enabled" value="true" />
+    </div>
+  </div>
+
+  {% call modal_shell('modal-provider-retry', 'Auto-retry settings', max_width='440px', width='95vw', z_index='200') %}
+  <div class="flex flex-col gap-3 p-4" onkeydown="if (event.key === 'Enter' && event.target.tagName !== 'BUTTON') event.preventDefault()">
+    <div class="flex gap-2">
+      <div class="form-group mb-0 flex-1">
+        <label class="text-xs">Max retries</label>
+        <input type="number" name="retry_max_retries" id="prov-form-retry-max" step="1" value="3" class="text-sm form-control w-full" onchange="refreshRetryHint()" />
+      </div>
+      <div class="form-group mb-0 flex-1">
+        <label class="text-xs">Base delay (s)</label>
+        <input type="number" name="retry_base_delay" id="prov-form-retry-base" step="0.5" value="2" class="text-sm form-control w-full" />
+      </div>
+      <div class="form-group mb-0 flex-1">
+        <label class="text-xs">Max delay (s)</label>
+        <input type="number" name="retry_max_delay" id="prov-form-retry-max-delay" step="0.5" value="30" class="text-sm form-control w-full" />
+      </div>
+    </div>
+    <div class="flex flex-wrap items-center gap-3 text-xs">
+      <label class="flex items-center gap-1.5 cursor-pointer mb-0">
+        <input type="checkbox" class="checkbox" name="retry_rate_limit" id="prov-form-retry-rate" checked onchange="refreshRetryHint()" /> Rate limit (429)
+      </label>
+      <label class="flex items-center gap-1.5 cursor-pointer mb-0">
+        <input type="checkbox" class="checkbox" name="retry_server_error" id="prov-form-retry-server" checked onchange="refreshRetryHint()" /> Server errors (5xx)
+      </label>
+      <label class="flex items-center gap-1.5 cursor-pointer mb-0">
+        <input type="checkbox" class="checkbox" name="retry_timeout" id="prov-form-retry-timeout" checked onchange="refreshRetryHint()" /> Timeouts / connection errors
+      </label>
+    </div>
+    <div class="form-group mb-0">
+      <label class="text-xs">Additional HTTP status codes {{ hint_tooltip('Comma-separated, retried in addition to the classes above. Transport failures have no status code — use the Timeouts box for those.') }}</label>
+      <input type="text" name="retry_extra_statuses" id="prov-form-retry-extra" placeholder="e.g. 408, 425" class="text-sm form-control w-full" onchange="refreshRetryHint()" />
+    </div>
+    <div id="prov-form-retry-hint" class="text-xs text-muted hidden">No retry classes or status codes selected — auto-retry will do nothing.</div>
+    <div class="flex">
+      <button type="button" class="btn btn-primary btn-sm ml-auto" onclick="closeModal('modal-provider-retry')">Done</button>
+    </div>
+  </div>
+  {% endcall %}
 
   <!-- OpenRouter Dynamic Fields (route, no-fallbacks, quant — model uses shared input above) -->
   <div id="prov-form-or-fields" class="hidden flex-col gap-3">

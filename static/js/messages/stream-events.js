@@ -43,6 +43,7 @@
     this.userMessageId = null;
     this.done = false;
     this.errorMsg = null;
+    this.retrying = false;
     this.segments = [];
     this.controller = new AbortController();
   };
@@ -92,6 +93,52 @@
   function scheduleFlush(state) {
     if (_rafId !== null) return;
     _rafId = requestAnimationFrame(function () { flushRenders(state); });
+  }
+
+  // ── Transparent-retry feedback ──
+  // The server tells us how long it will wait before the next attempt; show
+  // that as one live info toast (attempt, countdown, reason) rather than a
+  // generic message that vanishes the moment the retry succeeds.
+  var RETRY_TOAST_ID = 'gen-retry';
+  var _retry = null; // { deadline, attempt, max, reason, timer }
+
+  function _retryText() {
+    if (!_retry) return '';
+    var seconds = Math.max(0, Math.ceil((_retry.deadline - Date.now()) / 1000));
+    var head = 'Retrying (' + _retry.attempt + '/' + _retry.max + ')';
+    head += seconds > 0 ? ' in ' + seconds + 's' : '\u2026';
+    return _retry.reason ? head + ' \u2014 ' + _retry.reason : head;
+  }
+
+  function _renderRetry() {
+    if (_retry && window.showInfoToast) {
+      window.showInfoToast(_retryText(), { id: RETRY_TOAST_ID, duration: 0 });
+    }
+  }
+
+  function _stopRetryFeedback() {
+    if (_retry && _retry.timer) clearInterval(_retry.timer);
+    _retry = null;
+  }
+
+  // Dismiss the retry toast and stop its countdown. Safe to call at any point
+  // (done/error/truncated stream/abort) so the timer can't outlive the run.
+  window.resetRetryFeedback = function () {
+    _stopRetryFeedback();
+    if (window.hideToast) window.hideToast(RETRY_TOAST_ID);
+  };
+
+  function _startRetryFeedback(data) {
+    _stopRetryFeedback();
+    _retry = {
+      deadline: Date.now() + (Math.max(0, Number(data.delay) || 0) * 1000),
+      attempt: data.attempt || 1,
+      max: data.max || 1,
+      reason: String(data.reason || '').split('\n')[0].slice(0, 140),
+      timer: null,
+    };
+    _renderRetry();
+    _retry.timer = setInterval(_renderRetry, 500);
   }
 
   // ── Handlers ──
@@ -154,6 +201,16 @@
   HANDLERS.done = function (state, data) {
     state.done = true;
     state.messageId = data.message_id;
+    if (state.retrying) {
+      var attempts = state.retryCount || 0;
+      window.resetRetryFeedback();
+      if (window.showSuccessToast) {
+        window.showSuccessToast(
+          'Recovered after ' + attempts + ' retr' + (attempts === 1 ? 'y' : 'ies'),
+          { duration: 2500 },
+        );
+      }
+    }
     dbg('SSE done: message_id=%s', data.message_id);
   };
 
@@ -172,6 +229,15 @@
 
   HANDLERS.error = function (state, data) {
     state.errorMsg = data.error;
+    if (state.retrying) window.resetRetryFeedback();
+  };
+
+  // The server is transparently retrying a failed provider request; one live
+  // toast is refreshed (not stacked) across attempts by its stable id.
+  HANDLERS.retry = function (state, data) {
+    state.retrying = true;
+    state.retryCount = (state.retryCount || 0) + 1;
+    _startRetryFeedback(data);
   };
 
   window.dispatchStreamEvent = function (state, json) {
@@ -184,6 +250,9 @@
   };
 
   window.finalizeStreamRender = function (state) {
+    // Retry feedback must never outlive the run (a truncated stream never
+    // dispatches `done`, so this is the only cleanup point).
+    window.resetRetryFeedback();
     // Cancel a pending frame and render everything left dirty right now —
     // the DOM must be complete before the post-stream server refresh.
     if (_rafId !== null) {

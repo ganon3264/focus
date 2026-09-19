@@ -82,37 +82,6 @@
     if (typeof updateSendButtonState === 'function') updateSendButtonState();
   }
 
-  async function _handleNonStream(json, state) {
-    state.fullText = json.full_text || '';
-    state.messageId = json.message_id;
-    state.userMessageId = json.user_message_id;
-
-    window.adoptUserMessageId(state);
-
-    if (!state.asstDiv) {
-      var dataList = document.getElementById('message-list-data');
-      state.asstDiv = window.buildAssistantSkeleton(
-        dataList ? dataList.getAttribute('data-char-name') : 'Assistant',
-        dataList ? dataList.getAttribute('data-char-image') : '',
-      );
-      state.asstDiv.id = 'streaming-message';
-      var messageList = document.getElementById('message-list');
-      messageList.insertBefore(state.asstDiv, window.scrollSentinel);
-    }
-
-    var bodyEl = state.asstDiv.querySelector('.message-body');
-    var contentDiv = bodyEl ? bodyEl.querySelector('.message-content') : null;
-    if (!contentDiv) {
-      contentDiv = window.segmentBuilders.text();
-      if (bodyEl) bodyEl.appendChild(contentDiv);
-    }
-    contentDiv.innerHTML = window.renderMessage(state.fullText);
-    if (window._updateReasoningButton) window._updateReasoningButton(contentDiv);
-
-    window.bindAssistantIdentity(state);
-    await window.refreshMessagesAfterStream(state.chatId, state.userMessageId, state.messageId);
-  }
-
   window.Generation = {
     isActive: isActive,
     streamingId: streamingId,
@@ -176,8 +145,6 @@
           body.continue_reasoning = opts.continueReasoning;
         }
 
-        var useStream = body.samplers.stream_enabled !== false;
-
         var res = await fetch(window.api.stream, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -190,11 +157,8 @@
           throw new Error(errText || 'Stream request failed');
         }
 
-        if (!useStream) {
-          await _handleNonStream(await res.json(), state);
-          return;
-        }
-
+        // Both streaming and buffered (stream_enabled=false) modes answer with
+        // SSE; buffered mode just replays the finished text as one token.
         var reader = res.body.getReader();
         var decoder = new TextDecoder();
         var buffer = '';
@@ -268,6 +232,7 @@
         await handleFailure(state, err.message, err.name);
       } finally {
         clearPendingStop();
+        if (window.resetRetryFeedback) window.resetRetryFeedback();
         setGeneratingUI(false);
         _controller = null;
         _state = null;
@@ -315,8 +280,29 @@
       // still get persisted server-side.
       _pendingStop = { timer: setTimeout(resolveStop, STOP_DRAIN_TIMEOUT_MS) };
     },
+
+    // Silent cancel for when the selection changes under a running generation
+    // (e.g. the user switches provider). Best-effort server stop so a retry
+    // backoff ends at once, then a local abort — no toasts, no drain wait.
+    cancel() {
+      if (!_active) return;
+      var msgId = streamingId();
+      if (msgId) {
+        fetch('/api/stop-generation/' + encodeURIComponent(msgId), { method: 'POST' })
+          .catch(function () {});
+      }
+      clearPendingStop();
+      abortCurrent();
+    },
   };
 
   var stopBtn = document.getElementById('stop-btn');
   if (stopBtn) stopBtn.addEventListener('click', function () { window.Generation.stop(); });
+
+  // The active provider is baked into a running request; switching it must not
+  // leave that run retrying against the old provider. Chat switches reload the
+  // page, so the browser tears down the connection instead.
+  window.addEventListener('provider-changed', function () {
+    window.Generation.cancel();
+  });
 })();

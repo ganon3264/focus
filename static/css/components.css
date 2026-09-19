@@ -36,6 +36,49 @@
     padding: 2px 4px;
     font-size: 0.8rem;
   }
+  .checkbox {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    flex-shrink: 0;
+    display: inline-block;
+    vertical-align: middle;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    position: relative;
+    transition: background var(--transition), border-color var(--transition);
+  }
+  .checkbox:hover:not(:disabled) {
+    border-color: var(--border-hover);
+  }
+  .checkbox:checked {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  .checkbox:checked::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-color: var(--text-on-accent);
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center / 62% no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center / 62% no-repeat;
+  }
+  .checkbox:focus {
+    box-shadow: none;
+  }
+  .checkbox:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .checkbox:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
   .search-input {
     padding-left: 2rem;
     padding-right: 0.5rem;
@@ -168,6 +211,22 @@
     color: var(--text-on-accent);
     border-color: var(--danger);
   }
+  .btn-link {
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    transition: color var(--transition);
+  }
+  .btn-link:hover,
+  .btn-link:focus-visible {
+    color: var(--accent);
+  }
+
   .btn-sm {
     padding: 0.35rem 0.75rem;
     font-size: 0.8rem;
