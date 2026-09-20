@@ -198,5 +198,32 @@ eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'modals', 
   assert(!data.base_url, 'deepseek: base_url omitted');
 })();
 
+// ── multi-key list → params.api_keys, first key mirrored to api_key ──
+(function () {
+  var form = createMockForm({
+    name: 'P', type: 'openai_compat', model: 'gpt-4',
+    api_keys_json: JSON.stringify(['SECRET:a', 'SECRET:b']),
+  });
+  var data = extractData(form);
+  assertDeepEqual(data.params.api_keys, ['SECRET:a', 'SECRET:b'], 'api_keys parsed into params');
+  assertEqual(data.api_key, 'SECRET:a', 'first key mirrored into api_key');
+  assert(!data.api_keys_json, 'api_keys_json removed from the request body');
+})();
+
+// ── no key list → params.api_keys absent (legacy single key untouched) ──
+(function () {
+  var form = createMockForm({ name: 'P', type: 'openai_compat', model: 'gpt-4', api_key: 'sk-x' });
+  var data = extractData(form);
+  assert(!data.params.api_keys, 'absent api_keys_json leaves params.api_keys unset');
+  assertEqual(data.api_key, 'sk-x', 'legacy api_key preserved');
+})();
+
+// ── malformed key list is ignored ──
+(function () {
+  var form = createMockForm({ name: 'P', type: 'openai_compat', model: 'gpt-4', api_keys_json: 'not json' });
+  var data = extractData(form);
+  assert(!data.params.api_keys, 'malformed api_keys_json is dropped');
+})();
+
 // ── Result ──
 h.printSummary();

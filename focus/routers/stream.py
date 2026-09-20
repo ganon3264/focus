@@ -25,9 +25,9 @@ from focus.core.utils import (
     AUDIO_TOKEN_ESTIMATE,
     _image_dims_from_data_url,
     estimate_image_tokens,
-    resolve_secret_key,
 )
 from focus.db.chats import rollback_assistant, save_usage, upsert_variant
+from focus.db.providers import resolve_active_api_key
 from focus.extensions.triggers import run_trigger_sync, schedule_trigger
 from focus.providers import create_provider
 from focus.routers.stream_utils import (
@@ -204,7 +204,7 @@ async def _load_provider(
     if not prov_row:
         raise HTTPException(404, "Provider not found")
     prov_dict = dict(prov_row)
-    prov_dict["api_key"] = await resolve_secret_key(db, prov_dict.get("api_key") or "")
+    prov_dict["api_key"] = await resolve_active_api_key(db, prov_dict)
     provider = create_provider(prov_dict)
     return provider, prov_dict
 

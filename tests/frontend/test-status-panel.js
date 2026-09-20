@@ -23,12 +23,25 @@ var cacheEl = makeElement('span');
 cacheEl.id = 'status-cache';
 cacheEl.style = {};
 
+var keyRow = makeElement('div');
+keyRow.id = 'status-key-row';
+var keyCount = makeElement('span');
+keyCount.id = 'status-key-count';
+var keyPrev = makeElement('button');
+keyPrev.id = 'status-key-prev';
+var keyNext = makeElement('button');
+keyNext.id = 'status-key-next';
+
 var doc = h.createMockDocument();
 doc._body.appendChild(statusProvider);
 doc._body.appendChild(statusPreset);
 doc._body.appendChild(statusModel);
 doc._body.appendChild(cacheRow);
 doc._body.appendChild(cacheEl);
+doc._body.appendChild(keyRow);
+doc._body.appendChild(keyCount);
+doc._body.appendChild(keyPrev);
+doc._body.appendChild(keyNext);
 
 function mockGetElementById(id) {
   if (id === 'status-provider') return statusProvider;
@@ -36,6 +49,10 @@ function mockGetElementById(id) {
   if (id === 'status-model') return statusModel;
   if (id === 'status-cache-row') return cacheRow;
   if (id === 'status-cache') return cacheEl;
+  if (id === 'status-key-row') return keyRow;
+  if (id === 'status-key-count') return keyCount;
+  if (id === 'status-key-prev') return keyPrev;
+  if (id === 'status-key-next') return keyNext;
   return null;
 }
 doc.getElementById = mockGetElementById;
@@ -55,6 +72,7 @@ global.htmx = { ajax: function () {} };
 global.api = {
   chats: '/api/chats',
   partials: { promptArranger: function (id) { return '/partials/prompt-arranger/' + id; } },
+  providerActiveKey: function (id) { return '/api/providers/' + id + '/active-key'; },
 };
 global.StateManager = {
   get: function (key) {
@@ -69,7 +87,7 @@ global.APP_PROVIDERS = [
 
 // Load module — export bare functions
 var src = fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'ui', 'status-panel.js'), 'utf8');
-eval(src + '\nwindow.updateStatusPanel=updateStatusPanel;window.updateCacheTimer=updateCacheTimer;window.newChat=newChat;');
+eval(src + '\nwindow.updateStatusPanel=updateStatusPanel;window.updateCacheTimer=updateCacheTimer;window.newChat=newChat;window.updateKeySwitcher=updateKeySwitcher;window._providerKeys=_providerKeys;');
 
 // ── updateStatusPanel shows provider info ──
 (function () {
@@ -170,6 +188,58 @@ eval(src + '\nwindow.updateStatusPanel=updateStatusPanel;window.updateCacheTimer
 
   window.updateStatusPanel();
   assertEqual(statusProvider.textContent, 'Unknown', 'missing provider: shows Unknown');
+  global.StateManager.get = oldGet;
+})();
+
+// ── Key switcher: multi-key reveals controls and reflects position ──
+(function () {
+  var oldGet = global.StateManager.get;
+  global.StateManager.get = function () { return 'prov1'; };
+  global.APP_PROVIDERS = [{
+    id: 'prov1', name: 'P', type: 'openai_compat', model: 'm',
+    params_json: JSON.stringify({ api_keys: ['SECRET:a', 'SECRET:b', 'SECRET:c'], active_key: 'SECRET:b' }),
+  }];
+  window.updateStatusPanel();
+  assert(!keyRow.classList.contains('hidden'), 'multi-key row visible');
+  assertEqual(keyCount.textContent, '2/3', 'key count reflects active position');
+
+  global.APP_PROVIDERS[0].params_json = JSON.stringify({ api_keys: ['SECRET:a', 'SECRET:b'], active_key: 'SECRET:b' });
+  window.updateKeySwitcher(global.APP_PROVIDERS[0]);
+  assertEqual(keyCount.textContent, '2/2', 'key count follows the active ref');
+  global.StateManager.get = oldGet;
+})();
+
+// ── Key switcher: single key hides controls ──
+(function () {
+  global.APP_PROVIDERS = [{ id: 'prov1', name: 'P', type: 't', model: 'm', api_key: 'sk-only' }];
+  window.updateKeySwitcher(global.APP_PROVIDERS[0]);
+  assert(keyRow.classList.contains('hidden'), 'single-key row hidden');
+})();
+
+// ── Key switcher: action POSTs the chosen key and wraps ──
+(function () {
+  var oldGet = global.StateManager.get;
+  global.StateManager.get = function () { return 'prov1'; };
+  global.APP_PROVIDERS = [{
+    id: 'prov1', name: 'P', type: 'openai_compat', model: 'm',
+    params_json: JSON.stringify({ api_keys: ['SECRET:a', 'SECRET:b'], active_key: 'SECRET:a' }),
+  }];
+  var url = null, bodies = [];
+  var oldFetch = global.fetch;
+  global.fetch = function (u, opts) { url = u; bodies.push(opts && opts.body); return Promise.resolve({ ok: true }); };
+  var el = makeElement('button');
+
+  el.dataset.dir = '1';
+  window.actionShiftProviderKey(el);
+  assertEqual(url, '/api/providers/prov1/active-key', 'switch POSTs to the active-key endpoint');
+  assertEqual(bodies[0], JSON.stringify({ key: 'SECRET:b' }), 'next from the first key advances');
+  assert(el.disabled !== true, 'arrow stays clickable after a switch');
+
+  el.dataset.dir = '-1';
+  window.actionShiftProviderKey(el);
+  assertEqual(bodies[1], JSON.stringify({ key: 'SECRET:b' }), 'previous from the first key wraps to the last');
+
+  global.fetch = oldFetch;
   global.StateManager.get = oldGet;
 })();
 

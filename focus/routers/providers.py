@@ -61,6 +61,10 @@ class SecretUpdate(BaseModel):
     value: str
 
 
+class ActiveKeyUpdate(BaseModel):
+    key: str
+
+
 # ── Literal-path routes (must register BEFORE /{provider_id}) ──
 
 @router.post("/fetch_models")
@@ -69,10 +73,10 @@ async def fetch_models(body: FetchModelsRequest, _db=Depends(get_db)):
     api_key = await resolve_secret_key(_db, body.api_key or "")
 
     if not api_key and body.provider_id:
-        async with _db.execute("SELECT api_key FROM providers WHERE id = ?", (body.provider_id,)) as cur:
+        async with _db.execute("SELECT * FROM providers WHERE id = ?", (body.provider_id,)) as cur:
             row = await cur.fetchone()
-            if row and row["api_key"]:
-                api_key = await resolve_secret_key(_db, row["api_key"])
+            if row:
+                api_key = await db.resolve_active_api_key(_db, dict(row))
 
     cache_key = f"{body.type}_{hash(api_key)}"
     cached = await _model_cache.get(cache_key)
@@ -182,6 +186,19 @@ async def get_provider(provider_id: str, _db=Depends(get_db)):
     return d
 
 
+@router.post("/{provider_id}/active-key")
+async def set_provider_active_key(provider_id: str, body: ActiveKeyUpdate, _db=Depends(get_db)):
+    """Switch which key a multi-key provider uses.
+
+    Deliberately does not stop in-flight generations: a request already on the
+    wire keeps its key and finishes, and the switch applies to the next one.
+    """
+    if not await db.set_active_key(_db, provider_id, body.key):
+        raise HTTPException(404, "Provider or key not found")
+    await _db.commit()
+    return {"ok": True, "active_key": body.key}
+
+
 @router.patch("/{provider_id}")
 async def update_provider(
     provider_id: str,
@@ -263,7 +280,7 @@ async def get_provider_balance(provider_id: str, _db=Depends(get_db)):
     if not cfg:
         raise HTTPException(400, f"Balance not supported for provider type: {d['type']}")
 
-    api_key = await resolve_secret_key(_db, d.get("api_key") or "")
+    api_key = await db.resolve_active_api_key(_db, d)
     cache_key = f"{d['type']}_{hash(api_key)}"
 
     async def _fetch():

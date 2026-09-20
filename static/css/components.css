@@ -440,6 +440,18 @@
     line-height: 1;
   }
 
+  .key-row {
+    padding: 0.35rem 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface-2);
+  }
+  .key-row.sortable-ghost {
+    opacity: 0.3;
+    border-color: var(--active-border);
+    background: var(--active-bg);
+  }
+
   #crop-container cropper-canvas {
     height: 100%;
     width: 100%;

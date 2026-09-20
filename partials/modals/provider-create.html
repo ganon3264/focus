@@ -1,4 +1,4 @@
-{% from "macros.html" import custom_select, icon_key, icon_search, hint_tooltip %} {% from "modal-shell.html" import modal_shell %} {% call modal_shell('modal-provider-create', 'Add Provider', max_width='500px', z_index='100',
+{% from "macros.html" import custom_select, icon_trash, icon_search, hint_tooltip %} {% from "modal-shell.html" import modal_shell %} {% call modal_shell('modal-provider-create', 'Add Provider', max_width='500px', z_index='100',
 dirty_fields='#provider-form input,#provider-form select,#provider-form textarea',
 dirty_label='#prov-form-name') %}
 <form id="provider-form" data-action="actionSubmitProviderForm" class="flex flex-col gap-3 p-4">
@@ -33,17 +33,21 @@ dirty_label='#prov-form-name') %}
   </div>
 
   <div class="form-group mb-0">
-    <label>API Key</label>
+    <div class="flex items-center justify-between mb-1">
+      <label class="mb-0 flex items-center gap-1">API Keys {{ hint_tooltip('Add more keys to switch between them easily. With more than one, a <span class="hint-success">Keys</span> row appears in the status panel in the lower left corner so you can rotate the active key on the fly.') }}</label>
+      <button type="button" class="btn-link" onclick="openSecretsModal('prov-form', true)">Add Key +</button>
+    </div>
+    <div id="prov-form-key-list" class="flex flex-col gap-1"></div>
+    <input type="hidden" name="api_keys_json" id="prov-form-api-keys" value="[]" />
     <input type="hidden" name="api_key" id="api-key-input-prov-form" value="" />
-    <button
-      type="button"
-      class="form-control text-sm w-full flex justify-between items-center cursor-pointer"
-      onclick="openSecretsModal('prov-form')"
-    >
-      <span id="api-key-display-prov-form" class="truncate text-muted">Select API Key...</span>
-      <span class="opacity-50">{{ icon_key() }}</span>
-    </button>
   </div>
+  <template id="prov-form-key-row-template">
+    <div class="key-row flex items-center gap-2">
+      <div class="arranger-handle" title="Drag to reorder"></div>
+      <span class="key-row-label text-sm truncate flex-1"></span>
+      <button type="button" class="btn btn-danger btn-sm" data-action="actionRemoveProviderKey" aria-label="Remove key">{{ icon_trash(14) }}</button>
+    </div>
+  </template>
 
   <!-- Default Model Input -->
   <div class="form-group mb-0" id="prov-form-model-input">

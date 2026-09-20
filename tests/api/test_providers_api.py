@@ -170,6 +170,88 @@ class TestProviderDetail:
         assert (await client.patch(f"/api/providers/{pid}", json={})).json() == {"ok": True}
 
 
+async def _make_multikey_provider(client, tmp_test_dir, active=None):
+    """Create a provider whose params hold two SECRET refs."""
+    db_path = Path(tmp_test_dir) / "test.db"
+    async with aiosqlite.connect(db_path) as db:
+        await db.execute("INSERT INTO secrets (name, value) VALUES (?, ?)", ("k1", "key-one"))
+        await db.execute("INSERT INTO secrets (name, value) VALUES (?, ?)", ("k2", "key-two"))
+        await db.commit()
+    pid = await _make_provider(client, api_key="SECRET:k1")
+    params = {"api_keys": ["SECRET:k1", "SECRET:k2"]}
+    if active:
+        params["active_key"] = active
+    resp = await client.patch(f"/api/providers/{pid}", json={"params": params})
+    assert resp.status_code == 200
+    return pid
+
+
+class TestActiveKey:
+    async def test_switch_persists(self, client, tmp_test_dir):
+        pid = await _make_multikey_provider(client, tmp_test_dir)
+        resp = await client.post(f"/api/providers/{pid}/active-key", json={"key": "SECRET:k2"})
+        assert resp.status_code == 200
+        assert resp.json() == {"ok": True, "active_key": "SECRET:k2"}
+
+        data = (await client.get(f"/api/providers/{pid}")).json()
+        assert json.loads(data["params_json"])["active_key"] == "SECRET:k2"
+
+    async def test_rejects_unknown_key(self, client, tmp_test_dir):
+        pid = await _make_multikey_provider(client, tmp_test_dir)
+        resp = await client.post(f"/api/providers/{pid}/active-key", json={"key": "SECRET:nope"})
+        assert resp.status_code == 404
+
+    async def test_unknown_provider(self, client):
+        resp = await client.post("/api/providers/nope/active-key", json={"key": "SECRET:k1"})
+        assert resp.status_code == 404
+
+    async def test_does_not_stop_active_generation(self, client, tmp_test_dir):
+        pid = await _make_multikey_provider(client, tmp_test_dir)
+
+        import asyncio
+
+        from focus.routers import stream
+
+        event = asyncio.Event()
+        record = stream._register_generation("msg-1", "chat-1", event, provider_id=pid)
+        try:
+            resp = await client.post(f"/api/providers/{pid}/active-key", json={"key": "SECRET:k2"})
+            assert resp.status_code == 200
+            assert not event.is_set(), "a key switch must not abort in-flight generations"
+        finally:
+            event.set()
+            stream._unregister_generation("msg-1", record)
+
+    async def test_resolver_prefers_active_key(self, client, tmp_test_dir):
+        from focus.db.providers import resolve_active_api_key
+
+        pid = await _make_multikey_provider(client, tmp_test_dir, active="SECRET:k2")
+        db_path = Path(tmp_test_dir) / "test.db"
+        async with aiosqlite.connect(db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("SELECT * FROM providers WHERE id = ?", (pid,)) as cur:
+                row = dict(await cur.fetchone())
+            assert await resolve_active_api_key(db, row) == "key-two"
+
+    async def test_fetch_models_uses_active_key(self, client, monkeypatch, tmp_test_dir):
+        captured = {}
+
+        def handler(request):
+            captured["auth"] = request.headers.get("authorization")
+            return httpx.Response(200, json={"data": [{"id": "m1"}]})
+
+        _patch_httpx(monkeypatch, handler)
+        pid = await _make_multikey_provider(client, tmp_test_dir)
+        await client.post(f"/api/providers/{pid}/active-key", json={"key": "SECRET:k2"})
+
+        resp = await client.post(
+            "/api/providers/fetch_models",
+            json={"type": "openai_compat", "provider_id": pid},
+        )
+        assert resp.status_code == 200
+        assert captured["auth"] == "Bearer key-two"
+
+
 class TestBalance:
     async def test_openrouter_balance_and_cache(self, client, monkeypatch):
         calls = {"n": 0}

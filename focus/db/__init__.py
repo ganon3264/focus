@@ -26,9 +26,13 @@ from focus.db.personas import (
     update_persona_avatar,
 )
 from focus.db.providers import (
+    active_key_ref,
     create_provider,
     delete_provider,
     delete_secret,
+    provider_key_refs,
+    resolve_active_api_key,
+    set_active_key,
     update_provider,
     upsert_secret,
 )
@@ -91,7 +95,8 @@ __all__ = [
     "delete_setting", "set_active_provider", "upsert_setting",
     "create_persona", "delete_persona", "hard_delete_persona",
     "restore_persona", "update_persona", "update_persona_avatar",
-    "create_provider", "delete_provider", "delete_secret",
+    "active_key_ref", "create_provider", "delete_provider", "delete_secret",
+    "provider_key_refs", "resolve_active_api_key", "set_active_key",
     "update_provider", "upsert_secret",
     "create_preset", "create_preset_block", "delete_preset",
     "delete_preset_block", "duplicate_preset", "import_preset",

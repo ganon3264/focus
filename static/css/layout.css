@@ -145,6 +145,35 @@
     padding: 0 0.5rem;
   }
 
+  /* Provider key switcher: the Keys row carries the position and the arrows
+     are always visible (they wrap around). */
+  .status-key-row .key-nav {
+    display: inline-flex;
+    align-items: center;
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--text-muted);
+    cursor: pointer;
+    line-height: 1;
+  }
+  .status-key-row .key-nav:hover {
+    color: var(--text);
+  }
+  .status-key-row .key-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    color: var(--text-muted);
+    font-size: 0.7rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .status-key-row .key-nav svg,
+  .status-key-row .key-badge svg {
+    display: block;
+  }
+
   .sidebar-item {
     padding: 0.6rem 0.75rem;
     border-radius: var(--radius-md);

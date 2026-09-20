@@ -55,6 +55,7 @@ assertEqual(api.presetBlockImage('pr1', 'b1', 'i1'), '/api/presets/pr1/blocks/b1
 
 // ── Provider routes ──
 assertEqual(api.provider('prv1'), '/api/providers/prv1', 'api.provider');
+assertEqual(api.providerActiveKey('prv1'), '/api/providers/prv1/active-key', 'api.providerActiveKey');
 assertEqual(api.providerSecret('sk-test'), '/api/providers/secrets/sk-test', 'api.providerSecret');
 assertEqual(api.providerSecret('my key'), '/api/providers/secrets/my%20key', 'api.providerSecret encodes');
 

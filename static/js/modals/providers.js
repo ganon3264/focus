@@ -328,6 +328,21 @@ function extractData(form) {
   }
 
   if (!data.params || typeof data.params !== 'object') data.params = {};
+
+  var apiKeys = [];
+  try {
+    apiKeys = JSON.parse(data.api_keys_json || '[]');
+  } catch (e) {}
+  apiKeys = Array.isArray(apiKeys)
+    ? apiKeys.filter(function (k) { return typeof k === 'string' && k; })
+    : [];
+  if (apiKeys.length) {
+    data.params.api_keys = apiKeys;
+    data.api_key = apiKeys[0];
+  } else {
+    delete data.params.api_keys;
+  }
+  delete data.api_keys_json;
   var retryResult = collectRetryConfig(form);
   data.params.retry = retryResult.config;
   if (retryResult.dropped.length && window.showInfoToast) {
@@ -491,7 +506,9 @@ function resetProviderForm() {
   document.getElementById('prov-form-edit-id').value = '';
   document.getElementById('prov-form-params').value = '{}';
   document.getElementById('api-key-input-prov-form').value = '';
-  document.getElementById('api-key-display-prov-form').innerHTML = '<span class="text-muted">Select API Key...</span>';
+  var keysInput = document.getElementById('prov-form-api-keys');
+  if (keysInput) keysInput.value = '[]';
+  _renderProviderKeys('prov-form', []);
   var routeDisplay = document.getElementById('or-route-display-prov-form');
   var quantDisplay = document.getElementById('or-quant-display-prov-form');
   if (routeDisplay) { routeDisplay.textContent = 'Auto (Any)'; routeDisplay.classList.add('text-muted'); }
@@ -512,16 +529,11 @@ function populateProviderForm(data) {
   var params = {};
   try { params = JSON.parse(data.params_json || '{}'); } catch (e) {}
   document.getElementById('prov-form-params').value = JSON.stringify(params);
-  var ak = data.api_key || '';
-  if (ak.startsWith('SECRET:')) {
-    document.getElementById('api-key-input-prov-form').value = ak;
-    document.getElementById('api-key-display-prov-form').innerHTML = 'Saved Key: ' + ak.replace('SECRET:', '');
-    document.getElementById('api-key-display-prov-form').classList.remove('text-muted');
-  } else if (ak && ak !== '__HIDDEN__') {
-    document.getElementById('api-key-input-prov-form').value = '';
-    document.getElementById('api-key-display-prov-form').innerHTML = 'Raw Key (Hidden)';
-    document.getElementById('api-key-display-prov-form').classList.remove('text-muted');
-  }
+  var refs = Array.isArray(params.api_keys)
+    ? params.api_keys.filter(function (r) { return typeof r === 'string' && r; })
+    : [];
+  if (!refs.length && data.api_key && data.api_key !== '__HIDDEN__') refs = [data.api_key];
+  _setProviderKeys('prov-form', refs, { quiet: true });
   document.getElementById('model-text-prov-form').value = data.model || '';
   if (data.type === 'openrouter') {
     var savedRoute = params.or_route || '';
@@ -601,8 +613,9 @@ setTimeout(() => {
 
 window._currentSecretPrefix = null;
 
-function openSecretsModal(prefix) {
+function openSecretsModal(prefix, append) {
   window._currentSecretPrefix = prefix;
+  window._secretAppend = !!append;
   openModal('modal-secrets');
   document.querySelectorAll('#modal-secrets .secret-select-btn').forEach(function (btn) {
     btn.classList.toggle('hidden', !prefix);
@@ -655,18 +668,120 @@ function _setKeyInput(val, displayHtml) {
   closeModal('modal-secrets');
 }
 
+function _applySelectedKey(ref, label) {
+  const prefix = window._currentSecretPrefix;
+  if (!prefix) return;
+  if (window._secretAppend) {
+    addProviderKey(prefix, ref);
+    closeModal('modal-secrets');
+    return;
+  }
+  _setKeyInput(ref, label);
+}
+
 function selectSecret(name) {
-  _setKeyInput('SECRET:' + name, 'Saved Key: ' + name);
+  _applySelectedKey('SECRET:' + name, 'Saved Key: ' + name);
 }
 
 function selectRawKey(val) {
   if (!val) return;
-  _setKeyInput(val, 'Raw Key (Hidden)');
+  _applySelectedKey(val, 'Raw Key (Hidden)');
 }
+
+function _keyRowLabel(ref) {
+  return ref.indexOf('SECRET:') === 0 ? 'Saved Key: ' + ref.slice(7) : 'Raw Key (hidden)';
+}
+
+function _getProviderKeys(prefix) {
+  const input = document.getElementById(prefix + '-api-keys');
+  let refs = [];
+  try {
+    refs = JSON.parse((input && input.value) || '[]');
+  } catch (e) {}
+  if (!Array.isArray(refs)) return [];
+  return refs.filter(function (r) { return typeof r === 'string' && r; });
+}
+
+function _renderProviderKeys(prefix, refs) {
+  const container = document.getElementById(prefix + '-key-list');
+  if (!container) return;
+  container.innerHTML = '';
+  if (!refs.length) {
+    const empty = document.createElement('div');
+    empty.className = 'text-xs text-muted';
+    empty.textContent = 'No keys yet — click "Add Key".';
+    container.appendChild(empty);
+    return;
+  }
+  const tpl = document.getElementById(prefix + '-key-row-template');
+  refs.forEach(function (ref) {
+    if (!tpl) return;
+    const node = tpl.content.firstElementChild.cloneNode(true);
+    node.dataset.ref = ref;
+    node.dataset.prefix = prefix;
+    const label = node.querySelector('.key-row-label');
+    if (label) {
+      label.textContent = _keyRowLabel(ref);
+      label.title = _keyRowLabel(ref);
+    }
+    container.appendChild(node);
+  });
+}
+
+function _initProviderKeySortable(prefix) {
+  const container = document.getElementById(prefix + '-key-list');
+  if (!container || typeof Sortable === 'undefined') return;
+  if (container._sortable) container._sortable.destroy();
+  container._sortable = new Sortable(container, {
+    animation: 150,
+    ghostClass: 'sortable-ghost',
+    handle: '.arranger-handle',
+    onEnd: function () {
+      const refs = Array.from(container.children)
+        .map(function (c) { return c.dataset.ref; })
+        .filter(Boolean);
+      _setProviderKeys(prefix, refs, { skipRender: true, markDirty: true });
+    },
+  });
+}
+
+function _setProviderKeys(prefix, refs, opts) {
+  opts = opts || {};
+  const input = document.getElementById(prefix + '-api-keys');
+  if (input) input.value = JSON.stringify(refs);
+  const legacy = document.getElementById('api-key-input-' + prefix);
+  if (legacy) legacy.value = refs[0] || '';
+  if (!opts.skipRender) {
+    _renderProviderKeys(prefix, refs);
+    _initProviderKeySortable(prefix);
+  }
+  if (!opts.quiet && opts.markDirty && window.ModalController) {
+    window.ModalController.setDirty('modal-provider-create', true);
+  }
+}
+
+function addProviderKey(prefix, ref) {
+  const refs = _getProviderKeys(prefix);
+  if (refs.indexOf(ref) === -1) refs.push(ref);
+  _setProviderKeys(prefix, refs, { markDirty: true });
+}
+
+window.actionRemoveProviderKey = function (el) {
+  const row = el.closest('.key-row');
+  if (!row) return;
+  const prefix = row.dataset.prefix || 'prov-form';
+  const refs = _getProviderKeys(prefix).filter(function (r) { return r !== row.dataset.ref; });
+  _setProviderKeys(prefix, refs, { markDirty: true });
+};
 
 function clearKey() {
   const prefix = window._currentSecretPrefix;
   if (!prefix) return;
+  if (window._secretAppend) {
+    _setProviderKeys(prefix, [], { markDirty: true });
+    closeModal('modal-secrets');
+    return;
+  }
   const input = document.getElementById('api-key-input-' + prefix);
   const display = document.getElementById('api-key-display-' + prefix);
   if (input) input.value = '';

@@ -1,14 +1,76 @@
+function _providerKeys(provider) {
+  if (!provider) return { refs: [], active: 0 };
+  let params = {};
+  try {
+    params = JSON.parse(provider.params_json || '{}');
+  } catch (e) {}
+  let refs = Array.isArray(params.api_keys)
+    ? params.api_keys.filter(function (k) { return typeof k === 'string' && k; })
+    : [];
+  if (!refs.length && provider.api_key) refs = [provider.api_key];
+  let active = refs.indexOf(params.active_key);
+  if (active < 0) active = 0;
+  return { refs: refs, active: active };
+}
+
+function _keyLabel(ref) {
+  if (typeof ref !== 'string') return 'Key';
+  return ref.indexOf('SECRET:') === 0 ? ref.slice(7) : 'Raw key';
+}
+
+function updateKeySwitcher(provider) {
+  const row = document.getElementById('status-key-row');
+  if (!row) return;
+  const keys = _providerKeys(provider);
+  const multi = keys.refs.length > 1;
+  row.classList.toggle('hidden', !multi);
+  row.classList.toggle('flex', multi);
+  if (!multi) return;
+  const countEl = document.getElementById('status-key-count');
+  if (countEl) countEl.textContent = (keys.active + 1) + '/' + keys.refs.length;
+}
+
+window.actionShiftProviderKey = async function (el) {
+  const activeId = StateManager.get('provider_id');
+  const provider = activeId && (window.APP_PROVIDERS || []).find(function (p) { return p.id === activeId; });
+  if (!provider) return;
+  const dir = parseInt(el.dataset.dir, 10) || 0;
+  const keys = _providerKeys(provider);
+  const n = keys.refs.length;
+  if (!dir || !n) return;
+  const target = (keys.active + dir + n) % n;
+  const ref = keys.refs[target];
+  try {
+    const res = await fetch(api.providerActiveKey(provider.id), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: ref }),
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    let params = {};
+    try { params = JSON.parse(provider.params_json || '{}'); } catch (e) {}
+    params.active_key = ref;
+    provider.params_json = JSON.stringify(params);
+    updateKeySwitcher(provider);
+    if (window.showInfoToast) window.showInfoToast('Key ' + (target + 1) + '/' + keys.refs.length + ' · ' + _keyLabel(ref));
+  } catch (err) {
+    if (window.showErrorToast) window.showErrorToast('Could not switch key: ' + err.message);
+    updateKeySwitcher(provider);
+  }
+};
+
 function updateStatusPanel() {
   const activeId = StateManager.get('provider_id');
   const providerEl = document.getElementById('status-provider');
   const presetEl = document.getElementById('status-preset');
   const modelEl = document.getElementById('status-model');
+  let provider = null;
 
   if (!activeId) {
     providerEl.textContent = 'None';
     modelEl.textContent = 'None';
   } else {
-    let provider = window.APP_PROVIDERS.find((p) => p.id === activeId);
+    provider = (window.APP_PROVIDERS || []).find((p) => p.id === activeId);
 
     if (!provider) {
       const cardDisplay = document.getElementById('prov-display-' + activeId);
@@ -43,6 +105,7 @@ function updateStatusPanel() {
       modelEl.title = 'Unknown';
     }
   }
+  updateKeySwitcher(provider);
 }
 
 function updateCacheTimer() {

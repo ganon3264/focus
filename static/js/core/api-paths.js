@@ -105,6 +105,9 @@ window.api = {
   providerBalance: function (id) {
     return '/api/providers/' + id + '/balance';
   },
+  providerActiveKey: function (id) {
+    return '/api/providers/' + id + '/active-key';
+  },
   providerSecrets: '/api/providers/secrets',
   providerSecret: function (name) {
     return '/api/providers/secrets/' + encodeURIComponent(name);
