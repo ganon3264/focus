@@ -76,6 +76,13 @@
     var c = getContainer();
     if (!c || !message) return null;
 
+    // Opt-in visual truncation. The full text is kept on the card so the
+    // error toast's Copy action still yields the complete message.
+    var fullText = message;
+    if (opts.maxChars && message.length > opts.maxChars) {
+      message = message.slice(0, opts.maxChars) + '\u2026';
+    }
+
     var children = c.children || [];
     for (var i = 0; i < children.length; i++) {
       var existing = children[i];
@@ -90,6 +97,7 @@
         existing.dataset.toastType === type &&
         getToastText(existing) === message;
       if (sameId || sameText) {
+        existing._fullText = fullText;
         if (getToastText(existing) !== message) {
           var textEl = existing.querySelector('.toast-text');
           if (textEl) textEl.textContent = message;
@@ -103,6 +111,7 @@
     card.className = 'toast toast-' + type;
     card.setAttribute('role', type === 'error' ? 'alert' : 'status');
     card.dataset.toastType = type;
+    card._fullText = fullText;
     if (id) card.dataset.toastId = id;
 
     var text = document.createElement('span');
@@ -119,7 +128,7 @@
       copy.setAttribute('aria-label', 'Copy error');
       copy.innerHTML = copyIcon;
       copy.addEventListener('click', function () {
-        var txt = text.textContent;
+        var txt = card._fullText || text.textContent;
         if (navigator.clipboard && navigator.clipboard.writeText) {
           navigator.clipboard.writeText(txt).then(
             function () {

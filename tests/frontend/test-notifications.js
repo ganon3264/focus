@@ -88,6 +88,19 @@ global.document.body.appendChild(container);
   assertEqual(pendingCount(), 1, 'basic: auto-dismiss timer armed');
 })();
 
+// ── Truncation: opt-in maxChars caps the visible text with an ellipsis ──
+(function () {
+  resetTimers();
+  container.children.length = 0;
+  window.showInfoToast('x'.repeat(10), { maxChars: 4 });
+  var card = container.children[0];
+  assertEqual(card.querySelector('.toast-text').textContent, 'xxxx\u2026', 'truncate: ellipsis appended');
+  assertEqual(card._fullText, 'xxxxxxxxxx', 'truncate: full text retained for copy');
+
+  window.showInfoToast('short', { maxChars: 40 });
+  assertEqual(container.children[1].querySelector('.toast-text').textContent, 'short', 'truncate: under limit untouched');
+})();
+
 // ── Success variant ──
 (function () {
   resetTimers();

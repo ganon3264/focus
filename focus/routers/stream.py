@@ -240,6 +240,19 @@ def _format_error(e: Exception) -> str:
     return msg
 
 
+def _error_reason(e: Exception) -> str:
+    """Best human-readable line for a provider error.
+
+    SDK exceptions expose ``.message``; Google's is far cleaner than its
+    ``str()``, which appends the raw JSON body. Fall back to ``_format_error``
+    when the attribute is missing or empty.
+    """
+    msg = getattr(e, "message", None)
+    if isinstance(msg, str) and msg.strip():
+        return msg.strip()
+    return _format_error(e)
+
+
 async def _sleep_or_stop(delay: float, stop_event: asyncio.Event | None) -> bool:
     """Sleep for *delay*, returning True if a stop was requested instead."""
     if stop_event is None:
@@ -308,7 +321,8 @@ async def _run_generation(
                                "result": str, "is_error": bool}
       {"type": "usage",       "usage": dict}
       {"type": "retry",       "attempt": int, "max": int,
-                              "delay": float, "reason": str}
+                              "delay": float, "kind": str,
+                              "status": int | None, "reason": str}
       {"type": "done"}
       {"type": "superseded"}
       {"type": "error",       "error": str}
@@ -406,7 +420,9 @@ async def _run_generation(
                         "attempt": attempt + 1,
                         "max": retry_config.max_retries,
                         "delay": round(delay, 2),
-                        "reason": _format_error(e),
+                        "kind": cls.kind,
+                        "status": cls.status,
+                        "reason": _error_reason(e),
                     }
                     if await _sleep_or_stop(delay, stop_event):
                         yield _stop_terminal_event(active_gen)
@@ -415,7 +431,7 @@ async def _run_generation(
                     attempt += 1
                     continue
                 logger.exception("Completion failed for chat_id=%s", chat_id)
-                yield {"type": "error", "error": _format_error(e)}
+                yield {"type": "error", "error": _error_reason(e)}
                 return
             if stream_finished:
                 break
@@ -444,7 +460,7 @@ async def _run_generation(
             )
         except Exception as e:
             logger.exception("Tool round failed for chat_id=%s", chat_id)
-            yield {"type": "error", "error": _format_error(e)}
+            yield {"type": "error", "error": _error_reason(e)}
             return
         for r in results:
             yield {
@@ -780,7 +796,7 @@ async def _generation_end_extensions(ctx: _GenCtx) -> AsyncIterator[dict]:
         )
     except Exception as e:
         logger.exception("generation_end triggers failed for chat=%s", ctx.body.chat_id)
-        summaries = [{"extension": "extension", "status": "error", "error": str(e), "logs": [], "content": None}]
+        summaries = [{"extension": "extension", "status": "error", "error": _error_reason(e), "logs": [], "content": None}]
     for s in summaries:
         yield {
             "type": "extension",
@@ -824,7 +840,7 @@ async def _stream_generate(ctx: _GenCtx) -> AsyncIterator[str]:
             if event["type"] == "error":
                 return
     except _SaveFailed as e:
-        yield f"data: {json.dumps({'type': 'error', 'error': f'Generation succeeded but save failed: {_format_error(e)}'})}\n\n"
+        yield f"data: {json.dumps({'type': 'error', 'error': f'Generation succeeded but save failed: {_error_reason(e)}'})}\n\n"
     except GeneratorExit:
         await _finalize_detached(ctx, acc)
     except asyncio.CancelledError:
@@ -881,7 +897,7 @@ async def _non_stream_generate(ctx: _GenCtx) -> AsyncIterator[str]:
                     yield f"data: {json.dumps(payload)}\n\n"
                 return
     except _SaveFailed as e:
-        yield f"data: {json.dumps({'type': 'error', 'error': f'Generation succeeded but save failed: {_format_error(e)}'})}\n\n"
+        yield f"data: {json.dumps({'type': 'error', 'error': f'Generation succeeded but save failed: {_error_reason(e)}'})}\n\n"
     except GeneratorExit:
         await _finalize_detached(ctx, acc)
     except asyncio.CancelledError:

@@ -43,7 +43,7 @@
     this.userMessageId = null;
     this.done = false;
     this.errorMsg = null;
-    this.retrying = false;
+    this.retryCount = 0;
     this.segments = [];
     this.controller = new AbortController();
   };
@@ -100,19 +100,39 @@
   // that as one live info toast (attempt, countdown, reason) rather than a
   // generic message that vanishes the moment the retry succeeds.
   var RETRY_TOAST_ID = 'gen-retry';
-  var _retry = null; // { deadline, attempt, max, reason, timer }
+  var RETRY_KIND_LABELS = {
+    rate_limit: 'Rate limit',
+    server: 'Server error',
+    timeout: 'Timeout / connection',
+    auth: 'Authentication',
+    bad_request: 'Bad request',
+    payment: 'Payment required',
+  };
+  var _retry = null; // { deadline, attempt, max, kind, status, reason, timer }
+
+  function _retryCodeLine() {
+    var label = RETRY_KIND_LABELS[_retry.kind] || '';
+    if (label && _retry.status) return 'HTTP ' + _retry.status + ' \u00b7 ' + label;
+    if (label) return label;
+    if (_retry.status) return 'HTTP ' + _retry.status;
+    return '';
+  }
 
   function _retryText() {
     if (!_retry) return '';
     var seconds = Math.max(0, Math.ceil((_retry.deadline - Date.now()) / 1000));
     var head = 'Retrying (' + _retry.attempt + '/' + _retry.max + ')';
-    head += seconds > 0 ? ' in ' + seconds + 's' : '\u2026';
-    return _retry.reason ? head + ' \u2014 ' + _retry.reason : head;
+    head += seconds > 0 ? ' in ' + seconds + 's' : ' in \u2026';
+    var lines = [head];
+    var code = _retryCodeLine();
+    if (code) lines.push(code);
+    if (_retry.reason) lines.push(_retry.reason);
+    return lines.join('\n');
   }
 
   function _renderRetry() {
     if (_retry && window.showInfoToast) {
-      window.showInfoToast(_retryText(), { id: RETRY_TOAST_ID, duration: 0 });
+      window.showInfoToast(_retryText(), { id: RETRY_TOAST_ID, duration: 0, maxChars: 200 });
     }
   }
 
@@ -134,7 +154,9 @@
       deadline: Date.now() + (Math.max(0, Number(data.delay) || 0) * 1000),
       attempt: data.attempt || 1,
       max: data.max || 1,
-      reason: String(data.reason || '').split('\n')[0].slice(0, 140),
+      kind: data.kind || '',
+      status: data.status != null ? data.status : null,
+      reason: String(data.reason || '').split('\n')[0],
       timer: null,
     };
     _renderRetry();
@@ -201,8 +223,8 @@
   HANDLERS.done = function (state, data) {
     state.done = true;
     state.messageId = data.message_id;
-    if (state.retrying) {
-      var attempts = state.retryCount || 0;
+    if (state.retryCount) {
+      var attempts = state.retryCount;
       window.resetRetryFeedback();
       if (window.showSuccessToast) {
         window.showSuccessToast(
@@ -229,14 +251,13 @@
 
   HANDLERS.error = function (state, data) {
     state.errorMsg = data.error;
-    if (state.retrying) window.resetRetryFeedback();
+    if (state.retryCount) window.resetRetryFeedback();
   };
 
   // The server is transparently retrying a failed provider request; one live
   // toast is refreshed (not stacked) across attempts by its stable id.
   HANDLERS.retry = function (state, data) {
-    state.retrying = true;
-    state.retryCount = (state.retryCount || 0) + 1;
+    state.retryCount++;
     _startRetryFeedback(data);
   };
 

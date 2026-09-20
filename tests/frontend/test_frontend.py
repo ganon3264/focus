@@ -35,9 +35,13 @@ def _is_jinja_expression(path: str) -> bool:
 
 
 def _find_asset_refs(text: str) -> list[str]:
-    """Extract static asset paths from src/href attributes."""
+    """Extract static asset paths from src/href attributes.
+
+    The lookbehind keeps dynamic Alpine bindings (``:src``, ``x-bind:href``) and
+    prefixed attributes (``data-src``) from being mistaken for static assets.
+    """
     refs = set()
-    for m in re.finditer(r"""(?:src|href)\s*=\s*["']([^"']+)["']""", text):
+    for m in re.finditer(r"""(?<![\w:-])(?:src|href)\s*=\s*["']([^"']+)["']""", text):
         path = m.group(1)
         if _is_jinja_expression(path):
             continue

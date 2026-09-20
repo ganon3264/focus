@@ -15,18 +15,15 @@ from email.utils import parsedate_to_datetime
 from typing import Any
 
 _RATE_LIMIT_STATUSES = frozenset({429})
-_SERVER_ERROR_STATUSES = frozenset({500, 502, 503, 504, 529})
 
 # Failure classes with no HTTP status code. ``on_timeout`` covers both real
-# timeouts and connection-level failures.
+# timeouts and connection-level failures, so both sets share one tuple.
 _TIMEOUT_HINTS = (
     "timeout",
     "timed out",
     "deadline exceeded",
     "deadlineexceeded",
     "apitimeouterror",
-)
-_TRANSPORT_HINTS = (
     "connecterror",
     "connectionerror",
     "connection reset",
@@ -64,10 +61,10 @@ class Classification:
 @dataclass
 class RetryConfig:
     enabled: bool = True
-    max_retries: int = 3
+    max_retries: int = 5
     base_delay: float = 2.0
-    max_delay: float = 30.0
-    on_rate_limit: bool = True
+    max_delay: float = 20.0
+    on_rate_limit: bool = False
     on_server_error: bool = True
     on_timeout: bool = True
     extra_statuses: tuple[int, ...] = field(default_factory=tuple)
@@ -86,14 +83,15 @@ class RetryConfig:
         raw = (params or {}).get("retry")
         if not isinstance(raw, dict):
             return cls()
+        defaults = cls()
         return cls(
-            enabled=_as_bool(raw.get("enabled"), True),
-            max_retries=_clamp_int(raw.get("max_retries"), 3, 0, 10),
-            base_delay=_clamp_float(raw.get("base_delay"), 2.0, 0.0, 60.0),
-            max_delay=_clamp_float(raw.get("max_delay"), 30.0, 0.0, 300.0),
-            on_rate_limit=_as_bool(raw.get("on_rate_limit"), True),
-            on_server_error=_as_bool(raw.get("on_server_error"), True),
-            on_timeout=_as_bool(raw.get("on_timeout"), True),
+            enabled=_as_bool(raw.get("enabled"), defaults.enabled),
+            max_retries=_clamp_int(raw.get("max_retries"), defaults.max_retries, 0, 10),
+            base_delay=_clamp_float(raw.get("base_delay"), defaults.base_delay, 0.0, 60.0),
+            max_delay=_clamp_float(raw.get("max_delay"), defaults.max_delay, 0.0, 300.0),
+            on_rate_limit=_as_bool(raw.get("on_rate_limit"), defaults.on_rate_limit),
+            on_server_error=_as_bool(raw.get("on_server_error"), defaults.on_server_error),
+            on_timeout=_as_bool(raw.get("on_timeout"), defaults.on_timeout),
             extra_statuses=coerce_statuses(raw.get("extra_statuses")),
         )
 
@@ -215,7 +213,7 @@ def classify(exc: Exception) -> Classification:
     if status is not None:
         if status in _RATE_LIMIT_STATUSES:
             return Classification("rate_limit", status, retry_after)
-        if status in _SERVER_ERROR_STATUSES or 500 <= status <= 599:
+        if 500 <= status <= 599:
             return Classification("server", status, retry_after)
         if status == 402:
             return Classification("payment", status, retry_after)
@@ -227,8 +225,6 @@ def classify(exc: Exception) -> Classification:
 
     haystack = f"{type(exc).__name__} {exc}".lower()
     if any(hint in haystack for hint in _TIMEOUT_HINTS):
-        return Classification("timeout", None, retry_after)
-    if any(hint in haystack for hint in _TRANSPORT_HINTS):
         return Classification("timeout", None, retry_after)
     return Classification("unknown", None, retry_after)
 

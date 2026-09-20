@@ -16,7 +16,7 @@ from focus.core.retry import (
     delay_for,
     is_retryable,
 )
-from focus.routers.stream import _sleep_or_stop
+from focus.routers.stream import _error_reason, _sleep_or_stop
 
 
 class FakeResponse:
@@ -44,10 +44,11 @@ class TestFromParams:
     def test_defaults_when_missing(self):
         cfg = RetryConfig.from_params({})
         assert cfg.enabled is True
-        assert cfg.max_retries == 3
+        assert cfg.max_retries == 5
         assert cfg.base_delay == 2.0
-        assert cfg.max_delay == 30.0
-        assert cfg.on_rate_limit and cfg.on_server_error and cfg.on_timeout
+        assert cfg.max_delay == 20.0
+        assert cfg.on_server_error and cfg.on_timeout
+        assert not cfg.on_rate_limit
         assert cfg.extra_statuses == ()
 
     def test_defaults_when_retry_not_a_dict(self):
@@ -146,12 +147,15 @@ class TestClassify:
 
 class TestIsRetryable:
     def test_class_flags(self):
-        cfg = RetryConfig()
+        cfg = RetryConfig(on_rate_limit=True)
         assert is_retryable(cfg, Classification("rate_limit")) is True
         assert is_retryable(cfg, Classification("server")) is True
         assert is_retryable(cfg, Classification("timeout")) is True
         assert is_retryable(cfg, Classification("auth")) is False
         assert is_retryable(cfg, Classification("unknown")) is False
+
+    def test_rate_limit_off_by_default(self):
+        assert is_retryable(RetryConfig(), Classification("rate_limit")) is False
 
     def test_flags_can_be_disabled(self):
         cfg = RetryConfig(on_rate_limit=False, on_server_error=False, on_timeout=False)
@@ -193,6 +197,23 @@ class TestDelayFor:
         cfg = RetryConfig(base_delay=10.0, max_delay=30.0)
         # base 10s, equal jitter -> >= 5s; retry_after 0 must not pull it down
         assert delay_for(0, cfg, retry_after=0.0) >= 5.0
+
+
+class TestErrorReason:
+    def test_prefers_message_attribute(self):
+        class MessageError(Exception):
+            message = "human readable"
+
+        assert _error_reason(MessageError("raw dump")) == "human readable"
+
+    def test_falls_back_to_str(self):
+        assert _error_reason(Exception("boom")) == "boom"
+
+    def test_blank_message_falls_back(self):
+        class MessageError(Exception):
+            message = "   "
+
+        assert _error_reason(MessageError("boom")) == "boom"
 
 
 class TestSleepOrStop:

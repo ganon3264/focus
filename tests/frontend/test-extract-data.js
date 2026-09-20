@@ -21,10 +21,10 @@ global.closeModal = function () {};
 
 var DEFAULT_RETRY = {
   enabled: true,
-  max_retries: 3,
+  max_retries: 5,
   base_delay: 2,
-  max_delay: 30,
-  on_rate_limit: true,
+  max_delay: 20,
+  on_rate_limit: false,
   on_server_error: true,
   on_timeout: true,
   extra_statuses: [],

@@ -94,7 +94,7 @@ dirty_label='#prov-form-name') %}
     <div class="flex gap-2">
       <div class="form-group mb-0 flex-1">
         <label class="text-xs">Max retries</label>
-        <input type="number" name="retry_max_retries" id="prov-form-retry-max" step="1" value="3" class="text-sm form-control w-full" onchange="refreshRetryHint()" />
+        <input type="number" name="retry_max_retries" id="prov-form-retry-max" step="1" value="5" class="text-sm form-control w-full" onchange="refreshRetryHint()" />
       </div>
       <div class="form-group mb-0 flex-1">
         <label class="text-xs">Base delay (s)</label>
@@ -102,12 +102,12 @@ dirty_label='#prov-form-name') %}
       </div>
       <div class="form-group mb-0 flex-1">
         <label class="text-xs">Max delay (s)</label>
-        <input type="number" name="retry_max_delay" id="prov-form-retry-max-delay" step="0.5" value="30" class="text-sm form-control w-full" />
+        <input type="number" name="retry_max_delay" id="prov-form-retry-max-delay" step="0.5" value="20" class="text-sm form-control w-full" />
       </div>
     </div>
     <div class="flex flex-wrap items-center gap-3 text-xs">
       <label class="flex items-center gap-1.5 cursor-pointer mb-0">
-        <input type="checkbox" class="checkbox" name="retry_rate_limit" id="prov-form-retry-rate" checked onchange="refreshRetryHint()" /> Rate limit (429)
+        <input type="checkbox" class="checkbox" name="retry_rate_limit" id="prov-form-retry-rate" onchange="refreshRetryHint()" /> Rate limit (429)
       </label>
       <label class="flex items-center gap-1.5 cursor-pointer mb-0">
         <input type="checkbox" class="checkbox" name="retry_server_error" id="prov-form-retry-server" checked onchange="refreshRetryHint()" /> Server errors (5xx)

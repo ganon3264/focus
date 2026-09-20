@@ -219,6 +219,16 @@ function setActiveProvider(id, name, type) {
   window.applyProvider(id, type, name);
 }
 
+var RETRY_DEFAULTS = {
+  enabled: true,
+  max_retries: 5,
+  base_delay: 2,
+  max_delay: 20,
+  on_rate_limit: false,
+  on_server_error: true,
+  on_timeout: true,
+};
+
 function parseStatusCodes(raw) {
   var values = [];
   var dropped = [];
@@ -252,13 +262,13 @@ function collectRetryConfig(form) {
 
   return {
     config: {
-      enabled: enabledEl ? enabledEl.value === 'true' : true,
-      max_retries: Math.max(0, Math.min(10, Math.round(num(maxEl, 3)))),
-      base_delay: num(baseEl, 2),
-      max_delay: num(maxDelayEl, 30),
-      on_rate_limit: rateEl ? !!rateEl.checked : true,
-      on_server_error: serverEl ? !!serverEl.checked : true,
-      on_timeout: timeoutEl ? !!timeoutEl.checked : true,
+      enabled: enabledEl ? enabledEl.value === 'true' : RETRY_DEFAULTS.enabled,
+      max_retries: Math.max(0, Math.min(10, Math.round(num(maxEl, RETRY_DEFAULTS.max_retries)))),
+      base_delay: num(baseEl, RETRY_DEFAULTS.base_delay),
+      max_delay: num(maxDelayEl, RETRY_DEFAULTS.max_delay),
+      on_rate_limit: rateEl ? !!rateEl.checked : RETRY_DEFAULTS.on_rate_limit,
+      on_server_error: serverEl ? !!serverEl.checked : RETRY_DEFAULTS.on_server_error,
+      on_timeout: timeoutEl ? !!timeoutEl.checked : RETRY_DEFAULTS.on_timeout,
       extra_statuses: codes.values,
     },
     dropped: codes.dropped,
@@ -458,17 +468,17 @@ function refreshRetryHint() {
 
 function setRetryForm(retry) {
   retry = retry || {};
-  var enabled = retry.enabled !== false;
+  var enabled = retry.enabled != null ? retry.enabled : RETRY_DEFAULTS.enabled;
   var toggle = document.getElementById('prov-form-retry-toggle');
   var enabledInput = document.getElementById('prov-form-retry-enabled');
   if (toggle) toggle.classList.toggle('active', enabled);
   if (enabledInput) enabledInput.value = enabled ? 'true' : 'false';
-  setInputValue('prov-form-retry-max', retry.max_retries != null ? retry.max_retries : 3);
-  setInputValue('prov-form-retry-base', retry.base_delay != null ? retry.base_delay : 2);
-  setInputValue('prov-form-retry-max-delay', retry.max_delay != null ? retry.max_delay : 30);
-  setInputChecked('prov-form-retry-rate', retry.on_rate_limit !== false);
-  setInputChecked('prov-form-retry-server', retry.on_server_error !== false);
-  setInputChecked('prov-form-retry-timeout', retry.on_timeout !== false);
+  setInputValue('prov-form-retry-max', retry.max_retries != null ? retry.max_retries : RETRY_DEFAULTS.max_retries);
+  setInputValue('prov-form-retry-base', retry.base_delay != null ? retry.base_delay : RETRY_DEFAULTS.base_delay);
+  setInputValue('prov-form-retry-max-delay', retry.max_delay != null ? retry.max_delay : RETRY_DEFAULTS.max_delay);
+  setInputChecked('prov-form-retry-rate', retry.on_rate_limit != null ? retry.on_rate_limit : RETRY_DEFAULTS.on_rate_limit);
+  setInputChecked('prov-form-retry-server', retry.on_server_error != null ? retry.on_server_error : RETRY_DEFAULTS.on_server_error);
+  setInputChecked('prov-form-retry-timeout', retry.on_timeout != null ? retry.on_timeout : RETRY_DEFAULTS.on_timeout);
   var extra = Array.isArray(retry.extra_statuses) ? retry.extra_statuses.join(', ') : '';
   setInputValue('prov-form-retry-extra', extra);
   refreshRetryHint();

@@ -159,6 +159,7 @@
     flex: 1;
     min-width: 0;
     font-weight: 500;
+    white-space: pre-line;
   }
   .toast-error .toast-text {
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;

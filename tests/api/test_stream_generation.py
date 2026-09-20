@@ -804,7 +804,7 @@ async def _set_retry(client, prov_id, **retry):
 class TestAutoRetry:
     async def test_retries_before_first_token_then_succeeds(self, client, tmp_test_dir, patch_provider):
         chat, prov_id = await _setup(client)
-        await _set_retry(client, prov_id, base_delay=0, max_delay=0)
+        await _set_retry(client, prov_id, base_delay=0, max_delay=0, on_rate_limit=True)
         fake = FakeProvider([
             RetryableError(429),
             [{"type": "token", "text": "Hi"}, {"type": "done"}],
@@ -814,7 +814,10 @@ class TestAutoRetry:
         events = await _consume_sse_events(await _stream(client, chat["id"], prov_id))
         retries = [e for e in events if e.get("type") == "retry"]
         assert len(retries) == 1
-        assert retries[0]["attempt"] == 1 and retries[0]["max"] == 3
+        assert retries[0]["attempt"] == 1 and retries[0]["max"] == 5
+        assert retries[0]["kind"] == "rate_limit"
+        assert retries[0]["status"] == 429
+        assert retries[0]["reason"] == "HTTP 429"
         assert [e["text"] for e in events if e.get("type") == "token"] == ["Hi"]
         assert fake.calls == 2
 
@@ -834,7 +837,7 @@ class TestAutoRetry:
 
     async def test_max_retries_exhausted(self, client, patch_provider):
         chat, prov_id = await _setup(client)
-        await _set_retry(client, prov_id, base_delay=0, max_delay=0)
+        await _set_retry(client, prov_id, base_delay=0, max_delay=0, max_retries=3)
         fake = FakeProvider([
             RetryableError(503), RetryableError(503),
             RetryableError(503), RetryableError(503),
@@ -848,7 +851,7 @@ class TestAutoRetry:
 
     async def test_no_retry_after_token_emitted(self, client, patch_provider):
         chat, prov_id = await _setup(client)
-        await _set_retry(client, prov_id, base_delay=0, max_delay=0)
+        await _set_retry(client, prov_id, base_delay=0, max_delay=0, on_rate_limit=True)
 
         class FailAfterTokenProvider:
             supports_prefill = True
@@ -881,6 +884,26 @@ class TestAutoRetry:
         assert [e for e in events if e.get("type") == "retry"] == []
         assert any(e.get("type") == "error" for e in events)
         assert fake.calls == 1
+
+    async def test_error_prefers_provider_message(self, client, patch_provider):
+        """The final error surfaces the SDK's clean ``.message``, not its raw
+        ``str()`` (which for Google appends the whole JSON body)."""
+        chat, prov_id = await _setup(client)
+        await _set_retry(client, prov_id, enabled=False)
+
+        class MessageError(Exception):
+            message = "This model is busy, try again."
+
+            def __init__(self):
+                super().__init__("503 UNAVAILABLE. {'error': {'code': 503}}")
+                self.status_code = 503
+
+        fake = FakeProvider([MessageError()])
+        patch_provider(fake)
+
+        events = await _consume_sse_events(await _stream(client, chat["id"], prov_id))
+        errors = [e for e in events if e.get("type") == "error"]
+        assert errors and errors[0]["error"] == "This model is busy, try again."
 
     async def test_extra_status_code_extends_retry_set(self, client, patch_provider):
         chat, prov_id = await _setup(client)
@@ -928,7 +951,7 @@ class TestAutoRetry:
         sleeping in a retry backoff, instead of letting it keep retrying on a
         stale provider (e.g. after the user swapped the API key)."""
         chat, prov_id = await _setup(client)
-        await _set_retry(client, prov_id, base_delay=10, max_delay=10)
+        await _set_retry(client, prov_id, base_delay=10, max_delay=10, on_rate_limit=True)
 
         class FirstFailsThenSucceeds:
             supports_prefill = True
@@ -978,7 +1001,7 @@ class TestAutoRetry:
         """Editing a provider's request config (e.g. swapping the API key) must
         stop generations bound to it instead of letting them retry the old key."""
         chat, prov_id = await _setup(client)
-        await _set_retry(client, prov_id, base_delay=10, max_delay=10)
+        await _set_retry(client, prov_id, base_delay=10, max_delay=10, on_rate_limit=True)
 
         class FirstFails:
             supports_prefill = True
@@ -1015,7 +1038,7 @@ class TestAutoRetry:
         """Non-stream (buffered) mode still surfaces retry events, while only
         replaying the finished text once so nothing partial is ever rendered."""
         chat, prov_id = await _setup(client)
-        await _set_retry(client, prov_id, base_delay=0, max_delay=0)
+        await _set_retry(client, prov_id, base_delay=0, max_delay=0, on_rate_limit=True)
         fake = FakeProvider([
             RetryableError(429),
             [{"type": "token", "text": "Recovered"}, {"type": "done"}],
