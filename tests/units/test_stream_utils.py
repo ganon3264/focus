@@ -214,7 +214,7 @@ def _row(segments=None, reasoning=None, model_name=None):
 
 
 class TestDropForeignReasoningDetails:
-    def test_openrouter_drops_details_from_other_model(self):
+    def test_normalizing_drops_details_from_other_model(self):
         msgs = [{
             "role": "assistant",
             "content": "hi",
@@ -222,35 +222,35 @@ class TestDropForeignReasoningDetails:
             "reasoning_details": [{"format": "anthropic-claude-v1", "text": "x"}],
             "_src_model": "anthropic/claude-opus-4.6",
         }]
-        drop_foreign_reasoning_details(msgs, is_openrouter=True, current_model="moonshotai/kimi-k3")
+        drop_foreign_reasoning_details(msgs, normalizes_reasoning=True, current_model="moonshotai/kimi-k3")
         assert "reasoning_details" not in msgs[0]
         assert msgs[0]["reasoning"] == "plain text"
         assert "_src_model" not in msgs[0]
 
-    def test_openrouter_keeps_details_from_same_model(self):
+    def test_normalizing_keeps_details_from_same_model(self):
         msgs = [{
             "role": "assistant",
             "content": "hi",
             "reasoning_details": [{"format": "anthropic-claude-v1", "text": "x"}],
             "_src_model": "anthropic/claude-opus-4.6",
         }]
-        drop_foreign_reasoning_details(msgs, is_openrouter=True, current_model="anthropic/claude-opus-4.6")
+        drop_foreign_reasoning_details(msgs, normalizes_reasoning=True, current_model="anthropic/claude-opus-4.6")
         assert "reasoning_details" in msgs[0]
         assert "_src_model" not in msgs[0]
 
-    def test_openrouter_keeps_details_without_source_model(self):
+    def test_normalizing_keeps_details_without_source_model(self):
         msgs = [{"role": "assistant", "content": "hi", "reasoning_details": [{"text": "x"}]}]
-        drop_foreign_reasoning_details(msgs, is_openrouter=True, current_model="moonshotai/kimi-k3")
+        drop_foreign_reasoning_details(msgs, normalizes_reasoning=True, current_model="moonshotai/kimi-k3")
         assert "reasoning_details" in msgs[0]
 
-    def test_non_openrouter_only_clears_tag(self):
+    def test_non_normalizing_only_clears_tag(self):
         msgs = [{
             "role": "assistant",
             "content": "hi",
             "reasoning_details": [{"format": "anthropic-claude-v1", "text": "x"}],
             "_src_model": "anthropic/claude-opus-4.6",
         }]
-        drop_foreign_reasoning_details(msgs, is_openrouter=False, current_model="moonshotai/kimi-k3")
+        drop_foreign_reasoning_details(msgs, normalizes_reasoning=False, current_model="moonshotai/kimi-k3")
         assert "reasoning_details" in msgs[0]
         assert "_src_model" not in msgs[0]
 

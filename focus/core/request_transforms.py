@@ -112,16 +112,16 @@ def apply_claude_caching(
     return messages
 
 
-def drop_foreign_reasoning_details(messages: list[dict], is_openrouter: bool, current_model: str) -> None:
+def drop_foreign_reasoning_details(messages: list[dict], normalizes_reasoning: bool, current_model: str) -> None:
     """Clear the internal source-model tag, dropping foreign reasoning_detail blocks.
 
-    OpenRouter normalizes reasoning across backends, but the detail blocks it
-    returns carry backend-specific schemas (Anthropic signatures, OpenAI
-    encrypted blobs) that are only valid for the model that produced them.
-    When a chat switches models mid-conversation, only the plaintext
-    ``reasoning`` field may be replayed for foreign turns.
+    Providers that normalize reasoning across backends return detail blocks
+    carrying backend-specific schemas (Anthropic signatures, OpenAI encrypted
+    blobs) that are only valid for the model that produced them. When a chat
+    switches models mid-conversation, only the plaintext ``reasoning`` field
+    may be replayed for foreign turns.
     """
     for msg in messages:
         src_model = msg.pop("_src_model", None)
-        if is_openrouter and msg.get("role") == "assistant" and src_model and src_model != current_model:
+        if normalizes_reasoning and msg.get("role") == "assistant" and src_model and src_model != current_model:
             msg.pop("reasoning_details", None)

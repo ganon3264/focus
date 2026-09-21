@@ -6,8 +6,8 @@ produced) across every provider type and model-specific branch. They are the
 safety net for the quirks refactor: Phases 2-3 must keep these green before
 any behavior change lands.
 
-The only network call in the pipeline (``get_openrouter_model_modalities``)
-is stubbed; everything else is pure in-memory.
+The provider's modality lookup is stubbed via ``_patch_modalities``; everything
+else is pure in-memory.
 """
 
 import pytest
@@ -24,10 +24,15 @@ from focus.routers.stream_utils import prepare_generation_messages
 
 
 class _Provider:
-    """Minimal stand-in for a provider instance (only ``supports_prefill`` is read)."""
+    """Minimal stand-in for a provider instance. The pipeline reads
+    ``supports_prefill`` and ``supported_modalities``."""
 
-    def __init__(self, supports_prefill: bool = True):
+    def __init__(self, supports_prefill: bool = True, modalities: list[str] | None = None):
         self.supports_prefill = supports_prefill
+        self._modalities = modalities
+
+    async def supported_modalities(self, model: str) -> list[str] | None:
+        return self._modalities
 
 
 def _body(**kw) -> StreamRequest:
@@ -39,10 +44,10 @@ def _prov(ptype: str, model: str = "test-model") -> dict:
 
 
 def _patch_modalities(monkeypatch, mods):
-    async def fake(model_id):
+    async def fake(self, model):
         return mods
 
-    monkeypatch.setattr("focus.routers.stream_utils.get_openrouter_model_modalities", fake)
+    monkeypatch.setattr(_Provider, "supported_modalities", fake)
 
 
 @pytest.fixture(autouse=True)
@@ -401,6 +406,44 @@ class TestContextKwargs:
         )
         assert "session_id" not in kw
         assert "prompt_cache_key" not in kw
+
+
+class TestNativeReasoningRemap:
+    async def test_deepseek_remaps_reasoning_to_native_key(self):
+        msgs = [{"role": "assistant", "content": "a", "reasoning": "r"}]
+        out, _ = await prepare_generation_messages(
+            _prov("deepseek"), _body(samplers={"preserve_thinking": "all"}),
+            msgs, _Provider(), "chat-1",
+        )
+        assert out[0]["reasoning_content"] == "r"
+        assert "reasoning" not in out[0]
+
+    async def test_moonshot_remaps_reasoning_to_native_key(self):
+        msgs = [{"role": "assistant", "content": "a", "reasoning": "r"}]
+        out, _ = await prepare_generation_messages(
+            _prov("moonshot"), _body(samplers={"preserve_thinking": "all"}),
+            msgs, _Provider(), "chat-1",
+        )
+        assert out[0]["reasoning_content"] == "r"
+        assert "reasoning" not in out[0]
+
+    async def test_remap_also_covers_the_continue_prefill(self):
+        out, _ = await prepare_generation_messages(
+            _prov("deepseek"),
+            _body(samplers={}, regenerate=True, continue_text="", continue_reasoning="thinking"),
+            [{"role": "user", "content": "hi"}], _Provider(), "chat-1",
+        )
+        assert out[-1]["reasoning_content"] == "thinking"
+        assert "reasoning" not in out[-1]
+
+    async def test_openai_compat_leaves_reasoning_untouched(self):
+        msgs = [{"role": "assistant", "content": "a", "reasoning": "r"}]
+        out, _ = await prepare_generation_messages(
+            _prov("openai_compat"), _body(samplers={"preserve_thinking": "all"}),
+            msgs, _Provider(), "chat-1",
+        )
+        assert out[0]["reasoning"] == "r"
+        assert "reasoning_content" not in out[0]
 
 
 class TestGoogleSafetyEndToEnd:

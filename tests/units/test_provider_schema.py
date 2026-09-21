@@ -25,12 +25,21 @@ class TestSchemaShape:
         caps = provider_schema()["types"]["openrouter"]["capabilities"]
         assert caps["supports_ephemeral_cache"] is True
         assert caps["include_stream_options"] is False
+        assert caps["normalizes_reasoning"] is True
 
     def test_google_capabilities(self):
         for ptype in ("google_aistudio", "google_vertex"):
             caps = provider_schema()["types"][ptype]["capabilities"]
             assert caps["supports_prefill"] is False
             assert caps["thought_signatures"] is True
+            assert caps["owns_reasoning"] is True
+            assert caps["reasoning_formats"] is None
+
+    def test_reasoning_message_key_is_declared(self):
+        types = provider_schema()["types"]
+        for ptype in ("deepseek", "moonshot"):
+            assert types[ptype]["capabilities"]["reasoning_message_key"] == "reasoning_content"
+        assert provider_schema()["types"]["openai_compat"]["capabilities"]["reasoning_message_key"] is None
 
 
 class TestDefaults:

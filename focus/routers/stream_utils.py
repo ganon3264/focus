@@ -11,16 +11,15 @@ from fastapi import HTTPException
 import focus.crud as crud
 from focus.core.card_parser import safe_load_card
 from focus.core.macros import build_base_macros
-from focus.core.tracked_fields import attach_to_message
+from focus.core.media import tool_image_data_url
 from focus.core.models import StreamRequest
+from focus.core.tracked_fields import attach_to_message
 from focus.db.chats import (
     bind_attachments_to_message,
     create_message,
     create_message_with_variant,
 )
-from focus.core.media import tool_image_data_url
 from focus.prompt_chain import assemble_prompt, build_content
-from focus.routers.providers import get_openrouter_model_modalities
 from focus.providers.quirks import apply_request_quirks
 
 
@@ -496,7 +495,7 @@ async def prepare_generation_messages(
     prefill, sampler processing, sticky routing). Thin delegator to the
     provider-aware pipeline in ``focus.providers.quirks``."""
     return await apply_request_quirks(
-        prov_dict, body, messages, provider, chat_id, get_openrouter_model_modalities,
+        prov_dict, body, messages, provider, chat_id,
     )
 
 

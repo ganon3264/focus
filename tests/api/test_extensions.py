@@ -40,6 +40,9 @@ class _FakeProvider:
         self.events = list(events)
         self.calls = 0
 
+    async def supported_modalities(self, model):
+        return None
+
     async def stream_complete(self, messages, **kwargs):
         self.calls += 1
         for e in self.events:

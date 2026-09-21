@@ -30,12 +30,20 @@ class Capabilities:
     supports_prefill: bool = True
     echoes_prefill: bool = True
     include_stream_options: bool = True
-    # Gemini: thought signatures must be preserved and replayed.
-    thought_signatures: bool = False
-    # Providers that need ``reasoning`` remapped to a native key (deepseek/moonshot).
-    native_reasoning_key: str | None = None
+    # Assistant ``reasoning`` is remapped to this message field before dispatch
+    # (e.g. deepseek/moonshot's ``reasoning_content``). None = leave as-is.
+    reasoning_message_key: str | None = None
     # Reasoning-detail formats this provider accepts; None = pass everything.
     reasoning_formats: tuple[str, ...] | None = None
+    # Provider uses the ``thought_signature`` message field, so the pipeline
+    # must not strip it. Independent of ``owns_reasoning``.
+    thought_signatures: bool = False
+    # Provider serializes its own reasoning history (e.g. Gemini thought
+    # signatures); the generic ``preserve_thinking`` stripping must not run.
+    owns_reasoning: bool = False
+    # Transport normalizes reasoning across upstream backends and tracks the
+    # source model, so foreign ``reasoning_details`` must be dropped.
+    normalizes_reasoning: bool = False
     # Claude-style ephemeral prompt caching.
     supports_ephemeral_cache: bool = False
 

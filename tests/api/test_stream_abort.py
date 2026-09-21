@@ -102,6 +102,9 @@ class _FailingProvider:
     def __init__(self, *args, **kwargs):
         pass
 
+    async def supported_modalities(self, model):
+        return None
+
     async def stream_complete(self, messages, **kwargs):
         raise RuntimeError("simulated stream failure")
         yield  # make this a generator (never reached)

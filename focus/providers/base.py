@@ -75,6 +75,15 @@ class BaseProvider(ABC):
             return data
         return []
 
+    async def supported_modalities(self, model: str) -> list[str] | None:
+        """Input modalities *model* accepts, or ``None`` when unknown.
+
+        The request pipeline strips media the model can't consume. Returning
+        ``None`` (the default) means "don't filter"; routers that expose a
+        per-model modality list override this.
+        """
+        return None
+
     @abstractmethod
     async def stream_complete(
         self,

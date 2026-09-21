@@ -1,5 +1,6 @@
-import httpx
 from dataclasses import replace
+
+import httpx
 
 from ..core.logger import get_logger
 from ..core.utils import MODEL_FETCH_HTTP_TIMEOUT
@@ -17,7 +18,7 @@ class DeepseekProvider(OpenAICompatProvider):
         caps=replace(
             OpenAICompatProvider.profile.caps,
             echoes_prefill=False,
-            native_reasoning_key="reasoning_content",
+            reasoning_message_key="reasoning_content",
             reasoning_formats=("deepseek",),
         ),
     )
@@ -54,11 +55,6 @@ class DeepseekProvider(OpenAICompatProvider):
             extra_body["thinking"] = {"type": "enabled"}
 
         kwargs["extra_body"] = extra_body
-
-        # Map msg["reasoning"] to the native reasoning_content field
-        for msg in messages:
-            if msg.get("role") == "assistant" and msg.get("reasoning"):
-                msg["reasoning_content"] = msg.pop("reasoning")
 
         if messages and messages[-1].get("role") == "assistant":
             messages[-1]["prefix"] = True

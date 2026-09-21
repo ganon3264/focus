@@ -8,7 +8,7 @@ import focus.db as db
 from focus.core.database import get_db
 from focus.core.logger import get_logger
 from focus.core.models import ProviderCreate
-from focus.core.utils import MODEL_FETCH_HTTP_TIMEOUT, TTLCache, resolve_secret_key
+from focus.core.utils import TTLCache, resolve_secret_key
 from focus.providers import create_provider as provider_factory
 
 router = APIRouter()
@@ -44,7 +44,6 @@ async def list_providers(_db=Depends(get_db)):
 
 
 _model_cache = TTLCache()
-_or_cache = TTLCache()
 _balance_cache = TTLCache(ttl=60)
 
 
@@ -296,37 +295,3 @@ async def get_provider_balance(provider_id: str, _db=Depends(get_db)):
             return cfg["parse"](resp.json())
 
     return await _balance_cache.get_or_refresh(cache_key, _fetch)
-
-
-async def get_openrouter_model_modalities(model_id: str) -> list[str] | None:
-    """Look up input_modalities for an OpenRouter model from the in-memory cache.
-
-    Fetches the full model list if the cache is cold or stale.
-    Returns None if the model is not found or an error occurs.
-    """
-
-    async def _fetch():
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(
-                "https://openrouter.ai/api/v1/models",
-                headers={},
-                timeout=MODEL_FETCH_HTTP_TIMEOUT,
-            )
-            resp.raise_for_status()
-            return resp.json()
-
-    data = await _or_cache.get_or_refresh("models", _fetch)
-    if not data:
-        return None
-
-    models = data.get("data") if isinstance(data, dict) else data
-    if not isinstance(models, list):
-        return None
-
-    for m in models:
-        if isinstance(m, dict) and m.get("id") == model_id:
-            arch = m.get("architecture")
-            if isinstance(arch, dict):
-                return arch.get("input_modalities")
-
-    return None

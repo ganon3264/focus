@@ -87,6 +87,9 @@ class StallingProvider:
         self.events = list(events)
         self.entered = asyncio.Event()
 
+    async def supported_modalities(self, model):
+        return None
+
     async def stream_complete(self, messages, **kwargs):
         for e in self.events:
             yield e

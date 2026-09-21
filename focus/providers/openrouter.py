@@ -1,13 +1,18 @@
+from dataclasses import replace
+
 import httpx
 
 from ..core.logger import get_logger
+from ..core.utils import MODEL_FETCH_HTTP_TIMEOUT, TTLCache
 from .openai_compat import OpenAICompatProvider
 from .profile import ProviderProfile
-from dataclasses import replace
 
 logger = get_logger("providers.openrouter")
 
 OPENROUTER_BASE = "https://openrouter.ai/api/v1"
+
+# Shared across instances: the public model list is the same for every key.
+_models_cache = TTLCache()
 
 
 class OpenRouterProvider(OpenAICompatProvider):
@@ -18,6 +23,7 @@ class OpenRouterProvider(OpenAICompatProvider):
             include_stream_options=False,
             supports_ephemeral_cache=True,
             reasoning_formats=None,
+            normalizes_reasoning=True,
         ),
         context_kwargs=("session_id",),
     )
@@ -32,8 +38,6 @@ class OpenRouterProvider(OpenAICompatProvider):
         return cls(api_key=row["api_key"] or "", model=row["model"], params=params)
 
     async def fetch_models(self) -> list[dict]:
-        from ..core.utils import MODEL_FETCH_HTTP_TIMEOUT
-
         async with httpx.AsyncClient() as client:
             resp = await client.get(
                 "https://openrouter.ai/api/v1/models",
@@ -46,6 +50,20 @@ class OpenRouterProvider(OpenAICompatProvider):
         if isinstance(data, list):
             return data
         return []
+
+    async def supported_modalities(self, model: str) -> list[str] | None:
+        async def _fetch():
+            return await self.fetch_models()
+
+        models = await _models_cache.get_or_refresh("models", _fetch)
+        if not models:
+            return None
+        for m in models:
+            if isinstance(m, dict) and m.get("id") == model:
+                arch = m.get("architecture")
+                if isinstance(arch, dict):
+                    return arch.get("input_modalities")
+        return None
 
     def _extra_headers(self) -> dict:
         headers = super()._extra_headers()

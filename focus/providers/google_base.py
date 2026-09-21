@@ -25,7 +25,7 @@ class GoogleProviderBase(BaseProvider):
         caps=Capabilities(
             supports_prefill=False,
             thought_signatures=True,
-            reasoning_formats=("google",),
+            owns_reasoning=True,
         ),
     )
 

@@ -8,12 +8,17 @@ makes adding a quirk a one-line change.
 
 from focus.core.models import StreamRequest
 from focus.providers.google_safety import PASSTHROUGH_HARM_CATEGORIES
+from focus.providers.profile import Capabilities, ProviderProfile
 from focus.providers.quirks import QUIRKS, apply_request_quirks
 
 
 class _Provider:
-    def __init__(self, supports_prefill: bool = True):
+    def __init__(self, supports_prefill: bool = True, modalities: list[str] | None = None):
         self.supports_prefill = supports_prefill
+        self._modalities = modalities
+
+    async def supported_modalities(self, model: str) -> list[str] | None:
+        return self._modalities
 
 
 def _body(**kw) -> StreamRequest:
@@ -24,9 +29,9 @@ def _prov(ptype: str, model: str = "test-model") -> dict:
     return {"type": ptype, "model": model}
 
 
-async def _run(prov, body, messages, provider=None, modality_lookup=None):
+async def _run(prov, body, messages, provider=None):
     return await apply_request_quirks(
-        prov, body, messages, provider or _Provider(), "chat-1", modality_lookup,
+        prov, body, messages, provider or _Provider(), "chat-1",
     )
 
 
@@ -39,12 +44,15 @@ class TestPipelineStructure:
         names = [q.name for q in QUIRKS]
         assert names.index("append_prefill") > names.index("preserve_thinking")
         assert names.index("append_prefill") > names.index("strip_thought_signatures")
+        # The native-reasoning remap runs after the prefill append so the
+        # synthesized assistant turn is remapped too...
+        assert names.index("append_prefill") < names.index("remap_native_reasoning")
         # ...but before context kwargs, which only touch gen_kwargs.
-        assert names.index("append_prefill") < names.index("context_kwargs")
+        assert names.index("remap_native_reasoning") < names.index("context_kwargs")
 
     def test_modality_filtering_precedes_caching(self):
         names = [q.name for q in QUIRKS]
-        assert names.index("filter_openrouter_modalities") < names.index("claude_cache")
+        assert names.index("filter_provider_modalities") < names.index("claude_cache")
 
 
 class TestSamplerHandling:
@@ -77,37 +85,38 @@ class TestSamplerHandling:
         assert kw["session_id"] == "chat-1"
 
 
-class TestInjectedModalityLookup:
-    async def test_lookup_result_is_applied(self):
-        called = {}
-
-        async def lookup(model):
-            called["model"] = model
-            return ["text"]
-
+class TestProviderModalities:
+    async def test_provider_modalities_filter_media(self):
         out, _ = await _run(
             _prov("openrouter", "google/gemini-x"),
             _body(),
             [{"role": "user", "content": [{"type": "text", "text": "x"}, {"type": "image_url", "image_url": {"url": "data:,"}}]}],
-            modality_lookup=lookup,
+            provider=_Provider(modalities=["text"]),
         )
-        assert called["model"] == "google/gemini-x"
         assert out[0]["content"] == "x"
 
-    async def test_missing_lookup_is_a_noop(self):
+    async def test_unknown_modalities_leave_messages_untouched(self):
         out, _ = await _run(
             _prov("openrouter"),
             _body(),
             [{"role": "user", "content": [{"type": "text", "text": "x"}, {"type": "image_url", "image_url": {"url": "data:,"}}]}],
-            modality_lookup=None,
         )
         assert isinstance(out[0]["content"], list)
 
-    async def test_lookup_is_not_called_for_non_openrouter(self):
-        async def lookup(model):  # pragma: no cover - must not run
-            raise AssertionError("lookup should not be called")
+    async def test_provider_is_consulted_for_every_type(self):
+        # The provider (not a type check) is the single source of truth.
+        seen = {}
 
-        await _run(_prov("openai_compat"), _body(), [{"role": "user", "content": "hi"}], modality_lookup=lookup)
+        class RecordingProvider(_Provider):
+            async def supported_modalities(self, model):
+                seen["model"] = model
+                return None
+
+        await _run(
+            _prov("openai_compat", "some-model"), _body(),
+            [{"role": "user", "content": "hi"}], provider=RecordingProvider(),
+        )
+        assert seen["model"] == "some-model"
 
 
 class TestGoogleSafetyPassthrough:
@@ -178,3 +187,63 @@ class TestApplicability:
             provider=_Provider(supports_prefill=False),
         )
         assert out2[-1]["role"] == "user"
+
+
+class TestCapabilityDrivenQuirks:
+    """A new provider becomes correct by declaring capabilities. These patch
+    ``profile_for`` to simulate one without registering an adapter."""
+
+    @staticmethod
+    def _install(monkeypatch, caps):
+        profile = ProviderProfile(caps=caps)
+        monkeypatch.setattr("focus.providers.quirks.profile_for", lambda _ptype: profile)
+
+    async def test_owns_reasoning_is_independent_of_thought_signatures(self, monkeypatch):
+        self._install(monkeypatch, Capabilities(owns_reasoning=True, thought_signatures=False))
+        msgs = [{"role": "assistant", "content": "a", "reasoning": "r", "thought_signature": "sig"}]
+        out, _ = await _run(_prov("synthetic"), _body(samplers={"preserve_thinking": "off"}), msgs)
+        assert out[0]["reasoning"] == "r"  # owns_reasoning -> preserve_thinking skipped
+        assert "thought_signature" not in out[0]  # thought_signatures=False -> stripped
+
+    async def test_thought_signatures_cap_keeps_the_field(self, monkeypatch):
+        self._install(monkeypatch, Capabilities(thought_signatures=True))
+        msgs = [{"role": "assistant", "content": "a", "thought_signature": "sig"}]
+        out, _ = await _run(_prov("synthetic"), _body(), msgs)
+        assert out[0]["thought_signature"] == "sig"
+
+    async def test_reasoning_message_key_remaps(self, monkeypatch):
+        self._install(monkeypatch, Capabilities(reasoning_message_key="thinking_field"))
+        msgs = [{"role": "assistant", "content": "a", "reasoning": "r"}]
+        out, _ = await _run(_prov("synthetic"), _body(samplers={"preserve_thinking": "all"}), msgs)
+        assert out[0]["thinking_field"] == "r"
+        assert "reasoning" not in out[0]
+
+    async def test_no_reasoning_message_key_leaves_reasoning(self, monkeypatch):
+        self._install(monkeypatch, Capabilities())
+        msgs = [{"role": "assistant", "content": "a", "reasoning": "r"}]
+        out, _ = await _run(_prov("synthetic"), _body(samplers={"preserve_thinking": "all"}), msgs)
+        assert out[0]["reasoning"] == "r"
+        assert "reasoning_content" not in out[0]
+
+    async def test_normalizes_reasoning_drops_foreign_details(self, monkeypatch):
+        self._install(monkeypatch, Capabilities(normalizes_reasoning=True))
+        msgs = [{
+            "role": "assistant",
+            "content": "a",
+            "reasoning_details": [{"format": "x"}],
+            "_src_model": "other",
+        }]
+        out, _ = await _run(_prov("synthetic"), _body(samplers={"preserve_thinking": "all"}), msgs)
+        assert out[0].get("reasoning_details") is None
+        assert "_src_model" not in out[0]
+
+    async def test_ephemeral_cache_is_capability_gated(self, monkeypatch):
+        self._install(monkeypatch, Capabilities(supports_ephemeral_cache=True))
+        msgs = [{"role": "system", "content": "sys"}, {"role": "user", "content": "hi"}]
+        out, _ = await _run(
+            _prov("synthetic", model="anthropic/claude-x"),
+            _body(samplers={"cache_enabled": True}),
+            msgs,
+        )
+        assert isinstance(out[0]["content"], list)
+        assert out[0]["content"][0]["cache_control"]["type"] == "ephemeral"

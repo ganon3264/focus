@@ -144,6 +144,9 @@ class FakeProvider:
         for e in events:
             yield e
 
+    async def supported_modalities(self, model):
+        return None
+
 
 @pytest.fixture
 def patch_provider(monkeypatch):
@@ -861,6 +864,9 @@ class TestAutoRetry:
             def __init__(self):
                 self.calls = 0
 
+            async def supported_modalities(self, model):
+                return None
+
             async def stream_complete(self, messages, **kwargs):
                 self.calls += 1
                 yield {"type": "token", "text": "partial"}
@@ -962,6 +968,9 @@ class TestAutoRetry:
                 self.calls = 0
                 self.first_call = asyncio.Event()
 
+            async def supported_modalities(self, model):
+                return None
+
             async def stream_complete(self, messages, **kwargs):
                 self.calls += 1
                 if self.calls == 1:
@@ -1011,6 +1020,9 @@ class TestAutoRetry:
             def __init__(self):
                 self.calls = 0
                 self.first_call = asyncio.Event()
+
+            async def supported_modalities(self, model):
+                return None
 
             async def stream_complete(self, messages, **kwargs):
                 self.calls += 1

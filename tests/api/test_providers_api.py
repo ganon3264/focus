@@ -15,9 +15,10 @@ import pytest
 
 @pytest.fixture(autouse=True)
 def _clear_provider_caches():
+    import focus.providers.openrouter as or_mod
     import focus.routers.providers as p
 
-    for cache in (p._model_cache, p._or_cache, p._balance_cache):
+    for cache in (p._model_cache, or_mod._models_cache, p._balance_cache):
         cache._data.clear()
         cache._times.clear()
 
@@ -310,15 +311,17 @@ class TestModelModalities:
 
         _patch_httpx(monkeypatch, handler)
 
-        from focus.routers.providers import get_openrouter_model_modalities
+        from focus.providers import OpenRouterProvider
 
-        assert await get_openrouter_model_modalities("my/model") == ["text", "image"]
-        assert await get_openrouter_model_modalities("my/model") == ["text", "image"]
+        provider = OpenRouterProvider(api_key="k", model="my/model", params={})
+        assert await provider.supported_modalities("my/model") == ["text", "image"]
+        assert await provider.supported_modalities("my/model") == ["text", "image"]
         assert calls["n"] == 1
 
     async def test_unknown_model_returns_none(self, client, monkeypatch):
         _patch_httpx(monkeypatch, lambda r: httpx.Response(200, json={"data": []}))
 
-        from focus.routers.providers import get_openrouter_model_modalities
+        from focus.providers import OpenRouterProvider
 
-        assert await get_openrouter_model_modalities("nope") is None
+        provider = OpenRouterProvider(api_key="k", model="nope", params={})
+        assert await provider.supported_modalities("nope") is None

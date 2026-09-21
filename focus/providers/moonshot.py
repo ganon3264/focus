@@ -10,7 +10,7 @@ class MoonshotProvider(OpenAICompatProvider):
         caps=replace(
             OpenAICompatProvider.profile.caps,
             echoes_prefill=False,
-            native_reasoning_key="reasoning_content",
+            reasoning_message_key="reasoning_content",
             reasoning_formats=(),
         ),
         context_kwargs=("prompt_cache_key",),
@@ -42,12 +42,6 @@ class MoonshotProvider(OpenAICompatProvider):
                 extra_body["reasoning_effort"] = reasoning_effort
 
         kwargs["extra_body"] = extra_body
-
-        # Transform messages for Moonshot API format:
-        #   - Map msg["reasoning"] to the native reasoning_content field
-        for msg in messages:
-            if msg.get("role") == "assistant" and msg.get("reasoning"):
-                msg["reasoning_content"] = msg.pop("reasoning")
 
         if messages and messages[-1].get("role") == "assistant":
             messages[-1]["partial"] = True

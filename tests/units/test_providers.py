@@ -377,8 +377,10 @@ class TestDeepseekProvider:
         ]
         await _collect(provider, messages, include_reasoning=True)
 
-        assert messages[1]["reasoning_content"] == "hidden"
-        assert "reasoning" not in messages[1]
+        # reasoning -> reasoning_content is pipeline-owned (see test_quirks);
+        # the adapter must not touch it.
+        assert messages[1]["reasoning"] == "hidden"
+        assert "reasoning_content" not in messages[1]
         assert messages[1]["prefix"] is True
         assert client.request["extra_body"]["thinking"] == {"type": "enabled"}
         assert provider.echoes_prefill is False
@@ -414,8 +416,8 @@ class TestMoonshotProvider:
         messages = [{"role": "assistant", "content": "prev", "reasoning": "r"}]
         await _collect(provider, messages, include_reasoning=True, preserve_thinking="all", reasoning_effort="high")
 
-        assert messages[0]["reasoning_content"] == "r"
-        assert "reasoning" not in messages[0]
+        assert messages[0]["reasoning"] == "r"
+        assert "reasoning_content" not in messages[0]
         assert messages[-1]["partial"] is True
         req = client.request
         assert req["extra_body"]["thinking"] == {"type": "enabled", "keep": "all"}
