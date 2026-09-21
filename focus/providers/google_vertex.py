@@ -12,6 +12,7 @@ from ..core.utils import (
     GOOGLE_VERTEX_HTTP_RETRIES,
     GOOGLE_VERTEX_HTTP_TIMEOUT,
 )
+from .config import ProviderConfig
 from .google_base import VERTEX_SAFETY_OFF, GoogleProviderBase
 
 logger = get_logger("providers.google_vertex")
@@ -21,13 +22,13 @@ class GoogleVertexProvider(GoogleProviderBase):
     type = "google_vertex"
 
     @classmethod
-    def from_row(cls, row: dict, params: dict) -> "GoogleVertexProvider":
-        return cls(api_key=row["api_key"] or "", model=row["model"], params=params)
+    def from_row(cls, row: dict, params: dict, config: ProviderConfig) -> "GoogleVertexProvider":
+        return cls(api_key=row["api_key"] or "", model=row["model"], params=params, config=config)
 
-    def __init__(self, api_key: str, model: str, params: dict):
-        super().__init__(api_key, model, params)
-        self.region = params.get("vertex_region", "")
-        self.project_id = params.get("vertex_project_id", "")
+    def __init__(self, api_key: str, model: str, params: dict, config: ProviderConfig | None = None):
+        super().__init__(api_key, model, params, config=config)
+        self.region = self.config.vertex_region
+        self.project_id = self.config.vertex_project_id
         self.credentials = None
 
         if api_key and api_key.strip().startswith("{"):

@@ -13,12 +13,21 @@ from focus.providers.quirks import QUIRKS, apply_request_quirks
 
 
 class _Provider:
-    def __init__(self, supports_prefill: bool = True, modalities: list[str] | None = None):
+    def __init__(
+        self,
+        supports_prefill: bool = True,
+        modalities: list[str] | None = None,
+        parameters: list[str] | None = None,
+    ):
         self.supports_prefill = supports_prefill
         self._modalities = modalities
+        self._parameters = parameters
 
     async def supported_modalities(self, model: str) -> list[str] | None:
         return self._modalities
+
+    async def supported_parameters(self, model: str) -> list[str] | None:
+        return self._parameters
 
 
 def _body(**kw) -> StreamRequest:
@@ -117,6 +126,57 @@ class TestProviderModalities:
             [{"role": "user", "content": "hi"}], provider=RecordingProvider(),
         )
         assert seen["model"] == "some-model"
+
+
+class TestSupportedParamFiltering:
+    async def test_unsupported_wire_params_dropped(self):
+        _, kw = await _run(
+            _prov("openrouter", "xiaomi/mimo-v2.6-flash"),
+            _body(samplers={"top_k": 0, "min_p": 0, "repetition_penalty": 1.0, "seed": 5, "top_p": 0.9}),
+            [{"role": "user", "content": "hi"}],
+            provider=_Provider(parameters=["top_p", "temperature", "include_reasoning"]),
+        )
+        assert kw == {"top_p": 0.9, "session_id": "chat-1"}
+
+    async def test_reasoning_controls_survive_filtering(self):
+        _, kw = await _run(
+            _prov("openrouter"),
+            _body(samplers={
+                "include_reasoning": True, "reasoning_effort": "high",
+                "preserve_thinking": "all", "top_k": 0,
+            }),
+            [{"role": "user", "content": "hi"}],
+            provider=_Provider(parameters=["top_p"]),
+        )
+        assert kw["include_reasoning"] is True
+        assert kw["reasoning_effort"] == "high"
+        assert kw["preserve_thinking"] == "all"
+        assert "top_k" not in kw
+
+    async def test_unknown_capabilities_forward_everything(self):
+        _, kw = await _run(
+            _prov("openrouter"),
+            _body(samplers={"top_k": 0, "min_p": 0}),
+            [{"role": "user", "content": "hi"}],
+            provider=_Provider(parameters=None),
+        )
+        assert kw["top_k"] == 0
+        assert kw["min_p"] == 0
+
+    async def test_provider_without_method_is_skipped(self):
+        class Bare:
+            supports_prefill = True
+
+            async def supported_modalities(self, model):
+                return None
+
+        _, kw = await _run(
+            _prov("openrouter"),
+            _body(samplers={"top_k": 0}),
+            [{"role": "user", "content": "hi"}],
+            provider=Bare(),
+        )
+        assert kw["top_k"] == 0
 
 
 class TestGoogleSafetyPassthrough:

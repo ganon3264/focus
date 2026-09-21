@@ -1,5 +1,6 @@
 from dataclasses import replace
 
+from .config import ProviderConfig
 from .openai_compat import OpenAICompatProvider
 from .profile import ProviderProfile
 
@@ -16,13 +17,13 @@ class MoonshotProvider(OpenAICompatProvider):
         context_kwargs=("prompt_cache_key",),
     )
 
-    def __init__(self, api_key: str, model: str, params: dict):
+    def __init__(self, api_key: str, model: str, params: dict, config: ProviderConfig | None = None):
         base_url = "https://api.moonshot.ai/v1"
-        super().__init__(base_url, api_key, model, params)
+        super().__init__(base_url, api_key, model, params, config=config)
 
     @classmethod
-    def from_row(cls, row: dict, params: dict) -> "MoonshotProvider":
-        return cls(api_key=row["api_key"] or "", model=row["model"], params=params)
+    def from_row(cls, row: dict, params: dict, config: ProviderConfig) -> "MoonshotProvider":
+        return cls(api_key=row["api_key"] or "", model=row["model"], params=params, config=config)
 
     async def stream_complete(self, messages: list[dict], **kwargs):
         include_reasoning = kwargs.pop("include_reasoning", None)

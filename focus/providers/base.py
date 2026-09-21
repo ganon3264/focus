@@ -4,6 +4,7 @@ from collections.abc import AsyncIterator
 import httpx
 
 from ..core.utils import MODEL_FETCH_HTTP_TIMEOUT
+from .config import ProviderConfig
 from .profile import Capabilities, ProviderProfile
 from .registry import register
 
@@ -35,15 +36,23 @@ class BaseProvider(ABC):
             register(cls)
 
     @classmethod
-    def from_row(cls, row: dict, params: dict) -> "BaseProvider":
+    def from_row(cls, row: dict, params: dict, config: ProviderConfig) -> "BaseProvider":
         """Construct an instance from a provider DB row. Overridden per type."""
         raise NotImplementedError(f"{cls.__name__} must implement from_row()")
 
-    def __init__(self, base_url: str, api_key: str, model: str, params: dict):
+    def __init__(
+        self,
+        base_url: str,
+        api_key: str,
+        model: str,
+        params: dict,
+        config: ProviderConfig | None = None,
+    ):
         self.base_url = base_url.rstrip("/") if base_url else ""
         self.api_key = api_key or ""
         self.model = model
-        self.params = params  # stored defaults (top_p, rep_pen, etc.)
+        self.params = params  # upstream sampler defaults (top_p, rep_pen, ...)
+        self.config = config or ProviderConfig()  # Focus-only settings, never sent upstream
 
     def _build_headers(self) -> dict:
         headers = {"Content-Type": "application/json"}
@@ -81,6 +90,15 @@ class BaseProvider(ABC):
         The request pipeline strips media the model can't consume. Returning
         ``None`` (the default) means "don't filter"; routers that expose a
         per-model modality list override this.
+        """
+        return None
+
+    async def supported_parameters(self, model: str) -> list[str] | None:
+        """Sampler parameter names *model* accepts, or ``None`` when unknown.
+
+        The request pipeline drops forwarded sampler keys the model doesn't
+        advertise. Returning ``None`` (the default) means "don't filter";
+        routers that expose a per-model parameter list override this.
         """
         return None
 

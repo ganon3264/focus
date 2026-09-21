@@ -19,7 +19,7 @@ logger = get_logger("routers.providers")
 @router.post("", status_code=201)
 async def create_provider(body: ProviderCreate, _db=Depends(get_db)):
     provider_id = await db.create_provider(
-        _db, body.name, body.type, body.base_url, body.api_key, body.model, body.params,
+        _db, body.name, body.type, body.base_url, body.api_key, body.model, body.params, body.config,
     )
     await _db.commit()
     return {"id": provider_id}
@@ -29,7 +29,7 @@ async def create_provider(body: ProviderCreate, _db=Depends(get_db)):
 @router.get("")
 async def list_providers(_db=Depends(get_db)):
     async with _db.execute(
-        "SELECT id, name, type, base_url, api_key, model, params_json, created_at FROM providers ORDER BY name"
+        "SELECT id, name, type, base_url, api_key, model, params_json, config_json, created_at FROM providers ORDER BY name"
     ) as cur:
         out = []
         for r in await cur.fetchall():
@@ -52,6 +52,7 @@ class FetchModelsRequest(BaseModel):
     base_url: str | None = None
     api_key: str | None = None
     params: dict = {}
+    config: dict = {}
     provider_id: str | None = None
 
 
@@ -89,6 +90,7 @@ async def fetch_models(body: FetchModelsRequest, _db=Depends(get_db)):
             "api_key": api_key,
             "model": "dummy",
             "params_json": json.dumps(body.params),
+            "config_json": json.dumps(body.config),
         }
 
         provider = provider_factory(prov_dict)
@@ -140,6 +142,18 @@ async def get_openrouter_endpoints(model: str):
         raise HTTPException(500, f"Failed to fetch endpoints: {str(e)}")
 
 
+@router.get("/openrouter/capabilities")
+async def get_openrouter_capabilities(model: str):
+    """Per-model capability metadata for the sampler UI."""
+    from focus.providers import OpenRouterProvider
+
+    provider = OpenRouterProvider(api_key="", model=model, params={})
+    return {
+        "supported_parameters": await provider.supported_parameters(model),
+        "input_modalities": await provider.supported_modalities(model),
+    }
+
+
 @router.post("/secrets")
 async def update_secret(body: SecretUpdate, _db=Depends(get_db)):
     await db.upsert_secret(_db, body.name, body.value)
@@ -170,7 +184,7 @@ async def delete_secret(name: str, _db=Depends(get_db)):
 @router.get("/{provider_id}")
 async def get_provider(provider_id: str, _db=Depends(get_db)):
     async with _db.execute(
-        "SELECT id, name, type, base_url, api_key, model, params_json, created_at FROM providers WHERE id = ?",
+        "SELECT id, name, type, base_url, api_key, model, params_json, config_json, created_at FROM providers WHERE id = ?",
         (provider_id,),
     ) as cur:
         row = await cur.fetchone()
@@ -211,6 +225,8 @@ async def update_provider(
 
     if "params" in body:
         updates["params_json"] = json.dumps(body["params"])
+    if "config" in body:
+        updates["config_json"] = json.dumps(body["config"])
     if not updates:
         return {"ok": True}
 
@@ -220,7 +236,7 @@ async def update_provider(
     # The active provider object is baked into any in-flight request; stop
     # generations still bound to it when the change affects the request so they
     # can't keep retrying with the old key/model/params.
-    if {"base_url", "api_key", "model", "params_json"} & updates.keys():
+    if {"base_url", "api_key", "model", "params_json", "config_json"} & updates.keys():
         from focus.routers.stream import stop_generations_for_provider
 
         stop_generations_for_provider(provider_id)

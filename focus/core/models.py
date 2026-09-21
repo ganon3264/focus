@@ -29,6 +29,7 @@ class ProviderCreate(BaseModel):
     api_key: str | None = None
     model: str
     params: dict[str, Any] = Field(default_factory=dict)
+    config: dict[str, Any] = Field(default_factory=dict)
 
 
 class ProviderOut(BaseModel):

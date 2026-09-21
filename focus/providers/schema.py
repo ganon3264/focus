@@ -16,6 +16,7 @@ from dataclasses import asdict
 from functools import lru_cache
 from typing import Any
 
+from .profile import INTERNAL_SAMPLER_KEYS
 from .registry import profile_for, registered_types
 
 BASE_SAMPLER_DEFAULTS: dict[str, Any] = {
@@ -27,7 +28,7 @@ BASE_SAMPLER_DEFAULTS: dict[str, Any] = {
     "frequency_penalty": 0.0,
     "presence_penalty": 0.0,
     "repetition_penalty": 1.0,
-    "include_reasoning": False,
+    "include_reasoning": True,
     "send_reasoning_history": True,
     "reasoning_effort": "max",
     "thinking_budget": 0,
@@ -37,7 +38,6 @@ BASE_SAMPLER_DEFAULTS: dict[str, Any] = {
     "cache_enabled": False,
     "cache_ttl": "ephemeral",
     "cache_depth": 5,
-    "top_a": 0,
     "seed": -1,
     "verbosity": "",
 }
@@ -49,7 +49,7 @@ _FORWARD_ALWAYS: dict[str, tuple[str, ...]] = {
     "moonshot": ("frequency_penalty", "presence_penalty", "include_reasoning"),
     "openrouter": (
         "top_k", "min_p", "repetition_penalty", "include_reasoning",
-        "preserve_thinking", "top_a", "seed", "verbosity",
+        "preserve_thinking", "seed", "verbosity",
         "cache_enabled", "cache_ttl", "cache_depth",
     ),
     "google_vertex": ("top_k", "send_reasoning_history", "include_reasoning"),
@@ -65,6 +65,20 @@ _FORWARD_REASONING: dict[str, tuple[str, ...]] = {
     "google_vertex": ("reasoning_effort",),
     "google_aistudio": ("reasoning_effort",),
 }
+
+# Forwarded keys consumed by the pipeline or remapped by the adapter (onto the
+# wire ``reasoning`` field, Google thinking config, ...), so they aren't subject
+# to per-model capability filtering.
+_PIPELINE_CONTROL_KEYS: frozenset[str] = frozenset({
+    "include_reasoning", "preserve_thinking", "reasoning_effort",
+    "thinking_budget", "send_reasoning_history",
+})
+
+
+def capability_filtered_keys(ptype: str) -> set[str]:
+    """Forwarded sampler keys whose support is decided by the model, not type."""
+    keys = set(_FORWARD_ALWAYS.get(ptype, ())) | set(_FORWARD_REASONING.get(ptype, ()))
+    return keys - INTERNAL_SAMPLER_KEYS - _PIPELINE_CONTROL_KEYS
 
 _DEFAULT_OVERRIDES: dict[str, dict[str, Any]] = {
     "openai_compat": {"preserve_thinking": "tool_only", "image_format": "png"},
@@ -148,6 +162,8 @@ def provider_schema() -> dict:
             # Fields the sampler modal may show for this type. Visibility is the
             # union of forwarded fields; getters add reasoning/model gates.
             "visible": sorted(set(forward_always) | set(forward_reasoning)),
+            # Forwarded keys the model may or may not accept (per OR capabilities).
+            "capabilityFiltered": sorted(capability_filtered_keys(ptype)),
             "effortOptions": [
                 {"value": v, "label": label}
                 for v, label in _EFFORT_OPTIONS.get(ptype, _EFFORT_OPTIONS["openai_compat"])

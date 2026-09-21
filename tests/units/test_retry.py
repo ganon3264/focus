@@ -42,7 +42,7 @@ class StatusCodeError(Exception):
 
 class TestFromParams:
     def test_defaults_when_missing(self):
-        cfg = RetryConfig.from_params({})
+        cfg = RetryConfig.from_config({})
         assert cfg.enabled is True
         assert cfg.max_retries == 5
         assert cfg.base_delay == 2.0
@@ -52,16 +52,16 @@ class TestFromParams:
         assert cfg.extra_statuses == ()
 
     def test_defaults_when_retry_not_a_dict(self):
-        assert RetryConfig.from_params({"retry": "nope"}) == RetryConfig()
+        assert RetryConfig.from_config({"retry": "nope"}) == RetryConfig()
 
     def test_partial_override(self):
-        cfg = RetryConfig.from_params({"retry": {"enabled": False, "max_retries": 5}})
+        cfg = RetryConfig.from_config({"retry": {"enabled": False, "max_retries": 5}})
         assert cfg.enabled is False
         assert cfg.max_retries == 5
         assert cfg.base_delay == 2.0  # untouched default
 
     def test_values_are_clamped(self):
-        cfg = RetryConfig.from_params({
+        cfg = RetryConfig.from_config({
             "retry": {"max_retries": 999, "base_delay": -5, "max_delay": 10_000},
         })
         assert cfg.max_retries == 10
@@ -69,7 +69,7 @@ class TestFromParams:
         assert cfg.max_delay == 300.0
 
     def test_string_booleans(self):
-        cfg = RetryConfig.from_params({"retry": {"enabled": "false", "on_timeout": "yes"}})
+        cfg = RetryConfig.from_config({"retry": {"enabled": "false", "on_timeout": "yes"}})
         assert cfg.enabled is False
         assert cfg.on_timeout is True
 

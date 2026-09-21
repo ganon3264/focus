@@ -1,3 +1,4 @@
+import json
 import os
 from datetime import UTC
 
@@ -27,6 +28,7 @@ CREATE TABLE IF NOT EXISTS providers (
     api_key     TEXT,
     model       TEXT NOT NULL,
     params_json TEXT NOT NULL DEFAULT '{}',
+    config_json TEXT NOT NULL DEFAULT '{}',
     created_at  TEXT NOT NULL
 );
 
@@ -359,6 +361,32 @@ async def init_db():
             await db.execute("ALTER TABLE characters ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0")
         if "group_name" not in col_names:
             await db.execute("ALTER TABLE characters ADD COLUMN group_name TEXT NOT NULL DEFAULT ''")
+
+        cols = await db.execute("PRAGMA table_info(providers)")
+        col_names = {row[1] for row in await cols.fetchall()}
+        if "config_json" not in col_names:
+            # Move per-provider settings out of ``params_json`` so it only ever
+            # holds upstream sampler defaults. Key list is frozen at this point
+            # in time on purpose — later fields need no migration.
+            await db.execute("ALTER TABLE providers ADD COLUMN config_json TEXT NOT NULL DEFAULT '{}'")
+            moved = (
+                "api_keys", "active_key", "retry", "or_route", "or_quant",
+                "or_no_fallbacks", "vertex_region", "vertex_project_id",
+            )
+            async with db.execute("SELECT id, params_json FROM providers") as cur:
+                provider_rows = await cur.fetchall()
+            for provider_id, params_json in provider_rows:
+                try:
+                    params = json.loads(params_json or "{}")
+                except json.JSONDecodeError:
+                    continue
+                if not isinstance(params, dict):
+                    continue
+                config = {k: params.pop(k) for k in moved if k in params}
+                await db.execute(
+                    "UPDATE providers SET params_json = ?, config_json = ? WHERE id = ?",
+                    (json.dumps(params), json.dumps(config), provider_id),
+                )
 
         from focus.db.themes import delete_legacy_theme_setting, seed_builtin_themes
 

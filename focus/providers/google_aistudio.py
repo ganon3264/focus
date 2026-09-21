@@ -5,6 +5,7 @@ from google.genai import types
 
 from ..core.logger import get_logger
 from ..core.utils import DEFAULT_TEMPERATURE
+from .config import ProviderConfig
 from .google_base import AI_STUDIO_SAFETY_OFF, GoogleProviderBase
 
 logger = get_logger("providers.google_aistudio")
@@ -13,13 +14,13 @@ logger = get_logger("providers.google_aistudio")
 class GoogleAIStudioProvider(GoogleProviderBase):
     type = "google_aistudio"
 
-    def __init__(self, api_key: str, model: str, params: dict):
-        super().__init__(api_key, model, params)
+    def __init__(self, api_key: str, model: str, params: dict, config: ProviderConfig | None = None):
+        super().__init__(api_key, model, params, config=config)
         self.client = genai.Client(api_key=self.api_key or os.environ.get("GEMINI_API_KEY"))
 
     @classmethod
-    def from_row(cls, row: dict, params: dict) -> "GoogleAIStudioProvider":
-        return cls(api_key=row["api_key"] or "", model=row["model"], params=params)
+    def from_row(cls, row: dict, params: dict, config: ProviderConfig) -> "GoogleAIStudioProvider":
+        return cls(api_key=row["api_key"] or "", model=row["model"], params=params, config=config)
 
     async def fetch_models(self) -> list[dict]:
         aistudio_models = await self.client.aio.models.list()

@@ -800,7 +800,7 @@ class RetryableError(Exception):
 
 
 async def _set_retry(client, prov_id, **retry):
-    resp = await client.patch(f"/api/providers/{prov_id}", json={"params": {"retry": retry}})
+    resp = await client.patch(f"/api/providers/{prov_id}", json={"config": {"retry": retry}})
     assert resp.status_code == 200
 
 

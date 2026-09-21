@@ -35,7 +35,6 @@ AI_STUDIO_HARM_CATEGORIES = (
 # Category set accepted by OpenRouter's Google passthrough.
 PASSTHROUGH_HARM_CATEGORIES = AI_STUDIO_HARM_CATEGORIES
 
-
 def safety_settings_json(
     categories: tuple[str, ...] = PASSTHROUGH_HARM_CATEGORIES,
     threshold: str = "OFF",

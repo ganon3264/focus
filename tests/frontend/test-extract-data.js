@@ -49,7 +49,8 @@ eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'modals', 
   assertEqual(data.base_url, 'http://localhost:8080/v1', 'openai_compat: base_url preserved');
   assertEqual(data.api_key, 'sk-test-123', 'openai_compat: api_key preserved');
   assertEqual(data.model, 'gpt-4', 'openai_compat: model preserved');
-  assertDeepEqual(data.params, { temperature: 0.7, retry: DEFAULT_RETRY }, 'openai_compat: params parsed');
+  assertDeepEqual(data.params, { temperature: 0.7 }, 'openai_compat: params unchanged');
+  assertDeepEqual(data.config.retry, DEFAULT_RETRY, 'openai_compat: retry in config');
   assert(!data.or_model, 'openai_compat: or_model absent');
   assert(!data.or_route, 'openai_compat: or_route deleted');
 })();
@@ -74,8 +75,8 @@ eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'modals', 
   var data = extractData(form);
   assertEqual(data.model, 'anthropic/claude-3', 'openrouter: model preserved');
   assertEqual(data.base_url, 'https://openrouter.ai/api/v1', 'openrouter: base_url set');
-  assertEqual(data.params.or_route, 'fallback', 'openrouter: or_route in params');
-  assertEqual(data.params.or_quant, 'fp16', 'openrouter: or_quant in params');
+  assertEqual(data.config.or_route, 'fallback', 'openrouter: or_route in config');
+  assertEqual(data.config.or_quant, 'fp16', 'openrouter: or_quant in config');
   assert(!data.or_route, 'openrouter: or_route deleted');
   assert(!data.or_quant, 'openrouter: or_quant deleted');
 })();
@@ -92,8 +93,8 @@ eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'modals', 
   });
   var data = extractData(form);
   assertEqual(data.model, 'openai/gpt-4o', 'openrouter simple: model set');
-  assert(!data.params.or_route, 'openrouter simple: no or_route in params');
-  assert(!data.params.or_quant, 'openrouter simple: no or_quant in params');
+  assert(!data.config.or_route, 'openrouter simple: no or_route in config');
+  assert(!data.config.or_quant, 'openrouter simple: no or_quant in config');
 })();
 
 // ── openrouter — no model shows error toast ──
@@ -117,8 +118,8 @@ eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'modals', 
     params: 'not-json',
   });
   var data = extractData(form);
-  assertEqual(data.params.or_no_fallbacks, true, 'openrouter: or_no_fallbacks still set');
-  assert(!data.params.or_route, 'openrouter: no or_route on invalid params');
+  assertEqual(data.config.or_no_fallbacks, true, 'openrouter: or_no_fallbacks still set');
+  assert(!data.config.or_route, 'openrouter: no or_route on invalid params');
 })();
 
 // ── google_vertex ──
@@ -134,8 +135,8 @@ eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'modals', 
   var data = extractData(form);
   assertEqual(data.model, 'gemini-2.0', 'vertex: model preserved');
   assertEqual(data.base_url, '', 'vertex: base_url empty');
-  assertEqual(data.params.vertex_region, 'us-central1', 'vertex: region in params');
-  assertEqual(data.params.vertex_project_id, 'my-project', 'vertex: project_id in params');
+  assertEqual(data.config.vertex_region, 'us-central1', 'vertex: region in config');
+  assertEqual(data.config.vertex_project_id, 'my-project', 'vertex: project_id in config');
   assert(!data.vertex_region, 'vertex: vertex_region deleted from top level');
   assert(!data.vertex_project_id, 'vertex: vertex_project_id deleted from top level');
 })();
@@ -153,7 +154,8 @@ eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'modals', 
   assertEqual(data.model, 'gemini-2.0-flash', 'aistudio: model preserved');
   assert(!data.base_url, 'aistudio: base_url omitted');
   assertEqual(data.api_key, 'sk-ai', 'aistudio: api_key preserved');
-  assertDeepEqual(data.params, { foo: 'bar', retry: DEFAULT_RETRY }, 'aistudio: params parsed');
+  assertDeepEqual(data.params, { foo: 'bar' }, 'aistudio: params unchanged');
+  assertDeepEqual(data.config.retry, DEFAULT_RETRY, 'aistudio: retry in config');
 })();
 
 // ── retry config parsed from form ──
@@ -170,7 +172,7 @@ eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'modals', 
     retry_extra_statuses: '408, 425, nope, 999',
   });
   var data = extractData(form);
-  assertDeepEqual(data.params.retry, {
+  assertDeepEqual(data.config.retry, {
     enabled: true,
     max_retries: 5,
     base_delay: 1.5,
@@ -187,7 +189,7 @@ eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'modals', 
 (function () {
   var form = createMockForm({ name: 'R', type: 'openai_compat', model: 'm', params: '{}', retry_enabled: 'false' });
   var data = extractData(form);
-  assertEqual(data.params.retry.enabled, false, 'retry: disabled flag preserved');
+  assertEqual(data.config.retry.enabled, false, 'retry: disabled flag preserved');
 })();
 
 // ── deepseek ──
@@ -198,23 +200,23 @@ eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'modals', 
   assert(!data.base_url, 'deepseek: base_url omitted');
 })();
 
-// ── multi-key list → params.api_keys, first key mirrored to api_key ──
+// ── multi-key list → config.api_keys, first key mirrored to api_key ──
 (function () {
   var form = createMockForm({
     name: 'P', type: 'openai_compat', model: 'gpt-4',
     api_keys_json: JSON.stringify(['SECRET:a', 'SECRET:b']),
   });
   var data = extractData(form);
-  assertDeepEqual(data.params.api_keys, ['SECRET:a', 'SECRET:b'], 'api_keys parsed into params');
+  assertDeepEqual(data.config.api_keys, ['SECRET:a', 'SECRET:b'], 'api_keys parsed into config');
   assertEqual(data.api_key, 'SECRET:a', 'first key mirrored into api_key');
   assert(!data.api_keys_json, 'api_keys_json removed from the request body');
 })();
 
-// ── no key list → params.api_keys absent (legacy single key untouched) ──
+// ── no key list → config.api_keys absent (legacy single key untouched) ──
 (function () {
   var form = createMockForm({ name: 'P', type: 'openai_compat', model: 'gpt-4', api_key: 'sk-x' });
   var data = extractData(form);
-  assert(!data.params.api_keys, 'absent api_keys_json leaves params.api_keys unset');
+  assert(!data.config.api_keys, 'absent api_keys_json leaves config.api_keys unset');
   assertEqual(data.api_key, 'sk-x', 'legacy api_key preserved');
 })();
 
@@ -222,7 +224,7 @@ eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'modals', 
 (function () {
   var form = createMockForm({ name: 'P', type: 'openai_compat', model: 'gpt-4', api_keys_json: 'not json' });
   var data = extractData(form);
-  assert(!data.params.api_keys, 'malformed api_keys_json is dropped');
+  assert(!data.config.api_keys, 'malformed api_keys_json is dropped');
 })();
 
 // ── Result ──

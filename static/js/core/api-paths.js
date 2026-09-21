@@ -108,6 +108,9 @@ window.api = {
   providerActiveKey: function (id) {
     return '/api/providers/' + id + '/active-key';
   },
+  providerOpenRouterCapabilities: function (model) {
+    return '/api/providers/openrouter/capabilities?model=' + encodeURIComponent(model);
+  },
   providerSecrets: '/api/providers/secrets',
   providerSecret: function (name) {
     return '/api/providers/secrets/' + encodeURIComponent(name);

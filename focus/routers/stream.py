@@ -918,10 +918,10 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
     provider, prov_dict = await _load_provider(db, body.provider_id)
 
     try:
-        prov_params = json.loads(prov_dict.get("params_json") or "{}")
+        prov_config = json.loads(prov_dict.get("config_json") or "{}")
     except json.JSONDecodeError:
-        prov_params = {}
-    retry_config = RetryConfig.from_params(prov_params)
+        prov_config = {}
+    retry_config = RetryConfig.from_config(prov_config)
 
     fmt = (body.samplers or {}).get("image_format", "webp")
     set_image_format(fmt)

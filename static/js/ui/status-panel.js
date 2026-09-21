@@ -1,14 +1,14 @@
 function _providerKeys(provider) {
   if (!provider) return { refs: [], active: 0 };
-  let params = {};
+  let config = {};
   try {
-    params = JSON.parse(provider.params_json || '{}');
+    config = JSON.parse(provider.config_json || '{}');
   } catch (e) {}
-  let refs = Array.isArray(params.api_keys)
-    ? params.api_keys.filter(function (k) { return typeof k === 'string' && k; })
+  let refs = Array.isArray(config.api_keys)
+    ? config.api_keys.filter(function (k) { return typeof k === 'string' && k; })
     : [];
   if (!refs.length && provider.api_key) refs = [provider.api_key];
-  let active = refs.indexOf(params.active_key);
+  let active = refs.indexOf(config.active_key);
   if (active < 0) active = 0;
   return { refs: refs, active: active };
 }
@@ -47,10 +47,10 @@ window.actionShiftProviderKey = async function (el) {
       body: JSON.stringify({ key: ref }),
     });
     if (!res.ok) throw new Error('HTTP ' + res.status);
-    let params = {};
-    try { params = JSON.parse(provider.params_json || '{}'); } catch (e) {}
-    params.active_key = ref;
-    provider.params_json = JSON.stringify(params);
+    let config = {};
+    try { config = JSON.parse(provider.config_json || '{}'); } catch (e) {}
+    config.active_key = ref;
+    provider.config_json = JSON.stringify(config);
     updateKeySwitcher(provider);
     if (window.showInfoToast) window.showInfoToast('Key ' + (target + 1) + '/' + keys.refs.length + ' · ' + _keyLabel(ref));
   } catch (err) {

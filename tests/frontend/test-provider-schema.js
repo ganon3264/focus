@@ -16,6 +16,7 @@ global.PROVIDER_SCHEMA = {
       forwardAlways: ['top_k', 'include_reasoning', 'seed', 'verbosity'],
       forwardReasoning: ['reasoning_effort', 'thinking_budget'],
       visible: ['top_k', 'include_reasoning', 'reasoning_effort'],
+      capabilityFiltered: ['top_k', 'seed', 'verbosity'],
       effortOptions: [{ value: 'low', label: 'Low' }, { value: 'high', label: 'High' }],
       capabilities: { supports_ephemeral_cache: true, supports_prefill: true },
       form: { orFields: true, modelInput: true, baseUrl: false, vertexFields: false, modelRequired: true },
@@ -62,6 +63,38 @@ assertDeepEqual(
   'openai_compat forwards only its own fields',
 );
 assertDeepEqual(ProviderSchema.buildSamplers('unknown', { temperature: 1 }), {}, 'unknown type forwards nothing provider-specific');
+
+// ── capability filtering ──
+assertEqual(
+  ProviderSchema.fieldSupported('openrouter', 'top_k', null), true,
+  'unknown capabilities never hide a field',
+);
+assertEqual(
+  ProviderSchema.fieldSupported('openrouter', 'top_k', ['top_k', 'top_p']), true,
+  'model-supported field is shown',
+);
+assertEqual(
+  ProviderSchema.fieldSupported('openrouter', 'top_k', ['top_p']), false,
+  'model-unsupported field is hidden',
+);
+assertEqual(
+  ProviderSchema.fieldSupported('openrouter', 'include_reasoning', ['top_p']), true,
+  'pipeline-controlled field is never capability-filtered',
+);
+assertEqual(
+  ProviderSchema.fieldSupported('openrouter', 'frequency_penalty', ['top_p']), false,
+  'field hidden by type stays hidden regardless of capabilities',
+);
+assertDeepEqual(
+  ProviderSchema.buildSamplers('openrouter', { top_k: 5, include_reasoning: false, seed: 42, verbosity: 'low' }, ['top_k']),
+  { top_k: 5, include_reasoning: false },
+  'buildSamplers drops unsupported wire keys but keeps controls',
+);
+assertDeepEqual(
+  ProviderSchema.buildSamplers('openrouter', { top_k: 5, include_reasoning: false, seed: 42, verbosity: 'low' }, ['top_k', 'seed', 'verbosity']),
+  { top_k: 5, include_reasoning: false, seed: 42, verbosity: 'low' },
+  'buildSamplers keeps model-supported wire keys',
+);
 
 // ── capabilities / fieldVisible ──
 assertEqual(ProviderSchema.capabilities('openrouter').supports_ephemeral_cache, true, 'capabilities passthrough');

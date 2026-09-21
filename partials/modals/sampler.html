@@ -296,19 +296,6 @@
           class="styled-slider" />
       </div>
     </div>
-    <div x-show="showTopA" class="form-group mb-0">
-      <label class="flex justify-between text-xs mb-1">
-        <span>Top A</span>
-        <input type="text" inputmode="decimal"
-          x-model.number="samplers.top_a"
-          @change="saveStandard()"
-          @blur="$el.value = fmt(parseFloat($el.value) || 0, 2)"
-          class="form-control text-xs sampler-input" data-dec="2" />
-      </label>
-      <input type="range" min="0" max="1" step="0.01"
-        x-model.number="samplers.top_a" @change="saveStandard()"
-        class="styled-slider" />
-    </div>
     <div x-show="showSeed" class="form-group mb-0">
       <label class="flex justify-between text-xs mb-1">
         <span>Seed</span>
@@ -511,6 +498,7 @@
 
       samplers: {},
       customFields: [],
+      modelParams: null,  // model's supported_parameters; null = unknown/don't filter
 
       defaultSamplers() {
         return getSamplerDefaults(this.providerType);
@@ -561,23 +549,44 @@
         return getSamplerEffortOptions(this.providerType);
       },
 
-      get showTopK() { return ProviderSchema.fieldVisible(this.providerType, 'top_k'); },
-      get showMinP() { return ProviderSchema.fieldVisible(this.providerType, 'min_p'); },
-      get showFrequencyPenalty() { return ProviderSchema.fieldVisible(this.providerType, 'frequency_penalty'); },
-      get showRepetitionPenalty() { return ProviderSchema.fieldVisible(this.providerType, 'repetition_penalty'); },
-      get showThinkingBudget() { return this.samplers.include_reasoning && ProviderSchema.fieldVisible(this.providerType, 'thinking_budget'); },
+      // Type visibility + selected-model capability (hides unsupported samplers).
+      shows(key, reasoningGate) {
+        if (reasoningGate && !this.samplers.include_reasoning) return false;
+        return ProviderSchema.fieldSupported(this.providerType, key, this.modelParams);
+      },
+
+      get showTopK() { return this.shows('top_k'); },
+      get showMinP() { return this.shows('min_p'); },
+      get showFrequencyPenalty() { return this.shows('frequency_penalty'); },
+      get showRepetitionPenalty() { return this.shows('repetition_penalty'); },
+      get showThinkingBudget() { return this.shows('thinking_budget', true); },
       get showCacheConfig() {
-        if (!ProviderSchema.fieldVisible(this.providerType, 'cache_enabled')) return false;
+        if (!this.shows('cache_enabled')) return false;
         const p = window.APP_PROVIDERS && window.APP_PROVIDERS.find(p => p.id === this.providerId);
         return !!(p && p.model && p.model.startsWith('anthropic/claude'));
       },
-      get showReasoningToggle() { return ProviderSchema.fieldVisible(this.providerType, 'include_reasoning'); },
-      get showReasoningEffort() { return this.samplers.include_reasoning && ProviderSchema.fieldVisible(this.providerType, 'reasoning_effort'); },
-      get showPreserveThinking() { return this.samplers.include_reasoning && ProviderSchema.fieldVisible(this.providerType, 'preserve_thinking'); },
-      get showSendReasoningHistory() { return ProviderSchema.fieldVisible(this.providerType, 'send_reasoning_history'); },
-      get showTopA() { return ProviderSchema.fieldVisible(this.providerType, 'top_a'); },
-      get showSeed() { return ProviderSchema.fieldVisible(this.providerType, 'seed'); },
-      get showVerbosity() { return ProviderSchema.fieldVisible(this.providerType, 'verbosity'); },
+      get showReasoningToggle() { return this.shows('include_reasoning'); },
+      get showReasoningEffort() { return this.shows('reasoning_effort', true); },
+      get showPreserveThinking() { return this.shows('preserve_thinking', true); },
+      get showSendReasoningHistory() { return this.shows('send_reasoning_history'); },
+      get showSeed() { return this.shows('seed'); },
+      get showVerbosity() { return this.shows('verbosity'); },
+
+      async refreshCapabilities() {
+        const provider = (window.APP_PROVIDERS || []).find(p => p.id === this.providerId);
+        if (this.providerType !== 'openrouter' || !provider || !provider.model) {
+          this.modelParams = null;
+          return;
+        }
+        try {
+          const res = await fetch(api.providerOpenRouterCapabilities(provider.model));
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          const data = await res.json();
+          this.modelParams = Array.isArray(data.supported_parameters) ? data.supported_parameters : null;
+        } catch (e) {
+          this.modelParams = null;
+        }
+      },
 
       async init() {
         // Format sampler-inputs on model changes (slider sync, etc.).
@@ -606,6 +615,7 @@
 
         await this.loadStandard();
         await this.loadCustom();
+        await this.refreshCapabilities();
 
         // Make global function to retrieve payload
         window.getActiveSamplers = () => {
@@ -616,7 +626,7 @@
             stream_enabled: this.samplers.stream_enabled,
           };
 
-          Object.assign(payload, ProviderSchema.buildSamplers(this.providerType, this.samplers));
+          Object.assign(payload, ProviderSchema.buildSamplers(this.providerType, this.samplers, this.modelParams));
 
           if (!this.samplers.enable_multimodal) {
             payload.disable_multimodal = true;
@@ -670,6 +680,7 @@
           await this.loadStandard();
           await this.loadCustom();
         }
+        await this.refreshCapabilities();
       },
 
       onPresetChanged(e) {

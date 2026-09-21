@@ -4,6 +4,7 @@ import httpx
 
 from ..core.logger import get_logger
 from ..core.utils import MODEL_FETCH_HTTP_TIMEOUT, TTLCache
+from .config import ProviderConfig
 from .openai_compat import OpenAICompatProvider
 from .profile import ProviderProfile
 
@@ -28,14 +29,22 @@ class OpenRouterProvider(OpenAICompatProvider):
         context_kwargs=("session_id",),
     )
 
-    def __init__(self, api_key: str, model: str, params: dict, site_url: str = "", app_name: str = "Focus"):
-        super().__init__(OPENROUTER_BASE, api_key, model, params)
+    def __init__(
+        self,
+        api_key: str,
+        model: str,
+        params: dict,
+        config: ProviderConfig | None = None,
+        site_url: str = "",
+        app_name: str = "Focus",
+    ):
+        super().__init__(OPENROUTER_BASE, api_key, model, params, config=config)
         self.site_url = site_url
         self.app_name = app_name
 
     @classmethod
-    def from_row(cls, row: dict, params: dict) -> "OpenRouterProvider":
-        return cls(api_key=row["api_key"] or "", model=row["model"], params=params)
+    def from_row(cls, row: dict, params: dict, config: ProviderConfig) -> "OpenRouterProvider":
+        return cls(api_key=row["api_key"] or "", model=row["model"], params=params, config=config)
 
     async def fetch_models(self) -> list[dict]:
         async with httpx.AsyncClient() as client:
@@ -51,7 +60,7 @@ class OpenRouterProvider(OpenAICompatProvider):
             return data
         return []
 
-    async def supported_modalities(self, model: str) -> list[str] | None:
+    async def _model_entry(self, model: str) -> dict | None:
         async def _fetch():
             return await self.fetch_models()
 
@@ -60,10 +69,18 @@ class OpenRouterProvider(OpenAICompatProvider):
             return None
         for m in models:
             if isinstance(m, dict) and m.get("id") == model:
-                arch = m.get("architecture")
-                if isinstance(arch, dict):
-                    return arch.get("input_modalities")
+                return m
         return None
+
+    async def supported_modalities(self, model: str) -> list[str] | None:
+        entry = await self._model_entry(model)
+        arch = entry.get("architecture") if entry else None
+        return arch.get("input_modalities") if isinstance(arch, dict) else None
+
+    async def supported_parameters(self, model: str) -> list[str] | None:
+        entry = await self._model_entry(model)
+        params = entry.get("supported_parameters") if entry else None
+        return params if isinstance(params, list) else None
 
     def _extra_headers(self) -> dict:
         headers = super()._extra_headers()
@@ -73,9 +90,9 @@ class OpenRouterProvider(OpenAICompatProvider):
 
     def _get_provider_preferences(self) -> dict:
         prefs = {}
-        or_route = self.params.get("or_route")
-        or_quant = self.params.get("or_quant")
-        or_no_fallbacks = self.params.get("or_no_fallbacks", True)
+        or_route = self.config.or_route
+        or_quant = self.config.or_quant
+        or_no_fallbacks = self.config.or_no_fallbacks
 
         provider_config = {}
         if or_route:

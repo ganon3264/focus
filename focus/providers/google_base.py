@@ -7,6 +7,7 @@ from google.genai import types
 from ..core.logger import get_logger
 from ..tools import ToolCall
 from .base import BaseProvider
+from .config import ProviderConfig
 from .google_safety import AI_STUDIO_HARM_CATEGORIES, VERTEX_HARM_CATEGORIES
 from .profile import Capabilities, ProviderProfile
 
@@ -29,8 +30,8 @@ class GoogleProviderBase(BaseProvider):
         ),
     )
 
-    def __init__(self, api_key: str, model: str, params: dict):
-        super().__init__("", api_key, model, params)
+    def __init__(self, api_key: str, model: str, params: dict, config: ProviderConfig | None = None):
+        super().__init__("", api_key, model, params, config=config)
         self._pending_thought_signatures: dict[str, bytes] = {}
 
     @staticmethod

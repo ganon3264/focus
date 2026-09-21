@@ -28,6 +28,7 @@ from ..core.tracked_fields import filter_reasoning_details, strip_thinking
 from .google_safety import PASSTHROUGH_HARM_CATEGORIES, safety_settings_json
 from .profile import INTERNAL_SAMPLER_KEYS, Capabilities, ProviderProfile
 from .registry import profile_for
+from .schema import provider_schema
 
 
 def _is_openrouter(c: QuirkContext) -> bool:
@@ -81,6 +82,23 @@ async def _filter_provider_modalities(c: QuirkContext) -> None:
     modalities = await c.provider.supported_modalities(c.model)
     if modalities:
         c.messages = filter_unsupported_modalities(c.messages, modalities)
+
+
+async def _filter_unsupported_params(c: QuirkContext) -> None:
+    """Drop forwarded sampler keys the upstream model doesn't advertise.
+
+    OpenRouter publishes ``supported_parameters`` per model; without this a
+    strict upstream (e.g. Xiaomi) rejects the whole request over an unsupported
+    key like ``top_k``. Providers that expose no list are left untouched.
+    """
+    supported = await c.provider.supported_parameters(c.model)
+    if not supported:
+        return
+    filterable = provider_schema()["types"].get(c.prov["type"], {}).get("capabilityFiltered", ())
+    allowed = set(supported)
+    for key in filterable:
+        if key in c.samplers and key not in allowed:
+            c.samplers.pop(key)
 
 
 def _claude_cache(c: QuirkContext) -> None:
@@ -164,6 +182,11 @@ def _context_kwargs(c: QuirkContext) -> None:
 QUIRKS: tuple[Quirk, ...] = (
     Quirk("filter_disabled_modalities", lambda c: True, _filter_disabled_modalities),
     Quirk("filter_provider_modalities", lambda c: True, _filter_provider_modalities),
+    Quirk(
+        "filter_unsupported_params",
+        lambda c: callable(getattr(c.provider, "supported_parameters", None)),
+        _filter_unsupported_params,
+    ),
     Quirk("claude_cache", lambda c: c.caps.supports_ephemeral_cache, _claude_cache),
     Quirk("google_safety_passthrough", _is_openrouter_google, _inject_google_safety),
     Quirk("strip_greeting", lambda c: True, _strip_greeting),

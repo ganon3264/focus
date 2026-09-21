@@ -73,14 +73,14 @@ class RetryConfig:
     total_budget: float = 180.0
 
     @classmethod
-    def from_params(cls, params: dict[str, Any] | None) -> RetryConfig:
-        """Build a config from a provider's ``params`` dict.
+    def from_config(cls, config: dict[str, Any] | None) -> RetryConfig:
+        """Build a retry policy from a provider's ``config`` dict.
 
-        A missing or malformed ``params["retry"]`` yields all defaults, so
+        A missing or malformed ``config["retry"]`` yields all defaults, so
         providers created before this feature (and absent keys generally) keep
         working and inherit future default changes.
         """
-        raw = (params or {}).get("retry")
+        raw = (config or {}).get("retry")
         if not isinstance(raw, dict):
             return cls()
         defaults = cls()

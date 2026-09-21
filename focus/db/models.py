@@ -15,6 +15,7 @@ class Provider:
     api_key: str | None = None
     model: str = ""
     params_json: str = "{}"
+    config_json: str = "{}"
     created_at: str = ""
 
     @staticmethod

@@ -57,19 +57,19 @@ async function forceFetchModels() {
   const apiKeyInput = document.getElementById('api-key-input-' + prefix);
   let apiKey = apiKeyInput ? apiKeyInput.value : '';
 
-  let params = {};
+  let config = {};
   if (type === 'google_vertex') {
     const regionInput = document.getElementById(prefix + '-vertex-region');
     const projectInput = document.getElementById(prefix + '-vertex-project-id');
-    if (regionInput) params.vertex_region = regionInput.value;
-    if (projectInput) params.vertex_project_id = projectInput.value;
+    if (regionInput) config.vertex_region = regionInput.value;
+    if (projectInput) config.vertex_project_id = projectInput.value;
   }
 
   const editIdInput = document.getElementById('prov-form-edit-id');
   const providerId = editIdInput ? editIdInput.value : '';
 
   try {
-    let body = { type, base_url: baseUrl, api_key: apiKey, params };
+    let body = { type, base_url: baseUrl, api_key: apiKey, params: {}, config };
     if (providerId) body.provider_id = providerId;
 
     const res = await fetch(api.providerFetchModels, {
@@ -237,6 +237,21 @@ function extractData(form) {
 
   const type = data.type || form.querySelector('input[name="type"]').value;
 
+  // params_json is upstream-only sampler defaults.
+  try {
+    data.params = JSON.parse(data.params || '{}');
+  } catch (e) {
+    data.params = {};
+  }
+  if (!data.params || typeof data.params !== 'object') data.params = {};
+
+  // config_json is Focus-only provider settings; never sent upstream.
+  let config = {};
+  try {
+    config = JSON.parse(data.config || '{}');
+  } catch (e) {}
+  if (!config || typeof config !== 'object') config = {};
+
   if (type === 'openrouter') {
     if (!data.model) {
       window.showErrorToast('Please select an OpenRouter model.', { duration: 4000 });
@@ -244,46 +259,21 @@ function extractData(form) {
     }
     data.base_url = 'https://openrouter.ai/api/v1';
 
-    let params = {};
-    try {
-      params = JSON.parse(data.params || '{}');
-    } catch (e) {}
+    if (data.or_route) config.or_route = data.or_route;
+    else delete config.or_route;
 
-    if (data.or_route) params.or_route = data.or_route;
-    else delete params.or_route;
-
-    if (data.or_quant) params.or_quant = data.or_quant;
-    else delete params.or_quant;
+    if (data.or_quant) config.or_quant = data.or_quant;
+    else delete config.or_quant;
 
     const orNoFallbacksInput = form.querySelector('[name="or_no_fallbacks"]');
-    params.or_no_fallbacks = orNoFallbacksInput ? orNoFallbacksInput.value === 'true' : true;
-
-    data.params = params;
+    config.or_no_fallbacks = orNoFallbacksInput ? orNoFallbacksInput.value === 'true' : true;
   } else if (type === 'google_vertex') {
-    let params = {};
-    try {
-      params = JSON.parse(data.params || '{}');
-    } catch (e) {}
-    if (data.vertex_region) params.vertex_region = data.vertex_region;
-    if (data.vertex_project_id) params.vertex_project_id = data.vertex_project_id;
-    data.params = params;
+    if (data.vertex_region) config.vertex_region = data.vertex_region;
+    if (data.vertex_project_id) config.vertex_project_id = data.vertex_project_id;
     data.base_url = '';
   } else if (type === 'google_aistudio' || type === 'deepseek' || type === 'moonshot') {
-    try {
-      data.params = JSON.parse(data.params || '{}');
-    } catch (e) {
-      data.params = {};
-    }
     delete data.base_url;
-  } else {
-    try {
-      data.params = JSON.parse(data.params || '{}');
-    } catch (e) {
-      data.params = {};
-    }
   }
-
-  if (!data.params || typeof data.params !== 'object') data.params = {};
 
   var apiKeys = [];
   try {
@@ -293,14 +283,16 @@ function extractData(form) {
     ? apiKeys.filter(function (k) { return typeof k === 'string' && k; })
     : [];
   if (apiKeys.length) {
-    data.params.api_keys = apiKeys;
+    config.api_keys = apiKeys;
     data.api_key = apiKeys[0];
   } else {
-    delete data.params.api_keys;
+    delete config.api_keys;
   }
   delete data.api_keys_json;
+
   var retryResult = collectRetryConfig(form);
-  data.params.retry = retryResult.config;
+  config.retry = retryResult.config;
+  data.config = config;
   if (retryResult.dropped.length && window.showInfoToast) {
     window.showInfoToast('Ignored invalid retry status code(s): ' + retryResult.dropped.join(', '), { duration: 4000 });
   }
@@ -461,6 +453,7 @@ function resetProviderForm() {
   setSelectValue('prov-form-type', 'openai_compat');
   document.getElementById('prov-form-edit-id').value = '';
   document.getElementById('prov-form-params').value = '{}';
+  document.getElementById('prov-form-config').value = '{}';
   document.getElementById('api-key-input-prov-form').value = '';
   var keysInput = document.getElementById('prov-form-api-keys');
   if (keysInput) keysInput.value = '[]';
@@ -485,16 +478,19 @@ function populateProviderForm(data) {
   var params = {};
   try { params = JSON.parse(data.params_json || '{}'); } catch (e) {}
   document.getElementById('prov-form-params').value = JSON.stringify(params);
-  var refs = Array.isArray(params.api_keys)
-    ? params.api_keys.filter(function (r) { return typeof r === 'string' && r; })
+  var config = {};
+  try { config = JSON.parse(data.config_json || '{}'); } catch (e) {}
+  document.getElementById('prov-form-config').value = JSON.stringify(config);
+  var refs = Array.isArray(config.api_keys)
+    ? config.api_keys.filter(function (r) { return typeof r === 'string' && r; })
     : [];
   if (!refs.length && data.api_key && data.api_key !== '__HIDDEN__') refs = [data.api_key];
   _setProviderKeys('prov-form', refs, { quiet: true });
   document.getElementById('model-text-prov-form').value = data.model || '';
   if (data.type === 'openrouter') {
-    var savedRoute = params.or_route || '';
-    var savedQuant = params.or_quant || '';
-    var savedNoFallbacks = params.or_no_fallbacks !== false;
+    var savedRoute = config.or_route || '';
+    var savedQuant = config.or_quant || '';
+    var savedNoFallbacks = config.or_no_fallbacks !== false;
     document.getElementById('or-route-display-prov-form').textContent = savedRoute || 'Auto (Any)';
     document.getElementById('or-route-display-prov-form').classList.toggle('text-muted', !savedRoute);
     document.getElementById('prov-form-or-route').value = savedRoute;
@@ -513,10 +509,10 @@ function populateProviderForm(data) {
     }
   }
   if (data.type === 'google_vertex') {
-    document.getElementById('prov-form-vertex-project-id').value = params.vertex_project_id || '';
-    setSelectValue('prov-form-vertex-region', params.vertex_region || 'global');
+    document.getElementById('prov-form-vertex-project-id').value = config.vertex_project_id || '';
+    setSelectValue('prov-form-vertex-region', config.vertex_region || 'global');
   }
-  setRetryForm(params.retry || {});
+  setRetryForm(config.retry || {});
 }
 
 window.sortProviders = function (mode) {

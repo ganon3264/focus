@@ -78,11 +78,25 @@ class TestForwarding:
         assert types["deepseek"]["forwardReasoning"] == ["preserve_thinking"]
         assert types["openrouter"]["forwardAlways"] == [
             "top_k", "min_p", "repetition_penalty", "include_reasoning",
-            "preserve_thinking", "top_a", "seed", "verbosity",
+            "preserve_thinking", "seed", "verbosity",
             "cache_enabled", "cache_ttl", "cache_depth",
         ]
         assert types["openrouter"]["forwardReasoning"] == ["reasoning_effort", "thinking_budget"]
         assert types["google_vertex"]["forwardAlways"] == ["top_k", "send_reasoning_history", "include_reasoning"]
+
+    def test_capability_filtered_excludes_pipeline_controls(self):
+        types = provider_schema()["types"]
+        assert set(types["openrouter"]["capabilityFiltered"]) == {
+            "top_k", "min_p", "repetition_penalty", "seed", "verbosity",
+        }
+        assert set(types["openai_compat"]["capabilityFiltered"]) == {
+            "frequency_penalty", "presence_penalty",
+        }
+        # Pipeline-controlled keys are never capability-filtered.
+        for control in ("include_reasoning", "preserve_thinking", "reasoning_effort",
+                        "thinking_budget", "send_reasoning_history"):
+            assert control not in types["openrouter"]["capabilityFiltered"]
+            assert control not in types["google_vertex"]["capabilityFiltered"]
 
 
 class TestVisibility:

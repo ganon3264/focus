@@ -22,6 +22,7 @@ from focus.providers import (
     OpenRouterProvider,
     create_provider,
 )
+from focus.providers.config import ProviderConfig
 
 
 class Obj:
@@ -316,7 +317,8 @@ class TestOpenRouterProvider:
     async def test_reasoning_config_and_preferences(self):
         provider = OpenRouterProvider(
             api_key="k", model="anthropic/claude-3.5-sonnet",
-            params={"or_route": "r1", "or_quant": "q4", "or_no_fallbacks": True},
+            params={},
+            config=ProviderConfig(or_route="r1", or_quant="q4", or_no_fallbacks=True),
             site_url="https://example.com", app_name="FocusTest",
         )
         client = FakeOpenAIClient([_chunk(content="x")])
@@ -333,6 +335,31 @@ class TestOpenRouterProvider:
         headers = provider._extra_headers()
         assert headers["HTTP-Referer"] == "https://example.com"
         assert headers["X-Title"] == "FocusTest"
+
+    async def test_internal_params_never_reach_extra_body(self):
+        provider = OpenRouterProvider(
+            api_key="k", model="some/model",
+            params={"rep_pen": 1.2},  # a legitimate upstream sampler key
+            config=ProviderConfig(
+                or_route="r1",
+                or_no_fallbacks=True,
+                api_keys=["SECRET:openrouter", "sk-raw-literal"],
+                active_key="SECRET:openrouter",
+                retry={"enabled": True},
+            ),
+        )
+        client = FakeOpenAIClient([_chunk(content="x")])
+        provider._get_client = lambda: client  # type: ignore[method-assign]
+
+        await _collect(provider)
+
+        extra_body = client.request["extra_body"]
+        assert extra_body["provider"] == {"order": ["r1"], "allow_fallbacks": False}
+        assert extra_body["rep_pen"] == 1.2
+        for leaked in ("api_keys", "active_key", "retry", "or_route", "or_no_fallbacks"):
+            assert leaked not in extra_body
+        assert "SECRET:openrouter" not in json.dumps(extra_body)
+        assert "sk-raw-literal" not in json.dumps(extra_body)
 
     async def test_reasoning_budget_and_mode(self):
         provider = OpenRouterProvider(api_key="k", model="some/model", params={})
@@ -509,12 +536,12 @@ class TestCreateProvider:
             create_provider({
                 "type": "google_vertex", "model": "m", "api_key": "",
                 "base_url": "",
-                "params_json": json.dumps({"vertex_region": "us-central1", "vertex_project_id": "p"}),
+                "config_json": json.dumps({"vertex_region": "us-central1", "vertex_project_id": "p"}),
             }),
             GoogleVertexProvider,
         )
         with pytest.raises(ValueError):
-            # Vertex requires project/region in params
+            # Vertex requires project/region in config
             create_provider({"type": "google_vertex", "model": "m", "api_key": "", "base_url": "", "params_json": "{}"})
 
     def test_default_openai_base_url(self):

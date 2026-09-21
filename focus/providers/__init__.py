@@ -2,6 +2,7 @@ import json
 
 from ..core.logger import get_logger
 from .base import BaseProvider
+from .config import ProviderConfig
 from .deepseek import DeepseekProvider
 from .google_aistudio import GoogleAIStudioProvider
 from .google_vertex import GoogleVertexProvider
@@ -32,5 +33,6 @@ def create_provider(row: dict) -> BaseProvider:
     except json.JSONDecodeError:
         logger.error("Corrupted params_json for provider %s, using empty dict", row.get("id", "?"))
         params = {}
+    config = ProviderConfig.from_json(row.get("config_json"))
     cls = get_provider_class(row["type"])
-    return cls.from_row(row, params)
+    return cls.from_row(row, params, config)

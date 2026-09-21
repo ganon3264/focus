@@ -13,6 +13,7 @@ import json
 import pytest
 
 from focus.providers import GoogleAIStudioProvider, GoogleVertexProvider
+from focus.providers.config import ProviderConfig
 from focus.providers.google_base import GoogleProviderBase
 
 
@@ -509,7 +510,9 @@ class TestVertexConstructor:
             "type": "service_account", "project_id": "sa-proj", "client_email": "x@y",
             "private_key": "k", "token_uri": "https://oauth2.googleapis.com/token",
         })
-        provider = GoogleVertexProvider(sa_json, "gemini-m", {"vertex_region": "us-central1"})
+        provider = GoogleVertexProvider(
+            sa_json, "gemini-m", {}, ProviderConfig(vertex_region="us-central1")
+        )
         assert provider.credentials == "sa-creds"
         assert provider.project_id == "sa-proj"
         assert provider.region == "us-central1"
@@ -520,7 +523,7 @@ class TestVertexConstructor:
     def test_adc_fallback(self, monkeypatch):
         captured = {}
         self._patch_deps(monkeypatch, adc_creds=("adc-creds", "adc-proj"), client_factory=lambda **kw: captured.update(kw) or ("c", kw))
-        provider = GoogleVertexProvider("", "gemini-m", {"vertex_region": "us-east1"})
+        provider = GoogleVertexProvider("", "gemini-m", {}, ProviderConfig(vertex_region="us-east1"))
         assert provider.credentials == "adc-creds"
         assert provider.project_id == "adc-proj"
         assert captured["project"] == "adc-proj"
@@ -533,7 +536,10 @@ class TestVertexConstructor:
     def test_malformed_service_account_raises(self, monkeypatch):
         self._patch_deps(monkeypatch, sa_creds="c")
         with pytest.raises(ValueError, match="Failed to parse api_key"):
-            GoogleVertexProvider("{not json", "m", {"vertex_region": "r", "vertex_project_id": "p"})
+            GoogleVertexProvider(
+                "{not json", "m", {},
+                ProviderConfig(vertex_region="r", vertex_project_id="p"),
+            )
 
     def test_adc_failure_raises(self, monkeypatch):
         monkeypatch.setattr("google.genai.Client", lambda **kw: None)
@@ -543,7 +549,9 @@ class TestVertexConstructor:
 
         monkeypatch.setattr("google.auth.default", fail_default)
         with pytest.raises(ValueError, match="ADC credentials"):
-            GoogleVertexProvider("", "m", {"vertex_region": "r", "vertex_project_id": "p"})
+            GoogleVertexProvider(
+                "", "m", {}, ProviderConfig(vertex_region="r", vertex_project_id="p")
+            )
 
     async def test_fetch_models(self):
         provider = _make_provider(GoogleVertexProvider)

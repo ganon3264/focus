@@ -172,17 +172,17 @@ class TestProviderDetail:
 
 
 async def _make_multikey_provider(client, tmp_test_dir, active=None):
-    """Create a provider whose params hold two SECRET refs."""
+    """Create a provider whose config holds two SECRET refs."""
     db_path = Path(tmp_test_dir) / "test.db"
     async with aiosqlite.connect(db_path) as db:
         await db.execute("INSERT INTO secrets (name, value) VALUES (?, ?)", ("k1", "key-one"))
         await db.execute("INSERT INTO secrets (name, value) VALUES (?, ?)", ("k2", "key-two"))
         await db.commit()
     pid = await _make_provider(client, api_key="SECRET:k1")
-    params = {"api_keys": ["SECRET:k1", "SECRET:k2"]}
+    config = {"api_keys": ["SECRET:k1", "SECRET:k2"]}
     if active:
-        params["active_key"] = active
-    resp = await client.patch(f"/api/providers/{pid}", json={"params": params})
+        config["active_key"] = active
+    resp = await client.patch(f"/api/providers/{pid}", json={"config": config})
     assert resp.status_code == 200
     return pid
 
@@ -195,7 +195,7 @@ class TestActiveKey:
         assert resp.json() == {"ok": True, "active_key": "SECRET:k2"}
 
         data = (await client.get(f"/api/providers/{pid}")).json()
-        assert json.loads(data["params_json"])["active_key"] == "SECRET:k2"
+        assert json.loads(data["config_json"])["active_key"] == "SECRET:k2"
 
     async def test_rejects_unknown_key(self, client, tmp_test_dir):
         pid = await _make_multikey_provider(client, tmp_test_dir)
@@ -306,7 +306,8 @@ class TestModelModalities:
             calls["n"] += 1
             return httpx.Response(200, json={"data": [
                 {"id": "other/model", "architecture": {"input_modalities": ["text"]}},
-                {"id": "my/model", "architecture": {"input_modalities": ["text", "image"]}},
+                {"id": "my/model", "architecture": {"input_modalities": ["text", "image"]},
+                 "supported_parameters": ["top_p", "temperature"]},
             ]})
 
         _patch_httpx(monkeypatch, handler)
@@ -315,8 +316,17 @@ class TestModelModalities:
 
         provider = OpenRouterProvider(api_key="k", model="my/model", params={})
         assert await provider.supported_modalities("my/model") == ["text", "image"]
+        assert await provider.supported_parameters("my/model") == ["top_p", "temperature"]
         assert await provider.supported_modalities("my/model") == ["text", "image"]
-        assert calls["n"] == 1
+        assert await provider.supported_parameters("my/model") == ["top_p", "temperature"]
+
+        resp = await client.get("/api/providers/openrouter/capabilities", params={"model": "my/model"})
+        assert resp.status_code == 200
+        assert resp.json() == {
+            "supported_parameters": ["top_p", "temperature"],
+            "input_modalities": ["text", "image"],
+        }
+        assert calls["n"] == 1, "capability endpoint reuses the cached model list"
 
     async def test_unknown_model_returns_none(self, client, monkeypatch):
         _patch_httpx(monkeypatch, lambda r: httpx.Response(200, json={"data": []}))
@@ -325,3 +335,4 @@ class TestModelModalities:
 
         provider = OpenRouterProvider(api_key="k", model="nope", params={})
         assert await provider.supported_modalities("nope") is None
+        assert await provider.supported_parameters("nope") is None

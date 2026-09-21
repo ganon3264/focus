@@ -15,6 +15,7 @@ from ..core.utils import (
 )
 from ..tools import ToolCall
 from .base import BaseProvider
+from .config import ProviderConfig
 from .profile import Capabilities, ProviderProfile
 
 logger = get_logger("providers.openai_compat")
@@ -25,12 +26,13 @@ class OpenAICompatProvider(BaseProvider):
     profile = ProviderProfile(caps=Capabilities(reasoning_formats=("openai",)))
 
     @classmethod
-    def from_row(cls, row: dict, params: dict) -> "OpenAICompatProvider":
+    def from_row(cls, row: dict, params: dict, config: ProviderConfig) -> "OpenAICompatProvider":
         return cls(
             base_url=row["base_url"] or DEFAULT_OPENAI_COMPAT_BASE_URL,
             api_key=row["api_key"] or "",
             model=row["model"],
             params=params,
+            config=config,
         )
 
     def _get_client(self) -> AsyncOpenAI:
@@ -67,7 +69,6 @@ class OpenAICompatProvider(BaseProvider):
         max_tokens = merged.pop("max_tokens", DEFAULT_MAX_TOKENS)
         temperature = merged.pop("temperature", DEFAULT_TEMPERATURE)
         merged.pop("preserve_thinking", None)  # handled upstream in stream.py
-        merged.pop("retry", None)  # retry policy is consumed by stream.py, never sent upstream
 
         # Handle o1/o3 reasoning model quirks
         is_o_model = self.model.startswith("o1") or self.model.startswith("o3")

@@ -22,12 +22,22 @@
     return typeSchema('openai_compat').effortOptions || [];
   }
 
-  function buildSamplers(providerType, samplers) {
+  function supported(providerType, key, supportedParams) {
+    var filtered = typeSchema(providerType).capabilityFiltered || [];
+    if (!supportedParams || filtered.indexOf(key) === -1) return true;
+    return supportedParams.indexOf(key) !== -1;
+  }
+
+  function buildSamplers(providerType, samplers, supportedParams) {
     var ts = typeSchema(providerType);
     var out = {};
-    (ts.forwardAlways || []).forEach(function (key) { out[key] = samplers[key]; });
+    (ts.forwardAlways || []).forEach(function (key) {
+      if (supported(providerType, key, supportedParams)) out[key] = samplers[key];
+    });
     if (samplers.include_reasoning) {
-      (ts.forwardReasoning || []).forEach(function (key) { out[key] = samplers[key]; });
+      (ts.forwardReasoning || []).forEach(function (key) {
+        if (supported(providerType, key, supportedParams)) out[key] = samplers[key];
+      });
     }
     // Value guards from the legacy per-provider builders: -1 means "random"
     // seed and must be omitted; empty verbosity is dropped so JSON.stringify
@@ -54,6 +64,12 @@
     return (typeSchema(providerType).visible || []).indexOf(key) !== -1;
   }
 
+  // A field is usable when the type exposes it and the selected model accepts
+  // it. ``supportedParams`` is null when capabilities are unknown (don't hide).
+  function fieldSupported(providerType, key, supportedParams) {
+    return fieldVisible(providerType, key) && supported(providerType, key, supportedParams);
+  }
+
   window.ProviderSchema = {
     getSamplerDefaults: getSamplerDefaults,
     getSamplerEffortOptions: getSamplerEffortOptions,
@@ -61,5 +77,6 @@
     capabilities: capabilities,
     formConfig: formConfig,
     fieldVisible: fieldVisible,
+    fieldSupported: fieldSupported,
   };
 })();

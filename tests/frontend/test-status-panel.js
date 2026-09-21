@@ -197,13 +197,13 @@ eval(src + '\nwindow.updateStatusPanel=updateStatusPanel;window.updateCacheTimer
   global.StateManager.get = function () { return 'prov1'; };
   global.APP_PROVIDERS = [{
     id: 'prov1', name: 'P', type: 'openai_compat', model: 'm',
-    params_json: JSON.stringify({ api_keys: ['SECRET:a', 'SECRET:b', 'SECRET:c'], active_key: 'SECRET:b' }),
+    config_json: JSON.stringify({ api_keys: ['SECRET:a', 'SECRET:b', 'SECRET:c'], active_key: 'SECRET:b' }),
   }];
   window.updateStatusPanel();
   assert(!keyRow.classList.contains('hidden'), 'multi-key row visible');
   assertEqual(keyCount.textContent, '2/3', 'key count reflects active position');
 
-  global.APP_PROVIDERS[0].params_json = JSON.stringify({ api_keys: ['SECRET:a', 'SECRET:b'], active_key: 'SECRET:b' });
+  global.APP_PROVIDERS[0].config_json = JSON.stringify({ api_keys: ['SECRET:a', 'SECRET:b'], active_key: 'SECRET:b' });
   window.updateKeySwitcher(global.APP_PROVIDERS[0]);
   assertEqual(keyCount.textContent, '2/2', 'key count follows the active ref');
   global.StateManager.get = oldGet;
@@ -222,7 +222,7 @@ eval(src + '\nwindow.updateStatusPanel=updateStatusPanel;window.updateCacheTimer
   global.StateManager.get = function () { return 'prov1'; };
   global.APP_PROVIDERS = [{
     id: 'prov1', name: 'P', type: 'openai_compat', model: 'm',
-    params_json: JSON.stringify({ api_keys: ['SECRET:a', 'SECRET:b'], active_key: 'SECRET:a' }),
+    config_json: JSON.stringify({ api_keys: ['SECRET:a', 'SECRET:b'], active_key: 'SECRET:a' }),
   }];
   var url = null, bodies = [];
   var oldFetch = global.fetch;
