@@ -62,6 +62,23 @@ class TestChatPage:
         assert resp.status_code in (302, 307)
         assert resp.headers["location"] == "/chat"
 
+    async def test_chat_html_is_gzipped(self, client):
+        chat, _, _, _ = await _seed_chat(client)
+        resp = await client.get(
+            f"/chat/{chat['id']}", headers={"Accept-Encoding": "gzip"}
+        )
+        assert resp.status_code == 200
+        assert resp.headers.get("content-encoding") == "gzip"
+
+    async def test_binary_and_sse_content_types_excluded_from_gzip(self):
+        import main  # noqa: F401  (applies the middleware's exclusion config)
+        import starlette.middleware.gzip as gz
+
+        excluded = gz.DEFAULT_EXCLUDED_CONTENT_TYPES
+        # SSE must stay raw so tokens stream; binaries are already compressed.
+        for content_type in ("text/event-stream", "image/png", "image/webp", "font/"):
+            assert content_type in excluded
+
     async def test_message_list_partial(self, client):
         chat, _, _, _ = await _seed_chat(client)
         resp = await client.get(f"/partials/message-list/{chat['id']}")
@@ -238,3 +255,17 @@ class TestModalPartials:
         resp = await client.get(f"/partials/persona-modal-card/{p['id']}")
         assert resp.status_code == 200
         assert (await client.get("/partials/persona-modal-card/nope")).status_code == 404
+
+
+class TestStaticCachePolicy:
+    def test_cache_control_toggle(self):
+        from main import RevalidatedStaticFiles
+
+        assert (
+            RevalidatedStaticFiles(directory="static", cache_assets=False)._cache_control
+            == "public, no-cache"
+        )
+        assert (
+            RevalidatedStaticFiles(directory="static", cache_assets=True)._cache_control
+            == "public, max-age=31536000, immutable"
+        )

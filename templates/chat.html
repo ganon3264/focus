@@ -15,7 +15,9 @@ window.THEME_STATE = {{ theme_state | tojson | safe }};
 </div>
 
 {% include "chat/modals.html" %}
+{% endblock %}
 
+{% block scripts %}
 <script src="/static/js/features/backup-manager.js"></script>
 
 <template id="icon-close-tpl">{{ icon_close(16) }}</template>

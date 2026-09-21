@@ -6,12 +6,14 @@ from email.utils import formatdate
 from urllib.parse import urlparse
 
 import anyio
+import starlette.middleware.gzip as gzip_middleware
 from fastapi import Depends, FastAPI, Request
 from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.datastructures import Headers
 
 from focus.core.database import get_db, init_db, init_directories
+from focus.core.paths import CACHE_STATIC
 from focus.core.logger import get_logger
 from focus.db.cleanup import clean_database as db_cleanup
 from focus.routers import (
@@ -32,6 +34,12 @@ from focus.routers import (
 
 
 class RevalidatedStaticFiles(StaticFiles):
+    def __init__(self, *args, cache_assets: bool = False, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._cache_control = (
+            "public, max-age=31536000, immutable" if cache_assets else "public, no-cache"
+        )
+
     async def get_response(self, path: str, scope):
         request_headers = Headers(scope=scope)
         if_none_match = request_headers.get("if-none-match")
@@ -50,7 +58,7 @@ class RevalidatedStaticFiles(StaticFiles):
                         return Response(
                             status_code=304,
                             headers={
-                                "Cache-Control": "public, no-cache",
+                                "Cache-Control": self._cache_control,
                                 "ETag": etag,
                                 "Last-Modified": last_modified,
                             }
@@ -59,7 +67,7 @@ class RevalidatedStaticFiles(StaticFiles):
                 pass
 
         response = await super().get_response(path, scope)
-        response.headers["Cache-Control"] = "public, no-cache"
+        response.headers["Cache-Control"] = self._cache_control
         return response
 
 
@@ -78,6 +86,32 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Focus", version="0.1.0", lifespan=lifespan, redirect_slashes=False)
+
+# Gzip dynamic text/JS/CSS. Already-compressed payloads are excluded so we don't
+# burn CPU (assets/ is hundreds of MB of PNG/WebP/JPG) for zero transfer gain.
+# Starlette only skips text/event-stream by default, so extend its exclusion list
+# (read at request time by IdentityResponder) and keep SSE token streaming raw.
+gzip_middleware.DEFAULT_EXCLUDED_CONTENT_TYPES = (
+    "text/event-stream",
+    "image/png",
+    "image/jpeg",
+    "image/gif",
+    "image/webp",
+    "image/avif",
+    "image/bmp",
+    "image/tiff",
+    "image/x-icon",
+    "image/vnd.microsoft.icon",
+    "audio/",
+    "video/",
+    "font/",
+    "application/zip",
+    "application/gzip",
+    "application/x-gzip",
+    "application/octet-stream",
+    "application/pdf",
+)
+app.add_middleware(gzip_middleware.GZipMiddleware, minimum_size=1024, compresslevel=6)
 
 
 @app.middleware("http")
@@ -153,8 +187,8 @@ app.include_router(tools.router, prefix="/api", tags=["tools"])
 app.include_router(exchange.router, prefix="/api", tags=["import-export"])
 app.include_router(extensions.router, prefix="/api", tags=["extensions"])
 
-app.mount("/assets", RevalidatedStaticFiles(directory="assets"), name="assets")
-app.mount("/static", RevalidatedStaticFiles(directory="static"), name="static")
+app.mount("/assets", RevalidatedStaticFiles(directory="assets", cache_assets=CACHE_STATIC), name="assets")
+app.mount("/static", RevalidatedStaticFiles(directory="static", cache_assets=CACHE_STATIC), name="static")
 
 
 @app.get("/", include_in_schema=False)

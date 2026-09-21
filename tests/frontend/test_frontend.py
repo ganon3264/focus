@@ -114,6 +114,39 @@ def test_programmatic_htmx_ajax_only_in_queue():
     assert not offenders, f"Direct htmx.ajax() found (use hxGet/hxPost): {offenders}"
 
 
+def test_base_loads_shared_scripts_after_content():
+    """base.html must render page content before the shared app script block and
+    expose the page scripts block after it.
+
+    Modules like generation-ui/input-bar/chat-controls bind to the page DOM at
+    load, so the shared block must run after the content block. Page-specific
+    scripts belong in the scripts block, which always runs last."""
+    src = loader.get_source(env, "base.html")[0]
+    content = src.index("{% block content %}")
+    first_shared = src.index("/static/js/ui/media-utils.js")
+    last_shared = src.index("/static/js/ui/chat-controls.js")
+    scripts_block = src.index("{% block scripts %}")
+    assert content < first_shared, "shared scripts must load after the content block"
+    assert last_shared < scripts_block, "page scripts block must come after shared scripts"
+
+
+PAGE_TEMPLATES = ["chat.html", "characters.html", "personas.html", "providers.html"]
+
+
+@pytest.mark.parametrize("template_name", PAGE_TEMPLATES)
+def test_page_scripts_live_in_scripts_block(template_name):
+    """Page-specific scripts must sit in the page scripts block, not the content
+    block, so content stays markup-only and load order is explicit."""
+    src = loader.get_source(env, template_name)[0]
+    assert "{% block scripts %}" in src, f"{template_name} defines no page scripts block"
+    scripts_block = src.index("{% block scripts %}")
+    for m in re.finditer(r"<script\b[^>]*\bsrc=", src):
+        assert m.start() > scripts_block, (
+            f"{template_name}: a <script src> sits before the page scripts block — "
+            "move it into the page scripts block"
+        )
+
+
 def test_css_valid():
     """Every split CSS file must parse without fatal errors."""
     css_dir = STATIC_DIR / "css"

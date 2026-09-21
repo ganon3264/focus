@@ -11,8 +11,8 @@
     </div>
   {% endif %}
   <script>
-    setTimeout(() => {
+    window.domReady(function () {
       if (window.initVarSortables) window.initVarSortables('{{ preset_id }}');
-    }, 50);
+    });
   </script>
 </div>

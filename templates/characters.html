@@ -292,7 +292,9 @@
 </template>
 
 {% include "modals/text-expander.html" %}
+{% endblock %}
 
+{% block scripts %}
 <script>
 window.ALL_CHARS = [
   {% for char in characters %}

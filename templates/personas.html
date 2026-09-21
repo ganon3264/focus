@@ -22,6 +22,9 @@
     <button class="btn btn-primary" style="grid-column: span 2;">Create Persona</button>
   </form>
 </div>
+{% endblock %}
+
+{% block scripts %}
 <script>
 function promptDeletePersona(btn) {
   var pid = btn.dataset.personaId || '';
