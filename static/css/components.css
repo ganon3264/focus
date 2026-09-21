@@ -945,6 +945,35 @@
   .secret-item:hover { border-color: var(--active-text); }
 }
 
+/* Sidebar tool launcher — 2 columns so any item count stays balanced. */
+.tools-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+.tool-tile {
+  justify-content: flex-start;
+  gap: 0.5rem;
+  padding: 0.5rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.tool-tile > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tool-tile > svg {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  transition: color var(--transition);
+}
+.tool-tile:hover > svg,
+.tool-tile:focus-visible > svg {
+  color: var(--accent);
+}
+
 /* Extension toolbar / modal icons — the spec embeds raw SVG, sized to fill. */
 .ext-icon {
   display: inline-flex;

@@ -1,16 +1,18 @@
 {% from "macros.html" import icon_character, icon_masks, icon_sliders, icon_database, icon_list, icon_stack, icon_hammer, icon_extensions, icon_palette, icon_plug %}
 <div class="sidebar-section">
   <div class="sidebar-title">Tools</div>
-  <div class="grid grid-cols-3 gap-2">
-    <button class="btn btn-secondary w-full flex-col gap-0.5 py-2 text-[10px] leading-tight" onclick="openModal('modal-characters')">{{ icon_character(20) }}<span>Characters</span></button>
-    <button class="btn btn-secondary w-full flex-col gap-0.5 py-2 text-[10px] leading-tight" onclick="openModal('modal-personas')">{{ icon_masks(20) }}<span>Personas</span></button>
-    <button class="btn btn-secondary w-full flex-col gap-0.5 py-2 text-[10px] leading-tight" onclick="openModal('modal-sampler')">{{ icon_sliders(20) }}<span>Samplers</span></button>
-    <button class="btn btn-secondary w-full flex-col gap-0.5 py-2 text-[10px] leading-tight" onclick="openModal('modal-backups')">{{ icon_database(20) }}<span>Backups</span></button>
-    <button class="btn btn-secondary w-full flex-col gap-0.5 py-2 text-[10px] leading-tight" onclick="openModal('modal-itemizer'); window.dispatchEvent(new CustomEvent('itemizer-open'));">{{ icon_list(20) }}<span>Itemizer</span></button>
-    <button class="btn btn-secondary w-full flex-col gap-0.5 py-2 text-[10px] leading-tight" onclick="openModal('modal-arranger')">{{ icon_stack(20) }}<span>Arranger</span></button>
-    <button class="btn btn-secondary w-full flex-col gap-0.5 py-2 text-[10px] leading-tight" onclick="openModal('modal-tools')">{{ icon_hammer(20) }}<span>Tool Calls</span></button>
-    <button class="btn btn-secondary w-full flex-col gap-0.5 py-2 text-[10px] leading-tight" onclick="openModal('modal-extensions')">{{ icon_extensions(20) }}<span>Extensions</span></button>
-    <button class="btn btn-secondary w-full flex-col gap-0.5 py-2 text-[10px] leading-tight" data-action="actionOpenThemeModal">{{ icon_palette(20) }}<span>Themes</span></button>
-    <button class="btn btn-secondary w-full flex-col gap-0.5 py-2 text-[10px] leading-tight" onclick="openModal('modal-providers')">{{ icon_plug(20) }}<span>Providers</span></button>
+  <!-- Column-major, right column first: it sits against the content pane, so it's the near
+       column for a cursor arriving from the centre. Ranks descend down each column. -->
+  <div class="tools-grid">
+    <button class="btn btn-secondary tool-tile" onclick="openModal('modal-tools')" title="Tool Calls">{{ icon_hammer(18) }}<span>Tool Calls</span></button>
+    <button class="btn btn-secondary tool-tile" onclick="openModal('modal-characters')" title="Characters">{{ icon_character(18) }}<span>Characters</span></button>
+    <button class="btn btn-secondary tool-tile" onclick="openModal('modal-itemizer'); window.dispatchEvent(new CustomEvent('itemizer-open'));" title="Itemizer">{{ icon_list(18) }}<span>Itemizer</span></button>
+    <button class="btn btn-secondary tool-tile" onclick="openModal('modal-personas')" title="Personas">{{ icon_masks(18) }}<span>Personas</span></button>
+    <button class="btn btn-secondary tool-tile" onclick="openModal('modal-extensions')" title="Extensions">{{ icon_extensions(18) }}<span>Extensions</span></button>
+    <button class="btn btn-secondary tool-tile" onclick="openModal('modal-providers')" title="Providers">{{ icon_plug(18) }}<span>Providers</span></button>
+    <button class="btn btn-secondary tool-tile" data-action="actionOpenThemeModal" title="Themes">{{ icon_palette(18) }}<span>Themes</span></button>
+    <button class="btn btn-secondary tool-tile" onclick="openModal('modal-arranger')" title="Arranger">{{ icon_stack(18) }}<span>Arranger</span></button>
+    <button class="btn btn-secondary tool-tile" onclick="openModal('modal-backups')" title="Backups">{{ icon_database(18) }}<span>Backups</span></button>
+    <button class="btn btn-secondary tool-tile" onclick="openModal('modal-sampler')" title="Samplers">{{ icon_sliders(18) }}<span>Samplers</span></button>
   </div>
 </div>
