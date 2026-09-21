@@ -1,0 +1,152 @@
+{% from "macros.html" import hint_tooltip %}
+{% from "modal-shell.html" import modal_shell %}
+
+<!-- MAIN MODALS -->
+{% call modal_shell('modal-sampler', 'Generation Parameters', max_width='550px', content_style='display:flex;flex-direction:column;min-height:400px;') %}
+<div class="flex-1 overflow-y-auto">
+  {% include "modals/sampler.html" %}
+</div>
+{% endcall %}
+
+{% call modal_shell('modal-tools', 'Tool Calls', max_width='700px', content_style='display:flex;flex-direction:column;overflow:hidden;') %}
+{% include "modals/tools.html" %}
+{% endcall %}
+
+{% call modal_shell('modal-extensions', 'Extensions', max_width='700px', content_style='display:flex;flex-direction:column;overflow:hidden;') %}
+{% include "modals/extensions.html" %}
+{% endcall %}
+
+{% call modal_shell('modal-itemizer', 'Prompt Itemizer', max_width='700px', content_style='display:flex;flex-direction:column;height:80vh;') %}
+<div class="flex-1 overflow-hidden min-h-0">
+  {% include "modals/itemizer.html" %}
+</div>
+{% endcall %}
+
+{% call modal_shell('modal-characters', 'Characters', max_width='800px', content_style='display:flex;flex-direction:column;height:80vh;') %}
+<div id="characters-modal-body" class="flex-1 overflow-hidden min-h-0">
+  <div id="characters-modal-body-inner" class="h-full">Loading…</div>
+</div>
+{% endcall %}
+
+{% set prefix = 'char' %}{% set modal_id = 'modal-edit-character' %}{% set entity_name = 'Character' %}{% set upload_fn = 'actionUploadCharMedia' %}{% set avatar_fn = 'actionUploadCharAvatar' %}{% set submit_fn = 'actionSubmitEditCharacter' %}{% set show_theme = true %}{% set show_greetings = true %}
+{% include "modals/edit-entity.html" %}
+
+{% call modal_shell('modal-personas', 'Personas', max_width='800px', content_style='display:flex;flex-direction:column;height:80vh;') %}
+<div id="personas-modal-body" class="flex-1 overflow-hidden min-h-0">
+  <div id="personas-modal-body-inner" class="h-full">Loading…</div>
+</div>
+{% endcall %}
+
+{% set prefix = 'persona' %}{% set modal_id = 'modal-edit-persona' %}{% set entity_name = 'Persona' %}{% set upload_fn = 'actionUploadPersonaMedia' %}{% set avatar_fn = 'actionUploadPersonaAvatar' %}{% set submit_fn = 'actionSubmitEditPersona' %}{% set show_theme = false %}{% set show_greetings = false %}
+{% include "modals/edit-entity.html" %}
+
+{% call modal_shell('modal-providers', 'Providers', max_width='1000px', content_style='display:flex;flex-direction:column;max-height:85vh;') %}
+<div id="providers-modal-body" style="flex:1;overflow:hidden;">
+  <div id="providers-modal-body-inner" class="h-full">Loading…</div>
+</div>
+{% endcall %}
+
+<!-- MACRO REFERENCE MODAL -->
+{% include "modals/macro-reference.html" %}
+
+<!-- EDIT MESSAGE MODAL -->
+{% include "modals/edit-message.html" %}
+
+{% include "modals/text-expander.html" %}
+
+<!-- RENAME PRESET MODAL -->
+{% call modal_shell('modal-rename-preset', 'Rename Preset', max_width='420px', dirty_fields='#rename-preset-form input') %}
+<div id="rename-preset-form" x-data="{ renameValue: '', renameTargetId: '', dirty: false }" @dirty-changed.window="if ($event.detail.id === 'modal-rename-preset') dirty = $event.detail.dirty">
+  <div>
+    <label class="text-xs font-bold text-muted mb-1 block">Preset Name</label>
+    <input type="text" x-model="renameValue" class="form-control" @keydown.enter="confirmRename()">
+  </div>
+  <div class="flex items-center gap-2 mt-2">
+    <span x-show="dirty" class="text-xs font-bold shrink-0" style="color: var(--accent);">
+      Unsaved changes — press Save to apply
+    </span>
+    <div class="flex justify-end gap-2 items-center ml-auto">
+      <button type="button" class="btn btn-secondary" @click="closeModal('modal-rename-preset')">Cancel</button>
+      <button type="button" class="btn btn-primary" @click="confirmRename()" :disabled="!dirty || !renameValue.trim()" :class="dirty ? '' : 'opacity-50'">Save</button>
+    </div>
+  </div>
+</div>
+{% endcall %}
+
+<!-- DUPLICATE PRESET MODAL -->
+{% call modal_shell('modal-dup-preset', 'Duplicate Preset', max_width='420px') %}
+<div id="dup-preset-form" x-data="{ dupValue: '', dupSourceId: '' }">
+  <div>
+    <label class="text-xs font-bold text-muted mb-1 block">Preset Name</label>
+    <input type="text" x-model="dupValue" class="form-control" @keydown.enter="confirmDuplicate()">
+  </div>
+  <div class="flex justify-end gap-2 items-center mt-2">
+    <button type="button" class="btn btn-secondary" @click="closeModal('modal-dup-preset')">Cancel</button>
+    <button type="button" class="btn btn-primary" @click="confirmDuplicate()" :disabled="!dupValue.trim()" :class="dupValue.trim() ? '' : 'opacity-50'">Duplicate</button>
+  </div>
+</div>
+{% endcall %}
+
+<!-- PROMPT ARRANGER MODAL -->
+{% call modal_shell('modal-arranger', 'Prompt Arranger', max_width='600px', width='90vw', content_style='display:flex;flex-direction:column;height:85vh;padding:1.5rem 1.5rem 0 1.5rem;') %}
+<div id="arranger-modal-body" style="flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 0.5rem 1rem 1rem 1rem;">
+  <div class="flex items-center gap-1 mb-2 text-xs text-muted">
+    Arrange and configure prompt blocks that make up your preset.
+    {{ hint_tooltip('Text blocks are fully custom written content. Sentinel types (Character Description, Personality, User Persona, Chat History, Character Blocks) auto-populate from the active character or persona card.') }}
+  </div>
+  <div id="arranger-content" style="flex: 1; min-height: 0; display: flex; flex-direction: column;">
+    {% if preset %}
+      {% with preset_id = preset.id, blocks = preset_blocks %}
+        {% include "presets/prompt-arranger.html" %}
+      {% endwith %}
+    {% else %}
+      <div class="text-muted text-center mt-4">Select a preset first.</div>
+    {% endif %}
+  </div>
+</div>
+{% endcall %}
+
+<!-- VARIABLE EDIT MODAL -->
+{% call modal_shell('var-edit-modal', 'Edit Variable Option', max_width='500px', width='90vw', z_index='1000', overlay_close=true, dirty_fields='#var-modal-group,#var-modal-label,#var-modal-content') %}
+<div class="flex flex-col gap-3">
+  <div>
+    <div class="flex items-center gap-1 mb-1">
+      <label class="text-xs font-bold text-muted block">Variable Group Name</label>
+      {{ hint_tooltip('Groups related options together (e.g. Tense). Referenced in prompt blocks via <code>{{ getvar::Name }}</code>.') }}
+    </div>
+    <input type="text" id="var-modal-group" class="form-control" placeholder="e.g. Tense">
+  </div>
+  <div>
+    <div class="flex items-center gap-1 mb-1">
+      <label class="text-xs font-bold text-muted block">Option Label</label>
+      {{ hint_tooltip('The display name for this specific option (e.g. Past Tense).') }}
+    </div>
+    <input type="text" id="var-modal-label" class="form-control" placeholder="e.g. First Person">
+  </div>
+  <div>
+    <div class="flex items-center gap-1 mb-1">
+      <label class="text-xs font-bold text-muted block">Value to Inject</label>
+      {{ hint_tooltip('The actual text inserted into the prompt when this option is selected. Use <code>{{ getvar::Name }}</code> in your prompt blocks to reference this variable group.') }}
+    </div>
+    <textarea id="var-modal-content" rows="6" class="form-control" style="resize:vertical;" placeholder="Enter the text to inject..."></textarea>
+  </div>
+  <div class="flex items-center gap-2 mt-2">
+    <span data-dirty-hint class="text-xs font-bold hidden" style="color: var(--accent);">
+      Unsaved changes — press Save to apply
+    </span>
+    <div class="flex justify-end gap-2 items-center ml-auto">
+      <button type="button" class="btn btn-secondary" data-action="actionCloseModal" data-modal-id="var-edit-modal">Cancel</button>
+      <button type="button" class="btn btn-primary" id="var-modal-save" data-dirty-save onclick="saveVarModal()">Save</button>
+    </div>
+  </div>
+</div>
+{% endcall %}
+
+<!-- THEMES MODAL -->
+{% include "modals/theme.html" %}
+
+<!-- BACKUPS MODAL -->
+{% include "modals/backup.html" %}
+
+<!-- SHARED OPTION PICKER (last in DOM so it stacks above all modals) -->
+{% include "modals/option-picker.html" %}

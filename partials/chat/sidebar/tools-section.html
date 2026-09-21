@@ -1,0 +1,16 @@
+{% from "macros.html" import icon_character, icon_masks, icon_sliders, icon_database, icon_list, icon_stack, icon_hammer, icon_extensions, icon_palette, icon_plug %}
+<div class="sidebar-section">
+  <div class="sidebar-title">Tools</div>
+  <div class="grid grid-cols-3 gap-2">
+    <button class="btn btn-secondary w-full flex-col gap-0.5 py-2 text-[10px] leading-tight" onclick="openModal('modal-characters')">{{ icon_character(20) }}<span>Characters</span></button>
+    <button class="btn btn-secondary w-full flex-col gap-0.5 py-2 text-[10px] leading-tight" onclick="openModal('modal-personas')">{{ icon_masks(20) }}<span>Personas</span></button>
+    <button class="btn btn-secondary w-full flex-col gap-0.5 py-2 text-[10px] leading-tight" onclick="openModal('modal-sampler')">{{ icon_sliders(20) }}<span>Samplers</span></button>
+    <button class="btn btn-secondary w-full flex-col gap-0.5 py-2 text-[10px] leading-tight" onclick="openModal('modal-backups')">{{ icon_database(20) }}<span>Backups</span></button>
+    <button class="btn btn-secondary w-full flex-col gap-0.5 py-2 text-[10px] leading-tight" onclick="openModal('modal-itemizer'); window.dispatchEvent(new CustomEvent('itemizer-open'));">{{ icon_list(20) }}<span>Itemizer</span></button>
+    <button class="btn btn-secondary w-full flex-col gap-0.5 py-2 text-[10px] leading-tight" onclick="openModal('modal-arranger')">{{ icon_stack(20) }}<span>Arranger</span></button>
+    <button class="btn btn-secondary w-full flex-col gap-0.5 py-2 text-[10px] leading-tight" onclick="openModal('modal-tools')">{{ icon_hammer(20) }}<span>Tool Calls</span></button>
+    <button class="btn btn-secondary w-full flex-col gap-0.5 py-2 text-[10px] leading-tight" onclick="openModal('modal-extensions')">{{ icon_extensions(20) }}<span>Extensions</span></button>
+    <button class="btn btn-secondary w-full flex-col gap-0.5 py-2 text-[10px] leading-tight" data-action="actionOpenThemeModal">{{ icon_palette(20) }}<span>Themes</span></button>
+    <button class="btn btn-secondary w-full flex-col gap-0.5 py-2 text-[10px] leading-tight" onclick="openModal('modal-providers')">{{ icon_plug(20) }}<span>Providers</span></button>
+  </div>
+</div>
