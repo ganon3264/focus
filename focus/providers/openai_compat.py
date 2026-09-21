@@ -15,12 +15,23 @@ from ..core.utils import (
 )
 from ..tools import ToolCall
 from .base import BaseProvider
+from .profile import Capabilities, ProviderProfile
 
 logger = get_logger("providers.openai_compat")
 
 
 class OpenAICompatProvider(BaseProvider):
-    _include_stream_options = True
+    type = "openai_compat"
+    profile = ProviderProfile(caps=Capabilities(reasoning_formats=("openai",)))
+
+    @classmethod
+    def from_row(cls, row: dict, params: dict) -> "OpenAICompatProvider":
+        return cls(
+            base_url=row["base_url"] or DEFAULT_OPENAI_COMPAT_BASE_URL,
+            api_key=row["api_key"] or "",
+            model=row["model"],
+            params=params,
+        )
 
     def _get_client(self) -> AsyncOpenAI:
         return AsyncOpenAI(

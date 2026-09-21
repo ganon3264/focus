@@ -1,9 +1,11 @@
 (function () {
   window.updateContinueButtons = function () {
     var type = StateManager.get('provider_type');
-    var isGoogle = type === 'google_aistudio' || type === 'google_vertex';
+    var caps = (window.ProviderSchema && ProviderSchema.capabilities(type)) || {};
+    // Continue is only meaningful where the provider accepts a prefill.
+    var noPrefill = caps.supports_prefill === false;
     document.querySelectorAll('.continue-btn').forEach(function (btn) {
-      btn.classList.toggle('hidden', isGoogle);
+      btn.classList.toggle('hidden', noPrefill);
     });
   };
 

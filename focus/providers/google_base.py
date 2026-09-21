@@ -7,38 +7,27 @@ from google.genai import types
 from ..core.logger import get_logger
 from ..tools import ToolCall
 from .base import BaseProvider
+from .google_safety import AI_STUDIO_HARM_CATEGORIES, VERTEX_HARM_CATEGORIES
+from .profile import Capabilities, ProviderProfile
 
 logger = get_logger("providers.google_base")
 
-_HARM_CATEGORIES = [
-    "HARM_CATEGORY_HARASSMENT",
-    "HARM_CATEGORY_HATE_SPEECH",
-    "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-    "HARM_CATEGORY_DANGEROUS_CONTENT",
-    "HARM_CATEGORY_CIVIC_INTEGRITY",
-    "HARM_CATEGORY_IMAGE_HATE",
-    "HARM_CATEGORY_IMAGE_DANGEROUS_CONTENT",
-    "HARM_CATEGORY_IMAGE_HARASSMENT",
-    "HARM_CATEGORY_IMAGE_SEXUALLY_EXPLICIT",
-    "HARM_CATEGORY_JAILBREAK",
-]
-
-VERTEX_SAFETY_OFF = [types.SafetySetting(category=c, threshold="OFF") for c in _HARM_CATEGORIES]
+VERTEX_SAFETY_OFF = [types.SafetySetting(category=c, threshold="OFF") for c in VERTEX_HARM_CATEGORIES]
 
 AI_STUDIO_SAFETY_OFF = [
     types.SafetySetting(category=c, threshold=types.HarmBlockThreshold.BLOCK_NONE)
-    for c in [
-        "HARM_CATEGORY_HARASSMENT",
-        "HARM_CATEGORY_HATE_SPEECH",
-        "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-        "HARM_CATEGORY_DANGEROUS_CONTENT",
-    ]
+    for c in AI_STUDIO_HARM_CATEGORIES
 ]
 
 
 class GoogleProviderBase(BaseProvider):
-    supports_prefill = False
-    supports_tools = True
+    profile = ProviderProfile(
+        caps=Capabilities(
+            supports_prefill=False,
+            thought_signatures=True,
+            reasoning_formats=("google",),
+        ),
+    )
 
     def __init__(self, api_key: str, model: str, params: dict):
         super().__init__("", api_key, model, params)

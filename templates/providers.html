@@ -26,8 +26,9 @@
     <div class="form-group">
       <label>Type</label>
       <select name="type">
-        <option value="openai_compat">OpenAI Compatible</option>
-        <option value="openrouter">OpenRouter</option>
+        {% for opt in provider_type_options() %}
+        <option value="{{ opt.value }}">{{ opt.label }}</option>
+        {% endfor %}
       </select>
     </div>
     <div class="form-group">

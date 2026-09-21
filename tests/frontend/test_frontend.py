@@ -17,6 +17,13 @@ STATIC_DIR = Path("static").resolve()
 loader = FileSystemLoader([str(TEMPLATES_DIR), str(PARTIALS_DIR)])
 env = Environment(loader=loader, undefined=StrictUndefined)
 
+# Mirror the globals registered by focus/routers/pages.py so templates that
+# call them can render in tests.
+from focus.providers.schema import provider_schema, provider_type_options  # noqa: E402
+
+env.globals["provider_schema"] = provider_schema
+env.globals["provider_type_options"] = provider_type_options
+
 ALL_TEMPLATES = sorted(
     [str(p.relative_to(TEMPLATES_DIR)) for p in TEMPLATES_DIR.rglob("*.html")]
     + [str(p.relative_to(PARTIALS_DIR)) for p in PARTIALS_DIR.rglob("*.html")]

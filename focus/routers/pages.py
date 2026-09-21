@@ -15,6 +15,7 @@ from focus.core.macros import MACRO_DEFINITIONS, SPECIAL_TOKENS, apply_macros, b
 from focus.core.message_render import render_message_segments
 from focus.core.utils import greetings_from_card, merge_greeting_into_list, parse_greetings_json, variable_group_name
 from focus.prompt_chain import partition_blocks, resolve_variable_blocks
+from focus.providers.schema import provider_schema, provider_type_options
 
 router = APIRouter()
 
@@ -44,6 +45,8 @@ if isinstance(templates.env.loader, FileSystemLoader):
 templates.env.globals["debug"] = DEBUG_MODE
 templates.env.globals["macro_definitions"] = MACRO_DEFINITIONS
 templates.env.globals["special_tokens"] = SPECIAL_TOKENS
+templates.env.globals["provider_schema"] = provider_schema
+templates.env.globals["provider_type_options"] = provider_type_options
 
 
 async def _theme_context(db: aiosqlite.Connection, character: dict | None) -> dict:

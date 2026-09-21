@@ -1,8 +1,10 @@
 import httpx
+from dataclasses import replace
 
 from ..core.logger import get_logger
 from ..core.utils import MODEL_FETCH_HTTP_TIMEOUT
 from .openai_compat import OpenAICompatProvider
+from .profile import ProviderProfile
 
 logger = get_logger("providers.deepseek")
 
@@ -10,11 +12,23 @@ MODELS_URL = "https://api.deepseek.com/models"
 
 
 class DeepseekProvider(OpenAICompatProvider):
-    echoes_prefill = False
+    type = "deepseek"
+    profile = ProviderProfile(
+        caps=replace(
+            OpenAICompatProvider.profile.caps,
+            echoes_prefill=False,
+            native_reasoning_key="reasoning_content",
+            reasoning_formats=("deepseek",),
+        ),
+    )
 
     def __init__(self, api_key: str, model: str, params: dict):
         base_url = "https://api.deepseek.com/beta"
         super().__init__(base_url, api_key, model, params)
+
+    @classmethod
+    def from_row(cls, row: dict, params: dict) -> "DeepseekProvider":
+        return cls(api_key=row["api_key"] or "", model=row["model"], params=params)
 
     async def fetch_models(self) -> list[dict]:
         headers = self._build_headers()

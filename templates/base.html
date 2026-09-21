@@ -63,6 +63,7 @@
     </script>
 
     <script>window.DEBUG = {{ 'true' if debug else 'false' }};</script>
+    <script>window.PROVIDER_SCHEMA = {{ provider_schema() | tojson }};</script>
 
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
     <link rel="stylesheet" href="/static/inter.css" />
@@ -185,6 +186,7 @@
     <script src="/static/js/ui/media-utils.js"></script>
     <script src="/static/js/modals/edit-entity.js"></script>
     <script src="/static/js/core/selection.js"></script>
+    <script src="/static/js/core/provider-schema.js"></script>
     <script src="/static/js/modals/sampler-defaults.js"></script>
     <script src="/static/js/ui/notifications.js"></script>
     {% block content %}{% endblock %} {% include "modals/confirm.html" %}

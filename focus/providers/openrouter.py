@@ -2,6 +2,8 @@ import httpx
 
 from ..core.logger import get_logger
 from .openai_compat import OpenAICompatProvider
+from .profile import ProviderProfile
+from dataclasses import replace
 
 logger = get_logger("providers.openrouter")
 
@@ -9,12 +11,25 @@ OPENROUTER_BASE = "https://openrouter.ai/api/v1"
 
 
 class OpenRouterProvider(OpenAICompatProvider):
-    _include_stream_options = False
+    type = "openrouter"
+    profile = ProviderProfile(
+        caps=replace(
+            OpenAICompatProvider.profile.caps,
+            include_stream_options=False,
+            supports_ephemeral_cache=True,
+            reasoning_formats=None,
+        ),
+        context_kwargs=("session_id",),
+    )
 
     def __init__(self, api_key: str, model: str, params: dict, site_url: str = "", app_name: str = "Focus"):
         super().__init__(OPENROUTER_BASE, api_key, model, params)
         self.site_url = site_url
         self.app_name = app_name
+
+    @classmethod
+    def from_row(cls, row: dict, params: dict) -> "OpenRouterProvider":
+        return cls(api_key=row["api_key"] or "", model=row["model"], params=params)
 
     async def fetch_models(self) -> list[dict]:
         from ..core.utils import MODEL_FETCH_HTTP_TIMEOUT

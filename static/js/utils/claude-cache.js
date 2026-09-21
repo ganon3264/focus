@@ -1,11 +1,8 @@
 (function () {
   window.isClaudeProvider = function (provider) {
-    return (
-      provider &&
-      provider.type === 'openrouter' &&
-      provider.model &&
-      provider.model.startsWith('anthropic/claude')
-    );
+    if (!provider || !provider.model || !provider.model.startsWith('anthropic/claude')) return false;
+    var caps = window.ProviderSchema && ProviderSchema.capabilities(provider.type);
+    return !!(caps && caps.supports_ephemeral_cache);
   };
 
   window.updateClaudeCache = function (providerId, samplers) {

@@ -1,12 +1,28 @@
+from dataclasses import replace
+
 from .openai_compat import OpenAICompatProvider
+from .profile import ProviderProfile
 
 
 class MoonshotProvider(OpenAICompatProvider):
-    echoes_prefill = False
+    type = "moonshot"
+    profile = ProviderProfile(
+        caps=replace(
+            OpenAICompatProvider.profile.caps,
+            echoes_prefill=False,
+            native_reasoning_key="reasoning_content",
+            reasoning_formats=(),
+        ),
+        context_kwargs=("prompt_cache_key",),
+    )
 
     def __init__(self, api_key: str, model: str, params: dict):
         base_url = "https://api.moonshot.ai/v1"
         super().__init__(base_url, api_key, model, params)
+
+    @classmethod
+    def from_row(cls, row: dict, params: dict) -> "MoonshotProvider":
+        return cls(api_key=row["api_key"] or "", model=row["model"], params=params)
 
     async def stream_complete(self, messages: list[dict], **kwargs):
         include_reasoning = kwargs.pop("include_reasoning", None)

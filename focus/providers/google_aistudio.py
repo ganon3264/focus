@@ -11,9 +11,15 @@ logger = get_logger("providers.google_aistudio")
 
 
 class GoogleAIStudioProvider(GoogleProviderBase):
+    type = "google_aistudio"
+
     def __init__(self, api_key: str, model: str, params: dict):
         super().__init__(api_key, model, params)
         self.client = genai.Client(api_key=self.api_key or os.environ.get("GEMINI_API_KEY"))
+
+    @classmethod
+    def from_row(cls, row: dict, params: dict) -> "GoogleAIStudioProvider":
+        return cls(api_key=row["api_key"] or "", model=row["model"], params=params)
 
     async def fetch_models(self) -> list[dict]:
         aistudio_models = await self.client.aio.models.list()

@@ -4,9 +4,41 @@ from collections.abc import AsyncIterator
 import httpx
 
 from ..core.utils import MODEL_FETCH_HTTP_TIMEOUT
+from .profile import Capabilities, ProviderProfile
+from .registry import register
+
+
+def _apply_caps(cls: type) -> None:
+    """Copy a profile's capability flags onto the class.
+
+    Keeps ``Provider.supports_tools`` / ``supports_prefill`` / ``echoes_prefill``
+    working at both class and instance level while the profile stays the single
+    source of truth.
+    """
+    prof = getattr(cls, "profile", None)
+    if prof is None:
+        return
+    cls.supports_tools = prof.caps.supports_tools
+    cls.supports_prefill = prof.caps.supports_prefill
+    cls.echoes_prefill = prof.caps.echoes_prefill
+    cls._include_stream_options = prof.caps.include_stream_options
 
 
 class BaseProvider(ABC):
+    type: str = ""
+    profile: ProviderProfile = ProviderProfile(caps=Capabilities())
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        _apply_caps(cls)
+        if cls.__dict__.get("type"):
+            register(cls)
+
+    @classmethod
+    def from_row(cls, row: dict, params: dict) -> "BaseProvider":
+        """Construct an instance from a provider DB row. Overridden per type."""
+        raise NotImplementedError(f"{cls.__name__} must implement from_row()")
+
     def __init__(self, base_url: str, api_key: str, model: str, params: dict):
         self.base_url = base_url.rstrip("/") if base_url else ""
         self.api_key = api_key or ""
@@ -43,11 +75,6 @@ class BaseProvider(ABC):
             return data
         return []
 
-    supports_prefill: bool = True
-    echoes_prefill: bool = True
-
-    supports_tools: bool = True
-
     @abstractmethod
     async def stream_complete(
         self,
@@ -67,3 +94,6 @@ class BaseProvider(ABC):
         replayed through the same events. The event contract is identical
         either way; callers never need to know which was used.
         """
+
+
+_apply_caps(BaseProvider)

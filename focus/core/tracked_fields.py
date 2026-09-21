@@ -100,32 +100,19 @@ def attach_to_message(msg: dict, meta: dict[str, Any]) -> None:
                 msg[cfg["history_key"]] = val
 
 
-_COMPATIBLE_FORMATS: dict[str, tuple[str, ...] | None] = {
-    "openai_compat": ("openai",),
-    "openrouter": None,  # pass everything — router handles multiple backends
-    "deepseek": ("deepseek",),
-    "moonshot": (),
-    "google_aistudio": ("google",),
-    "google_vertex": ("google",),
-}
+def filter_reasoning_details(msg: dict, formats: tuple[str, ...] | None) -> None:
+    """Remove ``reasoning_details`` items whose format is incompatible.
 
-
-def filter_reasoning_details(msg: dict, prov_type: str) -> None:
-    """Remove ``reasoning_details`` items whose format is incompatible with *prov_type*.
-
-    Each reasoning_details item carries a ``"format"`` field like
-    ``"anthropic-claude-v1"`` or ``"openai-responses-v1"``.  Items whose
-    format prefix doesn't match the current provider are stripped to avoid
-    sending provider-specific schemas (signatures, encrypted blobs) to a
-    different provider.
+    Each item carries a ``"format"`` field like ``"anthropic-claude-v1"`` or
+    ``"openai-responses-v1"``. Items whose format prefix doesn't match
+    *formats* are stripped so provider-specific schemas (signatures, encrypted
+    blobs) are never replayed elsewhere. ``None`` keeps everything (OpenRouter
+    normalizes on its side).
     """
     rd = msg.get("reasoning_details")
-    if not rd or not isinstance(rd, list):
+    if not rd or not isinstance(rd, list) or formats is None:
         return
-    ok = _COMPATIBLE_FORMATS.get(prov_type)
-    if ok is None:
-        return  # openrouter — keep everything
-    filtered = [i for i in rd if not i.get("format") or any(i["format"].startswith(p) for p in ok)]
+    filtered = [i for i in rd if not i.get("format") or any(i["format"].startswith(p) for p in formats)]
     if len(filtered) != len(rd):
         msg["reasoning_details"] = filtered if filtered else None
 

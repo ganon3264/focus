@@ -1,41 +1,3 @@
-var PROVIDER_FIELD_CONFIG = {
-  openrouter: {
-    orFields: true,
-    modelInput: true,
-    baseUrl: false,
-    vertexFields: false,
-    modelRequired: true,
-  },
-  google_vertex: {
-    orFields: false,
-    modelInput: true,
-    baseUrl: false,
-    vertexFields: true,
-    modelRequired: true,
-  },
-  google_aistudio: {
-    orFields: false,
-    modelInput: true,
-    baseUrl: false,
-    vertexFields: false,
-    modelRequired: true,
-  },
-  deepseek: {
-    orFields: false,
-    modelInput: true,
-    baseUrl: false,
-    vertexFields: false,
-    modelRequired: true,
-  },
-  moonshot: {
-    orFields: false,
-    modelInput: true,
-    baseUrl: false,
-    vertexFields: false,
-    modelRequired: true,
-  },
-};
-
 function toggleProviderFields(prefix) {
   var type = document.getElementById(prefix + '-type').value;
   var orFields = document.getElementById(prefix + '-or-fields');
@@ -43,13 +5,7 @@ function toggleProviderFields(prefix) {
   var baseUrl = document.getElementById(prefix + '-baseurl');
   var vertexFields = document.getElementById(prefix + '-vertex-fields');
 
-  var cfg = PROVIDER_FIELD_CONFIG[type] || {
-    orFields: false,
-    modelInput: true,
-    baseUrl: true,
-    vertexFields: false,
-    modelRequired: true,
-  };
+  var cfg = ProviderSchema.formConfig(type);
 
   if (orFields) {
     orFields.classList.toggle('hidden', !cfg.orFields);

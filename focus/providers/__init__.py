@@ -1,7 +1,6 @@
 import json
 
 from ..core.logger import get_logger
-from ..core.utils import DEFAULT_OPENAI_COMPAT_BASE_URL
 from .base import BaseProvider
 from .deepseek import DeepseekProvider
 from .google_aistudio import GoogleAIStudioProvider
@@ -9,9 +8,11 @@ from .google_vertex import GoogleVertexProvider
 from .moonshot import MoonshotProvider
 from .openai_compat import OpenAICompatProvider
 from .openrouter import OpenRouterProvider
+from .registry import get_provider_class, registered_types
 
 logger = get_logger("providers")
 
+# Importing the adapters self-registers them by ``type`` in registry.py.
 __all__ = [
     "BaseProvider",
     "OpenAICompatProvider",
@@ -21,6 +22,7 @@ __all__ = [
     "DeepseekProvider",
     "MoonshotProvider",
     "create_provider",
+    "registered_types",
 ]
 
 
@@ -30,44 +32,5 @@ def create_provider(row: dict) -> BaseProvider:
     except json.JSONDecodeError:
         logger.error("Corrupted params_json for provider %s, using empty dict", row.get("id", "?"))
         params = {}
-    ptype = row["type"]
-
-    if ptype == "openai_compat":
-        return OpenAICompatProvider(
-            base_url=row["base_url"] or DEFAULT_OPENAI_COMPAT_BASE_URL,
-            api_key=row["api_key"] or "",
-            model=row["model"],
-            params=params,
-        )
-    elif ptype == "openrouter":
-        return OpenRouterProvider(
-            api_key=row["api_key"] or "",
-            model=row["model"],
-            params=params,
-        )
-    elif ptype == "google_aistudio":
-        return GoogleAIStudioProvider(
-            api_key=row["api_key"] or "",
-            model=row["model"],
-            params=params,
-        )
-    elif ptype == "google_vertex":
-        return GoogleVertexProvider(
-            api_key=row["api_key"] or "",
-            model=row["model"],
-            params=params,
-        )
-    elif ptype == "deepseek":
-        return DeepseekProvider(
-            api_key=row["api_key"] or "",
-            model=row["model"],
-            params=params,
-        )
-    elif ptype == "moonshot":
-        return MoonshotProvider(
-            api_key=row["api_key"] or "",
-            model=row["model"],
-            params=params,
-        )
-    else:
-        raise ValueError(f"Unknown provider type: {ptype!r}")
+    cls = get_provider_class(row["type"])
+    return cls.from_row(row, params)

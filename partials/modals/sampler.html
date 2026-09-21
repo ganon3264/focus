@@ -157,52 +157,6 @@
     </div>
 
     <!-- ── Provider-specific toggles ── -->
-    <div x-show="providerType === 'openrouter'" class="flex flex-col gap-3">
-      <div class="form-group mb-0 flex items-center justify-between mt-2">
-        <label
-          class="text-xs mb-0 cursor-pointer"
-          @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()"
-          >Include Reasoning</label
-        >
-        <div
-          class="arranger-toggle"
-          role="switch"
-          tabindex="0"
-          :class="{ 'active': samplers.include_reasoning }"
-          @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()"
-        ></div>
-      </div>
-      <div
-        x-show="samplers.include_reasoning"
-        x-transition.opacity.duration.200ms
-        class="flex flex-col gap-2"
-        style="display: none"
-      >
-        <div class="tree-child">
-          <span class="tree-dot"></span>
-          <div class="form-group mb-0">
-            <label class="flex justify-between text-xs mb-2"><span>Reasoning Effort</span></label>
-            <div class="flex gap-2 flex-wrap">
-              <button
-                class="btn-tag"
-                :class="!samplers.reasoning_effort ? 'active' : ''"
-                @click.stop="samplers.reasoning_effort = ''; saveStandard()"
-              >
-                Default
-              </button>
-              <template x-for="opt in effortOptions" :key="opt.value">
-                <button
-                  class="btn-tag"
-                  :class="samplers.reasoning_effort === opt.value ? 'active' : ''"
-                  @click.stop="samplers.reasoning_effort = opt.value; saveStandard()"
-                  x-text="opt.label"
-                ></button>
-              </template>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
     <div x-show="showReasoningToggle" class="flex flex-col gap-3">
       <div class="form-group mb-0 flex items-center justify-between mt-2">
         <label
@@ -273,51 +227,6 @@
               :class="samplers.preserve_thinking === 'all' ? 'active' : ''"
               @click.stop="samplers.preserve_thinking = 'all'; saveStandard()"
             >All</button>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div x-show="showGoogleReasoning" class="flex flex-col gap-3">
-      <div class="form-group mb-0 flex items-center justify-between mt-2">
-        <label
-          class="text-xs mb-0 cursor-pointer"
-          @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()"
-          >Enable Thinking</label
-        >
-        <div
-          class="arranger-toggle"
-          role="switch"
-          tabindex="0"
-          :class="{ 'active': samplers.include_reasoning }"
-          @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()"
-        ></div>
-      </div>
-      <div
-        x-show="samplers.include_reasoning"
-        x-transition.opacity.duration.200ms
-        style="display: none"
-      >
-        <div class="tree-child">
-          <span class="tree-dot"></span>
-          <div class="form-group mb-0">
-            <label class="flex justify-between text-xs mb-2"><span>Thinking Level</span></label>
-            <div class="flex gap-2 flex-wrap">
-              <button
-                class="btn-tag"
-                :class="!samplers.reasoning_effort ? 'active' : ''"
-                @click.stop="samplers.reasoning_effort = ''; saveStandard()"
-              >
-                Default
-              </button>
-              <template x-for="opt in effortOptions" :key="opt.value">
-                <button
-                  class="btn-tag"
-                  :class="samplers.reasoning_effort === opt.value ? 'active' : ''"
-                  @click.stop="samplers.reasoning_effort = opt.value; saveStandard()"
-                  x-text="opt.label"
-                ></button>
-              </template>
-            </div>
           </div>
         </div>
       </div>
@@ -652,25 +561,23 @@
         return getSamplerEffortOptions(this.providerType);
       },
 
-      get showTopK() { return ['openrouter', 'google_vertex', 'google_aistudio'].includes(this.providerType); },
-      get showMinP() { return this.providerType === 'openrouter'; },
-      get showFrequencyPenalty() { return ['openai_compat', 'moonshot'].includes(this.providerType); },
-      get showRepetitionPenalty() { return this.providerType === 'openrouter'; },
-      get showThinkingBudget() { return this.providerType === 'openrouter' && this.samplers.include_reasoning; },
+      get showTopK() { return ProviderSchema.fieldVisible(this.providerType, 'top_k'); },
+      get showMinP() { return ProviderSchema.fieldVisible(this.providerType, 'min_p'); },
+      get showFrequencyPenalty() { return ProviderSchema.fieldVisible(this.providerType, 'frequency_penalty'); },
+      get showRepetitionPenalty() { return ProviderSchema.fieldVisible(this.providerType, 'repetition_penalty'); },
+      get showThinkingBudget() { return this.samplers.include_reasoning && ProviderSchema.fieldVisible(this.providerType, 'thinking_budget'); },
       get showCacheConfig() {
-        if (this.providerType !== 'openrouter') return false;
+        if (!ProviderSchema.fieldVisible(this.providerType, 'cache_enabled')) return false;
         const p = window.APP_PROVIDERS && window.APP_PROVIDERS.find(p => p.id === this.providerId);
-        return p && p.model && p.model.startsWith('anthropic/claude');
+        return !!(p && p.model && p.model.startsWith('anthropic/claude'));
       },
-      get showReasoningToggle() { return ['openai_compat', 'deepseek', 'moonshot'].includes(this.providerType); },
-      get showReasoningEffort() { return this.samplers.include_reasoning && ['openai_compat', 'deepseek', 'moonshot'].includes(this.providerType); },
-      get showPreserveThinking() { return this.samplers.include_reasoning && ['openai_compat', 'moonshot', 'deepseek', 'openrouter'].includes(this.providerType); },
-      get showGoogleReasoning() { return ['google_vertex', 'google_aistudio'].includes(this.providerType); },
-      get showSendReasoningHistory() { return ['google_vertex', 'google_aistudio'].includes(this.providerType); },
-      get showTopA() { return this.providerType === 'openrouter'; },
-      get showSeed() { return this.providerType === 'openrouter'; },
-
-      get showVerbosity() { return this.providerType === 'openrouter'; },
+      get showReasoningToggle() { return ProviderSchema.fieldVisible(this.providerType, 'include_reasoning'); },
+      get showReasoningEffort() { return this.samplers.include_reasoning && ProviderSchema.fieldVisible(this.providerType, 'reasoning_effort'); },
+      get showPreserveThinking() { return this.samplers.include_reasoning && ProviderSchema.fieldVisible(this.providerType, 'preserve_thinking'); },
+      get showSendReasoningHistory() { return ProviderSchema.fieldVisible(this.providerType, 'send_reasoning_history'); },
+      get showTopA() { return ProviderSchema.fieldVisible(this.providerType, 'top_a'); },
+      get showSeed() { return ProviderSchema.fieldVisible(this.providerType, 'seed'); },
+      get showVerbosity() { return ProviderSchema.fieldVisible(this.providerType, 'verbosity'); },
 
       async init() {
         // Format sampler-inputs on model changes (slider sync, etc.).
@@ -709,8 +616,7 @@
             stream_enabled: this.samplers.stream_enabled,
           };
 
-          const provider = PROVIDER_SAMPLERS[this.providerType];
-          if (provider) Object.assign(payload, provider.build(this.samplers));
+          Object.assign(payload, ProviderSchema.buildSamplers(this.providerType, this.samplers));
 
           if (!this.samplers.enable_multimodal) {
             payload.disable_multimodal = true;

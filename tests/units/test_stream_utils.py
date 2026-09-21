@@ -1,11 +1,11 @@
 import json
 
-from focus.routers.stream_utils import (
-    _append_history_with_tool_calls,
+from focus.core.request_transforms import (
     apply_claude_caching,
     drop_foreign_reasoning_details,
     filter_unsupported_modalities,
 )
+from focus.routers.stream_utils import _append_history_with_tool_calls
 
 
 class TestFilterUnsupportedModalities:
