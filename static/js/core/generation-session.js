@@ -242,6 +242,7 @@
 
     stop() {
       if (!_controller || _pendingStop) return;
+      if (_state) _state.stopRequested = true;
       var msgId = streamingId();
       if (!msgId) {
         // Nothing registered server-side yet, so there is nothing to drain —
@@ -286,6 +287,7 @@
     // backoff ends at once, then a local abort — no toasts, no drain wait.
     cancel() {
       if (!_active) return;
+      if (_state) _state.stopRequested = true;
       var msgId = streamingId();
       if (msgId) {
         fetch('/api/stop-generation/' + encodeURIComponent(msgId), { method: 'POST' })

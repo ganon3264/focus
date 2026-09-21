@@ -279,6 +279,49 @@ test('retry feedback names the attempt, countdown and reason', function () {
   });
 });
 
+test('stop during a retry does not report recovery', function () {
+  var env = makeEnv();
+  var asst = newAssistant('streaming-message');
+  env.messageList.appendChild(asst);
+  var ctrl = null;
+  var encoder = new TextEncoder();
+  env.sandbox.fetch = function (url) {
+    if (url === '/api/stream') {
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        body: new ReadableStream({
+          start: function (controller) {
+            ctrl = controller;
+            controller.enqueue(encoder.encode('data: ' + JSON.stringify({ type: 'start', message_id: 'm1', user_message_id: 'u1' }) + '\n\n'));
+            controller.enqueue(encoder.encode('data: ' + JSON.stringify({ type: 'retry', attempt: 1, max: 3, delay: 5, reason: 'HTTP 429' }) + '\n\n'));
+          },
+        }),
+      });
+    }
+    if (url.indexOf('/api/stop-generation/') === 0) return Promise.resolve({ ok: true, status: 200 });
+    return Promise.resolve({ ok: true, status: 200, text: function () { return Promise.resolve(''); } });
+  };
+  var settled = false;
+  env.Generation.begin('chat-1', asst, {}).then(function () { settled = true; });
+  return new Promise(function (res) { setTimeout(res, 30); })
+    .then(function () {
+      env.Generation.stop();
+      // The server confirms the stop with its normal `done` terminal event.
+      ctrl.enqueue(encoder.encode('data: ' + JSON.stringify({ type: 'done', message_id: 'm1' }) + '\n\n'));
+      ctrl.close();
+    })
+    .then(function () { return new Promise(function (res) { setTimeout(res, 50); }); })
+    .then(function () {
+      assert(settled, 'session settles after a stop during retry');
+      assert(!env.toasts.some(function (t) { return t.type === 'success' && /Recovered/.test(t.msg); }),
+        'a canceled retry is not reported as recovered');
+      assert(env.toasts.some(function (t) { return /Generation stopped/.test(t.msg); }),
+        'stop is still reported');
+      assert(!env.Generation.isActive(), 'session is idle after a canceled retry');
+    });
+});
+
 test('buffered stream shows retry feedback and renders the replayed full text', function () {
   var env = makeEnv();
   return drive(env, [

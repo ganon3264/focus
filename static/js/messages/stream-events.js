@@ -43,6 +43,7 @@
     this.userMessageId = null;
     this.done = false;
     this.errorMsg = null;
+    this.stopRequested = false;
     this.retryCount = 0;
     this.segments = [];
     this.controller = new AbortController();
@@ -224,9 +225,11 @@
     state.done = true;
     state.messageId = data.message_id;
     if (state.retryCount) {
-      var attempts = state.retryCount;
       window.resetRetryFeedback();
-      if (window.showSuccessToast) {
+      // A stopped run can land here via the server's stop terminal event; it is
+      // not a recovery, so do not claim one.
+      if (!state.stopRequested && window.showSuccessToast) {
+        var attempts = state.retryCount;
         window.showSuccessToast(
           'Recovered after ' + attempts + ' retr' + (attempts === 1 ? 'y' : 'ies'),
           { duration: 2500 },
