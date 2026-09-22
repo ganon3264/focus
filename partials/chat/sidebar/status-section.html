@@ -1,7 +1,7 @@
 {% from "macros.html" import icon_key, icon_chevron_left, icon_chevron_right %}
 <div class="sidebar-section mt-auto">
   <div class="sidebar-title">Status</div>
-  <div style="background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-md); padding:0.5rem;" class="flex flex-col gap-1 text-xs">
+  <div class="status-panel flex flex-col gap-1 text-xs">
     <div class="flex justify-between gap-2"><span class="text-muted">Character</span> <span class="font-bold truncate max-w-[130px]" id="status-character" title="{{ character.name if character else 'None' }}">{{ character.name if character else 'None' }}</span></div>
     <div class="flex justify-between gap-2"><span class="text-muted">Persona</span> <span class="font-bold truncate max-w-[130px]" id="status-persona" title="{{ persona.name if persona else 'None' }}">{{ persona.name if persona else 'None' }}</span></div>
     <div class="flex justify-between gap-2"><span class="text-muted">Profile</span> <span class="font-bold truncate max-w-[130px]" id="status-preset" title="None">None</span></div>

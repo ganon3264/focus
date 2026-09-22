@@ -2,6 +2,7 @@ import aiosqlite
 import pytest
 
 import focus.core.database as database
+from focus.db.themes import BUILTIN_THEMES
 
 
 LEGACY_SCHEMA = """
@@ -51,11 +52,11 @@ async def test_init_db_migrates_legacy_database(legacy_db, monkeypatch):
 
         async with db.execute("SELECT COUNT(*) AS c FROM themes") as cur:
             count = (await cur.fetchone())["c"]
-        assert count == 3, "built-in themes seeded"
+        assert count == len(BUILTIN_THEMES), "built-in themes seeded"
 
         async with db.execute("SELECT COUNT(*) AS c FROM themes WHERE is_system = 1") as cur:
             system = (await cur.fetchone())["c"]
-        assert system == 3, "all built-ins flagged system"
+        assert system == len(BUILTIN_THEMES), "all built-ins flagged system"
 
         cols = await db.execute("PRAGMA table_info(characters)")
         col_names = {row[1] for row in await cols.fetchall()}
@@ -77,4 +78,4 @@ async def test_init_db_idempotent_on_legacy_database(legacy_db, monkeypatch):
     async with aiosqlite.connect(str(legacy_db)) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute("SELECT COUNT(*) AS c FROM themes") as cur:
-            assert (await cur.fetchone())["c"] == 3
+            assert (await cur.fetchone())["c"] == len(BUILTIN_THEMES)

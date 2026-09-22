@@ -368,6 +368,20 @@
     border-color: var(--border-hover);
   }
 
+  .var-group-name {
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .status-panel {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 0.5rem;
+  }
+
   /* Prompt Arranger Drag & Drop */
   .arranger-list {
     display: flex;

@@ -32,11 +32,11 @@
           {% else %} {{ character.name[:1] if character else 'A' }} {% endif %} {% endif %}
         </div>
         <div class="min-w-0">
-          <div class="text-sm font-medium" style="color: var(--text)">
+          <div class="text-sm font-medium message-author" style="color: var(--text)">
             {{ character.name if message.role == 'assistant' and character else (persona.name if message.role == 'user' and persona else message.role) }}
           </div>
           {% if message.role == 'assistant' %}
-          <div class="text-xs text-muted flex items-center gap-1.5 flex-wrap mt-0.5">
+          <div class="text-xs text-muted message-meta flex items-center gap-1.5 flex-wrap mt-0.5">
             {% set has_first_reasoning = (message.get('segments')|selectattr("type", "equalto", "reasoning")|selectattr("index", "equalto", 0)|list|length > 0) if message.get('segments') else message.get('reasoning') %}
             {% if message.model_name %}
             <span>{{ message.model_name }}</span>

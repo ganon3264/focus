@@ -34,6 +34,15 @@
     scrollbar-width: thin;
     scrollbar-color: color-mix(in srgb, var(--accent) 40%, transparent) transparent;
   }
+
+  /* `.scroll-fade` marks the app's vertical scroll regions. `scrollbar-gutter`
+     reserves the bar so the layout doesn't shift when it appears, and the right
+     padding keeps the content off the bar with a consistent margin. */
+  .scroll-fade {
+    scrollbar-gutter: stable;
+    padding-right: var(--scrollbar-gap);
+  }
+
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;

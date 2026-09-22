@@ -6,7 +6,7 @@
     <div class="arranger-header">
       <div class="arranger-title-group" @click="expanded = expandToggle('varGroups', $el.closest('.var-group-container').dataset.groupName)" role="button" tabindex="0" aria-expanded="false" style="cursor: pointer;">
         <span style="font-size: 0.8rem; color: var(--text-muted); width: 16px; text-align: center; display: inline-flex; align-items: center; justify-content: center; transition: rotate var(--transition);" :class="expanded ? 'rotate-90' : ''">{{ icon_chevron_right(12) }}</span>
-        <span style="cursor: pointer; font-size: 0.75rem; font-weight: 700; color: var(--text);">{{ vname }}</span>
+        <span class="var-group-name">{{ vname }}</span>
       </div>
       <div class="arranger-actions" style="gap: 0.25rem; font-size: 0.75rem; color: var(--text-muted);">
         {% if selected %}

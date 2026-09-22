@@ -20,39 +20,29 @@
         <span class="text-xs text-muted inline-flex transition-transform duration-200" :class="open ? 'rotate-180' : ''">{{ icon_chevron_down(12) }}</span>
     </button>
     <div x-show="open" @click.away="open = false" x-transition.opacity.duration.200ms
-         class="dropdown-panel absolute top-full left-0 right-0 mt-1 z-50 max-h-60 overflow-y-auto"
+         class="dropdown-panel preset-menu absolute top-full left-0 right-0 mt-1 z-50 max-h-60 overflow-y-auto"
          style="display: none;">
-       
-      <!-- Add + Import icon buttons -->
-      <div class="flex gap-1 px-2 py-1.5" style="border-bottom: 1px solid var(--border);">
-        <button type="button" class="btn btn-secondary btn-sm flex-1" title="New preset"
+
+      <!-- New / Import -->
+      <div class="preset-menu-actions">
+        <button type="button" class="preset-menu-action" title="New preset"
           @click="open = false"
           hx-post="/api/presets"
           hx-vals='{"name":"New Preset"}'
           hx-swap="none"
           hx-on:htmx:after-request="handlePresetCreated(event)"
-        >{{ icon_plus(14) }}</button>
-        <button type="button" class="btn btn-secondary btn-sm flex-1" title="Import preset"
+        >{{ icon_plus(14) }}<span>New</span></button>
+        <button type="button" class="preset-menu-action" title="Import preset"
           @click="
             open = false;
             document.getElementById('preset-import-file').click();
           "
-        >{{ icon_upload(14) }}</button>
-      </div>
-
-      <!-- Deselect option -->
-      <div class="dropdown-item px-3 py-2 text-sm text-muted text-center"
-           @click="
-             open = false;
-             applyPreset(null);
-           "
-      >
-        — Select Preset —
+        >{{ icon_upload(14) }}<span>Import</span></button>
       </div>
 
       {% for p in presets %}
-      <div class="dropdown-item px-3 py-2 text-sm flex items-center justify-between gap-1"
-           :class="{ 'text-[var(--accent)] font-medium': selectedId === '{{ p.id }}' }"
+      <div class="dropdown-item preset-menu-item flex items-center gap-2"
+           :class="{ 'is-selected': selectedId === '{{ p.id }}' }"
            data-preset-id="{{ p.id }}"
            @click="
              open = false;
@@ -60,20 +50,20 @@
            "
       >
         <span class="truncate flex-1 preset-item-name">{{ p.name }}</span>
-        <div class="flex gap-1 shrink-0">
-          <button type="button" class="btn btn-edit btn-sm btn-compact" title="Duplicate"
+        <div class="preset-item-actions">
+          <button type="button" class="preset-item-action" title="Duplicate"
             onclick="event.stopPropagation(); window.openDuplicateModal(this)"
           >{{ icon_copy(14) }}</button>
-          <button type="button" class="btn btn-edit btn-sm btn-compact" title="Rename"
+          <button type="button" class="preset-item-action" title="Rename"
             onclick="event.stopPropagation(); window.openRenameModal(this)"
           >{{ icon_edit(14) }}</button>
-          <button type="button" class="btn btn-delete-icon btn-sm btn-compact" title="Delete"
+          <button type="button" class="preset-item-action danger" title="Delete"
             onclick="event.stopPropagation(); window.deletePresetById(this.closest('[data-preset-id]').dataset.presetId)"
           >{{ icon_trash(14) }}</button>
         </div>
       </div>
       {% endfor %}
-      
+
     </div>
   </div>
 </div>

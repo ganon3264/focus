@@ -26,7 +26,7 @@
 
   <div x-show="!loaded" class="text-muted text-sm">Loading…</div>
 
-  <div class="flex-1 overflow-y-auto min-h-[360px] pr-2 scroll-fade">
+  <div class="flex-1 overflow-y-auto min-h-[360px] scroll-fade">
     <template x-for="(groupExtensions, category) in grouped" :key="category">
       <div class="mb-3">
         <div class="flex items-center gap-1 mb-1.5 cursor-pointer select-none" @click="toggleCategory(category)">

@@ -10,6 +10,7 @@ from focus.core.utils import now_iso
 BUILTIN_SLATE_ID = "builtin-slate"
 BUILTIN_MIDNIGHT_ID = "builtin-midnight"
 BUILTIN_LIGHT_ID = "builtin-light"
+BUILTIN_INSTRUMENT_ID = "builtin-instrument"
 
 BUILTIN_THEMES = [
     {
@@ -58,6 +59,22 @@ BUILTIN_THEMES = [
             "--text-muted": "#64748b",
             "--role-user": "#059669",
             "--role-assistant": "#d97706",
+        },
+    },
+    {
+        "id": BUILTIN_INSTRUMENT_ID,
+        "name": "Instrument (Amber)",
+        "colors": {
+            "--bg": "#0f1115",
+            "--surface": "#14161a",
+            "--surface-2": "#1a1d22",
+            "--surface-3": "#24282e",
+            "--border": "#262a31",
+            "--accent": "#f0b429",
+            "--text": "#e9ebef",
+            "--text-muted": "#8b929c",
+            "--role-user": "#4ade80",
+            "--role-assistant": "#38bdf8",
         },
     },
 ]

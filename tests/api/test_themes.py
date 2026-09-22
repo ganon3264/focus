@@ -1,5 +1,6 @@
 import pytest
 
+from focus.db.themes import BUILTIN_THEMES
 from tests.helpers import create_character
 
 COLORS = {
@@ -20,7 +21,7 @@ async def test_list_seeded_builtins(client):
     resp = await client.get("/api/themes/")
     assert resp.status_code == 200
     themes = resp.json()
-    assert len(themes) == 3
+    assert len(themes) == len(BUILTIN_THEMES)
     assert all(t["is_system"] for t in themes)
     slate = next(t for t in themes if t["id"] == "builtin-slate")
     assert slate["colors"]["--bg"] == "#0b0d10"

@@ -25,12 +25,13 @@ async def test_seed_builtin_themes_idempotent(db):
     await db_themes.seed_builtin_themes(db)
     await db_themes.seed_builtin_themes(db)
     themes = await db_themes.list_themes(db)
-    assert len(themes) == 3
+    assert len(themes) == len(db_themes.BUILTIN_THEMES)
     ids = {t["id"] for t in themes}
     assert ids == {
         db_themes.BUILTIN_SLATE_ID,
         db_themes.BUILTIN_MIDNIGHT_ID,
         db_themes.BUILTIN_LIGHT_ID,
+        db_themes.BUILTIN_INSTRUMENT_ID,
     }
     assert all(t["is_system"] for t in themes)
 

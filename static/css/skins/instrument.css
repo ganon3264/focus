@@ -1,0 +1,1072 @@
+/* ── Skin: Instrument ─────────────────────────────────────────────────────────
+   Structural overlay for the left sidebar. Colour is never authored here — every
+   value derives from the active theme's tokens via color-mix, so the skin works
+   unchanged on Slate, on Light, and on any user theme in either colour mode.
+   Activated by data-skin="instrument" on <html>; drop that attribute to get the
+   default structure back. Remove this file once the direction is settled.
+   -------------------------------------------------------------------------- */
+[data-skin='instrument'] {
+  --font-mono-skin: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
+    'Liberation Mono', monospace;
+  --hair: color-mix(in srgb, var(--text) 8%, transparent);
+  --hair-strong: color-mix(in srgb, var(--text) 18%, transparent);
+  --engrave: color-mix(in srgb, var(--text-muted) 80%, transparent);
+
+  /* Structure comes from lines, not elevation. */
+  --radius-sm: 2px;
+  --radius-md: 2px;
+  --radius-lg: 3px;
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-edge: none;
+}
+
+/* ── Shell ──────────────────────────────────────────────────────────────── */
+[data-skin='instrument'] .left-sidebar {
+  box-shadow: none;
+  border-right: 1px solid var(--hair);
+}
+
+[data-skin='instrument'] .left-sidebar .sidebar-section {
+  padding: 1.1rem 1.25rem;
+  border-bottom: 1px solid var(--hair);
+}
+
+/* The status readout is the last section. Drop its divider and match the
+   composer's 1.5rem inset so the bottom rules line up across all three panes. */
+[data-skin='instrument'] .left-sidebar .sidebar-section:last-child {
+  padding-bottom: 1.5rem;
+  border-bottom: none;
+}
+
+/* Top mirror: both sidebars start on the same baseline, and the preset selector
+   and the New Chat control are one shared size, so their edges read as a single
+   line across the bodywork. */
+[data-skin='instrument'] .right-sidebar .sidebar-section {
+  padding: 1.1rem 1.25rem;
+}
+
+[data-skin='instrument'] .left-sidebar #preset-selector {
+  padding-right: 0 !important;
+}
+
+[data-skin='instrument'] .left-sidebar #preset-selector .form-control,
+[data-skin='instrument'] .right-sidebar .sidebar-section > .btn-primary {
+  height: 2rem;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+/* Sidebar scroll column. The scrollbar lives in the section's right padding and
+   every element — title rule, selector, tools, status, chat rows, New Chat —
+   ends on the same line just left of it. The scroll region is pulled right by
+   (bar + gap) and keeps the gap as padding, so its content lands back on that
+   line instead of vanishing under the bar. */
+[data-skin='instrument'] {
+  --sidebar-scroll-shift: 1rem; /* bar (0.625rem) + gap (0.375rem) */
+}
+
+[data-skin='instrument'] .left-sidebar .sidebar-section,
+[data-skin='instrument'] .right-sidebar .sidebar-section {
+  padding-right: calc(1.25rem + 0.625rem);
+}
+
+[data-skin='instrument'] .left-sidebar .sidebar-section .scroll-fade,
+[data-skin='instrument'] .right-sidebar .sidebar-section .scroll-fade {
+  margin-right: calc(-1 * var(--sidebar-scroll-shift));
+}
+
+/* Full-bleed hairline under the New Chat control, sitting at the same y as the
+   left sidebar's preset-section divider so the two read as one body line. */
+[data-skin='instrument'] .right-sidebar .sidebar-rule {
+  border-top: 1px solid var(--hair);
+  margin: 1.1rem -1.875rem 0.75rem -1.25rem;
+}
+
+/* ── Section headers: engraved label with a rule running to the edge ────── */
+[data-skin='instrument'] .left-sidebar .sidebar-title,
+[data-skin='instrument'] .right-sidebar .sidebar-title {
+  justify-content: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 0.85rem;
+  font-family: var(--font-mono-skin);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  color: var(--text-muted);
+}
+
+/* order 0 = label, 1 = rule, 2 = trailing action button */
+[data-skin='instrument'] .left-sidebar .sidebar-title::after,
+[data-skin='instrument'] .right-sidebar .sidebar-title::after {
+  content: '';
+  order: 1;
+  flex: 1;
+  height: 1px;
+  background: var(--hair);
+}
+
+[data-skin='instrument'] .left-sidebar .sidebar-title > .action-icon,
+[data-skin='instrument'] .right-sidebar .sidebar-title > .action-icon {
+  order: 2;
+  background: transparent;
+  border: none;
+  width: 18px;
+  height: 18px;
+  color: var(--engrave);
+}
+
+[data-skin='instrument'] .left-sidebar .sidebar-title > .action-icon:hover,
+[data-skin='instrument'] .right-sidebar .sidebar-title > .action-icon:hover {
+  background: transparent;
+  color: var(--accent);
+}
+
+/* ── Preset selector: an engraved readout with bracket corners ──────────── */
+[data-skin='instrument'] .left-sidebar #preset-selector .form-control {
+  background: color-mix(in srgb, var(--text) 3%, transparent);
+  border: none;
+  border-radius: 0;
+  padding: 0.55rem 0.7rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--text);
+}
+
+[data-skin='instrument'] .left-sidebar #preset-selector .form-control:hover,
+[data-skin='instrument'] .left-sidebar #preset-selector .form-control:focus {
+  box-shadow: none;
+  background: color-mix(in srgb, var(--text) 5%, transparent);
+}
+
+/* ── Preset menu: hairline rows, actions revealed on hover ──────────────── */
+[data-skin='instrument'] .preset-menu {
+  padding: 0;
+}
+
+[data-skin='instrument'] .preset-menu-actions {
+  display: flex;
+  border-bottom: 1px solid var(--hair);
+}
+
+[data-skin='instrument'] .preset-menu-action {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.55rem 0.5rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-mono-skin);
+  font-size: 0.62rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  transition: color var(--transition), background var(--transition);
+}
+
+[data-skin='instrument'] .preset-menu-action + .preset-menu-action {
+  border-left: 1px solid var(--hair);
+}
+
+[data-skin='instrument'] .preset-menu-action:hover {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+
+[data-skin='instrument'] .preset-menu .dropdown-item {
+  padding: 0.5rem 0.7rem;
+  font-size: 0.8rem;
+  color: var(--text);
+}
+
+[data-skin='instrument'] .preset-menu .dropdown-item:hover {
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+
+[data-skin='instrument'] .preset-menu-item.is-selected .preset-item-name {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+[data-skin='instrument'] .preset-item-actions {
+  display: flex;
+  gap: 0.1rem;
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+
+[data-skin='instrument'] .preset-menu-item:hover .preset-item-actions,
+[data-skin='instrument'] .preset-menu-item:focus-within .preset-item-actions {
+  opacity: 1;
+}
+
+[data-skin='instrument'] .preset-item-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color var(--transition), background var(--transition);
+}
+
+[data-skin='instrument'] .preset-item-action:hover {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+[data-skin='instrument'] .preset-item-action.danger:hover {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+}
+
+[data-skin='instrument'] .dropdown-panel {
+  border-radius: 0;
+  border-color: var(--hair-strong);
+  box-shadow: 0 14px 34px color-mix(in srgb, #000 45%, transparent);
+}
+
+[data-skin='instrument'] .dropdown-panel .dropdown-item:not(:last-child) {
+  border-bottom-color: var(--hair);
+}
+
+/* ── Preset variables: one hairline list instead of six filled boxes ────── */
+[data-skin='instrument'] .left-sidebar [id^='preset-variables-sortable-'] {
+  gap: 0;
+}
+
+[data-skin='instrument'] .left-sidebar .var-group-container.bg-role-system {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--hair);
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0.5rem 0.25rem 0.5rem 0.5rem;
+}
+
+[data-skin='instrument'] .left-sidebar .var-group-container.bg-role-system:last-child {
+  border-bottom: none;
+}
+
+[data-skin='instrument'] .left-sidebar .var-group-container.bg-role-system:hover {
+  background: transparent;
+}
+
+/* LED: set vs unset. The unset branch is the only one that renders the value
+   without a title attribute, so :has() reads the state without a template hook. */
+[data-skin='instrument'] .left-sidebar .var-group-container .arranger-title-group::before {
+  content: '';
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--text) 20%, transparent);
+}
+
+[data-skin='instrument']
+  .left-sidebar
+  .var-group-container:has(.arranger-actions > span[title])
+  .arranger-title-group::before {
+  background: var(--success);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--success) 55%, transparent);
+}
+
+[data-skin='instrument'] .left-sidebar .var-group-name {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+[data-skin='instrument']
+  .left-sidebar
+  .var-group-container:has(.arranger-actions > span[title])
+  .var-group-name {
+  color: color-mix(in srgb, var(--text) 88%, transparent);
+}
+
+/* Value: the loud element. Mono, amber when set, dim when unset. */
+[data-skin='instrument'] .left-sidebar .var-group-container .arranger-actions > span {
+  font-family: var(--font-mono-skin);
+  font-size: 0.68rem;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+[data-skin='instrument']
+  .left-sidebar
+  .var-group-container:has(.arranger-actions > span[title])
+  .arranger-actions
+  > span {
+  color: var(--accent);
+}
+
+/* ── Expanded group: option rows, flat with hairlines ───────────────────── */
+[data-skin='instrument'] .left-sidebar .sortable-var-options {
+  gap: 0;
+}
+
+[data-skin='instrument'] .left-sidebar .var-option-item {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--hair);
+  border-radius: 0;
+  padding: 0.4rem 0.25rem;
+}
+
+[data-skin='instrument'] .left-sidebar .var-option-item:hover {
+  background: transparent;
+  border-bottom-color: var(--hair-strong);
+}
+
+[data-skin='instrument'] .left-sidebar .var-option-item > span {
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+[data-skin='instrument']
+  .left-sidebar
+  .var-option-item:has(.radio-switch.active)
+  > span {
+  font-weight: 500;
+  color: var(--text);
+}
+
+[data-skin='instrument'] .left-sidebar .radio-switch {
+  width: 14px;
+  height: 14px;
+  border-width: 1px;
+  border-color: var(--hair-strong);
+}
+
+[data-skin='instrument'] .left-sidebar .radio-switch.active {
+  border-color: var(--accent);
+}
+
+[data-skin='instrument'] .left-sidebar .radio-switch .radio-inner {
+  width: 6px;
+  height: 6px;
+}
+
+[data-skin='instrument'] .left-sidebar .radio-add-row {
+  border: none;
+  border-bottom: 1px solid var(--hair);
+  border-radius: 0;
+  padding: 0.4rem 0.25rem;
+  background: transparent;
+}
+
+[data-skin='instrument'] .left-sidebar .radio-add-row:hover {
+  background: transparent;
+  border-bottom-color: var(--accent);
+}
+
+[data-skin='instrument'] .left-sidebar .radio-add-row:hover span {
+  color: var(--accent);
+}
+
+[data-skin='instrument'] .left-sidebar .var-option-item .action-icon.slim {
+  background: transparent;
+  color: var(--text-faint);
+}
+
+[data-skin='instrument'] .left-sidebar .var-option-item .action-icon.slim:hover {
+  background: transparent;
+  color: var(--text);
+}
+
+[data-skin='instrument'] .left-sidebar .var-option-item .action-icon.slim.danger:hover {
+  color: var(--danger);
+}
+
+/* ── Tools: hairline tiles, no fills ────────────────────────────────────── */
+[data-skin='instrument'] .left-sidebar .tools-grid {
+  gap: 0;
+}
+
+[data-skin='instrument'] .left-sidebar .tool-tile {
+  background: transparent;
+  border: none;
+  border-top: 1px solid var(--hair);
+  border-left: 2px solid transparent;
+  border-radius: 0;
+  padding: 0.6rem 0.5rem;
+  font-weight: 500;
+  color: color-mix(in srgb, var(--text) 74%, transparent);
+}
+
+[data-skin='instrument'] .left-sidebar .tool-tile:nth-child(-n + 2) {
+  border-top-color: transparent;
+}
+
+[data-skin='instrument'] .left-sidebar .tool-tile:hover,
+[data-skin='instrument'] .left-sidebar .tool-tile:focus-visible {
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+  border-left-color: var(--accent);
+  color: var(--text);
+}
+
+/* `.btn-secondary:hover` sets all four border colours, which would repaint the
+   tile's top hairline in accent on hover (the first row is exempt via
+   :nth-child). Keep the secondary treatment off the tiles so their borders stay
+   under the tile rules. */
+[data-skin='instrument'] .btn-secondary:not(.tool-tile) {
+  background: transparent;
+  border: 1px solid var(--hair-strong);
+  border-radius: 0;
+  box-shadow: none;
+  color: var(--text-muted);
+}
+
+[data-skin='instrument'] .btn-secondary:not(.tool-tile):hover {
+  background: transparent;
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ── Corner motif ───────────────────────────────────────────────────────── */
+/* Bracket corners from the status readout recur on the framed surfaces that
+   hold a single control: the preset selector, cards, the composer, and the
+   message hover toolbar. */
+[data-skin='instrument'] .status-panel,
+[data-skin='instrument'] .card,
+[data-skin='instrument'] .input-wrapper,
+[data-skin='instrument'] .toolbar,
+[data-skin='instrument'] .left-sidebar #preset-selector .form-control {
+  --corner-size: 8px;
+  --corner-color: var(--hair-strong);
+}
+
+[data-skin='instrument'] .toolbar {
+  --corner-size: 6px;
+}
+
+[data-skin='instrument'] .card,
+[data-skin='instrument'] .left-sidebar #preset-selector .form-control {
+  position: relative;
+}
+
+[data-skin='instrument'] .status-panel::before,
+[data-skin='instrument'] .card::before,
+[data-skin='instrument'] .input-wrapper::before,
+[data-skin='instrument'] .toolbar::before,
+[data-skin='instrument'] .left-sidebar #preset-selector .form-control::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--corner-size);
+  height: var(--corner-size);
+  border: 1px solid var(--corner-color);
+  border-right: none;
+  border-bottom: none;
+  pointer-events: none;
+}
+
+[data-skin='instrument'] .status-panel::after,
+[data-skin='instrument'] .card::after,
+[data-skin='instrument'] .input-wrapper::after,
+[data-skin='instrument'] .toolbar::after,
+[data-skin='instrument'] .left-sidebar #preset-selector .form-control::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: var(--corner-size);
+  height: var(--corner-size);
+  border: 1px solid var(--corner-color);
+  border-left: none;
+  border-top: none;
+  pointer-events: none;
+}
+
+/* ── Status: an instrument readout ──────────────────────────────────────── */
+[data-skin='instrument'] .left-sidebar .status-panel {
+  position: relative;
+  background: color-mix(in srgb, var(--text) 3%, transparent);
+  border: none;
+  border-radius: 0;
+  padding: 0.75rem 0.85rem;
+  gap: 0.5rem;
+}
+
+[data-skin='instrument'] .left-sidebar .status-panel > div > span:first-child {
+  font-family: var(--font-mono-skin);
+  font-size: 0.66rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+[data-skin='instrument'] .left-sidebar .status-panel > div > span:last-child {
+  font-family: var(--font-mono-skin);
+  font-size: 0.72rem;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+}
+
+/* ══ Right sidebar ═════════════════════════════════════════════════════════ */
+[data-skin='instrument'] .right-sidebar {
+  box-shadow: none;
+  border-left: 1px solid var(--hair);
+}
+
+/* Header reads [‹] CHATS ──────── — the collapse button leads on this side, so
+   it keeps order 0 and the label and rule follow it. */
+[data-skin='instrument'] .right-sidebar .sidebar-title > .action-icon {
+  order: 0;
+}
+
+[data-skin='instrument'] .right-sidebar .sidebar-title > span {
+  order: 1;
+}
+
+[data-skin='instrument'] .right-sidebar .sidebar-title::after {
+  order: 2;
+}
+
+/* Primary action: an outlined console button rather than a solid accent block,
+   so each surface keeps a single focal colour (its active/selected row). */
+[data-skin='instrument'] .btn-primary {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  border-radius: 0;
+  box-shadow: none;
+  color: var(--accent);
+  font-family: var(--font-mono-skin);
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+[data-skin='instrument'] .btn-primary:hover {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  border-color: var(--accent);
+  box-shadow: none;
+  transform: none;
+}
+/* Chat list: hairline rows; the active chat is marked by an accent edge. */
+[data-skin='instrument'] .right-sidebar .sidebar-list {
+  gap: 0;
+}
+
+[data-skin='instrument'] .right-sidebar .sidebar-item {
+  background: transparent;
+  border: none;
+  border-left: 2px solid transparent;
+  border-bottom: 1px solid var(--hair);
+  border-radius: 0;
+  gap: 0.5rem;
+  padding: 0.6rem 0.5rem 0.6rem 0.6rem;
+}
+
+[data-skin='instrument'] .right-sidebar .sidebar-item:last-child {
+  border-bottom: none;
+}
+
+[data-skin='instrument'] .right-sidebar .sidebar-item:hover {
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  border-left-color: transparent;
+  border-bottom-color: var(--hair-strong);
+}
+
+[data-skin='instrument'] .right-sidebar .sidebar-item.active {
+  background: transparent;
+  border-left-color: var(--accent);
+  border-bottom-color: var(--hair);
+  color: inherit;
+}
+
+[data-skin='instrument'] .right-sidebar .sidebar-item a > span:first-child {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: color-mix(in srgb, var(--text) 82%, transparent);
+}
+
+[data-skin='instrument'] .right-sidebar .sidebar-item.active a > span:first-child {
+  color: var(--accent);
+}
+
+[data-skin='instrument'] .right-sidebar .sidebar-item a > span:last-child {
+  font-family: var(--font-mono-skin);
+  font-size: 0.65rem;
+  letter-spacing: 0.02em;
+}
+
+[data-skin='instrument'] .right-sidebar .sidebar-item .sidebar-delete-btn {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  color: var(--text-faint);
+}
+
+[data-skin='instrument'] .right-sidebar .sidebar-item .sidebar-delete-btn:hover {
+  background: transparent;
+  color: var(--danger);
+}
+
+[data-skin='instrument'] .right-sidebar [class*='border-dashed'] {
+  border-style: solid;
+  border-color: var(--hair);
+  border-radius: 0;
+}
+
+/* Danger keeps its own hue but the same flat shape. */
+[data-skin='instrument'] .btn-danger {
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger) 45%, transparent);
+  border-radius: 0;
+  box-shadow: none;
+  color: var(--danger);
+}
+
+[data-skin='instrument'] .btn-danger:hover {
+  background: color-mix(in srgb, var(--danger) 20%, transparent);
+  border-color: var(--danger);
+  color: var(--danger-hover);
+  transform: none;
+}
+
+/* Collapsed sidebar tabs share the flat hairline treatment. */
+[data-skin='instrument'] .right-tab,
+[data-skin='instrument'] .left-tab {
+  border-color: var(--hair);
+  box-shadow: none;
+}
+
+/* ══ Center pane ══════════════════════════════════════════════════════════ */
+[data-skin='instrument'] .chat-center {
+  padding: 2.25rem 1.5rem;
+}
+
+/* Messages are not cards. The avatar + name header already separates them, so
+   hover marks the row with an accent edge rather than filling the whole block. */
+[data-skin='instrument'] .message {
+  border-radius: 0;
+  border-left: 2px solid transparent;
+  padding: 1.1rem 0.75rem;
+}
+
+[data-skin='instrument'] .message:hover {
+  background: color-mix(in srgb, var(--accent) 4%, transparent);
+  border-left-color: var(--accent);
+}
+
+[data-skin='instrument'] .message-avatar {
+  border-color: var(--hair-strong);
+  box-shadow: none;
+}
+
+[data-skin='instrument'] .message-author {
+  font-weight: 500;
+  letter-spacing: 0.005em;
+}
+
+/* Model name / reasoning toggle read as a spec line. */
+[data-skin='instrument'] .message-meta {
+  font-family: var(--font-mono-skin);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+}
+
+/* Timestamp and message ordinal are counter readouts. */
+[data-skin='instrument'] .meta-right .ts-date,
+[data-skin='instrument'] .meta-right .ts-time {
+  font-family: var(--font-mono-skin);
+  letter-spacing: 0.03em;
+}
+
+[data-skin='instrument'] .meta-right > div:last-child {
+  font-family: var(--font-mono-skin);
+  font-size: 1.5rem;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+
+/* Toolbar: the blur was repainting over the streaming text on every frame. */
+[data-skin='instrument'] .toolbar {
+  background: var(--surface-2);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+[data-skin='instrument'] .toolbar .action-btn {
+  border-radius: 0;
+}
+
+[data-skin='instrument'] .toolbar .action-btn:hover {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--accent);
+}
+
+/* Reasoning + tool-call disclosures: a rule, not a filled block. */
+[data-skin='instrument'] .details > summary {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--hair);
+  border-radius: 0;
+  padding: 0.3rem 0.25rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono-skin);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+[data-skin='instrument'] .details > summary:hover {
+  border-bottom-color: var(--hair-strong);
+  color: var(--text);
+}
+
+/* An open disclosure is a defined block, so its top rule matches the hanging
+   edge below it rather than staying at the idle-row hairline weight. Without
+   this the corner where the two meet is two different weights until hover. */
+[data-skin='instrument'] .details[open] > summary {
+  border-bottom-color: var(--hair-strong);
+}
+
+[data-skin='instrument'] .reasoning-content,
+[data-skin='instrument'] .details .tool-result-body {
+  background: transparent;
+  border-radius: 0;
+  border-left: 1px solid var(--hair-strong);
+  padding: 0.4rem 0 0.4rem 0.75rem;
+  color: var(--text-muted);
+}
+
+/* ── Input bar: a console, not a pill ───────────────────────────────────── */
+[data-skin='instrument'] .input-wrapper {
+  border-radius: 0;
+  border: none;
+  padding: 0.5rem 0.5rem 0.5rem 0.35rem;
+}
+
+[data-skin='instrument'] .input-wrapper:focus-within {
+  --corner-color: var(--accent);
+  box-shadow: none;
+}
+
+[data-skin='instrument'] .attach-btn {
+  background: transparent;
+  border-color: transparent;
+  border-radius: 0;
+  color: var(--text-muted);
+}
+
+[data-skin='instrument'] .attach-btn:hover {
+  background: transparent;
+  border-color: var(--hair-strong);
+  color: var(--text);
+}
+
+[data-skin='instrument'] .send-btn {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  border-radius: 0;
+  color: var(--accent);
+}
+
+[data-skin='instrument'] .send-btn:hover {
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+  border-color: var(--accent);
+}
+
+[data-skin='instrument'] .send-btn.stop-btn {
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  border-color: color-mix(in srgb, var(--danger) 45%, transparent);
+  color: var(--danger);
+}
+
+[data-skin='instrument'] .send-btn.stop-btn:hover {
+  border-color: var(--danger);
+  color: var(--danger-hover);
+}
+
+/* ══ Modals ═══════════════════════════════════════════════════════════════ */
+/* A full-screen backdrop blur is a compositing layer over the entire app. A
+   heavier scrim reads the same over a dark UI and costs nothing. */
+[data-skin='instrument'] .modal-overlay {
+  background: var(--modal-backdrop-heavy);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+[data-skin='instrument'] .modal-content {
+  border-radius: 0;
+  border-color: var(--hair-strong);
+  box-shadow: none;
+  padding: 1.25rem;
+}
+
+/* Header follows the panel headers: engraved label, rule running to the close. */
+[data-skin='instrument'] .modal-header {
+  justify-content: flex-start;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1.25rem;
+}
+
+[data-skin='instrument'] .modal-header.divider {
+  border-bottom: 1px solid var(--hair);
+  padding-bottom: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+[data-skin='instrument'] .modal-title,
+[data-skin='instrument'] .modal-content .sidebar-title {
+  font-family: var(--font-mono-skin);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text);
+  margin: 0;
+}
+
+[data-skin='instrument'] .modal-header::after {
+  content: '';
+  order: 1;
+  flex: 1;
+  height: 1px;
+  background: var(--hair);
+}
+
+/* The shell renders title then close button, so ::after lands between them. */
+[data-skin='instrument'] .modal-header > .modal-title {
+  order: 0;
+}
+
+[data-skin='instrument'] .modal-header > .btn {
+  order: 2;
+  background: transparent;
+  border: 1px solid var(--hair-strong);
+  border-radius: 0;
+  box-shadow: none;
+  color: var(--text-muted);
+  width: 26px;
+  height: 26px;
+  padding: 0;
+}
+
+[data-skin='instrument'] .modal-header > .btn:hover {
+  background: transparent;
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: none;
+}
+
+[data-skin='instrument'] .modal-footer {
+  border-top: 1px solid var(--hair);
+  padding-top: 0.85rem;
+  margin-top: 0.85rem;
+}
+
+/* ── Fields ─────────────────────────────────────────────────────────────── */
+/* Focus becomes a 1px accent edge; the coloured glow is a soft effect. */
+[data-skin='instrument'] :where(input, textarea, select):focus {
+  border-color: var(--accent);
+  box-shadow: none;
+}
+
+[data-skin='instrument'] .modal-content :where(input, textarea, select),
+[data-skin='instrument'] .search-input {
+  background: transparent;
+  border-color: var(--hair-strong);
+  border-radius: 0;
+}
+
+[data-skin='instrument'] .checkbox {
+  background: transparent;
+  border-color: var(--hair-strong);
+  border-radius: 0;
+}
+
+/* ── Tabs ───────────────────────────────────────────────────────────────── */
+[data-skin='instrument'] .tab-btn {
+  border-radius: 0;
+  font-family: var(--font-mono-skin);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+[data-skin='instrument'] .tab-btn.active {
+  background: transparent;
+  border-bottom-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ── Cards ──────────────────────────────────────────────────────────────── */
+/* No lift, no image zoom, and no full frame — the bracket corners carry the
+   boundary, matching the status readout. Selection lights the corners. */
+[data-skin='instrument'] .card {
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+[data-skin='instrument'] .card:hover {
+  --corner-color: var(--accent);
+  transform: none;
+  box-shadow: none;
+}
+
+[data-skin='instrument'] .card:hover .card-image img {
+  transform: none;
+}
+
+[data-skin='instrument'] .card.active {
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  --corner-color: var(--accent);
+}
+
+[data-skin='instrument'] .card-image {
+  border-bottom-color: var(--hair);
+}
+
+[data-skin='instrument'] .card-group-badge {
+  background: transparent;
+  border-color: var(--hair-strong);
+  border-radius: 0;
+  font-family: var(--font-mono-skin);
+  font-size: 0.62rem;
+  letter-spacing: 0.05em;
+}
+
+[data-skin='instrument'] .slot-btn {
+  border-color: var(--hair-strong);
+  border-radius: 0;
+  background: transparent;
+}
+
+[data-skin='instrument'] .slot-btn.slot-active {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ── Icon buttons ───────────────────────────────────────────────────────── */
+/* Edit/delete icon buttons match the secondary treatment instead of keeping a
+   filled surface-2 chip. */
+[data-skin='instrument'] .btn-edit,
+[data-skin='instrument'] .btn-delete-icon {
+  background: transparent;
+  border: 1px solid var(--hair-strong);
+  border-radius: 0;
+  box-shadow: none;
+  color: var(--text-muted);
+}
+
+[data-skin='instrument'] .btn-edit:hover,
+[data-skin='instrument'] .btn-delete-icon:hover {
+  background: transparent;
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* A destructive icon sits on every card. Keep it on the same hairline frame as
+   the edit button and let it carry its danger hue at rest, rather than only on
+   hover, so the two read as a matched pair. */
+[data-skin='instrument'] .card .btn-danger {
+  background: transparent;
+  border: 1px solid var(--hair-strong);
+  box-shadow: none;
+  color: color-mix(in srgb, var(--danger) 70%, transparent);
+}
+
+[data-skin='instrument'] .card .btn-danger:hover {
+  background: transparent;
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+/* ── Theme rows ─────────────────────────────────────────────────────────── */
+/* The selected theme row was using --active-bg, the same accent fill the preset
+   variable rows did. Selection is an accent edge instead. */
+[data-skin='instrument'] .theme-row {
+  border-radius: 0;
+  background: transparent;
+}
+
+[data-skin='instrument'] .theme-row:hover {
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+}
+
+[data-skin='instrument'] .theme-row.is-selected {
+  background: transparent;
+  border-color: var(--accent);
+}
+
+/* ── Arranger rows ──────────────────────────────────────────────────────── */
+/* Role tints are the at-a-glance cue (same scheme as the Itemizer): system is
+   accent, user is green, assistant is amber. Only the neutral block types stay
+   flat. `bg-role-system` is no longer an accent-filled block — it is a tint. */
+[data-skin='instrument'] .arranger-item {
+  border-radius: 0;
+  box-shadow: none;
+}
+
+[data-skin='instrument']
+  .arranger-item:not(.bg-role-user):not(.bg-role-assistant):not(.bg-role-system) {
+  background: transparent;
+  border-color: var(--hair);
+}
+
+[data-skin='instrument'] .arranger-item.bg-role-system {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+[data-skin='instrument'] .arranger-item.bg-role-user {
+  background: color-mix(in srgb, var(--role-user) 10%, transparent);
+  border-color: color-mix(in srgb, var(--role-user) 30%, transparent);
+}
+
+[data-skin='instrument'] .arranger-item.bg-role-assistant {
+  background: color-mix(in srgb, var(--role-assistant) 10%, transparent);
+  border-color: color-mix(in srgb, var(--role-assistant) 30%, transparent);
+}
+
+[data-skin='instrument'] .arranger-item:hover {
+  border-color: var(--accent);
+  box-shadow: none;
+  transform: none;
+}
+
+/* ── Tag buttons ────────────────────────────────────────────────────────── */
+/* Selection is an accent edge with a light tint, matching .slot-btn — not the
+   full --active-bg fill, which is reserved for nothing. */
+[data-skin='instrument'] .btn-tag {
+  background: transparent;
+  border-color: var(--hair-strong);
+  border-radius: 0;
+  color: var(--text-muted);
+  font-family: var(--font-mono-skin);
+  font-size: 0.65rem;
+  letter-spacing: 0.06em;
+}
+
+[data-skin='instrument'] .btn-tag:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+[data-skin='instrument'] .btn-tag.active {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border-color: var(--accent);
+  color: var(--accent);
+}
