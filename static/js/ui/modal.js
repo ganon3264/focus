@@ -80,9 +80,17 @@
     emitDirty(id, d);
   }
 
+  // Checkboxes/radios carry their state on .checked; their .value is a fixed
+  // token ("on" or the radio's own value) that never changes, so comparing
+  // .value would silently ignore those fields.
+  function fieldValue(el) {
+    if (el.type === 'checkbox' || el.type === 'radio') return el.checked ? '1' : '0';
+    return el.value || '';
+  }
+
   function capture(id) {
     var snap = {};
-    fieldsOf(id).forEach(function (f) { snap[f.key] = f.el.value || ''; });
+    fieldsOf(id).forEach(function (f) { snap[f.key] = fieldValue(f.el); });
     dirtyStates[id] = { snapshot: snap, dirty: false, extra: false, greeting: false };
     applyState(id, false);
   }
@@ -94,10 +102,10 @@
     fieldsOf(id).forEach(function (f) {
       var base = st.snapshot[f.key];
       if (base === undefined) {
-        st.snapshot[f.key] = f.el.value || '';
+        st.snapshot[f.key] = fieldValue(f.el);
         return;
       }
-      if ((f.el.value || '') !== (base || '')) d = true;
+      if (fieldValue(f.el) !== base) d = true;
     });
     if (st.dirty !== d) {
       st.dirty = d;

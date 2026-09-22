@@ -78,6 +78,22 @@ function type(ov, field, value) {
   ov.dispatchEvent({ type: 'input' });
 }
 
+function addCheckbox(ov, id, checked) {
+  var f = makeElement('input');
+  f.type = 'checkbox';
+  f.id = id;
+  f.className = 'edit-field';
+  f.checked = !!checked;
+  f.value = 'on';
+  ov.appendChild(f);
+  return f;
+}
+
+function toggle(ov, field, checked) {
+  field.checked = checked;
+  ov.dispatchEvent({ type: 'change' });
+}
+
 function hintOf(ov) { return ov.querySelector('[data-dirty-hint]'); }
 function saveOf(ov) { return ov.querySelector('[data-dirty-save]'); }
 
@@ -125,6 +141,22 @@ assert(typeof window.closeModal === 'function', 'closeModal wrapper loaded');
   assert(hintOf(ov).classList.contains('hidden'), 'revert: hint hidden');
   assertEqual(saveOf(ov).disabled, true, 'revert: save disabled');
   window.closeModal('modal-typing', { discard: true });
+})();
+
+// ── checkbox state drives dirty (its .value never changes) ──
+(function () {
+  var ov = makeModal('modal-checkbox', '.edit-field');
+  var cb = addCheckbox(ov, 'edit-field-cb', true);
+  window.openModal('modal-checkbox');
+  assertEqual(window.ModalController.isDirty('modal-checkbox'), false, 'checkbox: clean at open');
+
+  toggle(ov, cb, false);
+  assertEqual(window.ModalController.isDirty('modal-checkbox'), true, 'checkbox: toggle off marks dirty');
+  assertEqual(saveOf(ov).disabled, false, 'checkbox: save enabled');
+
+  toggle(ov, cb, true);
+  assertEqual(window.ModalController.isDirty('modal-checkbox'), false, 'checkbox: revert clears dirty');
+  window.closeModal('modal-checkbox', { discard: true });
 })();
 
 // ── close clean: no confirm, closes directly ──
