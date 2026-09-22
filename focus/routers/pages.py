@@ -102,7 +102,7 @@ async def chat_redirect(request: Request, character_id: str = Query(None), db: a
     preset = presets[0] if presets else None
     preset_blocks = preset["blocks"] if preset else []
 
-    var_blocks, regular_blocks, var_groups = partition_blocks(preset_blocks)
+    _, regular_blocks, var_groups = partition_blocks(preset_blocks)
 
     has_chars = await crud.has_characters(db)
     active_provider = await crud.get_active_provider(db)
@@ -153,7 +153,7 @@ async def chat_page(request: Request, chat_id: str, db: aiosqlite.Connection = D
     preset = await crud.get_preset(db, chat.get("preset_id"))
     preset_blocks = preset["blocks"] if preset else []
 
-    var_blocks, regular_blocks, var_groups = partition_blocks(preset_blocks)
+    _, regular_blocks, var_groups = partition_blocks(preset_blocks)
 
     _resolve_macros_for_display(messages, char, persona, preset_blocks)
 
@@ -430,31 +430,6 @@ async def preset_variables_group_partial(
     )
 
 
-@router.get("/partials/preset-editor/{preset_id}", response_class=HTMLResponse)
-async def preset_editor_partial(
-    request: Request,
-    preset_id: str,
-    character_id: str = Query(None),
-    persona_id: str = Query(None),
-    db: aiosqlite.Connection = Depends(get_db),
-):
-    blocks = await crud.get_preset_blocks(db, preset_id)
-
-    counts = await crud.get_counts(db, character_id or None, persona_id or None)
-    _, regular_blocks, var_groups = partition_blocks(blocks)
-
-    return templates.TemplateResponse(
-        request,
-        "presets/preset-editor.html",
-        {
-            "blocks": regular_blocks,
-            "var_groups": var_groups,
-            "preset_id": preset_id,
-            "counts": counts,
-        },
-    )
-
-
 @router.get("/partials/prompt-arranger/{preset_id}", response_class=HTMLResponse)
 async def prompt_arranger_partial(
     request: Request,
@@ -546,19 +521,6 @@ async def characters_modal_partial(
             "characters": characters,
             "compact_view": compact_view,
             "current_character_id": current_character_id,
-        },
-    )
-
-
-@router.get("/partials/presets-modal", response_class=HTMLResponse)
-async def presets_modal_partial(request: Request, db: aiosqlite.Connection = Depends(get_db)):
-    presets = await crud.get_presets(db)
-    return templates.TemplateResponse(
-        request,
-        "presets/presets.html",
-        {
-            "request": request,
-            "presets": presets,
         },
     )
 

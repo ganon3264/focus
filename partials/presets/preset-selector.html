@@ -1,5 +1,5 @@
 {% set current_preset_list = presets | selectattr('id', 'equalto', current_preset_id) | list %}
-{% from "macros.html" import icon_edit, icon_trash, icon_plus, icon_upload, icon_chevron_down, icon_copy %}
+{% from "macros.html" import icon_edit, icon_trash, icon_plus, icon_upload, icon_chevron_down, icon_copy, js_str %}
 {% set current_preset = current_preset_list[0] if current_preset_list else none %}
 {% set current_preset_name = current_preset.name if current_preset else '— Select Preset —' %}
 
@@ -7,7 +7,7 @@
      x-data="{ 
         open: false, 
         selectedId: '{{ current_preset_id or '' }}', 
-        selectedName: '{{ current_preset_name | replace("'", "\\'") }}'
+        selectedName: '{{ js_str(current_preset_name) }}'
      }">
   
   <input type="hidden" id="hidden-preset-id" :value="selectedId">

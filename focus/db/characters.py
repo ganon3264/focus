@@ -76,7 +76,7 @@ async def update_character(db: aiosqlite.Connection, char_id: str, updates: dict
     try:
         card = json.loads(row["card_json"])
     except (json.JSONDecodeError, TypeError, ValueError) as e:
-        raise HTTPException(500, "Character card data is corrupt")
+        raise HTTPException(500, "Character card data is corrupt") from e
 
     data = card.get("data", card)
     has_theme = "theme_id" in updates

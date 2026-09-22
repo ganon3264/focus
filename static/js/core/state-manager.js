@@ -128,12 +128,6 @@
       });
     },
 
-    setChat: function (id) {
-      var prev = STATE.chat_id;
-      STATE.chat_id = id || null;
-      emit('chat-changed', { prev: prev, value: STATE.chat_id });
-    },
-
     setMultimodal: function (enabled) {
       var prev = STATE.multimodal_enabled;
       STATE.multimodal_enabled = !!enabled;

@@ -4,7 +4,6 @@ import pytest
 import focus.core.database as database
 from focus.db.themes import BUILTIN_THEMES
 
-
 LEGACY_SCHEMA = """
 CREATE TABLE IF NOT EXISTS characters (
     id          TEXT PRIMARY KEY,

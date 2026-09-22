@@ -1,22 +1,13 @@
 window.api = {
   chats: '/api/chats',
-  chat: function (id) {
-    return '/api/chats/' + id;
-  },
   chatAttachments: function (chatId) {
     return '/api/chats/' + chatId + '/attachments';
-  },
-  chatMessages: function (chatId) {
-    return '/api/chats/' + chatId + '/messages';
   },
   chatMessage: function (chatId, msgId) {
     return '/api/chats/' + chatId + '/messages/' + msgId;
   },
   chatBulkDelete: function (chatId) {
     return '/api/chats/' + chatId + '/messages/bulk_delete';
-  },
-  chatSwipe: function (chatId, msgId) {
-    return '/api/chats/' + chatId + '/messages/' + msgId + '/swipe';
   },
   chatBranch: function (chatId, msgId) {
     return '/api/chats/' + chatId + '/messages/' + msgId + '/branch';
@@ -26,9 +17,6 @@ window.api = {
     return '/api/characters/' + id;
   },
   charImport: '/api/characters/import',
-  charRestore: function (charId, delChats) {
-    return '/api/characters/' + charId + '/restore?restore_chats=' + delChats;
-  },
   charDelete: function (charId, deleteChats) {
     return '/api/characters/' + charId + '?delete_chats=' + deleteChats;
   },
@@ -67,36 +55,6 @@ window.api = {
     return '/api/personas/' + id + '/avatar';
   },
 
-  presets: '/api/presets',
-  preset: function (id) {
-    return '/api/presets/' + id;
-  },
-  presetBlocks: function (presetId) {
-    return '/api/presets/' + presetId + '/blocks';
-  },
-  presetBlock: function (presetId, blockId) {
-    return '/api/presets/' + presetId + '/blocks/' + blockId;
-  },
-  presetBlockImages: function (presetId, blockId) {
-    return '/api/presets/' + presetId + '/blocks/' + blockId + '/images';
-  },
-  presetBlockImage: function (presetId, blockId, imageId) {
-    return '/api/presets/' + presetId + '/blocks/' + blockId + '/images/' + imageId;
-  },
-
-  extensions: '/api/extensions',
-  extensionsConfig: '/api/extensions/config',
-  extensionConfig: function (name) {
-    return '/api/extensions/' + encodeURIComponent(name) + '/config';
-  },
-  extensionRun: function (name) {
-    return '/api/extensions/' + encodeURIComponent(name) + '/run';
-  },
-  chatExtensions: function (chatId) {
-    return '/api/chats/' + chatId + '/extensions';
-  },
-  extensionReload: '/api/extensions/reload',
-
   providers: '/api/providers',
   provider: function (id) {
     return '/api/providers/' + id;
@@ -116,11 +74,6 @@ window.api = {
     return '/api/providers/secrets/' + encodeURIComponent(name);
   },
 
-  settings: '/api/settings',
-  setting: function (key) {
-    return '/api/settings/' + key;
-  },
-  activeProvider: '/api/settings/active-provider',
   stream: '/api/stream',
 
   cleanDb: '/api/db/clean',
@@ -139,39 +92,10 @@ window.api = {
     messageList: function (chatId) {
       return '/partials/message-list/' + chatId;
     },
-    singleMessage: function (chatId, msgId) {
-      return '/partials/message/' + chatId + '/' + msgId;
-    },
     charactersModal: '/partials/characters-modal',
     personasModal: '/partials/personas-modal',
     providersModal: '/partials/providers-modal',
-    promptArranger: function (presetId) {
-      return '/partials/prompt-arranger/' + presetId;
-    },
-    singleBlock: function (presetId, blockId) {
-      return '/partials/prompt-arranger/' + presetId + '/block/' + blockId;
-    },
-    characterCard: function (charId, currentId, compactView) {
-      return '/partials/character-card/' + charId
-        + '?current_character_id=' + encodeURIComponent(currentId || '')
-        + '&compact_view=' + (compactView ? 'true' : 'false');
-    },
-    personaModalCard: function (personaId, currentId, compactView) {
-      return '/partials/persona-modal-card/' + personaId
-        + '?current_persona_id=' + encodeURIComponent(currentId || '')
-        + '&compact_view=' + (compactView ? 'true' : 'false');
-    },
-    presetsModal: '/partials/presets-modal',
     exportEntities: '/partials/export-entities',
-    presetEditor: function (presetId) {
-      return '/partials/preset-editor/' + presetId;
-    },
-    presetVariables: function (presetId) {
-      return '/partials/preset-variables/' + presetId;
-    },
-    singleVarGroup: function (presetId, groupName) {
-      return '/partials/preset-variables/' + presetId + '/group/' + encodeURIComponent(groupName);
-    },
     chatList: '/partials/chat-list',
   },
 };

@@ -355,10 +355,6 @@
     box-shadow: none;
     cursor: pointer;
   }
-  .var-group-container:hover {
-    transform: none;
-    box-shadow: none;
-  }
   .var-option-item {
     padding: 0.375rem 0.5rem;
     background: var(--surface-2);

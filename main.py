@@ -13,8 +13,8 @@ from fastapi.staticfiles import StaticFiles
 from starlette.datastructures import Headers
 
 from focus.core.database import get_db, init_db, init_directories
-from focus.core.paths import CACHE_STATIC
 from focus.core.logger import get_logger
+from focus.core.paths import CACHE_STATIC
 from focus.db.cleanup import clean_database as db_cleanup
 from focus.routers import (
     backup,

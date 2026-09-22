@@ -102,11 +102,6 @@
     border-left-color: var(--border-hover);
   }
 
-  #message-list.htmx-swapping .message,
-  #message-list.htmx-settling .message {
-    animation: none;
-  }
-
   #char-modal-grid.htmx-swapping .card,
   #char-modal-grid.htmx-settling .card,
   #persona-modal-grid.htmx-swapping .card,
@@ -331,6 +326,10 @@
   }
 
   /* ── Message-level reasoning toggle ── */
+  .reasoning-chevron {
+    color: var(--text-faint);
+    transition: transform 0.2s ease;
+  }
   .reasoning-open .reasoning-chevron {
     transform: rotate(90deg);
   }
@@ -374,14 +373,6 @@
   }
   .markdown-content em {
     color: color-mix(in srgb, var(--accent) 55%, var(--text));
-  }
-  .markdown-content .spoiler {
-    filter: blur(6px);
-    cursor: pointer;
-    transition: filter 0.2s ease;
-  }
-  .markdown-content .spoiler:hover {
-    filter: none;
   }
   .markdown-content hr {
     border: none;

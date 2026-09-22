@@ -1,7 +1,7 @@
 (function () {
   function _chevronSvg() {
     var html = (window.getSvgSprite('chevron-right', 12) || '').replace(
-      '<svg', '<svg class="w-3 h-3 reasoning-chevron" style="color:var(--text-faint);transition:transform 0.2s ease"');
+      '<svg', '<svg class="w-3 h-3 reasoning-chevron"');
     var d = document.createElement('div');
     d.innerHTML = html;
     return d.firstElementChild;

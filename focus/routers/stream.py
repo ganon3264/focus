@@ -190,7 +190,7 @@ class _GenCtx:
         return str(uuid.uuid4())
 
 
-class _SaveFailed(Exception):
+class _SaveFailedError(Exception):
     """Raised when the final variant save fails during a successful generation."""
 
 
@@ -650,7 +650,7 @@ async def _finalize_gen(
             await rollback_assistant(ctx.prompt.asst_msg_id, db=db)
         acc.finalized = True
         if success:
-            raise _SaveFailed(e) from e
+            raise _SaveFailedError(e) from e
 
 
 async def _finalize_detached(ctx: _GenCtx, acc: _GenAccumulator) -> None:
@@ -839,7 +839,7 @@ async def _stream_generate(ctx: _GenCtx) -> AsyncIterator[str]:
                 yield f"data: {json.dumps(payload)}\n\n"
             if event["type"] == "error":
                 return
-    except _SaveFailed as e:
+    except _SaveFailedError as e:
         yield f"data: {json.dumps({'type': 'error', 'error': f'Generation succeeded but save failed: {_error_reason(e)}'})}\n\n"
     except GeneratorExit:
         await _finalize_detached(ctx, acc)
@@ -896,7 +896,7 @@ async def _non_stream_generate(ctx: _GenCtx) -> AsyncIterator[str]:
                 if payload is not None:
                     yield f"data: {json.dumps(payload)}\n\n"
                 return
-    except _SaveFailed as e:
+    except _SaveFailedError as e:
         yield f"data: {json.dumps({'type': 'error', 'error': f'Generation succeeded but save failed: {_error_reason(e)}'})}\n\n"
     except GeneratorExit:
         await _finalize_detached(ctx, acc)

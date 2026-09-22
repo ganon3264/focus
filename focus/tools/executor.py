@@ -5,9 +5,11 @@ import json
 import logging
 from typing import Any
 
+import aiosqlite
+
 from focus.core.tracked_fields import attach_to_message
-from focus.tools import ToolResult, build_tool_result
 from focus.db.chats import persist_tool_calls
+from focus.tools import ToolResult, build_tool_result
 
 logger = logging.getLogger("focus.tools.executor")
 

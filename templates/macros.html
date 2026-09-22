@@ -1,4 +1,4 @@
-{% macro _js_str(s) %}{{ s | replace("\\", "\\\\") | replace("'", "\\'") | replace("\n", "\\n") | replace("\r", "\\r") }}{% endmacro %}
+{% macro js_str(s) %}{{ s | replace("\\", "\\\\") | replace("'", "\\'") | replace("\n", "\\n") | replace("\r", "\\r") }}{% endmacro %}
 
 {% macro custom_select(name, id, options, selected, on_change="", extra_classes="") %}
 {% set found = options | selectattr('value', 'equalto', selected) | list %}
@@ -8,7 +8,7 @@
       x-data="{
          open: false,
          selectedValue: '{{ selected | replace("'", "\\'") }}',
-         selectedLabel: '{{ _js_str(current_label) }}',
+         selectedLabel: '{{ js_str(current_label) }}',
          init() {
            this.$el.addEventListener('custom-select:set', (e) => {
              this.selectedValue = e.detail.value;
@@ -46,7 +46,7 @@
            data-value="{{ opt.value }}"
            @click="
              selectedValue = '{{ opt.value | replace("'", "\\'") }}';
-             selectedLabel = '{{ _js_str(opt.label) }}';
+             selectedLabel = '{{ js_str(opt.label) }}';
              open = false;
              $nextTick(() => {
                  const el = document.getElementById('{{ id }}');

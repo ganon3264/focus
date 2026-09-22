@@ -6,7 +6,6 @@ import aiosqlite
 from focus.core.card_parser import safe_load_card
 from focus.core.media import tool_image_url
 
-
 logger = logging.getLogger("focus.crud")
 
 async def attach_images(blocks: list[dict], db: aiosqlite.Connection) -> list[dict]:

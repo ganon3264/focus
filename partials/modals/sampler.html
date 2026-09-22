@@ -671,15 +671,12 @@
         const newType = detail && typeof detail === 'object' ? detail.type : detail;
         const newId = detail && typeof detail === 'object' ? detail.id : null;
         if (newType === this.providerType && newId === this.providerId) return;
-        const sameProvider = newType === this.providerType && newId === this.providerId;
         this.saveStandard();
         this.saveCustom();
         this.providerType = newType;
         this.providerId = newId;
-        if (!sameProvider) {
-          await this.loadStandard();
-          await this.loadCustom();
-        }
+        await this.loadStandard();
+        await this.loadCustom();
         await this.refreshCapabilities();
       },
 

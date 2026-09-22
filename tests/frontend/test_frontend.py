@@ -339,7 +339,6 @@ def test_modal_shell_macro_compiles():
     """modal_shell.html macro renders without errors."""
     source = env.loader.get_source(env, "modal-shell.html")[0]
     assert "{% macro modal_shell" in source
-    assert "{% macro modal_footer" in source
 
 
 def test_macros_macro_compiles():

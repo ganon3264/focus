@@ -300,8 +300,8 @@ class TestCleanOrphanedAssets:
         assert result["empty_dirs_removed"] >= 1
 
     async def test_empty_db_cleans_all_files(self, db):
-        CHAR_DIR = _uuid_dir(CHARACTERS_DIR)
-        (CHAR_DIR / "avatar.png").write_bytes(b"img")
+        char_dir = _uuid_dir(CHARACTERS_DIR)
+        (char_dir / "avatar.png").write_bytes(b"img")
         BLOCKS_DIR.mkdir(parents=True, exist_ok=True)
         (BLOCKS_DIR / "orphan.png").write_bytes(b"img")
         ATTACHMENTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -631,7 +631,7 @@ class TestCleanDatabase:
         orphan.write_bytes(b"img")
         await _insert_tool_call(db, f"tool/{kept.name}")
         await db.commit()
-        result = await clean_database(db)
+        await clean_database(db)
         assert kept.exists()
         assert not orphan.exists()
 

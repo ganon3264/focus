@@ -71,8 +71,9 @@ class TestChatPage:
         assert resp.headers.get("content-encoding") == "gzip"
 
     async def test_binary_and_sse_content_types_excluded_from_gzip(self):
-        import main  # noqa: F401  (applies the middleware's exclusion config)
         import starlette.middleware.gzip as gz
+
+        import main  # noqa: F401  (applies the middleware's exclusion config)
 
         excluded = gz.DEFAULT_EXCLUDED_CONTENT_TYPES
         # SSE must stay raw so tokens stream; binaries are already compressed.
@@ -247,14 +248,10 @@ class TestPresetPartials:
         resp = await client.get(f"/partials/preset-variables/{preset['id']}/group/None")
         assert resp.status_code == 200
 
-    async def test_preset_editor_and_arranger(self, client):
+    async def test_prompt_arranger(self, client):
         _, _, _, preset = await _seed_chat(client)
-        for path in (
-            f"/partials/preset-editor/{preset['id']}",
-            f"/partials/prompt-arranger/{preset['id']}",
-        ):
-            resp = await client.get(path)
-            assert resp.status_code == 200, path
+        resp = await client.get(f"/partials/prompt-arranger/{preset['id']}")
+        assert resp.status_code == 200
 
         blocks = (await client.get(f"/api/presets/{preset['id']}")).json()["blocks"]
         resp = await client.get(f"/partials/prompt-arranger/{preset['id']}/block/{blocks[0]['id']}")
@@ -277,12 +274,6 @@ class TestModalPartials:
         resp = await client.get("/partials/providers-modal")
         assert resp.status_code == 200
         assert "modal-secrets" in resp.text
-
-    async def test_presets_modal(self, client):
-        preset = await create_preset(client, "ModalPreset")
-        resp = await client.get("/partials/presets-modal")
-        assert resp.status_code == 200
-        assert preset["id"] in resp.text
 
     async def test_export_entities(self, client):
         char = await create_character(client, "ExportMe")

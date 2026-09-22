@@ -97,9 +97,7 @@
             user_message: document.getElementById('chat-input')
               ? document.getElementById('chat-input').value
               : '',
-            attachment_ids: window.stagedFiles
-              ? window.stagedFiles.map((f) => f.id).filter((id) => id)
-              : [], // Can't easily send raw files here, just getting existing IDs
+            attachment_ids: [],
             regenerate: false, // default estimate
           };
 

@@ -14,7 +14,6 @@ CACHE_STATIC = not DEBUG_MODE and os.environ.get("FOCUS_CACHE_STATIC", "0").lowe
 
 DATA_DIR = Path(os.environ.get("FOCUS_DATA_DIR", "data"))
 DB_PATH = DATA_DIR / "focus.db"
-BACKUPS_DIR = Path(os.environ.get("FOCUS_BACKUPS_DIR", str(DATA_DIR / "backups")))
 
 ASSETS_DIR = Path(os.environ.get("FOCUS_ASSETS_DIR", "assets"))
 CHARACTERS_DIR = ASSETS_DIR / "characters"

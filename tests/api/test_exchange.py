@@ -480,7 +480,6 @@ class TestImportSecurity:
             "writes": False,
             "params": [],
         }
-        now = now_iso()
         database = {
             # missing required column (created_at) so the insert fails
             "characters": [{"id": str(uuid.uuid4()), "name": "R", "image_path": None, "card_json": "{}", "is_deleted": 0}],

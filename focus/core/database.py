@@ -1,5 +1,4 @@
 import json
-import os
 from datetime import UTC
 
 import aiosqlite
@@ -9,6 +8,7 @@ from focus.core.paths import (
     ATTACHMENTS_DIR,
     CHARACTERS_DIR,
     COMPRESSED_DIR,
+    DATA_DIR,
     DB_PATH,
     PERSONAS_DIR,
     PRESETS_DIR,
@@ -236,7 +236,7 @@ async def get_db():
 
 def init_directories():
     """Ensure asset directories exist on startup."""
-    os.makedirs("data", exist_ok=True)
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
     CHARACTERS_DIR.mkdir(parents=True, exist_ok=True)
     PERSONAS_DIR.mkdir(parents=True, exist_ok=True)
     PRESETS_DIR.mkdir(parents=True, exist_ok=True)

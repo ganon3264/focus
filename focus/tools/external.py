@@ -136,12 +136,12 @@ def load_external_tools(tools_dir: str | Path | None = None) -> list[ToolSpec]:
         return []
 
     tools: list[ToolSpec] = []
-    MAX_DEPTH = 2
+    max_depth = 2
     for f in sorted(d.rglob("*.json")):
         if not f.is_file():
             continue
         rel = f.relative_to(d)
-        if len(rel.parents) > MAX_DEPTH:
+        if len(rel.parents) > max_depth:
             continue
         if any(p.name.startswith(".") for p in rel.parents):
             continue

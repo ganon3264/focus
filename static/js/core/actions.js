@@ -75,7 +75,6 @@ window.actionSetActiveProvider = function (el) {
 };
 
 window.actionOpenThemeModal = function () {
-  if (window._saveThemeBackup) window._saveThemeBackup();
   openModal("modal-themes");
 };
 

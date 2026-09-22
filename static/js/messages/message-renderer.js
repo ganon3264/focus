@@ -37,18 +37,11 @@ window.closeMarkdown = function (text) {
 
 marked.use({ breaks: true });
 
-window.renderMessage = function (text, startThinkIdx, reasoning) {
-  if (!text && !reasoning) return '';
-  startThinkIdx = startThinkIdx || 0;
+window.renderMessage = function (text) {
+  if (!text) return '';
 
-  text = window.closeMarkdown(text || '');
-  const extracted = window.extractThoughtsSafely(text);
-  let processed = extracted.processed;
-
-  const thoughts = [];
-  if (reasoning) {
-    thoughts.push({ content: reasoning });
-  }
+  text = window.closeMarkdown(text);
+  const processed = window.extractThoughtsSafely(text).processed;
 
   let html = DOMPurify.sanitize(marked.parse(processed));
 
@@ -136,19 +129,6 @@ window.renderMessage = function (text, startThinkIdx, reasoning) {
     }
     return stashed;
   });
-
-  for (let i = 0; i < thoughts.length; i++) {
-    const t = thoughts[i];
-    const completedContent = window.closeMarkdown(t.content);
-    let safeInner = DOMPurify.sanitize(marked.parse(completedContent, { breaks: true }));
-    const chevron = (window.getSvgSprite('chevron-right', 12) || '>').replace('<svg', '<svg class="chevron"');
-    var globalIdx = startThinkIdx + i;
-    if (globalIdx === 0) {
-      html = `<div class="reasoning-block" data-think-id="0"><div class="reasoning-content markdown-content hidden">${safeInner}</div></div>` + html;
-    } else {
-      html += `<details class="details reasoning-block" data-think-id="${globalIdx}"><summary>${chevron} Reasoning</summary><div class="reasoning-content markdown-content">${safeInner}</div></details>`;
-    }
-  }
 
   return html;
 };

@@ -315,19 +315,6 @@ function reset() {
   assertEqual(StateManager.get('multimodal_enabled'), null, 'multimodal_enabled defaults to null');
 })();
 
-// ── setChat emits chat-changed ──
-(function () {
-  reset();
-  StateManager.init({}, 'chat-1');
-  var events = [];
-  StateManager.on('chat-changed', function (e) { events.push(e); });
-  StateManager.setChat('chat-2');
-  assertEqual(StateManager.get('chat_id'), 'chat-2', 'setChat updates chat_id');
-  assertEqual(events.length, 1, 'setChat fires callback');
-  assertEqual(events[0].prev, 'chat-1', 'prev chat id');
-  assertEqual(events[0].value, 'chat-2', 'new chat id');
-})();
-
 // ── setMultimodal emits multimodal-changed ──
 (function () {
   reset();

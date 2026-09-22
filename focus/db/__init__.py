@@ -1,52 +1,5 @@
-from focus.db.models import (
-    BlockImage,
-    Character,
-    CharBlock,
-    Chat,
-    ChatToolState,
-    GenerationUsage,
-    Message,
-    MessageAttachment,
-    MessageVariant,
-    Persona,
-    Preset,
-    PresetBlock,
-    Provider,
-    Secret,
-    Setting,
-    ToolCall,
-)
-from focus.db.settings import delete_setting, set_active_provider, upsert_setting
-from focus.db.personas import (
-    create_persona,
-    delete_persona,
-    hard_delete_persona,
-    restore_persona,
-    update_persona,
-    update_persona_avatar,
-)
-from focus.db.providers import (
-    active_key_ref,
-    create_provider,
-    delete_provider,
-    delete_secret,
-    provider_key_refs,
-    resolve_active_api_key,
-    set_active_key,
-    update_provider,
-    upsert_secret,
-)
-from focus.db.presets import (
-    create_preset,
-    create_preset_block,
-    delete_preset,
-    delete_preset_block,
-    duplicate_preset,
-    import_preset,
-    replace_preset_blocks,
-    update_preset,
-    update_preset_block,
-)
+# Internal helpers
+from focus.db._core import _db_conn
 from focus.db.characters import (
     create_char_block,
     create_character,
@@ -69,9 +22,9 @@ from focus.db.chats import (
     create_message,
     delete_attachment,
     delete_chat,
-    hard_delete_chat,
     delete_message_and_after,
     edit_message_create_variant,
+    hard_delete_chat,
     persist_tool_calls,
     restore_chat,
     rollback_assistant,
@@ -81,17 +34,41 @@ from focus.db.chats import (
     update_chat_tool_states,
     upsert_variant,
 )
-from focus.db.media import delete_block_image, upload_block_image
 from focus.db.cleanup import clean_database
-
-# Internal helpers
-from focus.db._core import _db_conn
+from focus.db.media import delete_block_image, upload_block_image
+from focus.db.personas import (
+    create_persona,
+    delete_persona,
+    hard_delete_persona,
+    restore_persona,
+    update_persona,
+    update_persona_avatar,
+)
+from focus.db.presets import (
+    create_preset,
+    create_preset_block,
+    delete_preset,
+    delete_preset_block,
+    duplicate_preset,
+    import_preset,
+    replace_preset_blocks,
+    update_preset,
+    update_preset_block,
+)
+from focus.db.providers import (
+    active_key_ref,
+    create_provider,
+    delete_provider,
+    delete_secret,
+    provider_key_refs,
+    resolve_active_api_key,
+    set_active_key,
+    update_provider,
+    upsert_secret,
+)
+from focus.db.settings import delete_setting, set_active_provider, upsert_setting
 
 __all__ = [
-    "BlockImage", "Character", "CharBlock", "Chat", "ChatToolState",
-    "GenerationUsage", "Message", "MessageAttachment", "MessageVariant",
-    "Persona", "Preset", "PresetBlock", "Provider", "Secret", "Setting",
-    "ToolCall",
     "delete_setting", "set_active_provider", "upsert_setting",
     "create_persona", "delete_persona", "hard_delete_persona",
     "restore_persona", "update_persona", "update_persona_avatar",

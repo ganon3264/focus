@@ -350,7 +350,6 @@ class TestExtractCardJsonV3:
         chara_card = {"name": "Old"}
         ccv3_card = {"spec": "chara_card_v3", "data": {"name": "New"}}
         ccv3_payload = _chara_text(ccv3_card).replace(b"chara", b"ccv3")
-        png = _png_with_chunk("tEXt", _chara_text(chara_card) + b"padding")
         # Append a second tEXt chunk for ccv3 by building from scratch
         signature = b"\x89PNG\r\n\x1a\n"
         ihdr_data = struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0)
