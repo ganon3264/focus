@@ -49,6 +49,21 @@ templates.env.globals["provider_schema"] = provider_schema
 templates.env.globals["provider_type_options"] = provider_type_options
 
 
+def _requested_page(request: Request) -> int | None:
+    raw = request.query_params.get("page")
+    if raw and raw.isdigit() and int(raw) > 0:
+        return int(raw)
+    return None
+
+
+def _chat_page_size(request: Request) -> int:
+    """Query param beats the client-measured cookie, which beats the default."""
+    raw = request.query_params.get("page_size") or request.cookies.get("focus_chat_page_size")
+    if raw and str(raw).isdigit() and int(raw) > 0:
+        return int(raw)
+    return crud.CHAT_PAGE_SIZE
+
+
 async def _theme_context(db: aiosqlite.Connection, character: dict | None) -> dict:
     """Theme state for the chat page: dark/light slots + per-character override."""
     state = await db_themes.get_theme_state(db)
@@ -93,6 +108,7 @@ async def chat_redirect(request: Request, character_id: str = Query(None), db: a
     active_provider = await crud.get_active_provider(db)
 
     theme_ctx = await _theme_context(db, character)
+    chat_list = await crud.get_chats_sidebar(db, character_id, page_size=_chat_page_size(request))
 
     return templates.TemplateResponse(
         request,
@@ -109,7 +125,8 @@ async def chat_redirect(request: Request, character_id: str = Query(None), db: a
             "var_groups": var_groups,
             "providers": providers,
             "presets": presets,
-            "chats": [],
+            "chats": chat_list["chats"],
+            "pagination": chat_list,
             "has_characters": has_chars,
             "current_character_id": character_id,
             "current_persona_id": persona["id"] if persona else None,
@@ -147,7 +164,12 @@ async def chat_page(request: Request, chat_id: str, db: aiosqlite.Connection = D
     presets = await crud.get_presets(db)
     providers = await crud.get_providers(db)
 
-    chats_sidebar = await crud.get_chats_sidebar(db, chat.get("character_id"))
+    chat_list = await crud.get_chats_sidebar(
+        db,
+        chat.get("character_id"),
+        page=_requested_page(request) or await crud.get_chat_page(db, chat_id, chat.get("character_id")),
+        page_size=_chat_page_size(request),
+    )
 
     has_chars = await crud.has_characters(db)
     active_provider = await crud.get_active_provider(db)
@@ -171,7 +193,8 @@ async def chat_page(request: Request, chat_id: str, db: aiosqlite.Connection = D
             "providers": providers,
             "presets": presets,
             "counts": counts,
-            "chats": chats_sidebar,
+            "chats": chat_list["chats"],
+            "pagination": chat_list,
             "has_characters": has_chars,
             "current_character_id": chat.get("character_id"),
             "current_persona_id": chat.get("persona_id"),
@@ -296,16 +319,19 @@ async def chat_list_partial(
     request: Request,
     character_id: str = Query(None),
     current_chat_id: str = Query(None),
+    page: int = Query(1),
     db: aiosqlite.Connection = Depends(get_db),
 ):
-    chats = await crud.get_chats_sidebar(db, character_id)
+    chat_list = await crud.get_chats_sidebar(db, character_id, page=page, page_size=_chat_page_size(request))
 
     return templates.TemplateResponse(
         request,
         "chat/chat-list.html",
         {
-            "chats": chats,
+            "chats": chat_list["chats"],
+            "pagination": chat_list,
             "current_chat_id": current_chat_id,
+            "oob_pager": True,
         },
     )
 
@@ -317,6 +343,7 @@ async def selection_state_partial(
     preset_id: str = Query(None),
     character_id: str = Query(None),
     persona_id: str = Query(None),
+    page: int = Query(1),
     db: aiosqlite.Connection = Depends(get_db),
 ):
     """Render every selection-dependent pane as one OOB-swap response.
@@ -331,7 +358,7 @@ async def selection_state_partial(
     _, regular_blocks, var_groups = partition_blocks(blocks)
 
     counts = await crud.get_counts(db, character_id or None, persona_id or None)
-    chats_sidebar = await crud.get_chats_sidebar(db, character_id or None)
+    chat_list = await crud.get_chats_sidebar(db, character_id or None, page=page, page_size=_chat_page_size(request))
 
     return templates.TemplateResponse(
         request,
@@ -345,7 +372,8 @@ async def selection_state_partial(
             "preset_blocks": regular_blocks,
             "var_groups": var_groups,
             "counts": counts,
-            "chats": chats_sidebar,
+            "chats": chat_list["chats"],
+            "pagination": chat_list,
         },
     )
 

@@ -87,6 +87,8 @@
     if (charId) parts.push('character_id=' + encodeURIComponent(charId));
     var personaId = StateManager.get('persona_id');
     if (personaId) parts.push('persona_id=' + encodeURIComponent(personaId));
+    var pager = document.querySelector('#chat-list [data-chat-page]');
+    if (pager) parts.push('page=' + encodeURIComponent(pager.getAttribute('data-chat-page')));
     return '/partials/selection-state?' + parts.join('&');
   }
 

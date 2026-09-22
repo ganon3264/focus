@@ -121,11 +121,69 @@
   }
   window.refreshMessagesAfterStream = refreshMessagesAfterStream;
 
-  window._refreshChatList = function (chatId) {
-    var params = '?current_chat_id=' + encodeURIComponent(chatId);
+  // ── Chat list pagination sizing ────────────────────────────────────────
+  // Page size is however many rows actually fit the sidebar, so a page never
+  // needs its own scrollbar. It is persisted in a cookie so the server renders
+  // the right count next time; if the current render disagrees (first visit,
+  // resize, new device) we refetch once to correct it.
+  var CHAT_PAGE_SIZE_COOKIE = 'focus_chat_page_size';
+  var CHAT_PAGE_SIZE_MIN = 4;
+  var CHAT_PAGE_SIZE_MAX = 30;
+  var CHAT_ITEM_FALLBACK_HEIGHT = 59;
+
+  function _chatListScroll() {
+    return document.querySelector('#chat-list [data-chat-list-scroll]');
+  }
+
+  function _chatListAttr(name) {
+    var scroll = _chatListScroll();
+    return scroll ? scroll.getAttribute(name) : null;
+  }
+
+  function _storedChatPageSize() {
+    if (!document.cookie) return null;
+    var match = document.cookie.match(new RegExp('(?:^|;\\s*)' + CHAT_PAGE_SIZE_COOKIE + '=(\\d+)'));
+    return match ? parseInt(match[1], 10) : null;
+  }
+
+  function _fittedChatPageSize() {
+    var scroll = _chatListScroll();
+    if (!scroll || parseInt(_chatListAttr('data-chat-total'), 10) === 0) return null;
+    var item = scroll.querySelector('.sidebar-item');
+    var itemHeight = item ? item.getBoundingClientRect().height : CHAT_ITEM_FALLBACK_HEIGHT;
+    if (!itemHeight || !scroll.clientHeight) return null;
+    var size = Math.floor(scroll.clientHeight / itemHeight);
+    return Math.max(CHAT_PAGE_SIZE_MIN, Math.min(CHAT_PAGE_SIZE_MAX, size));
+  }
+
+  function syncChatPageSize() {
+    var size = _fittedChatPageSize();
+    if (!size) return;
+    document.cookie = CHAT_PAGE_SIZE_COOKIE + '=' + size + '; path=/; max-age=31536000; SameSite=Lax';
+    if (parseInt(_chatListAttr('data-chat-page-size'), 10) !== size) {
+      window._refreshChatList(StateManager.get('chat_id'), null, size);
+    }
+  }
+  window.syncChatPageSize = syncChatPageSize;
+
+  function initChatPageSize() {
+    if (_chatListScroll()) syncChatPageSize();
+  }
+
+  window._refreshChatList = function (chatId, page, pageSize) {
+    if (page == null) {
+      page = parseInt(_chatListAttr('data-chat-page'), 10);
+      if (!page || page < 1) page = 1;
+    }
+    if (pageSize == null) {
+      pageSize = _storedChatPageSize() || parseInt(_chatListAttr('data-chat-page-size'), 10);
+    }
+    var params = '?page=' + page;
+    if (pageSize) params += '&page_size=' + pageSize;
+    if (chatId) params += '&current_chat_id=' + encodeURIComponent(chatId);
     var charId = StateManager.get('character_id');
     if (charId) params += '&character_id=' + encodeURIComponent(charId);
-    hxGet(window.api.partials.chatList + params, {
+    return hxGet(window.api.partials.chatList + params, {
       target: '#chat-list',
       swap: 'innerHTML',
     });
@@ -163,4 +221,21 @@
   window.refreshChatMessages = function (chatId) {
     return refreshMessageList(chatId, null);
   };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initChatPageSize);
+  } else {
+    initChatPageSize();
+  }
+  window.addEventListener('load', initChatPageSize);
+
+  document.body.addEventListener('htmx:afterSwap', function (evt) {
+    if (evt.detail.target && evt.detail.target.id === 'chat-list') syncChatPageSize();
+  });
+
+  var _chatResizeTimer = null;
+  window.addEventListener('resize', function () {
+    clearTimeout(_chatResizeTimer);
+    _chatResizeTimer = setTimeout(syncChatPageSize, 200);
+  });
 })();

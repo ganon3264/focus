@@ -1,0 +1,31 @@
+{% from "macros.html" import icon_chevron_left, icon_chevron_right %}
+{% if pagination and pagination.total_pages > 1 %}
+<nav class="chat-pager" aria-label="Chat pages">
+  <button
+    type="button"
+    class="chat-pager-btn"
+    onclick="goToChatPage({{ pagination.page - 1 }})"
+    {% if pagination.page <= 1 %}disabled{% endif %}
+    aria-label="Previous page"
+  >
+    {{ icon_chevron_left(14) }}
+  </button>
+  {% for n in pagination.page_numbers %}
+  <button
+    type="button"
+    class="chat-pager-num{% if n == pagination.page %} active{% endif %}"
+    onclick="goToChatPage({{ n }})"
+    {% if n == pagination.page %}aria-current="page"{% endif %}
+  >{{ n }}</button>
+  {% endfor %}
+  <button
+    type="button"
+    class="chat-pager-btn"
+    onclick="goToChatPage({{ pagination.page + 1 }})"
+    {% if pagination.page >= pagination.total_pages %}disabled{% endif %}
+    aria-label="Next page"
+  >
+    {{ icon_chevron_right(14) }}
+  </button>
+</nav>
+{% endif %}

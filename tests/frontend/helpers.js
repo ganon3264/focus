@@ -105,6 +105,8 @@ function makeElement(tag) {
     },
     _attrs: {},
     parent: null,
+    addEventListener: function () {},
+    removeEventListener: function () {},
     setAttribute: function (k, v) { this._attrs[k] = v; },
     getAttribute: function (k) { return this._attrs[k]; },
     hasAttribute: function (k) { return k in this._attrs; },

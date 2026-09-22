@@ -1,5 +1,11 @@
 {% from "macros.html" import icon_close %}
-<div class="flex-1 overflow-y-auto scroll-fade">
+<div
+  class="flex-1 overflow-y-auto scroll-fade min-h-0"
+  data-chat-list-scroll
+  data-chat-page="{{ pagination.page }}"
+  data-chat-page-size="{{ pagination.page_size }}"
+  data-chat-total="{{ pagination.total }}"
+>
 {% if not chats %}
 <div
   class="text-muted text-center text-sm py-4 border border-dashed border-(--border) rounded-lg mt-2"
@@ -28,7 +34,16 @@
 </div>
 {% endfor %}
 </div>
+{% if oob_pager %}
+<div id="chat-pager" hx-swap-oob="innerHTML">
+  {% include "chat/chat-pager.html" %}
+</div>
+{% endif %}
 <script>
+  window.goToChatPage = function (page) {
+    window._refreshChatList(StateManager.get('chat_id'), page);
+  };
+
   function deleteChat(btn) {
     const chatId = btn.dataset.chatId;
     window.customConfirm('Delete this chat?', function () {
@@ -42,6 +57,9 @@
           if (chatId === currentChatId) {
             var cid = StateManager.get('character_id');
             window.location.href = cid ? '/chat?character_id=' + encodeURIComponent(cid) : '/chat';
+          } else {
+            // Re-fetch so the pager reflects the new total and the page refills.
+            window._refreshChatList(StateManager.get('chat_id'));
           }
         })
         .catch(function (e) {

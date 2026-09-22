@@ -237,7 +237,26 @@ async def get_chat_messages(db: aiosqlite.Connection, chat_id: str) -> list[dict
     return messages
 
 
-async def get_chats_sidebar(db: aiosqlite.Connection, character_id: str = None) -> list[dict]:
+CHAT_PAGE_SIZE = 15
+CHAT_PAGE_SIZE_MAX = 50
+
+
+def _page_window(page: int, total_pages: int, width: int = 5) -> list[int]:
+    """The contiguous run of page numbers to show, centred on *page*."""
+    if total_pages <= width:
+        return list(range(1, total_pages + 1))
+    start = max(1, min(page - width // 2, total_pages - width + 1))
+    return list(range(start, start + width))
+
+
+async def get_chats_sidebar(
+    db: aiosqlite.Connection,
+    character_id: str = None,
+    page: int = 1,
+    page_size: int = CHAT_PAGE_SIZE,
+) -> dict:
+    """One page of sidebar chats plus pagination metadata (page is clamped)."""
+    page_size = max(1, min(page_size, CHAT_PAGE_SIZE_MAX))
     query_base = """
         SELECT c.*,
                p.name as persona_name,
@@ -251,22 +270,61 @@ async def get_chats_sidebar(db: aiosqlite.Connection, character_id: str = None) 
         LEFT JOIN personas p ON p.id = c.persona_id
     """
 
-    chats = []
+    where = "WHERE c.is_deleted = 0"
+    params: list = []
     if character_id:
-        async with db.execute(
-            f"{query_base} WHERE c.character_id = ? AND c.is_deleted = 0 ORDER BY c.updated_at DESC",
-            (character_id,),
-        ) as cur:
-            chats = [dict(r) for r in await cur.fetchall()]
-    else:
-        async with db.execute(f"{query_base} WHERE c.is_deleted = 0 ORDER BY c.updated_at DESC") as cur:
-            chats = [dict(r) for r in await cur.fetchall()]
+        where += " AND c.character_id = ?"
+        params.append(character_id)
+
+    async with db.execute(f"SELECT COUNT(*) FROM chats c {where}", params) as cur:
+        total = (await cur.fetchone())[0]
+
+    total_pages = max(1, -(-total // page_size))
+    page = min(max(1, page), total_pages)
+    offset = (page - 1) * page_size
+
+    async with db.execute(
+        f"{query_base} {where} ORDER BY c.updated_at DESC, c.id DESC LIMIT ? OFFSET ?",
+        (*params, page_size, offset),
+    ) as cur:
+        chats = [dict(r) for r in await cur.fetchall()]
 
     for chat in chats:
         if chat.get("last_message"):
             chat["last_message"] = chat["last_message"].strip() or "New Chat"
 
-    return chats
+    return {
+        "chats": chats,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": total_pages,
+        "page_numbers": _page_window(page, total_pages),
+    }
+
+
+async def get_chat_page(
+    db: aiosqlite.Connection, chat_id: str, character_id: str = None, page_size: int = CHAT_PAGE_SIZE
+) -> int:
+    """1-based page that contains *chat_id* under the sidebar ordering."""
+    where = "WHERE is_deleted = 0"
+    params: list = []
+    if character_id:
+        where += " AND character_id = ?"
+        params.append(character_id)
+
+    async with db.execute(
+        f"""SELECT rn FROM (
+                SELECT id, ROW_NUMBER() OVER (ORDER BY updated_at DESC, id DESC) AS rn
+                FROM chats {where}
+            ) WHERE id = ?""",
+        (*params, chat_id),
+    ) as cur:
+        row = await cur.fetchone()
+
+    if not row:
+        return 1
+    return (row["rn"] - 1) // page_size + 1
 
 
 async def get_counts(db: aiosqlite.Connection, character_id: str | None, persona_id: str | None) -> dict:

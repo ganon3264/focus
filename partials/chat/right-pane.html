@@ -2,7 +2,7 @@
 <!-- Right Sidebar -->
 <aside class="right-sidebar" id="right-sidebar">
   <div class="sidebar-inner">
-  <div class="sidebar-section flex flex-col h-full" style="border-bottom: none;">
+  <div class="sidebar-section flex flex-col h-full" style="border-bottom: none; padding-bottom: 0;">
     <div class="sidebar-title flex justify-between items-center">
       <button class="action-icon" onclick="toggleSidebar('right')" title="Collapse" aria-label="Toggle sidebar">{{ icon_chevron_right(14) }}</button>
       <span>Chats</span>
@@ -20,7 +20,8 @@
       {% include "chat/chat-list.html" %}
     </div>
   </div>
-  <div style="padding: 0.75rem 1.25rem 1.5rem; flex-shrink: 0; text-align: center;">
+  <div class="sidebar-footer">
+    <div id="chat-pager">{% include "chat/chat-pager.html" %}</div>
     <button class="btn btn-secondary btn-sm" onclick="openChatTrashModal()">{{ icon_trash(14) }} Trash Bin</button>
   </div>
   </div>

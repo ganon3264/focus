@@ -207,6 +207,57 @@
     opacity: 1;
   }
 
+  /* Bottom cluster of the Chats sidebar: page navigation above the Trash Bin. */
+  .sidebar-footer {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0 1.25rem 1.25rem;
+    text-align: center;
+  }
+  .chat-pager {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.2rem;
+  }
+  .chat-pager-btn,
+  .chat-pager-num {
+    min-width: 1.75rem;
+    height: 1.75rem;
+    padding: 0 0.35rem;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    background: none;
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: 600;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background var(--transition), border-color var(--transition), color var(--transition);
+  }
+  .chat-pager-btn:hover:not(:disabled),
+  .chat-pager-num:hover:not(.active) {
+    background: var(--surface-2);
+    border-color: var(--border-hover);
+    color: var(--text);
+  }
+  .chat-pager-btn:disabled {
+    opacity: 0.35;
+    cursor: default;
+  }
+  .chat-pager-num.active {
+    background: var(--active-bg);
+    border-color: var(--active-border);
+    color: var(--active-text);
+  }
+
   /* Right Tab Collapse */
   .right-tab {
     position: absolute;

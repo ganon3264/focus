@@ -24,6 +24,8 @@ function makeSandbox() {
     StateManager: { get: function () { return null; } },
   };
   sandbox.window = sandbox;
+  sandbox.addEventListener = function () {};
+  sandbox.removeEventListener = function () {};
   sandbox.window.api = { partials: { messageList: function (id) { return '/partials/message-list/' + id; } } };
   vm.createContext(sandbox);
   vm.runInContext(
@@ -259,6 +261,8 @@ var reconcile = sandbox.window._reconcileOrder;
     _refreshChatList: function () {},
   };
   sandbox.window = sandbox;
+  sandbox.addEventListener = function () {};
+  sandbox.removeEventListener = function () {};
   sandbox.window.api = { partials: { messageList: function (id) { return '/partials/message-list/' + id; } } };
   vm.createContext(sandbox);
   vm.runInContext(

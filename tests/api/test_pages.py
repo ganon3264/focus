@@ -113,6 +113,72 @@ class TestChatPage:
         assert chat["id"] in resp.text
 
 
+class TestChatPagination:
+    def test_page_window_centres_on_current(self):
+        from focus.crud import _page_window
+
+        assert _page_window(1, 6) == [1, 2, 3, 4, 5]
+        assert _page_window(3, 6) == [1, 2, 3, 4, 5]
+        assert _page_window(4, 6) == [2, 3, 4, 5, 6]
+        assert _page_window(6, 6) == [2, 3, 4, 5, 6]
+        assert _page_window(2, 3) == [1, 2, 3]
+
+    async def _seed(self, client, count, character_id):
+        return [await create_chat(client, character_id=character_id, title=f"Chat {i}") for i in range(count)]
+
+    async def test_pager_renders_for_multiple_pages(self, client):
+        char = await create_character(client, "Paged")
+        await self._seed(client, 17, char["id"])
+        resp = await client.get(f"/partials/chat-list?character_id={char['id']}")
+        assert resp.status_code == 200
+        assert 'class="chat-pager"' in resp.text
+        assert 'data-chat-page="1"' in resp.text
+        assert "goToChatPage(1)" in resp.text
+        assert "goToChatPage(2)" in resp.text
+
+    async def test_pager_hidden_for_single_page(self, client):
+        char = await create_character(client, "Single")
+        await create_chat(client, character_id=char["id"], title="Only")
+        resp = await client.get(f"/partials/chat-list?character_id={char['id']}")
+        assert resp.status_code == 200
+        assert 'class="chat-pager"' not in resp.text
+
+    async def test_second_page_has_older_chats(self, client):
+        char = await create_character(client, "Paged2")
+        chats = await self._seed(client, 16, char["id"])
+        page1 = await client.get(f"/partials/chat-list?character_id={char['id']}&page=1")
+        page2 = await client.get(f"/partials/chat-list?character_id={char['id']}&page=2")
+        assert page1.status_code == 200 and page2.status_code == 200
+        assert chats[-1]["id"] in page1.text
+        assert chats[0]["id"] not in page1.text
+        assert chats[0]["id"] in page2.text
+        assert chats[-1]["id"] not in page2.text
+
+    async def test_out_of_range_page_is_clamped(self, client):
+        char = await create_character(client, "Paged3")
+        await self._seed(client, 16, char["id"])
+        resp = await client.get(f"/partials/chat-list?character_id={char['id']}&page=99")
+        assert resp.status_code == 200
+        assert 'data-chat-page="2"' in resp.text
+
+    async def test_chat_page_opens_page_containing_chat(self, client):
+        char = await create_character(client, "Paged4")
+        chats = await self._seed(client, 16, char["id"])
+        oldest = chats[0]
+        resp = await client.get(f"/chat/{oldest['id']}")
+        assert resp.status_code == 200
+        assert 'data-chat-page="2"' in resp.text
+        assert "sidebar-item group active" in resp.text
+
+    async def test_selection_state_preserves_page(self, client):
+        char = await create_character(client, "Paged5")
+        await self._seed(client, 16, char["id"])
+        resp = await client.get(f"/partials/selection-state?character_id={char['id']}&page=2")
+        assert resp.status_code == 200
+        assert 'id="chat-list" hx-swap-oob="innerHTML"' in resp.text
+        assert 'data-chat-page="2"' in resp.text
+
+
 class TestStandalonePages:
     async def test_characters_page(self, client):
         await create_character(client, "Standalone")
@@ -146,7 +212,7 @@ class TestPresetPartials:
         )
         assert resp.status_code == 200
         # every selection-dependent pane is an out-of-band swap
-        for target in ("preset-selector", "preset-variables", "arranger-modal-body", "chat-list"):
+        for target in ("preset-selector", "preset-variables", "arranger-modal-body", "chat-list", "chat-pager"):
             assert f'id="{target}" hx-swap-oob="innerHTML"' in resp.text, target
         assert preset["id"] in resp.text
         assert chat["id"] in resp.text
