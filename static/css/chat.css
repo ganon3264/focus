@@ -32,30 +32,66 @@
     pointer-events: none;
   }
 
+  /* Square loader: a light traces the frame around the avatar. */
   .message-spinner {
+    --size: 0.375px;
+    --color-1: transparent;
+    --color-2: var(--bg);
+    --color-3: var(--accent);
     position: absolute;
     top: 1.25rem;
     right: 1rem;
-    width: 24px;
-    height: 24px;
-    border: 3px solid var(--border);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin 0.6s linear infinite;
+    width: calc(64 * var(--size));
+    height: calc(64 * var(--size));
+    background: var(--color-1);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+  }
+  .message-spinner::after {
+    content: '';
+    position: absolute;
+    inset: calc(8 * var(--size));
+    margin: auto;
+    background: var(--color-2);
+  }
+  /* Light running the ring. offset-path follows the frame perimeter and
+     offset-rotate keeps the bar aligned to whichever edge it is on. */
+  .message-spinner::before {
+    content: '';
+    position: absolute;
+    width: calc(16 * var(--size));
+    height: calc(8 * var(--size));
+    border-radius: calc(4 * var(--size));
+    background: var(--color-3);
+    box-shadow: 0 0 calc(3 * var(--size)) var(--color-3);
+    offset-path: inset(calc(4 * var(--size)) round calc(6 * var(--size)));
+    offset-anchor: center;
+    offset-rotate: auto;
+    animation: loader-trace 1.6s linear infinite;
   }
   .message .message-spinner {
-    top: calc(1.15rem - 3px);
-    left: calc(1rem - 3px);
+    /* Frame the portrait: the avatar is the loader's centre square. */
+    --size: calc(var(--msg-avatar-size) / 48);
+    --color-2: transparent;
+    top: calc(var(--msg-pad-y) - var(--msg-avatar-lift) - var(--msg-avatar-size) / 6);
+    left: calc(var(--msg-pad-x) - var(--msg-avatar-size) / 6);
     right: auto;
-    width: 42px;
-    height: 42px;
     pointer-events: none;
+  }
+  /* Keep the avatar above the loader so it reads as the centre square. */
+  .message:has(.message-spinner) .message-avatar {
+    position: relative;
+    z-index: 1;
   }
 
   .message {
+    --msg-pad-y: 1.25rem;
+    --msg-pad-x: 1rem;
+    --msg-avatar-size: 36px;
+    --msg-avatar-lift: 0.1rem;
     width: 100%;
     position: relative;
-    padding: 1.25rem 1rem;
+    padding: var(--msg-pad-y) var(--msg-pad-x);
     border-radius: var(--radius-lg);
     transition: all var(--transition);
     border-left: 3px solid transparent;
@@ -79,9 +115,9 @@
   }
 
   .message-avatar {
-    width: 36px;
-    height: 36px;
-    border-radius: var(--radius-full);
+    width: var(--msg-avatar-size);
+    height: var(--msg-avatar-size);
+    border-radius: var(--radius-sm);
     flex-shrink: 0;
     background: var(--surface-3);
     font-size: 0.9rem;
@@ -90,7 +126,7 @@
     color: var(--text-muted);
     box-shadow: var(--shadow-sm);
     border: 1px solid var(--border);
-    line-height: 36px;
+    line-height: var(--msg-avatar-size);
     text-align: center;
   }
   .message-avatar img {
@@ -103,7 +139,7 @@
   .message-body {
     flex: 1;
     min-width: 0;
-    margin-top: -0.1rem;
+    margin-top: calc(-1 * var(--msg-avatar-lift));
   }
 
   /* Markdown Content */

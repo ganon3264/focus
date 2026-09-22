@@ -107,8 +107,7 @@
         <div class="grid grid-cols-3 gap-2 auto-rows-max" x-show="openCategories[category] !== false">
         <template x-for="tool in groupTools" :key="tool.name">
           <div
-            class="p-2 rounded-md"
-            style="background:var(--surface-2);border:1px solid var(--border)"
+            class="tile-card p-2 rounded-md"
             :class="(tool.multimodal && !enableMultimodal) || (tool.writes && readOnly) || toolStates[tool.name] !== true ? 'opacity-40' : ''"
           >
             <div class="flex items-center justify-between gap-1">

@@ -23,7 +23,7 @@
       <div class="flex items-center gap-3">
         <template x-if="activeChar">
           <div class="flex items-center gap-3">
-            <div class="w-8 h-8 rounded-full bg-(--surface-3) overflow-hidden flex items-center justify-center border border-(--border)">
+            <div class="w-8 h-8 rounded-sm bg-(--surface-3) overflow-hidden flex items-center justify-center border border-(--border)">
               <template x-if="activeChar.image_path">
                 <img :src="'/' + activeChar.image_path" class="w-full h-full object-cover" :alt="charData.name + ' avatar'">
               </template>
@@ -45,7 +45,7 @@
     <div x-show="dropdownOpen" x-transition.opacity.duration.200ms style="display:none;" class="absolute z-50 w-full mt-2 bg-(--surface-2) border border-(--border) rounded-lg shadow-xl overflow-hidden max-h-[50vh] overflow-y-auto flex flex-col">
       <template x-for="char in charsList" :key="char.id">
         <button @click="selectChar(char.id); dropdownOpen = false" class="flex items-center gap-3 p-3 w-full text-left hover:bg-(--surface-3) transition-colors border-b border-(--border) last:border-b-0">
-          <div class="w-10 h-10 rounded-full bg-(--surface-3) overflow-hidden flex items-center justify-center shrink-0">
+          <div class="w-10 h-10 rounded-sm bg-(--surface-3) overflow-hidden flex items-center justify-center shrink-0">
             <template x-if="char.image_path">
               <img :src="'/' + char.image_path" class="w-full h-full object-cover" alt="Block media">
             </template>
@@ -80,7 +80,7 @@
           <div class="flex flex-col gap-5 border-r border-(--border) pr-8">
             
             <div class="flex items-center gap-4 w-full">
-              <div class="relative group cursor-pointer w-20 h-20 rounded-full overflow-hidden border border-(--border) shrink-0 shadow-xs" style="background:var(--surface-3);">
+              <div class="relative group cursor-pointer w-20 h-20 rounded-sm overflow-hidden border border-(--border) shrink-0 shadow-xs" style="background:var(--surface-3);">
                 {% if char.image_path %}
                   <img src="/{{ char.image_path }}" class="w-full h-full object-cover" alt="Avatar">
                 {% else %}

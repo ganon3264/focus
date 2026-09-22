@@ -40,8 +40,7 @@
         <div class="flex flex-col gap-2" x-show="openCategories[category] !== false">
           <template x-for="ext in groupExtensions" :key="ext.name">
             <div
-              class="p-2 rounded-md"
-              style="background:var(--surface-2);border:1px solid var(--border)"
+              class="tile-card p-2 rounded-md"
               :class="!enabled(ext.name) ? 'opacity-60' : ''"
             >
               <div class="flex items-center justify-between gap-1">

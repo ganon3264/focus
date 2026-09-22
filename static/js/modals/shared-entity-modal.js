@@ -84,7 +84,7 @@
               bodyHtml +=
                 '<div class="flex justify-between items-center p-3 border border-(--border) rounded-lg bg-(--surface-2)">' +
                 '<div class="flex items-center gap-3">' +
-                '<div class="w-10 h-10 rounded-full overflow-hidden bg-(--surface-3) flex items-center justify-center border border-(--border)">';
+                '<div class="w-10 h-10 rounded-sm overflow-hidden bg-(--surface-3) flex items-center justify-center border border-(--border)">';
               if (imgUrl) {
                 bodyHtml += '<img src="/' + window.escapeHtml(imgUrl) + '" loading="lazy" class="w-full h-full object-cover">';
               } else {

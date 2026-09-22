@@ -3,9 +3,13 @@
   from { opacity: 0; }
   to   { opacity: 1; }
 }
-@keyframes spin {
+/* Chat generation spinner: a light runs the ring around the avatar. */
+@keyframes loader-trace {
+  from {
+    offset-distance: 0%;
+  }
   to {
-    transform: rotate(360deg);
+    offset-distance: 100%;
   }
 }
 @keyframes gen-pulse {

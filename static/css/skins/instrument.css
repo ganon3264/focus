@@ -8,9 +8,33 @@
 [data-skin='instrument'] {
   --font-mono-skin: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
     'Liberation Mono', monospace;
+  /* Neutral wash scale — every grey fill/edge in the skin is one of these. */
+  --ink-1: color-mix(in srgb, var(--text) 3%, transparent);
+  --ink-2: color-mix(in srgb, var(--text) 6%, transparent);
   --hair: color-mix(in srgb, var(--text) 8%, transparent);
   --hair-strong: color-mix(in srgb, var(--text) 18%, transparent);
   --engrave: color-mix(in srgb, var(--text-muted) 80%, transparent);
+
+  /* Accent tint scale — rest / hover / active, plus the matching edges. */
+  --tint-1: color-mix(in srgb, var(--accent) 6%, transparent);
+  --tint-2: color-mix(in srgb, var(--accent) 10%, transparent);
+  --tint-3: color-mix(in srgb, var(--accent) 16%, transparent);
+  --edge-soft: color-mix(in srgb, var(--accent) 35%, transparent);
+  --edge: color-mix(in srgb, var(--accent) 45%, transparent);
+
+  /* Danger keeps its own hue at the same tint levels. */
+  --danger-tint: color-mix(in srgb, var(--danger) 12%, transparent);
+  --danger-tint-strong: color-mix(in srgb, var(--danger) 20%, transparent);
+  --danger-edge: color-mix(in srgb, var(--danger) 45%, transparent);
+  --danger-ink: color-mix(in srgb, var(--danger) 70%, transparent);
+
+  /* One inset for every framed surface (sidebars, modals, composer). */
+  --skin-inset: 1.25rem;
+  --skin-gap: 1rem;
+
+  /* The system mono face ships 400/700 only; never let the browser fake 500/600,
+     which smears small glyphs. */
+  font-synthesis-weight: none;
 
   /* Structure comes from lines, not elevation. */
   --radius-sm: 2px;
@@ -21,6 +45,11 @@
   --shadow-edge: none;
 }
 
+/* Scrollbars are hairlines too — no pill caps in this skin. */
+[data-skin='instrument'] ::-webkit-scrollbar-thumb {
+  border-radius: 0;
+}
+
 /* ── Shell ──────────────────────────────────────────────────────────────── */
 [data-skin='instrument'] .left-sidebar {
   box-shadow: none;
@@ -28,7 +57,7 @@
 }
 
 [data-skin='instrument'] .left-sidebar .sidebar-section {
-  padding: 1.1rem 1.25rem;
+  padding: var(--skin-inset);
   border-bottom: 1px solid var(--hair);
 }
 
@@ -43,11 +72,7 @@
    and the New Chat control are one shared size, so their edges read as a single
    line across the bodywork. */
 [data-skin='instrument'] .right-sidebar .sidebar-section {
-  padding: 1.1rem 1.25rem;
-}
-
-[data-skin='instrument'] .left-sidebar #preset-selector {
-  padding-right: 0 !important;
+  padding: var(--skin-inset);
 }
 
 [data-skin='instrument'] .left-sidebar #preset-selector .form-control,
@@ -57,30 +82,37 @@
   padding-bottom: 0;
 }
 
-/* Sidebar scroll column. The scrollbar lives in the section's right padding and
-   every element — title rule, selector, tools, status, chat rows, New Chat —
-   ends on the same line just left of it. The scroll region is pulled right by
-   (bar + gap) and keeps the gap as padding, so its content lands back on that
-   line instead of vanishing under the bar. */
+/* Sidebar scroll column. The content column keeps the same 20px inset on both
+   sides; the scroll region is pulled into the right inset just far enough that
+   its content lands back on that line, and the scrollbar sits in the outer 10px
+   of the inset. Non-scrolling elements — title rule, selector, tools, status,
+   chat rows, New Chat — already end on that line via the section padding. */
 [data-skin='instrument'] {
-  --sidebar-scroll-shift: 1rem; /* bar (0.625rem) + gap (0.375rem) */
-}
-
-[data-skin='instrument'] .left-sidebar .sidebar-section,
-[data-skin='instrument'] .right-sidebar .sidebar-section {
-  padding-right: calc(1.25rem + 0.625rem);
+  --sidebar-scrollbar: 0.625rem;
 }
 
 [data-skin='instrument'] .left-sidebar .sidebar-section .scroll-fade,
 [data-skin='instrument'] .right-sidebar .sidebar-section .scroll-fade {
-  margin-right: calc(-1 * var(--sidebar-scroll-shift));
+  margin-right: calc(-1 * var(--sidebar-scrollbar));
+  padding-right: 0;
+}
+
+/* Firefox uses overlay scrollbars that claim no layout width, so the gutter
+   reserves nothing and the content would run into the pane edge. Give it the
+   scrollbar lane as padding instead. `-moz-appearance` is a Firefox-only
+   marker. */
+@supports (-moz-appearance: none) {
+  [data-skin='instrument'] .left-sidebar .sidebar-section .scroll-fade,
+  [data-skin='instrument'] .right-sidebar .sidebar-section .scroll-fade {
+    padding-right: var(--sidebar-scrollbar);
+  }
 }
 
 /* Full-bleed hairline under the New Chat control, sitting at the same y as the
    left sidebar's preset-section divider so the two read as one body line. */
 [data-skin='instrument'] .right-sidebar .sidebar-rule {
   border-top: 1px solid var(--hair);
-  margin: 1.1rem -1.875rem 0.75rem -1.25rem;
+  margin: var(--skin-inset) calc(-1 * var(--skin-inset)) 0.75rem calc(-1 * var(--skin-inset));
 }
 
 /* ── Section headers: engraved label with a rule running to the edge ────── */
@@ -90,8 +122,8 @@
   gap: 0.5rem;
   margin-bottom: 0.85rem;
   font-family: var(--font-mono-skin);
-  font-size: 0.7rem;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 400;
   letter-spacing: 0.14em;
   color: var(--text-muted);
 }
@@ -124,11 +156,13 @@
 
 /* ── Preset selector: an engraved readout with bracket corners ──────────── */
 [data-skin='instrument'] .left-sidebar #preset-selector .form-control {
-  background: color-mix(in srgb, var(--text) 3%, transparent);
+  background: var(--ink-1);
   border: none;
   border-radius: 0;
-  padding: 0.55rem 0.7rem;
-  font-size: 0.82rem;
+  /* Right padding is only the chevron's optical inset, so the dropdown chevron
+     lines up with the section's collapse control on the content edge. */
+  padding: 0.55rem 0.125rem 0.55rem 0.7rem;
+  font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.01em;
   color: var(--text);
@@ -137,7 +171,7 @@
 [data-skin='instrument'] .left-sidebar #preset-selector .form-control:hover,
 [data-skin='instrument'] .left-sidebar #preset-selector .form-control:focus {
   box-shadow: none;
-  background: color-mix(in srgb, var(--text) 5%, transparent);
+  background: var(--ink-2);
 }
 
 /* ── Preset menu: hairline rows, actions revealed on hover ──────────────── */
@@ -161,8 +195,8 @@
   border: none;
   cursor: pointer;
   font-family: var(--font-mono-skin);
-  font-size: 0.62rem;
-  font-weight: 500;
+  font-size: 10px;
+  font-weight: 400;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--text-muted);
@@ -175,17 +209,17 @@
 
 [data-skin='instrument'] .preset-menu-action:hover {
   color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  background: var(--tint-1);
 }
 
 [data-skin='instrument'] .preset-menu .dropdown-item {
   padding: 0.5rem 0.7rem;
-  font-size: 0.8rem;
+  font-size: 13px;
   color: var(--text);
 }
 
 [data-skin='instrument'] .preset-menu .dropdown-item:hover {
-  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  background: var(--tint-1);
 }
 
 [data-skin='instrument'] .preset-menu-item.is-selected .preset-item-name {
@@ -222,12 +256,12 @@
 
 [data-skin='instrument'] .preset-item-action:hover {
   color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  background: var(--tint-2);
 }
 
 [data-skin='instrument'] .preset-item-action.danger:hover {
   color: var(--danger);
-  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  background: var(--danger-tint);
 }
 
 [data-skin='instrument'] .dropdown-panel {
@@ -251,7 +285,7 @@
   border-bottom: 1px solid var(--hair);
   border-radius: 0;
   box-shadow: none;
-  padding: 0.5rem 0.25rem 0.5rem 0.5rem;
+  padding: 0.5rem 0 0.5rem 0.5rem;
 }
 
 [data-skin='instrument'] .left-sidebar .var-group-container.bg-role-system:last-child {
@@ -282,7 +316,7 @@
 }
 
 [data-skin='instrument'] .left-sidebar .var-group-name {
-  font-size: 0.78rem;
+  font-size: 12px;
   font-weight: 500;
   color: var(--text-muted);
 }
@@ -297,7 +331,7 @@
 /* Value: the loud element. Mono, amber when set, dim when unset. */
 [data-skin='instrument'] .left-sidebar .var-group-container .arranger-actions > span {
   font-family: var(--font-mono-skin);
-  font-size: 0.68rem;
+  font-size: 11px;
   font-weight: 400;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -411,7 +445,7 @@
 
 [data-skin='instrument'] .left-sidebar .tool-tile:hover,
 [data-skin='instrument'] .left-sidebar .tool-tile:focus-visible {
-  background: color-mix(in srgb, var(--accent) 7%, transparent);
+  background: var(--tint-1);
   border-left-color: var(--accent);
   color: var(--text);
 }
@@ -434,12 +468,41 @@
   color: var(--accent);
 }
 
+/* ── Buttons: one console control family ───────────────────────────────── */
+/* Every `.btn` shares the mono/uppercase label, squared corners and hairline
+   edge; variants differ only in ink. Navigation tiles (`.tool-tile`) and text
+   links opt out and keep their own typography below. */
+[data-skin='instrument'] .btn:not(.tool-tile):not(.btn-link) {
+  font-family: var(--font-mono-skin);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border-radius: 0;
+  box-shadow: none;
+  transform: none;
+  white-space: nowrap;
+}
+
+[data-skin='instrument'] .btn:not(.tool-tile):not(.btn-link):active {
+  transform: none;
+}
+
+/* The empty-state hero is the one button that leads a whole screen, so it keeps
+   the family type but earns a little more size and air. */
+[data-skin='instrument'] .btn-hero:not(.tool-tile):not(.btn-link) {
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  padding: 0.85rem 2rem;
+}
+
 /* ── Corner motif ───────────────────────────────────────────────────────── */
 /* Bracket corners from the status readout recur on the framed surfaces that
-   hold a single control: the preset selector, cards, the composer, and the
+   hold a single control: the preset selector, grid tiles, the composer, and the
    message hover toolbar. */
 [data-skin='instrument'] .status-panel,
 [data-skin='instrument'] .card,
+[data-skin='instrument'] .tile-card,
 [data-skin='instrument'] .input-wrapper,
 [data-skin='instrument'] .toolbar,
 [data-skin='instrument'] .left-sidebar #preset-selector .form-control {
@@ -452,12 +515,14 @@
 }
 
 [data-skin='instrument'] .card,
+[data-skin='instrument'] .tile-card,
 [data-skin='instrument'] .left-sidebar #preset-selector .form-control {
   position: relative;
 }
 
 [data-skin='instrument'] .status-panel::before,
 [data-skin='instrument'] .card::before,
+[data-skin='instrument'] .tile-card::before,
 [data-skin='instrument'] .input-wrapper::before,
 [data-skin='instrument'] .toolbar::before,
 [data-skin='instrument'] .left-sidebar #preset-selector .form-control::before {
@@ -475,6 +540,7 @@
 
 [data-skin='instrument'] .status-panel::after,
 [data-skin='instrument'] .card::after,
+[data-skin='instrument'] .tile-card::after,
 [data-skin='instrument'] .input-wrapper::after,
 [data-skin='instrument'] .toolbar::after,
 [data-skin='instrument'] .left-sidebar #preset-selector .form-control::after {
@@ -493,7 +559,7 @@
 /* ── Status: an instrument readout ──────────────────────────────────────── */
 [data-skin='instrument'] .left-sidebar .status-panel {
   position: relative;
-  background: color-mix(in srgb, var(--text) 3%, transparent);
+  background: var(--ink-1);
   border: none;
   border-radius: 0;
   padding: 0.75rem 0.85rem;
@@ -502,15 +568,15 @@
 
 [data-skin='instrument'] .left-sidebar .status-panel > div > span:first-child {
   font-family: var(--font-mono-skin);
-  font-size: 0.66rem;
-  font-weight: 500;
+  font-size: 11px;
+  font-weight: 400;
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
 [data-skin='instrument'] .left-sidebar .status-panel > div > span:last-child {
   font-family: var(--font-mono-skin);
-  font-size: 0.72rem;
+  font-size: 12px;
   font-weight: 400;
   letter-spacing: 0.01em;
 }
@@ -538,23 +604,14 @@
 /* Primary action: an outlined console button rather than a solid accent block,
    so each surface keeps a single focal colour (its active/selected row). */
 [data-skin='instrument'] .btn-primary {
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
-  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
-  border-radius: 0;
-  box-shadow: none;
+  background: var(--tint-2);
+  border: 1px solid var(--edge);
   color: var(--accent);
-  font-family: var(--font-mono-skin);
-  font-size: 0.68rem;
-  font-weight: 500;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
 }
 
 [data-skin='instrument'] .btn-primary:hover {
-  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  background: var(--tint-3);
   border-color: var(--accent);
-  box-shadow: none;
-  transform: none;
 }
 /* Chat list: hairline rows; the active chat is marked by an accent edge. */
 [data-skin='instrument'] .right-sidebar .sidebar-list {
@@ -576,7 +633,7 @@
 }
 
 [data-skin='instrument'] .right-sidebar .sidebar-item:hover {
-  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  background: var(--tint-1);
   border-left-color: transparent;
   border-bottom-color: var(--hair-strong);
 }
@@ -589,7 +646,7 @@
 }
 
 [data-skin='instrument'] .right-sidebar .sidebar-item a > span:first-child {
-  font-size: 0.8rem;
+  font-size: 13px;
   font-weight: 500;
   color: color-mix(in srgb, var(--text) 82%, transparent);
 }
@@ -600,7 +657,7 @@
 
 [data-skin='instrument'] .right-sidebar .sidebar-item a > span:last-child {
   font-family: var(--font-mono-skin);
-  font-size: 0.65rem;
+  font-size: 10px;
   letter-spacing: 0.02em;
 }
 
@@ -624,15 +681,15 @@
 
 /* Danger keeps its own hue but the same flat shape. */
 [data-skin='instrument'] .btn-danger {
-  background: color-mix(in srgb, var(--danger) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--danger) 45%, transparent);
+  background: var(--danger-tint);
+  border: 1px solid var(--danger-edge);
   border-radius: 0;
   box-shadow: none;
   color: var(--danger);
 }
 
 [data-skin='instrument'] .btn-danger:hover {
-  background: color-mix(in srgb, var(--danger) 20%, transparent);
+  background: var(--danger-tint-strong);
   border-color: var(--danger);
   color: var(--danger-hover);
   transform: none;
@@ -647,19 +704,21 @@
 
 /* ══ Center pane ══════════════════════════════════════════════════════════ */
 [data-skin='instrument'] .chat-center {
-  padding: 2.25rem 1.5rem;
+  padding: 2.25rem var(--skin-inset);
 }
 
 /* Messages are not cards. The avatar + name header already separates them, so
    hover marks the row with an accent edge rather than filling the whole block. */
 [data-skin='instrument'] .message {
+  --msg-pad-y: 1.1rem;
+  --msg-pad-x: 0.75rem;
   border-radius: 0;
   border-left: 2px solid transparent;
-  padding: 1.1rem 0.75rem;
+  padding: var(--msg-pad-y) var(--msg-pad-x);
 }
 
 [data-skin='instrument'] .message:hover {
-  background: color-mix(in srgb, var(--accent) 4%, transparent);
+  background: var(--tint-1);
   border-left-color: var(--accent);
 }
 
@@ -676,7 +735,7 @@
 /* Model name / reasoning toggle read as a spec line. */
 [data-skin='instrument'] .message-meta {
   font-family: var(--font-mono-skin);
-  font-size: 0.68rem;
+  font-size: 11px;
   letter-spacing: 0.04em;
 }
 
@@ -709,7 +768,7 @@
 }
 
 [data-skin='instrument'] .toolbar .action-btn:hover {
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  background: var(--tint-2);
   color: var(--accent);
 }
 
@@ -722,7 +781,7 @@
   padding: 0.3rem 0.25rem;
   color: var(--text-muted);
   font-family: var(--font-mono-skin);
-  font-size: 0.68rem;
+  font-size: 11px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
@@ -749,6 +808,10 @@
 }
 
 /* ── Input bar: a console, not a pill ───────────────────────────────────── */
+[data-skin='instrument'] .input-bar {
+  padding: 0 var(--skin-inset) 1.5rem;
+}
+
 [data-skin='instrument'] .input-wrapper {
   border-radius: 0;
   border: none;
@@ -774,20 +837,20 @@
 }
 
 [data-skin='instrument'] .send-btn {
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  background: var(--tint-2);
+  border: 1px solid var(--edge);
   border-radius: 0;
   color: var(--accent);
 }
 
 [data-skin='instrument'] .send-btn:hover {
-  background: color-mix(in srgb, var(--accent) 20%, transparent);
+  background: var(--tint-3);
   border-color: var(--accent);
 }
 
 [data-skin='instrument'] .send-btn.stop-btn {
-  background: color-mix(in srgb, var(--danger) 12%, transparent);
-  border-color: color-mix(in srgb, var(--danger) 45%, transparent);
+  background: var(--danger-tint);
+  border-color: var(--danger-edge);
   color: var(--danger);
 }
 
@@ -809,7 +872,7 @@
   border-radius: 0;
   border-color: var(--hair-strong);
   box-shadow: none;
-  padding: 1.25rem;
+  padding: var(--skin-inset);
 }
 
 /* Header follows the panel headers: engraved label, rule running to the close. */
@@ -817,20 +880,20 @@
   justify-content: flex-start;
   align-items: center;
   gap: 0.6rem;
-  margin-bottom: 1.25rem;
+  margin-bottom: var(--skin-gap);
 }
 
 [data-skin='instrument'] .modal-header.divider {
   border-bottom: 1px solid var(--hair);
-  padding-bottom: 0.75rem;
-  margin-bottom: 1rem;
+  padding-bottom: var(--skin-gap);
+  margin-bottom: var(--skin-gap);
 }
 
 [data-skin='instrument'] .modal-title,
 [data-skin='instrument'] .modal-content .sidebar-title {
   font-family: var(--font-mono-skin);
-  font-size: 0.72rem;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 400;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--text);
@@ -871,8 +934,8 @@
 
 [data-skin='instrument'] .modal-footer {
   border-top: 1px solid var(--hair);
-  padding-top: 0.85rem;
-  margin-top: 0.85rem;
+  padding-top: var(--skin-gap);
+  margin-top: var(--skin-gap);
 }
 
 /* ── Fields ─────────────────────────────────────────────────────────────── */
@@ -899,7 +962,7 @@
 [data-skin='instrument'] .tab-btn {
   border-radius: 0;
   font-family: var(--font-mono-skin);
-  font-size: 0.7rem;
+  font-size: 11px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
@@ -913,13 +976,15 @@
 /* ── Cards ──────────────────────────────────────────────────────────────── */
 /* No lift, no image zoom, and no full frame — the bracket corners carry the
    boundary, matching the status readout. Selection lights the corners. */
-[data-skin='instrument'] .card {
+[data-skin='instrument'] .card,
+[data-skin='instrument'] .tile-card {
   border: none;
   border-radius: 0;
   box-shadow: none;
 }
 
-[data-skin='instrument'] .card:hover {
+[data-skin='instrument'] .card:hover,
+[data-skin='instrument'] .tile-card:hover {
   --corner-color: var(--accent);
   transform: none;
   box-shadow: none;
@@ -930,7 +995,7 @@
 }
 
 [data-skin='instrument'] .card.active {
-  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  background: var(--tint-1);
   --corner-color: var(--accent);
 }
 
@@ -943,7 +1008,7 @@
   border-color: var(--hair-strong);
   border-radius: 0;
   font-family: var(--font-mono-skin);
-  font-size: 0.62rem;
+  font-size: 10px;
   letter-spacing: 0.05em;
 }
 
@@ -951,10 +1016,14 @@
   border-color: var(--hair-strong);
   border-radius: 0;
   background: transparent;
+  font-family: var(--font-mono-skin);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 [data-skin='instrument'] .slot-btn.slot-active {
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  background: var(--tint-3);
   border-color: var(--accent);
   color: var(--accent);
 }
@@ -966,28 +1035,27 @@
 [data-skin='instrument'] .btn-delete-icon {
   background: transparent;
   border: 1px solid var(--hair-strong);
-  border-radius: 0;
   box-shadow: none;
   color: var(--text-muted);
 }
 
-[data-skin='instrument'] .btn-edit:hover,
-[data-skin='instrument'] .btn-delete-icon:hover {
+[data-skin='instrument'] .btn-edit:hover {
   background: transparent;
   border-color: var(--accent);
   color: var(--accent);
 }
 
-/* A destructive icon sits on every card. Keep it on the same hairline frame as
-   the edit button and let it carry its danger hue at rest, rather than only on
-   hover, so the two read as a matched pair. */
+/* Deletion keeps a danger hue at rest on the same hairline frame, so the pair
+   reads as matched rather than only revealing the destructive role on hover. */
+[data-skin='instrument'] .btn-delete-icon,
 [data-skin='instrument'] .card .btn-danger {
   background: transparent;
   border: 1px solid var(--hair-strong);
   box-shadow: none;
-  color: color-mix(in srgb, var(--danger) 70%, transparent);
+  color: var(--danger-ink);
 }
 
+[data-skin='instrument'] .btn-delete-icon:hover,
 [data-skin='instrument'] .card .btn-danger:hover {
   background: transparent;
   border-color: var(--danger);
@@ -1003,7 +1071,7 @@
 }
 
 [data-skin='instrument'] .theme-row:hover {
-  background: color-mix(in srgb, var(--accent) 5%, transparent);
+  background: var(--tint-1);
 }
 
 [data-skin='instrument'] .theme-row.is-selected {
@@ -1027,8 +1095,8 @@
 }
 
 [data-skin='instrument'] .arranger-item.bg-role-system {
-  background: color-mix(in srgb, var(--accent) 8%, transparent);
-  border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+  background: var(--tint-2);
+  border-color: var(--edge-soft);
 }
 
 [data-skin='instrument'] .arranger-item.bg-role-user {
@@ -1056,7 +1124,8 @@
   border-radius: 0;
   color: var(--text-muted);
   font-family: var(--font-mono-skin);
-  font-size: 0.65rem;
+  font-size: 10px;
+  font-weight: 400;
   letter-spacing: 0.06em;
 }
 
@@ -1066,7 +1135,7 @@
 }
 
 [data-skin='instrument'] .btn-tag.active {
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  background: var(--tint-3);
   border-color: var(--accent);
   color: var(--accent);
 }
