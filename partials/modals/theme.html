@@ -53,7 +53,7 @@ Customizer', max_width='520px', width='90vw', content_style='', z_index='100') %
 
   <div class="flex items-stretch gap-2">
     <input type="text" x-model="editName" placeholder="Theme name" class="form-control flex-1" @input="markDirty()" />
-    <button class="btn btn-secondary shrink-0" @click="create()" title="Create a new theme from the current colors">New</button>
+    <button class="btn btn-create shrink-0" @click="create()" title="Create a new theme from the current colors">New</button>
   </div>
 
   <div class="grid grid-cols-2 gap-3" id="theme-color-pickers">

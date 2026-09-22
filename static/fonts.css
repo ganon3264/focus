@@ -1,0 +1,56 @@
+/* Self-hosted fonts. Both families are SIL OFL 1.1 (see static/fonts/*-LICENSE.txt).
+
+   Ronzino is a static family: one @font-face per weight/style (no variable
+   axis). It ships 400/500/700 — the UI uses 600 for `font-semibold`, which the
+   browser resolves to 700, so semibold and bold render identically. */
+@font-face {
+  font-family: 'Ronzino';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./fonts/ronzino-regular.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Ronzino';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('./fonts/ronzino-medium.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Ronzino';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('./fonts/ronzino-bold.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Ronzino';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./fonts/ronzino-oblique.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Ronzino';
+  font-style: italic;
+  font-weight: 500;
+  font-display: swap;
+  src: url('./fonts/ronzino-medium-oblique.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Ronzino';
+  font-style: italic;
+  font-weight: 700;
+  font-display: swap;
+  src: url('./fonts/ronzino-bold-oblique.woff2') format('woff2');
+}
+
+/* Necto Mono ships a single Regular weight; bold mono is synthesized. */
+@font-face {
+  font-family: 'Necto Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./fonts/necto-mono-regular.woff2') format('woff2');
+}

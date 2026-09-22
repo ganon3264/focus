@@ -25,12 +25,12 @@
         style="border-radius: var(--radius-lg) var(--radius-lg) 0 0"
       />
       {% else %}
-      <span class="text-3xl">{{ char.name[:1] }}</span>
+      <span class="text-3xl text-muted">{{ char.name[:1] }}</span>
       {% endif %}
     </div>
     <div class="card-body" style="padding: 0.75rem">
       <div class="flex items-center gap-1.5 mb-1">
-        <div class="font-bold text-sm truncate flex-1 min-w-0">{{ char.name }}</div>
+        <div class="card-name font-bold text-sm truncate flex-1 min-w-0">{{ char.name }}</div>
         {% if char.get('group_name') %}
         <div class="card-group-badge shrink-0" style="max-width: 50%">{{ icon_folder(10) }}<span>{{ char.get('group_name') }}</span></div>
         {% endif %}
@@ -106,7 +106,7 @@
         <span class="fav-star-filled">{{ icon_star_filled(14) }}</span>
       </button>
       <div class="flex-1 min-w-0">
-        <div class="font-bold text-sm truncate">{{ char.name }}</div>
+        <div class="card-name font-bold text-sm truncate">{{ char.name }}</div>
         {% if char.get('group_name') %}
         <div class="text-xs text-muted truncate">{{ char.get('group_name') }}</div>
         {% endif %}

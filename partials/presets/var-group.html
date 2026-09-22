@@ -32,7 +32,7 @@
             <button type="button" class="action-icon slim danger" title="Delete Option" aria-label="Delete option" data-var-id="{{ vb.id }}" onclick="window.customConfirm('Delete variable option?', function(){ handleVarDelete(this); }.bind(this))">{{ icon_close(12) }}</button>
           </div>
         {% endfor %}
-        <div class="flex items-center gap-1 p-1.5 rounded w-full min-w-0 radio-add-row" data-var-name="{{ vname }}" onclick="event.stopPropagation(); openVarEditModal(this)">
+        <div class="flex items-center gap-1 p-1.5 rounded w-full min-w-0 radio-add-row is-create" data-var-name="{{ vname }}" onclick="event.stopPropagation(); openVarEditModal(this)">
           <span style="color: var(--text-muted); font-size: 0.75rem; display: flex; align-items: center; gap: 0.25rem;">
             {{ icon_plus(14) }} Add Option
           </span>

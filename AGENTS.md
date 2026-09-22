@@ -151,6 +151,10 @@ table lookup (`HANDLERS[json.type]`); unknown types log a warning, never vanish 
 - `chat_page` embeds `window.THEMES` + `window.THEME_STATE` server-side; `theme-manager.js` applies, caches both slot palettes to `focus-theme-state` (flash-free pre-paint in `base.html`), re-resolves on `matchMedia` change, `character-changed`, and `character-edited` events. Action feedback via the toast system (`showToast` in `notifications.js`, container `#toast-container` in `base.html`).
 - Theme modal (`partials/modals/theme.html`): clicking a row selects it for editing; per-row Dark/Light buttons assign the slots (mutually exclusive, `.slot-btn.slot-active`); "New" creates the theme immediately from the typed name + current picker colors (toast, stays open, new theme selected). Live picker preview is NOT saved: `dirty` state (name/pickers vs stored values) enables Save, shows an "Unsaved changes" hint, and prompts before switching themes (`switchTo` + `openConfirmModal`).
 
+### Fonts
+
+- Both families are self-hosted woff2 under `static/fonts/`, declared in `static/fonts.css` (linked from `base.html`), not downloaded by `vendor-sync.py`. `--font-sans` = **Ronzino** (static; 400/500/700 + obliques — **no 600, so `font-semibold` renders as 700**), `--font-mono-skin` = **Necto Mono** (single 400 weight). Both SIL OFL 1.1, © Collletttivo; license texts live next to the fonts and are listed in `NOTICE`. Replacing a face means adding an `@font-face` here and updating `--font-sans`/`--font-mono-skin` in `tokens.css` / `skins/instrument.css`.
+
 ### Macros (`focus/core/macros.py`)
 
 - Built-in macros: `build_base_macros()` (values) and `MACRO_DEFINITIONS` (metadata). Must stay in sync — test `TestMacroDefinitions::test_keys_match_build_base_macros` enforces this.
@@ -158,7 +162,30 @@ table lookup (`HANDLERS[json.type]`); unknown types log a warning, never vanish 
 - Comments `{{// ...}}` stripped pre-resolution, depth-aware for nesting.
 - Template globals `macro_definitions`/`special_tokens` registered in `pages.py`.
 
+### Action palette — button intent
+
+Colour follows the **verb on the label**, not the feature. One green create per surface; everything else stays in the indigo/neutral/red lanes.
+
+| Verb | Class | Examples |
+|---|---|---|
+| **Create** — a new entity comes into existence | `.btn-create` (green) | New, Add, Create, Duplicate, Start Chat |
+| **Commit** — persist/confirm changes to something that already exists | `.btn-primary` (indigo) | Save, Apply, Done, Confirm, Rename, Select, Export |
+| Navigate / dismiss | `.btn-secondary` / `.btn-link` | Back, Close, Cancel, Editor |
+| **Destroy** | `.btn-danger` (red) | Delete, Remove |
+| **Flag** (user metadata) | `.fav-star.favorite-active` (amber) | Favorite |
+
+- **Litmus test:** after the click, is there one more row/entity than before? → green. Otherwise → indigo. A form submit that creates a resource takes the create colour ("Add Provider"); one that persists edits takes indigo ("Save").
+- **Save is never green.** "Save"/"Save Changes" mutate the thing you're editing — commit, so indigo. If a button really only adds a row, its label should say so ("Add") and *then* it can be green; never leave a green "Save".
+- `.btn-create` is tinted at rest and deepens on hover — never a solid block. The instrument skin mirrors it with `--success-tint*` / `--success-edge`.
+- Non-`.btn` adders (`.preset-menu-action`, `.preset-item-action`, `.action-icon`, `.radio-add-row`, `.btn-edit`, `.btn-link`, `.btn-media-add`) opt into the same cue with `.is-create`. Add it whenever a control brings something new into being.
+- **The active skin is instrument** (`base.html` `<html data-skin="instrument">`). Any component colour rule must be checked in `skins/instrument.css` too — a rule authored in `components.css` alone is often overridden there (e.g. `.card.active` is set by both).
+- `--success` is otherwise used only by toasts, so the green channel is free. `--role-user` is a near-green — don't place a create button directly against a user-role chip.
+- **Import is neutral, not create** — it's a file ingest; a second green next to Create dilutes the cue.
+- **Opening a picker is navigation, not create** — e.g. "Add Character" in the right pane opens the character modal, so it stays indigo. The label says Add; the behaviour selects.
+
 ## Common gotchas
+
+- **Scripts in htmx-swapped partials**: a `<script>` inside a partial executes on every swap. Moving it to the host page (e.g. `chat.html`) makes its top-level init run **once at page load** — before the swapped content exists. Replace swap-time init (`setTimeout`, querying freshly-rendered nodes) with an `htmx:afterSwap` hook keyed on the target id (`providers.js` → `#providers-modal-body-inner` is the reference case; `test-providers-modal-init.js` guards it).
 
 - **`x-show` needs `x-cloak`** — Alpine loads `defer`, so overlays using `x-show` without `x-cloak` flash visible during HTML parsing.
 - **`:last-of-type` isn't "last with this class"** — the scroll sentinel shares the same tag. Use `querySelectorAll('.message')` and take the last NodeList element.

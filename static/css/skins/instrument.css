@@ -6,7 +6,7 @@
    default structure back. Remove this file once the direction is settled.
    -------------------------------------------------------------------------- */
 [data-skin='instrument'] {
-  --font-mono-skin: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
+  --font-mono-skin: 'Necto Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
     'Liberation Mono', monospace;
   /* Neutral wash scale — every grey fill/edge in the skin is one of these. */
   --ink-1: color-mix(in srgb, var(--text) 3%, transparent);
@@ -27,6 +27,11 @@
   --danger-tint-strong: color-mix(in srgb, var(--danger) 20%, transparent);
   --danger-edge: color-mix(in srgb, var(--danger) 45%, transparent);
   --danger-ink: color-mix(in srgb, var(--danger) 70%, transparent);
+
+  /* Create keeps its own hue at the same tint levels. */
+  --success-tint: color-mix(in srgb, var(--success) 12%, transparent);
+  --success-tint-strong: color-mix(in srgb, var(--success) 20%, transparent);
+  --success-edge: color-mix(in srgb, var(--success) 45%, transparent);
 
   /* One inset for every framed surface (sidebars, modals, composer). */
   --skin-inset: 1.25rem;
@@ -613,6 +618,22 @@
   background: var(--tint-3);
   border-color: var(--accent);
 }
+
+/* Create keeps its green hue at the same flat hairline shape. */
+[data-skin='instrument'] .btn-create {
+  background: var(--success-tint);
+  border: 1px solid var(--success-edge);
+  border-radius: 0;
+  box-shadow: none;
+  color: var(--success-hover);
+}
+
+[data-skin='instrument'] .btn-create:hover {
+  background: var(--success-tint-strong);
+  border-color: var(--success);
+  color: var(--success-hover);
+  transform: none;
+}
 /* Chat list: hairline rows; the active chat is marked by an accent edge. */
 [data-skin='instrument'] .right-sidebar .sidebar-list {
   gap: 0;
@@ -995,7 +1016,7 @@
 }
 
 [data-skin='instrument'] .card.active {
-  background: var(--tint-1);
+  background: color-mix(in srgb, var(--accent) 20%, var(--surface-2));
   --corner-color: var(--accent);
 }
 
@@ -1138,4 +1159,61 @@
   background: var(--tint-3);
   border-color: var(--accent);
   color: var(--accent);
+}
+
+/* ── Create affordances ─────────────────────────────────────────────────── */
+/* Non-.btn adders keep the green create cue on the flat hairline treatment.
+   Kept at the end of the skin so they win the cascade over the earlier
+   per-component colour rules. */
+[data-skin='instrument'] .preset-menu-action.is-create,
+[data-skin='instrument'] .preset-item-action.is-create,
+[data-skin='instrument'] .action-icon.is-create,
+[data-skin='instrument'] .btn-edit.is-create,
+[data-skin='instrument'] .btn-link.is-create {
+  color: var(--success-hover);
+}
+
+[data-skin='instrument'] .preset-menu-action.is-create:hover {
+  color: var(--success-hover);
+  background: var(--success-tint);
+}
+
+[data-skin='instrument'] .preset-item-action.is-create:hover {
+  color: var(--success-hover);
+  background: var(--success-tint);
+}
+
+[data-skin='instrument'] .action-icon.is-create:hover {
+  background: var(--success-tint);
+  color: var(--success-hover);
+}
+
+[data-skin='instrument'] .btn-edit.is-create:hover {
+  background: var(--success-tint);
+  border-color: var(--success);
+  color: var(--success-hover);
+}
+
+[data-skin='instrument'] .left-sidebar .radio-add-row.is-create {
+  border-bottom-color: var(--success-edge);
+}
+
+[data-skin='instrument'] .left-sidebar .radio-add-row.is-create:hover {
+  background: transparent;
+  border-bottom-color: var(--success);
+}
+
+[data-skin='instrument'] .left-sidebar .radio-add-row.is-create:hover span {
+  color: var(--success-hover);
+}
+
+[data-skin='instrument'] .btn-media-add {
+  color: var(--success-hover);
+  border-style: dashed;
+}
+
+[data-skin='instrument'] .btn-media-add:hover {
+  background: var(--success-tint);
+  border-color: var(--success);
+  color: var(--success-hover);
 }

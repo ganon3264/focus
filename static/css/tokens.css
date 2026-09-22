@@ -10,7 +10,7 @@
  */
 @theme {
   --spacing: 0.25rem;
-  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-sans: 'Ronzino', system-ui, -apple-system, sans-serif;
   --color-muted: var(--text-muted);
   --color-dark: var(--bg);
   --color-light: var(--text);

@@ -18,6 +18,17 @@ following third-party software, each under its own license.
 | Remend       | 1.3.0   | Apache-2.0            | https://github.com/vercel/streamdown |
 | Lucide (icons) | —     | ISC                   | https://github.com/lucide-icons/lucide |
 
+## Fonts
+
+Self-hosted under `static/fonts/`. Both are SIL Open Font License 1.1; the
+full license texts ship alongside them (`static/fonts/Ronzino-LICENSE.txt`,
+`static/fonts/NectoMono-LICENSE.txt`).
+
+| Font       | Weights                  | License  | Copyright        | Source |
+|------------|--------------------------|----------|------------------|--------|
+| Ronzino    | 400/500/700 + obliques   | OFL-1.1  | © 2023 Collletttivo | https://github.com/Collletttivo/ronzino |
+| Necto Mono | 400                      | OFL-1.1  | © 2023 Collletttivo | https://github.com/Collletttivo/necto-mono |
+
 ## Backend (Python)
 
 The following packages are used under permissive licenses (MIT / BSD /

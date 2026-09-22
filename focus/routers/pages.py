@@ -484,6 +484,7 @@ async def prompt_arranger_block_partial(
 @router.get("/partials/providers-modal", response_class=HTMLResponse)
 async def providers_modal_partial(request: Request, db: aiosqlite.Connection = Depends(get_db)):
     providers = await crud.get_providers(db)
+    active_provider = await crud.get_active_provider(db)
 
     # Also fetch whether global secrets exist (just boolean presence, never the raw key)
     secrets_present = {}
@@ -498,6 +499,7 @@ async def providers_modal_partial(request: Request, db: aiosqlite.Connection = D
             "request": request,
             "providers": providers,
             "secrets": secrets_present,
+            "active_provider_id": active_provider["provider_id"],
         },
     )
 

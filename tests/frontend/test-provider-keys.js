@@ -15,6 +15,7 @@ var inputs = {
 
 global.window = global;
 global.document = {
+  body: { addEventListener: function () {} },
   getElementById: function (id) { return inputs[id] || null; },
   createElement: function () { return {}; },
 };

@@ -1,0 +1,33 @@
+FONTLOG for the Workhorse font
+
+This file provides detailed information on the Workhorse Font Software.
+This information should be distributed along with the Workhorse font
+and any derivative works.
+
+Basic Font Information
+
+Workhorse is an Open Source Arial alternative
+
+To contribute to the project contact Collletttivo
+at collletttivo@gmail.com
+
+ChangeLog
+
+31 Dec 2023 (v.1.000) Collletttivo
+- Initial release
+
+Acknowledgements
+
+If you make modifications be sure to add your name (N), 
+email (E), web-address (if you have one) (W) and 
+description (D). This list is in alphabetical order.
+
+N: Luigi Gorlero
+E: gorliluigi@gmail.com
+W: https://www.luigigorlero.com
+D: Principle designer, typeface development
+
+N: Annunziato Pio Mazzaferro
+E: nnzmzz@icloud.com
+W: https://www.collletttivo.it
+D: Principle designer

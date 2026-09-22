@@ -25,7 +25,7 @@
 
       <!-- New / Import -->
       <div class="preset-menu-actions">
-        <button type="button" class="preset-menu-action" title="New preset"
+        <button type="button" class="preset-menu-action is-create" title="New preset"
           @click="open = false"
           hx-post="/api/presets"
           hx-vals='{"name":"New Preset"}'
@@ -51,7 +51,7 @@
       >
         <span class="truncate flex-1 preset-item-name">{{ p.name }}</span>
         <div class="preset-item-actions">
-          <button type="button" class="preset-item-action" title="Duplicate"
+          <button type="button" class="preset-item-action is-create" title="Duplicate"
             onclick="event.stopPropagation(); window.openDuplicateModal(this)"
           >{{ icon_copy(14) }}</button>
           <button type="button" class="preset-item-action" title="Rename"

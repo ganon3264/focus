@@ -82,7 +82,7 @@
   </div>
   <div class="flex justify-end gap-2 items-center mt-2">
     <button type="button" class="btn btn-secondary" @click="closeModal('modal-dup-preset')">Cancel</button>
-    <button type="button" class="btn btn-primary" @click="confirmDuplicate()" :disabled="!dupValue.trim()" :class="dupValue.trim() ? '' : 'opacity-50'">Duplicate</button>
+    <button type="button" class="btn btn-create" @click="confirmDuplicate()" :disabled="!dupValue.trim()" :class="dupValue.trim() ? '' : 'opacity-50'">Duplicate</button>
   </div>
 </div>
 {% endcall %}

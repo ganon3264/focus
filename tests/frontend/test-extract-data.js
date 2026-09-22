@@ -12,6 +12,7 @@ global.FormData = MockFormData;
 
 // Mock window globals needed by providers.js
 global.window = global;
+global.document = { body: { addEventListener: function () {} } };
 global.alert = function () {};
 global.StateManager = { get: function () { return null; } };
 global.api = {};

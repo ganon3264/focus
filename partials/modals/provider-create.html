@@ -35,7 +35,7 @@ dirty_label='#prov-form-name') %}
   <div class="form-group mb-0">
     <div class="flex items-center justify-between mb-1">
       <label class="mb-0 flex items-center gap-1">API Keys {{ hint_tooltip('Add more keys to switch between them easily. With more than one, a <span class="hint-success">Keys</span> row appears in the status panel in the lower left corner so you can rotate the active key on the fly.') }}</label>
-      <button type="button" class="btn-link" onclick="openSecretsModal('prov-form', true)">Add Key +</button>
+      <button type="button" class="btn-link is-create" onclick="openSecretsModal('prov-form', true)">Add Key +</button>
     </div>
     <div id="prov-form-key-list" class="flex flex-col gap-1"></div>
     <input type="hidden" name="api_keys_json" id="prov-form-api-keys" value="[]" />
@@ -209,7 +209,7 @@ dirty_label='#prov-form-name') %}
     <span data-dirty-hint class="text-xs font-bold hidden" style="color: var(--accent);">
       Unsaved changes — press Save to apply
     </span>
-    <button type="submit" id="prov-form-submit-btn" class="btn btn-primary text-sm ml-auto" data-dirty-save>Add Provider</button>
+    <button type="submit" id="prov-form-submit-btn" class="btn btn-create text-sm ml-auto" data-dirty-save>Add Provider</button>
   </div>
 </form>
 {% endcall %}

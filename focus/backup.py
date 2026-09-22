@@ -5,6 +5,7 @@ from pathlib import Path
 
 import aiosqlite
 
+from focus.core.paths import DATA_DIR
 from focus.core.utils import now_iso
 
 logger = logging.getLogger("focus.backup")
@@ -14,7 +15,7 @@ def get_backups_dir(backups_root: str | None = None) -> Path:
     if backups_root:
         d = Path(backups_root)
     else:
-        d = Path(os.environ.get("FOCUS_BACKUPS_DIR", "data/backups"))
+        d = Path(os.environ.get("FOCUS_BACKUPS_DIR", str(DATA_DIR / "backups")))
     d.mkdir(parents=True, exist_ok=True)
     return d
 

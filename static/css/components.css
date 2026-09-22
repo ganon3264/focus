@@ -170,6 +170,52 @@
     box-shadow: var(--shadow-md);
     transform: translateY(-1px);
   }
+  /* Create/Add affordance — one green button per surface. Green is otherwise
+     unused for actions (only toasts), so "new" stays scannable without
+     competing with the indigo confirm/select accent. Tinted at rest, a step
+     deeper on hover — never a solid block. */
+  .btn-create {
+    background: var(--success-dim);
+    color: var(--success-hover);
+    border: 1px solid color-mix(in srgb, var(--success) 40%, transparent);
+    box-shadow: var(--shadow-sm);
+  }
+  .btn-create:hover {
+    background: color-mix(in srgb, var(--success) 26%, transparent);
+    border-color: var(--success);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+  }
+
+  /* Additive affordances outside the .btn family share the same green cue:
+     menu actions, icon add buttons, inline option adders, text-link adders. */
+  .preset-menu-action.is-create,
+  .preset-item-action.is-create,
+  .action-icon.is-create,
+  .radio-add-row.is-create,
+  .btn-edit.is-create,
+  .btn-link.is-create {
+    color: var(--success-hover);
+  }
+  .preset-menu-action.is-create:hover,
+  .preset-item-action.is-create:hover,
+  .action-icon.is-create:hover {
+    background: var(--success-dim);
+    color: var(--success-hover);
+  }
+  .btn-edit.is-create:hover,
+  .btn-edit.is-create:focus-visible {
+    background: var(--success);
+    border-color: var(--success);
+    color: var(--text-on-accent);
+  }
+  .radio-add-row.is-create {
+    border-color: color-mix(in srgb, var(--success) 40%, transparent);
+  }
+  .radio-add-row.is-create:hover {
+    border-color: var(--success);
+    background: var(--success-dim);
+  }
   .btn-secondary,
   .btn-edit,
   .btn-delete-icon {
@@ -256,6 +302,12 @@
     border-style: dashed;
     flex-shrink: 0;
     margin: 0;
+    color: var(--success-hover);
+  }
+  .btn-media-add:hover {
+    border-color: var(--success);
+    background: var(--success-dim);
+    color: var(--success-hover);
   }
 
   /* Dropdowns */
@@ -296,7 +348,7 @@
     left: 2px;
     width: 14px;
     height: 14px;
-    border-radius: 50%;
+    border-radius: 1px;
     background: var(--text-on-accent);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
@@ -794,8 +846,17 @@
     box-shadow: var(--shadow-md);
   }
   .card.active {
-    background: var(--active-bg);
-    border-color: var(--active-border);
+    /* Opaque tint: the transparent --active-bg drops surface-2 and composites
+       over the modal body, so it can read darker than unselected cards. */
+    background: color-mix(in srgb, var(--accent) 20%, var(--surface-2));
+    border-color: var(--accent);
+    box-shadow: inset 3px 0 0 0 var(--accent), var(--shadow-sm);
+  }
+  .card.active:hover {
+    box-shadow: inset 3px 0 0 0 var(--accent), var(--shadow-md);
+  }
+  .card.active .card-name {
+    color: var(--active-text);
   }
   .card-image {
     background: var(--surface-3);
@@ -824,7 +885,7 @@
   }
   .fav-star .fav-star-outline { display: inline-flex; }
   .fav-star .fav-star-filled { display: none; }
-  .fav-star.favorite-active { color: var(--accent); }
+  .fav-star.favorite-active { color: var(--warning); }
   .fav-star.favorite-active .fav-star-outline { display: none; }
   .fav-star.favorite-active .fav-star-filled { display: inline-flex; }
 
@@ -837,6 +898,21 @@
     align-items: center;
     justify-content: center;
     line-height: 0;
+  }
+
+  /* Delete keeps its destructive hue in the icon but drops the filled red
+     block at rest, so edit stays the louder action until intent is shown. */
+  .card .btn-danger {
+    background: transparent;
+    border-color: var(--border);
+    box-shadow: none;
+    color: var(--danger);
+  }
+  .card .btn-danger:hover,
+  .card .btn-danger:focus-visible {
+    background: var(--danger);
+    border-color: var(--danger);
+    color: var(--text-on-accent);
   }
 
   .card-group-badge {
@@ -906,14 +982,14 @@
     appearance: none;
     width: 16px;
     height: 16px;
-    border-radius: 50%;
+    border-radius: 1px;
     background: var(--accent);
     cursor: pointer;
   }
   .styled-slider::-moz-range-thumb {
     width: 16px;
     height: 16px;
-    border-radius: 50%;
+    border-radius: 1px;
     background: var(--accent);
     cursor: pointer;
     border: none;

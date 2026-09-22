@@ -78,7 +78,18 @@
      }">
   <button type="button" @click="open = !open"
            class="btn btn-secondary btn-sm flex items-center justify-between gap-1 cursor-pointer h-full">
-    <span x-text="label"></span>
+    <span class="inline-flex items-center gap-1">
+      <template x-if="active === 'az' || active === 'za'">
+        <span class="inline-flex items-center gap-1">
+          <span x-text="active === 'az' ? 'A' : 'Z'"></span>
+          <span class="inline-flex text-muted">{{ icon_arrow_right(12) }}</span>
+          <span x-text="active === 'az' ? 'Z' : 'A'"></span>
+        </span>
+      </template>
+      <template x-if="active !== 'az' && active !== 'za'">
+        <span x-text="label"></span>
+      </template>
+    </span>
     <span class="text-muted inline-flex transition-transform duration-200" :class="open ? 'rotate-180' : ''"
           >{{ icon_chevron_down(12) }}</span>
   </button>
@@ -91,12 +102,12 @@
     <div class="dropdown-item px-3 py-2 text-sm whitespace-nowrap"
          :class="{ 'text-[var(--accent)] font-medium': active === 'oldest' }"
          @click="select('oldest')">Oldest</div>
-    <div class="dropdown-item px-3 py-2 text-sm whitespace-nowrap"
+    <div class="dropdown-item px-3 py-2 text-sm whitespace-nowrap flex items-center gap-1"
          :class="{ 'text-[var(--accent)] font-medium': active === 'az' }"
-         @click="select('az')">A → Z</div>
-    <div class="dropdown-item px-3 py-2 text-sm whitespace-nowrap"
+         @click="select('az')">A {{ icon_arrow_right(12) }} Z</div>
+    <div class="dropdown-item px-3 py-2 text-sm whitespace-nowrap flex items-center gap-1"
          :class="{ 'text-[var(--accent)] font-medium': active === 'za' }"
-         @click="select('za')">Z → A</div>
+         @click="select('za')">Z {{ icon_arrow_right(12) }} A</div>
   </div>
 </div>
 {% endmacro %}
@@ -269,6 +280,10 @@
 
 {% macro icon_chevron_right(size=16, extra_attrs='') %}
 <svg {{ _icon_svg_base(size, extra_attrs) | safe }}><path d="m9 18 6-6-6-6"/></svg>
+{% endmacro %}
+
+{% macro icon_arrow_right(size=16, extra_attrs='') %}
+<svg {{ _icon_svg_base(size, extra_attrs) | safe }}><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
 {% endmacro %}
 
 {% macro icon_copy(size=16, extra_attrs='') %}

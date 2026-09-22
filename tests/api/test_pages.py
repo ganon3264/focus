@@ -275,6 +275,27 @@ class TestModalPartials:
         assert resp.status_code == 200
         assert "modal-secrets" in resp.text
 
+    async def test_providers_modal_marks_active_provider(self, client):
+        first = (
+            await client.post(
+                "/api/providers/", json={"name": "First", "type": "openai_compat", "model": "m"}
+            )
+        ).json()["id"]
+        second = (
+            await client.post(
+                "/api/providers/", json={"name": "Second", "type": "openai_compat", "model": "m"}
+            )
+        ).json()["id"]
+        await client.put(
+            "/api/settings/active-provider",
+            json={"provider_id": first, "provider_type": "openai_compat"},
+        )
+
+        resp = await client.get("/partials/providers-modal")
+        assert resp.status_code == 200
+        assert f'class="provider-card card active" id="prov-card-{first}"' in resp.text
+        assert f'class="provider-card card" id="prov-card-{second}"' in resp.text
+
     async def test_export_entities(self, client):
         char = await create_character(client, "ExportMe")
         await create_character(client, "KeepOut")

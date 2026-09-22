@@ -8,7 +8,7 @@
       <a href="/chat" class="btn btn-secondary text-decoration-none">{{ icon_chevron_left() }} Back to Chat</a>
     </div>
     <form onsubmit="importCharPage(event)">
-      <label class="btn btn-primary" style="cursor:pointer">
+      <label class="btn btn-secondary" style="cursor:pointer">
         Import PNGs
         <input type="file" name="files" accept="image/png" class="hidden" multiple onchange="this.closest('form').requestSubmit()">
       </label>
@@ -135,7 +135,7 @@
             <div class="w-full" id="greetings-container-{{ char.id }}">
               <div class="flex items-center justify-between mb-2">
                 <label class="text-sm font-semibold text-muted">Alternate Greetings</label>
-                <button class="btn btn-secondary btn-sm" data-char-id="{{ char.id }}" onclick="addGreeting(this.dataset.charId)">{{ icon_plus(14) }} Add Greeting</button>
+                <button class="btn btn-create btn-sm" data-char-id="{{ char.id }}" onclick="addGreeting(this.dataset.charId)">{{ icon_plus(14) }} Add Greeting</button>
               </div>
               
               <div class="flex flex-col gap-3" id="greetings-list-{{ char.id }}">
@@ -190,7 +190,7 @@
                 <h3 class="sidebar-title m-0">Custom Logic Blocks</h3>
                 {{ hint_tooltip('Extra prompt blocks injected alongside the character card. Each block can have media attachments, referenced via <code>{{ media:1 }}</code>, <code>{{ media:2 }}</code>, etc. in the block content.') }}
               </div>
-              <button class="btn btn-secondary btn-sm" data-char-id="{{ char.id }}" onclick="addBlock(this.dataset.charId)">{{ icon_plus(14) }} Add Block</button>
+              <button class="btn btn-create btn-sm" data-char-id="{{ char.id }}" onclick="addBlock(this.dataset.charId)">{{ icon_plus(14) }} Add Block</button>
             </div>
             
             <div class="flex flex-col gap-4 overflow-y-auto pr-2" id="blocks-container-{{ char.id }}" style="max-height: 800px;">

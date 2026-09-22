@@ -555,13 +555,21 @@ async function fetchProviderBalances() {
   });
 }
 
-setTimeout(() => {
+// The modal body is swapped in by htmx on open (see modal.js), so this must run
+// per swap — not once at script load, when no provider cards exist yet.
+function initProvidersModal() {
   const activeId = StateManager.get('provider_id');
   if (activeId && window.syncProviderHighlight) window.syncProviderHighlight(activeId);
   fetchProviderBalances();
   var sv = localStorage.getItem('focus_providers_sort');
   if (sv && window.sortProviders) window.sortProviders(sv);
-}, 100);
+}
+
+document.body.addEventListener('htmx:afterSwap', function (evt) {
+  if (evt.detail.target && evt.detail.target.id === 'providers-modal-body-inner') {
+    initProvidersModal();
+  }
+});
 
 window._currentSecretPrefix = null;
 

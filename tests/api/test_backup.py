@@ -3,7 +3,7 @@ import os
 import aiosqlite
 import pytest
 
-from focus.backup import create_backup, delete_backup, list_backups, restore_backup
+from focus.backup import create_backup, delete_backup, get_backups_dir, list_backups, restore_backup
 from focus.core.database import SCHEMA
 
 
@@ -148,3 +148,20 @@ class TestBackupAPI:
     async def test_delete_nonexistent_backup_endpoint(self, client):
         resp = await client.delete("/api/backups/nonexistent")
         assert resp.status_code == 404
+
+
+class TestGetBackupsDir:
+    def test_default_derives_from_data_dir(self, monkeypatch, tmp_path):
+        import focus.backup as backup
+
+        monkeypatch.delenv("FOCUS_BACKUPS_DIR", raising=False)
+        monkeypatch.setattr(backup, "DATA_DIR", tmp_path)
+        assert get_backups_dir() == tmp_path / "backups"
+
+    def test_env_override_wins(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("FOCUS_BACKUPS_DIR", str(tmp_path / "from_env"))
+        assert get_backups_dir() == tmp_path / "from_env"
+
+    def test_explicit_root_wins_over_env(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("FOCUS_BACKUPS_DIR", str(tmp_path / "from_env"))
+        assert get_backups_dir(str(tmp_path / "explicit")) == tmp_path / "explicit"

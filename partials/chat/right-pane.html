@@ -9,7 +9,7 @@
     </div>
     
     {% if has_characters %}
-      <button class="btn btn-primary btn-sm w-full" onclick="newChat()">{{ icon_plus(14) }} New Chat</button>
+      <button class="btn btn-create btn-sm w-full" onclick="newChat()">{{ icon_plus(14) }} New Chat</button>
     {% else %}
       <button class="btn btn-primary btn-sm w-full" onclick="openModal('modal-characters')">{{ icon_plus(14) }} Add Character</button>
     {% endif %}
