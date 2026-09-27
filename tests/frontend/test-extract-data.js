@@ -201,6 +201,17 @@ eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'modals', 
   assert(!data.base_url, 'deepseek: base_url omitted');
 })();
 
+// ── xiaomi_mimo keeps an (optional) base_url override ──
+(function () {
+  var form = createMockForm({
+    name: 'MiMo', type: 'xiaomi_mimo', model: 'mimo-v2.6-pro',
+    base_url: 'https://token-plan-cn.xiaomimimo.com/v1', params: '{}',
+  });
+  var data = extractData(form);
+  assertEqual(data.model, 'mimo-v2.6-pro', 'xiaomi_mimo: model preserved');
+  assertEqual(data.base_url, 'https://token-plan-cn.xiaomimimo.com/v1', 'xiaomi_mimo: base_url preserved');
+})();
+
 // ── multi-key list → config.api_keys, first key mirrored to api_key ──
 (function () {
   var form = createMockForm({

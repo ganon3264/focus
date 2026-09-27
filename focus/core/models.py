@@ -20,6 +20,7 @@ class ProviderType(StrEnum):
     google_vertex = "google_vertex"
     deepseek = "deepseek"
     moonshot = "moonshot"
+    xiaomi_mimo = "xiaomi_mimo"
 
 
 class ProviderCreate(BaseModel):

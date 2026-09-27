@@ -18,6 +18,7 @@ from focus.providers import (
     MoonshotProvider,
     OpenAICompatProvider,
     OpenRouterProvider,
+    XiaomiMiMoProvider,
 )
 from focus.providers.google_base import GoogleProviderBase
 from focus.routers.stream_utils import prepare_generation_messages
@@ -68,6 +69,10 @@ class TestCapabilityFlags:
         # ...but they still accept a prefill.
         assert DeepseekProvider.supports_prefill is True
         assert MoonshotProvider.supports_prefill is True
+
+    def test_xiaomi_mimo_does_not_echo_prefill(self):
+        assert XiaomiMiMoProvider.echoes_prefill is False
+        assert XiaomiMiMoProvider.supports_prefill is True
 
     def test_google_does_not_support_prefill(self):
         assert GoogleProviderBase.supports_prefill is False
@@ -213,7 +218,7 @@ class TestClaudeCaching:
 
 class TestGreetingAndReasoning:
     async def test_greeting_tag_removed_for_every_type(self):
-        for ptype in ("openai_compat", "openrouter", "google_aistudio", "deepseek", "moonshot"):
+        for ptype in ("openai_compat", "openrouter", "google_aistudio", "deepseek", "moonshot", "xiaomi_mimo"):
             msgs = [{"role": "assistant", "content": "hi", "_greeting": True}]
             out, _ = await prepare_generation_messages(
                 _prov(ptype), _body(), msgs, _Provider(), "chat-1",
@@ -422,6 +427,15 @@ class TestNativeReasoningRemap:
         msgs = [{"role": "assistant", "content": "a", "reasoning": "r"}]
         out, _ = await prepare_generation_messages(
             _prov("moonshot"), _body(samplers={"preserve_thinking": "all"}),
+            msgs, _Provider(), "chat-1",
+        )
+        assert out[0]["reasoning_content"] == "r"
+        assert "reasoning" not in out[0]
+
+    async def test_xiaomi_mimo_remaps_reasoning_to_native_key(self):
+        msgs = [{"role": "assistant", "content": "a", "reasoning": "r"}]
+        out, _ = await prepare_generation_messages(
+            _prov("xiaomi_mimo"), _body(samplers={"preserve_thinking": "all"}),
             msgs, _Provider(), "chat-1",
         )
         assert out[0]["reasoning_content"] == "r"

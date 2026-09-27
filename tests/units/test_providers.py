@@ -20,6 +20,7 @@ from focus.providers import (
     MoonshotProvider,
     OpenAICompatProvider,
     OpenRouterProvider,
+    XiaomiMiMoProvider,
     create_provider,
 )
 from focus.providers.config import ProviderConfig
@@ -459,6 +460,65 @@ class TestMoonshotProvider:
         assert client.request["extra_body"]["thinking"] == {"type": "disabled"}
 
 
+class TestXiaomiMiMoProvider:
+    async def test_thinking_toggle_and_max_completion_tokens(self):
+        provider = XiaomiMiMoProvider(api_key="sk-x", model="mimo-v2.6-pro", params={})
+        client = FakeOpenAIClient([_chunk(content="x")])
+        provider._get_client = lambda: client  # type: ignore[method-assign]
+
+        messages = [
+            {"role": "user", "content": "hi"},
+            {"role": "assistant", "content": "prev", "reasoning": "hidden"},
+        ]
+        await _collect(provider, messages, include_reasoning=True, max_tokens=512)
+
+        # reasoning -> reasoning_content is pipeline-owned (see test_quirks).
+        assert messages[1]["reasoning"] == "hidden"
+        assert "reasoning_content" not in messages[1]
+        req = client.request
+        assert req["extra_body"]["thinking"] == {"type": "enabled"}
+        assert req["max_completion_tokens"] == 512
+        assert "max_tokens" not in req
+        assert provider.echoes_prefill is False
+
+    async def test_thinking_disabled(self):
+        provider = XiaomiMiMoProvider(api_key="k", model="m", params={})
+        client = FakeOpenAIClient([_chunk(content="x")])
+        provider._get_client = lambda: client  # type: ignore[method-assign]
+
+        await _collect(provider, include_reasoning=False)
+        assert client.request["extra_body"]["thinking"] == {"type": "disabled"}
+
+    async def test_from_row_uses_default_base_url(self):
+        provider = XiaomiMiMoProvider.from_row(
+            {"api_key": "sk-x", "model": "mimo-v2.6-flash", "base_url": ""},
+            {}, ProviderConfig(),
+        )
+        assert provider.base_url == "https://api.xiaomimimo.com/v1"
+
+    async def test_from_row_honors_base_url_override(self):
+        provider = XiaomiMiMoProvider.from_row(
+            {"api_key": "tp-x", "model": "m", "base_url": "https://token-plan-cn.xiaomimimo.com/v1"},
+            {}, ProviderConfig(),
+        )
+        assert provider.base_url == "https://token-plan-cn.xiaomimimo.com/v1"
+
+    async def test_fetch_models_sends_auth_headers(self, monkeypatch):
+        captured = {}
+
+        def handler(request):
+            captured["headers"] = dict(request.headers)
+            captured["url"] = str(request.url)
+            return httpx.Response(200, json={"data": [{"id": "mimo-v2.6-pro"}]})
+
+        _patch_httpx(monkeypatch, handler)
+        provider = XiaomiMiMoProvider(api_key="sk-1", model="m", params={})
+        models = await provider.fetch_models()
+        assert [m["id"] for m in models] == ["mimo-v2.6-pro"]
+        assert captured["headers"].get("authorization") == "Bearer sk-1"
+        assert captured["url"] == "https://api.xiaomimimo.com/v1/models"
+
+
 class _ConcreteProvider(BaseProvider):
     async def stream_complete(self, messages, **kwargs):
         yield {"type": "done"}
@@ -513,6 +573,7 @@ class TestCreateProvider:
             ("openrouter", OpenRouterProvider),
             ("deepseek", DeepseekProvider),
             ("moonshot", MoonshotProvider),
+            ("xiaomi_mimo", XiaomiMiMoProvider),
         ]
         for ptype, cls in cases:
             provider = create_provider({"type": ptype, "model": "m", "api_key": "", "base_url": "", "params_json": "{}"})

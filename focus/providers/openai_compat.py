@@ -23,6 +23,9 @@ logger = get_logger("providers.openai_compat")
 
 class OpenAICompatProvider(BaseProvider):
     type = "openai_compat"
+    # Upstream field carrying the output token cap. o-series and some
+    # OpenAI-compatible vendors renamed it to ``max_completion_tokens``.
+    max_tokens_param = "max_tokens"
     profile = ProviderProfile(caps=Capabilities(reasoning_formats=("openai",)))
 
     @classmethod
@@ -126,7 +129,7 @@ class OpenAICompatProvider(BaseProvider):
             request_params["max_completion_tokens"] = max_tokens
             request_params.pop("temperature", None)
         else:
-            request_params["max_tokens"] = max_tokens
+            request_params[self.max_tokens_param] = max_tokens
             request_params["temperature"] = temperature
 
         if logger.isEnabledFor(logging.DEBUG):

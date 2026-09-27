@@ -43,6 +43,7 @@ start.bat           # Windows
 | OpenRouter             | ✓ | ✓| ✓\*| ✓\* | Quantization & provider routing, sticky routing by session ID, Claude caching, (*Model dependent) |
 | Deepseek               | ✓ | ✓ | ✓ |✓ | |
 | Moonshot               | ✓ | ✓ | ✓ | ✓ | `prompt_cache_key` support |
+| Xiaomi MiMo            | ✓ |   | ✓ | ✓ | OpenAI-compatible, `thinking` toggle, `max_completion_tokens` |
 | Google AI Studio         | ✓ | ✓ | ✓ | | |
 | Google Vertex AI         | ✓ | ✓ | ✓ | | |
 

@@ -37,9 +37,15 @@ class TestSchemaShape:
 
     def test_reasoning_message_key_is_declared(self):
         types = provider_schema()["types"]
-        for ptype in ("deepseek", "moonshot"):
+        for ptype in ("deepseek", "moonshot", "xiaomi_mimo"):
             assert types[ptype]["capabilities"]["reasoning_message_key"] == "reasoning_content"
         assert provider_schema()["types"]["openai_compat"]["capabilities"]["reasoning_message_key"] is None
+
+    def test_xiaomi_mimo_capabilities(self):
+        caps = provider_schema()["types"]["xiaomi_mimo"]["capabilities"]
+        assert caps["echoes_prefill"] is False
+        assert caps["supports_prefill"] is True
+        assert caps["reasoning_formats"] == ()
 
 
 class TestDefaults:
@@ -76,6 +82,8 @@ class TestForwarding:
         assert types["openai_compat"]["forwardReasoning"] == ["reasoning_effort", "preserve_thinking"]
         assert types["deepseek"]["forwardAlways"] == ["include_reasoning"]
         assert types["deepseek"]["forwardReasoning"] == ["preserve_thinking"]
+        assert types["xiaomi_mimo"]["forwardAlways"] == ["frequency_penalty", "presence_penalty", "include_reasoning"]
+        assert types["xiaomi_mimo"]["forwardReasoning"] == ["preserve_thinking"]
         assert types["openrouter"]["forwardAlways"] == [
             "top_k", "min_p", "repetition_penalty", "include_reasoning",
             "preserve_thinking", "seed", "verbosity",

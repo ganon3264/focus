@@ -47,6 +47,7 @@ _FORWARD_ALWAYS: dict[str, tuple[str, ...]] = {
     "openai_compat": ("frequency_penalty", "presence_penalty", "include_reasoning"),
     "deepseek": ("include_reasoning",),
     "moonshot": ("frequency_penalty", "presence_penalty", "include_reasoning"),
+    "xiaomi_mimo": ("frequency_penalty", "presence_penalty", "include_reasoning"),
     "openrouter": (
         "top_k", "min_p", "repetition_penalty", "include_reasoning",
         "preserve_thinking", "seed", "verbosity",
@@ -61,6 +62,7 @@ _FORWARD_REASONING: dict[str, tuple[str, ...]] = {
     "openai_compat": ("reasoning_effort", "preserve_thinking"),
     "deepseek": ("preserve_thinking",),
     "moonshot": ("preserve_thinking", "reasoning_effort"),
+    "xiaomi_mimo": ("preserve_thinking",),
     "openrouter": ("reasoning_effort", "thinking_budget"),
     "google_vertex": ("reasoning_effort",),
     "google_aistudio": ("reasoning_effort",),
@@ -84,6 +86,7 @@ _DEFAULT_OVERRIDES: dict[str, dict[str, Any]] = {
     "openai_compat": {"preserve_thinking": "tool_only", "image_format": "png"},
     "deepseek": {"preserve_thinking": "tool_only"},
     "moonshot": {"preserve_thinking": "tool_only"},
+    "xiaomi_mimo": {"preserve_thinking": "tool_only", "image_format": "png"},
     "openrouter": {"top_k": 0, "min_p": 0, "repetition_penalty": 1.0, "preserve_thinking": "tool_only"},
     "google_vertex": {"include_reasoning": True, "reasoning_effort": ""},
     "google_aistudio": {"include_reasoning": True, "reasoning_effort": ""},
@@ -112,6 +115,7 @@ _TYPE_LABELS: dict[str, str] = {
     "google_vertex": "Google Vertex AI",
     "deepseek": "Deepseek",
     "moonshot": "Moonshot",
+    "xiaomi_mimo": "Xiaomi MiMo",
 }
 
 # Provider create/edit form field visibility. Types absent here fall back to
@@ -126,11 +130,12 @@ _FORM: dict[str, dict[str, bool]] = {
     "google_aistudio": {"orFields": False, "modelInput": True, "baseUrl": False, "vertexFields": False, "modelRequired": True},
     "deepseek": {"orFields": False, "modelInput": True, "baseUrl": False, "vertexFields": False, "modelRequired": True},
     "moonshot": {"orFields": False, "modelInput": True, "baseUrl": False, "vertexFields": False, "modelRequired": True},
+    "xiaomi_mimo": {"orFields": False, "modelInput": True, "baseUrl": True, "vertexFields": False, "modelRequired": True},
 }
 
 # Stable display order for provider-type pickers; unknown types sort last.
 _DISPLAY_ORDER: tuple[str, ...] = (
-    "openai_compat", "openrouter", "google_aistudio", "google_vertex", "deepseek", "moonshot",
+    "openai_compat", "openrouter", "google_aistudio", "google_vertex", "deepseek", "moonshot", "xiaomi_mimo",
 )
 
 

@@ -16,7 +16,7 @@ main.py                  # FastAPI app entry
 focus/                   # Backend package
   core/                  # DB init, models, utils, macros, segments, media, tracked_fields
   db/                    # CRUD per domain (characters, chats, personas, presets, providers, etc.)
-  providers/             # LLM providers (openai_compat, openrouter, deepseek, moonshot, google_*)
+  providers/             # LLM providers (openai_compat, openrouter, deepseek, moonshot, xiaomi_mimo, google_*)
   routers/               # Route handlers (pages, chats, stream, presets, providers, tools, backup, etc.)
   tools/                 # Builtin + external tool system, executor, provider adapter
   crud.py, exchange.py, prompt_chain.py, backup.py

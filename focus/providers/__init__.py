@@ -9,6 +9,7 @@ from .google_vertex import GoogleVertexProvider
 from .moonshot import MoonshotProvider
 from .openai_compat import OpenAICompatProvider
 from .openrouter import OpenRouterProvider
+from .xiaomi_mimo import XiaomiMiMoProvider
 from .registry import get_provider_class, registered_types
 
 logger = get_logger("providers")
@@ -22,6 +23,7 @@ __all__ = [
     "GoogleVertexProvider",
     "DeepseekProvider",
     "MoonshotProvider",
+    "XiaomiMiMoProvider",
     "create_provider",
     "registered_types",
 ]
