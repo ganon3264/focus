@@ -189,7 +189,6 @@
 
   /* Additive affordances outside the .btn family share the same green cue:
      menu actions, icon add buttons, inline option adders, text-link adders. */
-  .preset-menu-action.is-create,
   .preset-item-action.is-create,
   .action-icon.is-create,
   .radio-add-row.is-create,
@@ -197,7 +196,6 @@
   .btn-link.is-create {
     color: var(--success-hover);
   }
-  .preset-menu-action.is-create:hover,
   .preset-item-action.is-create:hover,
   .action-icon.is-create:hover {
     background: var(--success-dim);

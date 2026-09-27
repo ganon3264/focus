@@ -183,7 +183,7 @@ Colour follows the **verb on the label**, not the feature. One green create per 
 - **Litmus test:** after the click, is there one more row/entity than before? → green. Otherwise → indigo. A form submit that creates a resource takes the create colour ("Add Provider"); one that persists edits takes indigo ("Save").
 - **Save is never green.** "Save"/"Save Changes" mutate the thing you're editing — commit, so indigo. If a button really only adds a row, its label should say so ("Add") and *then* it can be green; never leave a green "Save".
 - `.btn-create` is tinted at rest and deepens on hover — never a solid block. The structural layer mirrors it with `--success-tint*` / `--success-edge`.
-- Non-`.btn` adders (`.preset-menu-action`, `.preset-item-action`, `.action-icon`, `.radio-add-row`, `.btn-edit`, `.btn-link`, `.btn-media-add`) opt into the same cue with `.is-create`. Add it whenever a control brings something new into being.
+- Non-`.btn` adders (`.preset-item-action`, `.action-icon`, `.radio-add-row`, `.btn-edit`, `.btn-link`, `.btn-media-add`) opt into the same cue with `.is-create`. Add it whenever a control brings something new into being.
 - Any component colour rule must be checked in `instrument.css` too — a rule authored in `components.css` alone is often overridden there (e.g. `.card.active` is set by both).
 - `--success` is otherwise used only by toasts, so the green channel is free. `--role-user` is a near-green — don't place a create button directly against a user-role chip.
 - **Import is neutral, not create** — it's a file ingest; a second green next to Create dilutes the cue.

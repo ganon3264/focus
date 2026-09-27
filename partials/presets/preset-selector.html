@@ -20,26 +20,31 @@
         <span class="text-xs text-muted inline-flex transition-transform duration-200" :class="open ? 'rotate-180' : ''">{{ icon_chevron_down(12) }}</span>
     </button>
     <div x-show="open" @click.away="open = false" x-transition.opacity.duration.200ms
-         class="dropdown-panel preset-menu absolute top-full left-0 right-0 mt-1 z-50 max-h-60 overflow-y-auto"
+         class="dropdown-panel preset-menu absolute top-full left-0 right-0 mt-1 z-50 flex flex-col max-h-60"
          style="display: none;">
 
-      <!-- New / Import -->
-      <div class="preset-menu-actions">
-        <button type="button" class="preset-menu-action is-create" title="New preset"
-          @click="open = false"
-          hx-post="/api/presets"
-          hx-vals='{"name":"New Preset"}'
-          hx-swap="none"
-          hx-on:htmx:after-request="handlePresetCreated(event)"
-        >{{ icon_plus(14) }}<span>New</span></button>
-        <button type="button" class="preset-menu-action" title="Import preset"
-          @click="
-            open = false;
-            document.getElementById('preset-import-file').click();
-          "
-        >{{ icon_upload(14) }}<span>Import</span></button>
+      <!-- Engraved label + compact create/import actions, mirroring the sidebar
+           section-header vocabulary. -->
+      <div class="preset-menu-head">
+        <span class="preset-menu-label">Presets</span>
+        <div class="preset-menu-head-actions">
+          <button type="button" class="preset-item-action is-create" title="New preset" aria-label="New preset"
+            @click="open = false"
+            hx-post="/api/presets"
+            hx-vals='{"name":"New Preset"}'
+            hx-swap="none"
+            hx-on:htmx:after-request="handlePresetCreated(event)"
+          >{{ icon_plus(14) }}</button>
+          <button type="button" class="preset-item-action" title="Import preset" aria-label="Import preset"
+            @click="
+              open = false;
+              document.getElementById('preset-import-file').click();
+            "
+          >{{ icon_upload(14) }}</button>
+        </div>
       </div>
 
+      <div class="preset-menu-list">
       {% for p in presets %}
       <div class="dropdown-item preset-menu-item flex items-center gap-2"
            :class="{ 'is-selected': selectedId === '{{ p.id }}' }"
@@ -63,6 +68,7 @@
         </div>
       </div>
       {% endfor %}
+      </div>
 
     </div>
   </div>

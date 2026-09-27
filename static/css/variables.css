@@ -68,7 +68,7 @@
 
   /* Breathing room between a scroll region's content and its scrollbar. The bar
      itself takes its own layout width (native `thin`); this is the extra margin. */
-  --scrollbar-gap: 0.375rem;
+  --scrollbar-gap: 0.625rem;
 
   /* Shared content column width (message list, input bar, staging area) */
   --chat-content-width: min(85%, 820px);

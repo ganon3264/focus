@@ -24,7 +24,8 @@
   function setStatus(el, text, isError) {
     if (el) {
       el.textContent = text;
-      el.className = isError ? 'text-xs text-red-500 block mt-1' : 'text-xs text-muted block mt-1';
+      el.className = 'text-xs block mt-1';
+      el.style.color = isError ? 'var(--danger)' : 'var(--text-muted)';
     }
   }
 
@@ -56,16 +57,16 @@
       let html = '';
       backups.forEach(function (b) {
         html +=
-          '<div class="flex items-center gap-3 p-3 rounded-lg" style="background:var(--surface-2);border:1px solid var(--border);">' +
-          '<div class="flex-1 min-w-0">' +
-          '<span class="text-sm font-semibold block">' +
+          '<div class="backup-row">' +
+          '<div class="backup-row-main">' +
+          '<span class="backup-row-date">' +
           formatTimestamp(b.id) +
           '</span>' +
-          '<span class="text-xs" style="color:var(--text-muted);">' +
+          '<span class="backup-row-size">' +
           formatBytes(b.size_bytes) +
           '</span>' +
           '</div>' +
-          '<div class="flex gap-1 shrink-0">' +
+          '<div class="backup-row-actions">' +
           '<button class="btn btn-secondary btn-sm" onclick="BackupManager.restore(\'' +
           b.id +
           '\')">Restore</button>' +
@@ -78,7 +79,7 @@
       list.innerHTML = html;
     } catch (_) {
       list.innerHTML =
-        '<div class="text-sm text-red-500 text-center py-4">Failed to load backups.</div>';
+        '<div class="text-sm text-center py-4" style="color:var(--danger)">Failed to load backups.</div>';
     }
   };
 

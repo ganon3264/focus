@@ -5,7 +5,7 @@
 {% set focus = focus|default(false) %}
 {% set entity_name = entity_name|default('Character') %}
 <div
-  class="form-group mb-0"
+  class="form-group mb-0 entity-greeting"
   id="edit-{{ prefix }}-greeting-section"
 >
   <div class="flex items-center justify-between mb-1">
@@ -60,7 +60,7 @@
       </button>
       <button
         type="button"
-        class="btn btn-secondary btn-delete-icon btn-sm btn-compact"
+        class="btn btn-danger btn-sm btn-compact"
         id="edit-{{ prefix }}-greeting-delete"
         hx-post="/partials/character-greeting/{{ char_id }}"
         hx-target="#edit-{{ prefix }}-greeting-section"

@@ -43,11 +43,6 @@
   font-synthesis-weight: none;
 }
 
-/* Scrollbars are hairlines too — no pill caps here. */
-::-webkit-scrollbar-thumb {
-  border-radius: 0;
-}
-
 /* ── Shell ──────────────────────────────────────────────────────────────── */
 .left-sidebar {
   box-shadow: none;
@@ -184,46 +179,59 @@
   padding: 0;
 }
 
-.preset-menu-actions {
+/* A section header inside the panel: the same engraved label + trailing
+   action icons as the sidebar, so the menu reads as part of the instrument. */
+.preset-menu-head {
   display: flex;
-  border-bottom: 1px solid var(--hair);
-}
-
-.preset-menu-action {
-  flex: 1;
-  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 0.4rem;
-  padding: 0.55rem 0.5rem;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  font-family: var(--font-sans);
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.01em;
+  gap: 0.5rem;
+  padding: 0.35rem calc(0.5rem + var(--scrollbar-gap)) 0.35rem 0.7rem;
+  border-bottom: 1px solid var(--hair);
+  flex-shrink: 0;
+}
+
+.preset-menu-label {
+  flex: 1;
+  font-family: var(--font-mono-ui);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--text-muted);
-  transition: color var(--transition), background var(--transition);
 }
 
-.preset-menu-action + .preset-menu-action {
-  border-left: 1px solid var(--hair);
+.preset-menu-head-actions {
+  display: flex;
+  gap: 0.1rem;
 }
 
-.preset-menu-action:hover {
-  color: var(--accent);
-  background: var(--tint-1);
+.preset-menu-list {
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  padding-right: var(--scrollbar-gap);
 }
 
+/* Selection borrows the entity-row pattern — accent edge + fill — so the
+   chosen preset is unmistakable; hover stays a neutral wash. */
 .preset-menu .dropdown-item {
-  padding: 0.5rem 0.7rem;
+  padding: 0.5rem 0.5rem 0.5rem 0.7rem;
+  border-left: 2px solid transparent;
   font-size: 13px;
   color: var(--text);
 }
 
 .preset-menu .dropdown-item:hover {
-  background: var(--tint-1);
+  background: var(--ink-2);
+}
+
+.preset-menu-item.is-selected {
+  background: var(--active-bg);
+  border-left-color: var(--accent);
+}
+
+.preset-menu-item.is-selected:hover {
+  background: var(--active-bg);
 }
 
 .preset-menu-item.is-selected .preset-item-name {
@@ -252,7 +260,7 @@
   padding: 0;
   background: transparent;
   border: none;
-  border-radius: 0;
+  border-radius: var(--radius-sm);
   color: var(--text-muted);
   cursor: pointer;
   transition: color var(--transition), background var(--transition);
@@ -953,13 +961,15 @@
 /* ── Entity rows ────────────────────────────────────────────────────────── */
 /* The shared list paradigm for providers, characters and personas: flat rows
    separated by hairlines. Hover is a background tint; selection is the accent
-   left edge. Never framed. */
+   left edge. Never framed. Rows flow down the first column then the second
+   (column-major), balancing across the two equal columns. */
 .entity-list {
-  display: flex;
-  flex-direction: column;
+  column-count: 2;
+  column-gap: 1.5rem;
 }
 
 .entity-row {
+  break-inside: avoid;
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -972,8 +982,15 @@
 }
 
 .entity-row:last-child { border-bottom: none; }
-.entity-row:hover { background: var(--tint-1); border-left-color: var(--accent); }
-.entity-row.active { border-left-color: var(--accent); }
+/* Hover is a neutral wash and never borrows the accent edge, so the accent
+   fill + edge unambiguously belongs to the selected row even while another
+   row is hovered. */
+.entity-row:hover { background: var(--ink-2); }
+.entity-row.active {
+  background: var(--active-bg);
+  border-left-color: var(--accent);
+}
+.entity-row.active:hover { background: var(--active-bg); }
 .entity-row.active .entity-name { color: var(--accent); }
 
 .entity-thumb {
@@ -1051,6 +1068,264 @@
   background: transparent;
   border-color: var(--hair-strong);
   border-radius: 0;
+}
+
+/* Message block editors keep the flat field treatment; reasoning is muted so it
+   reads as the body of its disclosure rather than a second primary block. */
+.edit-block-ta--reasoning {
+  color: var(--text-muted);
+}
+
+/* Attachment tray: a dashed drop target, not a filled panel. */
+.edit-msg-drop {
+  background: var(--ink-1);
+  border: 1px dashed var(--hair-strong);
+  border-radius: var(--radius-sm);
+  min-height: 3rem;
+}
+
+.edit-msg-drop.drag-over {
+  background: var(--active-bg);
+  border-color: var(--accent);
+}
+
+.edit-msg-drop-empty {
+  width: 100%;
+  padding: 0.4rem 0;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ── Entity editor (character / persona) ────────────────────────────────── */
+/* Entity card sidebar (avatar, name/group, theme, media) beside a full-width
+   content column where Description and Greeting split the height — rather than
+   a single SillyTavern-style field stack. */
+.edit-entity-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  flex: 1;
+  min-height: 0;
+}
+
+.edit-entity-body {
+  display: flex;
+  gap: 1.25rem;
+  flex: 1;
+  min-height: 0;
+}
+
+.edit-entity-side {
+  flex: 0 0 320px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding-right: 1.25rem;
+  border-right: 1px solid var(--hair);
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+/* Sections inside the card sidebar are separated by hairlines, not frames. */
+.edit-entity-side > * + * {
+  border-top: 1px solid var(--hair);
+  padding-top: 1rem;
+}
+
+.edit-identity {
+  display: flex;
+  align-items: stretch;
+  gap: 0.75rem;
+}
+
+.edit-avatar {
+  position: relative;
+  width: 150px;
+  height: 150px;
+  flex-shrink: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ink-1);
+  border: 1px solid var(--hair-strong);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.edit-avatar img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: none;
+}
+
+.edit-avatar-placeholder {
+  font-size: 2.5rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.edit-avatar-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, #000 55%, transparent);
+  color: #fff;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+
+.edit-avatar:hover .edit-avatar-overlay {
+  opacity: 1;
+}
+
+.edit-identity-fields {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* Fields stretch to the avatar's height, so the identity block reads as one
+   unit instead of a short stack floating beside the image. */
+.edit-identity-fields .form-group {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.edit-identity-fields .form-group .form-control {
+  flex: 1;
+}
+
+.edit-entity-main {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Description takes two thirds of the content height, Greeting one; a single
+   field (personas) fills it. */
+.edit-entity-main > .form-group {
+  flex: 2;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.edit-entity-main > .entity-greeting {
+  flex: 1;
+}
+
+.edit-entity-main .textarea-wrapper,
+.edit-entity-main .textarea-wrapper textarea {
+  flex: 1;
+  min-height: 0;
+}
+
+.edit-entity-field-head {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 0.4rem;
+}
+
+.edit-entity-field-head label {
+  margin-bottom: 0;
+}
+
+.edit-entity-footer {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--hair);
+}
+
+@media (max-width: 760px) {
+  .edit-entity-body {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  .edit-entity-side {
+    flex: none;
+    padding-right: 0;
+    padding-bottom: 1rem;
+    border-right: none;
+    border-bottom: 1px solid var(--hair);
+    overflow: visible;
+  }
+
+  .edit-entity-main > .form-group {
+    flex: none;
+  }
+
+  .edit-entity-main .textarea-wrapper textarea {
+    min-height: 14rem;
+  }
+}
+
+/* ── Backup rows ────────────────────────────────────────────────────────── */
+/* Backups are data rows, not cards: hairline-separated, mono readout, quiet
+   actions. */
+.backup-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-shrink: 0;
+  padding: 0.5rem 0.25rem;
+  border-bottom: 1px solid var(--hair);
+}
+
+.backup-row:last-child {
+  border-bottom-color: transparent;
+}
+
+.backup-row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.backup-row-date {
+  font-family: var(--font-mono-ui);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.backup-row-size {
+  font-family: var(--font-mono-ui);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+}
+
+.backup-row-actions {
+  display: flex;
+  gap: 0.25rem;
+  flex-shrink: 0;
 }
 
 /* Switch: the off track was surface-3 with a pure-white knob, so it read as a
@@ -1219,56 +1494,439 @@
 .card .btn-danger:hover { color: var(--danger); }
 .card .fav-star.favorite-active { color: var(--warning); }
 
-/* ── Theme rows ─────────────────────────────────────────────────────────── */
-/* The selected theme row was using --active-bg, the same accent fill the preset
-   variable rows did. Selection is an accent edge instead. */
+/* ── Theme modal ────────────────────────────────────────────────────────── */
+/* Widened to two columns: the theme list on the left, the palette on the right.
+   Rows follow the shared flat-list language — hairline separators, selection as
+   an accent edge plus a dim tint. */
+.theme-modal-body {
+  display: flex;
+  gap: 1rem;
+  flex: 1;
+  min-height: 0;
+}
+
+.theme-modal-list-col {
+  width: 340px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-height: 0;
+  padding-right: 1rem;
+  border-right: 1px solid var(--hair);
+}
+
+.theme-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  padding-right: var(--scrollbar-gap);
+}
+
 .theme-row {
-  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.5rem;
   background: transparent;
+  border-left: 2px solid transparent;
+  border-bottom: 1px solid var(--hair);
+  border-radius: 0;
+  cursor: pointer;
+  transition: background var(--transition), border-color var(--transition);
+}
+
+.theme-row:last-child {
+  border-bottom-color: transparent;
 }
 
 .theme-row:hover {
-  background: var(--tint-1);
+  background: var(--ink-1);
 }
 
 .theme-row.is-selected {
+  background: var(--active-bg);
+  border-left-color: var(--accent);
+}
+
+.theme-row.is-selected:hover {
+  background: var(--active-bg);
+}
+
+.theme-row.is-selected .theme-name {
+  color: var(--accent);
+}
+
+.theme-swatches {
+  display: inline-flex;
+  gap: 0.2rem;
+  flex-shrink: 0;
+}
+
+.theme-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  border: 1px solid var(--hair-strong);
+}
+
+.theme-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.theme-row .slot-btn {
+  width: 44px;
+}
+
+.theme-del-spacer {
+  width: 24px;
+  flex-shrink: 0;
+}
+
+.theme-modal-editor {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  padding-right: var(--scrollbar-gap);
+}
+
+.theme-name-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0.5rem;
+}
+
+/* Keep the name row on the palette's scale rather than the default form/.btn
+   height. */
+.theme-name-row .form-control,
+.theme-name-row .btn {
+  height: 1.9rem;
+}
+
+.theme-name-row .form-control {
+  padding: 0 0.6rem;
+  font-size: 13px;
+}
+
+.theme-name-row .btn {
+  padding: 0 0.9rem;
+}
+
+.theme-color-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.theme-color-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+/* A framed swatch rather than the bare native control. */
+.theme-color-input {
+  width: 100%;
+  height: 1.75rem;
+  padding: 2px;
+  cursor: pointer;
   background: transparent;
-  border-color: var(--accent);
+  border: 1px solid var(--hair-strong);
+  border-radius: var(--radius-sm);
+}
+
+.theme-color-input::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.theme-color-input::-webkit-color-swatch,
+.theme-color-input::-moz-color-swatch {
+  border: none;
+  border-radius: 1px;
 }
 
 /* ── Arranger rows ──────────────────────────────────────────────────────── */
-/* Role tints are the at-a-glance cue (same scheme as the Itemizer): system is
-   accent, user is green, assistant is amber. Only the neutral block types stay
-   flat. `bg-role-system` is no longer an accent-filled block — it is a tint. */
-.arranger-item {
-  border-radius: 0;
-  box-shadow: none;
+/* One flat list separated by hairlines. Role is a left edge — system is accent,
+   user green, assistant amber — so a block's identity reads at the margin
+   instead of from a full-width fill. */
+.arranger-list {
+  scrollbar-gutter: stable;
+  padding-right: var(--scrollbar-gap);
+  gap: 0;
 }
 
-  .arranger-item:not(.bg-role-user):not(.bg-role-assistant):not(.bg-role-system) {
+.arranger-item {
   background: transparent;
-  border-color: var(--hair);
+  border: none;
+  border-left: 2px solid transparent;
+  border-bottom: 1px solid var(--hair);
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0.3rem 0.5rem;
+}
+
+.arranger-item:last-child,
+.arranger-item:last-child:hover {
+  border-bottom-color: transparent;
 }
 
 .arranger-item.bg-role-system {
+  background: var(--tint-1);
+  border-left-color: var(--accent);
+}
+
+.arranger-item.bg-role-system:hover {
   background: var(--tint-2);
-  border-color: var(--edge-soft);
 }
 
 .arranger-item.bg-role-user {
+  background: color-mix(in srgb, var(--role-user) 6%, transparent);
+  border-left-color: var(--role-user);
+}
+
+.arranger-item.bg-role-user:hover {
   background: color-mix(in srgb, var(--role-user) 10%, transparent);
-  border-color: color-mix(in srgb, var(--role-user) 30%, transparent);
 }
 
 .arranger-item.bg-role-assistant {
-  background: color-mix(in srgb, var(--role-assistant) 10%, transparent);
-  border-color: color-mix(in srgb, var(--role-assistant) 30%, transparent);
+  background: color-mix(in srgb, var(--role-assistant) 6%, transparent);
+  border-left-color: var(--role-assistant);
 }
 
+.arranger-item.bg-role-assistant:hover {
+  background: color-mix(in srgb, var(--role-assistant) 10%, transparent);
+}
+
+/* Hover keeps each row's role hue and just deepens it; neutral rows get the
+   standard wash. */
 .arranger-item:hover {
-  border-color: var(--accent);
   box-shadow: none;
   transform: none;
+}
+
+.arranger-item:not([class*='bg-role-']):hover {
+  background: var(--ink-2);
+}
+
+/* The drag placeholder must stay visible now that a resting row is transparent. */
+.arranger-item.sortable-ghost {
+  background: var(--active-bg);
+  border-left-color: var(--accent);
+}
+
+/* Slim the collapsed row: the title line sets its height, so cap the line box
+   and badge, and tighten the header gaps. */
+.arranger-header,
+.arranger-title-group {
+  gap: 0.35rem;
+}
+
+.arranger-handle {
+  width: 12px;
+}
+
+.arranger-input {
+  font-size: 0.8rem;
+  line-height: 1.2;
+  padding: 0.05rem 0.25rem;
+}
+
+.arranger-badge {
+  padding: 0.1rem 0.3rem;
+  font-size: 0.55rem;
+  line-height: 1;
+}
+
+/* ── Itemizer rows ──────────────────────────────────────────────────────── */
+/* Same flat list as the arranger: hairline-separated rows with the role as a
+   left edge plus a dim tint, and a compact interior. */
+.itemizer-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid var(--hair);
+}
+
+.itemizer-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.itemizer-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+/* Keep the icon control on the compact bar's scale rather than the 36px
+   modal-footer default. */
+.itemizer-bar-actions .btn-icon {
+  width: var(--control-icon-lg);
+  height: var(--control-icon-lg);
+}
+
+/* A readout, not a control: flat mono label with the value carrying the accent
+   so the number is the thing the eye lands on. */
+.itemizer-readout {
+  font-family: var(--font-mono-ui);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.itemizer-readout-value {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.itemizer-item {
+  flex-shrink: 0;
+  color: var(--text);
+  background: transparent;
+  border-left: 2px solid transparent;
+  border-bottom: 1px solid var(--hair);
+}
+
+.itemizer-item:last-child {
+  border-bottom-color: transparent;
+}
+
+.itemizer-role-system {
+  background: var(--tint-1);
+  border-left-color: var(--accent);
+}
+
+.itemizer-role-user {
+  background: color-mix(in srgb, var(--role-user) 6%, transparent);
+  border-left-color: var(--role-user);
+}
+
+.itemizer-role-assistant {
+  background: color-mix(in srgb, var(--role-assistant) 6%, transparent);
+  border-left-color: var(--role-assistant);
+}
+
+.itemizer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.3rem 0.6rem;
+  font-family: var(--font-mono-ui);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.itemizer-header:hover {
+  background: var(--ink-1);
+}
+
+.itemizer-role-system .itemizer-header {
+  color: var(--accent);
+}
+
+.itemizer-role-user .itemizer-header {
+  color: var(--role-user);
+}
+
+.itemizer-role-assistant .itemizer-header {
+  color: var(--role-assistant);
+}
+
+.itemizer-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.itemizer-chevron {
+  display: inline-block;
+  width: 12px;
+  text-align: center;
+  transition: transform var(--transition);
+}
+
+.itemizer-tokens {
+  color: var(--text-muted);
+}
+
+.itemizer-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.45rem 0.6rem;
+  border-top: 1px solid var(--hair);
+}
+
+.itemizer-text {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.itemizer-part {
+  display: inline-block;
+  width: max-content;
+  max-width: 100%;
+  padding: 0.2rem 0.4rem;
+  background: var(--ink-1);
+  border: 1px solid var(--hair-strong);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono-ui);
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.itemizer-reasoning {
+  border-left: 2px solid var(--hair-strong);
+  padding-left: 0.5rem;
+}
+
+.itemizer-reasoning-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+  font-family: var(--font-mono-ui);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.itemizer-reasoning-text {
+  margin-top: 0.2rem;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 /* ── Tag buttons ────────────────────────────────────────────────────────── */
@@ -1300,17 +1958,11 @@
 /* Non-.btn adders keep the green create cue on the flat hairline treatment.
    Kept at the end of the file so they win the cascade over the earlier
    per-component colour rules. */
-.preset-menu-action.is-create,
 .preset-item-action.is-create,
 .action-icon.is-create,
 .btn-edit.is-create,
 .btn-link.is-create {
   color: var(--success-hover);
-}
-
-.preset-menu-action.is-create:hover {
-  color: var(--success-hover);
-  background: var(--success-tint);
 }
 
 .preset-item-action.is-create:hover {

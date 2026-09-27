@@ -1,175 +1,112 @@
-{% from "macros.html" import icon_trash %} {% from "modal-shell.html" import modal_shell %} {% call modal_shell('modal-themes', 'Theme
-Customizer', max_width='520px', width='90vw', content_style='', z_index='100') %}
-<div class="flex flex-col gap-4 mt-2" x-data="themeModalState()" @theme-state-changed.window="refresh()">
-  <div class="flex flex-col gap-1 max-h-56 overflow-y-auto scroll-fade">
-    <template x-for="t in themes" :key="t.id">
-      <div
-        class="theme-row flex items-center gap-2 p-2 rounded-md cursor-pointer border transition-colors"
-        :class="t.id === selectedId ? 'is-selected border-(--active-border) bg-(--active-bg)' : 'border-(--border) hover:bg-(--surface-2)'"
-        @click="switchTo(t.id)"
-      >
-        <span class="flex gap-1 shrink-0">
-          <span class="w-3 h-3 rounded-full border border-(--border)" :style="{ background: (t.colors || {})['--bg'] || '#000' }"></span>
-          <span class="w-3 h-3 rounded-full border border-(--border)" :style="{ background: (t.colors || {})['--surface'] || '#000' }"></span>
-          <span class="w-3 h-3 rounded-full border border-(--border)" :style="{ background: (t.colors || {})['--accent'] || '#000' }"></span>
-        </span>
-        <span class="text-sm font-bold flex-1 truncate" x-text="t.name"></span>
-        <button
-          class="slot-btn w-14"
-          :class="t.id === darkId ? 'slot-active' : ''"
-          @click.stop="setSlot('dark', t.id)"
-          title="Use as dark theme"
+{% from "macros.html" import icon_trash %} {% from "modal-shell.html" import modal_shell %} {% set theme_colors =
+[ ('Background', '--bg'), ('Surface (Primary)', '--surface'), ('Surface (Secondary)', '--surface-2'), ('Surface
+(Tertiary)', '--surface-3'), ('Borders', '--border'), ('Accent Color', '--accent'), ('Text (Main)', '--text'), ('Text
+(Muted)', '--text-muted'), ('User Role', '--role-user'), ('Assistant Role', '--role-assistant') ] %} {% call
+modal_shell('modal-themes', 'Theme Customizer', max_width='920px', width='94vw',
+content_style='display:flex;flex-direction:column;max-height:82vh;', z_index='100') %}
+<div
+  class="theme-modal flex flex-col flex-1 min-h-0 gap-4 mt-2"
+  x-data="themeModalState()"
+  @theme-state-changed.window="refresh()"
+>
+  <div class="theme-modal-body">
+    <aside class="theme-modal-list-col">
+      <div class="theme-list">
+        <template x-for="t in themes" :key="t.id">
+          <div
+            class="theme-row"
+            :class="t.id === selectedId ? 'is-selected' : ''"
+            @click="switchTo(t.id)"
+          >
+            <span class="theme-swatches">
+              <span
+                class="theme-swatch"
+                :style="{ background: (t.colors || {})['--bg'] || '#000' }"
+              ></span>
+              <span
+                class="theme-swatch"
+                :style="{ background: (t.colors || {})['--surface'] || '#000' }"
+              ></span>
+              <span
+                class="theme-swatch"
+                :style="{ background: (t.colors || {})['--accent'] || '#000' }"
+              ></span>
+            </span>
+            <span class="theme-name" x-text="t.name"></span>
+            <button
+              class="slot-btn"
+              :class="t.id === darkId ? 'slot-active' : ''"
+              @click.stop="setSlot('dark', t.id)"
+              title="Use as dark theme"
+            >
+              Dark
+            </button>
+            <button
+              class="slot-btn"
+              :class="t.id === lightId ? 'slot-active' : ''"
+              @click.stop="setSlot('light', t.id)"
+              title="Use as light theme"
+            >
+              Light
+            </button>
+            <button
+              class="action-icon danger"
+              x-show="!t.is_system"
+              @click.stop="remove(t.id, t.name)"
+              title="Delete theme"
+              aria-label="Delete theme"
+            >
+              {{ icon_trash(size=14) }}
+            </button>
+            <span x-show="t.is_system" class="theme-del-spacer"></span>
+          </div>
+        </template>
+        <div
+          x-show="themes.length === 0"
+          class="text-muted text-center text-sm py-4 border border-dashed border-(--border) rounded-lg"
         >
-          Dark
-        </button>
-        <button
-          class="slot-btn w-14"
-          :class="t.id === lightId ? 'slot-active' : ''"
-          @click.stop="setSlot('light', t.id)"
-          title="Use as light theme"
-        >
-          Light
-        </button>
-        <button
-          class="action-icon danger"
-          x-show="!t.is_system"
-          @click.stop="remove(t.id, t.name)"
-          title="Delete theme"
-          aria-label="Delete theme"
-        >
-          {{ icon_trash(size=14) }}
-        </button>
-        <span x-show="t.is_system" style="width: 24px; flex-shrink: 0;"></span>
+          No themes yet.
+        </div>
       </div>
-    </template>
-    <div x-show="themes.length === 0" class="text-muted text-center text-sm py-4 border border-dashed border-(--border) rounded-lg">
-      No themes yet.
-    </div>
+
+      <div class="text-xs text-muted" x-show="charThemeId">
+        <strong x-text="charName"></strong> has its own theme — it's applied to chats with this character.
+      </div>
+    </aside>
+
+    <section class="theme-modal-editor">
+      <div class="theme-name-row">
+        <input
+          type="text"
+          x-model="editName"
+          placeholder="Theme name"
+          class="form-control flex-1"
+          @input="markDirty()"
+        />
+        <button class="btn btn-create shrink-0" @click="create()" title="Create a new theme from the current colors">
+          New
+        </button>
+      </div>
+
+      <div class="theme-color-grid" id="theme-color-pickers">
+        {% for label, var in theme_colors %}
+        <label class="theme-color-field">
+          {{ label }}
+          <input
+            type="color"
+            data-var="{{ var }}"
+            class="theme-color-input"
+            onchange="previewThemeColor(this)"
+            oninput="previewThemeColor(this)"
+            @input="markDirty()"
+          />
+        </label>
+        {% endfor %}
+      </div>
+    </section>
   </div>
 
-  <div class="text-xs text-muted" x-show="charThemeId">
-    <strong x-text="charName"></strong> has its own theme — it's applied to chats with this character.
-  </div>
-
-  <div class="flex items-stretch gap-2">
-    <input type="text" x-model="editName" placeholder="Theme name" class="form-control flex-1" @input="markDirty()" />
-    <button class="btn btn-create shrink-0" @click="create()" title="Create a new theme from the current colors">New</button>
-  </div>
-
-  <div class="grid grid-cols-2 gap-3" id="theme-color-pickers">
-    <label class="flex flex-col gap-1 text-xs font-bold text-muted">
-      Background
-      <input
-        type="color"
-        data-var="--bg"
-        class="w-full h-8 cursor-pointer rounded"
-        onchange="previewThemeColor(this)"
-        oninput="previewThemeColor(this)"
-        @input="markDirty()"
-      />
-    </label>
-    <label class="flex flex-col gap-1 text-xs font-bold text-muted">
-      Surface (Primary)
-      <input
-        type="color"
-        data-var="--surface"
-        class="w-full h-8 cursor-pointer rounded"
-        onchange="previewThemeColor(this)"
-        oninput="previewThemeColor(this)"
-        @input="markDirty()"
-      />
-    </label>
-    <label class="flex flex-col gap-1 text-xs font-bold text-muted">
-      Surface (Secondary)
-      <input
-        type="color"
-        data-var="--surface-2"
-        class="w-full h-8 cursor-pointer rounded"
-        onchange="previewThemeColor(this)"
-        oninput="previewThemeColor(this)"
-        @input="markDirty()"
-      />
-    </label>
-    <label class="flex flex-col gap-1 text-xs font-bold text-muted">
-      Surface (Tertiary)
-      <input
-        type="color"
-        data-var="--surface-3"
-        class="w-full h-8 cursor-pointer rounded"
-        onchange="previewThemeColor(this)"
-        oninput="previewThemeColor(this)"
-        @input="markDirty()"
-      />
-    </label>
-    <label class="flex flex-col gap-1 text-xs font-bold text-muted">
-      Borders
-      <input
-        type="color"
-        data-var="--border"
-        class="w-full h-8 cursor-pointer rounded"
-        onchange="previewThemeColor(this)"
-        oninput="previewThemeColor(this)"
-        @input="markDirty()"
-      />
-    </label>
-    <label class="flex flex-col gap-1 text-xs font-bold text-muted">
-      Accent Color
-      <input
-        type="color"
-        data-var="--accent"
-        class="w-full h-8 cursor-pointer rounded"
-        onchange="previewThemeColor(this)"
-        oninput="previewThemeColor(this)"
-        @input="markDirty()"
-      />
-    </label>
-    <label class="flex flex-col gap-1 text-xs font-bold text-muted">
-      Text (Main)
-      <input
-        type="color"
-        data-var="--text"
-        class="w-full h-8 cursor-pointer rounded"
-        onchange="previewThemeColor(this)"
-        oninput="previewThemeColor(this)"
-        @input="markDirty()"
-      />
-    </label>
-    <label class="flex flex-col gap-1 text-xs font-bold text-muted">
-      Text (Muted)
-      <input
-        type="color"
-        data-var="--text-muted"
-        class="w-full h-8 cursor-pointer rounded"
-        onchange="previewThemeColor(this)"
-        oninput="previewThemeColor(this)"
-        @input="markDirty()"
-      />
-    </label>
-    <label class="flex flex-col gap-1 text-xs font-bold text-muted">
-      User Role
-      <input
-        type="color"
-        data-var="--role-user"
-        class="w-full h-8 cursor-pointer rounded"
-        onchange="previewThemeColor(this)"
-        oninput="previewThemeColor(this)"
-        @input="markDirty()"
-      />
-    </label>
-    <label class="flex flex-col gap-1 text-xs font-bold text-muted">
-      Assistant Role
-      <input
-        type="color"
-        data-var="--role-assistant"
-        class="w-full h-8 cursor-pointer rounded"
-        onchange="previewThemeColor(this)"
-        oninput="previewThemeColor(this)"
-        @input="markDirty()"
-      />
-    </label>
-  </div>
-
-  <div class="flex items-center gap-2 mt-4">
+  <div class="flex items-center gap-2 pt-2">
     <span x-show="dirty" class="text-xs font-bold shrink-0" style="color: var(--accent);">
       Unsaved changes — press Save to apply
     </span>

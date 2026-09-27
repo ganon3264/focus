@@ -172,6 +172,8 @@
     word-break: break-all;
     max-height: 40vh;
     overflow-y: auto;
+    scrollbar-gutter: stable;
+    padding-right: var(--scrollbar-gap);
   }
   .toast-actions {
     display: flex;

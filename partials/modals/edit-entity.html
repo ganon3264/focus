@@ -1,133 +1,120 @@
 {% from "macros.html" import icon_expand, icon_plus, icon_trash, icon_chevron_left, icon_chevron_right, icon_help, hint_tooltip %} {% from "modal-shell.html" import modal_shell
-%} {% call modal_shell(modal_id, 'Edit ' ~ entity_name, max_width='800px', z_index='100',
+%} {% call modal_shell(modal_id, 'Edit ' ~ entity_name, max_width='1040px',
+content_style='display:flex;flex-direction:column;height:min(88vh, 780px);', z_index='100',
 dirty_fields='#edit-' ~ prefix ~ '-name,#edit-' ~ prefix ~ '-desc,#edit-' ~ prefix ~ '-group' ~ (',#edit-' ~ prefix ~ '-theme-id' if show_theme|default(false) else ''),
 dirty_label='#edit-' ~ prefix ~ '-name') %}
 <form
   id="edit-{{ prefix }}-form"
-  class="flex flex-col gap-4 flex-1"
+  class="edit-entity-form"
   data-action="{{ submit_fn }}"
 >
   <input type="hidden" name="id" id="edit-{{ prefix }}-id" />
 
-  <div class="flex gap-4 items-center">
-    <label
-      class="cursor-pointer relative rounded-sm overflow-hidden flex items-center justify-center"
-      style="
-        width: 64px;
-        height: 64px;
-        background: var(--surface-3);
-        border: 1px solid var(--border);
-        flex-shrink: 0;
-      "
-      title="Change Avatar"
-    >
-      <img
-        id="edit-{{ prefix }}-image-preview"
-        class="absolute inset-0 w-full h-full"
-        style="object-fit: cover; display: none"
-      />
-      <span
-        id="edit-{{ prefix }}-image-placeholder"
-        class="text-2xl font-bold"
-        style="color: var(--text-muted)"
-      ></span>
-      <div
-        class="absolute inset-0 bg-black/50 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs"
-      >
-        Upload
+  <div class="edit-entity-body">
+    <aside class="edit-entity-side">
+      <div class="edit-identity">
+        <label class="edit-avatar" title="Change Avatar">
+          <img id="edit-{{ prefix }}-image-preview" alt="" />
+          <span id="edit-{{ prefix }}-image-placeholder" class="edit-avatar-placeholder"></span>
+          <div class="edit-avatar-overlay">Upload</div>
+          <input type="file" accept="image/*" class="hidden" data-action="{{ avatar_fn }}" />
+        </label>
+
+        <div class="edit-identity-fields">
+          <div class="form-group mb-0 min-w-0">
+            <label>Name</label>
+            <input
+              type="text"
+              name="name"
+              id="edit-{{ prefix }}-name"
+              required
+              class="form-control w-full"
+            />
+          </div>
+
+          <div class="form-group mb-0 min-w-0">
+            <label>Group</label>
+            <input
+              type="text"
+              name="group_name"
+              id="edit-{{ prefix }}-group"
+              class="form-control w-full"
+              placeholder="Optional group"
+            />
+          </div>
+        </div>
       </div>
-      <input type="file" accept="image/*" class="hidden" data-action="{{ avatar_fn }}" />
-    </label>
 
-    <div class="form-group mb-0 flex-1 min-w-0">
-      <label>Name</label>
-      <input
-        type="text"
-        name="name"
-        id="edit-{{ prefix }}-name"
-        required
-        class="form-control w-full"
-      />
-    </div>
+      {% if show_theme|default(false) %}
+      <div class="form-group mb-0">
+        <label>Theme</label>
+        <button
+          type="button"
+          class="btn btn-secondary w-full flex items-center justify-center text-sm"
+          onclick="openCharThemePicker()"
+        >
+          <span id="edit-char-theme-label" class="text-muted">Inherit (global)</span>
+        </button>
+        <input type="hidden" name="theme_id" id="edit-char-theme-id" value="" />
+      </div>
+      {% endif %}
 
-    <div class="form-group mb-0 flex-1 min-w-0">
-      <label>Group</label>
-      <input
-        type="text"
-        name="group_name"
-        id="edit-{{ prefix }}-group"
-        class="form-control w-full"
-        placeholder="Optional group"
-      />
-    </div>
-  </div>
+      <div class="form-group mb-0">
+        <div class="edit-entity-field-head">
+          <label>Reference Media</label>
+          {{ hint_tooltip('{{media:x}} inserts the attachment in position x, counting left to right as shown above. Unpositioned media is appended after the block in the same order.') }}
+        </div>
+        <div
+          class="char-block-media-section"
+          id="edit-{{ prefix }}-media-section"
+          style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center"
+        >
+          <label
+            class="btn btn-secondary btn-sm btn-media-add block-media-btn"
+            title="Add Image or Audio"
+          >
+            {{ icon_plus(20) }}
+            <input
+              type="file"
+              accept="image/*,audio/*"
+              class="hidden block-media-input"
+              data-action="{{ upload_fn }}"
+            />
+          </label>
+          <span class="text-xs text-muted block-media-placeholder">Add reference image or audio</span>
+        </div>
+      </div>
+    </aside>
 
-  <div class="form-group mb-0 flex-1 flex flex-col h-full">
-    <label>Description</label>
-    <div class="textarea-wrapper h-full">
-      <textarea
-        name="description"
-        id="edit-{{ prefix }}-desc"
-        rows="10"
-        class="form-control w-full h-full"
-        style="resize: none"
-      ></textarea>
-      <button
-        type="button"
-        class="expand-btn"
-        aria-label="Expand text area"
-        data-action="actionOpenTextExpander" data-target-id="edit-{{ prefix }}-desc" data-expander-title="Edit {{ entity_name }} Description"
-      >
-        {{ icon_expand(18) }}
-      </button>
-    </div>
-  </div>
+    <div class="edit-entity-main">
+      <div class="form-group mb-0">
+        <label>Description</label>
+        <div class="textarea-wrapper">
+          <textarea
+            name="description"
+            id="edit-{{ prefix }}-desc"
+            rows="14"
+            class="form-control w-full"
+            style="resize: none"
+          ></textarea>
+          <button
+            type="button"
+            class="expand-btn"
+            aria-label="Expand text area"
+            data-action="actionOpenTextExpander" data-target-id="edit-{{ prefix }}-desc" data-expander-title="Edit {{ entity_name }} Description"
+          >
+            {{ icon_expand(18) }}
+          </button>
+        </div>
+      </div>
 
-  {% if show_greetings|default(false) and prefix == 'char' %}
-  {% include "modals/greeting-section.html" %}
-  {% endif %}
-
-  {% if show_theme|default(false) %}
-  <div class="form-group mb-0">
-    <label>Theme</label>
-    <button
-      type="button"
-      class="btn btn-secondary w-full flex items-center justify-center text-sm"
-      onclick="openCharThemePicker()"
-    >
-      <span id="edit-char-theme-label" class="text-muted">Inherit (global)</span>
-    </button>
-    <input type="hidden" name="theme_id" id="edit-char-theme-id" value="" />
-  </div>
-  {% endif %}
-
-  <div class="form-group mb-0 mt-2">
-    <div class="flex items-center gap-1 mb-1">
-      <label class="font-semibold text-muted block" style="margin-bottom:0">Reference Media</label>
-      {{ hint_tooltip('{{media:x}} inserts the attachment in position x, counting left to right as shown above. Unpositioned media is appended after the block in the same order.') }}
-    </div>
-    <div
-      class="char-block-media-section"
-      id="edit-{{ prefix }}-media-section"
-      style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center"
-    >
-      <label
-        class="btn btn-secondary btn-sm btn-media-add block-media-btn"
-        title="Add Image or Audio"
-      >
-        {{ icon_plus(20) }}
-        <input
-          type="file"
-          accept="image/*,audio/*"
-          class="hidden block-media-input"
-          data-action="{{ upload_fn }}"
-        />
-      </label>
-      <span class="text-xs text-muted block-media-placeholder">Add reference image or audio</span>
+      {% if show_greetings|default(false) and prefix == 'char' %}
+      {% include "modals/greeting-section.html" %}
+      {% endif %}
     </div>
   </div>
 
-  <div class="flex items-center gap-2">
+  <div class="edit-entity-footer">
     <span data-dirty-hint class="text-xs font-bold hidden" style="color: var(--accent);">
       Unsaved changes — press Save to apply
     </span>

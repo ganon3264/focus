@@ -66,12 +66,11 @@
     ta.rows = Math.max(3, Math.min(lines, 20));
   }
 
-  function createEditTextarea(idx, bgVar, content) {
+  function createEditTextarea(idx, variant, content) {
     var ta = document.createElement('textarea');
-    ta.className = 'edit-block-ta';
+    ta.className = 'edit-block-ta edit-block-ta--' + variant;
     ta.id = 'edit-msg-ta-' + idx;
     ta.setAttribute('data-block-idx', idx);
-    ta.style.background = 'var(' + bgVar + ')';
     ta.rows = 3;
     ta.value = content || '';
     autoResizeTextarea(ta);
@@ -110,9 +109,9 @@
           '<div style="margin-top:0.5rem"></div>';
         container.appendChild(details);
         var wrapper = details.querySelector('div');
-        wrapper.appendChild(createEditTextarea(i, '--surface-3', blk.content));
+        wrapper.appendChild(createEditTextarea(i, 'reasoning', blk.content));
       } else if (blk.type === 'text') {
-        container.appendChild(createEditTextarea(i, '--surface-2', blk.content));
+        container.appendChild(createEditTextarea(i, 'text', blk.content));
       } else if (blk.type === 'tool_boundary') {
         if (blk.calls && blk.calls.length > 0) {
           var tcSection = document.createElement('div');
@@ -123,7 +122,7 @@
           container.appendChild(tcSection);
         } else {
           var sep = document.createElement('div');
-          sep.style.cssText = 'height:0;border-bottom:1px solid var(--border);margin:0.25rem 0;opacity:0.4';
+          sep.style.cssText = 'height:0;border-bottom:1px solid var(--hair);margin:0.25rem 0';
           container.appendChild(sep);
         }
       }
@@ -160,7 +159,7 @@
     container.innerHTML = '';
     if (window.currentEditAttachments.length === 0) {
       container.innerHTML =
-        '<div class="text-xs text-muted w-full text-center italic py-2">No attachments</div>';
+        '<div class="edit-msg-drop-empty">No attachments</div>';
       return;
     }
 
