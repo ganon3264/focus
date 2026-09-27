@@ -122,6 +122,7 @@
   }
   .sidebar-section:last-child {
     border-bottom: none;
+    padding-bottom: 1.5rem;
   }
   .sidebar-title {
     font-size: 0.7rem;
@@ -141,6 +142,12 @@
     min-height: 0;
     margin: 0 -0.5rem;
     padding: 0 0.5rem;
+  }
+
+  /* Seam under the right sidebar's New Chat control — an empty marker div, so
+     the default skin just gets air here; Instrument turns it into a hairline. */
+  .sidebar-rule {
+    margin: 0.625rem 0 0.75rem;
   }
 
   /* Provider key switcher: the Keys row carries the position and the arrows
@@ -207,14 +214,19 @@
     opacity: 1;
   }
 
-  /* Bottom cluster of the Chats sidebar: page navigation above the Trash Bin. */
+  /* Bottom section of the Chats sidebar, split from the list by a full-bleed
+     rule like the left panel's section dividers — so the pager stays put no
+     matter how short the page is. Bottom edge on the shared 1.5rem baseline
+     with the composer and the status readout. */
   .sidebar-footer {
     flex-shrink: 0;
+    margin-top: auto;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 0.65rem;
-    padding: 0 1.25rem 1.25rem;
+    padding: 0.75rem 1.25rem 1.5rem;
+    border-top: 1px solid var(--border);
     text-align: center;
   }
   .chat-pager {

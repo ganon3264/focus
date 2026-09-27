@@ -1,12 +1,26 @@
 <!doctype html>
 {% from "macros.html" import icon_close, icon_expand %}
-<html lang="en" data-skin="instrument">
+{# data-skin is the default skin; a stored Instrument choice overrides it pre-paint below. #}
+<html lang="en" data-skin="classic">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{% block title %}Focus{% endblock %}</title>
 
     {% block head_theme_state %}{% endblock %}
+
+    <script>
+      // Skin pre-paint: the default (classic) is server-rendered on <html>;
+      // a stored Instrument choice wins. Mirrors the theme pre-paint hook below.
+      (function () {
+        try {
+          var s = localStorage.getItem('focus-skin');
+          if (s === 'classic' || s === 'instrument') {
+            document.documentElement.setAttribute('data-skin', s);
+          }
+        } catch (e) {}
+      })();
+    </script>
 
     <script>
       (function () {

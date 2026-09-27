@@ -1,6 +1,20 @@
 {% from "macros.html" import icon_trash %} {% from "modal-shell.html" import modal_shell %} {% call modal_shell('modal-themes', 'Theme
 Customizer', max_width='520px', width='90vw', content_style='', z_index='100') %}
-<div class="flex flex-col gap-4 mt-2" x-data="themeModalState()" @theme-state-changed.window="refresh()">
+<div class="flex flex-col gap-4 mt-2" x-data="themeModalState()" @theme-state-changed.window="refresh()" @skin-changed.window="skin = $event.detail.id">
+  <div class="flex flex-col gap-1">
+    <div class="text-xs font-bold text-muted">Skin — interface structure</div>
+    <template x-for="s in skins" :key="s.id">
+      <div
+        class="theme-row flex items-center gap-2 p-2 rounded-md cursor-pointer border transition-colors"
+        :class="s.id === skin ? 'is-selected border-(--active-border) bg-(--active-bg)' : 'border-(--border) hover:bg-(--surface-2)'"
+        @click="setSkin(s.id)"
+      >
+        <span class="text-sm font-bold shrink-0" x-text="s.label"></span>
+        <span class="text-xs text-muted flex-1 truncate" x-text="s.description"></span>
+      </div>
+    </template>
+  </div>
+
   <div class="flex flex-col gap-1 max-h-56 overflow-y-auto scroll-fade">
     <template x-for="t in themes" :key="t.id">
       <div

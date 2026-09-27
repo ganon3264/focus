@@ -2,7 +2,10 @@
 <!-- Right Sidebar -->
 <aside class="right-sidebar" id="right-sidebar">
   <div class="sidebar-inner">
-  <div class="sidebar-section flex flex-col h-full" style="border-bottom: none; padding-bottom: 0;">
+  {# The list fills its region so the footer (rule + pager + Trash Bin) stays
+     pinned regardless of how many rows the page has. The footer's bottom edge
+     sits on the shared 1.5rem baseline with the composer and the status readout. #}
+  <div class="sidebar-section flex flex-col h-full" style="border-bottom: none; padding-bottom: 0.75rem;">
     <div class="sidebar-title flex justify-between items-center">
       <button class="action-icon" onclick="toggleSidebar('right')" title="Collapse" aria-label="Toggle sidebar">{{ icon_chevron_right(14) }}</button>
       <span>Chats</span>

@@ -1,9 +1,13 @@
-/* ── Skin: Instrument ─────────────────────────────────────────────────────────
-   Structural overlay for the left sidebar. Colour is never authored here — every
-   value derives from the active theme's tokens via color-mix, so the skin works
-   unchanged on Slate, on Light, and on any user theme in either colour mode.
-   Activated by data-skin="instrument" on <html>; drop that attribute to get the
-   default structure back. Remove this file once the direction is settled.
+/* ── Skin: Instrument (opt-in) ───────────────────────────────────────────────────
+   Structural overlay — the opt-in alternative to the classic base. Colour is never authored here —
+   every value derives from the active theme's tokens via color-mix, so the skin
+   works unchanged on Slate, on Light, and on any user theme in either colour
+   mode. Gated on data-skin="instrument" on <html>; data-skin="classic" (theme
+   modal → "Skin") switches the whole file off and shows the unscoped base
+   structure.
+   Contract (enforced in tests/frontend/test_frontend.py): every rule is gated,
+   and colours come from theme tokens — raw colours are allowed only in
+   box-shadow/text-shadow scrims, which are theme-independent by design.
    -------------------------------------------------------------------------- */
 [data-skin='instrument'] {
   --font-mono-skin: 'Necto Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
@@ -41,10 +45,11 @@
      which smears small glyphs. */
   font-synthesis-weight: none;
 
-  /* Structure comes from lines, not elevation. */
-  --radius-sm: 2px;
-  --radius-md: 2px;
-  --radius-lg: 3px;
+  /* Structure comes from lines, not elevation. Controls get a 3px corner so
+     touchable things read as touchable; rows and panels stay sharp. */
+  --radius-sm: 3px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
   --shadow-sm: none;
   --shadow-md: none;
   --shadow-edge: none;
@@ -120,7 +125,12 @@
   margin: var(--skin-inset) calc(-1 * var(--skin-inset)) 0.75rem calc(-1 * var(--skin-inset));
 }
 
-/* ── Section headers: engraved label with a rule running to the edge ────── */
+/* Footer rule matches the left panel's section hairlines. */
+[data-skin='instrument'] .sidebar-footer {
+  border-top-color: var(--hair);
+}
+
+/* ── Section headers: the one engraved label in the skin ───────────────── */
 [data-skin='instrument'] .left-sidebar .sidebar-title,
 [data-skin='instrument'] .right-sidebar .sidebar-title {
   justify-content: flex-start;
@@ -129,18 +139,20 @@
   font-family: var(--font-mono-skin);
   font-size: 11px;
   font-weight: 400;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.08em;
   color: var(--text-muted);
 }
 
-/* order 0 = label, 1 = rule, 2 = trailing action button */
+/* order 0 = label, 1 = spacer, 2 = trailing action button. The spacer used to
+   be a hairline rule running to the edge — with row dividers everywhere else it
+   tipped the sidebar into form-fieldset territory. */
 [data-skin='instrument'] .left-sidebar .sidebar-title::after,
 [data-skin='instrument'] .right-sidebar .sidebar-title::after {
   content: '';
   order: 1;
   flex: 1;
   height: 1px;
-  background: var(--hair);
+  background: transparent;
 }
 
 [data-skin='instrument'] .left-sidebar .sidebar-title > .action-icon,
@@ -163,7 +175,7 @@
 [data-skin='instrument'] .left-sidebar #preset-selector .form-control {
   background: var(--ink-1);
   border: none;
-  border-radius: 0;
+  border-radius: var(--radius-sm);
   /* Right padding is only the chevron's optical inset, so the dropdown chevron
      lines up with the section's collapse control on the content edge. */
   padding: 0.55rem 0.125rem 0.55rem 0.7rem;
@@ -199,11 +211,10 @@
   background: transparent;
   border: none;
   cursor: pointer;
-  font-family: var(--font-mono-skin);
-  font-size: 10px;
-  font-weight: 400;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
   color: var(--text-muted);
   transition: color var(--transition), background var(--transition);
 }
@@ -270,7 +281,7 @@
 }
 
 [data-skin='instrument'] .dropdown-panel {
-  border-radius: 0;
+  border-radius: var(--radius-md);
   border-color: var(--hair-strong);
   box-shadow: 0 14px 34px color-mix(in srgb, #000 45%, transparent);
 }
@@ -333,13 +344,14 @@
   color: color-mix(in srgb, var(--text) 88%, transparent);
 }
 
-/* Value: the loud element. Mono, amber when set, dim when unset. */
+/* Value: a quiet readout. The LED carries the set/unset state, so the value is
+   plain ink data — not a wall of accent-coloured caps. */
 [data-skin='instrument'] .left-sidebar .var-group-container .arranger-actions > span {
   font-family: var(--font-mono-skin);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 400;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
+  color: var(--text-faint);
 }
 
 [data-skin='instrument']
@@ -347,7 +359,8 @@
   .var-group-container:has(.arranger-actions > span[title])
   .arranger-actions
   > span {
-  color: var(--accent);
+  color: var(--text);
+  font-weight: 500;
 }
 
 /* ── Expanded group: option rows, flat with hairlines ───────────────────── */
@@ -428,41 +441,34 @@
   color: var(--danger);
 }
 
-/* ── Tools: hairline tiles, no fills ────────────────────────────────────── */
+/* ── Tools: filled tiles read as buttons, not a data table ──────────────── */
 [data-skin='instrument'] .left-sidebar .tools-grid {
-  gap: 0;
+  gap: 0.35rem;
 }
 
 [data-skin='instrument'] .left-sidebar .tool-tile {
-  background: transparent;
+  background: var(--ink-1);
   border: none;
-  border-top: 1px solid var(--hair);
   border-left: 2px solid transparent;
-  border-radius: 0;
+  border-radius: var(--radius-sm);
   padding: 0.6rem 0.5rem;
   font-weight: 500;
   color: color-mix(in srgb, var(--text) 74%, transparent);
 }
 
-[data-skin='instrument'] .left-sidebar .tool-tile:nth-child(-n + 2) {
-  border-top-color: transparent;
-}
-
 [data-skin='instrument'] .left-sidebar .tool-tile:hover,
 [data-skin='instrument'] .left-sidebar .tool-tile:focus-visible {
-  background: var(--tint-1);
+  background: var(--tint-2);
   border-left-color: var(--accent);
   color: var(--text);
 }
 
-/* `.btn-secondary:hover` sets all four border colours, which would repaint the
-   tile's top hairline in accent on hover (the first row is exempt via
-   :nth-child). Keep the secondary treatment off the tiles so their borders stay
-   under the tile rules. */
+/* `.btn-secondary:hover` sets all four border colours, which would fight the
+   tile's accent edge on hover. Keep the secondary treatment off the tiles. */
 [data-skin='instrument'] .btn-secondary:not(.tool-tile) {
-  background: transparent;
+  background: var(--ink-1);
   border: 1px solid var(--hair-strong);
-  border-radius: 0;
+  border-radius: var(--radius-sm);
   box-shadow: none;
   color: var(--text-muted);
 }
@@ -474,16 +480,16 @@
 }
 
 /* ── Buttons: one console control family ───────────────────────────────── */
-/* Every `.btn` shares the mono/uppercase label, squared corners and hairline
-   edge; variants differ only in ink. Navigation tiles (`.tool-tile`) and text
-   links opt out and keep their own typography below. */
+/* Every `.btn` shares one quiet sans label, a hairline edge and a 3px corner;
+   variants differ only in ink. Engraved caps belong to section headers, not to
+   button chrome. Navigation tiles (`.tool-tile`) and text links opt out and
+   keep their own typography below. */
 [data-skin='instrument'] .btn:not(.tool-tile):not(.btn-link) {
-  font-family: var(--font-mono-skin);
-  font-size: 11px;
-  font-weight: 400;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  border-radius: 0;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  border-radius: var(--radius-sm);
   box-shadow: none;
   transform: none;
   white-space: nowrap;
@@ -496,8 +502,7 @@
 /* The empty-state hero is the one button that leads a whole screen, so it keeps
    the family type but earns a little more size and air. */
 [data-skin='instrument'] .btn-hero:not(.tool-tile):not(.btn-link) {
-  font-size: 12px;
-  letter-spacing: 0.16em;
+  font-size: 13px;
   padding: 0.85rem 2rem;
 }
 
@@ -572,11 +577,10 @@
 }
 
 [data-skin='instrument'] .left-sidebar .status-panel > div > span:first-child {
-  font-family: var(--font-mono-skin);
-  font-size: 11px;
-  font-weight: 400;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
 }
 
 [data-skin='instrument'] .left-sidebar .status-panel > div > span:last-child {
@@ -803,8 +807,7 @@
   color: var(--text-muted);
   font-family: var(--font-mono-skin);
   font-size: 11px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 [data-skin='instrument'] .details > summary:hover {
@@ -834,7 +837,7 @@
 }
 
 [data-skin='instrument'] .input-wrapper {
-  border-radius: 0;
+  border-radius: var(--radius-sm);
   border: none;
   padding: 0.5rem 0.5rem 0.5rem 0.35rem;
 }
@@ -847,7 +850,7 @@
 [data-skin='instrument'] .attach-btn {
   background: transparent;
   border-color: transparent;
-  border-radius: 0;
+  border-radius: var(--radius-sm);
   color: var(--text-muted);
 }
 
@@ -860,7 +863,7 @@
 [data-skin='instrument'] .send-btn {
   background: var(--tint-2);
   border: 1px solid var(--edge);
-  border-radius: 0;
+  border-radius: var(--radius-sm);
   color: var(--accent);
 }
 
@@ -890,13 +893,14 @@
 }
 
 [data-skin='instrument'] .modal-content {
-  border-radius: 0;
+  border-radius: var(--radius-lg);
   border-color: var(--hair-strong);
   box-shadow: none;
   padding: var(--skin-inset);
 }
 
-/* Header follows the panel headers: engraved label, rule running to the close. */
+/* Header follows the panel headers: one engraved label per modal, then a
+   quiet spacer to the close button. */
 [data-skin='instrument'] .modal-header {
   justify-content: flex-start;
   align-items: center;
@@ -915,7 +919,7 @@
   font-family: var(--font-mono-skin);
   font-size: 12px;
   font-weight: 400;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--text);
   margin: 0;
@@ -926,7 +930,7 @@
   order: 1;
   flex: 1;
   height: 1px;
-  background: var(--hair);
+  background: transparent;
 }
 
 /* The shell renders title then close button, so ::after lands between them. */
@@ -944,6 +948,7 @@
   width: 26px;
   height: 26px;
   padding: 0;
+  border-radius: var(--radius-sm);
 }
 
 [data-skin='instrument'] .modal-header > .btn:hover {
@@ -970,7 +975,7 @@
 [data-skin='instrument'] .search-input {
   background: transparent;
   border-color: var(--hair-strong);
-  border-radius: 0;
+  border-radius: var(--radius-sm);
 }
 
 [data-skin='instrument'] .checkbox {
@@ -981,11 +986,11 @@
 
 /* ── Tabs ───────────────────────────────────────────────────────────────── */
 [data-skin='instrument'] .tab-btn {
-  border-radius: 0;
-  font-family: var(--font-mono-skin);
-  font-size: 11px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
 }
 
 [data-skin='instrument'] .tab-btn.active {
@@ -1035,12 +1040,12 @@
 
 [data-skin='instrument'] .slot-btn {
   border-color: var(--hair-strong);
-  border-radius: 0;
+  border-radius: var(--radius-sm);
   background: transparent;
-  font-family: var(--font-mono-skin);
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
 }
 
 [data-skin='instrument'] .slot-btn.slot-active {
@@ -1087,7 +1092,7 @@
 /* The selected theme row was using --active-bg, the same accent fill the preset
    variable rows did. Selection is an accent edge instead. */
 [data-skin='instrument'] .theme-row {
-  border-radius: 0;
+  border-radius: var(--radius-sm);
   background: transparent;
 }
 
@@ -1142,12 +1147,12 @@
 [data-skin='instrument'] .btn-tag {
   background: transparent;
   border-color: var(--hair-strong);
-  border-radius: 0;
+  border-radius: var(--radius-sm);
   color: var(--text-muted);
-  font-family: var(--font-mono-skin);
-  font-size: 10px;
-  font-weight: 400;
-  letter-spacing: 0.06em;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
 }
 
 [data-skin='instrument'] .btn-tag:hover {

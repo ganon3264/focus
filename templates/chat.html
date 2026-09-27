@@ -23,6 +23,7 @@ window.THEME_STATE = {{ theme_state | tojson | safe }};
 <template id="icon-close-tpl">{{ icon_close(16) }}</template>
 
 <script src="/static/js/ui/option-picker.js"></script>
+<script src="/static/js/ui/skin-manager.js"></script>
 <script src="/static/js/ui/theme-manager.js"></script>
 <script>
 StateManager.on('provider-changed', function() {
