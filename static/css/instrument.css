@@ -1,18 +1,15 @@
-/* ── Skin: Instrument (opt-in) ───────────────────────────────────────────────────
-   Structural overlay — the opt-in alternative to the classic base. Colour is never authored here —
-   every value derives from the active theme's tokens via color-mix, so the skin
+/* ── Instrument (structural layer) ────────────────────────────────────────────
+   The app's structure: hairline geometry, low-elevation controls, engraved
+   section labels, and mono data readouts. Colour is never authored here — every
+   value derives from the active theme's tokens via color-mix/var(), so the layer
    works unchanged on Slate, on Light, and on any user theme in either colour
-   mode. Gated on data-skin="instrument" on <html>; data-skin="classic" (theme
-   modal → "Skin") switches the whole file off and shows the unscoped base
-   structure.
-   Contract (enforced in tests/frontend/test_frontend.py): every rule is gated,
-   and colours come from theme tokens — raw colours are allowed only in
-   box-shadow/text-shadow scrims, which are theme-independent by design.
+   mode. Raw colours are allowed only in box-shadow/text-shadow scrims, which are
+   theme-independent by design.
    -------------------------------------------------------------------------- */
-[data-skin='instrument'] {
-  --font-mono-skin: 'Necto Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
+:root {
+  --font-mono-ui: 'Necto Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
     'Liberation Mono', monospace;
-  /* Neutral wash scale — every grey fill/edge in the skin is one of these. */
+  /* Neutral wash scale — every grey fill/edge in the layer is one of these. */
   --ink-1: color-mix(in srgb, var(--text) 3%, transparent);
   --ink-2: color-mix(in srgb, var(--text) 6%, transparent);
   --hair: color-mix(in srgb, var(--text) 8%, transparent);
@@ -38,8 +35,8 @@
   --success-edge: color-mix(in srgb, var(--success) 45%, transparent);
 
   /* One inset for every framed surface (sidebars, modals, composer). */
-  --skin-inset: 1.25rem;
-  --skin-gap: 1rem;
+  --ui-inset: 1.25rem;
+  --ui-gap: 1rem;
 
   /* The system mono face ships 400/700 only; never let the browser fake 500/600,
      which smears small glyphs. */
@@ -55,25 +52,25 @@
   --shadow-edge: none;
 }
 
-/* Scrollbars are hairlines too — no pill caps in this skin. */
-[data-skin='instrument'] ::-webkit-scrollbar-thumb {
+/* Scrollbars are hairlines too — no pill caps here. */
+::-webkit-scrollbar-thumb {
   border-radius: 0;
 }
 
 /* ── Shell ──────────────────────────────────────────────────────────────── */
-[data-skin='instrument'] .left-sidebar {
+.left-sidebar {
   box-shadow: none;
   border-right: 1px solid var(--hair);
 }
 
-[data-skin='instrument'] .left-sidebar .sidebar-section {
-  padding: var(--skin-inset);
+.left-sidebar .sidebar-section {
+  padding: var(--ui-inset);
   border-bottom: 1px solid var(--hair);
 }
 
 /* The status readout is the last section. Drop its divider and match the
    composer's 1.5rem inset so the bottom rules line up across all three panes. */
-[data-skin='instrument'] .left-sidebar .sidebar-section:last-child {
+.left-sidebar .sidebar-section:last-child {
   padding-bottom: 1.5rem;
   border-bottom: none;
 }
@@ -81,12 +78,12 @@
 /* Top mirror: both sidebars start on the same baseline, and the preset selector
    and the New Chat control are one shared size, so their edges read as a single
    line across the bodywork. */
-[data-skin='instrument'] .right-sidebar .sidebar-section {
-  padding: var(--skin-inset);
+.right-sidebar .sidebar-section {
+  padding: var(--ui-inset);
 }
 
-[data-skin='instrument'] .left-sidebar #preset-selector .form-control,
-[data-skin='instrument'] .right-sidebar .sidebar-section > .btn-primary {
+.left-sidebar #preset-selector .form-control,
+.right-sidebar .sidebar-section > .btn-primary {
   height: 2rem;
   padding-top: 0;
   padding-bottom: 0;
@@ -97,12 +94,12 @@
    its content lands back on that line, and the scrollbar sits in the outer 10px
    of the inset. Non-scrolling elements — title rule, selector, tools, status,
    chat rows, New Chat — already end on that line via the section padding. */
-[data-skin='instrument'] {
+:root {
   --sidebar-scrollbar: 0.625rem;
 }
 
-[data-skin='instrument'] .left-sidebar .sidebar-section .scroll-fade,
-[data-skin='instrument'] .right-sidebar .sidebar-section .scroll-fade {
+.left-sidebar .sidebar-section .scroll-fade,
+.right-sidebar .sidebar-section .scroll-fade {
   margin-right: calc(-1 * var(--sidebar-scrollbar));
   padding-right: 0;
 }
@@ -112,31 +109,31 @@
    scrollbar lane as padding instead. `-moz-appearance` is a Firefox-only
    marker. */
 @supports (-moz-appearance: none) {
-  [data-skin='instrument'] .left-sidebar .sidebar-section .scroll-fade,
-  [data-skin='instrument'] .right-sidebar .sidebar-section .scroll-fade {
+  .left-sidebar .sidebar-section .scroll-fade,
+  .right-sidebar .sidebar-section .scroll-fade {
     padding-right: var(--sidebar-scrollbar);
   }
 }
 
 /* Full-bleed hairline under the New Chat control, sitting at the same y as the
    left sidebar's preset-section divider so the two read as one body line. */
-[data-skin='instrument'] .right-sidebar .sidebar-rule {
+.right-sidebar .sidebar-rule {
   border-top: 1px solid var(--hair);
-  margin: var(--skin-inset) calc(-1 * var(--skin-inset)) 0.75rem calc(-1 * var(--skin-inset));
+  margin: var(--ui-inset) calc(-1 * var(--ui-inset)) 0.75rem calc(-1 * var(--ui-inset));
 }
 
 /* Footer rule matches the left panel's section hairlines. */
-[data-skin='instrument'] .sidebar-footer {
+.sidebar-footer {
   border-top-color: var(--hair);
 }
 
-/* ── Section headers: the one engraved label in the skin ───────────────── */
-[data-skin='instrument'] .left-sidebar .sidebar-title,
-[data-skin='instrument'] .right-sidebar .sidebar-title {
+/* ── Section headers: the one engraved label in the layer ──────────────── */
+.left-sidebar .sidebar-title,
+.right-sidebar .sidebar-title {
   justify-content: flex-start;
   gap: 0.5rem;
   margin-bottom: 0.85rem;
-  font-family: var(--font-mono-skin);
+  font-family: var(--font-mono-ui);
   font-size: 11px;
   font-weight: 400;
   letter-spacing: 0.08em;
@@ -146,8 +143,8 @@
 /* order 0 = label, 1 = spacer, 2 = trailing action button. The spacer used to
    be a hairline rule running to the edge — with row dividers everywhere else it
    tipped the sidebar into form-fieldset territory. */
-[data-skin='instrument'] .left-sidebar .sidebar-title::after,
-[data-skin='instrument'] .right-sidebar .sidebar-title::after {
+.left-sidebar .sidebar-title::after,
+.right-sidebar .sidebar-title::after {
   content: '';
   order: 1;
   flex: 1;
@@ -155,8 +152,8 @@
   background: transparent;
 }
 
-[data-skin='instrument'] .left-sidebar .sidebar-title > .action-icon,
-[data-skin='instrument'] .right-sidebar .sidebar-title > .action-icon {
+.left-sidebar .sidebar-title > .action-icon,
+.right-sidebar .sidebar-title > .action-icon {
   order: 2;
   background: transparent;
   border: none;
@@ -165,14 +162,14 @@
   color: var(--engrave);
 }
 
-[data-skin='instrument'] .left-sidebar .sidebar-title > .action-icon:hover,
-[data-skin='instrument'] .right-sidebar .sidebar-title > .action-icon:hover {
+.left-sidebar .sidebar-title > .action-icon:hover,
+.right-sidebar .sidebar-title > .action-icon:hover {
   background: transparent;
   color: var(--accent);
 }
 
 /* ── Preset selector: an engraved readout with bracket corners ──────────── */
-[data-skin='instrument'] .left-sidebar #preset-selector .form-control {
+.left-sidebar #preset-selector .form-control {
   background: var(--ink-1);
   border: none;
   border-radius: var(--radius-sm);
@@ -185,23 +182,23 @@
   color: var(--text);
 }
 
-[data-skin='instrument'] .left-sidebar #preset-selector .form-control:hover,
-[data-skin='instrument'] .left-sidebar #preset-selector .form-control:focus {
+.left-sidebar #preset-selector .form-control:hover,
+.left-sidebar #preset-selector .form-control:focus {
   box-shadow: none;
   background: var(--ink-2);
 }
 
 /* ── Preset menu: hairline rows, actions revealed on hover ──────────────── */
-[data-skin='instrument'] .preset-menu {
+.preset-menu {
   padding: 0;
 }
 
-[data-skin='instrument'] .preset-menu-actions {
+.preset-menu-actions {
   display: flex;
   border-bottom: 1px solid var(--hair);
 }
 
-[data-skin='instrument'] .preset-menu-action {
+.preset-menu-action {
   flex: 1;
   display: inline-flex;
   align-items: center;
@@ -219,43 +216,43 @@
   transition: color var(--transition), background var(--transition);
 }
 
-[data-skin='instrument'] .preset-menu-action + .preset-menu-action {
+.preset-menu-action + .preset-menu-action {
   border-left: 1px solid var(--hair);
 }
 
-[data-skin='instrument'] .preset-menu-action:hover {
+.preset-menu-action:hover {
   color: var(--accent);
   background: var(--tint-1);
 }
 
-[data-skin='instrument'] .preset-menu .dropdown-item {
+.preset-menu .dropdown-item {
   padding: 0.5rem 0.7rem;
   font-size: 13px;
   color: var(--text);
 }
 
-[data-skin='instrument'] .preset-menu .dropdown-item:hover {
+.preset-menu .dropdown-item:hover {
   background: var(--tint-1);
 }
 
-[data-skin='instrument'] .preset-menu-item.is-selected .preset-item-name {
+.preset-menu-item.is-selected .preset-item-name {
   color: var(--accent);
   font-weight: 600;
 }
 
-[data-skin='instrument'] .preset-item-actions {
+.preset-item-actions {
   display: flex;
   gap: 0.1rem;
   opacity: 0;
   transition: opacity var(--transition);
 }
 
-[data-skin='instrument'] .preset-menu-item:hover .preset-item-actions,
-[data-skin='instrument'] .preset-menu-item:focus-within .preset-item-actions {
+.preset-menu-item:hover .preset-item-actions,
+.preset-menu-item:focus-within .preset-item-actions {
   opacity: 1;
 }
 
-[data-skin='instrument'] .preset-item-action {
+.preset-item-action {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -270,32 +267,32 @@
   transition: color var(--transition), background var(--transition);
 }
 
-[data-skin='instrument'] .preset-item-action:hover {
+.preset-item-action:hover {
   color: var(--accent);
   background: var(--tint-2);
 }
 
-[data-skin='instrument'] .preset-item-action.danger:hover {
+.preset-item-action.danger:hover {
   color: var(--danger);
   background: var(--danger-tint);
 }
 
-[data-skin='instrument'] .dropdown-panel {
+.dropdown-panel {
   border-radius: var(--radius-md);
   border-color: var(--hair-strong);
   box-shadow: 0 14px 34px color-mix(in srgb, #000 45%, transparent);
 }
 
-[data-skin='instrument'] .dropdown-panel .dropdown-item:not(:last-child) {
+.dropdown-panel .dropdown-item:not(:last-child) {
   border-bottom-color: var(--hair);
 }
 
 /* ── Preset variables: one hairline list instead of six filled boxes ────── */
-[data-skin='instrument'] .left-sidebar [id^='preset-variables-sortable-'] {
+.left-sidebar [id^='preset-variables-sortable-'] {
   gap: 0;
 }
 
-[data-skin='instrument'] .left-sidebar .var-group-container.bg-role-system {
+.left-sidebar .var-group-container.bg-role-system {
   background: transparent;
   border: none;
   border-bottom: 1px solid var(--hair);
@@ -304,17 +301,17 @@
   padding: 0.5rem 0 0.5rem 0.5rem;
 }
 
-[data-skin='instrument'] .left-sidebar .var-group-container.bg-role-system:last-child {
+.left-sidebar .var-group-container.bg-role-system:last-child {
   border-bottom: none;
 }
 
-[data-skin='instrument'] .left-sidebar .var-group-container.bg-role-system:hover {
+.left-sidebar .var-group-container.bg-role-system:hover {
   background: transparent;
 }
 
 /* LED: set vs unset. The unset branch is the only one that renders the value
    without a title attribute, so :has() reads the state without a template hook. */
-[data-skin='instrument'] .left-sidebar .var-group-container .arranger-title-group::before {
+.left-sidebar .var-group-container .arranger-title-group::before {
   content: '';
   flex-shrink: 0;
   width: 6px;
@@ -323,7 +320,6 @@
   background: color-mix(in srgb, var(--text) 20%, transparent);
 }
 
-[data-skin='instrument']
   .left-sidebar
   .var-group-container:has(.arranger-actions > span[title])
   .arranger-title-group::before {
@@ -331,13 +327,12 @@
   box-shadow: 0 0 6px color-mix(in srgb, var(--success) 55%, transparent);
 }
 
-[data-skin='instrument'] .left-sidebar .var-group-name {
+.left-sidebar .var-group-name {
   font-size: 12px;
   font-weight: 500;
   color: var(--text-muted);
 }
 
-[data-skin='instrument']
   .left-sidebar
   .var-group-container:has(.arranger-actions > span[title])
   .var-group-name {
@@ -346,15 +341,14 @@
 
 /* Value: a quiet readout. The LED carries the set/unset state, so the value is
    plain ink data — not a wall of accent-coloured caps. */
-[data-skin='instrument'] .left-sidebar .var-group-container .arranger-actions > span {
-  font-family: var(--font-mono-skin);
+.left-sidebar .var-group-container .arranger-actions > span {
+  font-family: var(--font-mono-ui);
   font-size: 12px;
   font-weight: 400;
   letter-spacing: 0.01em;
   color: var(--text-faint);
 }
 
-[data-skin='instrument']
   .left-sidebar
   .var-group-container:has(.arranger-actions > span[title])
   .arranger-actions
@@ -364,11 +358,11 @@
 }
 
 /* ── Expanded group: option rows, flat with hairlines ───────────────────── */
-[data-skin='instrument'] .left-sidebar .sortable-var-options {
+.left-sidebar .sortable-var-options {
   gap: 0;
 }
 
-[data-skin='instrument'] .left-sidebar .var-option-item {
+.left-sidebar .var-option-item {
   background: transparent;
   border: none;
   border-bottom: 1px solid var(--hair);
@@ -376,17 +370,16 @@
   padding: 0.4rem 0.25rem;
 }
 
-[data-skin='instrument'] .left-sidebar .var-option-item:hover {
+.left-sidebar .var-option-item:hover {
   background: transparent;
   border-bottom-color: var(--hair-strong);
 }
 
-[data-skin='instrument'] .left-sidebar .var-option-item > span {
+.left-sidebar .var-option-item > span {
   font-weight: 400;
   color: var(--text-muted);
 }
 
-[data-skin='instrument']
   .left-sidebar
   .var-option-item:has(.radio-switch.active)
   > span {
@@ -394,23 +387,23 @@
   color: var(--text);
 }
 
-[data-skin='instrument'] .left-sidebar .radio-switch {
+.left-sidebar .radio-switch {
   width: 14px;
   height: 14px;
   border-width: 1px;
   border-color: var(--hair-strong);
 }
 
-[data-skin='instrument'] .left-sidebar .radio-switch.active {
+.left-sidebar .radio-switch.active {
   border-color: var(--accent);
 }
 
-[data-skin='instrument'] .left-sidebar .radio-switch .radio-inner {
+.left-sidebar .radio-switch .radio-inner {
   width: 6px;
   height: 6px;
 }
 
-[data-skin='instrument'] .left-sidebar .radio-add-row {
+.left-sidebar .radio-add-row {
   border: none;
   border-bottom: 1px solid var(--hair);
   border-radius: 0;
@@ -418,35 +411,35 @@
   background: transparent;
 }
 
-[data-skin='instrument'] .left-sidebar .radio-add-row:hover {
+.left-sidebar .radio-add-row:hover {
   background: transparent;
   border-bottom-color: var(--accent);
 }
 
-[data-skin='instrument'] .left-sidebar .radio-add-row:hover span {
+.left-sidebar .radio-add-row:hover span {
   color: var(--accent);
 }
 
-[data-skin='instrument'] .left-sidebar .var-option-item .action-icon.slim {
+.left-sidebar .var-option-item .action-icon.slim {
   background: transparent;
   color: var(--text-faint);
 }
 
-[data-skin='instrument'] .left-sidebar .var-option-item .action-icon.slim:hover {
+.left-sidebar .var-option-item .action-icon.slim:hover {
   background: transparent;
   color: var(--text);
 }
 
-[data-skin='instrument'] .left-sidebar .var-option-item .action-icon.slim.danger:hover {
+.left-sidebar .var-option-item .action-icon.slim.danger:hover {
   color: var(--danger);
 }
 
 /* ── Tools: filled tiles read as buttons, not a data table ──────────────── */
-[data-skin='instrument'] .left-sidebar .tools-grid {
+.left-sidebar .tools-grid {
   gap: 0.35rem;
 }
 
-[data-skin='instrument'] .left-sidebar .tool-tile {
+.left-sidebar .tool-tile {
   background: var(--ink-1);
   border: none;
   border-left: 2px solid transparent;
@@ -456,8 +449,8 @@
   color: color-mix(in srgb, var(--text) 74%, transparent);
 }
 
-[data-skin='instrument'] .left-sidebar .tool-tile:hover,
-[data-skin='instrument'] .left-sidebar .tool-tile:focus-visible {
+.left-sidebar .tool-tile:hover,
+.left-sidebar .tool-tile:focus-visible {
   background: var(--tint-2);
   border-left-color: var(--accent);
   color: var(--text);
@@ -465,7 +458,7 @@
 
 /* `.btn-secondary:hover` sets all four border colours, which would fight the
    tile's accent edge on hover. Keep the secondary treatment off the tiles. */
-[data-skin='instrument'] .btn-secondary:not(.tool-tile) {
+.btn-secondary:not(.tool-tile) {
   background: var(--ink-1);
   border: 1px solid var(--hair-strong);
   border-radius: var(--radius-sm);
@@ -473,7 +466,7 @@
   color: var(--text-muted);
 }
 
-[data-skin='instrument'] .btn-secondary:not(.tool-tile):hover {
+.btn-secondary:not(.tool-tile):hover {
   background: transparent;
   border-color: var(--accent);
   color: var(--accent);
@@ -484,7 +477,7 @@
    variants differ only in ink. Engraved caps belong to section headers, not to
    button chrome. Navigation tiles (`.tool-tile`) and text links opt out and
    keep their own typography below. */
-[data-skin='instrument'] .btn:not(.tool-tile):not(.btn-link) {
+.btn:not(.tool-tile):not(.btn-link) {
   font-family: var(--font-sans);
   font-size: 12px;
   font-weight: 500;
@@ -495,13 +488,13 @@
   white-space: nowrap;
 }
 
-[data-skin='instrument'] .btn:not(.tool-tile):not(.btn-link):active {
+.btn:not(.tool-tile):not(.btn-link):active {
   transform: none;
 }
 
 /* The empty-state hero is the one button that leads a whole screen, so it keeps
    the family type but earns a little more size and air. */
-[data-skin='instrument'] .btn-hero:not(.tool-tile):not(.btn-link) {
+.btn-hero:not(.tool-tile):not(.btn-link) {
   font-size: 13px;
   padding: 0.85rem 2rem;
 }
@@ -510,32 +503,32 @@
 /* Bracket corners from the status readout recur on the framed surfaces that
    hold a single control: the preset selector, grid tiles, the composer, and the
    message hover toolbar. */
-[data-skin='instrument'] .status-panel,
-[data-skin='instrument'] .card,
-[data-skin='instrument'] .tile-card,
-[data-skin='instrument'] .input-wrapper,
-[data-skin='instrument'] .toolbar,
-[data-skin='instrument'] .left-sidebar #preset-selector .form-control {
+.status-panel,
+.card,
+.tile-card,
+.input-wrapper,
+.toolbar,
+.left-sidebar #preset-selector .form-control {
   --corner-size: 8px;
   --corner-color: var(--hair-strong);
 }
 
-[data-skin='instrument'] .toolbar {
+.toolbar {
   --corner-size: 6px;
 }
 
-[data-skin='instrument'] .card,
-[data-skin='instrument'] .tile-card,
-[data-skin='instrument'] .left-sidebar #preset-selector .form-control {
+.card,
+.tile-card,
+.left-sidebar #preset-selector .form-control {
   position: relative;
 }
 
-[data-skin='instrument'] .status-panel::before,
-[data-skin='instrument'] .card::before,
-[data-skin='instrument'] .tile-card::before,
-[data-skin='instrument'] .input-wrapper::before,
-[data-skin='instrument'] .toolbar::before,
-[data-skin='instrument'] .left-sidebar #preset-selector .form-control::before {
+.status-panel::before,
+.card::before,
+.tile-card::before,
+.input-wrapper::before,
+.toolbar::before,
+.left-sidebar #preset-selector .form-control::before {
   content: '';
   position: absolute;
   top: 0;
@@ -548,12 +541,12 @@
   pointer-events: none;
 }
 
-[data-skin='instrument'] .status-panel::after,
-[data-skin='instrument'] .card::after,
-[data-skin='instrument'] .tile-card::after,
-[data-skin='instrument'] .input-wrapper::after,
-[data-skin='instrument'] .toolbar::after,
-[data-skin='instrument'] .left-sidebar #preset-selector .form-control::after {
+.status-panel::after,
+.card::after,
+.tile-card::after,
+.input-wrapper::after,
+.toolbar::after,
+.left-sidebar #preset-selector .form-control::after {
   content: '';
   position: absolute;
   bottom: 0;
@@ -567,7 +560,7 @@
 }
 
 /* ── Status: an instrument readout ──────────────────────────────────────── */
-[data-skin='instrument'] .left-sidebar .status-panel {
+.left-sidebar .status-panel {
   position: relative;
   background: var(--ink-1);
   border: none;
@@ -576,55 +569,55 @@
   gap: 0.5rem;
 }
 
-[data-skin='instrument'] .left-sidebar .status-panel > div > span:first-child {
+.left-sidebar .status-panel > div > span:first-child {
   font-family: var(--font-sans);
   font-size: 11.5px;
   font-weight: 500;
   letter-spacing: 0.01em;
 }
 
-[data-skin='instrument'] .left-sidebar .status-panel > div > span:last-child {
-  font-family: var(--font-mono-skin);
+.left-sidebar .status-panel > div > span:last-child {
+  font-family: var(--font-mono-ui);
   font-size: 12px;
   font-weight: 400;
   letter-spacing: 0.01em;
 }
 
 /* ══ Right sidebar ═════════════════════════════════════════════════════════ */
-[data-skin='instrument'] .right-sidebar {
+.right-sidebar {
   box-shadow: none;
   border-left: 1px solid var(--hair);
 }
 
 /* Header reads [‹] CHATS ──────── — the collapse button leads on this side, so
    it keeps order 0 and the label and rule follow it. */
-[data-skin='instrument'] .right-sidebar .sidebar-title > .action-icon {
+.right-sidebar .sidebar-title > .action-icon {
   order: 0;
 }
 
-[data-skin='instrument'] .right-sidebar .sidebar-title > span {
+.right-sidebar .sidebar-title > span {
   order: 1;
 }
 
-[data-skin='instrument'] .right-sidebar .sidebar-title::after {
+.right-sidebar .sidebar-title::after {
   order: 2;
 }
 
 /* Primary action: an outlined console button rather than a solid accent block,
    so each surface keeps a single focal colour (its active/selected row). */
-[data-skin='instrument'] .btn-primary {
+.btn-primary {
   background: var(--tint-2);
   border: 1px solid var(--edge);
   color: var(--accent);
 }
 
-[data-skin='instrument'] .btn-primary:hover {
+.btn-primary:hover {
   background: var(--tint-3);
   border-color: var(--accent);
 }
 
 /* Create keeps its green hue at the same flat hairline shape. */
-[data-skin='instrument'] .btn-create {
+.btn-create {
   background: var(--success-tint);
   border: 1px solid var(--success-edge);
   border-radius: 0;
@@ -632,18 +625,18 @@
   color: var(--success-hover);
 }
 
-[data-skin='instrument'] .btn-create:hover {
+.btn-create:hover {
   background: var(--success-tint-strong);
   border-color: var(--success);
   color: var(--success-hover);
   transform: none;
 }
 /* Chat list: hairline rows; the active chat is marked by an accent edge. */
-[data-skin='instrument'] .right-sidebar .sidebar-list {
+.right-sidebar .sidebar-list {
   gap: 0;
 }
 
-[data-skin='instrument'] .right-sidebar .sidebar-item {
+.right-sidebar .sidebar-item {
   background: transparent;
   border: none;
   border-left: 2px solid transparent;
@@ -653,59 +646,59 @@
   padding: 0.6rem 0.5rem 0.6rem 0.6rem;
 }
 
-[data-skin='instrument'] .right-sidebar .sidebar-item:last-child {
+.right-sidebar .sidebar-item:last-child {
   border-bottom: none;
 }
 
-[data-skin='instrument'] .right-sidebar .sidebar-item:hover {
+.right-sidebar .sidebar-item:hover {
   background: var(--tint-1);
   border-left-color: transparent;
   border-bottom-color: var(--hair-strong);
 }
 
-[data-skin='instrument'] .right-sidebar .sidebar-item.active {
+.right-sidebar .sidebar-item.active {
   background: transparent;
   border-left-color: var(--accent);
   border-bottom-color: var(--hair);
   color: inherit;
 }
 
-[data-skin='instrument'] .right-sidebar .sidebar-item a > span:first-child {
+.right-sidebar .sidebar-item a > span:first-child {
   font-size: 13px;
   font-weight: 500;
   color: color-mix(in srgb, var(--text) 82%, transparent);
 }
 
-[data-skin='instrument'] .right-sidebar .sidebar-item.active a > span:first-child {
+.right-sidebar .sidebar-item.active a > span:first-child {
   color: var(--accent);
 }
 
-[data-skin='instrument'] .right-sidebar .sidebar-item a > span:last-child {
-  font-family: var(--font-mono-skin);
+.right-sidebar .sidebar-item a > span:last-child {
+  font-family: var(--font-mono-ui);
   font-size: 10px;
   letter-spacing: 0.02em;
 }
 
-[data-skin='instrument'] .right-sidebar .sidebar-item .sidebar-delete-btn {
+.right-sidebar .sidebar-item .sidebar-delete-btn {
   background: transparent;
   border: none;
   box-shadow: none;
   color: var(--text-faint);
 }
 
-[data-skin='instrument'] .right-sidebar .sidebar-item .sidebar-delete-btn:hover {
+.right-sidebar .sidebar-item .sidebar-delete-btn:hover {
   background: transparent;
   color: var(--danger);
 }
 
-[data-skin='instrument'] .right-sidebar [class*='border-dashed'] {
+.right-sidebar [class*='border-dashed'] {
   border-style: solid;
   border-color: var(--hair);
   border-radius: 0;
 }
 
 /* Danger keeps its own hue but the same flat shape. */
-[data-skin='instrument'] .btn-danger {
+.btn-danger {
   background: var(--danger-tint);
   border: 1px solid var(--danger-edge);
   border-radius: 0;
@@ -713,7 +706,7 @@
   color: var(--danger);
 }
 
-[data-skin='instrument'] .btn-danger:hover {
+.btn-danger:hover {
   background: var(--danger-tint-strong);
   border-color: var(--danger);
   color: var(--danger-hover);
@@ -721,20 +714,20 @@
 }
 
 /* Collapsed sidebar tabs share the flat hairline treatment. */
-[data-skin='instrument'] .right-tab,
-[data-skin='instrument'] .left-tab {
+.right-tab,
+.left-tab {
   border-color: var(--hair);
   box-shadow: none;
 }
 
 /* ══ Center pane ══════════════════════════════════════════════════════════ */
-[data-skin='instrument'] .chat-center {
-  padding: 2.25rem var(--skin-inset);
+.chat-center {
+  padding: 2.25rem var(--ui-inset);
 }
 
 /* Messages are not cards. The avatar + name header already separates them, so
    hover marks the row with an accent edge rather than filling the whole block. */
-[data-skin='instrument'] .message {
+.message {
   --msg-pad-y: 1.1rem;
   --msg-pad-x: 0.75rem;
   border-radius: 0;
@@ -742,44 +735,44 @@
   padding: var(--msg-pad-y) var(--msg-pad-x);
 }
 
-[data-skin='instrument'] .message:hover {
+.message:hover {
   background: var(--tint-1);
   border-left-color: var(--accent);
 }
 
-[data-skin='instrument'] .message-avatar {
+.message-avatar {
   border-color: var(--hair-strong);
   box-shadow: none;
 }
 
-[data-skin='instrument'] .message-author {
+.message-author {
   font-weight: 500;
   letter-spacing: 0.005em;
 }
 
 /* Model name / reasoning toggle read as a spec line. */
-[data-skin='instrument'] .message-meta {
-  font-family: var(--font-mono-skin);
+.message-meta {
+  font-family: var(--font-mono-ui);
   font-size: 11px;
   letter-spacing: 0.04em;
 }
 
 /* Timestamp and message ordinal are counter readouts. */
-[data-skin='instrument'] .meta-right .ts-date,
-[data-skin='instrument'] .meta-right .ts-time {
-  font-family: var(--font-mono-skin);
+.meta-right .ts-date,
+.meta-right .ts-time {
+  font-family: var(--font-mono-ui);
   letter-spacing: 0.03em;
 }
 
-[data-skin='instrument'] .meta-right > div:last-child {
-  font-family: var(--font-mono-skin);
+.meta-right > div:last-child {
+  font-family: var(--font-mono-ui);
   font-size: 1.5rem;
   font-weight: 400;
   letter-spacing: -0.02em;
 }
 
 /* Toolbar: the blur was repainting over the streaming text on every frame. */
-[data-skin='instrument'] .toolbar {
+.toolbar {
   background: var(--surface-2);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
@@ -788,29 +781,29 @@
   box-shadow: none;
 }
 
-[data-skin='instrument'] .toolbar .action-btn {
+.toolbar .action-btn {
   border-radius: 0;
 }
 
-[data-skin='instrument'] .toolbar .action-btn:hover {
+.toolbar .action-btn:hover {
   background: var(--tint-2);
   color: var(--accent);
 }
 
 /* Reasoning + tool-call disclosures: a rule, not a filled block. */
-[data-skin='instrument'] .details > summary {
+.details > summary {
   background: transparent;
   border: none;
   border-bottom: 1px solid var(--hair);
   border-radius: 0;
   padding: 0.3rem 0.25rem;
   color: var(--text-muted);
-  font-family: var(--font-mono-skin);
+  font-family: var(--font-mono-ui);
   font-size: 11px;
   letter-spacing: 0.03em;
 }
 
-[data-skin='instrument'] .details > summary:hover {
+.details > summary:hover {
   border-bottom-color: var(--hair-strong);
   color: var(--text);
 }
@@ -818,12 +811,12 @@
 /* An open disclosure is a defined block, so its top rule matches the hanging
    edge below it rather than staying at the idle-row hairline weight. Without
    this the corner where the two meet is two different weights until hover. */
-[data-skin='instrument'] .details[open] > summary {
+.details[open] > summary {
   border-bottom-color: var(--hair-strong);
 }
 
-[data-skin='instrument'] .reasoning-content,
-[data-skin='instrument'] .details .tool-result-body {
+.reasoning-content,
+.details .tool-result-body {
   background: transparent;
   border-radius: 0;
   border-left: 1px solid var(--hair-strong);
@@ -832,53 +825,53 @@
 }
 
 /* ── Input bar: a console, not a pill ───────────────────────────────────── */
-[data-skin='instrument'] .input-bar {
-  padding: 0 var(--skin-inset) 1.5rem;
+.input-bar {
+  padding: 0 var(--ui-inset) 1.5rem;
 }
 
-[data-skin='instrument'] .input-wrapper {
+.input-wrapper {
   border-radius: var(--radius-sm);
   border: none;
   padding: 0.5rem 0.5rem 0.5rem 0.35rem;
 }
 
-[data-skin='instrument'] .input-wrapper:focus-within {
+.input-wrapper:focus-within {
   --corner-color: var(--accent);
   box-shadow: none;
 }
 
-[data-skin='instrument'] .attach-btn {
+.attach-btn {
   background: transparent;
   border-color: transparent;
   border-radius: var(--radius-sm);
   color: var(--text-muted);
 }
 
-[data-skin='instrument'] .attach-btn:hover {
+.attach-btn:hover {
   background: transparent;
   border-color: var(--hair-strong);
   color: var(--text);
 }
 
-[data-skin='instrument'] .send-btn {
+.send-btn {
   background: var(--tint-2);
   border: 1px solid var(--edge);
   border-radius: var(--radius-sm);
   color: var(--accent);
 }
 
-[data-skin='instrument'] .send-btn:hover {
+.send-btn:hover {
   background: var(--tint-3);
   border-color: var(--accent);
 }
 
-[data-skin='instrument'] .send-btn.stop-btn {
+.send-btn.stop-btn {
   background: var(--danger-tint);
   border-color: var(--danger-edge);
   color: var(--danger);
 }
 
-[data-skin='instrument'] .send-btn.stop-btn:hover {
+.send-btn.stop-btn:hover {
   border-color: var(--danger);
   color: var(--danger-hover);
 }
@@ -886,37 +879,37 @@
 /* ══ Modals ═══════════════════════════════════════════════════════════════ */
 /* A full-screen backdrop blur is a compositing layer over the entire app. A
    heavier scrim reads the same over a dark UI and costs nothing. */
-[data-skin='instrument'] .modal-overlay {
+.modal-overlay {
   background: var(--modal-backdrop-heavy);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
 
-[data-skin='instrument'] .modal-content {
+.modal-content {
   border-radius: var(--radius-lg);
   border-color: var(--hair-strong);
   box-shadow: none;
-  padding: var(--skin-inset);
+  padding: var(--ui-inset);
 }
 
 /* Header follows the panel headers: one engraved label per modal, then a
    quiet spacer to the close button. */
-[data-skin='instrument'] .modal-header {
+.modal-header {
   justify-content: flex-start;
   align-items: center;
   gap: 0.6rem;
-  margin-bottom: var(--skin-gap);
+  margin-bottom: var(--ui-gap);
 }
 
-[data-skin='instrument'] .modal-header.divider {
+.modal-header.divider {
   border-bottom: 1px solid var(--hair);
-  padding-bottom: var(--skin-gap);
-  margin-bottom: var(--skin-gap);
+  padding-bottom: var(--ui-gap);
+  margin-bottom: var(--ui-gap);
 }
 
-[data-skin='instrument'] .modal-title,
-[data-skin='instrument'] .modal-content .sidebar-title {
-  font-family: var(--font-mono-skin);
+.modal-title,
+.modal-content .sidebar-title {
+  font-family: var(--font-mono-ui);
   font-size: 12px;
   font-weight: 400;
   letter-spacing: 0.1em;
@@ -925,7 +918,7 @@
   margin: 0;
 }
 
-[data-skin='instrument'] .modal-header::after {
+.modal-header::after {
   content: '';
   order: 1;
   flex: 1;
@@ -934,11 +927,11 @@
 }
 
 /* The shell renders title then close button, so ::after lands between them. */
-[data-skin='instrument'] .modal-header > .modal-title {
+.modal-header > .modal-title {
   order: 0;
 }
 
-[data-skin='instrument'] .modal-header > .btn {
+.modal-header > .btn {
   order: 2;
   background: transparent;
   border: 1px solid var(--hair-strong);
@@ -951,41 +944,41 @@
   border-radius: var(--radius-sm);
 }
 
-[data-skin='instrument'] .modal-header > .btn:hover {
+.modal-header > .btn:hover {
   background: transparent;
   border-color: var(--accent);
   color: var(--accent);
   transform: none;
 }
 
-[data-skin='instrument'] .modal-footer {
+.modal-footer {
   border-top: 1px solid var(--hair);
-  padding-top: var(--skin-gap);
-  margin-top: var(--skin-gap);
+  padding-top: var(--ui-gap);
+  margin-top: var(--ui-gap);
 }
 
 /* ── Fields ─────────────────────────────────────────────────────────────── */
 /* Focus becomes a 1px accent edge; the coloured glow is a soft effect. */
-[data-skin='instrument'] :where(input, textarea, select):focus {
+:where(input, textarea, select):focus {
   border-color: var(--accent);
   box-shadow: none;
 }
 
-[data-skin='instrument'] .modal-content :where(input, textarea, select),
-[data-skin='instrument'] .search-input {
+.modal-content :where(input, textarea, select),
+.search-input {
   background: transparent;
   border-color: var(--hair-strong);
   border-radius: var(--radius-sm);
 }
 
-[data-skin='instrument'] .checkbox {
+.checkbox {
   background: transparent;
   border-color: var(--hair-strong);
   border-radius: 0;
 }
 
 /* ── Tabs ───────────────────────────────────────────────────────────────── */
-[data-skin='instrument'] .tab-btn {
+.tab-btn {
   border-radius: var(--radius-sm);
   font-family: var(--font-sans);
   font-size: 12px;
@@ -993,7 +986,7 @@
   letter-spacing: 0.01em;
 }
 
-[data-skin='instrument'] .tab-btn.active {
+.tab-btn.active {
   background: transparent;
   border-bottom-color: var(--accent);
   color: var(--accent);
@@ -1002,43 +995,43 @@
 /* ── Cards ──────────────────────────────────────────────────────────────── */
 /* No lift, no image zoom, and no full frame — the bracket corners carry the
    boundary, matching the status readout. Selection lights the corners. */
-[data-skin='instrument'] .card,
-[data-skin='instrument'] .tile-card {
+.card,
+.tile-card {
   border: none;
   border-radius: 0;
   box-shadow: none;
 }
 
-[data-skin='instrument'] .card:hover,
-[data-skin='instrument'] .tile-card:hover {
+.card:hover,
+.tile-card:hover {
   --corner-color: var(--accent);
   transform: none;
   box-shadow: none;
 }
 
-[data-skin='instrument'] .card:hover .card-image img {
+.card:hover .card-image img {
   transform: none;
 }
 
-[data-skin='instrument'] .card.active {
+.card.active {
   background: color-mix(in srgb, var(--accent) 20%, var(--surface-2));
   --corner-color: var(--accent);
 }
 
-[data-skin='instrument'] .card-image {
+.card-image {
   border-bottom-color: var(--hair);
 }
 
-[data-skin='instrument'] .card-group-badge {
+.card-group-badge {
   background: transparent;
   border-color: var(--hair-strong);
   border-radius: 0;
-  font-family: var(--font-mono-skin);
+  font-family: var(--font-mono-ui);
   font-size: 10px;
   letter-spacing: 0.05em;
 }
 
-[data-skin='instrument'] .slot-btn {
+.slot-btn {
   border-color: var(--hair-strong);
   border-radius: var(--radius-sm);
   background: transparent;
@@ -1048,7 +1041,7 @@
   letter-spacing: 0.01em;
 }
 
-[data-skin='instrument'] .slot-btn.slot-active {
+.slot-btn.slot-active {
   background: var(--tint-3);
   border-color: var(--accent);
   color: var(--accent);
@@ -1057,15 +1050,15 @@
 /* ── Icon buttons ───────────────────────────────────────────────────────── */
 /* Edit/delete icon buttons match the secondary treatment instead of keeping a
    filled surface-2 chip. */
-[data-skin='instrument'] .btn-edit,
-[data-skin='instrument'] .btn-delete-icon {
+.btn-edit,
+.btn-delete-icon {
   background: transparent;
   border: 1px solid var(--hair-strong);
   box-shadow: none;
   color: var(--text-muted);
 }
 
-[data-skin='instrument'] .btn-edit:hover {
+.btn-edit:hover {
   background: transparent;
   border-color: var(--accent);
   color: var(--accent);
@@ -1073,16 +1066,16 @@
 
 /* Deletion keeps a danger hue at rest on the same hairline frame, so the pair
    reads as matched rather than only revealing the destructive role on hover. */
-[data-skin='instrument'] .btn-delete-icon,
-[data-skin='instrument'] .card .btn-danger {
+.btn-delete-icon,
+.card .btn-danger {
   background: transparent;
   border: 1px solid var(--hair-strong);
   box-shadow: none;
   color: var(--danger-ink);
 }
 
-[data-skin='instrument'] .btn-delete-icon:hover,
-[data-skin='instrument'] .card .btn-danger:hover {
+.btn-delete-icon:hover,
+.card .btn-danger:hover {
   background: transparent;
   border-color: var(--danger);
   color: var(--danger);
@@ -1091,16 +1084,16 @@
 /* ── Theme rows ─────────────────────────────────────────────────────────── */
 /* The selected theme row was using --active-bg, the same accent fill the preset
    variable rows did. Selection is an accent edge instead. */
-[data-skin='instrument'] .theme-row {
+.theme-row {
   border-radius: var(--radius-sm);
   background: transparent;
 }
 
-[data-skin='instrument'] .theme-row:hover {
+.theme-row:hover {
   background: var(--tint-1);
 }
 
-[data-skin='instrument'] .theme-row.is-selected {
+.theme-row.is-selected {
   background: transparent;
   border-color: var(--accent);
 }
@@ -1109,33 +1102,32 @@
 /* Role tints are the at-a-glance cue (same scheme as the Itemizer): system is
    accent, user is green, assistant is amber. Only the neutral block types stay
    flat. `bg-role-system` is no longer an accent-filled block — it is a tint. */
-[data-skin='instrument'] .arranger-item {
+.arranger-item {
   border-radius: 0;
   box-shadow: none;
 }
 
-[data-skin='instrument']
   .arranger-item:not(.bg-role-user):not(.bg-role-assistant):not(.bg-role-system) {
   background: transparent;
   border-color: var(--hair);
 }
 
-[data-skin='instrument'] .arranger-item.bg-role-system {
+.arranger-item.bg-role-system {
   background: var(--tint-2);
   border-color: var(--edge-soft);
 }
 
-[data-skin='instrument'] .arranger-item.bg-role-user {
+.arranger-item.bg-role-user {
   background: color-mix(in srgb, var(--role-user) 10%, transparent);
   border-color: color-mix(in srgb, var(--role-user) 30%, transparent);
 }
 
-[data-skin='instrument'] .arranger-item.bg-role-assistant {
+.arranger-item.bg-role-assistant {
   background: color-mix(in srgb, var(--role-assistant) 10%, transparent);
   border-color: color-mix(in srgb, var(--role-assistant) 30%, transparent);
 }
 
-[data-skin='instrument'] .arranger-item:hover {
+.arranger-item:hover {
   border-color: var(--accent);
   box-shadow: none;
   transform: none;
@@ -1144,7 +1136,7 @@
 /* ── Tag buttons ────────────────────────────────────────────────────────── */
 /* Selection is an accent edge with a light tint, matching .slot-btn — not the
    full --active-bg fill, which is reserved for nothing. */
-[data-skin='instrument'] .btn-tag {
+.btn-tag {
   background: transparent;
   border-color: var(--hair-strong);
   border-radius: var(--radius-sm);
@@ -1155,12 +1147,12 @@
   letter-spacing: 0.01em;
 }
 
-[data-skin='instrument'] .btn-tag:hover {
+.btn-tag:hover {
   border-color: var(--accent);
   color: var(--text);
 }
 
-[data-skin='instrument'] .btn-tag.active {
+.btn-tag.active {
   background: var(--tint-3);
   border-color: var(--accent);
   color: var(--accent);
@@ -1168,56 +1160,56 @@
 
 /* ── Create affordances ─────────────────────────────────────────────────── */
 /* Non-.btn adders keep the green create cue on the flat hairline treatment.
-   Kept at the end of the skin so they win the cascade over the earlier
+   Kept at the end of the file so they win the cascade over the earlier
    per-component colour rules. */
-[data-skin='instrument'] .preset-menu-action.is-create,
-[data-skin='instrument'] .preset-item-action.is-create,
-[data-skin='instrument'] .action-icon.is-create,
-[data-skin='instrument'] .btn-edit.is-create,
-[data-skin='instrument'] .btn-link.is-create {
+.preset-menu-action.is-create,
+.preset-item-action.is-create,
+.action-icon.is-create,
+.btn-edit.is-create,
+.btn-link.is-create {
   color: var(--success-hover);
 }
 
-[data-skin='instrument'] .preset-menu-action.is-create:hover {
-  color: var(--success-hover);
-  background: var(--success-tint);
-}
-
-[data-skin='instrument'] .preset-item-action.is-create:hover {
+.preset-menu-action.is-create:hover {
   color: var(--success-hover);
   background: var(--success-tint);
 }
 
-[data-skin='instrument'] .action-icon.is-create:hover {
+.preset-item-action.is-create:hover {
+  color: var(--success-hover);
+  background: var(--success-tint);
+}
+
+.action-icon.is-create:hover {
   background: var(--success-tint);
   color: var(--success-hover);
 }
 
-[data-skin='instrument'] .btn-edit.is-create:hover {
+.btn-edit.is-create:hover {
   background: var(--success-tint);
   border-color: var(--success);
   color: var(--success-hover);
 }
 
-[data-skin='instrument'] .left-sidebar .radio-add-row.is-create {
+.left-sidebar .radio-add-row.is-create {
   border-bottom-color: var(--success-edge);
 }
 
-[data-skin='instrument'] .left-sidebar .radio-add-row.is-create:hover {
+.left-sidebar .radio-add-row.is-create:hover {
   background: transparent;
   border-bottom-color: var(--success);
 }
 
-[data-skin='instrument'] .left-sidebar .radio-add-row.is-create:hover span {
+.left-sidebar .radio-add-row.is-create:hover span {
   color: var(--success-hover);
 }
 
-[data-skin='instrument'] .btn-media-add {
+.btn-media-add {
   color: var(--success-hover);
   border-style: dashed;
 }
 
-[data-skin='instrument'] .btn-media-add:hover {
+.btn-media-add:hover {
   background: var(--success-tint);
   border-color: var(--success);
   color: var(--success-hover);

@@ -125,7 +125,7 @@
   // Page size is however many rows actually fit the sidebar, so a page never
   // needs its own scrollbar. It is persisted in a cookie so the server renders
   // the right count next time; if the current render disagrees (first visit,
-  // resize, new device, skin swap) we refetch once to correct it.
+  // resize, new device) we refetch once to correct it.
   var CHAT_PAGE_SIZE_COOKIE = 'focus_chat_page_size';
   var CHAT_PAGE_SIZE_MIN = 4;
   var CHAT_PAGE_SIZE_MAX = 30;
@@ -238,8 +238,4 @@
     clearTimeout(_chatResizeTimer);
     _chatResizeTimer = setTimeout(syncChatPageSize, 200);
   });
-
-  // Skins change the rows' metrics (instrument rows are shorter than classic's),
-  // so a fitted size is stale the moment the attribute flips.
-  window.addEventListener('skin-changed', syncChatPageSize);
 })();

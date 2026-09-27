@@ -144,8 +144,8 @@
     padding: 0 0.5rem;
   }
 
-  /* Seam under the right sidebar's New Chat control — an empty marker div, so
-     the default skin just gets air here; Instrument turns it into a hairline. */
+  /* Seam under the right sidebar's New Chat control — an empty marker div that
+     the structural layer turns into a hairline. */
   .sidebar-rule {
     margin: 0.625rem 0 0.75rem;
   }

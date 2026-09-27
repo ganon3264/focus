@@ -151,18 +151,15 @@ table lookup (`HANDLERS[json.type]`); unknown types log a warning, never vanish 
 - `chat_page` embeds `window.THEMES` + `window.THEME_STATE` server-side; `theme-manager.js` applies, caches both slot palettes to `focus-theme-state` (flash-free pre-paint in `base.html`), re-resolves on `matchMedia` change, `character-changed`, and `character-edited` events. Action feedback via the toast system (`showToast` in `notifications.js`, container `#toast-container` in `base.html`).
 - Theme modal (`partials/modals/theme.html`): clicking a row selects it for editing; per-row Dark/Light buttons assign the slots (mutually exclusive, `.slot-btn.slot-active`); "New" creates the theme immediately from the typed name + current picker colors (toast, stays open, new theme selected). Live picker preview is NOT saved: `dirty` state (name/pickers vs stored values) enables Save, shows an "Unsaved changes" hint, and prompts before switching themes (`switchTo` + `openConfirmModal`).
 
-### Skin system (structure) — orthogonal to themes (colour)
+### Structural layer (Instrument) — `static/css/instrument.css`
 
-- **theme = colour, skin = structure.** Skins swap geometry/typography via `static/css/skins/*.css`, every rule gated on `[data-skin="<id>"]` on `<html>`. Registry: `window.SKINS` in `static/js/ui/skin-manager.js` (`SkinManager.get/set/apply`). Selection UI: the "Skin" section at the top of the theme modal (immediate apply + toast, like the Dark/Light slots — not part of the modal's dirty state).
-- **Classic is the default** (server-rendered `data-skin="classic"` in `base.html`): there is no classic stylesheet — it is the unscoped base structure. **Instrument** is an opt-in overlay in `static/css/skins/instrument.css`, gated on `data-skin="instrument"` and treated as experimental.
-- Persistence: localStorage `focus-skin`, applied pre-paint by the inline hook in `base.html` `<head>` (flash-free), swapped at runtime by `SkinManager.set(id)` (attribute change, no reload — all skin rules are attribute-gated and bundled into `tailwind.css`).
-- **Skin contract** (enforced by `tests/frontend/test_frontend.py`): every rule sits under `[data-skin=…]`, and colours are never authored — values derive from theme tokens via `color-mix`/`var()`. Raw colours are allowed only in `box-shadow`/`text-shadow` (scrims are theme-independent by design). This is what keeps skin × theme from becoming an N×M matrix.
-- **Instrument's type rules** (quiet-ification pass): engraved type (mono, caps, tracked) is rationed to section headers and modal titles only — buttons, fields, and row values stay quiet sans (UI labels) or lowercase mono (data). Fills mark touchable things (`--ink-1` tiles/controls); sections and rows stay flat with hairline dividers *between* rows, never frames *around* them.
-- **New UI checklist:** compose existing primitives (`.btn`, `.card`, `.form-control`, `.sidebar-section`, …) and the skins cascade for free; a genuinely new structural class needs one block in `skins/instrument.css`; then toggle both skins once to eyeball it.
+- The app's geometry and typography layer, imported last in `tailwind-input.css` so it wins the cascade. Colour is never authored here: values derive from theme tokens via `color-mix`/`var()`, and raw colours are allowed only in `box-shadow`/`text-shadow` scrims (theme-independent by design).
+- **Type rules** (quiet-ification pass): engraved type (mono, caps, tracked) is rationed to section headers and modal titles only — buttons, fields, and row values stay quiet sans (UI labels) or lowercase mono (data). Fills mark touchable things (`--ink-1` tiles/controls); sections and rows stay flat with hairline dividers *between* rows, never frames *around* them.
+- **New UI checklist:** compose existing primitives (`.btn`, `.card`, `.form-control`, `.sidebar-section`, …) and the layer cascades for free; a genuinely new structural class needs one block in `instrument.css`.
 
 ### Fonts
 
-- Both families are self-hosted woff2 under `static/fonts/`, declared in `static/fonts.css` (linked from `base.html`), not downloaded by `vendor-sync.py`. `--font-sans` = **Ronzino** (static; 400/500/700 + obliques — **no 600, so `font-semibold` renders as 700**), `--font-mono-skin` = **Necto Mono** (single 400 weight). Both SIL OFL 1.1, © Collletttivo; license texts live next to the fonts and are listed in `NOTICE`. Replacing a face means adding an `@font-face` here and updating `--font-sans`/`--font-mono-skin` in `tokens.css` / `skins/instrument.css`.
+- Both families are self-hosted woff2 under `static/fonts/`, declared in `static/fonts.css` (linked from `base.html`), not downloaded by `vendor-sync.py`. `--font-sans` = **Ronzino** (static; 400/500/700 + obliques — **no 600, so `font-semibold` renders as 700**), `--font-mono-ui` = **Necto Mono** (single 400 weight). Both SIL OFL 1.1, © Collletttivo; license texts live next to the fonts and are listed in `NOTICE`. Replacing a face means adding an `@font-face` here and updating `--font-sans`/`--font-mono-ui` in `tokens.css` / `instrument.css`.
 
 ### Macros (`focus/core/macros.py`)
 
@@ -185,9 +182,9 @@ Colour follows the **verb on the label**, not the feature. One green create per 
 
 - **Litmus test:** after the click, is there one more row/entity than before? → green. Otherwise → indigo. A form submit that creates a resource takes the create colour ("Add Provider"); one that persists edits takes indigo ("Save").
 - **Save is never green.** "Save"/"Save Changes" mutate the thing you're editing — commit, so indigo. If a button really only adds a row, its label should say so ("Add") and *then* it can be green; never leave a green "Save".
-- `.btn-create` is tinted at rest and deepens on hover — never a solid block. The instrument skin mirrors it with `--success-tint*` / `--success-edge`.
+- `.btn-create` is tinted at rest and deepens on hover — never a solid block. The structural layer mirrors it with `--success-tint*` / `--success-edge`.
 - Non-`.btn` adders (`.preset-menu-action`, `.preset-item-action`, `.action-icon`, `.radio-add-row`, `.btn-edit`, `.btn-link`, `.btn-media-add`) opt into the same cue with `.is-create`. Add it whenever a control brings something new into being.
-- **The active skin is user-selectable** (Classic default, Instrument opt-in in the theme modal → "Skin"). Any component colour rule must be checked in `skins/instrument.css` too — a rule authored in `components.css` alone is often overridden there (e.g. `.card.active` is set by both).
+- Any component colour rule must be checked in `instrument.css` too — a rule authored in `components.css` alone is often overridden there (e.g. `.card.active` is set by both).
 - `--success` is otherwise used only by toasts, so the green channel is free. `--role-user` is a near-green — don't place a create button directly against a user-role chip.
 - **Import is neutral, not create** — it's a file ingest; a second green next to Create dilutes the cue.
 - **Opening a picker is navigation, not create** — e.g. "Add Character" in the right pane opens the character modal, so it stays indigo. The label says Add; the behaviour selects.

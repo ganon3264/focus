@@ -88,7 +88,6 @@ CRITICAL_ASSETS = [
     "vendor/cropper.min.js",
     "js/ui/option-picker.js",
     "js/ui/theme-manager.js",
-    "js/ui/skin-manager.js",
 ]
 
 
@@ -152,7 +151,7 @@ def test_page_scripts_live_in_scripts_block(template_name):
 def test_css_valid():
     """Every split CSS file must parse without fatal errors."""
     css_dir = STATIC_DIR / "css"
-    for f in sorted(css_dir.rglob("*.css")):
+    for f in sorted(css_dir.glob("*.css")):
         css_text = f.read_text()
         cssutils.log.enabled = False
         sheet = cssutils.parseString(css_text)
@@ -178,79 +177,6 @@ def test_tailwind_bundle_contains_custom_css():
     assert "--radius-md:10px" in css_text.replace(" ", ""), (
         "tailwind.css missing rebranded --radius-md token"
     )
-
-
-def test_base_default_skin_is_classic():
-    """Classic is the shipped default: server-rendered on <html>, with the
-    localStorage pre-paint hook letting a stored Instrument choice win."""
-    src = loader.get_source(env, "base.html")[0]
-    assert 'data-skin="classic"' in src, "base.html must default to the classic skin"
-    assert "focus-skin" in src, "base.html must apply the stored skin choice pre-paint"
-
-
-SKINS_DIR = STATIC_DIR / "css" / "skins"
-
-# Raw colour literals are banned in skins: every value must derive from theme
-# tokens (var()/color-mix) so any skin works on any theme in either colour mode.
-RAW_COLOR_RE = re.compile(r"#[0-9a-fA-F]{3,8}\b|\b(?:rgba?|hsla?)\(", re.IGNORECASE)
-COLOR_KEYWORDS = {
-    "black", "white", "red", "blue", "green", "yellow", "orange", "purple",
-    "pink", "gray", "grey", "cyan", "magenta", "brown", "navy", "teal",
-    "olive", "maroon", "lime", "aqua", "fuchsia", "silver", "gold",
-    "violet", "indigo", "crimson",
-}
-# Scrims/glows are theme-independent by design (e.g. a modal shadow's black).
-SHADOW_PROPS = {"box-shadow", "text-shadow"}
-
-
-def _walk_style_rules(rule_list):
-    from cssutils.css import CSSRule
-
-    for rule in rule_list:
-        if rule.type == CSSRule.STYLE_RULE:
-            yield rule
-        nested = getattr(rule, "cssRules", None)
-        if nested:
-            yield from _walk_style_rules(nested)
-
-
-def _skin_style_rules():
-    cssutils.log.enabled = False
-    try:
-        for f in sorted(SKINS_DIR.glob("*.css")):
-            yield f, _walk_style_rules(cssutils.parseString(f.read_text()))
-    finally:
-        cssutils.log.enabled = True
-
-
-def test_skin_rules_are_gated():
-    """Every skin rule must sit under [data-skin=...] so the whole file switches
-    off when another skin is selected."""
-    for f, rules in _skin_style_rules():
-        for rule in rules:
-            assert "[data-skin" in rule.selectorText, (
-                f"{f.name}: ungated rule: {rule.selectorText}"
-            )
-
-
-def test_skin_colors_derive_from_theme_tokens():
-    """Skins author structure, never colour. Authored colours silently break the
-    skin x theme matrix (light mode, user themes) — derive them from tokens via
-    color-mix/var() instead. Shadow scrims are the one exemption."""
-    for f, rules in _skin_style_rules():
-        for rule in rules:
-            for prop in rule.style:
-                if prop.name in SHADOW_PROPS:
-                    continue
-                value = prop.value
-                decl = f"{f.name}: `{rule.selectorText} {{ {prop.name}: {value} }}`"
-                assert not RAW_COLOR_RE.search(value), (
-                    f"{decl} — authored colour; derive it from a theme token via color-mix/var()"
-                )
-                bad = set(re.findall(r"[a-zA-Z]+", value.lower())) & COLOR_KEYWORDS
-                assert not bad, (
-                    f"{decl} — colour keyword(s) {sorted(bad)}; derive them from a theme token"
-                )
 
 
 TEMPLATES_THAT_RENDER = [

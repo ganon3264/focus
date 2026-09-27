@@ -7,7 +7,7 @@
 @import './css/input.css';
 @import './css/components.css';
 @import './css/animations.css';
-@import './css/skins/instrument.css';
+@import './css/instrument.css';
 
 @source "../templates";
 @source "../partials";

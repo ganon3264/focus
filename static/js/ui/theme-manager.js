@@ -200,8 +200,6 @@ window.themeModalState = function () {
     editName: '',
     editColors: {},
     dirty: false,
-    skins: (window.SKINS || []).slice(),
-    skin: window.SkinManager ? window.SkinManager.get() : 'classic',
 
     init: function () {
       this.refresh();
@@ -219,13 +217,6 @@ window.themeModalState = function () {
     setSlot: function (slot, id) {
       window.setSlot(slot, id);
       this.refresh();
-    },
-
-    // Skin selection is immediate-apply (like the Dark/Light slots) and stays
-    // outside the dirty contract — it is not a theme edit.
-    setSkin: function (id) {
-      window.SkinManager.set(id);
-      this.skin = window.SkinManager.get();
     },
 
     // Unsaved-changes detection: dirty = name or any picker color differs
