@@ -105,34 +105,39 @@ window.ListManager = {
       if (sel) sel.value = mode;
     };
 
-    window[cfg.applyCompactFn] = function (compact) {
-      var grid = document.getElementById(cfg.gridId);
-      if (!grid) return;
-      var view = compact ? 'compact' : 'full';
-      grid.dataset.view = view;
-      grid.style.gridTemplateColumns = compact
-        ? 'repeat(3, minmax(200px, 1fr))'
-        : 'repeat(auto-fill, minmax(160px, 1fr))';
-      grid.querySelectorAll('.card').forEach(function (card) {
-        var fullEl = card.querySelector('.' + cfg.viewFullClass);
-        var compactEl = card.querySelector('.' + cfg.viewCompactClass);
-        if (compact) {
-          fullEl.style.display = 'none';
-          compactEl.style.display = 'block';
-        } else {
-          fullEl.style.display = 'flex';
-          compactEl.style.display = 'none';
-        }
-      });
-      _saveListPref(cfg.viewStorageKey, view);
-    };
+    if (cfg.applyCompactFn) {
+      window[cfg.applyCompactFn] = function (compact) {
+        var grid = document.getElementById(cfg.gridId);
+        if (!grid) return;
+        var view = compact ? 'compact' : 'full';
+        grid.dataset.view = view;
+        grid.style.gridTemplateColumns = compact
+          ? 'repeat(3, minmax(200px, 1fr))'
+          : 'repeat(auto-fill, minmax(160px, 1fr))';
+        grid.querySelectorAll('.card').forEach(function (card) {
+          var fullEl = card.querySelector('.' + cfg.viewFullClass);
+          var compactEl = card.querySelector('.' + cfg.viewCompactClass);
+          if (!fullEl || !compactEl) return;
+          if (compact) {
+            fullEl.style.display = 'none';
+            compactEl.style.display = 'block';
+          } else {
+            fullEl.style.display = 'flex';
+            compactEl.style.display = 'none';
+          }
+        });
+        _saveListPref(cfg.viewStorageKey, view);
+      };
+    }
 
-    window[cfg.toggleCompactFn] = function () {
-      var grid = document.getElementById(cfg.gridId);
-      if (!grid) return;
-      var compact = grid.dataset.view !== 'compact';
-      window[cfg.applyCompactFn](compact);
-    };
+    if (cfg.toggleCompactFn) {
+      window[cfg.toggleCompactFn] = function () {
+        var grid = document.getElementById(cfg.gridId);
+        if (!grid) return;
+        var compact = grid.dataset.view !== 'compact';
+        window[cfg.applyCompactFn](compact);
+      };
+    }
 
     window[cfg.newItemFn] = function () {
       var html =
@@ -200,8 +205,8 @@ window.ListManager = {
     document.addEventListener('htmx:afterSwap', afterSwapHandler);
 
     (function () {
-      var view = _loadListPref(cfg.viewStorageKey);
-      if (view === 'compact') {
+      var view = cfg.viewStorageKey ? _loadListPref(cfg.viewStorageKey) : null;
+      if (view === 'compact' && cfg.applyCompactFn) {
         window[cfg.applyCompactFn](true);
       }
       var sortVal = _loadListPref(cfg.sortStorageKey);

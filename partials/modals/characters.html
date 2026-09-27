@@ -1,6 +1,6 @@
 <div class="flex flex-col h-full">
   {% from "macros.html" import icon_edit, icon_trash, icon_search, icon_plus, icon_upload,
-  icon_grid, icon_close, sort_dropdown, filter_dropdown %}
+  icon_close, sort_dropdown, filter_dropdown %}
   <div class="flex flex-col gap-3 pb-4">
     <div class="flex gap-2">
       <form onsubmit="importCharModal(event)">
@@ -45,15 +45,6 @@
       </div>
       {{ filter_dropdown('setCharFilter', 'getCharFilterGroups') }}
       {{ sort_dropdown('focus_char_sort', 'sortCharacters') }}
-      <button
-        onclick="toggleCompactView()"
-        class="btn btn-secondary btn-sm flex items-center justify-center shrink-0 h-full"
-        id="view-toggle-btn"
-        title="Toggle compact view"
-        aria-label="Toggle compact view"
-      >
-        {{ icon_grid(size=16) }}
-      </button>
     </div>
   </div>
 
@@ -66,12 +57,7 @@
     </div>
     {% endif %}
 
-    <div
-      class="grid"
-      id="char-modal-grid"
-      data-view="{{ 'compact' if compact_view else 'full' }}"
-      style="grid-template-columns: {{ 'repeat(3, minmax(200px, 1fr))' if compact_view else 'repeat(auto-fill, minmax(160px, 1fr))' }}; gap: 1rem;"
-    >
+    <div class="entity-list" id="char-modal-grid">
       {% for char in characters %}
       {% include "modals/character-card.html" %}
       {% endfor %}
@@ -117,16 +103,11 @@
   ListManager.setup({
     filterFn: 'filterCharacters',
     sortFn: 'sortCharacters',
-    applyCompactFn: 'applyCompactView',
-    toggleCompactFn: 'toggleCompactView',
     newItemFn: 'openNewCharPopup',
     gridId: 'char-modal-grid',
     dataNameAttr: 'data-char-name',
     dataCreatedAttr: 'data-char-created',
     sortStorageKey: 'focus_char_sort',
-    viewFullClass: 'card-view-full',
-    viewCompactClass: 'card-view-compact',
-    viewStorageKey: 'focus_char_view',
     newItemLabel: 'Character Name',
     newItemInputId: 'new-char-name-input',
     apiEndpoint: '/api/characters',

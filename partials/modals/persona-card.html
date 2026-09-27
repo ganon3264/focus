@@ -1,142 +1,62 @@
-{% from "macros.html" import icon_edit, icon_trash, icon_star, icon_star_filled, icon_folder %}
+{% from "macros.html" import icon_edit, icon_trash, icon_star, icon_star_filled %}
 <div
-  class="card{% if current_persona_id == p.id %} active{% endif %}"
+  class="card entity-row{% if current_persona_id == p.id %} active{% endif %}"
   id="persona-card-{{ p.id }}"
-  data-persona-name="{{ p.name | lower }}"
+  data-persona-name="{{ p.name }}"
   data-persona-created="{{ p.created_at }}"
   data-persona-group="{{ p.get('group_name') or '' }}"
   data-persona-favorite="{{ '1' if p.get('is_favorite') else '0' }}"
+  role="button"
+  tabindex="0"
+  onclick="selectPersonaModal(this)"
+  data-persona-id="{{ p.id }}"
 >
-  <div class="persona-view-full h-full flex flex-col" style="display:{{ 'none' if compact_view else 'flex' }};">
-    <div
-      class="card-image"
-      style="aspect-ratio: 1/1; cursor: pointer"
-      role="button"
-      tabindex="0"
-      onclick="selectPersonaModal(this)"
-      data-persona-id="{{ p.id }}"
-      data-persona-name="{{ p.name }}"
-    >
-      {% if p.avatar_path %}
-      <img
-        src="/{{ p.avatar_path }}"
-        alt="{{ p.name }} avatar"
-        loading="lazy"
-      />
-      {% else %}
-      <span class="text-3xl text-muted">{{ p.name[:1] }}</span>
-      {% endif %}
-    </div>
-    <div class="card-body" style="padding: 0.75rem">
-      <div class="flex items-center gap-1.5 mb-1">
-        <div class="card-name font-bold text-sm truncate flex-1 min-w-0">{{ p.name }}</div>
-        {% if p.get('group_name') %}
-        <div class="card-group-badge shrink-0" style="max-width: 50%">{{ icon_folder(10) }}<span>{{ p.get('group_name') }}</span></div>
-        {% endif %}
-      </div>
-      <div class="text-xs text-muted truncate mb-2">{{ p.description or 'No description' }}</div>
-      <div class="flex gap-1 mt-auto">
-        <button
-          class="btn btn-secondary btn-sm fav-star{% if p.get('is_favorite') %} favorite-active{% endif %}"
-          onclick="event.stopPropagation(); togglePersonaFavorite(this)"
-          aria-label="Toggle favorite"
-          title="Favorite"
-        >
-          <span class="fav-star-outline">{{ icon_star(14) }}</span>
-          <span class="fav-star-filled">{{ icon_star_filled(14) }}</span>
-        </button>
-        <button
-          class="btn btn-edit btn-sm flex-1"
-          data-persona-id="{{ p.id }}"
-          data-persona-name="{{ p.name }}"
-          data-persona-desc="{{ p.description or '' }}"
-          data-persona-image="{{ p.avatar_path or '' }}"
-          data-persona-group="{{ p.get('group_name') or '' }}"
-          data-persona-media="{{ p.images | tojson | forceescape }}"
-          onclick="event.stopPropagation(); openEditPersonaModal(this);"
-          aria-label="Edit persona"
-        >
-          {{ icon_edit() }}
-        </button>
-        {% if p.name != 'User' %}
-        <button
-          class="btn btn-danger btn-sm"
-          data-persona-id="{{ p.id }}"
-          data-persona-name="{{ p.name }}"
-          onclick="event.stopPropagation(); promptDeletePersona(this)"
-          aria-label="Delete persona"
-        >
-          {{ icon_trash() }}
-        </button>
-        {% endif %}
-      </div>
+  <div class="entity-thumb">
+    {% if p.avatar_path %}
+    <img src="/{{ p.avatar_path }}" alt="{{ p.name }} avatar" loading="lazy" />
+    {% else %}
+    <span>{{ p.name[:1] }}</span>
+    {% endif %}
+  </div>
+  <div class="entity-main">
+    <div class="entity-name">{{ p.name }}</div>
+    <div class="entity-meta">
+      {% if p.get('group_name') %}{{ p.get('group_name') }}{% else %}{{ p.description or 'No description' }}{% endif %}
     </div>
   </div>
-  <div class="persona-view-compact" style="display:{{ 'block' if compact_view else 'none' }};">
-    <div
-      class="flex items-center gap-2 p-2.5 cursor-pointer"
-      role="button"
-      tabindex="0"
-      onclick="selectPersonaModal(this)"
+  <button
+    class="fav-star fav-star-inline{% if p.get('is_favorite') %} favorite-active{% endif %}"
+    onclick="event.stopPropagation(); togglePersonaFavorite(this)"
+    aria-label="Toggle favorite"
+    title="Favorite"
+  >
+    <span class="fav-star-outline">{{ icon_star(14) }}</span>
+    <span class="fav-star-filled">{{ icon_star_filled(14) }}</span>
+  </button>
+  <div class="entity-actions" onclick="event.stopPropagation()">
+    <button
+      class="btn btn-edit btn-sm"
       data-persona-id="{{ p.id }}"
       data-persona-name="{{ p.name }}"
+      data-persona-desc="{{ p.description or '' }}"
+      data-persona-image="{{ p.avatar_path or '' }}"
+      data-persona-group="{{ p.get('group_name') or '' }}"
+      data-persona-media="{{ p.images | tojson | forceescape }}"
+      onclick="event.stopPropagation(); openEditPersonaModal(this);"
+      aria-label="Edit persona"
     >
-      <div
-        class="w-10 h-10 rounded-sm overflow-hidden shrink-0 border border-(--border) flex items-center justify-center"
-        style="background: var(--surface-3)"
-      >
-        {% if p.avatar_path %}
-        <img
-          src="/{{ p.avatar_path }}"
-          alt="{{ p.name }} avatar"
-          loading="lazy"
-          class="w-full h-full object-cover"
-        />
-        {% else %}
-        <span class="text-sm font-bold text-muted">{{ p.name[:1] }}</span>
-        {% endif %}
-      </div>
-      <button
-        class="fav-star fav-star-inline shrink-0{% if p.get('is_favorite') %} favorite-active{% endif %}"
-        onclick="event.stopPropagation(); togglePersonaFavorite(this)"
-        aria-label="Toggle favorite"
-        title="Favorite"
-      >
-        <span class="fav-star-outline">{{ icon_star(14) }}</span>
-        <span class="fav-star-filled">{{ icon_star_filled(14) }}</span>
-      </button>
-      <div class="flex-1 min-w-0">
-        <div class="card-name font-bold text-sm truncate">{{ p.name }}</div>
-        {% if p.get('group_name') %}
-        <div class="text-xs text-muted truncate">{{ p.get('group_name') }}</div>
-        {% endif %}
-      </div>
-      <div class="flex flex-col gap-1 shrink-0" onclick="event.stopPropagation()">
-        <button
-          class="btn btn-edit btn-sm btn-compact"
-          data-persona-id="{{ p.id }}"
-          data-persona-name="{{ p.name }}"
-          data-persona-desc="{{ p.description or '' }}"
-          data-persona-image="{{ p.avatar_path or '' }}"
-          data-persona-group="{{ p.get('group_name') or '' }}"
-          data-persona-media="{{ p.images | tojson | forceescape }}"
-          onclick="event.stopPropagation(); openEditPersonaModal(this);"
-          aria-label="Edit persona"
-        >
-          {{ icon_edit(size=12) }}
-        </button>
-        {% if p.name != 'User' %}
-        <button
-          class="btn btn-danger btn-sm btn-compact"
-          data-persona-id="{{ p.id }}"
-          data-persona-name="{{ p.name }}"
-          onclick="event.stopPropagation(); promptDeletePersona(this)"
-          aria-label="Delete persona"
-        >
-          {{ icon_trash(size=12) }}
-        </button>
-        {% endif %}
-      </div>
-    </div>
+      {{ icon_edit() }}
+    </button>
+    {% if p.name != 'User' %}
+    <button
+      class="btn btn-danger btn-sm"
+      data-persona-id="{{ p.id }}"
+      data-persona-name="{{ p.name }}"
+      onclick="event.stopPropagation(); promptDeletePersona(this)"
+      aria-label="Delete persona"
+    >
+      {{ icon_trash() }}
+    </button>
+    {% endif %}
   </div>
 </div>

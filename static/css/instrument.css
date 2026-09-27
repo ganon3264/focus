@@ -950,38 +950,51 @@
   margin: 0;
 }
 
-/* Provider list: flat hairline rows, like the chat list. */
-.provider-list {
+/* ── Entity rows ────────────────────────────────────────────────────────── */
+/* The shared list paradigm for providers, characters and personas: flat rows
+   separated by hairlines. Hover is a background tint; selection is the accent
+   left edge. Never framed. */
+.entity-list {
   display: flex;
   flex-direction: column;
 }
 
-.provider-card {
+.entity-row {
   display: flex;
+  flex-direction: row;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.7rem 0.5rem;
+  padding: 0.6rem 0.5rem;
   border-left: 2px solid transparent;
   border-bottom: 1px solid var(--hair);
   cursor: pointer;
   transition: background var(--transition), border-color var(--transition);
 }
 
-.provider-card:last-child { border-bottom: none; }
-.provider-card:hover { background: var(--tint-1); border-left-color: var(--accent); }
-.provider-card.active { border-left-color: var(--accent); }
+.entity-row:last-child { border-bottom: none; }
+.entity-row:hover { background: var(--tint-1); border-left-color: var(--accent); }
+.entity-row.active { border-left-color: var(--accent); }
+.entity-row.active .entity-name { color: var(--accent); }
 
-.provider-main {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: baseline;
-  gap: 1rem;
+.entity-thumb {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  background: var(--ink-1);
+  color: var(--text-muted);
+  font-size: 15px;
+  font-weight: 500;
 }
 
-.provider-info { flex: 1; min-width: 0; }
+.entity-thumb img { width: 100%; height: 100%; object-fit: cover; }
 
-.provider-name {
+.entity-main { flex: 1; min-width: 0; }
+
+.entity-name {
   font-size: 13px;
   font-weight: 500;
   color: var(--text);
@@ -990,22 +1003,28 @@
   text-overflow: ellipsis;
 }
 
-.provider-card.active .provider-name { color: var(--accent); }
-
-.provider-spec,
-.provider-model,
-.provider-balance {
+.entity-meta {
+  margin-top: 0.1rem;
   font-family: var(--font-mono-ui);
   font-size: 10px;
   letter-spacing: 0.02em;
   color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.provider-spec { margin-top: 0.15rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.provider-balance { flex-shrink: 0; white-space: nowrap; }
+.entity-side {
+  flex-shrink: 0;
+  font-family: var(--font-mono-ui);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
 
-.provider-actions { display: flex; gap: 0.25rem; flex-shrink: 0; }
-.provider-actions .btn {
+.entity-actions { display: flex; gap: 0.25rem; flex-shrink: 0; }
+.entity-actions .btn {
   width: 26px;
   height: 26px;
   padding: 0;

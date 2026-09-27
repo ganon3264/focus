@@ -1,16 +1,16 @@
 <div class="flex flex-col h-full">
-  {% from "macros.html" import icon_edit, icon_trash, icon_search, icon_plus, icon_grid, icon_close, sort_dropdown, filter_dropdown %}
+  {% from "macros.html" import icon_edit, icon_trash, icon_search, icon_plus, icon_close, sort_dropdown, filter_dropdown %}
   <div class="flex flex-col gap-3 pb-4">
-    <div class="flex gap-2 h-10">
+    <div class="flex gap-2">
       <button
         onclick="openNewPersonaPopup()"
-        class="btn btn-create btn-sm flex-1 h-full flex items-center justify-center gap-1.5 cursor-pointer m-0"
+        class="btn btn-create btn-sm flex items-center justify-center gap-1.5 cursor-pointer m-0"
       >
         {{ icon_plus(size=14) }} New
       </button>
       <a
         href="/personas"
-        class="btn btn-secondary btn-sm flex-1 flex items-center justify-center h-full text-decoration-none gap-1.5"
+        class="btn btn-secondary btn-sm flex items-center justify-center text-decoration-none gap-1.5"
         >{{ icon_edit(size=14) }} Editor</a
       >
     </div>
@@ -29,15 +29,6 @@
       </div>
       {{ filter_dropdown('setPersonaFilter', 'getPersonaFilterGroups') }}
       {{ sort_dropdown('focus_persona_sort', 'sortPersonas') }}
-      <button
-        onclick="togglePersonaCompactView()"
-        class="btn btn-secondary btn-sm flex items-center justify-center shrink-0 h-full"
-        id="persona-view-toggle-btn"
-        title="Toggle compact view"
-        aria-label="Toggle compact view"
-      >
-        {{ icon_grid(size=16) }}
-      </button>
     </div>
   </div>
 
@@ -50,12 +41,7 @@
     </div>
     {% endif %}
 
-    <div
-      class="grid"
-      id="persona-modal-grid"
-      data-view="{{ 'compact' if compact_view else 'full' }}"
-      style="grid-template-columns: {{ 'repeat(3, minmax(200px, 1fr))' if compact_view else 'repeat(auto-fill, minmax(160px, 1fr))' }}; gap: 1rem;"
-    >
+    <div class="entity-list" id="persona-modal-grid">
       {% for p in personas %}
       {% include "modals/persona-card.html" %}
       {% endfor %}
@@ -98,16 +84,11 @@
   ListManager.setup({
     filterFn: 'filterPersonas',
     sortFn: 'sortPersonas',
-    applyCompactFn: 'applyPersonaCompactView',
-    toggleCompactFn: 'togglePersonaCompactView',
     newItemFn: 'openNewPersonaPopup',
     gridId: 'persona-modal-grid',
     dataNameAttr: 'data-persona-name',
     dataCreatedAttr: 'data-persona-created',
     sortStorageKey: 'focus_persona_sort',
-    viewFullClass: 'persona-view-full',
-    viewCompactClass: 'persona-view-compact',
-    viewStorageKey: 'focus_persona_view',
     newItemLabel: 'Persona Name',
     newItemInputId: 'new-persona-name-input',
     apiEndpoint: '/api/personas',

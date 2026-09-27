@@ -16,23 +16,21 @@
   {% endif %}
 
   <div class="flex-1 min-h-0 overflow-y-auto scroll-fade">
-  <div class="provider-list" id="providers-grid">
+  <div class="entity-list" id="providers-grid">
     {% for prov in providers %}
-      <div class="provider-card{% if active_provider_id == prov.id %} active{% endif %}" id="prov-card-{{ prov.id }}" data-prov-name="{{ prov.name }}" data-prov-created="{{ prov.created_at }}">
-        <div id="prov-display-{{ prov.id }}" class="provider-main" role="button" tabindex="0" data-action="actionSetActiveProvider" data-prov-id="{{ prov.id }}" data-prov-name="{{ prov.name }}" data-prov-type="{{ prov.type }}">
-          <div class="provider-info">
-            <div class="provider-name">{{ prov.name }}</div>
-            <div class="provider-spec">{{ prov.type }} • <span class="provider-model">{{ prov.model }}</span></div>
-          </div>
-          <div class="provider-balance">
-            {% if prov.type in ('deepseek', 'openrouter', 'moonshot') %}
-            <span id="balance-{{ prov.id }}"><span class="balance-loading">—</span></span>
-            {% else %}
-            <span>Balance: N/A</span>
-            {% endif %}
-          </div>
+      <div class="provider-card entity-row{% if active_provider_id == prov.id %} active{% endif %}" id="prov-card-{{ prov.id }}" data-prov-name="{{ prov.name }}" data-prov-created="{{ prov.created_at }}">
+        <div id="prov-display-{{ prov.id }}" class="entity-main" role="button" tabindex="0" data-action="actionSetActiveProvider" data-prov-id="{{ prov.id }}" data-prov-name="{{ prov.name }}" data-prov-type="{{ prov.type }}">
+          <div class="entity-name">{{ prov.name }}</div>
+          <div class="entity-meta">{{ prov.type }} • {{ prov.model }}</div>
         </div>
-        <div class="provider-actions" onclick="event.stopPropagation()">
+        <div class="entity-side">
+          {% if prov.type in ('deepseek', 'openrouter', 'moonshot') %}
+          <span id="balance-{{ prov.id }}"><span class="balance-loading">—</span></span>
+          {% else %}
+          <span>Balance: N/A</span>
+          {% endif %}
+        </div>
+        <div class="entity-actions" onclick="event.stopPropagation()">
           <button class="btn btn-secondary btn-sm" onclick="openProviderEditModal('{{ prov.id }}')" aria-label="Edit provider">{{ icon_edit() }}</button>
           <button class="btn btn-danger btn-sm" hx-delete="/api/providers/{{ prov.id }}" hx-confirm="Delete?" hx-swap="none" hx-on:htmx:after-request="hxGet('/partials/providers-modal',{target:'#providers-modal-body-inner',swap:'innerHTML'})" aria-label="Delete provider">{{ icon_close(16) }}</button>
         </div>
