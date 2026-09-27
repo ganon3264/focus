@@ -1053,11 +1053,13 @@
 }
 
 .arranger-toggle.active {
+  background: var(--active-text);
   border-color: var(--active-text);
 }
 
 .arranger-toggle.active::after {
-  transform: translateX(16px);
+  background: var(--text-on-accent);
+  transform: translateX(14px);
 }
 
 /* ── Tabs ───────────────────────────────────────────────────────────────── */
