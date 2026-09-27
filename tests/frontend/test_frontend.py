@@ -174,7 +174,7 @@ def test_tailwind_bundle_contains_custom_css():
     css_text = (STATIC_DIR / "tailwind.css").read_text()
     for marker in (".arranger-item", ".chat-center", ".slot-btn"):
         assert marker in css_text, f"tailwind.css is missing bundled rule: {marker}"
-    assert "--radius-md:10px" in css_text.replace(" ", ""), (
+    assert "--radius-md:4px" in css_text.replace(" ", ""), (
         "tailwind.css missing rebranded --radius-md token"
     )
 
