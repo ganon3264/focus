@@ -10,7 +10,7 @@
   <div class="card-view-full h-full flex flex-col" style="display:{{ 'none' if compact_view else 'flex' }};">
     <div
       class="card-image"
-      style="aspect-ratio: 1/1; border-radius: var(--radius-lg) var(--radius-lg) 0 0; cursor: pointer"
+      style="aspect-ratio: 1/1; cursor: pointer"
       role="button"
       tabindex="0"
       onclick="selectCharModal(this)"
@@ -22,7 +22,6 @@
         src="/{{ char.image_path }}"
         alt="{{ char.name }} avatar"
         loading="lazy"
-        style="border-radius: var(--radius-lg) var(--radius-lg) 0 0"
       />
       {% else %}
       <span class="text-3xl text-muted">{{ char.name[:1] }}</span>

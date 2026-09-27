@@ -1,7 +1,7 @@
 {% from "macros.html" import icon_key, icon_edit, icon_refresh, icon_search, icon_database, icon_plus, icon_close, sort_dropdown %}
 <div class="flex flex-col h-full overflow-y-auto">
   <div class="flex justify-between items-center gap-2 mb-3" style="padding-bottom: 0.75rem;">
-    <h3 class="sidebar-title mb-0">Select Active Provider</h3>
+    <h3 class="modal-subhead mb-0">Select active provider</h3>
     <div class="flex gap-2 items-center shrink-0">
       {{ sort_dropdown('focus_providers_sort', 'sortProviders') }}
       <button class="btn btn-secondary btn-sm flex items-center gap-1.5" onclick="openSecretsManager()">{{ icon_key(14) }} Keys</button>
@@ -15,28 +15,28 @@
     </div>
   {% endif %}
 
-  <div class="grid gap-3" id="providers-grid" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));">
+  <div class="provider-list" id="providers-grid">
     {% for prov in providers %}
-      <div class="provider-card card{% if active_provider_id == prov.id %} active{% endif %}" id="prov-card-{{ prov.id }}" data-prov-name="{{ prov.name }}" data-prov-created="{{ prov.created_at }}">
-        <!-- Display State -->
-        <div id="prov-display-{{ prov.id }}" class="p-3 h-full flex flex-col justify-between cursor-pointer" role="button" tabindex="0" data-action="actionSetActiveProvider" data-prov-id="{{ prov.id }}" data-prov-name="{{ prov.name }}" data-prov-type="{{ prov.type }}">
-          <div class="flex justify-between items-center mb-1">
-            <strong class="text-sm">{{ prov.name }}</strong>
-            <div class="flex gap-1" onclick="event.stopPropagation()">
-              <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); openProviderEditModal('{{ prov.id }}')" aria-label="Edit provider">{{ icon_edit() }}</button>
-              <button class="btn btn-danger btn-sm" hx-delete="/api/providers/{{ prov.id }}" hx-confirm="Delete?" hx-swap="none" hx-on:htmx:after-request="hxGet('/partials/providers-modal',{target:'#providers-modal-body-inner',swap:'innerHTML'})" aria-label="Delete provider">{{ icon_close(16) }}</button>
-            </div>
+      <div class="provider-card{% if active_provider_id == prov.id %} active{% endif %}" id="prov-card-{{ prov.id }}" data-prov-name="{{ prov.name }}" data-prov-created="{{ prov.created_at }}">
+        <div id="prov-display-{{ prov.id }}" class="provider-main" role="button" tabindex="0" data-action="actionSetActiveProvider" data-prov-id="{{ prov.id }}" data-prov-name="{{ prov.name }}" data-prov-type="{{ prov.type }}">
+          <div class="provider-info">
+            <div class="provider-name">{{ prov.name }}</div>
+            <div class="provider-spec">{{ prov.type }} • <span class="provider-model">{{ prov.model }}</span></div>
           </div>
-          <div class="text-xs text-muted provider-type">{{ prov.type }} • <span class="truncate" style="display:inline-block; max-width: 150px; vertical-align:bottom;">{{ prov.model }}</span></div>
-          {% if prov.type in ('deepseek', 'openrouter', 'moonshot') %}
-          <div class="text-xs text-muted mt-1" id="balance-{{ prov.id }}"><span class="balance-loading">—</span></div>
-          {% else %}
-          <div class="text-xs text-muted mt-1">Balance: N/A</div>
-          {% endif %}
+          <div class="provider-balance">
+            {% if prov.type in ('deepseek', 'openrouter', 'moonshot') %}
+            <span id="balance-{{ prov.id }}"><span class="balance-loading">—</span></span>
+            {% else %}
+            <span>Balance: N/A</span>
+            {% endif %}
+          </div>
         </div>
-
+        <div class="provider-actions" onclick="event.stopPropagation()">
+          <button class="btn btn-secondary btn-sm" onclick="openProviderEditModal('{{ prov.id }}')" aria-label="Edit provider">{{ icon_edit() }}</button>
+          <button class="btn btn-danger btn-sm" hx-delete="/api/providers/{{ prov.id }}" hx-confirm="Delete?" hx-swap="none" hx-on:htmx:after-request="hxGet('/partials/providers-modal',{target:'#providers-modal-body-inner',swap:'innerHTML'})" aria-label="Delete provider">{{ icon_close(16) }}</button>
+        </div>
       </div>
-      {% endfor %}
+    {% endfor %}
     </div>
 </div>
 

@@ -2,10 +2,10 @@
   {% from "macros.html" import icon_edit, icon_trash, icon_search, icon_plus, icon_upload,
   icon_grid, icon_close, sort_dropdown, filter_dropdown %}
   <div class="flex flex-col gap-3 pb-4">
-    <div class="flex gap-2 h-10">
-      <form onsubmit="importCharModal(event)" class="flex-1 h-full">
+    <div class="flex gap-2">
+      <form onsubmit="importCharModal(event)">
         <label
-          class="btn btn-secondary btn-sm w-full h-full flex items-center justify-center cursor-pointer m-0 gap-1.5"
+          class="btn btn-secondary btn-sm flex items-center justify-center cursor-pointer m-0 gap-1.5"
         >
           {{ icon_upload(size=14) }} Import
           <input
@@ -20,13 +20,13 @@
       </form>
       <button
         onclick="openNewCharPopup()"
-        class="btn btn-create btn-sm flex-1 h-full flex items-center justify-center gap-1.5 cursor-pointer m-0"
+        class="btn btn-create btn-sm flex items-center justify-center gap-1.5 cursor-pointer m-0"
       >
         {{ icon_plus(size=14) }} New
       </button>
       <a
         href="/characters"
-        class="btn btn-secondary btn-sm flex-1 flex items-center justify-center h-full text-decoration-none gap-1.5"
+        class="btn btn-secondary btn-sm flex items-center justify-center text-decoration-none gap-1.5"
         >{{ icon_edit(size=14) }} Editor</a
       >
     </div>

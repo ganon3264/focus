@@ -495,8 +495,6 @@
    hold a single control: the preset selector, grid tiles, the composer, and the
    message hover toolbar. */
 .status-panel,
-.card,
-.tile-card,
 .input-wrapper,
 .toolbar,
 .left-sidebar #preset-selector .form-control {
@@ -508,15 +506,11 @@
   --corner-size: 6px;
 }
 
-.card,
-.tile-card,
 .left-sidebar #preset-selector .form-control {
   position: relative;
 }
 
 .status-panel::before,
-.card::before,
-.tile-card::before,
 .input-wrapper::before,
 .toolbar::before,
 .left-sidebar #preset-selector .form-control::before {
@@ -533,8 +527,6 @@
 }
 
 .status-panel::after,
-.card::after,
-.tile-card::after,
 .input-wrapper::after,
 .toolbar::after,
 .left-sidebar #preset-selector .form-control::after {
@@ -948,6 +940,80 @@
   margin-top: var(--ui-gap);
 }
 
+/* A quiet instruction line under the modal title — not a second engraved
+   heading. */
+.modal-subhead {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* Provider list: flat hairline rows, like the chat list. */
+.provider-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.provider-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem 0.5rem;
+  border-left: 2px solid transparent;
+  border-bottom: 1px solid var(--hair);
+  cursor: pointer;
+  transition: background var(--transition), border-color var(--transition);
+}
+
+.provider-card:last-child { border-bottom: none; }
+.provider-card:hover { background: var(--tint-1); border-left-color: var(--accent); }
+.provider-card.active { border-left-color: var(--accent); }
+
+.provider-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+}
+
+.provider-info { flex: 1; min-width: 0; }
+
+.provider-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.provider-card.active .provider-name { color: var(--accent); }
+
+.provider-spec,
+.provider-model,
+.provider-balance {
+  font-family: var(--font-mono-ui);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+}
+
+.provider-spec { margin-top: 0.15rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.provider-balance { flex-shrink: 0; white-space: nowrap; }
+
+.provider-actions { display: flex; gap: 0.25rem; flex-shrink: 0; }
+.provider-actions .btn {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 /* ── Fields ─────────────────────────────────────────────────────────────── */
 /* Focus becomes a 1px accent edge; the coloured glow is a soft effect. */
 :where(input, textarea, select):focus {
@@ -968,6 +1034,32 @@
   border-radius: 0;
 }
 
+/* Switch: the off track was surface-3 with a pure-white knob, so it read as a
+   floating white chip. Keep the solid accent for "on"; give "off" a visible
+   track and a muted knob. */
+.arranger-toggle {
+  background: var(--surface-3);
+  border: 1px solid var(--hair-strong);
+  box-shadow: none;
+}
+
+.arranger-toggle::after {
+  width: 12px;
+  height: 12px;
+  top: 2px;
+  left: 2px;
+  background: var(--text);
+  box-shadow: none;
+}
+
+.arranger-toggle.active {
+  border-color: var(--active-text);
+}
+
+.arranger-toggle.active::after {
+  transform: translateX(16px);
+}
+
 /* ── Tabs ───────────────────────────────────────────────────────────────── */
 .tab-btn {
   border-radius: var(--radius-sm);
@@ -984,18 +1076,17 @@
 }
 
 /* ── Cards ──────────────────────────────────────────────────────────────── */
-/* No lift, no image zoom, and no full frame — the bracket corners carry the
-   boundary, matching the status readout. Selection lights the corners. */
+/* No lift, no image zoom, no frame — a card is just a thumbnail + data. */
 .card,
 .tile-card {
   border: none;
   border-radius: 0;
   box-shadow: none;
+  background: transparent;
 }
 
 .card:hover,
 .tile-card:hover {
-  --corner-color: var(--accent);
   transform: none;
   box-shadow: none;
 }
@@ -1004,19 +1095,34 @@
   transform: none;
 }
 
-.card.active {
-  background: color-mix(in srgb, var(--accent) 20%, var(--surface-2));
-  --corner-color: var(--accent);
+.card-image {
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border-bottom: none;
+  background: var(--ink-1);
 }
 
-.card-image {
-  border-bottom-color: var(--hair);
+.card-image img {
+  border-radius: var(--radius-sm);
+}
+
+.card.active {
+  background: transparent;
+}
+
+.card.active .card-image {
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.card.active .card-name {
+  color: var(--accent);
 }
 
 .card-group-badge {
   background: transparent;
-  border-color: var(--hair-strong);
+  border: none;
   border-radius: 0;
+  padding: 0;
   font-family: var(--font-mono-ui);
   font-size: 10px;
   letter-spacing: 0.05em;
@@ -1071,6 +1177,26 @@
   border-color: var(--danger);
   color: var(--danger);
 }
+
+/* Card action strip: quiet icons, no button chrome. Delete keeps its danger
+   ink so the destructive role still reads at rest. */
+.card .btn-edit,
+.card .fav-star {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  color: var(--text-faint);
+}
+
+.card .btn-danger {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.card .btn-edit:hover { color: var(--accent); }
+.card .btn-danger:hover { color: var(--danger); }
+.card .fav-star.favorite-active { color: var(--warning); }
 
 /* ── Theme rows ─────────────────────────────────────────────────────────── */
 /* The selected theme row was using --active-bg, the same accent fill the preset
