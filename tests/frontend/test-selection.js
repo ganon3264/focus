@@ -195,7 +195,7 @@ function syncCardHighlightScenario() {
   oldActive.classList.remove = function () { removed.push('old'); };
   var grid = el('char-modal-grid');
   grid.querySelectorAll = function (sel) {
-    return sel === '.card.active' ? [oldActive] : [];
+    return sel === '.entity-row' ? [oldActive] : [];
   };
 
   els['char-modal-grid'] = grid;

@@ -1,6 +1,6 @@
 {% from "macros.html" import icon_edit, icon_trash, icon_star, icon_star_filled %}
 <div
-  class="card entity-row{% if current_persona_id == p.id %} active{% endif %}"
+  class="entity-row{% if current_persona_id == p.id %} active{% endif %}"
   id="persona-card-{{ p.id }}"
   data-persona-name="{{ p.name }}"
   data-persona-created="{{ p.created_at }}"

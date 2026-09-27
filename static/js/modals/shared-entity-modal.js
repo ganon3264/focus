@@ -55,7 +55,7 @@
             var card = document.getElementById(cfg.cardPrefix + id);
             if (card) card.remove();
             var grid = document.getElementById(cfg.gridId);
-            if (grid && grid.querySelectorAll('.card').length === 0) {
+            if (grid && grid.querySelectorAll('.entity-row').length === 0) {
               grid.innerHTML = '<div class="text-muted text-center text-sm py-6 border border-dashed border-(--border) rounded-lg">' + cfg.emptyText + '</div>';
             }
             if (isHard) {

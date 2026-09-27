@@ -33,7 +33,7 @@ grid.id = 'test-grid';
 function addCard(name, created) {
   var card = makeElement('div');
   card.style = {};
-  card.classList.add('card');
+  card.classList.add('entity-row');
   card.setAttribute('data-name', name);
   card.setAttribute('data-created', created);
   var full = makeElement('div');
@@ -113,7 +113,7 @@ window.ListManager.setup(cfg);
 // ── sortFn sorts az ──
 (function () {
   window.sortTest('az');
-  var cards = grid.querySelectorAll('.card');
+  var cards = grid.querySelectorAll('.entity-row');
   assertEqual(cards[0].getAttribute('data-name'), 'Alpha', 'sort az: first is Alpha');
   assertEqual(cards[1].getAttribute('data-name'), 'Beta', 'sort az: second is Beta');
   assertEqual(cards[2].getAttribute('data-name'), 'Gamma', 'sort az: third is Gamma');
@@ -122,7 +122,7 @@ window.ListManager.setup(cfg);
 // ── sortFn sorts za ──
 (function () {
   window.sortTest('za');
-  var cards = grid.querySelectorAll('.card');
+  var cards = grid.querySelectorAll('.entity-row');
   var names = [];
   for (var i = 0; i < cards.length; i++) names.push(cards[i].getAttribute('data-name'));
   assertEqual(names[0], 'Gamma', 'sort za: first is Gamma');
@@ -131,7 +131,7 @@ window.ListManager.setup(cfg);
 // ── sortFn sorts newest ──
 (function () {
   window.sortTest('newest');
-  var cards = grid.querySelectorAll('.card');
+  var cards = grid.querySelectorAll('.entity-row');
   var names = [];
   for (var i = 0; i < cards.length; i++) names.push(cards[i].getAttribute('data-name'));
   assertEqual(names[0], 'Alpha', 'sort newest: first is Alpha');
@@ -140,7 +140,7 @@ window.ListManager.setup(cfg);
 // ── sortFn sorts oldest ──
 (function () {
   window.sortTest('oldest');
-  var cards = grid.querySelectorAll('.card');
+  var cards = grid.querySelectorAll('.entity-row');
   var names = [];
   for (var i = 0; i < cards.length; i++) names.push(cards[i].getAttribute('data-name'));
   assertEqual(names[0], 'Beta', 'sort oldest: first is Beta');

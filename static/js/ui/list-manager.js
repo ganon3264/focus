@@ -23,7 +23,7 @@ window.ListManager = {
     function eachCard(fn) {
       var grid = document.getElementById(cfg.gridId);
       if (!grid) return;
-      grid.querySelectorAll('.card').forEach(fn);
+      grid.querySelectorAll('.entity-row').forEach(fn);
     }
 
     function collectGroups() {
@@ -61,7 +61,7 @@ window.ListManager = {
     };
 
     window[cfg.toggleFavoriteFn] = function (el) {
-      var card = el.closest('.card');
+      var card = el.closest('.entity-row');
       if (!card) return;
       var id = cfg.cardPrefix ? card.id.replace(cfg.cardPrefix, '') : '';
       var next = (card.getAttribute(cfg.dataFavoriteAttr) || '0') !== '1';
@@ -87,7 +87,7 @@ window.ListManager = {
       _saveListPref(cfg.sortStorageKey, mode);
       var grid = document.getElementById(cfg.gridId);
       if (!grid) return;
-      var cards = Array.from(grid.querySelectorAll('.card'));
+      var cards = Array.from(grid.querySelectorAll('.entity-row'));
       cards.sort(function (a, b) {
         var aName = a.getAttribute(cfg.dataNameAttr) || '';
         var bName = b.getAttribute(cfg.dataNameAttr) || '';
@@ -114,7 +114,7 @@ window.ListManager = {
         grid.style.gridTemplateColumns = compact
           ? 'repeat(3, minmax(200px, 1fr))'
           : 'repeat(auto-fill, minmax(160px, 1fr))';
-        grid.querySelectorAll('.card').forEach(function (card) {
+        grid.querySelectorAll('.entity-row').forEach(function (card) {
           var fullEl = card.querySelector('.' + cfg.viewFullClass);
           var compactEl = card.querySelector('.' + cfg.viewCompactClass);
           if (!fullEl || !compactEl) return;

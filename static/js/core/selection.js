@@ -56,25 +56,27 @@
     }
   }
 
-  function syncCardHighlight(cfg) {
-    var grid = byId(cfg.gridId);
-    if (!grid) return;
-    var cards = grid.querySelectorAll('.card.active');
-    for (var i = 0; i < cards.length; i++) cards[i].classList.remove('active');
-    var id = StateManager.get(cfg.stateKey);
+  // One rule for every entity list (characters, personas, providers): clear
+  // `.active` on the rows inside `gridId`, then mark the one for `id` (or the
+  // current StateManager value when `id` is omitted).
+  function syncEntityHighlight(cfg, id) {
+    var root = cfg.gridId ? byId(cfg.gridId) : document;
+    if (!root) return;
+    var rows = root.querySelectorAll('.entity-row');
+    for (var i = 0; i < rows.length; i++) rows[i].classList.remove('active');
+    if (id === undefined) id = StateManager.get(cfg.stateKey);
     if (id) {
-      var card = byId(cfg.cardPrefix + id);
-      if (card) card.classList.add('active');
+      var row = byId(cfg.cardPrefix + id);
+      if (row) row.classList.add('active');
     }
   }
 
+  function syncCardHighlight(cfg) {
+    syncEntityHighlight(cfg);
+  }
+
   function syncProviderHighlight(id) {
-    var cards = document.querySelectorAll('.provider-card');
-    for (var i = 0; i < cards.length; i++) cards[i].classList.remove('active');
-    if (id) {
-      var card = byId('prov-card-' + id);
-      if (card) card.classList.add('active');
-    }
+    syncEntityHighlight({ gridId: 'providers-grid', stateKey: 'provider_id', cardPrefix: 'prov-card-' }, id);
   }
 
   function selectionStateUrl() {
