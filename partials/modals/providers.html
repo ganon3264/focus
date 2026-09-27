@@ -1,6 +1,6 @@
 {% from "macros.html" import icon_key, icon_edit, icon_refresh, icon_search, icon_database, icon_plus, icon_close, sort_dropdown %}
-<div class="flex flex-col h-full overflow-y-auto">
-  <div class="flex justify-between items-center gap-2 mb-3" style="padding-bottom: 0.75rem;">
+<div class="flex flex-col h-full">
+  <div class="flex justify-between items-center gap-2 mb-3 shrink-0" style="padding-bottom: 0.75rem;">
     <h3 class="modal-subhead mb-0">Select active provider</h3>
     <div class="flex gap-2 items-center shrink-0">
       {{ sort_dropdown('focus_providers_sort', 'sortProviders') }}
@@ -15,6 +15,7 @@
     </div>
   {% endif %}
 
+  <div class="flex-1 min-h-0 overflow-y-auto scroll-fade">
   <div class="provider-list" id="providers-grid">
     {% for prov in providers %}
       <div class="provider-card{% if active_provider_id == prov.id %} active{% endif %}" id="prov-card-{{ prov.id }}" data-prov-name="{{ prov.name }}" data-prov-created="{{ prov.created_at }}">
@@ -38,6 +39,7 @@
       </div>
     {% endfor %}
     </div>
+  </div>
 </div>
 
 {% include "modals/provider-create.html" %}
