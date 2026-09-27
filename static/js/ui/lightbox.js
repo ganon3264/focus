@@ -1,14 +1,14 @@
 function openLightbox(src) {
   const lb = document.getElementById('lightbox');
   const img = document.getElementById('lightbox-img');
-  img.src = src;
+  img.setAttribute('src', src);
   lb.classList.remove('hidden');
 }
 
 function closeLightbox() {
   const lb = document.getElementById('lightbox');
   lb.classList.add('hidden');
-  document.getElementById('lightbox-img').src = '';
+  document.getElementById('lightbox-img').removeAttribute('src');
 }
 
 const Cropper = window.Cropper.default;

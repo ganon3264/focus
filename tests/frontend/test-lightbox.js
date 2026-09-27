@@ -82,14 +82,14 @@ eval(src + '\nwindow.openLightbox=openLightbox;window.closeLightbox=closeLightbo
   lightboxEl.classList.add('hidden');
   window.openLightbox('/path/to/img.jpg');
   assert(!lightboxEl.classList.contains('hidden'), 'lightbox visible after openLightbox');
-  assertEqual(lightboxImg.src, '/path/to/img.jpg', 'lightbox img src set');
+  assertEqual(lightboxImg.getAttribute('src'), '/path/to/img.jpg', 'lightbox img src set');
 })();
 
 // ── closeLightbox hides overlay ──
 (function () {
   window.closeLightbox();
   assert(lightboxEl.classList.contains('hidden'), 'lightbox hidden after close');
-  assertEqual(lightboxImg.src, '', 'lightbox img src cleared');
+  assert(!lightboxImg.hasAttribute('src'), 'lightbox img src cleared (no fetch)');
 })();
 
 // ── openCropModal creates Cropper instance ──

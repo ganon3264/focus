@@ -154,12 +154,13 @@
                       :class="testResult[ext.name] && testResult[ext.name].status === 'error' ? 'text-red-500' : 'text-muted'"
                       x-text="testSummary(ext.name)"
                     ></div>
-                    <audio
-                      x-show="testAudio[ext.name]"
-                      :src="testAudio[ext.name]"
-                      controls
-                      class="w-full h-10"
-                    ></audio>
+                    <template x-if="testAudio[ext.name]">
+                      <audio
+                        :src="testAudio[ext.name]"
+                        controls
+                        class="w-full h-10"
+                      ></audio>
+                    </template>
                   </div>
                 </div>
               </div>
@@ -213,7 +214,14 @@ document.addEventListener('alpine:init', function () {
         var chatId = StateManager.get('chat_id');
         var p1 = fetch('/api/extensions')
           .then(function (r) { return r.json(); })
-          .then(function (data) { self.extensions = data; self._loadConfigs(); });
+          .then(function (data) {
+            self.extensions = data;
+            // Seed synchronously: the x-for cells read configs[ext.name][p.name]
+            // the moment extensions render, so the map must exist before the
+            // saved values fetch (or its failure) can leave it behind.
+            self._seedConfigs();
+            self._loadConfigs();
+          });
         var p2 = chatId
           ? fetch('/api/chats/' + chatId + '/extensions')
               .then(function (r) { return r.json(); })
@@ -223,17 +231,25 @@ document.addEventListener('alpine:init', function () {
         Promise.all([p1, p2]).then(function () { self.loaded = true; });
       },
 
+      _seedConfigs: function () {
+        var self = this;
+        this.extensions.forEach(function (e) {
+          var defaults = {};
+          (e.params || []).forEach(function (p) { defaults[p.name] = p.default; });
+          self.configs[e.name] = Object.assign({}, defaults, self.configs[e.name] || {});
+        });
+      },
+
       _loadConfigs: function () {
         var self = this;
-        fetch('/api/extensions/config')
+        return fetch('/api/extensions/config')
           .then(function (r) { return r.json(); })
           .then(function (cfg) {
             self.extensions.forEach(function (e) {
-              var defaults = {};
-              (e.params || []).forEach(function (p) { defaults[p.name] = p.default; });
-              self.configs[e.name] = Object.assign({}, defaults, cfg[e.name] || {});
+              self.configs[e.name] = Object.assign({}, self.configs[e.name] || {}, cfg[e.name] || {});
             });
-          });
+          })
+          .catch(function () {});
       },
 
       toggle: function (name) {
@@ -372,6 +388,7 @@ document.addEventListener('alpine:init', function () {
             clearTimeout(timer);
             self.extensions = data;
             self.reloading = false;
+            self._seedConfigs();
             self._loadConfigs();
           })
           .catch(function () {
