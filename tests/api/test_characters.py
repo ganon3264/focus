@@ -287,7 +287,7 @@ class TestCharacterModals:
         assert resp.status_code == 200
         html = resp.text
 
-        assert 'class="card active"' in html
+        assert 'class="entity-row active"' in html
         assert f'id="char-card-{c1["id"]}"' in html
         assert f'id="char-card-{c2["id"]}"' in html
 
@@ -295,7 +295,7 @@ class TestCharacterModals:
         await create_character(client, "Alice")
         resp = await client.get("/partials/characters-modal")
         assert resp.status_code == 200
-        assert 'class="card active"' not in resp.text
+        assert 'class="entity-row active"' not in resp.text
 
     async def test_modal_renders_group_filter_and_card_attrs(self, client):
         c = await create_character(client, "Alice")

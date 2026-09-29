@@ -75,7 +75,7 @@ class TestPersonaModals:
         assert resp.status_code == 200
         html = resp.text
 
-        assert 'class="card active"' in html
+        assert 'class="entity-row active"' in html
         assert f'id="persona-card-{p1["id"]}"' in html
         assert f'id="persona-card-{p2["id"]}"' in html
 

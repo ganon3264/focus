@@ -271,6 +271,10 @@
   background: var(--tint-2);
 }
 
+.preset-item-action.danger {
+  color: var(--danger-ink);
+}
+
 .preset-item-action.danger:hover {
   color: var(--danger);
   background: var(--danger-tint);
@@ -429,8 +433,13 @@
   color: var(--text);
 }
 
+.left-sidebar .var-option-item .action-icon.slim.danger {
+  color: var(--danger-ink);
+}
+
 .left-sidebar .var-option-item .action-icon.slim.danger:hover {
   color: var(--danger);
+  background: var(--danger-tint);
 }
 
 /* ── Tools: filled tiles read as buttons, not a data table ──────────────── */
@@ -674,11 +683,11 @@
   background: transparent;
   border: none;
   box-shadow: none;
-  color: var(--text-faint);
+  color: var(--danger-ink);
 }
 
 .right-sidebar .sidebar-item .sidebar-delete-btn:hover {
-  background: transparent;
+  background: var(--danger-tint);
   color: var(--danger);
 }
 
@@ -688,19 +697,21 @@
   border-radius: 0;
 }
 
-/* Danger keeps its own hue but the same flat shape. */
+/* Destructive controls are one shape everywhere: no chrome at rest — the danger
+   ink alone marks the verb — and the tint lays down on hover/focus. */
 .btn-danger {
-  background: var(--danger-tint);
-  border: 1px solid var(--danger-edge);
+  background: transparent;
+  border: 1px solid transparent;
   border-radius: 0;
   box-shadow: none;
-  color: var(--danger);
+  color: var(--danger-ink);
 }
 
-.btn-danger:hover {
-  background: var(--danger-tint-strong);
-  border-color: var(--danger);
-  color: var(--danger-hover);
+.btn-danger:hover,
+.btn-danger:focus-visible {
+  background: var(--danger-tint);
+  border-color: transparent;
+  color: var(--danger);
   transform: none;
 }
 
@@ -1441,10 +1452,10 @@
 }
 
 /* ── Icon buttons ───────────────────────────────────────────────────────── */
-/* Edit/delete icon buttons match the secondary treatment instead of keeping a
-   filled surface-2 chip. */
-.btn-edit,
-.btn-delete-icon {
+/* Edit keeps a hairline frame and warms to the accent on hover. Destructive
+   icon controls all share one treatment instead: no chrome at rest, the danger
+   ink carrying the meaning, and the tint laying down on hover. */
+.btn-edit {
   background: transparent;
   border: 1px solid var(--hair-strong);
   box-shadow: none;
@@ -1457,42 +1468,19 @@
   color: var(--accent);
 }
 
-/* Deletion keeps a danger hue at rest on the same hairline frame, so the pair
-   reads as matched rather than only revealing the destructive role on hover. */
-.btn-delete-icon,
-.card .btn-danger {
+.action-icon.danger,
+.action-btn.text-danger {
   background: transparent;
-  border: 1px solid var(--hair-strong);
-  box-shadow: none;
+  border-color: transparent;
   color: var(--danger-ink);
 }
 
-.btn-delete-icon:hover,
-.card .btn-danger:hover {
-  background: transparent;
-  border-color: var(--danger);
+.action-icon.danger:hover,
+.action-btn.text-danger:hover,
+.action-btn.text-danger:focus-visible {
+  background: var(--danger-tint);
   color: var(--danger);
 }
-
-/* Card action strip: quiet icons, no button chrome. Delete keeps its danger
-   ink so the destructive role still reads at rest. */
-.card .btn-edit,
-.card .fav-star {
-  background: transparent;
-  border: none;
-  box-shadow: none;
-  color: var(--text-faint);
-}
-
-.card .btn-danger {
-  background: transparent;
-  border: none;
-  box-shadow: none;
-}
-
-.card .btn-edit:hover { color: var(--accent); }
-.card .btn-danger:hover { color: var(--danger); }
-.card .fav-star.favorite-active { color: var(--warning); }
 
 /* ── Theme modal ────────────────────────────────────────────────────────── */
 /* Widened to two columns: the theme list on the left, the palette on the right.

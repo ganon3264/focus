@@ -293,8 +293,8 @@ class TestModalPartials:
 
         resp = await client.get("/partials/providers-modal")
         assert resp.status_code == 200
-        assert f'class="provider-card card active" id="prov-card-{first}"' in resp.text
-        assert f'class="provider-card card" id="prov-card-{second}"' in resp.text
+        assert f'class="provider-card entity-row active" id="prov-card-{first}"' in resp.text
+        assert f'class="provider-card entity-row" id="prov-card-{second}"' in resp.text
 
     async def test_export_entities(self, client):
         char = await create_character(client, "ExportMe")

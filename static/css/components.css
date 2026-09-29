@@ -215,8 +215,7 @@
     background: var(--success-dim);
   }
   .btn-secondary,
-  .btn-edit,
-  .btn-delete-icon {
+  .btn-edit {
     background: var(--surface-2);
     border: 1px solid var(--border);
     box-shadow: var(--shadow-sm);
@@ -245,15 +244,6 @@
     background: var(--accent);
     color: var(--text-on-accent);
     border-color: var(--accent);
-  }
-  .btn-delete-icon {
-    color: var(--danger);
-  }
-  .btn-delete-icon:hover,
-  .btn-delete-icon:focus-visible {
-    background: var(--danger);
-    color: var(--text-on-accent);
-    border-color: var(--danger);
   }
   .btn-link {
     background: none;
@@ -896,21 +886,6 @@
     align-items: center;
     justify-content: center;
     line-height: 0;
-  }
-
-  /* Delete keeps its destructive hue in the icon but drops the filled red
-     block at rest, so edit stays the louder action until intent is shown. */
-  .card .btn-danger {
-    background: transparent;
-    border-color: var(--border);
-    box-shadow: none;
-    color: var(--danger);
-  }
-  .card .btn-danger:hover,
-  .card .btn-danger:focus-visible {
-    background: var(--danger);
-    border-color: var(--danger);
-    color: var(--text-on-accent);
   }
 
   .card-group-badge {
