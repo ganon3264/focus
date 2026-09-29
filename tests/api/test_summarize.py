@@ -257,8 +257,8 @@ class TestSummarize:
         grandchild_id = _done_id(events)
 
         text = await _itemize_text(client, grandchild_id)
-        assert "Chunk one." in text
-        assert "Chunk two." in text
+        assert "[Summary 1]\nChunk one." in text
+        assert "[Summary 2]\nChunk two." in text
 
     async def test_missing_provider_is_rejected(self, client):
         char = await create_character(client, "Char")
@@ -322,12 +322,12 @@ class TestSummarize:
         prov_a = await _create_provider(client, name="A", model="gpt-4")
         prov_b = await _create_provider(client, name="B", model="gpt-5")
 
-        block = await client.post(f"/api/presets/{preset['id']}/blocks", json={
-            "name": "Summary", "block_type": "summary", "role": "user",
-            "content": "Custom instruction.",
-            "config_json": '{"keep": 1, "provider_id": "%s"}' % prov_b,
-        })
-        assert block.status_code == 201, block.text
+        block = await client.put(f"/api/presets/{preset['id']}/settings", json={"summary": {
+            "instruction": "Custom instruction.",
+            "keep": 1,
+            "provider_id": prov_b,
+        }})
+        assert block.status_code == 200, block.text
 
         db_path = _db_path(tmp_test_dir)
         await _insert_message(db_path, chat["id"], "assistant", 0, "Greeting")
@@ -355,7 +355,7 @@ class TestSummarize:
         recap = [m for m in data["messages"] if any(
             "Recap." in (p.get("text") or "") for p in m["parts"]
         )]
-        assert recap and recap[0]["role"] == "user"
+        assert recap and recap[0]["role"] == "system"
 
     async def test_window_media_survives_into_fork(
         self, client, tmp_test_dir, patch_provider
@@ -383,8 +383,8 @@ class TestSummarize:
         preset = await create_preset(client, "Pr")
         chat = await create_chat(client, char["id"], persona["id"], preset["id"])
         prov = await _create_provider(client)
-        await client.post(f"/api/presets/{preset['id']}/blocks", json={
-            "name": "Summary", "block_type": "summary", "config_json": '{"keep": 2}',
+        await client.put(f"/api/presets/{preset['id']}/settings", json={
+            "summary": {"keep": 2},
         })
 
         db_path = _db_path(tmp_test_dir)
@@ -425,20 +425,18 @@ class TestSummarize:
         status, _ = await _summarize(client, chat["id"], prov)
         assert status == 400
 
-    async def test_arranger_renders_summary_block(self, client):
+    async def test_arranger_renders_summary_settings(self, client):
         preset = await create_preset(client, "Pr")
-        block = await client.post(f"/api/presets/{preset['id']}/blocks", json={
-            "name": "Summary", "block_type": "summary",
-            "config_json": '{"keep": 5, "provider_id": ""}',
+        await client.put(f"/api/presets/{preset['id']}/settings", json={
+            "summary": {"keep": 5, "provider_id": ""},
         })
-        assert block.status_code == 201, block.text
 
         resp = await client.get(f"/partials/prompt-arranger/{preset['id']}")
         assert resp.status_code == 200
         assert "Summary" in resp.text
         assert "Keep messages" in resp.text
         assert "Same as chat" in resp.text
-        # The default prompt is baked into the block, not hidden behind "empty".
+        # The default prompt is prefilled, not hidden behind "empty".
         assert "Summarize the conversation so far" in resp.text
 
     async def test_post_history_blocks_excluded_from_summarize(
@@ -524,6 +522,71 @@ class TestSummarize:
             "SELECT content FROM chat_summaries WHERE chat_id = ?", chat["id"],
         ))[0]
         assert summary["content"] == "Recovered summary."
+
+    async def test_preset_macro_block_controls_structure(
+        self, client, tmp_test_dir, patch_provider
+    ):
+        char = await create_character(client, "Char")
+        persona = await create_persona(client, "P")
+        preset = await create_preset(client, "Pr")
+        chat = await create_chat(client, char["id"], persona["id"], preset["id"])
+        prov = await _create_provider(client)
+        await _insert_message(_db_path(tmp_test_dir), chat["id"], "assistant", 0, "Hi!")
+
+        await client.post(f"/api/presets/{preset['id']}/blocks", json={
+            "name": "Summary", "block_type": "summary", "role": "user",
+            "content": "CUSTOM BEGIN {{summary}} CUSTOM END",
+        })
+
+        patch_provider(FakeProvider("Recap."))
+        status, events = await _summarize(client, chat["id"], prov)
+        assert status == 200
+        child_id = _done_id(events)
+
+        data = await _itemize(client, child_id)
+        text = "\n".join(p.get("text") or "" for m in data["messages"] for p in m["parts"])
+        assert "CUSTOM BEGIN" in text
+        assert "[Summary 1]\nRecap." in text
+        assert "CUSTOM END" in text
+        # The macro block owns the structure; the default wrapper must not run.
+        assert "<summary>" not in text
+        assert text.count("Recap.") == 1
+        recap = [m for m in data["messages"] if any(
+            "Recap." in (p.get("text") or "") for p in m["parts"]
+        )]
+        assert recap and recap[0]["role"] == "user"
+
+    async def test_summary_block_omitted_without_summary(self, client):
+        char = await create_character(client, "Char")
+        preset = await create_preset(client, "Pr")
+        chat = await create_chat(client, char["id"], preset_id=preset["id"])
+        await client.post(f"/api/presets/{preset['id']}/blocks", json={
+            "name": "Summary", "block_type": "summary", "role": "user",
+            "content": "CUSTOM BEGIN {{summary}} CUSTOM END",
+        })
+
+        text = await _itemize_text(client, chat["id"])
+        assert "CUSTOM BEGIN" not in text
+        assert "<summary>" not in text
+
+    async def test_preset_settings_roundtrip(self, client):
+        preset = await create_preset(client, "Pr")
+        resp = await client.get(f"/api/presets/{preset['id']}/settings")
+        assert resp.status_code == 200
+        assert resp.json()["summary"]["active"] is True
+        assert resp.json()["summary"]["keep"] == 20
+
+        resp = await client.put(f"/api/presets/{preset['id']}/settings", json={
+            "summary": {"enabled": False, "keep": 7, "provider_id": "abc"},
+        })
+        assert resp.status_code == 200
+
+        body = (await client.get(f"/api/presets/{preset['id']}/settings")).json()["summary"]
+        assert body["active"] is False
+        assert body["keep"] == 7
+        assert body["provider_id"] == "abc"
+
+        assert (await client.get("/api/presets/nope/settings")).status_code == 404
 
     async def test_permanent_failure_creates_nothing(
         self, client, tmp_test_dir, patch_provider

@@ -10,36 +10,49 @@ DEFAULT_SUMMARY_INSTRUCTION = (
 )
 
 DEFAULT_SUMMARY_KEEP = 20
+DEFAULT_SUMMARY_ROLE = "system"
+
+# The pieces a forked chat injects as leading context. Presets opt in by
+# referencing the macros in a block; without a reference the same default
+# wrapper is injected before the chat history.
+SUMMARY_MACROS = ("summary", "summary_messages", "summary_media")
+
+DEFAULT_SUMMARY_TEMPLATE = (
+    "<summary>\n{{summary}}\n</summary>\n\n"
+    "<media_messages>\n{{summary_media}}\n</media_messages>\n\n"
+    "<last_messages>\n{{summary_messages}}\n</last_messages>"
+)
 
 
-def summary_config(preset_blocks: list[dict] | None) -> dict:
-    """Resolve summary settings from a preset's ``summary`` block.
+def _parse_settings(settings) -> dict:
+    if isinstance(settings, dict):
+        return settings
+    try:
+        return json.loads(settings or "{}")
+    except (TypeError, ValueError):
+        return {}
 
-    ``active`` is False only when a Summary block exists but is disabled, so the
-    user can turn summary context off. With no block at all the built-in
-    defaults apply, keeping every existing preset working.
+
+def summary_config(preset_blocks=None, settings=None) -> dict:
+    """Resolve summary settings from a preset's blocks and ``settings_json``.
+
+    ``active`` is False when the settings are disabled, or when a Summary block
+    exists but is disabled. With no Summary block at all the built-in defaults
+    apply, keeping every existing preset working.
     """
     blocks = [b for b in (preset_blocks or []) if b.get("block_type") == "summary"]
     block = next((b for b in blocks if b.get("enabled")), None)
-
-    config: dict = {}
-    if block:
-        try:
-            config = json.loads(block.get("config_json") or "{}")
-        except (TypeError, ValueError):
-            config = {}
+    raw = _parse_settings(settings).get("summary") or {}
 
     try:
-        keep = int(config.get("keep"))
+        keep = int(raw.get("keep"))
     except (TypeError, ValueError):
         keep = DEFAULT_SUMMARY_KEEP
 
     return {
-        "active": not blocks or block is not None,
-        "block": block,
-        "instruction": ((block or {}).get("content") or "").strip()
+        "active": bool(raw.get("enabled", True)) and (not blocks or block is not None),
+        "instruction": (raw.get("instruction") or "").strip()
         or DEFAULT_SUMMARY_INSTRUCTION,
         "keep": max(0, keep),
-        "provider_id": (config.get("provider_id") or "").strip(),
-        "role": (block or {}).get("role") or "system",
+        "provider_id": (raw.get("provider_id") or "").strip(),
     }

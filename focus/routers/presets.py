@@ -7,6 +7,7 @@ import focus.db as db
 from focus.core.database import get_db
 from focus.core.models import PresetBlockBulkUpdate, PresetBlockCreate, PresetUpdate
 from focus.core.paths import PRESETS_DIR
+from focus.core.summary import summary_config
 from focus.core.utils import read_upload
 
 router = APIRouter()
@@ -43,6 +44,25 @@ async def get_preset(preset_id: str, _db=Depends(get_db)):
     result = dict(row)
     result["blocks"] = blocks
     return result
+
+
+@router.get("/{preset_id}/settings")
+async def get_settings(preset_id: str, _db=Depends(get_db)):
+    try:
+        raw = await db.get_preset_settings(_db, preset_id)
+    except ValueError:
+        raise HTTPException(404, "Preset not found")
+    return {"summary": summary_config(None, raw)}
+
+
+@router.put("/{preset_id}/settings")
+async def update_settings(preset_id: str, body: dict, _db=Depends(get_db)):
+    try:
+        await db.update_preset_settings(_db, preset_id, body)
+    except ValueError:
+        raise HTTPException(404, "Preset not found")
+    await _db.commit()
+    return {"ok": True}
 
 
 @router.post("/{preset_id}/duplicate", status_code=201)

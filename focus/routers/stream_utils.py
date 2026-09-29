@@ -13,7 +13,11 @@ from focus.core.card_parser import safe_load_card
 from focus.core.macros import build_base_macros
 from focus.core.media import tool_image_data_url
 from focus.core.models import StreamRequest
-from focus.core.summary import summary_config
+from focus.core.summary import (
+    DEFAULT_SUMMARY_ROLE,
+    SUMMARY_MACROS,
+    summary_config,
+)
 from focus.core.tracked_fields import attach_to_message
 from focus.db.chats import (
     bind_attachments_to_message,
@@ -21,7 +25,7 @@ from focus.db.chats import (
     create_message_with_variant,
     get_chat_summary_chain,
 )
-from focus.prompt_chain import assemble_prompt, build_content
+from focus.prompt_chain import assemble_prompt, build_content, section_token
 from focus.providers.quirks import apply_request_quirks
 
 
@@ -108,21 +112,21 @@ def _transcript_text(messages: list[dict], media: list[dict]) -> str:
     return "\n".join(lines)
 
 
-async def _summary_context(
-    db: aiosqlite.Connection, chat: dict, keep: int, role: str
-) -> list[dict]:
-    """Leading prompt messages inherited by a forked chat.
+async def _summary_sections(
+    db: aiosqlite.Connection, chat: dict, keep: int
+) -> dict[str, list[dict]]:
+    """Prebuilt content arrays for the three summary macros.
 
-    One message carries everything the Summary block owns, split into tagged
-    sections: the accumulated summary, any media-bearing turns older than the
-    kept window, and the most recent conversational turns verbatim. Media in
-    the window stays there (no duplication); only older media is pulled up so
-    a character introduced long ago keeps its image. Media is kept via the
-    ``{{media:N}}`` macro, resolved against the already-built parts. The parent
-    window is resolved live, so it reflects any later edit to the parent.
+    Each section is resolved to a parts array (text and media already in order)
+    so a block that references the macro splices it in without the assembler
+    knowing anything about markers. The parent window is resolved live, so it
+    reflects any later edit to the parent.
     """
     chain = await get_chat_summary_chain(db, chat["id"])
-    summary_text = "\n\n".join(s["content"].strip() for s in chain if s["content"].strip())
+    chunks = [s["content"].strip() for s in chain if s["content"].strip()]
+    summary_text = "\n\n".join(
+        f"[Summary {i}]\n{text}" for i, text in enumerate(chunks, start=1)
+    )
 
     window: list[dict] = []
     older: list[dict] = []
@@ -138,24 +142,59 @@ async def _summary_context(
         else:
             window, older = [], convo
 
-    media: list[dict] = []
-    media_text = _transcript_text([m for m in older if _has_media(m)], media)
-    window_text = _transcript_text(window, media)
+    older_media: list[dict] = []
+    media_text = _transcript_text([m for m in older if _has_media(m)], older_media)
+    window_media: list[dict] = []
+    window_text = _transcript_text(window, window_media)
 
-    sections: list[str] = []
-    if summary_text:
-        sections.append(f"<summary>\n{summary_text}\n</summary>")
-    if media_text:
-        sections.append(f"<media_messages>\n{media_text}\n</media_messages>")
-    if window_text:
-        sections.append(f"<last_messages>\n{window_text}\n</last_messages>")
-    if not sections:
-        return []
+    async def _parts(text: str, media: list[dict]) -> list[dict]:
+        if not text:
+            return []
+        built = await build_content(text, media)
+        if isinstance(built, list):
+            return built
+        return [{"type": "text", "text": built}]
 
-    content: str | list = "\n\n".join(sections)
-    if media:
-        content = await build_content(content, media)
-    return [{"role": role, "content": content}]
+    return {
+        "summary": [{"type": "text", "text": summary_text}] if summary_text else [],
+        "summary_media": await _parts(media_text, older_media),
+        "summary_messages": await _parts(window_text, window_media),
+    }
+
+
+def _default_summary_message(sections: dict[str, list[dict]], role: str) -> dict | None:
+    """The built-in wrapper used when a preset doesn't reference the macros."""
+
+    def wrap(tag: str, sec: list[dict]) -> list[dict]:
+        return [
+            {"type": "text", "text": f"<{tag}>\n"},
+            *sec,
+            {"type": "text", "text": f"\n</{tag}>"},
+        ]
+
+    parts: list[dict] = []
+    for tag, sec in (
+        ("summary", sections.get("summary") or []),
+        ("media_messages", sections.get("summary_media") or []),
+        ("last_messages", sections.get("summary_messages") or []),
+    ):
+        if not sec:
+            continue
+        if parts:
+            parts.append({"type": "text", "text": "\n\n"})
+        parts.extend(wrap(tag, sec))
+
+    merged: list[dict] = []
+    for part in parts:
+        if part.get("type") == "text" and merged and merged[-1].get("type") == "text":
+            merged[-1] = {"type": "text", "text": merged[-1]["text"] + part["text"]}
+        else:
+            merged.append(part)
+    if not merged:
+        return None
+    if len(merged) == 1 and merged[0].get("type") == "text":
+        return {"role": role, "content": merged[0]["text"]}
+    return {"role": role, "content": merged}
 
 
 async def _get_history(
@@ -454,12 +493,19 @@ async def get_prompt_context(
     macros["_chat_id"] = chat_id
 
     preset_blocks: list[dict] = []
+    preset_settings: str = "{}"
     if chat["preset_id"]:
         async with db.execute(
             "SELECT * FROM preset_blocks WHERE preset_id = ? ORDER BY position, rowid",
             (chat["preset_id"],),
         ) as cur:
             preset_blocks = [dict(r) for r in await cur.fetchall()]
+        async with db.execute(
+            "SELECT settings_json FROM presets WHERE id = ?", (chat["preset_id"],)
+        ) as cur:
+            preset_row = await cur.fetchone()
+        if preset_row and preset_row["settings_json"]:
+            preset_settings = preset_row["settings_json"]
 
     history, asst_msg_id, next_variant_index = await _get_history(
         db, chat_id, regenerate, up_to_position=up_to_position,
@@ -571,17 +617,27 @@ async def get_prompt_context(
         history[0]["_greeting"] = True
 
     # Forked chats carry their predecessor's context: the accumulated summary
-    # chunks plus the parent's most recent messages. A Summary block in the
-    # preset owns the settings and position; without one the defaults apply and
-    # assemble_prompt injects it next to chat history.
-    cfg = summary_config(preset_blocks)
-    summary_messages: list[dict] = []
+    # chunks plus the parent's recent messages. A Summary sentinel block owns
+    # the position and the template; presets without one get the built-in
+    # default injected before chat history.
+    cfg = summary_config(preset_blocks, preset_settings)
+    sections: dict[str, list[dict]] = {}
     if cfg["active"] and chat.get("summary_id"):
-        summary_messages = await _summary_context(db, chat, cfg["keep"], cfg["role"])
+        sections = await _summary_sections(db, chat, cfg["keep"])
+
+    for name in SUMMARY_MACROS:
+        macros[name] = section_token(name)
+
+    summary_fallback = None
+    if any(sections.values()):
+        has_summary_block = any(b.get("block_type") == "summary" for b in preset_blocks)
+        if not has_summary_block:
+            summary_fallback = _default_summary_message(sections, DEFAULT_SUMMARY_ROLE)
 
     messages = await assemble_prompt(
         preset_blocks, history, char_data, char_own_blocks, macros, block_images,
-        summary_messages=summary_messages,
+        summary_sections=sections,
+        summary_fallback=summary_fallback,
         include_post_history=not summary_pass,
     )
 

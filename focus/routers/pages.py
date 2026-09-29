@@ -13,7 +13,11 @@ from focus.core.database import get_db
 from focus.core.logger import DEBUG_MODE
 from focus.core.macros import MACRO_DEFINITIONS, SPECIAL_TOKENS, apply_macros, build_base_macros
 from focus.core.message_render import render_message_segments
-from focus.core.summary import DEFAULT_SUMMARY_INSTRUCTION
+from focus.core.summary import (
+    DEFAULT_SUMMARY_INSTRUCTION,
+    DEFAULT_SUMMARY_TEMPLATE,
+    summary_config,
+)
 from focus.core.utils import greetings_from_card, merge_greeting_into_list, parse_greetings_json, variable_group_name
 from focus.prompt_chain import partition_blocks, resolve_variable_blocks
 from focus.providers.schema import provider_schema, provider_type_options
@@ -77,6 +81,16 @@ async def _theme_context(db: aiosqlite.Connection, character: dict | None) -> di
     return {"themes": await db_themes.list_themes(db), "theme_state": state}
 
 
+def _summary_ctx(preset: dict | None) -> dict:
+    """Summary settings + defaults for the arranger partial."""
+    preset = preset or {}
+    return {
+        "summary_settings": summary_config(preset.get("blocks"), preset.get("settings_json")),
+        "default_summary_instruction": DEFAULT_SUMMARY_INSTRUCTION,
+        "default_summary_template": DEFAULT_SUMMARY_TEMPLATE,
+    }
+
+
 @router.get("/chat", response_class=HTMLResponse)
 async def chat_redirect(request: Request, character_id: str = Query(None), db: aiosqlite.Connection = Depends(get_db)):
     if character_id:
@@ -134,7 +148,7 @@ async def chat_redirect(request: Request, character_id: str = Query(None), db: a
             "current_preset_id": preset["id"] if preset else None,
             "active_provider_id": active_provider["provider_id"],
             "active_provider_type": active_provider["provider_type"],
-            "summary_default_prompt": DEFAULT_SUMMARY_INSTRUCTION,
+            **_summary_ctx(preset),
             **theme_ctx,
         },
     )
@@ -204,7 +218,7 @@ async def chat_page(request: Request, chat_id: str, db: aiosqlite.Connection = D
             "active_provider_id": active_provider["provider_id"],
             "active_provider_type": active_provider["provider_type"],
             "enabled_extensions": enabled_extensions,
-            "summary_default_prompt": DEFAULT_SUMMARY_INSTRUCTION,
+            **_summary_ctx(preset),
             **theme_ctx,
         },
     )
@@ -362,6 +376,7 @@ async def selection_state_partial(
 
     counts = await crud.get_counts(db, character_id or None, persona_id or None)
     chat_list = await crud.get_chats_sidebar(db, character_id or None, page=page, page_size=_chat_page_size(request))
+    providers = await crud.get_providers(db)
 
     return templates.TemplateResponse(
         request,
@@ -375,8 +390,10 @@ async def selection_state_partial(
             "preset_blocks": regular_blocks,
             "var_groups": var_groups,
             "counts": counts,
+            "providers": providers,
             "chats": chat_list["chats"],
             "pagination": chat_list,
+            **_summary_ctx(preset),
         },
     )
 
@@ -447,6 +464,14 @@ async def prompt_arranger_partial(
 
     regular_blocks = [b for b in blocks if b["block_type"] != "variable"]
 
+    async with db.execute(
+        "SELECT settings_json FROM presets WHERE id = ?", (preset_id,)
+    ) as cur:
+        preset_row = await cur.fetchone()
+    summary_settings = summary_config(
+        blocks, preset_row["settings_json"] if preset_row else None
+    )
+
     return templates.TemplateResponse(
         request,
         "presets/prompt-arranger.html",
@@ -457,6 +482,9 @@ async def prompt_arranger_partial(
             "providers": await crud.get_providers(db),
             "macro_definitions": MACRO_DEFINITIONS,
             "special_tokens": SPECIAL_TOKENS,
+            "summary_settings": summary_settings,
+            "default_summary_instruction": DEFAULT_SUMMARY_INSTRUCTION,
+            "default_summary_template": DEFAULT_SUMMARY_TEMPLATE,
         },
     )
 
@@ -481,7 +509,7 @@ async def prompt_arranger_block_partial(
     return templates.TemplateResponse(
         request,
         "presets/prompt-block.html",
-        {"block": block, "preset_id": preset_id, "counts": counts, "providers": await crud.get_providers(db)},
+        {"block": block, "preset_id": preset_id, "counts": counts},
     )
 
 

@@ -1,4 +1,4 @@
-{% from "macros.html" import icon_help, icon_plus %}
+{% from "macros.html" import icon_help, icon_plus, custom_select, hint_tooltip %}
 <div style="flex: 1; min-height: 0; overflow-y: auto;" class="scroll-fade">
   <div class="arranger-list" id="arranger-list-{{ preset_id }}">
     {% for block in blocks %} {% include "presets/prompt-block.html" %} {% endfor %}
@@ -70,7 +70,7 @@
         <button
           type="button"
           class="btn-tag w-full text-left"
-          @click="open = false; addBlock($el.closest('[data-preset-id]').dataset.presetId, 'summary', $el, 'Summary')"
+          @click="open = false; addBlock($el.closest('[data-preset-id]').dataset.presetId, 'summary', $el, 'Summary', window.SUMMARY_DEFAULT_TEMPLATE)"
         >
           Summary
         </button>
@@ -109,7 +109,6 @@ overlay_close=true, dirty_fields='#block-modal-textarea,#block-modal-reasoning',
     <button type="button" class="btn btn-secondary btn-icon" style="width: calc(1lh + 1rem + 2px); height: calc(1lh + 1rem + 2px)" onclick="openMacroHelp()" title="Macro reference" aria-label="Macro reference">
       {{ icon_help(16) }}
     </button>
-    <button type="button" class="btn btn-secondary hidden" id="block-modal-restore" onclick="restoreBlockDefault()">Restore Default</button>
     <button type="button" class="btn btn-secondary" data-action="actionCloseModal" data-modal-id="block-edit-modal">Cancel</button>
     <button type="button" class="btn btn-primary" id="block-modal-save" data-dirty-save onclick="saveBlockModal()">
       Save
@@ -119,9 +118,93 @@ overlay_close=true, dirty_fields='#block-modal-textarea,#block-modal-reasoning',
 </div>
 {% endcall %}
 
+<!-- Summary Settings Modal -->
+{% set provider_options = [{"value": "", "label": "Same as chat"}] %}
+{% for p in (providers | default([])) %}
+{% set _ = provider_options.append({"value": p.id, "label": p.name}) %}
+{% endfor %}
+{% call modal_shell('modal-summary-settings', 'Summary Settings', max_width='560px', z_index='1000',
+overlay_close=true,
+dirty_fields='#summary-settings-enabled,#summary-settings-instruction,#summary-settings-keep,#summary-settings-provider',
+dirty_label='summary settings') %}
+<div class="flex flex-col gap-3">
+  <div class="flex items-center gap-2">
+    <span class="flex items-center gap-1 text-xs text-muted select-none">
+      Enabled
+      {{ hint_tooltip('When off, this preset neither generates nor injects summaries.') }}
+    </span>
+    <input type="hidden" id="summary-settings-enabled" value="{{ 1 if summary_settings.active else 0 }}" />
+    <div
+      class="arranger-toggle {% if summary_settings.active %}active{% endif %}"
+      role="switch"
+      tabindex="0"
+      title="Toggle Summary"
+      onclick="toggleSummarySetting(this)"
+    ></div>
+  </div>
+
+  <div class="flex flex-col gap-1">
+    <span class="text-xs text-muted">Summarization instruction</span>
+    <textarea
+      id="summary-settings-instruction"
+      rows="5"
+      class="form-control"
+      style="resize: vertical"
+    >{{ summary_settings.instruction }}</textarea>
+    <button type="button" class="btn btn-link text-xs self-start" onclick="restoreSummaryInstruction()">
+      Restore default wording
+    </button>
+  </div>
+
+  <div class="flex items-center gap-4" style="flex-wrap: wrap">
+    <label class="flex items-center gap-1 text-xs text-muted">
+      Keep messages
+      {{ hint_tooltip('How many recent messages the forked chat carries verbatim, in addition to the summary.') }}
+      <input
+        id="summary-settings-keep"
+        type="text"
+        inputmode="numeric"
+        value="{{ summary_settings.keep }}"
+        class="form-control form-control-xs"
+      />
+    </label>
+    <div class="flex items-center gap-2" style="min-width: 0; flex: 1">
+      <span class="flex items-center gap-1 text-xs text-muted select-none">
+        Provider
+        {{ hint_tooltip('Model used to generate summaries. Leave as “Same as chat” to reuse the active provider (and its prompt cache).') }}
+      </span>
+      <div style="width: 160px; flex-shrink: 0">
+        {{ custom_select( name="summary-provider", id="summary-settings-provider", options=provider_options, selected=(summary_settings.provider_id or ""), on_change="window.ModalController && ModalController.refresh('modal-summary-settings')", extra_classes="arranger-select" ) }}
+      </div>
+    </div>
+  </div>
+
+  <div class="text-xs text-muted">
+    The <strong>Summary</strong> block is injected only in chats that have been
+    summarized. Edit its content to place
+    <code>{{ '{{summary}}' }}</code>,
+    <code>{{ '{{summary_messages}}' }}</code> or
+    <code>{{ '{{summary_media}}' }}</code>.
+  </div>
+
+  <div class="flex items-center gap-2 mt-1">
+    <span data-dirty-hint class="text-xs font-bold hidden" style="color: var(--accent);">
+      Unsaved changes — press Save to apply
+    </span>
+    <div class="flex items-center gap-2 ml-auto">
+      <button type="button" class="btn btn-secondary" data-action="actionCloseModal" data-modal-id="modal-summary-settings">Cancel</button>
+      <button type="button" class="btn btn-primary" data-dirty-save onclick="saveSummarySettings()">
+        Save
+      </button>
+    </div>
+  </div>
+</div>
+{% endcall %}
+
 <script>
   (function () {
     const presetId = '{{ preset_id }}';
+    window.ARRANGER_PRESET_ID = presetId;
     const el = document.getElementById('arranger-list-' + presetId);
     if (!el) return;
     if (el._sortable) el._sortable.destroy();
@@ -200,16 +283,8 @@ overlay_close=true, dirty_fields='#block-modal-textarea,#block-modal-reasoning',
 
       const reasoning = item ? item.dataset.blockReasoning || '' : '';
 
-      const isSummary = item && item.dataset.blockType === 'summary';
-      let content = item ? item.dataset.blockContent || '' : '';
-      if (isSummary && !content) content = window.SUMMARY_DEFAULT_PROMPT || '';
-      document.getElementById('block-modal-textarea').value = content;
-      document.getElementById('block-modal-textarea').placeholder = isSummary
-        ? 'Summarization instructions…'
-        : 'Enter block content…';
-
-      var restoreBtn = document.getElementById('block-modal-restore');
-      if (restoreBtn) restoreBtn.classList.toggle('hidden', !isSummary);
+      document.getElementById('block-modal-textarea').value = item ? item.dataset.blockContent || '' : '';
+      document.getElementById('block-modal-textarea').placeholder = 'Enter block content…';
 
       var reasoningSection = document.getElementById('block-modal-reasoning-section');
       if (part === 'reasoning') {
@@ -225,11 +300,58 @@ overlay_close=true, dirty_fields='#block-modal-textarea,#block-modal-reasoning',
       window.openModal('block-edit-modal');
     };
 
-    window.restoreBlockDefault = function () {
-      const ta = document.getElementById('block-modal-textarea');
+    window.SUMMARY_DEFAULT_INSTRUCTION = {{ default_summary_instruction | tojson }};
+    window.SUMMARY_DEFAULT_TEMPLATE = {{ default_summary_template | tojson }};
+
+    window.openSummarySettings = function () {
+      window.openModal('modal-summary-settings');
+    };
+
+    window.toggleSummarySetting = function (el) {
+      var hidden = document.getElementById('summary-settings-enabled');
+      var next = hidden && hidden.value === '1' ? '0' : '1';
+      if (hidden) {
+        hidden.value = next;
+        hidden.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      el.classList.toggle('active', next === '1');
+    };
+
+    window.restoreSummaryInstruction = function () {
+      var ta = document.getElementById('summary-settings-instruction');
       if (!ta) return;
-      ta.value = window.SUMMARY_DEFAULT_PROMPT || '';
+      ta.value = window.SUMMARY_DEFAULT_INSTRUCTION || '';
       ta.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+
+    window.saveSummarySettings = function () {
+      var presetId = window.ARRANGER_PRESET_ID;
+      if (!presetId) return;
+      var payload = {
+        summary: {
+          enabled: document.getElementById('summary-settings-enabled').value === '1',
+          instruction: document.getElementById('summary-settings-instruction').value,
+          keep: parseInt(document.getElementById('summary-settings-keep').value, 10) || 0,
+          provider_id: document.getElementById('summary-settings-provider').value,
+        },
+      };
+      fetch('/api/presets/' + presetId + '/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+        .then(function (r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          return r.json();
+        })
+        .then(function () {
+          window.closeModal('modal-summary-settings', { discard: true });
+          reloadPromptArranger(presetId);
+          window.showSuccessToast('Summary settings saved');
+        })
+        .catch(function (e) {
+          window.showErrorToast('Could not save summary settings: ' + e.message);
+        });
     };
 
     window.saveBlockModal = function () {
@@ -279,14 +401,6 @@ overlay_close=true, dirty_fields='#block-modal-textarea,#block-modal-reasoning',
       }).then(function () {
         refreshSingleBlock(presetId, blockId);
       });
-    };
-
-    window.updateSummaryConfig = function (el, patch) {
-      const item = el.closest('.arranger-item');
-      let cfg = {};
-      try { cfg = JSON.parse((item && item.dataset.blockConfig) || '{}'); } catch (e) { cfg = {}; }
-      Object.assign(cfg, patch);
-      return JSON.stringify(cfg);
     };
 
     window.handleArrangerBlockUpdate = function (el, payload) {

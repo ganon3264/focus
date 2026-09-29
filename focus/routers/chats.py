@@ -419,15 +419,22 @@ async def _prepare_summary(_db, chat_id: str, body: SummarizeRequest) -> dict:
     chat = dict(chat_row)
 
     preset_blocks: list[dict] = []
+    preset_settings: str = "{}"
     if chat.get("preset_id"):
         async with _db.execute(
             "SELECT * FROM preset_blocks WHERE preset_id = ? ORDER BY position, rowid",
             (chat["preset_id"],),
         ) as cur:
             preset_blocks = [dict(r) for r in await cur.fetchall()]
-    cfg = summary_config(preset_blocks)
+        async with _db.execute(
+            "SELECT settings_json FROM presets WHERE id = ?", (chat["preset_id"],)
+        ) as cur:
+            preset_row = await cur.fetchone()
+        if preset_row and preset_row["settings_json"]:
+            preset_settings = preset_row["settings_json"]
+    cfg = summary_config(preset_blocks, preset_settings)
     if not cfg["active"]:
-        raise HTTPException(400, "The Summary block is disabled for this preset")
+        raise HTTPException(400, "Summary is disabled for this preset")
 
     provider_id = cfg["provider_id"] or body.provider_id or await _active_provider_id(_db)
     if not provider_id:

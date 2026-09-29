@@ -7,7 +7,7 @@ from pathlib import Path
 import aiosqlite
 
 from focus.core.paths import PRESETS_DIR
-from focus.core.summary import DEFAULT_SUMMARY_INSTRUCTION
+from focus.core.summary import DEFAULT_SUMMARY_TEMPLATE
 from focus.core.utils import now_iso, variable_group_name
 
 
@@ -41,8 +41,8 @@ async def duplicate_preset(db: aiosqlite.Connection, source_preset_id: str, name
 
     new_preset_id = str(uuid.uuid4())
     await db.execute(
-        "INSERT INTO presets (id, name, created_at) VALUES (?, ?, ?)",
-        (new_preset_id, name, now_iso()),
+        "INSERT INTO presets (id, name, created_at, settings_json) VALUES (?, ?, ?, ?)",
+        (new_preset_id, name, now_iso(), src["settings_json"] or "{}"),
     )
 
     async with db.execute(
@@ -92,6 +92,28 @@ async def update_preset(db: aiosqlite.Connection, preset_id: str, name: str) -> 
     await db.execute("UPDATE presets SET name = ? WHERE id = ?", (name, preset_id))
 
 
+async def get_preset_settings(db: aiosqlite.Connection, preset_id: str) -> dict:
+    async with db.execute(
+        "SELECT settings_json FROM presets WHERE id = ?", (preset_id,)
+    ) as cur:
+        row = await cur.fetchone()
+    if not row:
+        raise ValueError("Preset not found")
+    try:
+        return json.loads(row["settings_json"] or "{}")
+    except (TypeError, ValueError):
+        return {}
+
+
+async def update_preset_settings(db: aiosqlite.Connection, preset_id: str, updates: dict) -> None:
+    current = await get_preset_settings(db, preset_id)
+    current.update(updates)
+    await db.execute(
+        "UPDATE presets SET settings_json = ? WHERE id = ?",
+        (json.dumps(current), preset_id),
+    )
+
+
 async def delete_preset(db: aiosqlite.Connection, preset_id: str) -> None:
     await db.execute("DELETE FROM presets WHERE id = ?", (preset_id,))
 
@@ -101,9 +123,16 @@ async def import_preset(db: aiosqlite.Connection, file_content: bytes, filename:
     preset_name = Path(filename).stem
     preset_id = str(uuid.uuid4())
     now = now_iso()
+    settings_raw = data.get("settings_json")
+    if isinstance(settings_raw, dict):
+        settings_json = json.dumps(settings_raw)
+    elif isinstance(settings_raw, str) and settings_raw:
+        settings_json = settings_raw
+    else:
+        settings_json = "{}"
     await db.execute(
-        "INSERT INTO presets (id, name, created_at) VALUES (?, ?, ?)",
-        (preset_id, preset_name, now),
+        "INSERT INTO presets (id, name, created_at, settings_json) VALUES (?, ?, ?, ?)",
+        (preset_id, preset_name, now, settings_json),
     )
 
     sentinel_map = {
@@ -203,7 +232,7 @@ async def create_preset_block(
     enabled_int = int(enabled)
 
     if block_type == "summary" and not content:
-        content = DEFAULT_SUMMARY_INSTRUCTION
+        content = DEFAULT_SUMMARY_TEMPLATE
 
     if enabled_int and block_type == "variable":
         group_name = variable_group_name(name)

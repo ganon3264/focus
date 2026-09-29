@@ -63,9 +63,10 @@ CREATE TABLE IF NOT EXISTS char_blocks (
 );
 
 CREATE TABLE IF NOT EXISTS presets (
-    id         TEXT PRIMARY KEY,
-    name       TEXT NOT NULL,
-    created_at TEXT NOT NULL
+    id            TEXT PRIMARY KEY,
+    name          TEXT NOT NULL,
+    created_at    TEXT NOT NULL,
+    settings_json TEXT NOT NULL DEFAULT '{}'
 );
 
 CREATE TABLE IF NOT EXISTS personas (
@@ -262,6 +263,7 @@ async def init_db():
     """Create database tables, seed defaults, and apply migrations on startup."""
     init_directories()
     async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
         await db.executescript(SCHEMA)
 
         async with db.execute("SELECT COUNT(*) FROM personas") as cur:
@@ -290,6 +292,11 @@ async def init_db():
             await db.execute("ALTER TABLE preset_blocks ADD COLUMN reasoning TEXT NOT NULL DEFAULT ''")
         if "config_json" not in col_names:
             await db.execute("ALTER TABLE preset_blocks ADD COLUMN config_json TEXT NOT NULL DEFAULT '{}'")
+
+        cols = await db.execute("PRAGMA table_info(presets)")
+        col_names = {row[1] for row in await cols.fetchall()}
+        if "settings_json" not in col_names:
+            await db.execute("ALTER TABLE presets ADD COLUMN settings_json TEXT NOT NULL DEFAULT '{}'")
 
         cols = await db.execute("PRAGMA table_info(message_variants)")
         col_names = {row[1] for row in await cols.fetchall()}

@@ -124,6 +124,9 @@ def build_base_macros(card: dict, persona: dict | None = None) -> dict[str, str]
         "date": now.strftime("%Y-%m-%d"),
         "weekday": now.strftime("%A"),
         "time_of_day": time_of_day,
+        "summary": "",
+        "summary_messages": "",
+        "summary_media": "",
     }
     return macros
 
@@ -141,6 +144,9 @@ MACRO_DEFINITIONS: dict[str, dict[str, str]] = {
     "date": {"description": "Current date (YYYY-MM-DD)", "source": "system"},
     "weekday": {"description": "Day of week", "source": "system"},
     "time_of_day": {"description": "Time period (morning/afternoon/evening/night)", "source": "system"},
+    "summary": {"description": "Accumulated summary text (forked chats only)", "source": "summary"},
+    "summary_messages": {"description": "Recent parent turns carried into a fork", "source": "summary"},
+    "summary_media": {"description": "Older media-bearing turns carried into a fork", "source": "summary"},
 }
 
 SPECIAL_TOKENS: list[dict[str, str]] = [

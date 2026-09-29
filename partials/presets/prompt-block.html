@@ -1,13 +1,11 @@
 {% from "macros.html" import custom_select, icon_plus, icon_close, icon_chevron_right,
-media_thumbnail, hint_tooltip %}
+media_thumbnail, hint_tooltip, icon_sliders %}
 <div
   class="arranger-item {% if not block.enabled %}disabled{% endif %} {% if block.block_type != 'chat_history' and block.block_type != 'char_blocks' %}bg-role-{{ block.role }}{% endif %}"
   data-block-id="{{ block.id }}"
   data-block-content="{{ block.content }}"
   data-block-reasoning="{{ block.reasoning }}"
   data-preset-id="{{ preset_id }}"
-  data-block-type="{{ block.block_type }}"
-  data-block-config="{{ block.config_json or '{}' }}"
   x-data="{ expanded: expandGet('arrangerBlocks', $el.dataset.blockId) }"
 >
   <div class="arranger-header">
@@ -177,7 +175,9 @@ media_thumbnail, hint_tooltip %}
         extra_classes="arranger-select" ) }}
       </div>
       <div class="arranger-note flex flex-col gap-1" style="min-width: 0">
-        <span>Older turns are summarized into a leading context block when this chat is continued as a fork.</span>
+        <span>Injected only in chats that have been summarized. Edit to place
+        <code>{{ '{{summary}}' }}</code>, <code>{{ '{{summary_messages}}' }}</code> and
+        <code>{{ '{{summary_media}}' }}</code>.</span>
         <div
           class="block-preview"
           role="button"
@@ -185,34 +185,15 @@ media_thumbnail, hint_tooltip %}
           onclick="openBlockModal(this, 'content')"
         >
           {% if block.content %}{{ block.content[:80] }}{% if block.content | length > 80 %}…{% endif
-          %}{% else %}<em class="empty-text">Default prompt — click to customize</em>{% endif %}
+          %}{% else %}<em class="empty-text">Empty — click to edit</em>{% endif %}
         </div>
-      </div>
-    </div>
-    {% set provider_options = [{"value": "", "label": "Same as chat"}] %}
-    {% for p in (providers | default([])) %}
-    {% set _ = provider_options.append({"value": p.id, "label": p.name}) %}
-    {% endfor %}
-    <div class="flex items-center gap-3 mt-3 pt-2" style="border-top: 1px solid var(--border)">
-      <label class="flex items-center gap-1 text-xs text-muted">
-        Keep messages
-        {{ hint_tooltip('How many recent messages the forked chat carries verbatim, in addition to the summary.') }}
-        <input
-          type="text"
-          inputmode="numeric"
-          value="{{ (block.config or {}).get('keep', 20) }}"
-          class="form-control text-xs sampler-input"
-          onchange="handleArrangerBlockUpdate(this, {config_json: updateSummaryConfig(this, {keep: parseInt(this.value) || 0})})"
-        />
-      </label>
-      <div class="flex items-center gap-2" style="min-width: 0">
-        <span class="flex items-center gap-1 text-xs text-muted select-none">
-          Provider
-          {{ hint_tooltip('Model used to generate summaries. Leave as “Same as chat” to reuse the active provider (and its prompt cache).') }}
-        </span>
-        <div style="width: 160px; flex-shrink: 0">
-          {{ custom_select( name="summary-provider", id="summary-provider-" + block.id, options=provider_options, selected=((block.config or {}).get('provider_id') or ""), on_change="handleArrangerBlockUpdate($el.closest('.arranger-item'), {config_json: updateSummaryConfig($el, {provider_id:$event.target.value})})", extra_classes="arranger-select" ) }}
-        </div>
+        <button
+          type="button"
+          class="btn btn-secondary btn-sm self-start"
+          onclick="openSummarySettings()"
+        >
+          {{ icon_sliders(14) }} Summary settings
+        </button>
       </div>
     </div>
 

@@ -53,10 +53,12 @@ from focus.db.presets import (
     delete_preset,
     delete_preset_block,
     duplicate_preset,
+    get_preset_settings,
     import_preset,
     replace_preset_blocks,
     update_preset,
     update_preset_block,
+    update_preset_settings,
 )
 from focus.db.providers import (
     active_key_ref,
@@ -81,6 +83,7 @@ __all__ = [
     "create_preset", "create_preset_block", "delete_preset",
     "delete_preset_block", "duplicate_preset", "import_preset",
     "replace_preset_blocks", "update_preset", "update_preset_block",
+    "get_preset_settings", "update_preset_settings",
     "create_char_block", "create_character", "delete_char_block",
     "delete_character", "hard_delete_character", "import_character",
     "restore_character", "update_char_block", "update_character",

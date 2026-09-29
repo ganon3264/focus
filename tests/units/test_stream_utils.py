@@ -5,10 +5,38 @@ from focus.core.request_transforms import (
     drop_foreign_reasoning_details,
     filter_unsupported_modalities,
 )
+from focus.prompt_chain import _splice_sections, section_token
 from focus.routers.stream_utils import (
     _append_history_with_tool_calls,
     _transcript_text,
 )
+
+
+class TestSpliceSections:
+    def test_replaces_token_with_section_text(self):
+        token = section_token("summary")
+        out = _splice_sections(f"A\n{token}\nB", {"summary": [{"type": "text", "text": "hello"}]})
+        assert out == "A\nhello\nB"
+
+    def test_empty_section_is_removed(self):
+        token = section_token("summary")
+        assert _splice_sections(f"a{token}b", {"summary": []}) == "ab"
+
+    def test_section_parts_keep_media_order(self):
+        token = section_token("summary_messages")
+        out = _splice_sections(f"<last>{token}</last>", {
+            "summary_messages": [
+                {"type": "text", "text": "user: hi\n"},
+                {"type": "image_url", "image_url": {"url": "x"}},
+            ],
+        })
+        assert out[0]["text"] == "<last>user: hi\n"
+        assert out[1]["type"] == "image_url"
+        assert out[2]["text"] == "</last>"
+
+    def test_no_tokens_returns_content_unchanged(self):
+        content = "plain text"
+        assert _splice_sections(content, {"summary": [{"type": "text", "text": "x"}]}) == content
 
 
 class TestSummaryTranscript:

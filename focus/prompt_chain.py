@@ -164,6 +164,69 @@ def resolve_variable_blocks(variable_blocks: list[dict], macros: dict[str, str])
             break
 
 
+SECTION_TOKEN_RE = re.compile(r"\x00section:([a-z_]+)\x00")
+
+
+def section_token(name: str) -> str:
+    """Opaque placeholder for a prebuilt summary section.
+
+    A plain string macro can't carry multipart content, so the ``{{summary_*}}``
+    macros resolve to these tokens and the assembler splices the section's
+    parts in at that position.
+    """
+    return f"\x00section:{name}\x00"
+
+
+def _merge_text_parts(parts: list[dict]) -> list[dict]:
+    merged: list[dict] = []
+    for part in parts:
+        if part.get("type") == "text" and merged and merged[-1].get("type") == "text":
+            merged[-1] = {"type": "text", "text": merged[-1]["text"] + part["text"]}
+        else:
+            merged.append(part)
+    return merged
+
+
+def _splice_sections(content, sections: dict) -> str | list:
+    """Replace section tokens in *content* with their prebuilt parts."""
+    if not sections or not content:
+        return content
+    parts = content if isinstance(content, list) else [{"type": "text", "text": content}]
+    if not any(
+        p.get("type") == "text" and SECTION_TOKEN_RE.search(p.get("text") or "")
+        for p in parts
+    ):
+        return content
+
+    out: list[dict] = []
+    for part in parts:
+        if part.get("type") != "text":
+            out.append(part)
+            continue
+        text = part["text"]
+        idx = 0
+        for match in SECTION_TOKEN_RE.finditer(text):
+            if match.start() > idx:
+                out.append({"type": "text", "text": text[idx : match.start()]})
+            out.extend(sections.get(match.group(1)) or [])
+            idx = match.end()
+        if idx < len(text):
+            out.append({"type": "text", "text": text[idx:]})
+
+    out = _merge_text_parts([p for p in out if p.get("type") != "text" or p["text"]])
+    if not out:
+        return ""
+    if len(out) == 1 and out[0].get("type") == "text":
+        return out[0]["text"]
+    return out
+
+
+async def build_block_content(text: str, images: list[dict], sections: dict | None = None):
+    """Build a block's content and splice any summary sections in place."""
+    content = await build_content(text, images)
+    return _splice_sections(content, sections or {})
+
+
 async def assemble_prompt(
     preset_blocks: list[dict[str, Any]],
     chat_history: list[dict[str, str]],
@@ -171,7 +234,8 @@ async def assemble_prompt(
     char_own_blocks: list[dict[str, Any]],
     macros: dict[str, str],
     block_images: dict[str, list[dict]] | None = None,
-    summary_messages: list[dict] | None = None,
+    summary_sections: dict[str, list[dict]] | None = None,
+    summary_fallback: dict | None = None,
     include_post_history: bool = True,
 ) -> list[dict[str, str]]:
     """
@@ -183,18 +247,19 @@ async def assemble_prompt(
     char_own_blocks:  rows from char_blocks for the active character, ordered by position.
     macros:           substitution dict built from char_data + persona.
     block_images:     mapping of block_id → list of image rows, for multimodal blocks.
-    summary_messages: pre-resolved leading context for a forked chat, injected at
-                      the ``summary`` block's position (or before chat history
-                      when no such block exists).
+    summary_sections: prebuilt content arrays for a forked chat, referenced from
+                      blocks via the ``{{summary*}}`` macros.
+    summary_fallback: default wrapped summary message, injected before the chat
+                      history when the preset doesn't reference the macros.
     """
     if block_images is None:
         block_images = {}
-    summary_messages = summary_messages or []
+    sections = summary_sections or {}
+    has_summary = any(sections.values())
 
     active = [b for b in preset_blocks if b["enabled"]]
     active.sort(key=lambda b: b["position"])
 
-    has_summary_block = any(b["block_type"] == "summary" for b in active)
     summary_injected = False
 
     in_chat_blocks = [b for b in active if b.get("injection_depth") is not None]
@@ -214,25 +279,36 @@ async def assemble_prompt(
         target = post_history if history_seen else pre_history
 
         if btype == "chat_history":
-            # No summary block in the preset: keep summary context adjacent to
-            # history so the feature works without editing the preset.
-            if summary_messages and not has_summary_block and not summary_injected:
-                target.extend(summary_messages)
+            # Presets that don't reference the summary macros still get the
+            # default context, injected adjacent to history.
+            if summary_fallback and not summary_injected:
+                target.append(summary_fallback)
                 summary_injected = True
             history_seen = True
             continue
 
-        if btype == "summary":
-            if summary_messages and not summary_injected:
-                target.extend(summary_messages)
-                summary_injected = True
-            continue
-
         images = block_images.get(block["id"], [])
+
+        # An editable sentinel: its content is the user's macro template, but it
+        # only exists for chats that carry a summary. The explicit branch is the
+        # conditional — no content sniffing.
+        if btype == "summary":
+            if not has_summary:
+                continue
+            text = apply_macros(block["content"], macros).strip()
+            content = await build_block_content(text, images, sections)
+            if content or any(
+                block.get(cfg["history_key"]) for cfg in TRACKED_FIELDS.values() if cfg.get("preserve_thinking")
+            ):
+                msg = {"role": block["role"], "content": content}
+                if block["role"] == "assistant" and block.get("reasoning"):
+                    msg["reasoning"] = apply_macros(block["reasoning"], macros)
+                target.append(msg)
+            continue
 
         if btype == "text":
             text = apply_macros(block["content"], macros).strip()
-            content = await build_content(text, images)
+            content = await build_block_content(text, images, sections)
             if content or any(
                 block.get(cfg["history_key"]) for cfg in TRACKED_FIELDS.values() if cfg.get("preserve_thinking")
             ):
@@ -244,14 +320,14 @@ async def assemble_prompt(
         elif btype == "char_description":
             char_images = block_images.get(char_data.get("id"), [])
             text = apply_macros(char_data.get("description", ""), macros).strip()
-            content = await build_content(text, char_images)
+            content = await build_block_content(text, char_images, sections)
             if content:
                 target.append({"role": block["role"], "content": content})
 
         elif btype == "char_personality":
             char_images = block_images.get(char_data.get("id"), [])
             text = apply_macros(char_data.get("personality", ""), macros).strip()
-            content = await build_content(text, char_images)
+            content = await build_block_content(text, char_images, sections)
             if content:
                 target.append({"role": block["role"], "content": content})
 
@@ -259,7 +335,7 @@ async def assemble_prompt(
             persona_id = macros.get("persona_id", "")
             persona_images = block_images.get(persona_id, []) if persona_id else []
             text = apply_macros(macros.get("persona", ""), macros).strip()
-            content = await build_content(text, persona_images)
+            content = await build_block_content(text, persona_images, sections)
             if content:
                 target.append({"role": block["role"], "content": content})
 
@@ -269,7 +345,7 @@ async def assemble_prompt(
             for cb in enabled:
                 text = apply_macros(cb["content"], macros).strip()
                 cb_images = block_images.get(cb["id"], [])
-                content = await build_content(text, cb_images)
+                content = await build_block_content(text, cb_images, sections)
                 if content:
                     target.append({"role": cb["role"], "content": content})
 
@@ -310,7 +386,7 @@ async def assemble_prompt(
             for block in blocks:
                 text = apply_macros(block["content"], macros).strip()
                 images = block_images.get(block["id"], [])
-                content = await build_content(text, images)
+                content = await build_block_content(text, images, sections)
                 if content or any(
                     block.get(cfg["history_key"]) for cfg in TRACKED_FIELDS.values() if cfg.get("preserve_thinking")
                 ):
