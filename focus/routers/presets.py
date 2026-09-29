@@ -97,7 +97,7 @@ async def add_block(
     result = await db.create_preset_block(
         _db, preset_id, body.name, body.content, body.reasoning,
         body.role, body.enabled, body.block_type,
-        body.injection_depth, body.injection_order,
+        body.injection_depth, body.injection_order, body.config_json,
     )
     await _db.commit()
     return result

@@ -163,6 +163,16 @@ window.actionContinueGeneration = function (el) {
   });
 };
 
+window.actionSummarizeMessage = function (el) {
+  var msg = el.closest('.message');
+  window.summarizeChat(msg.dataset.chatId, msg.dataset.messageId, el);
+};
+
+window.actionOpenSummary = function () {
+  window.openModal('modal-summary');
+  window.dispatchEvent(new CustomEvent('summary-open'));
+};
+
 window.actionBranchMessage = function (el) {
   var msg = el.closest('.message');
   var messageId = msg.dataset.messageId;

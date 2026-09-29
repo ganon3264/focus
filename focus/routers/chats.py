@@ -1,6 +1,8 @@
 import json
+import logging
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 import focus.crud as crud
@@ -9,8 +11,12 @@ from focus.core.database import get_db
 from focus.core.media import tool_image_url
 from focus.core.models import ChatCreate, MessageEdit
 from focus.core.paths import ATTACHMENTS_DIR
+from focus.core.retry import RetryConfig
+from focus.core.summary import summary_config
 from focus.core.utils import read_upload
 from focus.extensions.triggers import schedule_trigger
+
+logger = logging.getLogger("focus.routers.chats")
 
 router = APIRouter()
 
@@ -267,6 +273,222 @@ async def branch_chat(
     new_chat_id = await db.branch_chat(_db, chat_id, message_id)
     await _db.commit()
     return {"id": new_chat_id}
+
+
+class SummarizeRequest(BaseModel):
+    provider_id: str = ""
+    message_id: str = ""
+
+
+class SummaryChunkUpdate(BaseModel):
+    id: str
+    content: str
+
+
+class SummaryUpdate(BaseModel):
+    chunks: list[SummaryChunkUpdate]
+
+
+async def _active_provider_id(_db) -> str:
+    async with _db.execute("SELECT value FROM settings WHERE key = 'active_provider_id'") as cur:
+        row = await cur.fetchone()
+    return row["value"] if row else ""
+
+
+# One in-flight summary per chat. The check-and-add is synchronous (no await
+# between), so concurrent requests can't both start a fork.
+_active_summaries: set[str] = set()
+
+# Per-attempt ceiling for the buffered summary call; a hung provider request
+# would otherwise block the request forever. Retries get their own window.
+SUMMARY_ATTEMPT_TIMEOUT = 300.0
+
+
+def _sse(payload: dict) -> str:
+    return f"data: {json.dumps(payload)}\n\n"
+
+
+@router.post("/{chat_id}/summarize")
+async def summarize_chat(chat_id: str, body: SummarizeRequest, _db=Depends(get_db)):
+    """Summarize *chat_id* in an ephemeral generation and fork a child chat.
+
+    The summary turn is never persisted: it is assembled from the chat's normal
+    context plus one instruction message, sent to the provider, and only the
+    resulting text is stored (as a ``chat_summaries`` row). The child chat
+    inherits that summary and the chat's recent messages as leading context.
+
+    Streams SSE so transient provider failures can be retried transparently
+    with the same feedback the normal generation path shows.
+    """
+    if chat_id in _active_summaries:
+        raise HTTPException(409, "A summary is already being generated for this chat")
+    _active_summaries.add(chat_id)
+    try:
+        prep = await _prepare_summary(_db, chat_id, body)
+    except BaseException:
+        _active_summaries.discard(chat_id)
+        raise
+
+    from focus.routers.stream import _error_reason, buffered_completion_with_retry
+
+    chat = prep["chat"]
+
+    async def events():
+        try:
+            yield _sse({"type": "start"})
+            summary_text: str | None = None
+            async for ev in buffered_completion_with_retry(
+                prep["provider"], prep["messages"], prep["gen_kwargs"],
+                prep["retry_config"], attempt_timeout=SUMMARY_ATTEMPT_TIMEOUT,
+            ):
+                if ev["type"] == "text":
+                    summary_text = ev["text"]
+                    continue
+                yield _sse(ev)
+                if ev["type"] == "error":
+                    return
+            if not summary_text:
+                yield _sse({"type": "error", "error": "The provider returned an empty summary."})
+                return
+            try:
+                summary_id = await db.create_summary(
+                    _db, chat_id, summary_text, prep["covered_to_position"],
+                    prep["prov_dict"].get("model"),
+                )
+                child_id = await db.create_chat(
+                    _db,
+                    character_id=chat.get("character_id"),
+                    persona_id=chat.get("persona_id"),
+                    preset_id=chat.get("preset_id"),
+                    title=chat.get("title") or "New Chat",
+                    parent_chat_id=chat_id,
+                    summary_id=summary_id,
+                )
+                await _db.commit()
+            except Exception as e:
+                logger.exception("Failed to persist summary for chat_id=%s", chat_id)
+                yield _sse({"type": "error", "error": f"Failed to save summary: {_error_reason(e)}"})
+                return
+            yield _sse({"type": "done", "id": child_id})
+        finally:
+            _active_summaries.discard(chat_id)
+
+    return StreamingResponse(
+        events(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@router.get("/{chat_id}/summary")
+async def get_chat_summary(chat_id: str, _db=Depends(get_db)):
+    """The summary chunks inherited by *chat_id*, oldest first."""
+    chain = await db.get_chat_summary_chain(_db, chat_id)
+    return {
+        "chunks": [
+            {
+                "id": s["id"],
+                "content": s["content"],
+                "model_name": s.get("model_name"),
+                "created_at": s.get("created_at"),
+            }
+            for s in chain
+        ]
+    }
+
+
+@router.put("/{chat_id}/summary")
+async def update_chat_summary(chat_id: str, body: SummaryUpdate, _db=Depends(get_db)):
+    """Edit inherited summary chunks. A chunk must belong to this chat's chain."""
+    chain = await db.get_chat_summary_chain(_db, chat_id)
+    allowed = {s["id"] for s in chain}
+    for chunk in body.chunks:
+        if chunk.id not in allowed:
+            raise HTTPException(404, "Summary chunk is not part of this chat")
+        await db.update_summary_content(_db, chunk.id, chunk.content)
+    await _db.commit()
+    return {"ok": True}
+
+
+async def _prepare_summary(_db, chat_id: str, body: SummarizeRequest) -> dict:
+    """Validate a summarize request and assemble everything the stream needs."""
+    async with _db.execute("SELECT * FROM chats WHERE id = ? AND is_deleted = 0", (chat_id,)) as cur:
+        chat_row = await cur.fetchone()
+    if not chat_row:
+        raise HTTPException(404, "Chat not found")
+    chat = dict(chat_row)
+
+    preset_blocks: list[dict] = []
+    if chat.get("preset_id"):
+        async with _db.execute(
+            "SELECT * FROM preset_blocks WHERE preset_id = ? ORDER BY position, rowid",
+            (chat["preset_id"],),
+        ) as cur:
+            preset_blocks = [dict(r) for r in await cur.fetchall()]
+    cfg = summary_config(preset_blocks)
+    if not cfg["active"]:
+        raise HTTPException(400, "The Summary block is disabled for this preset")
+
+    provider_id = cfg["provider_id"] or body.provider_id or await _active_provider_id(_db)
+    if not provider_id:
+        raise HTTPException(400, "No provider selected")
+
+    # Summarize up to and including the chosen message; without one, the whole chat.
+    if body.message_id:
+        async with _db.execute(
+            "SELECT position FROM messages WHERE id = ? AND chat_id = ?",
+            (body.message_id, chat_id),
+        ) as cur:
+            msg_row = await cur.fetchone()
+        if not msg_row:
+            raise HTTPException(404, "Message not found")
+        covered_to_position = msg_row["position"]
+    else:
+        async with _db.execute(
+            "SELECT COALESCE(MAX(position), 0) FROM messages WHERE chat_id = ?", (chat_id,),
+        ) as cur:
+            covered_to_position = (await cur.fetchone())[0]
+
+    from focus.core.models import StreamRequest
+    from focus.routers.stream import _load_provider
+    from focus.routers.stream_utils import get_prompt_context, prepare_generation_messages
+
+    # A provider saved on the preset can dangle (deleted, or imported preset).
+    try:
+        provider, prov_dict = await _load_provider(_db, provider_id)
+    except HTTPException:
+        fallback = body.provider_id or await _active_provider_id(_db)
+        if not fallback or fallback == provider_id:
+            raise
+        provider, prov_dict = await _load_provider(_db, fallback)
+
+    ctx = await get_prompt_context(
+        _db, chat_id, regenerate=False,
+        user_message=cfg["instruction"], attachment_ids=[], persist=False,
+        up_to_position=covered_to_position, summary_pass=True,
+    )
+
+    req_body = StreamRequest(chat_id=chat_id, provider_id=provider_id)
+    messages, gen_kwargs = await prepare_generation_messages(
+        prov_dict, req_body, ctx.messages, provider, chat_id,
+    )
+    gen_kwargs.pop("stream_enabled", None)
+    gen_kwargs["stream"] = False
+
+    try:
+        prov_config = json.loads(prov_dict.get("config_json") or "{}")
+    except json.JSONDecodeError:
+        prov_config = {}
+
+    return {
+        "chat": chat,
+        "provider": provider,
+        "prov_dict": prov_dict,
+        "messages": messages,
+        "gen_kwargs": gen_kwargs,
+        "retry_config": RetryConfig.from_config(prov_config),
+        "covered_to_position": covered_to_position,
+    }
 
 
 @router.post("/{chat_id}/attachments", status_code=201)

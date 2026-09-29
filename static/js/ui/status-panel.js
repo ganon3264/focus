@@ -168,3 +168,74 @@ function newChat() {
     })
     .catch((e) => window.showErrorToast(e.message));
 }
+
+function summarizeChat(chatId, messageId, btn) {
+  if (!chatId) return;
+
+  var finished = false;
+  function fail(message) {
+    if (finished) return;
+    finished = true;
+    window.resetRetryFeedback();
+    window.hideInfoToast();
+    if (btn) btn.disabled = false;
+    window.showErrorToast(message || 'Summarize failed');
+  }
+
+  function handleEvent(raw) {
+    var line = raw.trim();
+    if (line.indexOf('data:') !== 0) return;
+    var data;
+    try { data = JSON.parse(line.slice(5).trim()); } catch (e) { return; }
+
+    if (data.type === 'retry') {
+      window.startRetryFeedback(data);
+    } else if (data.type === 'error') {
+      fail(data.error);
+    } else if (data.type === 'done') {
+      if (finished) return;
+      finished = true;
+      window.resetRetryFeedback();
+      window.hideInfoToast();
+      window.location.href = '/chat/' + data.id;
+    }
+  }
+
+  if (btn) btn.disabled = true;
+  window.showInfoToast('Summarizing\u2026', { id: 'summarize', duration: 0 });
+
+  fetch('/api/chats/' + chatId + '/summarize', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      provider_id: StateManager.get('provider_id') || '',
+      message_id: messageId || '',
+    }),
+  })
+    .then(function (resp) {
+      if (!resp.ok) {
+        return resp.text().then(function (t) {
+          var msg = t;
+          try { msg = JSON.parse(t).detail || t; } catch (e) { /* keep raw */ }
+          throw new Error(msg || 'Summarize failed');
+        });
+      }
+      var reader = resp.body.getReader();
+      var decoder = new TextDecoder();
+      var buffer = '';
+      (function pump() {
+        reader.read().then(function (result) {
+          if (result.done) {
+            if (!finished) fail('Summary stream ended unexpectedly');
+            return;
+          }
+          buffer += decoder.decode(result.value, { stream: true });
+          var chunks = buffer.split('\n\n');
+          buffer = chunks.pop();
+          chunks.forEach(handleEvent);
+          pump();
+        }).catch(function (e) { fail(e.message); });
+      })();
+    })
+    .catch(function (e) { fail(e.message); });
+}

@@ -22,18 +22,72 @@ async def create_chat(
     persona_id: str | None = None,
     preset_id: str | None = None,
     title: str = "New Chat",
+    parent_chat_id: str | None = None,
+    summary_id: str | None = None,
 ) -> str:
     chat_id = str(uuid.uuid4())
     now = now_iso()
     try:
         await db.execute(
-            "INSERT INTO chats (id, title, character_id, persona_id, preset_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (chat_id, title, character_id, persona_id, preset_id, now, now),
+            "INSERT INTO chats (id, title, character_id, persona_id, preset_id, parent_chat_id, summary_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (chat_id, title, character_id, persona_id, preset_id, parent_chat_id, summary_id, now, now),
         )
     except aiosqlite.IntegrityError as e:
         from fastapi import HTTPException
         raise HTTPException(400, f"Invalid reference: {e}")
     return chat_id
+
+
+async def create_summary(
+    db: aiosqlite.Connection,
+    chat_id: str,
+    content: str,
+    covered_to_position: int,
+    model_name: str | None = None,
+) -> str:
+    summary_id = str(uuid.uuid4())
+    await db.execute(
+        "INSERT INTO chat_summaries (id, chat_id, content, covered_to_position, model_name, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+        (summary_id, chat_id, content, covered_to_position, model_name, now_iso()),
+    )
+    return summary_id
+
+
+async def get_chat_summary_chain(db: aiosqlite.Connection, chat_id: str) -> list[dict]:
+    """Summary rows inherited by *chat_id*, oldest first.
+
+    A fork points at the summary it was created under (``chats.summary_id``);
+    that summary lives in the chat that generated it, whose own ``summary_id``
+    is the previous chunk. Walking that pair yields the whole chain.
+    """
+    async with db.execute("SELECT summary_id FROM chats WHERE id = ?", (chat_id,)) as cur:
+        row = await cur.fetchone()
+    summary_id = row["summary_id"] if row else None
+
+    chain: list[dict] = []
+    seen: set[str] = set()
+    while summary_id and summary_id not in seen:
+        seen.add(summary_id)
+        async with db.execute("SELECT * FROM chat_summaries WHERE id = ?", (summary_id,)) as cur:
+            summary = await cur.fetchone()
+        if not summary:
+            break
+        summary = dict(summary)
+        chain.append(summary)
+        async with db.execute("SELECT summary_id FROM chats WHERE id = ?", (summary["chat_id"],)) as cur:
+            parent = await cur.fetchone()
+        summary_id = parent["summary_id"] if parent else None
+
+    chain.reverse()
+    return chain
+
+
+async def update_summary_content(
+    db: aiosqlite.Connection, summary_id: str, content: str
+) -> None:
+    await db.execute(
+        "UPDATE chat_summaries SET content = ? WHERE id = ?", (content, summary_id)
+    )
 
 
 async def create_greeting_messages(

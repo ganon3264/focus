@@ -164,6 +164,10 @@
     _retry.timer = setInterval(_renderRetry, 500);
   }
 
+  // Exposed so non-generation flows (summarization) can reuse the same retry
+  // feedback toast without going through a generation state object.
+  window.startRetryFeedback = _startRetryFeedback;
+
   // ── Handlers ──
   var HANDLERS = {};
 

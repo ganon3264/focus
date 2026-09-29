@@ -13,6 +13,7 @@ from focus.core.database import get_db
 from focus.core.logger import DEBUG_MODE
 from focus.core.macros import MACRO_DEFINITIONS, SPECIAL_TOKENS, apply_macros, build_base_macros
 from focus.core.message_render import render_message_segments
+from focus.core.summary import DEFAULT_SUMMARY_INSTRUCTION
 from focus.core.utils import greetings_from_card, merge_greeting_into_list, parse_greetings_json, variable_group_name
 from focus.prompt_chain import partition_blocks, resolve_variable_blocks
 from focus.providers.schema import provider_schema, provider_type_options
@@ -133,6 +134,7 @@ async def chat_redirect(request: Request, character_id: str = Query(None), db: a
             "current_preset_id": preset["id"] if preset else None,
             "active_provider_id": active_provider["provider_id"],
             "active_provider_type": active_provider["provider_type"],
+            "summary_default_prompt": DEFAULT_SUMMARY_INSTRUCTION,
             **theme_ctx,
         },
     )
@@ -146,7 +148,7 @@ async def chat_page(request: Request, chat_id: str, db: aiosqlite.Connection = D
         return RedirectResponse(url="/chat")
     chat = dict(chat)
 
-    messages = await crud.get_chat_messages(db, chat_id)
+    messages = await crud.get_lineage_messages(db, chat_id)
     char = await crud.get_character(db, chat.get("character_id"))
     persona = await crud.get_persona(db, chat.get("persona_id"))
 
@@ -202,6 +204,7 @@ async def chat_page(request: Request, chat_id: str, db: aiosqlite.Connection = D
             "active_provider_id": active_provider["provider_id"],
             "active_provider_type": active_provider["provider_type"],
             "enabled_extensions": enabled_extensions,
+            "summary_default_prompt": DEFAULT_SUMMARY_INSTRUCTION,
             **theme_ctx,
         },
     )
@@ -245,7 +248,7 @@ async def personas_page(request: Request, db: aiosqlite.Connection = Depends(get
 
 @router.get("/partials/message-list/{chat_id}", response_class=HTMLResponse)
 async def message_list_partial(request: Request, chat_id: str, db: aiosqlite.Connection = Depends(get_db)):
-    messages = await crud.get_chat_messages(db, chat_id)
+    messages = await crud.get_lineage_messages(db, chat_id)
 
     char = None
     persona = None
@@ -451,6 +454,7 @@ async def prompt_arranger_partial(
             "blocks": regular_blocks,
             "preset_id": preset_id,
             "counts": counts,
+            "providers": await crud.get_providers(db),
             "macro_definitions": MACRO_DEFINITIONS,
             "special_tokens": SPECIAL_TOKENS,
         },
@@ -477,7 +481,7 @@ async def prompt_arranger_block_partial(
     return templates.TemplateResponse(
         request,
         "presets/prompt-block.html",
-        {"block": block, "preset_id": preset_id, "counts": counts},
+        {"block": block, "preset_id": preset_id, "counts": counts, "providers": await crud.get_providers(db)},
     )
 
 

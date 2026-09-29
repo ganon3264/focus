@@ -1,6 +1,6 @@
-<div class="message relative msg" id="message-{{ message.id }}" data-role="{{ message.role }}" data-message-id="{{ message.id }}" data-raw-content="{{ message.content }}" data-raw-reasoning="{{ message.get('reasoning') or '' }}" data-msg-index="{{ msg_index }}" data-chat-id="{{ chat_id }}">
+<div class="message relative msg{% if message.get('is_ancestor') %} message-ancestor{% endif %}" id="message-{{ message.id }}" data-role="{{ message.role }}" data-message-id="{{ message.id }}" data-raw-content="{{ message.content }}" data-raw-reasoning="{{ message.get('reasoning') or '' }}" data-msg-index="{{ msg_index }}" data-chat-id="{{ message.get('chat_id') or chat_id }}">
   {% from "macros.html" import icon_edit, icon_refresh, icon_trash, icon_music, icon_branch,
-  icon_chevron_left, icon_chevron_right, icon_forward, icon_plug, tool_call_card %}
+  icon_chevron_left, icon_chevron_right, icon_forward, icon_plug, icon_list, tool_call_card %}
   <div class="delete-mode-checkbox hidden absolute -left-12 top-4">
     <input
       type="checkbox"
@@ -128,6 +128,14 @@
         {% endfor %}
         <button
           class="action-btn"
+          title="Summarize up to here"
+          aria-label="Summarize up to here"
+          data-action="actionSummarizeMessage"
+        >
+          {{ icon_list() }}
+        </button>
+        <button
+          class="action-btn"
           title="Branch from here"
           aria-label="Branch from this message"
           data-action="actionBranchMessage"
@@ -229,4 +237,12 @@
     {% endif %}
     {% endif %}
   </div>
+  {% if message.get('is_summary_last') %}
+  <div class="summary-boundary">
+    <button type="button" class="summary-boundary-btn" data-action="actionOpenSummary">
+      <span>Summarized above</span>
+      <span class="summary-boundary-edit">View / edit</span>
+    </button>
+  </div>
+  {% endif %}
 </div>

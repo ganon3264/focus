@@ -7,6 +7,8 @@
 <div class="relative w-full"
       x-data="{
          open: false,
+         dropUp: false,
+         panelMax: 240,
          selectedValue: '{{ selected | replace("'", "\\'") }}',
          selectedLabel: '{{ js_str(current_label) }}',
          init() {
@@ -14,6 +16,30 @@
              this.selectedValue = e.detail.value;
              this.selectedLabel = e.detail.label || e.detail.value;
            });
+         },
+         toggle() {
+           this.open = !this.open;
+           if (!this.open) return;
+           const trigger = this.$refs.trigger;
+           const rect = trigger.getBoundingClientRect();
+           // Bound to the nearest scrolling ancestor, not the viewport, so a
+           // dropdown inside a modal list measures the space it can actually use.
+           let clipTop = 0;
+           let clipBottom = window.innerHeight;
+           let node = trigger.parentElement;
+           while (node && node !== document.body) {
+             if (getComputedStyle(node).overflowY !== 'visible') {
+               const bounds = node.getBoundingClientRect();
+               clipTop = bounds.top;
+               clipBottom = bounds.bottom;
+               break;
+             }
+             node = node.parentElement;
+           }
+           const below = clipBottom - rect.bottom;
+           const above = rect.top - clipTop;
+           this.dropUp = below < 240 && above > below;
+           this.panelMax = Math.max(96, Math.min(240, (this.dropUp ? above : below) - 8));
          }
       }"
       x-effect="
@@ -31,13 +57,15 @@
   <input type="hidden" name="{{ name }}" id="{{ id }}" :value="selectedValue"
          @change.stop="{{ on_change }}">
 
-  <button type="button" @click="open = !open" class="flex justify-between items-center text-left w-full cursor-pointer {{ extra_classes }}">
+  <button type="button" x-ref="trigger" @click="toggle()" class="flex justify-between items-center text-left w-full cursor-pointer {{ extra_classes }}">
      <span x-text="selectedLabel" class="truncate font-medium"></span>
      <span class="text-xs text-muted inline-flex transition-transform duration-200" :class="open ? 'rotate-180' : ''">{{ icon_chevron_down(12) }}</span>
    </button>
 
    <div x-show="open" @click.away="open = false" x-transition.opacity.duration.200ms
-        class="dropdown-panel absolute top-full left-0 right-0 mt-1 z-50 max-h-60 overflow-y-auto"
+        :class="dropUp ? 'bottom-full mb-1' : 'top-full mt-1'"
+        :style="{ maxHeight: panelMax + 'px' }"
+        class="dropdown-panel absolute left-0 right-0 z-50 overflow-y-auto"
         style="display: none;">
 
       {% for opt in options %}

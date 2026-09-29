@@ -5,7 +5,53 @@ from focus.core.request_transforms import (
     drop_foreign_reasoning_details,
     filter_unsupported_modalities,
 )
-from focus.routers.stream_utils import _append_history_with_tool_calls
+from focus.routers.stream_utils import (
+    _append_history_with_tool_calls,
+    _transcript_text,
+)
+
+
+class TestSummaryTranscript:
+    def test_plain_string(self):
+        media: list[dict] = []
+        text = _transcript_text([{"role": "user", "content": "  hi  "}], media)
+        assert text == "user: hi"
+        assert media == []
+
+    def test_media_becomes_marker(self):
+        content = [
+            {"type": "text", "text": "look at this"},
+            {"type": "image_url", "image_url": {"url": "data:image/png;base64,AAAA"}},
+            {"type": "input_audio", "input_audio": {"data": "AAAA"}},
+        ]
+        media: list[dict] = []
+        text = _transcript_text([{"role": "user", "content": content}], media)
+        assert text == "user: look at this {{media:1}} {{media:2}}"
+        assert [m["type"] for m in media] == ["image_url", "input_audio"]
+
+    def test_media_list_is_shared_across_calls(self):
+        first: list[dict] = []
+        _transcript_text([{"role": "user", "content": [
+            {"type": "image_url", "image_url": {"url": "a"}},
+        ]}], first)
+        text = _transcript_text([{"role": "user", "content": [
+            {"type": "image_url", "image_url": {"url": "b"}},
+        ]}], first)
+        assert text == "user: {{media:2}}"
+        assert len(first) == 2
+
+    def test_transcript_drops_tool_and_empty_turns(self):
+        window = [
+            {"role": "user", "content": "hello"},
+            {"role": "assistant", "content": "hi", "tool_calls": [{"id": "c1"}]},
+            {"role": "tool", "tool_call_id": "c1", "content": "tool output"},
+            {"role": "assistant", "content": ""},
+            {"role": "user", "content": "bye"},
+        ]
+        media: list[dict] = []
+        text = _transcript_text(window, media)
+        assert text == "user: hello\nassistant: hi\nuser: bye"
+        assert media == []
 
 
 class TestFilterUnsupportedModalities:

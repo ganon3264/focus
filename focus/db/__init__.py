@@ -20,10 +20,12 @@ from focus.db.chats import (
     create_chat,
     create_greeting_messages,
     create_message,
+    create_summary,
     delete_attachment,
     delete_chat,
     delete_message_and_after,
     edit_message_create_variant,
+    get_chat_summary_chain,
     hard_delete_chat,
     persist_tool_calls,
     restore_chat,
@@ -32,6 +34,7 @@ from focus.db.chats import (
     swipe_message,
     update_chat,
     update_chat_tool_states,
+    update_summary_content,
     upsert_variant,
 )
 from focus.db.cleanup import clean_database
@@ -85,6 +88,7 @@ __all__ = [
     "bind_attachments_to_message", "branch_chat", "bulk_delete_messages",
     "create_attachment", "create_chat", "create_greeting_messages",
     "create_message", "delete_attachment", "delete_chat", "hard_delete_chat",
+    "create_summary", "get_chat_summary_chain", "update_summary_content",
     "delete_message_and_after", "edit_message_create_variant",
     "persist_tool_calls", "restore_chat", "rollback_assistant", "save_usage",
     "swipe_message", "update_chat", "update_chat_tool_states",

@@ -265,6 +265,84 @@ async def _sleep_or_stop(delay: float, stop_event: asyncio.Event | None) -> bool
         return False
 
 
+async def buffered_completion_with_retry(
+    provider,
+    messages: list[dict],
+    gen_kwargs: dict,
+    retry_config: RetryConfig,
+    stop_event: asyncio.Event | None = None,
+    attempt_timeout: float | None = None,
+) -> AsyncIterator[dict]:
+    """Buffered completion with the shared retry policy.
+
+    Yields zero or more ``retry`` events while backing off, then exactly one
+    terminal event: ``{"type": "text", ...}`` on success or
+    ``{"type": "error", ...}`` on failure. Used by paths that need a final
+    string rather than a live token stream (summarization). Because nothing is
+    shown to the client before completion, a failed attempt is always safe to
+    replay — unlike live streaming, there is no partial output to duplicate.
+    """
+    attempt = 0
+    waited_total = 0.0
+
+    async def _collect() -> str:
+        parts: list[str] = []
+        async for event in provider.stream_complete(messages, **gen_kwargs):
+            etype = event.get("type")
+            if etype == "token":
+                parts.append(event.get("text") or "")
+            elif etype == "error":
+                raise RuntimeError(event.get("error") or "Provider error")
+        return "".join(parts).strip()
+
+    while True:
+        if stop_event is not None and stop_event.is_set():
+            yield {"type": "error", "error": "Stopped"}
+            return
+        try:
+            if attempt_timeout is not None:
+                text = await asyncio.wait_for(_collect(), timeout=attempt_timeout)
+            else:
+                text = await _collect()
+        except Exception as e:
+            cls = classify(e)
+            can_retry = is_retryable(retry_config, cls) and attempt < retry_config.max_retries
+            delay = delay_for(attempt, retry_config, cls.retry_after)
+            if (
+                can_retry
+                and delay <= retry_config.hard_cap
+                and waited_total + delay <= retry_config.total_budget
+            ):
+                logger.warning(
+                    "Buffered completion attempt %d/%d failed (%s); retrying in %.1fs: %s",
+                    attempt + 1, retry_config.max_retries, cls.kind, delay, _format_error(e),
+                )
+                yield {
+                    "type": "retry",
+                    "attempt": attempt + 1,
+                    "max": retry_config.max_retries,
+                    "delay": round(delay, 2),
+                    "kind": cls.kind,
+                    "status": cls.status,
+                    "reason": _error_reason(e),
+                }
+                if await _sleep_or_stop(delay, stop_event):
+                    yield {"type": "error", "error": "Stopped"}
+                    return
+                waited_total += delay
+                attempt += 1
+                continue
+            logger.exception("Buffered completion failed")
+            yield {"type": "error", "error": _error_reason(e)}
+            return
+
+        if not text:
+            yield {"type": "error", "error": _empty_response_error(None)}
+            return
+        yield {"type": "text", "text": text}
+        return
+
+
 def _stop_terminal_event(active: _ActiveGeneration | None) -> dict:
     """Terminal event for a stop: a superseded run discards, a user stop keeps."""
     if active is not None and active.superseded:

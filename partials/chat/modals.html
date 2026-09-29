@@ -22,6 +22,8 @@
 </div>
 {% endcall %}
 
+{% include "modals/summary.html" %}
+
 {% call modal_shell('modal-characters', 'Characters', max_width='800px', content_style='display:flex;flex-direction:column;height:80vh;') %}
 <div id="characters-modal-body" class="flex-1 overflow-hidden min-h-0">
   <div id="characters-modal-body-inner" class="h-full">Loading…</div>

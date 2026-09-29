@@ -13,11 +13,13 @@ from focus.core.card_parser import safe_load_card
 from focus.core.macros import build_base_macros
 from focus.core.media import tool_image_data_url
 from focus.core.models import StreamRequest
+from focus.core.summary import summary_config
 from focus.core.tracked_fields import attach_to_message
 from focus.db.chats import (
     bind_attachments_to_message,
     create_message,
     create_message_with_variant,
+    get_chat_summary_chain,
 )
 from focus.prompt_chain import assemble_prompt, build_content
 from focus.providers.quirks import apply_request_quirks
@@ -60,11 +62,114 @@ async def _last_active_role(db: aiosqlite.Connection, chat_id: str) -> str | Non
     return row["role"] if row else None
 
 
-async def _get_history(db: aiosqlite.Connection, chat_id: str, regenerate: bool):
+def _has_media(msg: dict) -> bool:
+    content = msg.get("content")
+    if not isinstance(content, list):
+        return False
+    return any(p.get("type") in ("image_url", "input_audio") for p in content)
+
+
+def _transcript_text(messages: list[dict], media: list[dict]) -> str:
+    """Render messages as a ``role: text`` transcript with media markers.
+
+    Media parts are replaced by ``{{media:N}}`` markers and appended to the
+    shared *media* list, so a caller building several sections can run the
+    combined text through ``build_content`` with one consistent index space —
+    the same path every other block uses to interleave images/audio. Tool-role
+    and empty turns are dropped: they carry no conversational content and would
+    otherwise inject orphaned call ids and internal rows into a different
+    chat's context.
+    """
+    lines: list[str] = []
+    for msg in messages:
+        role = msg.get("role")
+        if role not in ("user", "assistant"):
+            continue
+        content = msg.get("content")
+        if isinstance(content, str):
+            text = content.strip()
+            if text:
+                lines.append(f"{role}: {text}")
+            continue
+        if not isinstance(content, list):
+            continue
+        pieces: list[str] = []
+        for part in content:
+            ptype = part.get("type")
+            if ptype == "text":
+                text = (part.get("text") or "").strip()
+                if text:
+                    pieces.append(text)
+            elif ptype in ("image_url", "input_audio"):
+                media.append(part)
+                pieces.append("{{media:%d}}" % len(media))
+        if pieces:
+            lines.append(f"{role}: " + " ".join(pieces))
+    return "\n".join(lines)
+
+
+async def _summary_context(
+    db: aiosqlite.Connection, chat: dict, keep: int, role: str
+) -> list[dict]:
+    """Leading prompt messages inherited by a forked chat.
+
+    One message carries everything the Summary block owns, split into tagged
+    sections: the accumulated summary, any media-bearing turns older than the
+    kept window, and the most recent conversational turns verbatim. Media in
+    the window stays there (no duplication); only older media is pulled up so
+    a character introduced long ago keeps its image. Media is kept via the
+    ``{{media:N}}`` macro, resolved against the already-built parts. The parent
+    window is resolved live, so it reflects any later edit to the parent.
+    """
+    chain = await get_chat_summary_chain(db, chat["id"])
+    summary_text = "\n\n".join(s["content"].strip() for s in chain if s["content"].strip())
+
+    window: list[dict] = []
+    older: list[dict] = []
+    if chat.get("parent_chat_id"):
+        cut = chain[-1].get("covered_to_position") if chain else None
+        parent_history, _, _ = await _get_history(
+            db, chat["parent_chat_id"], False,
+            up_to_position=cut if cut is not None and cut >= 0 else None,
+        )
+        convo = [m for m in parent_history if m.get("role") in ("user", "assistant")]
+        if keep > 0:
+            window, older = convo[-keep:], convo[:-keep]
+        else:
+            window, older = [], convo
+
+    media: list[dict] = []
+    media_text = _transcript_text([m for m in older if _has_media(m)], media)
+    window_text = _transcript_text(window, media)
+
+    sections: list[str] = []
+    if summary_text:
+        sections.append(f"<summary>\n{summary_text}\n</summary>")
+    if media_text:
+        sections.append(f"<media_messages>\n{media_text}\n</media_messages>")
+    if window_text:
+        sections.append(f"<last_messages>\n{window_text}\n</last_messages>")
+    if not sections:
+        return []
+
+    content: str | list = "\n\n".join(sections)
+    if media:
+        content = await build_content(content, media)
+    return [{"role": role, "content": content}]
+
+
+async def _get_history(
+    db: aiosqlite.Connection,
+    chat_id: str,
+    regenerate: bool,
+    up_to_position: int | None = None,
+):
     """Load message history and message attachments for a chat.
 
     Also loads tool_calls and attaches them to assistant messages that
-    triggered them, inserting synthetic tool-role messages afterwards.
+    triggered them, inserting synthetic tool-role messages afterwards. When
+    *up_to_position* is given, only messages at or before that position are
+    included (used to snapshot a fork point).
     """
     msg_attachments: dict[str, list[dict]] = {}
     async with db.execute(
@@ -85,6 +190,8 @@ async def _get_history(db: aiosqlite.Connection, chat_id: str, regenerate: bool)
 
     if regenerate:
         all_rows = await crud.fetch_active_variants(db, chat_id)
+        if up_to_position is not None:
+            all_rows = [r for r in all_rows if r["position"] <= up_to_position]
 
         last_asst_id = None
         last_asst_variant_count = 0
@@ -103,6 +210,8 @@ async def _get_history(db: aiosqlite.Connection, chat_id: str, regenerate: bool)
         return history, last_asst_id, last_asst_variant_count
     else:
         history_rows = await crud.fetch_active_variants(db, chat_id)
+        if up_to_position is not None:
+            history_rows = [r for r in history_rows if r["position"] <= up_to_position]
         history = []
         for r in history_rows:
             await _append_history_with_tool_calls(
@@ -283,6 +392,8 @@ async def get_prompt_context(
     user_message: str,
     attachment_ids: list[str],
     persist: bool = False,
+    up_to_position: int | None = None,
+    summary_pass: bool = False,
 ) -> PromptCtx:
     """Load chat state and assemble the full prompt context for generation.
 
@@ -350,7 +461,9 @@ async def get_prompt_context(
         ) as cur:
             preset_blocks = [dict(r) for r in await cur.fetchall()]
 
-    history, asst_msg_id, next_variant_index = await _get_history(db, chat_id, regenerate)
+    history, asst_msg_id, next_variant_index = await _get_history(
+        db, chat_id, regenerate, up_to_position=up_to_position,
+    )
     logger.debug(
         "get_prompt_context: history loaded: %d messages, asst_msg_id=%s, next_variant_index=%d",
         len(history), asst_msg_id, next_variant_index,
@@ -457,7 +570,20 @@ async def get_prompt_context(
     if history and history[0].get("role") == "assistant":
         history[0]["_greeting"] = True
 
-    messages = await assemble_prompt(preset_blocks, history, char_data, char_own_blocks, macros, block_images)
+    # Forked chats carry their predecessor's context: the accumulated summary
+    # chunks plus the parent's most recent messages. A Summary block in the
+    # preset owns the settings and position; without one the defaults apply and
+    # assemble_prompt injects it next to chat history.
+    cfg = summary_config(preset_blocks)
+    summary_messages: list[dict] = []
+    if cfg["active"] and chat.get("summary_id"):
+        summary_messages = await _summary_context(db, chat, cfg["keep"], cfg["role"])
+
+    messages = await assemble_prompt(
+        preset_blocks, history, char_data, char_own_blocks, macros, block_images,
+        summary_messages=summary_messages,
+        include_post_history=not summary_pass,
+    )
 
     for i, m in enumerate(messages):
         content = m.get("content")

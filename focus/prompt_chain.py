@@ -171,22 +171,31 @@ async def assemble_prompt(
     char_own_blocks: list[dict[str, Any]],
     macros: dict[str, str],
     block_images: dict[str, list[dict]] | None = None,
+    summary_messages: list[dict] | None = None,
+    include_post_history: bool = True,
 ) -> list[dict[str, str]]:
     """
     Returns the full messages list ready to send to the provider.
 
-    preset_blocks:   rows from preset_blocks ordered by position.
-    chat_history:    list of {"role": ..., "content": ...} from the DB.
-    char_data:       normalised character card fields.
-    char_own_blocks: rows from char_blocks for the active character, ordered by position.
-    macros:          substitution dict built from char_data + persona.
-    block_images:    mapping of block_id → list of image rows, for multimodal blocks.
+    preset_blocks:    rows from preset_blocks ordered by position.
+    chat_history:     list of {"role": ..., "content": ...} from the DB.
+    char_data:        normalised character card fields.
+    char_own_blocks:  rows from char_blocks for the active character, ordered by position.
+    macros:           substitution dict built from char_data + persona.
+    block_images:     mapping of block_id → list of image rows, for multimodal blocks.
+    summary_messages: pre-resolved leading context for a forked chat, injected at
+                      the ``summary`` block's position (or before chat history
+                      when no such block exists).
     """
     if block_images is None:
         block_images = {}
+    summary_messages = summary_messages or []
 
     active = [b for b in preset_blocks if b["enabled"]]
     active.sort(key=lambda b: b["position"])
+
+    has_summary_block = any(b["block_type"] == "summary" for b in active)
+    summary_injected = False
 
     in_chat_blocks = [b for b in active if b.get("injection_depth") is not None]
     active = [b for b in active if b.get("injection_depth") is None]
@@ -205,7 +214,18 @@ async def assemble_prompt(
         target = post_history if history_seen else pre_history
 
         if btype == "chat_history":
+            # No summary block in the preset: keep summary context adjacent to
+            # history so the feature works without editing the preset.
+            if summary_messages and not has_summary_block and not summary_injected:
+                target.extend(summary_messages)
+                summary_injected = True
             history_seen = True
+            continue
+
+        if btype == "summary":
+            if summary_messages and not summary_injected:
+                target.extend(summary_messages)
+                summary_injected = True
             continue
 
         images = block_images.get(block["id"], [])
@@ -304,5 +324,7 @@ async def assemble_prompt(
             insert_at = max(0, len(cleaned_history) - depth)
             cleaned_history[insert_at:insert_at] = injected
 
-    messages = _merge_consecutive(pre_history + cleaned_history + post_history)
+    messages = _merge_consecutive(
+        pre_history + cleaned_history + (post_history if include_post_history else [])
+    )
     return messages

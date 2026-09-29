@@ -62,6 +62,12 @@ async def load_entity_blocks(
         f"SELECT * FROM {table} WHERE {parent_col} = ? ORDER BY position, rowid", (parent_id,)
     ) as cur:
         blocks = [dict(r) for r in await cur.fetchall()]
+    for b in blocks:
+        if "config_json" in b:
+            try:
+                b["config"] = json.loads(b.get("config_json") or "{}")
+            except (TypeError, ValueError):
+                b["config"] = {}
     await attach_images(blocks, db)
     return blocks
 
@@ -161,7 +167,7 @@ async def fetch_active_variants(db: aiosqlite.Connection, chat_id: str, extra_co
     variant_index, variant_id, variant_count plus any extra_cols.
     """
     cols = (
-        "m.id, m.role, m.position, m.active_index, "
+        "m.id, m.chat_id, m.role, m.position, m.active_index, "
         "mv.content, mv.variant_meta, mv.segments_json, mv.variant_index, mv.id as variant_id, "
         "mv.created_at, mv.model_name, "
         "(SELECT COUNT(*) FROM message_variants WHERE message_id = m.id) as variant_count"
@@ -233,6 +239,54 @@ async def get_chat_messages(db: aiosqlite.Connection, chat_id: str) -> list[dict
                 for tc in tcs
             ]
 
+    return messages
+
+
+async def get_lineage_messages(db: aiosqlite.Connection, chat_id: str) -> list[dict]:
+    """All messages visible in *chat_id*'s lineage, oldest first.
+
+    Ancestors contribute only the messages up to the fork point recorded on the
+    summary their descendant was created from. Each message carries its own
+    ``chat_id`` and an ``is_ancestor`` flag so the template can render inherited
+    turns read-only.
+    """
+    # Walk from the target up to the root, recording the cut position per chat.
+    path: list[tuple[str, int | None]] = []
+    current: str | None = chat_id
+    cut: int | None = None
+    while current:
+        path.append((current, cut))
+        async with db.execute(
+            "SELECT parent_chat_id, summary_id FROM chats WHERE id = ?", (current,)
+        ) as cur:
+            row = await cur.fetchone()
+        if not row or not row["parent_chat_id"]:
+            break
+        cut = None
+        if row["summary_id"]:
+            async with db.execute(
+                "SELECT covered_to_position FROM chat_summaries WHERE id = ?",
+                (row["summary_id"],),
+            ) as cur:
+                summary = await cur.fetchone()
+            if summary and summary["covered_to_position"] >= 0:
+                cut = summary["covered_to_position"]
+        current = row["parent_chat_id"]
+    path.reverse()
+
+    messages: list[dict] = []
+    last_ancestor_idx: int | None = None
+    for cid, cut in path:
+        rows = await get_chat_messages(db, cid)
+        if cut is not None:
+            rows = [m for m in rows if m["position"] <= cut]
+        for m in rows:
+            m["is_ancestor"] = cid != chat_id
+            if m["is_ancestor"]:
+                last_ancestor_idx = len(messages)
+            messages.append(m)
+    if last_ancestor_idx is not None:
+        messages[last_ancestor_idx]["is_summary_last"] = True
     return messages
 
 

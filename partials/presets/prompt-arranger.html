@@ -67,6 +67,13 @@
         >
           User Persona
         </button>
+        <button
+          type="button"
+          class="btn-tag w-full text-left"
+          @click="open = false; addBlock($el.closest('[data-preset-id]').dataset.presetId, 'summary', $el, 'Summary')"
+        >
+          Summary
+        </button>
       </div>
     </div>
   </div>
@@ -102,6 +109,7 @@ overlay_close=true, dirty_fields='#block-modal-textarea,#block-modal-reasoning',
     <button type="button" class="btn btn-secondary btn-icon" style="width: calc(1lh + 1rem + 2px); height: calc(1lh + 1rem + 2px)" onclick="openMacroHelp()" title="Macro reference" aria-label="Macro reference">
       {{ icon_help(16) }}
     </button>
+    <button type="button" class="btn btn-secondary hidden" id="block-modal-restore" onclick="restoreBlockDefault()">Restore Default</button>
     <button type="button" class="btn btn-secondary" data-action="actionCloseModal" data-modal-id="block-edit-modal">Cancel</button>
     <button type="button" class="btn btn-primary" id="block-modal-save" data-dirty-save onclick="saveBlockModal()">
       Save
@@ -190,11 +198,18 @@ overlay_close=true, dirty_fields='#block-modal-textarea,#block-modal-reasoning',
       _currentPresetId = presetId;
       _currentEditPart = part;
 
-      const content = item ? item.dataset.blockContent || '' : '';
       const reasoning = item ? item.dataset.blockReasoning || '' : '';
 
+      const isSummary = item && item.dataset.blockType === 'summary';
+      let content = item ? item.dataset.blockContent || '' : '';
+      if (isSummary && !content) content = window.SUMMARY_DEFAULT_PROMPT || '';
       document.getElementById('block-modal-textarea').value = content;
-      document.getElementById('block-modal-textarea').placeholder = 'Enter block content…';
+      document.getElementById('block-modal-textarea').placeholder = isSummary
+        ? 'Summarization instructions…'
+        : 'Enter block content…';
+
+      var restoreBtn = document.getElementById('block-modal-restore');
+      if (restoreBtn) restoreBtn.classList.toggle('hidden', !isSummary);
 
       var reasoningSection = document.getElementById('block-modal-reasoning-section');
       if (part === 'reasoning') {
@@ -208,6 +223,13 @@ overlay_close=true, dirty_fields='#block-modal-textarea,#block-modal-reasoning',
       }
 
       window.openModal('block-edit-modal');
+    };
+
+    window.restoreBlockDefault = function () {
+      const ta = document.getElementById('block-modal-textarea');
+      if (!ta) return;
+      ta.value = window.SUMMARY_DEFAULT_PROMPT || '';
+      ta.dispatchEvent(new Event('input', { bubbles: true }));
     };
 
     window.saveBlockModal = function () {
@@ -257,6 +279,14 @@ overlay_close=true, dirty_fields='#block-modal-textarea,#block-modal-reasoning',
       }).then(function () {
         refreshSingleBlock(presetId, blockId);
       });
+    };
+
+    window.updateSummaryConfig = function (el, patch) {
+      const item = el.closest('.arranger-item');
+      let cfg = {};
+      try { cfg = JSON.parse((item && item.dataset.blockConfig) || '{}'); } catch (e) { cfg = {}; }
+      Object.assign(cfg, patch);
+      return JSON.stringify(cfg);
     };
 
     window.handleArrangerBlockUpdate = function (el, payload) {

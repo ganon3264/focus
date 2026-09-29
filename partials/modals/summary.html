@@ -1,0 +1,92 @@
+{% from "modal-shell.html" import modal_shell %}
+{% call modal_shell('modal-summary', 'Summary', max_width='640px', content_style='display:flex;flex-direction:column;height:70vh;') %}
+<div x-data="summaryModal()" @summary-open.window="load()" class="flex flex-col h-full min-h-0 gap-3">
+  <div class="text-xs text-muted shrink-0">
+    This summary is sent as leading context to the chat. Edits apply here and to every descendant chat.
+  </div>
+
+  <div class="flex-1 overflow-y-auto flex flex-col gap-3 min-h-0 pr-1">
+    <template x-if="!chunks.length">
+      <div class="text-muted text-sm py-4 text-center">No summary is attached to this chat.</div>
+    </template>
+    <template x-for="(chunk, i) in chunks" :key="chunk.id">
+      <div class="flex flex-col gap-1">
+        <div class="flex items-center justify-between text-xs text-muted">
+          <span x-text="'Chunk ' + (i + 1)"></span>
+          <span x-text="chunk.model_name || ''"></span>
+        </div>
+        <textarea
+          class="form-control"
+          rows="6"
+          style="resize: vertical"
+          x-model="chunk.content"
+          @input="dirty = true"
+        ></textarea>
+      </div>
+    </template>
+  </div>
+
+  <div class="flex justify-end gap-2 shrink-0">
+    <button type="button" class="btn btn-secondary" data-action="actionCloseModal" data-modal-id="modal-summary">Close</button>
+    <button
+      type="button"
+      class="btn btn-primary"
+      @click="save()"
+      :disabled="saving || !dirty"
+      :class="(saving || !dirty) ? 'opacity-50' : ''"
+    >Save</button>
+  </div>
+</div>
+{% endcall %}
+
+<script>
+  document.addEventListener('alpine:init', () => {
+    Alpine.data('summaryModal', () => ({
+      chunks: [],
+      saving: false,
+      dirty: false,
+
+      async load() {
+        const chatId = window.location.pathname.split('/').pop();
+        if (!chatId || chatId === 'chat') { this.chunks = []; return; }
+        try {
+          const res = await fetch('/api/chats/' + chatId + '/summary');
+          if (!res.ok) throw new Error('Failed to load summary');
+          const data = await res.json();
+          this.chunks = (data.chunks || []).map((c) => ({ ...c }));
+          this.dirty = false;
+        } catch (e) {
+          window.showErrorToast(e.message);
+          this.chunks = [];
+        }
+      },
+
+      async save() {
+        const chatId = window.location.pathname.split('/').pop();
+        if (!chatId || chatId === 'chat') return;
+        this.saving = true;
+        try {
+          const res = await fetch('/api/chats/' + chatId + '/summary', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chunks: this.chunks.map((c) => ({ id: c.id, content: c.content })),
+            }),
+          });
+          if (!res.ok) {
+            let msg = 'Save failed';
+            try { msg = (await res.json()).detail || msg; } catch (e) { /* keep default */ }
+            throw new Error(msg);
+          }
+          this.dirty = false;
+          window.showSuccessToast('Summary updated');
+          window.closeModal('modal-summary');
+        } catch (e) {
+          window.showErrorToast(e.message);
+        } finally {
+          this.saving = false;
+        }
+      },
+    }));
+  });
+</script>

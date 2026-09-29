@@ -217,7 +217,15 @@ def tool_image_url(rel_path: str) -> str:
 
 
 async def load_media(media_row: dict) -> dict | None:
-    """Read a media file from disk and return an OpenAI-format block."""
+    """Read a media file from disk and return an OpenAI-format block.
+
+    Already-built blocks (``image_url``/``input_audio`` parts) pass through
+    unchanged, so callers like the summary transcript can interleave media they
+    resolved earlier without round-tripping through files.
+    """
+    if media_row.get("type") in ("image_url", "input_audio"):
+        return media_row
+
     path = media_row.get("image_path") or media_row.get("file_path")
     if not path:
         logger.warning("load_media: no path in media_row %r", media_row.get("id"))

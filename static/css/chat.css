@@ -102,6 +102,49 @@
     border-left-color: var(--border-hover);
   }
 
+  /* Inherited turns in a forked chat: readable but non-interactive. */
+  .message-ancestor {
+    opacity: 0.55;
+  }
+  .message-ancestor:hover {
+    opacity: 0.85;
+  }
+  .message-ancestor .toolbar,
+  .message-ancestor .delete-mode-checkbox {
+    display: none !important;
+  }
+
+  /* Marker between the summarized turns and the live continuation. */
+  .summary-boundary {
+    display: flex;
+    justify-content: center;
+    margin-top: 1rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border);
+  }
+  .summary-boundary-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    color: var(--text-faint);
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    transition: color var(--transition);
+  }
+  .summary-boundary-btn:hover {
+    color: var(--text);
+  }
+  .summary-boundary-edit {
+    text-transform: none;
+    letter-spacing: 0;
+    opacity: 0.8;
+  }
+
   #char-modal-grid.htmx-swapping .card,
   #char-modal-grid.htmx-settling .card,
   #persona-modal-grid.htmx-swapping .card,

@@ -90,8 +90,9 @@ CREATE TABLE IF NOT EXISTS preset_blocks (
     position     REAL NOT NULL DEFAULT 0,
     block_type   TEXT NOT NULL DEFAULT 'text',
     injection_depth INTEGER DEFAULT NULL,
-    injection_order INTEGER DEFAULT 0
-    -- block_type: text | chat_history | char_description | char_personality | char_blocks | user_persona
+    injection_order INTEGER DEFAULT 0,
+    config_json  TEXT NOT NULL DEFAULT '{}'
+    -- block_type: text | chat_history | char_description | char_personality | char_blocks | user_persona | summary
 );
 
 CREATE TABLE IF NOT EXISTS chats (
@@ -105,7 +106,18 @@ CREATE TABLE IF NOT EXISTS chats (
     is_deleted         INTEGER NOT NULL DEFAULT 0,
     tool_calls_enabled INTEGER NOT NULL DEFAULT 0,
     tool_read_only     INTEGER NOT NULL DEFAULT 1,
-    max_tool_iterations INTEGER NOT NULL DEFAULT 25
+    max_tool_iterations INTEGER NOT NULL DEFAULT 25,
+    parent_chat_id     TEXT,
+    summary_id         TEXT
+);
+
+CREATE TABLE IF NOT EXISTS chat_summaries (
+    id          TEXT PRIMARY KEY,
+    chat_id     TEXT NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
+    content     TEXT NOT NULL,
+    covered_to_position INTEGER NOT NULL DEFAULT -1,
+    model_name  TEXT,
+    created_at  TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS messages (
@@ -276,6 +288,8 @@ async def init_db():
             await db.execute("ALTER TABLE preset_blocks DROP COLUMN cache_control")
         if "reasoning" not in col_names:
             await db.execute("ALTER TABLE preset_blocks ADD COLUMN reasoning TEXT NOT NULL DEFAULT ''")
+        if "config_json" not in col_names:
+            await db.execute("ALTER TABLE preset_blocks ADD COLUMN config_json TEXT NOT NULL DEFAULT '{}'")
 
         cols = await db.execute("PRAGMA table_info(message_variants)")
         col_names = {row[1] for row in await cols.fetchall()}
@@ -330,6 +344,17 @@ async def init_db():
             await db.execute("ALTER TABLE chats ADD COLUMN tool_read_only INTEGER NOT NULL DEFAULT 1")
         if "max_tool_iterations" not in col_names:
             await db.execute("ALTER TABLE chats ADD COLUMN max_tool_iterations INTEGER NOT NULL DEFAULT 25")
+        if "parent_chat_id" not in col_names:
+            await db.execute("ALTER TABLE chats ADD COLUMN parent_chat_id TEXT")
+        if "summary_id" not in col_names:
+            await db.execute("ALTER TABLE chats ADD COLUMN summary_id TEXT")
+
+        cols = await db.execute("PRAGMA table_info(chat_summaries)")
+        col_names = {row[1] for row in await cols.fetchall()}
+        if col_names and "covered_to_position" not in col_names:
+            await db.execute(
+                "ALTER TABLE chat_summaries ADD COLUMN covered_to_position INTEGER NOT NULL DEFAULT -1"
+            )
 
         cols = await db.execute("PRAGMA table_info(tool_calls)")
         col_names = {row[1] for row in await cols.fetchall()}
