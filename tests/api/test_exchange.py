@@ -886,3 +886,59 @@ class TestProvidersAndSecrets:
         imp_resp = await client.post("/api/import", files=files)
         assert imp_resp.status_code == 201
         assert imp_resp.json()["imported"]["secrets"] >= 0  # secrets use INSERT OR REPLACE
+
+
+class TestSummaryLineageRoundtrip:
+    async def test_export_fork_carries_summary_chain_and_ancestors(self, client, tmp_test_dir):
+        char = await create_character(client, "LineageChar")
+        parent = await create_chat(client, char["id"], title="Parent")
+        parent_id, child_id, summary_id = parent["id"], str(uuid.uuid4()), str(uuid.uuid4())
+        now = now_iso()
+        async with aiosqlite.connect(os.path.join(tmp_test_dir, "test.db")) as conn:
+            await conn.execute("PRAGMA foreign_keys=ON")
+            await conn.execute(
+                "INSERT INTO chat_summaries (id, chat_id, content, covered_to_position, model_name, created_at)"
+                " VALUES (?, ?, ?, ?, ?, ?)",
+                (summary_id, parent_id, "Chunk one", 0, "test-model", now),
+            )
+            await conn.execute(
+                "INSERT INTO chats (id, title, character_id, persona_id, preset_id, parent_chat_id, summary_id, created_at, updated_at)"
+                " VALUES (?, 'Fork', ?, NULL, NULL, ?, ?, ?, ?)",
+                (child_id, char["id"], parent_id, summary_id, now, now),
+            )
+            await conn.commit()
+
+        # Selecting only the fork must still carry its whole lineage.
+        resp = await client.post("/api/export", json={"chats": [child_id]})
+        assert resp.status_code == 200
+        dump = _extract_database_from_zip(resp.content)
+        assert {r["title"] for r in dump["chats"]} == {"Parent", "Fork"}
+        assert [r["content"] for r in dump["chat_summaries"]] == ["Chunk one"]
+
+        # Ids are rewritten at export, so every link must point at rewritten rows.
+        fork = next(r for r in dump["chats"] if r["title"] == "Fork")
+        parent_row = next(r for r in dump["chats"] if r["title"] == "Parent")
+        assert fork["id"] not in (child_id, parent_id)
+        assert fork["parent_chat_id"] == parent_row["id"]
+        assert fork["summary_id"] == dump["chat_summaries"][0]["id"]
+
+        imp = await _import_archive(client, resp.content)
+        assert imp.status_code == 201
+        assert imp.json()["imported"]["chat_summaries"] == 1
+
+        rows = await _read_db(
+            tmp_test_dir,
+            "SELECT id, parent_chat_id, summary_id FROM chats WHERE title = 'Fork' AND id != ?",
+            (child_id,),
+        )
+        assert len(rows) == 1
+        imported_child = rows[0]["id"]
+        assert rows[0]["parent_chat_id"] != parent_id
+        assert rows[0]["summary_id"] != summary_id
+
+        # The restored fork still resolves its full summary chain.
+        got = await client.get(f"/api/chats/{imported_child}/summary")
+        assert got.status_code == 200
+        chunks = got.json()["chunks"]
+        assert [c["content"] for c in chunks] == ["Chunk one"]
+        assert chunks[0]["model_name"] == "test-model"

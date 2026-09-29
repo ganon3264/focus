@@ -25,7 +25,7 @@ from focus.db.chats import (
     create_message_with_variant,
     get_chat_summary_chain,
 )
-from focus.prompt_chain import assemble_prompt, build_content, section_token
+from focus.prompt_chain import assemble_prompt, build_content, merge_text_parts, section_token
 from focus.providers.quirks import apply_request_quirks
 
 
@@ -106,7 +106,7 @@ def _transcript_text(messages: list[dict], media: list[dict]) -> str:
                     pieces.append(text)
             elif ptype in ("image_url", "input_audio"):
                 media.append(part)
-                pieces.append("{{media:%d}}" % len(media))
+                pieces.append(f"{{{{media:{len(media)}}}}}")
         if pieces:
             lines.append(f"{role}: " + " ".join(pieces))
     return "\n".join(lines)
@@ -184,12 +184,7 @@ def _default_summary_message(sections: dict[str, list[dict]], role: str) -> dict
             parts.append({"type": "text", "text": "\n\n"})
         parts.extend(wrap(tag, sec))
 
-    merged: list[dict] = []
-    for part in parts:
-        if part.get("type") == "text" and merged and merged[-1].get("type") == "text":
-            merged[-1] = {"type": "text", "text": merged[-1]["text"] + part["text"]}
-        else:
-            merged.append(part)
+    merged = merge_text_parts(parts)
     if not merged:
         return None
     if len(merged) == 1 and merged[0].get("type") == "text":

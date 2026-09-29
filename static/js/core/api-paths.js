@@ -12,6 +12,12 @@ window.api = {
   chatBranch: function (chatId, msgId) {
     return '/api/chats/' + chatId + '/messages/' + msgId + '/branch';
   },
+  chatSummarize: function (chatId) {
+    return '/api/chats/' + chatId + '/summarize';
+  },
+  chatSummary: function (chatId) {
+    return '/api/chats/' + chatId + '/summary';
+  },
 
   characters: function (id) {
     return '/api/characters/' + id;

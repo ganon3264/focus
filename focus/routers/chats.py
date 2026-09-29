@@ -4,6 +4,7 @@ import logging
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+from starlette.background import BackgroundTask
 
 import focus.crud as crud
 import focus.db as db
@@ -296,7 +297,10 @@ async def _active_provider_id(_db) -> str:
 
 
 # One in-flight summary per chat. The check-and-add is synchronous (no await
-# between), so concurrent requests can't both start a fork.
+# between), so concurrent requests can't both start a fork. The slot is
+# released by the stream's finally and by the response background task — the
+# latter covers a generator that is never started (instant disconnect), whose
+# finally would otherwise never run and lock the chat out for good.
 _active_summaries: set[str] = set()
 
 # Per-attempt ceiling for the buffered summary call; a hung provider request
@@ -377,6 +381,7 @@ async def summarize_chat(chat_id: str, body: SummarizeRequest, _db=Depends(get_d
         events(),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        background=BackgroundTask(lambda: _active_summaries.discard(chat_id)),
     )
 
 

@@ -14,7 +14,7 @@ FastAPI (async) + aiosqlite | Jinja2 | HTMX 2 + Alpine 3 | Tailwind v4 | uv + ha
 ```
 main.py                  # FastAPI app entry
 focus/                   # Backend package
-  core/                  # DB init, models, utils, macros, segments, media, tracked_fields
+  core/                  # DB init, models, utils, macros, segments, media, tracked_fields, summary, retry
   db/                    # CRUD per domain (characters, chats, personas, presets, providers, etc.)
   providers/             # LLM providers (openai_compat, openrouter, deepseek, moonshot, xiaomi_mimo, google_*)
   routers/               # Route handlers (pages, chats, stream, presets, providers, tools, backup, etc.)
@@ -127,6 +127,14 @@ table lookup (`HANDLERS[json.type]`); unknown types log a warning, never vanish 
 - On continue: `prepare_generation_messages()` appends the prefill to API context; for non-echo providers `_run_generation_with_prefill()` synthesizes the existing content as SSE events before real tokens.
 - `echoes_prefill` is a per-provider-*type* default (openai_compat=True), not a per-server fact — known sharp edge for endpoints that behave differently than their type suggests.
 
+### Compaction (summaries) — `focus/core/summary.py`
+
+- `POST /api/chats/{id}/summarize` runs one ephemeral generation (never persisted) and forks a child chat: a `chat_summaries` row (`covered_to_position` = summarized depth) plus `chats.parent_chat_id` / `chats.summary_id` on the child. `db.chats.get_chat_summary_chain` walks the chain oldest-first through the summary owner chats. The endpoint streams SSE and reuses the buffered retry path (`SUMMARY_ATTEMPT_TIMEOUT` per attempt); one in-flight summary per chat (`_active_summaries`).
+- Fork context: `_summary_sections()` (stream_utils) prebuilds three multipart sections — `{{summary}}` (accumulated chunks), `{{summary_messages}}` (parent's last `keep` turns), `{{summary_media}}` (older media-bearing turns). Preset blocks place them by referencing the macros; a preset that doesn't gets `_default_summary_message` injected adjacent to chat history. `block_type: 'summary'` is an editable sentinel — rendered only for chats carrying a summary.
+- `summary_config(preset_blocks, settings_json)` is the single resolver (`active`, `instruction`, `keep`, `provider_id`); settings live in `presets.settings_json["summary"]` (Summary Settings modal in the prompt arranger). Always resolve `active` **with** blocks — a disabled Summary block turns compaction off for the preset.
+- Section macros are multipart: `apply_macros` resolves them to `\x00section:<name>\x00` tokens and `prompt_chain._splice_sections` substitutes the prebuilt parts (missing/empty section → token dropped). Tokens must never reach the provider: history text splices them, plain-text fields strip them (`strip_section_tokens`).
+- Backup/export carries the lineage: `chat_summaries` travels in the archive, export closes over `parent_chat_id` ancestry + summary chains (`exchange._chat_lineage_ids`), and `chats.summary_id`/`parent_chat_id` are remapped as FKs (`POLYMORPHIC_FK_COLUMNS`) — a restored fork keeps its chain and parent window.
+
 ### Tool system
 
 - Data model: `ToolSpec`, `ToolParam`, `ToolCall`, `ToolResult` in `tools/__init__.py`
@@ -164,7 +172,7 @@ table lookup (`HANDLERS[json.type]`); unknown types log a warning, never vanish 
 ### Macros (`focus/core/macros.py`)
 
 - Built-in macros: `build_base_macros()` (values) and `MACRO_DEFINITIONS` (metadata). Must stay in sync — test `TestMacroDefinitions::test_keys_match_build_base_macros` enforces this.
-- Special tokens: `{{getvar::key}}`, `{{setvar::key::value}}`, `{{var::key::value}}`, `{{trim}}`, `{{// comment}}`, `{{media:id}}`
+- Special tokens: `{{getvar::key}}`, `{{setvar::key::value}}`, `{{var::key::value}}`, `{{trim}}`, `{{// comment}}`, `{{media:id}}`, plus CBS `{{random:}}`/`{{pick:}}`/`{{roll:}}`/`{{reverse:}}` and the compaction macros below
 - Comments `{{// ...}}` stripped pre-resolution, depth-aware for nesting.
 - Template globals `macro_definitions`/`special_tokens` registered in `pages.py`.
 

@@ -9,8 +9,8 @@ from .google_vertex import GoogleVertexProvider
 from .moonshot import MoonshotProvider
 from .openai_compat import OpenAICompatProvider
 from .openrouter import OpenRouterProvider
-from .xiaomi_mimo import XiaomiMiMoProvider
 from .registry import get_provider_class, registered_types
+from .xiaomi_mimo import XiaomiMiMoProvider
 
 logger = get_logger("providers")
 

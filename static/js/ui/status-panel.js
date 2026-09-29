@@ -147,12 +147,6 @@ updateStatusPanel();
 updateCacheTimer();
 setInterval(updateCacheTimer, 1000);
 
-document.body.addEventListener('htmx:afterSwap', function (evt) {
-  if (evt.detail.target.id === 'providers-modal-body') {
-    setTimeout(updateStatusPanel, 50);
-  }
-});
-
 function newChat() {
   fetch(window.api.chats, {
     method: 'POST',
@@ -204,7 +198,7 @@ function summarizeChat(chatId, messageId, btn) {
   if (btn) btn.disabled = true;
   window.showInfoToast('Summarizing\u2026', { id: 'summarize', duration: 0 });
 
-  fetch('/api/chats/' + chatId + '/summarize', {
+  fetch(window.api.chatSummarize(chatId), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

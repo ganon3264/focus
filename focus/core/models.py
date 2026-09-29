@@ -116,7 +116,6 @@ class PresetBlockCreate(BaseModel):
     block_type: BlockType = BlockType.text
     injection_depth: int | None = None
     injection_order: int = 0
-    config_json: str = "{}"
 
 
 class PresetBlockBulkUpdate(BaseModel):

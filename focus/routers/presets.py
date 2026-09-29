@@ -52,7 +52,11 @@ async def get_settings(preset_id: str, _db=Depends(get_db)):
         raw = await db.get_preset_settings(_db, preset_id)
     except ValueError:
         raise HTTPException(404, "Preset not found")
-    return {"summary": summary_config(None, raw)}
+    async with _db.execute(
+        "SELECT block_type, enabled FROM preset_blocks WHERE preset_id = ?", (preset_id,)
+    ) as cur:
+        blocks = [dict(r) for r in await cur.fetchall()]
+    return {"summary": summary_config(blocks, raw)}
 
 
 @router.put("/{preset_id}/settings")
@@ -117,7 +121,7 @@ async def add_block(
     result = await db.create_preset_block(
         _db, preset_id, body.name, body.content, body.reasoning,
         body.role, body.enabled, body.block_type,
-        body.injection_depth, body.injection_order, body.config_json,
+        body.injection_depth, body.injection_order,
     )
     await _db.commit()
     return result

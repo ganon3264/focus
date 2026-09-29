@@ -13,8 +13,16 @@ from pathlib import Path
 
 import aiosqlite
 
-# FK columns that are polymorphic (no SQLite REFERENCES clause to derive from)
-POLYMORPHIC_FK_COLUMNS = [("block_images", "block_id")]
+# FK columns with no SQLite REFERENCES clause to derive from (polymorphic
+# links, or cycles SQLite can't express)
+POLYMORPHIC_FK_COLUMNS = [
+    ("block_images", "block_id"),
+    # Fork lineage: chats ↔ chat_summaries references each other, so the
+    # schema leaves these two as plain id links — remap them like FKs or a
+    # restored fork dangles and loses its summary chain and parent window.
+    ("chats", "parent_chat_id"),
+    ("chats", "summary_id"),
+]
 
 # Columns that reference files on disk (no schema marker exists)
 PATH_FIELDS = [

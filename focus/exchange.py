@@ -10,6 +10,7 @@ import aiosqlite
 from focus.core.models import ExportRequest
 from focus.core.paths import ASSETS_DIR, TOOLS_DIR
 from focus.core.utils import now_iso
+from focus.db.chats import get_chat_summary_chain
 from focus.db.themes import BUILTIN_THEMES
 from focus.exchange_remap import PATH_FIELDS, build_id_map, collect_fk_columns, remap_database, remap_path
 from focus.exchange_sanitize import (
@@ -45,6 +46,7 @@ EXPORT_TABLES = [
     "char_blocks",
     "preset_blocks",
     "chats",
+    "chat_summaries",
     "messages",
     "message_variants",
     "block_images",
@@ -64,6 +66,7 @@ INSERT_ORDER = [
     "char_blocks",
     "preset_blocks",
     "chats",
+    "chat_summaries",
     "messages",
     "message_variants",
     "block_images",
@@ -105,6 +108,31 @@ async def _resolve_entity_ids(
     return set(selections)
 
 
+async def _chat_lineage_ids(db: aiosqlite.Connection, chat_ids: set[str]) -> set[str]:
+    """Extend *chat_ids* with every ancestor chat.
+
+    A fork's prompt reads its parent's messages and its summary chain live,
+    so the whole lineage must travel with the fork — a restored fork whose
+    ancestors are missing silently loses its compaction context.
+    """
+    seen = set(chat_ids)
+    frontier = set(chat_ids)
+    while frontier:
+        placeholders = ",".join("?" * len(frontier))
+        async with db.execute(
+            f"SELECT parent_chat_id FROM chats WHERE id IN ({placeholders})",
+            list(frontier),
+        ) as cur:
+            parents = {
+                r["parent_chat_id"]
+                for r in await cur.fetchall()
+                if r["parent_chat_id"] and r["parent_chat_id"] not in seen
+            }
+        seen |= parents
+        frontier = parents
+    return seen
+
+
 async def _query_table(
     db: aiosqlite.Connection,
     table: str,
@@ -124,6 +152,8 @@ async def export_data(db: aiosqlite.Connection, req: ExportRequest) -> bytes:
     persona_ids = await _resolve_entity_ids(db, "personas", req.personas)
     preset_ids = await _resolve_entity_ids(db, "presets", req.presets)
     chat_ids = await _resolve_entity_ids(db, "chats", req.chats)
+    if chat_ids:
+        chat_ids = await _chat_lineage_ids(db, chat_ids)
 
     # Resolve cascaded references from chats
     if chat_ids:
@@ -178,6 +208,13 @@ async def export_data(db: aiosqlite.Connection, req: ExportRequest) -> bytes:
         ) as cur:
             variant_ids = {r["id"] for r in await cur.fetchall()}
 
+    # Summary chains for every included chat (a chain's older chunks are owned
+    # by ancestor chats, which the lineage closure guarantees are included)
+    summary_ids: set[str] = set()
+    for cid in chat_ids:
+        for summary in await get_chat_summary_chain(db, cid):
+            summary_ids.add(summary["id"])
+
     # Collect all block_images referenced by any entity
     all_block_refs = char_ids | persona_ids | preset_ids | char_block_ids | preset_block_ids
 
@@ -225,6 +262,7 @@ async def export_data(db: aiosqlite.Connection, req: ExportRequest) -> bytes:
         "char_blocks": await _query_table(db, "char_blocks", "id", char_block_ids),
         "preset_blocks": await _query_table(db, "preset_blocks", "id", preset_block_ids),
         "chats": await _query_table(db, "chats", "id", chat_ids),
+        "chat_summaries": await _query_table(db, "chat_summaries", "id", summary_ids),
         "messages": await _query_table(db, "messages", "id", message_ids),
         "message_variants": await _query_table(db, "message_variants", "id", variant_ids),
         "block_images": block_image_rows,
@@ -269,6 +307,7 @@ async def export_data(db: aiosqlite.Connection, req: ExportRequest) -> bytes:
                 "char_blocks": len(database["char_blocks"]),
                 "preset_blocks": len(database["preset_blocks"]),
                 "chats": len(database["chats"]),
+                "chat_summaries": len(database["chat_summaries"]),
                 "messages": len(database["messages"]),
                 "message_variants": len(database["message_variants"]),
                 "block_images": len(database["block_images"]),

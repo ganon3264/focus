@@ -91,9 +91,8 @@ CREATE TABLE IF NOT EXISTS preset_blocks (
     position     REAL NOT NULL DEFAULT 0,
     block_type   TEXT NOT NULL DEFAULT 'text',
     injection_depth INTEGER DEFAULT NULL,
-    injection_order INTEGER DEFAULT 0,
-    config_json  TEXT NOT NULL DEFAULT '{}'
-    -- block_type: text | chat_history | char_description | char_personality | char_blocks | user_persona | summary
+    injection_order INTEGER DEFAULT 0
+    -- block_type: text | chat_history | char_description | char_personality | char_blocks | user_persona | summary | variable
 );
 
 CREATE TABLE IF NOT EXISTS chats (
@@ -288,10 +287,10 @@ async def init_db():
             await db.execute("ALTER TABLE preset_blocks ADD COLUMN injection_order INTEGER DEFAULT 0")
         if "cache_control" in col_names:
             await db.execute("ALTER TABLE preset_blocks DROP COLUMN cache_control")
+        if "config_json" in col_names:
+            await db.execute("ALTER TABLE preset_blocks DROP COLUMN config_json")
         if "reasoning" not in col_names:
             await db.execute("ALTER TABLE preset_blocks ADD COLUMN reasoning TEXT NOT NULL DEFAULT ''")
-        if "config_json" not in col_names:
-            await db.execute("ALTER TABLE preset_blocks ADD COLUMN config_json TEXT NOT NULL DEFAULT '{}'")
 
         cols = await db.execute("PRAGMA table_info(presets)")
         col_names = {row[1] for row in await cols.fetchall()}

@@ -62,12 +62,6 @@ async def load_entity_blocks(
         f"SELECT * FROM {table} WHERE {parent_col} = ? ORDER BY position, rowid", (parent_id,)
     ) as cur:
         blocks = [dict(r) for r in await cur.fetchall()]
-    for b in blocks:
-        if "config_json" in b:
-            try:
-                b["config"] = json.loads(b.get("config_json") or "{}")
-            except (TypeError, ValueError):
-                b["config"] = {}
     await attach_images(blocks, db)
     return blocks
 

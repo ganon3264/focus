@@ -1,8 +1,11 @@
 from focus.prompt_chain import (
     _merge_consecutive,
+    assemble_prompt,
     build_content,
     partition_blocks,
     resolve_variable_blocks,
+    section_token,
+    strip_section_tokens,
 )
 
 
@@ -235,3 +238,39 @@ class TestResolveVariableBlocks:
         blocks = [{"name": "x", "content": "  hello  "}]
         resolve_variable_blocks(blocks, macros)
         assert macros["x"] == "hello"
+
+
+class TestSectionTokens:
+    """Section tokens are internal markers and must never reach the provider."""
+
+    def test_strip_section_tokens(self):
+        assert strip_section_tokens(f"a{section_token('summary')}b") == "ab"
+        assert strip_section_tokens("plain") == "plain"
+
+    async def test_history_macro_stripped_without_section(self):
+        messages = await assemble_prompt(
+            [], [{"role": "user", "content": "a {{summary}} b"}], {"name": "C"}, [],
+            {"summary": section_token("summary")},
+        )
+        assert messages[0]["content"] == "a  b"
+
+    async def test_history_macro_splices_section(self):
+        messages = await assemble_prompt(
+            [], [{"role": "user", "content": "a {{summary}} b"}], {"name": "C"}, [],
+            {"summary": section_token("summary")},
+            summary_sections={"summary": [{"type": "text", "text": "SUM"}]},
+        )
+        assert messages[0]["content"] == "a SUM b"
+
+    async def test_reasoning_macro_never_leaks_token(self):
+        block = {
+            "id": "b1", "block_type": "text", "name": "n", "content": "BODY",
+            "role": "assistant", "enabled": 1, "position": 0,
+            "injection_depth": None, "injection_order": 0,
+            "reasoning": "think {{summary}}",
+        }
+        messages = await assemble_prompt(
+            [block], [], {"name": "C"}, [], {"summary": section_token("summary")},
+        )
+        assert messages[0]["reasoning"].strip() == "think"
+        assert "\x00" not in messages[0]["reasoning"]

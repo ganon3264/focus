@@ -569,6 +569,54 @@ class TestSummarize:
         assert "CUSTOM BEGIN" not in text
         assert "<summary>" not in text
 
+    async def test_summary_macro_in_text_block_without_summary_is_stripped(self, client):
+        char = await create_character(client, "Char")
+        preset = await create_preset(client, "Pr")
+        chat = await create_chat(client, char["id"], preset_id=preset["id"])
+        await client.post(f"/api/presets/{preset['id']}/blocks", json={
+            "name": "Note", "block_type": "text", "role": "system",
+            "content": "BEGIN {{summary}} END",
+        })
+
+        # A non-summarized chat has no section to splice, so the macro resolves
+        # to nothing rather than leaking the internal placeholder token.
+        text = await _itemize_text(client, chat["id"])
+        assert "BEGIN" in text and "END" in text
+        assert "\x00" not in text
+        assert "section:" not in text
+
+    async def test_summary_macro_in_message_text_is_stripped(self, client, tmp_test_dir):
+        char = await create_character(client, "Char")
+        preset = await create_preset(client, "Pr")
+        chat = await create_chat(client, char["id"], preset_id=preset["id"])
+        await _insert_message(
+            _db_path(tmp_test_dir), chat["id"], "user", 0, "BEGIN {{summary}} END",
+        )
+
+        # Message text is macro-expanded like block text and must never leak
+        # the internal section token into the prompt.
+        text = await _itemize_text(client, chat["id"])
+        assert "BEGIN" in text and "END" in text
+        assert "\x00" not in text
+
+    async def test_summary_macro_in_message_text_splices_summary_in_fork(
+        self, client, tmp_test_dir, patch_provider
+    ):
+        chat, prov_id = await _setup(client)
+        await _insert_message(_db_path(tmp_test_dir), chat["id"], "assistant", 0, "Hi!")
+        patch_provider(FakeProvider("The recap."))
+        _, events = await _summarize(client, chat["id"], prov_id)
+        child_id = _done_id(events)
+        await _insert_message(
+            _db_path(tmp_test_dir), child_id, "user", 0, "Recap: {{summary}}",
+        )
+
+        # In a fork the macro splices the accumulated summary, like in blocks.
+        text = await _itemize_text(client, child_id)
+        assert "Recap: " in text
+        assert "The recap." in text
+        assert "\x00" not in text
+
     async def test_preset_settings_roundtrip(self, client):
         preset = await create_preset(client, "Pr")
         resp = await client.get(f"/api/presets/{preset['id']}/settings")
@@ -585,6 +633,17 @@ class TestSummarize:
         assert body["active"] is False
         assert body["keep"] == 7
         assert body["provider_id"] == "abc"
+
+        # A disabled Summary block also resolves active=False.
+        await client.put(f"/api/presets/{preset['id']}/settings", json={
+            "summary": {"enabled": True},
+        })
+        await client.post(f"/api/presets/{preset['id']}/blocks", json={
+            "name": "Summary", "block_type": "summary", "role": "system",
+            "content": "{{summary}}", "enabled": False,
+        })
+        body = (await client.get(f"/api/presets/{preset['id']}/settings")).json()["summary"]
+        assert body["active"] is False
 
         assert (await client.get("/api/presets/nope/settings")).status_code == 404
 

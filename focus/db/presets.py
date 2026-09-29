@@ -57,11 +57,11 @@ async def duplicate_preset(db: aiosqlite.Connection, source_preset_id: str, name
         new_block_id = str(uuid.uuid4())
         await db.execute(
             """INSERT INTO preset_blocks
-               (id, preset_id, name, content, reasoning, role, enabled, position, block_type, injection_depth, injection_order, config_json)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               (id, preset_id, name, content, reasoning, role, enabled, position, block_type, injection_depth, injection_order)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (new_block_id, new_preset_id, b["name"], b["content"], b["reasoning"],
              b["role"], b["enabled"], b["position"], b["block_type"],
-             b["injection_depth"], b["injection_order"], b["config_json"],
+             b["injection_depth"], b["injection_order"],
             ),
         )
 
@@ -196,11 +196,11 @@ async def import_preset(db: aiosqlite.Connection, file_content: bytes, filename:
         b["position"] = pos
         await db.execute(
             """INSERT INTO preset_blocks
-               (id, preset_id, name, content, reasoning, role, enabled, position, block_type, injection_depth, injection_order, config_json)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               (id, preset_id, name, content, reasoning, role, enabled, position, block_type, injection_depth, injection_order)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (b["id"], b["preset_id"], b["name"], b["content"], b["reasoning"],
              b["role"], b["enabled"], b["position"], b["block_type"],
-             b["injection_depth"], b["injection_order"], b.get("config_json") or "{}"),
+             b["injection_depth"], b["injection_order"]),
         )
 
     return {"id": preset_id, "name": preset_name, "block_count": len(blocks_in_order)}
@@ -225,7 +225,6 @@ async def create_preset_block(
     block_type: str = "text",
     injection_depth: int | None = None,
     injection_order: int = 0,
-    config_json: str = "{}",
 ) -> dict:
     block_id = str(uuid.uuid4())
     next_pos = await _next_preset_block_position(db, preset_id)
@@ -246,16 +245,16 @@ async def create_preset_block(
 
     await db.execute(
         """INSERT INTO preset_blocks
-           (id, preset_id, name, content, reasoning, role, enabled, position, block_type, injection_depth, injection_order, config_json)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+           (id, preset_id, name, content, reasoning, role, enabled, position, block_type, injection_depth, injection_order)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (block_id, preset_id, name, content, reasoning, role, enabled_int, next_pos,
-         block_type, injection_depth, injection_order, config_json),
+         block_type, injection_depth, injection_order),
     )
     return {"id": block_id, "position": next_pos}
 
 
 async def update_preset_block(db: aiosqlite.Connection, preset_id: str, block_id: str, updates: dict) -> None:
-    allowed = {"name", "content", "reasoning", "role", "enabled", "position", "injection_depth", "injection_order", "config_json"}
+    allowed = {"name", "content", "reasoning", "role", "enabled", "position", "injection_depth", "injection_order"}
     updates = {k: v for k, v in updates.items() if k in allowed}
     if not updates:
         return

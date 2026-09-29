@@ -38,6 +38,10 @@ class TestSpliceSections:
         content = "plain text"
         assert _splice_sections(content, {"summary": [{"type": "text", "text": "x"}]}) == content
 
+    def test_missing_section_removes_token(self):
+        token = section_token("summary")
+        assert _splice_sections(f"a{token}b", {}) == "ab"
+
 
 class TestSummaryTranscript:
     def test_plain_string(self):

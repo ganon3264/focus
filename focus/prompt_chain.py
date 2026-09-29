@@ -172,12 +172,22 @@ def section_token(name: str) -> str:
 
     A plain string macro can't carry multipart content, so the ``{{summary_*}}``
     macros resolve to these tokens and the assembler splices the section's
-    parts in at that position.
+    parts in at that position. Tokens are internal markers: anything that
+    can't splice them must strip them (see ``strip_section_tokens``).
     """
     return f"\x00section:{name}\x00"
 
 
-def _merge_text_parts(parts: list[dict]) -> list[dict]:
+def strip_section_tokens(text: str) -> str:
+    """Remove summary section tokens from a plain-text field.
+
+    For fields that cannot carry multipart splices (reasoning); an
+    unresolved marker must never reach the provider.
+    """
+    return SECTION_TOKEN_RE.sub("", text)
+
+
+def merge_text_parts(parts: list[dict]) -> list[dict]:
     merged: list[dict] = []
     for part in parts:
         if part.get("type") == "text" and merged and merged[-1].get("type") == "text":
@@ -188,8 +198,13 @@ def _merge_text_parts(parts: list[dict]) -> list[dict]:
 
 
 def _splice_sections(content, sections: dict) -> str | list:
-    """Replace section tokens in *content* with their prebuilt parts."""
-    if not sections or not content:
+    """Replace section tokens in *content* with their prebuilt parts.
+
+    A token whose section is missing or empty is dropped, never left in place:
+    an unresolved marker must not reach the provider (e.g. ``{{summary}}`` used
+    in a chat that has no summary).
+    """
+    if not content:
         return content
     parts = content if isinstance(content, list) else [{"type": "text", "text": content}]
     if not any(
@@ -197,6 +212,7 @@ def _splice_sections(content, sections: dict) -> str | list:
         for p in parts
     ):
         return content
+    sections = sections or {}
 
     out: list[dict] = []
     for part in parts:
@@ -213,7 +229,7 @@ def _splice_sections(content, sections: dict) -> str | list:
         if idx < len(text):
             out.append({"type": "text", "text": text[idx:]})
 
-    out = _merge_text_parts([p for p in out if p.get("type") != "text" or p["text"]])
+    out = merge_text_parts([p for p in out if p.get("type") != "text" or p["text"]])
     if not out:
         return ""
     if len(out) == 1 and out[0].get("type") == "text":
@@ -289,24 +305,13 @@ async def assemble_prompt(
 
         images = block_images.get(block["id"], [])
 
-        # An editable sentinel: its content is the user's macro template, but it
-        # only exists for chats that carry a summary. The explicit branch is the
-        # conditional — no content sniffing.
-        if btype == "summary":
-            if not has_summary:
-                continue
-            text = apply_macros(block["content"], macros).strip()
-            content = await build_block_content(text, images, sections)
-            if content or any(
-                block.get(cfg["history_key"]) for cfg in TRACKED_FIELDS.values() if cfg.get("preserve_thinking")
-            ):
-                msg = {"role": block["role"], "content": content}
-                if block["role"] == "assistant" and block.get("reasoning"):
-                    msg["reasoning"] = apply_macros(block["reasoning"], macros)
-                target.append(msg)
+        # The summary sentinel is an ordinary text block that only exists for
+        # chats carrying a summary. The explicit branch is the conditional —
+        # no content sniffing.
+        if btype == "summary" and not has_summary:
             continue
 
-        if btype == "text":
+        if btype in ("text", "summary"):
             text = apply_macros(block["content"], macros).strip()
             content = await build_block_content(text, images, sections)
             if content or any(
@@ -314,7 +319,7 @@ async def assemble_prompt(
             ):
                 msg = {"role": block["role"], "content": content}
                 if block["role"] == "assistant" and block.get("reasoning"):
-                    msg["reasoning"] = apply_macros(block["reasoning"], macros)
+                    msg["reasoning"] = strip_section_tokens(apply_macros(block["reasoning"], macros))
                 target.append(msg)
 
         elif btype == "char_description":
@@ -354,7 +359,12 @@ async def assemble_prompt(
     for msg in chat_history:
         cleaned_msg = dict(msg)
         if isinstance(cleaned_msg.get("content"), str):
-            cleaned_msg["content"] = apply_macros(cleaned_msg["content"], macros)
+            # History text is macro-expanded like block text, so summary
+            # section macros splice here too; with no section they resolve to
+            # nothing instead of leaking the internal token.
+            cleaned_msg["content"] = _splice_sections(
+                apply_macros(cleaned_msg["content"], macros), sections
+            )
         if cleaned_msg.get("role") == "assistant" and isinstance(cleaned_msg.get("content"), str):
             content = cleaned_msg["content"]
 
@@ -392,7 +402,7 @@ async def assemble_prompt(
                 ):
                     msg = {"role": block["role"], "content": content}
                     if block["role"] == "assistant" and block.get("reasoning"):
-                        msg["reasoning"] = apply_macros(block["reasoning"], macros)
+                        msg["reasoning"] = strip_section_tokens(apply_macros(block["reasoning"], macros))
                     injected.append(msg)
             if not injected:
                 continue

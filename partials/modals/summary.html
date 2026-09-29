@@ -50,7 +50,7 @@
         const chatId = window.location.pathname.split('/').pop();
         if (!chatId || chatId === 'chat') { this.chunks = []; return; }
         try {
-          const res = await fetch('/api/chats/' + chatId + '/summary');
+          const res = await fetch(window.api.chatSummary(chatId));
           if (!res.ok) throw new Error('Failed to load summary');
           const data = await res.json();
           this.chunks = (data.chunks || []).map((c) => ({ ...c }));
@@ -66,7 +66,7 @@
         if (!chatId || chatId === 'chat') return;
         this.saving = true;
         try {
-          const res = await fetch('/api/chats/' + chatId + '/summary', {
+          const res = await fetch(window.api.chatSummary(chatId), {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -80,7 +80,7 @@
           }
           this.dirty = false;
           window.showSuccessToast('Summary updated');
-          window.closeModal('modal-summary');
+          window.closeModal('modal-summary', { discard: true });
         } catch (e) {
           window.showErrorToast(e.message);
         } finally {
