@@ -1,6 +1,7 @@
 <div class="message relative msg{% if message.get('is_ancestor') %} message-ancestor{% endif %}" id="message-{{ message.id }}" data-role="{{ message.role }}" data-message-id="{{ message.id }}" data-raw-content="{{ message.content }}" data-raw-reasoning="{{ message.get('reasoning') or '' }}" data-msg-index="{{ msg_index }}" data-chat-id="{{ message.get('chat_id') or chat_id }}">
   {% from "macros.html" import icon_edit, icon_refresh, icon_trash, icon_music, icon_branch,
-  icon_chevron_left, icon_chevron_right, icon_forward, icon_plug, icon_list, tool_call_card %}
+  icon_chevron_left, icon_chevron_right, icon_forward, icon_plug, icon_list, icon_star,
+  icon_star_filled, tool_call_card %}
   <div class="delete-mode-checkbox hidden absolute -left-12 top-4">
     <input
       type="checkbox"
@@ -63,6 +64,11 @@
       <!-- Right: meta-right + toolbar overlay -->
       <div class="relative shrink-0" style="margin-left:1rem">
         <div class="meta-right flex items-center gap-3 mt-0.5">
+          {% if message.get('pinned') %}
+          <span class="fav-star favorite-active" title="Pinned — kept verbatim in compacted chats">
+            <span class="fav-star-filled">{{ icon_star_filled(14) }}</span>
+          </span>
+          {% endif %}
           <div class="text-xs text-right leading-tight shrink-0" data-utc="{{ message.created_at or '' }}">
             <div class="text-muted ts-date">{{ message.created_at[:10] if message.created_at else '' }}</div>
             <div style="color:var(--text-faint)" class="ts-time">{{ message.created_at[11:16] if message.created_at else '' }}</div>
@@ -126,6 +132,18 @@
           {% if ext.icon %}<span class="ext-icon w-4 h-4 shrink-0">{{ ext.icon | safe }}</span>{% else %}{{ icon_plug() }}{% endif %}
         </button>
         {% endfor %}
+        <button
+          class="action-btn"
+          title="Pin — kept verbatim in compacted chats"
+          aria-label="Toggle pin"
+          data-action="actionToggleMessagePin"
+          data-pinned="{{ '1' if message.get('pinned') else '0' }}"
+        >
+          <span class="fav-star{% if message.get('pinned') %} favorite-active{% endif %}">
+            <span class="fav-star-outline">{{ icon_star(16) }}</span>
+            <span class="fav-star-filled">{{ icon_star_filled(16) }}</span>
+          </span>
+        </button>
         <button
           class="action-btn"
           title="Summarize up to here"

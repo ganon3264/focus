@@ -276,11 +276,12 @@ async def buffered_completion_with_retry(
     """Buffered completion with the shared retry policy.
 
     Yields zero or more ``retry`` events while backing off, then exactly one
-    terminal event: ``{"type": "text", ...}`` on success or
-    ``{"type": "error", ...}`` on failure. Used by paths that need a final
-    string rather than a live token stream (summarization). Because nothing is
-    shown to the client before completion, a failed attempt is always safe to
-    replay — unlike live streaming, there is no partial output to duplicate.
+    terminal event: ``{"type": "text", ...}`` on success, ``{"type": "error",
+    ...}`` on failure, or ``{"type": "error", "stopped": True}`` when stopped.
+    Used by paths that need a final string rather than a live token stream
+    (summarization). Because nothing is shown to the client before completion,
+    a failed attempt is always safe to replay — unlike live streaming, there
+    is no partial output to duplicate.
     """
     attempt = 0
     waited_total = 0.0
@@ -297,13 +298,15 @@ async def buffered_completion_with_retry(
 
     while True:
         if stop_event is not None and stop_event.is_set():
-            yield {"type": "error", "error": "Stopped"}
+            yield {"type": "error", "error": "Stopped", "stopped": True}
             return
         try:
-            if attempt_timeout is not None:
-                text = await asyncio.wait_for(_collect(), timeout=attempt_timeout)
-            else:
-                text = await _collect()
+            pending = (
+                asyncio.wait_for(_collect(), timeout=attempt_timeout)
+                if attempt_timeout is not None
+                else _collect()
+            )
+            text, stopped = await _await_or_stop(pending, stop_event)
         except Exception as e:
             cls = classify(e)
             can_retry = is_retryable(retry_config, cls) and attempt < retry_config.max_retries
@@ -327,7 +330,7 @@ async def buffered_completion_with_retry(
                     "reason": _error_reason(e),
                 }
                 if await _sleep_or_stop(delay, stop_event):
-                    yield {"type": "error", "error": "Stopped"}
+                    yield {"type": "error", "error": "Stopped", "stopped": True}
                     return
                 waited_total += delay
                 attempt += 1
@@ -336,11 +339,41 @@ async def buffered_completion_with_retry(
             yield {"type": "error", "error": _error_reason(e)}
             return
 
+        if stopped:
+            yield {"type": "error", "error": "Stopped", "stopped": True}
+            return
         if not text:
             yield {"type": "error", "error": _empty_response_error(None)}
             return
         yield {"type": "text", "text": text}
         return
+
+
+async def _await_or_stop(awaitable, stop_event: asyncio.Event | None):
+    """Await *awaitable*, cancelling it when *stop_event* fires first.
+
+    Returns ``(result, False)`` or ``(None, True)`` on cancellation. A buffered
+    upstream call is one long await, so a stop must cut the request instead of
+    waiting for it to finish or time out.
+    """
+    task = asyncio.ensure_future(awaitable)
+    if stop_event is None:
+        return await task, False
+    stop_task = asyncio.ensure_future(stop_event.wait())
+    try:
+        await asyncio.wait({task, stop_task}, return_when=asyncio.FIRST_COMPLETED)
+        if task.done():
+            return task.result(), False
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+        except Exception:
+            pass
+        return None, True
+    finally:
+        stop_task.cancel()
 
 
 def _stop_terminal_event(active: _ActiveGeneration | None) -> dict:

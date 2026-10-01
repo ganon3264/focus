@@ -307,3 +307,14 @@ class TestCapabilityDrivenQuirks:
         )
         assert isinstance(out[0]["content"], list)
         assert out[0]["content"][0]["cache_control"]["type"] == "ephemeral"
+
+
+class TestInternalMarkers:
+    async def test_assembly_markers_stripped_before_wire(self):
+        msgs = [
+            {"role": "user", "content": "hi", "_greeting": True, "_pinned": True, "internal": True},
+        ]
+        out, _ = await _run(_prov("openai_compat"), _body(), msgs)
+        assert "_greeting" not in out[0]
+        assert "_pinned" not in out[0]
+        assert "internal" not in out[0]

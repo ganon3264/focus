@@ -126,6 +126,7 @@ CREATE TABLE IF NOT EXISTS messages (
     role         TEXT NOT NULL,
     position     INTEGER NOT NULL,
     active_index INTEGER NOT NULL DEFAULT 0,
+    pinned       INTEGER NOT NULL DEFAULT 0,
     created_at   TEXT NOT NULL
 );
 
@@ -296,6 +297,11 @@ async def init_db():
         col_names = {row[1] for row in await cols.fetchall()}
         if "settings_json" not in col_names:
             await db.execute("ALTER TABLE presets ADD COLUMN settings_json TEXT NOT NULL DEFAULT '{}'")
+
+        cols = await db.execute("PRAGMA table_info(messages)")
+        col_names = {row[1] for row in await cols.fetchall()}
+        if "pinned" not in col_names:
+            await db.execute("ALTER TABLE messages ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0")
 
         cols = await db.execute("PRAGMA table_info(message_variants)")
         col_names = {row[1] for row in await cols.fetchall()}

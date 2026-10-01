@@ -299,7 +299,15 @@
   };
 
   var stopBtn = document.getElementById('stop-btn');
-  if (stopBtn) stopBtn.addEventListener('click', function () { window.Generation.stop(); });
+  if (stopBtn) stopBtn.addEventListener('click', function () {
+    // The composer's abort drives both kinds of runs: a live generation, or a
+    // summary launched from the message toolbar.
+    if (window.summaryRunActive && window.summaryRunActive()) {
+      window.stopSummary();
+      return;
+    }
+    window.Generation.stop();
+  });
 
   // The active provider is baked into a running request; switching it must not
   // leave that run retrying against the old provider. Chat switches reload the

@@ -123,9 +123,9 @@ overlay_close=true, dirty_fields='#block-modal-textarea,#block-modal-reasoning',
 {% for p in (providers | default([])) %}
 {% set _ = provider_options.append({"value": p.id, "label": p.name}) %}
 {% endfor %}
-{% call modal_shell('modal-summary-settings', 'Summary Settings', max_width='560px', z_index='1000',
+{% call modal_shell('modal-summary-settings', 'Summary Settings', max_width='640px', z_index='1000',
 overlay_close=true,
-dirty_fields='#summary-settings-enabled,#summary-settings-instruction,#summary-settings-keep,#summary-settings-provider',
+dirty_fields='#summary-settings-enabled,#summary-settings-instruction,#summary-settings-keep,#summary-settings-max-tokens,#summary-settings-provider',
 dirty_label='summary settings') %}
 <div class="flex flex-col gap-3">
   <div class="flex items-center gap-2">
@@ -168,6 +168,17 @@ dirty_label='summary settings') %}
         class="form-control form-control-xs"
       />
     </label>
+    <label class="flex items-center gap-1 text-xs text-muted">
+      Max tokens
+      {{ hint_tooltip('Token budget for the summary response. 0 = let the provider decide.') }}
+      <input
+        id="summary-settings-max-tokens"
+        type="text"
+        inputmode="numeric"
+        value="{{ summary_settings.max_tokens }}"
+        class="form-control form-control-xs"
+      />
+    </label>
     <div class="flex items-center gap-2" style="min-width: 0; flex: 1">
       <span class="flex items-center gap-1 text-xs text-muted select-none">
         Provider
@@ -183,6 +194,7 @@ dirty_label='summary settings') %}
     The <strong>Summary</strong> block is injected only in chats that have been
     summarized. Edit its content to place
     <code>{{ '{{summary}}' }}</code>,
+    <code>{{ '{{summary_pins}}' }}</code>,
     <code>{{ '{{summary_messages}}' }}</code> or
     <code>{{ '{{summary_media}}' }}</code>.
   </div>
@@ -332,6 +344,7 @@ dirty_label='summary settings') %}
           enabled: document.getElementById('summary-settings-enabled').value === '1',
           instruction: document.getElementById('summary-settings-instruction').value,
           keep: parseInt(document.getElementById('summary-settings-keep').value, 10) || 0,
+          max_tokens: parseInt(document.getElementById('summary-settings-max-tokens').value, 10) || 0,
           provider_id: document.getElementById('summary-settings-provider').value,
         },
       };

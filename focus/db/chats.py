@@ -196,6 +196,17 @@ async def create_message_with_variant(
     return msg_id, variant_id
 
 
+async def set_message_pinned(
+    db: aiosqlite.Connection, chat_id: str, message_id: str, pinned: bool
+) -> bool:
+    """Flag a message as pinned (kept verbatim in compacted forks)."""
+    cur = await db.execute(
+        "UPDATE messages SET pinned = ? WHERE id = ? AND chat_id = ?",
+        (1 if pinned else 0, message_id, chat_id),
+    )
+    return cur.rowcount > 0
+
+
 async def delete_message_and_after(db: aiosqlite.Connection, chat_id: str, message_id: str) -> None:
     async with db.execute("SELECT position FROM messages WHERE id = ? AND chat_id = ?", (message_id, chat_id)) as cur:
         row = await cur.fetchone()

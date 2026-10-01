@@ -173,6 +173,26 @@ window.actionOpenSummary = function () {
   window.dispatchEvent(new CustomEvent('summary-open'));
 };
 
+window.actionToggleMessagePin = function (el) {
+  var msg = el.closest('.message');
+  var chatId = msg.dataset.chatId;
+  var messageId = msg.dataset.messageId;
+  var pinned = el.dataset.pinned !== '1';
+  fetch(window.api.messagePin(chatId, messageId), {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pinned: pinned }),
+  })
+    .then(function (r) {
+      if (!r.ok) throw new Error('Pin failed');
+      return window.refreshSingleMessage(chatId, messageId);
+    })
+    .then(function () {
+      window.showSuccessToast(pinned ? 'Message pinned' : 'Message unpinned');
+    })
+    .catch(function (e) { window.showErrorToast(e.message); });
+};
+
 window.actionBranchMessage = function (el) {
   var msg = el.closest('.message');
   var messageId = msg.dataset.messageId;

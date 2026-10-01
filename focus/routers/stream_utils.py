@@ -115,7 +115,7 @@ def _transcript_text(messages: list[dict], media: list[dict]) -> str:
 async def _summary_sections(
     db: aiosqlite.Connection, chat: dict, keep: int
 ) -> dict[str, list[dict]]:
-    """Prebuilt content arrays for the three summary macros.
+    """Prebuilt content arrays for the summary macros.
 
     Each section is resolved to a parts array (text and media already in order)
     so a block that references the macro splices it in without the assembler
@@ -142,10 +142,28 @@ async def _summary_sections(
         else:
             window, older = [], convo
 
+    # User-pinned turns from the compacted region, verbatim. The parent's live
+    # window rides along via {{summary_messages}}, so its pins come from
+    # `older` only; each older chunk contributes the pins it covered. Chain
+    # order keeps the transcript chronological (oldest first).
+    pins: list[dict] = []
+    for s in chain:
+        if s["chat_id"] == chat.get("parent_chat_id"):
+            pins.extend(m for m in older if m.get("_pinned"))
+            continue
+        cut = s.get("covered_to_position")
+        hist, _, _ = await _get_history(
+            db, s["chat_id"], False,
+            up_to_position=cut if cut is not None and cut >= 0 else None,
+        )
+        pins.extend(m for m in hist if m.get("_pinned"))
+
     older_media: list[dict] = []
     media_text = _transcript_text([m for m in older if _has_media(m)], older_media)
     window_media: list[dict] = []
     window_text = _transcript_text(window, window_media)
+    pins_media: list[dict] = []
+    pins_text = _transcript_text(pins, pins_media)
 
     async def _parts(text: str, media: list[dict]) -> list[dict]:
         if not text:
@@ -157,6 +175,7 @@ async def _summary_sections(
 
     return {
         "summary": [{"type": "text", "text": summary_text}] if summary_text else [],
+        "summary_pins": await _parts(pins_text, pins_media),
         "summary_media": await _parts(media_text, older_media),
         "summary_messages": await _parts(window_text, window_media),
     }
@@ -175,6 +194,7 @@ def _default_summary_message(sections: dict[str, list[dict]], role: str) -> dict
     parts: list[dict] = []
     for tag, sec in (
         ("summary", sections.get("summary") or []),
+        ("pinned_messages", sections.get("summary_pins") or []),
         ("media_messages", sections.get("summary_media") or []),
         ("last_messages", sections.get("summary_messages") or []),
     ):
@@ -290,7 +310,8 @@ async def _append_history_with_tool_calls(
             s.get("type") == "tool_boundary" and s.get("tool_calls") for s in segments
         ):
             await _append_segmented_tool_history(
-                history, segments, tcs, variant_meta=variant_meta, model_name=row.get("model_name")
+                history, segments, tcs, variant_meta=variant_meta, model_name=row.get("model_name"),
+                pinned=bool(row.get("pinned")),
             )
             return
 
@@ -303,6 +324,8 @@ async def _append_history_with_tool_calls(
     if row["role"] == "assistant":
         attach_to_message(entry, variant_meta)
         entry["_src_model"] = row.get("model_name")
+    if row.get("pinned"):
+        entry["_pinned"] = True
 
     if tcs and row["role"] == "assistant":
         entry["tool_calls"] = [_tool_calls_payload(tc) for tc in tcs]
@@ -352,7 +375,8 @@ async def _append_tool_messages(history: list, tc: dict) -> None:
 
 
 async def _append_segmented_tool_history(
-    history: list, segments: list, tcs: list, variant_meta: dict | None = None, model_name: str | None = None
+    history: list, segments: list, tcs: list, variant_meta: dict | None = None, model_name: str | None = None,
+    pinned: bool = False,
 ) -> None:
     """Rebuild per-iteration history from stored segments.
 
@@ -386,6 +410,8 @@ async def _append_segmented_tool_history(
         entry: dict = {"role": "assistant", "content": text}
         if reasoning:
             entry["reasoning"] = reasoning
+        if pinned:
+            entry["_pinned"] = True
         if variant_meta and not meta_attached:
             attach_to_message(entry, variant_meta)
             entry["_src_model"] = model_name

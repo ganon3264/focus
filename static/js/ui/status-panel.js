@@ -163,18 +163,79 @@ function newChat() {
     .catch((e) => window.showErrorToast(e.message));
 }
 
+var _summaryRun = null; // active summarize run: { chatId, stopRequested, watchdog, cancel }
+
+window.summaryRunActive = function () {
+  return _summaryRun !== null;
+};
+
+// Stop contract (mirrors Generation.stop, scaled down): POST the stop so the
+// server cancels the buffered provider call, wait for the terminal event,
+// hard-abort the stream if none arrives.
+window.stopSummary = function () {
+  var run = _summaryRun;
+  if (!run || run.stopRequested) return;
+  run.stopRequested = true;
+  window.showInfoToast('Stopping summary\u2026', { duration: 6000 });
+
+  var postCtl = new AbortController();
+  var postTimer = setTimeout(function () { postCtl.abort(); }, 4000);
+  fetch(window.api.chatStopSummary(run.chatId), { method: 'POST', signal: postCtl.signal })
+    .then(function (r) {
+      // 404: the run already finished; resolve locally instead of draining.
+      if (r.status === 404) run.cancel();
+    })
+    .catch(function () {})
+    .finally(function () { clearTimeout(postTimer); });
+
+  run.watchdog = setTimeout(function () { run.cancel(); }, 6000);
+};
+
 function summarizeChat(chatId, messageId, btn) {
   if (!chatId) return;
+  if (_summaryRun) {
+    window.showErrorToast('A summary is already running');
+    return;
+  }
+  window.openConfirmModal(
+    messageId
+      ? 'Summarize the conversation up to this message? A new chat is forked with the summary and recent messages as context.'
+      : 'Summarize the conversation? A new chat is forked with the summary and recent messages as context.',
+    function () { startSummary(chatId, messageId, btn); },
+  );
+}
 
+function startSummary(chatId, messageId, btn) {
   var finished = false;
+  var abortCtl = new AbortController();
+  var run = { chatId: chatId, stopRequested: false, watchdog: null, cancel: null };
+
+  function teardown() {
+    if (_summaryRun === run) _summaryRun = null;
+    if (run.watchdog) clearTimeout(run.watchdog);
+    window.setGeneratingUI(false);
+    if (btn) btn.disabled = false;
+  }
+
   function fail(message) {
     if (finished) return;
     finished = true;
+    teardown();
     window.resetRetryFeedback();
     window.hideInfoToast();
-    if (btn) btn.disabled = false;
     window.showErrorToast(message || 'Summarize failed');
   }
+
+  function cancelled() {
+    if (finished) return;
+    finished = true;
+    teardown();
+    abortCtl.abort();
+    window.resetRetryFeedback();
+    window.hideInfoToast();
+    window.showSuccessToast('Summary cancelled');
+  }
+  run.cancel = cancelled;
 
   function handleEvent(raw) {
     var line = raw.trim();
@@ -188,14 +249,18 @@ function summarizeChat(chatId, messageId, btn) {
       fail(data.error);
     } else if (data.type === 'done') {
       if (finished) return;
+      if (data.cancelled) { cancelled(); return; }
       finished = true;
+      teardown();
       window.resetRetryFeedback();
       window.hideInfoToast();
       window.location.href = '/chat/' + data.id;
     }
   }
 
+  _summaryRun = run;
   if (btn) btn.disabled = true;
+  window.setGeneratingUI(true);
   window.showInfoToast('Summarizing\u2026', { id: 'summarize', duration: 0 });
 
   fetch(window.api.chatSummarize(chatId), {
@@ -205,6 +270,7 @@ function summarizeChat(chatId, messageId, btn) {
       provider_id: StateManager.get('provider_id') || '',
       message_id: messageId || '',
     }),
+    signal: abortCtl.signal,
   })
     .then(function (resp) {
       if (!resp.ok) {
@@ -231,5 +297,8 @@ function summarizeChat(chatId, messageId, btn) {
         }).catch(function (e) { fail(e.message); });
       })();
     })
-    .catch(function (e) { fail(e.message); });
+    .catch(function (e) {
+      if (run.stopRequested) cancelled();
+      else fail(e.message);
+    });
 }

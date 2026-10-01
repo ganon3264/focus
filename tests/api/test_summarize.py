@@ -6,6 +6,7 @@ context carries the accumulated summary plus the parent's recent messages. The
 endpoint streams SSE so provider failures retry like normal generation.
 """
 
+import asyncio
 import json
 import os
 import uuid
@@ -122,10 +123,12 @@ class FakeProvider:
         self.text = text
         self.calls = 0
         self.messages_seen: list[list[dict]] = []
+        self.kwargs_seen: list[dict] = []
 
     async def stream_complete(self, messages, **kwargs):
         self.calls += 1
         self.messages_seen.append(messages)
+        self.kwargs_seen.append(kwargs)
         yield {"type": "token", "text": self.text}
         yield {"type": "done"}
 
@@ -148,6 +151,21 @@ class FlakyProvider(FakeProvider):
             raise err
         yield {"type": "token", "text": self.text}
         yield {"type": "done"}
+
+
+class SlowProvider(FakeProvider):
+    """Parks the provider call forever — used to exercise the stop path."""
+
+    def __init__(self):
+        super().__init__("never")
+        self.started = asyncio.Event()
+
+    async def stream_complete(self, messages, **kwargs):
+        self.calls += 1
+        self.messages_seen.append(messages)
+        self.started.set()
+        await asyncio.Event().wait()  # parked until the call is cancelled
+        yield {"type": "done"}  # unreachable; the yield makes this an async generator
 
 
 @pytest.fixture
@@ -623,15 +641,17 @@ class TestSummarize:
         assert resp.status_code == 200
         assert resp.json()["summary"]["active"] is True
         assert resp.json()["summary"]["keep"] == 20
+        assert resp.json()["summary"]["max_tokens"] == 8192
 
         resp = await client.put(f"/api/presets/{preset['id']}/settings", json={
-            "summary": {"enabled": False, "keep": 7, "provider_id": "abc"},
+            "summary": {"enabled": False, "keep": 7, "max_tokens": 500, "provider_id": "abc"},
         })
         assert resp.status_code == 200
 
         body = (await client.get(f"/api/presets/{preset['id']}/settings")).json()["summary"]
         assert body["active"] is False
         assert body["keep"] == 7
+        assert body["max_tokens"] == 500
         assert body["provider_id"] == "abc"
 
         # A disabled Summary block also resolves active=False.
@@ -672,3 +692,198 @@ class TestSummarize:
             "SELECT id FROM chats WHERE parent_chat_id = ?", chat["id"],
         )
         assert children == []
+
+
+class TestSummaryPins:
+    """Pinned turns ride verbatim into forks via {{summary_pins}}."""
+
+    async def _fork_with_pins(self, client, tmp_test_dir, patch_provider, keep=None):
+        char = await create_character(client, "Char")
+        preset = await create_preset(client, "Pr")
+        if keep is not None:
+            await client.put(
+                f"/api/presets/{preset['id']}/settings", json={"summary": {"keep": keep}},
+            )
+        chat = await create_chat(client, char["id"], preset_id=preset["id"])
+        setup = await _insert_message(
+            _db_path(tmp_test_dir), chat["id"], "user", 0, "SETUP RULES XYZ",
+        )
+        await _insert_message(_db_path(tmp_test_dir), chat["id"], "assistant", 1, "ok")
+        await _insert_message(_db_path(tmp_test_dir), chat["id"], "user", 2, "UNPINNED FLUFF")
+        await _insert_message(_db_path(tmp_test_dir), chat["id"], "assistant", 3, "later")
+
+        resp = await client.put(
+            f"/api/chats/{chat['id']}/messages/{setup}/pin", json={"pinned": True},
+        )
+        assert resp.status_code == 200 and resp.json()["pinned"] is True
+        return chat, setup
+
+    async def test_pinned_message_survives_compaction(
+        self, client, tmp_test_dir, patch_provider
+    ):
+        chat, _ = await self._fork_with_pins(client, tmp_test_dir, patch_provider, keep=1)
+        prov = await _create_provider(client)
+        patch_provider(FakeProvider("Recap."))
+        _, events = await _summarize(client, chat["id"], prov)
+        child_id = _done_id(events)
+
+        # Pinned and outside the live window: carried verbatim. Unpinned and
+        # outside: compressed away with the summary.
+        text = await _itemize_text(client, child_id)
+        assert "SETUP RULES XYZ" in text
+        assert "UNPINNED FLUFF" not in text
+
+    async def test_summary_pins_macro_splices_in_block(
+        self, client, tmp_test_dir, patch_provider
+    ):
+        chat, _ = await self._fork_with_pins(client, tmp_test_dir, patch_provider, keep=1)
+        preset_id = (await _fetchall(
+            _db_path(tmp_test_dir), "SELECT preset_id FROM chats WHERE id = ?", chat["id"],
+        ))[0]["preset_id"]
+        await client.post(f"/api/presets/{preset_id}/blocks", json={
+            "name": "Pins", "block_type": "text", "role": "system",
+            "content": "PINS[{{summary_pins}}]",
+        })
+        prov = await _create_provider(client)
+        patch_provider(FakeProvider("Recap."))
+        _, events = await _summarize(client, chat["id"], prov)
+        child_id = _done_id(events)
+
+        text = await _itemize_text(client, child_id)
+        assert "PINS[user: SETUP RULES XYZ]" in text
+
+    async def test_pinned_message_inside_window_is_not_duplicated(
+        self, client, tmp_test_dir, patch_provider
+    ):
+        char = await create_character(client, "Char")
+        preset = await create_preset(client, "Pr")
+        chat = await create_chat(client, char["id"], preset_id=preset["id"])
+        msg_id = await _insert_message(
+            _db_path(tmp_test_dir), chat["id"], "user", 0, "PINNED MARKER ONE",
+        )
+        await _insert_message(_db_path(tmp_test_dir), chat["id"], "assistant", 1, "ok")
+        await client.put(
+            f"/api/chats/{chat['id']}/messages/{msg_id}/pin", json={"pinned": True},
+        )
+
+        prov = await _create_provider(client)
+        patch_provider(FakeProvider("Recap."))
+        _, events = await _summarize(client, chat["id"], prov)
+        child_id = _done_id(events)
+
+        # Default keep (20) leaves everything in the live window, so the pin
+        # must not be repeated by {{summary_pins}}.
+        text = await _itemize_text(client, child_id)
+        assert text.count("PINNED MARKER ONE") == 1
+
+    async def test_pins_survive_repeated_compaction(
+        self, client, tmp_test_dir, patch_provider
+    ):
+        chat, _ = await self._fork_with_pins(client, tmp_test_dir, patch_provider, keep=1)
+        prov = await _create_provider(client)
+        patch_provider(FakeProvider("Recap."))
+        _, events = await _summarize(client, chat["id"], prov)
+        child_id = _done_id(events)
+
+        await _insert_message(_db_path(tmp_test_dir), child_id, "assistant", 0, "b1")
+        _, events = await _summarize(client, child_id, prov)
+        grandchild_id = _done_id(events)
+
+        # The root's pin is two chain chunks deep and must still be verbatim.
+        text = await _itemize_text(client, grandchild_id)
+        assert "SETUP RULES XYZ" in text
+
+
+class TestSummarizeWireHygiene:
+    async def test_no_assembly_markers_reach_the_provider(self, client, tmp_test_dir, patch_provider):
+        char = await create_character(client, "Char")
+        preset = await create_preset(client, "Pr")
+        chat = await create_chat(client, char["id"], preset_id=preset["id"])
+        db_path = _db_path(tmp_test_dir)
+        asst_id = await _insert_message(db_path, chat["id"], "assistant", 0, "Hi!")
+
+        # A tool round whose extra payload is a synthetic internal user
+        # message — the summarize path must scrub it like the generation one.
+        async with aiosqlite.connect(db_path) as conn:
+            await conn.execute("PRAGMA foreign_keys=ON")
+            await conn.execute(
+                "INSERT INTO tool_calls"
+                " (id, chat_id, message_id, variant_id, tool_name, arguments, result, extra_message_json, created_at)"
+                " VALUES (?, ?, ?,"
+                " (SELECT id FROM message_variants WHERE message_id = ? LIMIT 1),"
+                " ?, ?, ?, ?, ?)",
+                (str(uuid.uuid4()), chat["id"], asst_id, asst_id,
+                 "look", "{}", "ok",
+                 json.dumps({"role": "user", "content": "INTERNAL EXTRA", "internal": True}),
+                 _now_iso()),
+            )
+            await conn.commit()
+
+        prov = await _create_provider(client)
+        fake = FakeProvider("Recap.")
+        patch_provider(fake)
+        status, events = await _summarize(client, chat["id"], prov)
+        assert status == 200 and _done_id(events)
+
+        seen = fake.messages_seen[0]
+        assert any("INTERNAL EXTRA" in str(m.get("content")) for m in seen)
+        for msg in seen:
+            assert "internal" not in msg
+            assert not any(k.startswith("_") for k in msg)
+
+
+class TestSummaryMaxTokens:
+    async def test_max_tokens_setting_reaches_the_provider(self, client, tmp_test_dir, patch_provider):
+        char = await create_character(client, "Char")
+        preset = await create_preset(client, "Pr")
+        chat = await create_chat(client, char["id"], preset_id=preset["id"])
+        await _insert_message(_db_path(tmp_test_dir), chat["id"], "assistant", 0, "Hi!")
+        prov = await _create_provider(client)
+
+        fake = FakeProvider("Recap.")
+        patch_provider(fake)
+
+        await client.put(f"/api/presets/{preset['id']}/settings", json={
+            "summary": {"max_tokens": 123},
+        })
+        status, events = await _summarize(client, chat["id"], prov)
+        assert status == 200 and _done_id(events)
+        assert fake.kwargs_seen[-1]["max_tokens"] == 123
+
+        # 0 = no explicit cap: provider params / adapter default apply.
+        await client.put(f"/api/presets/{preset['id']}/settings", json={
+            "summary": {"max_tokens": 0},
+        })
+        status, events = await _summarize(client, chat["id"], prov)
+        assert status == 200 and _done_id(events)
+        assert "max_tokens" not in fake.kwargs_seen[-1]
+
+
+class TestSummaryCancel:
+    async def test_running_summary_can_be_cancelled(self, client, tmp_test_dir, patch_provider):
+        chat, prov_id = await _setup(client)
+        await _insert_message(_db_path(tmp_test_dir), chat["id"], "assistant", 0, "Hi!")
+        fake = SlowProvider()
+        patch_provider(fake)
+
+        task = asyncio.create_task(_summarize(client, chat["id"], prov_id))
+        await asyncio.wait_for(fake.started.wait(), timeout=5)
+
+        resp = await client.post(f"/api/chats/{chat['id']}/summarize/stop")
+        assert resp.status_code == 200
+
+        status, events = await asyncio.wait_for(task, timeout=5)
+        assert status == 200
+        assert events[-1] == {"type": "done", "cancelled": True}
+
+        # Cancellation persists nothing and releases the run slot.
+        assert await _fetchall(_db_path(tmp_test_dir), "SELECT * FROM chat_summaries") == []
+        assert await _fetchall(
+            _db_path(tmp_test_dir),
+            "SELECT id FROM chats WHERE parent_chat_id = ?", chat["id"],
+        ) == []
+        assert (await client.post(f"/api/chats/{chat['id']}/summarize/stop")).status_code == 404
+
+    async def test_stop_without_active_summary_is_404(self, client):
+        chat = await create_chat(client)
+        assert (await client.post(f"/api/chats/{chat['id']}/summarize/stop")).status_code == 404

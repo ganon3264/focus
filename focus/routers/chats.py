@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 
@@ -246,6 +247,20 @@ async def edit_message(
     return {"ok": True, **result}
 
 
+@router.put("/{chat_id}/messages/{message_id}/pin")
+async def pin_message(
+    chat_id: str,
+    message_id: str,
+    body: MessagePin,
+    _db=Depends(get_db),
+):
+    """Set a message's pin flag (user metadata; carried verbatim into forks)."""
+    if not await db.set_message_pinned(_db, chat_id, message_id, body.pinned):
+        raise HTTPException(404, "Message not found")
+    await _db.commit()
+    return {"pinned": body.pinned}
+
+
 @router.post("/{chat_id}/messages/{message_id}/swipe")
 async def swipe_message(
     chat_id: str,
@@ -281,6 +296,10 @@ class SummarizeRequest(BaseModel):
     message_id: str = ""
 
 
+class MessagePin(BaseModel):
+    pinned: bool
+
+
 class SummaryChunkUpdate(BaseModel):
     id: str
     content: str
@@ -297,11 +316,12 @@ async def _active_provider_id(_db) -> str:
 
 
 # One in-flight summary per chat. The check-and-add is synchronous (no await
-# between), so concurrent requests can't both start a fork. The slot is
-# released by the stream's finally and by the response background task — the
-# latter covers a generator that is never started (instant disconnect), whose
-# finally would otherwise never run and lock the chat out for good.
-_active_summaries: set[str] = set()
+# between), so concurrent requests can't both start a fork. Maps chat_id to
+# its stop event (set by the stop endpoint). The slot is released by the
+# stream's finally and by the response background task — the latter covers a
+# generator that is never started (instant disconnect), whose finally would
+# otherwise never run and lock the chat out for good.
+_active_summaries: dict[str, asyncio.Event] = {}
 
 # Per-attempt ceiling for the buffered summary call; a hung provider request
 # would otherwise block the request forever. Retries get their own window.
@@ -326,11 +346,17 @@ async def summarize_chat(chat_id: str, body: SummarizeRequest, _db=Depends(get_d
     """
     if chat_id in _active_summaries:
         raise HTTPException(409, "A summary is already being generated for this chat")
-    _active_summaries.add(chat_id)
+    stop_event = asyncio.Event()
+    _active_summaries[chat_id] = stop_event
+
+    def _release() -> None:
+        if _active_summaries.get(chat_id) is stop_event:
+            _active_summaries.pop(chat_id, None)
+
     try:
         prep = await _prepare_summary(_db, chat_id, body)
     except BaseException:
-        _active_summaries.discard(chat_id)
+        _release()
         raise
 
     from focus.routers.stream import _error_reason, buffered_completion_with_retry
@@ -343,8 +369,12 @@ async def summarize_chat(chat_id: str, body: SummarizeRequest, _db=Depends(get_d
             summary_text: str | None = None
             async for ev in buffered_completion_with_retry(
                 prep["provider"], prep["messages"], prep["gen_kwargs"],
-                prep["retry_config"], attempt_timeout=SUMMARY_ATTEMPT_TIMEOUT,
+                prep["retry_config"], stop_event=stop_event,
+                attempt_timeout=SUMMARY_ATTEMPT_TIMEOUT,
             ):
+                if ev.get("stopped"):
+                    yield _sse({"type": "done", "cancelled": True})
+                    return
                 if ev["type"] == "text":
                     summary_text = ev["text"]
                     continue
@@ -375,14 +405,30 @@ async def summarize_chat(chat_id: str, body: SummarizeRequest, _db=Depends(get_d
                 return
             yield _sse({"type": "done", "id": child_id})
         finally:
-            _active_summaries.discard(chat_id)
+            _release()
 
     return StreamingResponse(
         events(),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-        background=BackgroundTask(lambda: _active_summaries.discard(chat_id)),
+        background=BackgroundTask(_release),
     )
+
+
+@router.post("/{chat_id}/summarize/stop")
+async def stop_summary(chat_id: str):
+    """Set the stop event for a running summary.
+
+    The buffered provider call is cancelled in flight and the stream ends
+    with a ``done``/``cancelled`` event — nothing is persisted.
+    """
+    stop_event = _active_summaries.get(chat_id)
+    if stop_event is None:
+        logger.warning("Stop requested for summary of chat_id=%s with none active", chat_id)
+        raise HTTPException(404, "No active summary found")
+    stop_event.set()
+    logger.info("Stop requested for summary of chat_id=%s", chat_id)
+    return {"ok": True}
 
 
 @router.get("/{chat_id}/summary")
@@ -486,6 +532,8 @@ async def _prepare_summary(_db, chat_id: str, body: SummarizeRequest) -> dict:
     )
     gen_kwargs.pop("stream_enabled", None)
     gen_kwargs["stream"] = False
+    if cfg["max_tokens"] > 0:
+        gen_kwargs["max_tokens"] = cfg["max_tokens"]
 
     try:
         prov_config = json.loads(prov_dict.get("config_json") or "{}")

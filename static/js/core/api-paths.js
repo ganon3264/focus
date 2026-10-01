@@ -15,8 +15,14 @@ window.api = {
   chatSummarize: function (chatId) {
     return '/api/chats/' + chatId + '/summarize';
   },
+  chatStopSummary: function (chatId) {
+    return '/api/chats/' + chatId + '/summarize/stop';
+  },
   chatSummary: function (chatId) {
     return '/api/chats/' + chatId + '/summary';
+  },
+  messagePin: function (chatId, msgId) {
+    return '/api/chats/' + chatId + '/messages/' + msgId + '/pin';
   },
 
   characters: function (id) {

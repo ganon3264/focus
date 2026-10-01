@@ -697,3 +697,36 @@ class TestPresetImport:
             files={"file": ("bad.json", b"{not json", "application/json")},
         )
         assert resp.status_code == 400
+
+
+class TestMessagePin:
+    async def test_pin_toggle_roundtrip_and_render(self, client, tmp_test_dir):
+        db_path = _db_path(tmp_test_dir)
+        chat, user_id, _ = await _chat_with_messages(client, db_path)
+
+        resp = await client.put(
+            f"/api/chats/{chat['id']}/messages/{user_id}/pin", json={"pinned": True},
+        )
+        assert resp.status_code == 200
+        assert resp.json() == {"pinned": True}
+
+        partial = await client.get(f"/partials/message/{chat['id']}/{user_id}")
+        assert partial.status_code == 200
+        assert "favorite-active" in partial.text
+        assert 'data-pinned="1"' in partial.text
+
+        resp = await client.put(
+            f"/api/chats/{chat['id']}/messages/{user_id}/pin", json={"pinned": False},
+        )
+        assert resp.json() == {"pinned": False}
+        partial = await client.get(f"/partials/message/{chat['id']}/{user_id}")
+        assert "favorite-active" not in partial.text
+        assert 'data-pinned="0"' in partial.text
+
+    async def test_pin_foreign_message_rejected(self, client, tmp_test_dir):
+        db_path = _db_path(tmp_test_dir)
+        chat, user_id, _ = await _chat_with_messages(client, db_path)
+        resp = await client.put(
+            f"/api/chats/other-chat/messages/{user_id}/pin", json={"pinned": True},
+        )
+        assert resp.status_code == 404

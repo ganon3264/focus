@@ -121,9 +121,13 @@ def _inject_google_safety(c: QuirkContext) -> None:
     c.gen_kwargs["safety_settings"] = safety_settings_json(PASSTHROUGH_HARM_CATEGORIES, "OFF")
 
 
-def _strip_greeting(c: QuirkContext) -> None:
+def _strip_internal_markers(c: QuirkContext) -> None:
+    # Assembly-only markers: none of these may reach the wire. The itemizer
+    # reads `internal` before this pipeline runs, so popping here is safe.
     for msg in c.messages:
         msg.pop("_greeting", None)
+        msg.pop("_pinned", None)
+        msg.pop("internal", None)
 
 
 def _drop_foreign_reasoning(c: QuirkContext) -> None:
@@ -189,7 +193,7 @@ QUIRKS: tuple[Quirk, ...] = (
     ),
     Quirk("claude_cache", lambda c: c.caps.supports_ephemeral_cache, _claude_cache),
     Quirk("google_safety_passthrough", _is_openrouter_google, _inject_google_safety),
-    Quirk("strip_greeting", lambda c: True, _strip_greeting),
+    Quirk("strip_internal_markers", lambda c: True, _strip_internal_markers),
     Quirk("drop_foreign_reasoning", lambda c: True, _drop_foreign_reasoning),
     Quirk("strip_thought_signatures", lambda c: not c.caps.thought_signatures, _strip_thought_signatures),
     Quirk("preserve_thinking", lambda c: not c.caps.owns_reasoning, _apply_preserve_thinking),

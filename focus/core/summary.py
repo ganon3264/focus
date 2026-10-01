@@ -10,15 +10,17 @@ DEFAULT_SUMMARY_INSTRUCTION = (
 )
 
 DEFAULT_SUMMARY_KEEP = 20
+DEFAULT_SUMMARY_MAX_TOKENS = 8192
 DEFAULT_SUMMARY_ROLE = "system"
 
 # The pieces a forked chat injects as leading context. Presets opt in by
 # referencing the macros in a block; without a reference the same default
 # wrapper is injected before the chat history.
-SUMMARY_MACROS = ("summary", "summary_messages", "summary_media")
+SUMMARY_MACROS = ("summary", "summary_pins", "summary_messages", "summary_media")
 
 DEFAULT_SUMMARY_TEMPLATE = (
     "<summary>\n{{summary}}\n</summary>\n\n"
+    "<pinned_messages>\n{{summary_pins}}\n</pinned_messages>\n\n"
     "<media_messages>\n{{summary_media}}\n</media_messages>\n\n"
     "<last_messages>\n{{summary_messages}}\n</last_messages>"
 )
@@ -49,10 +51,17 @@ def summary_config(preset_blocks=None, settings=None) -> dict:
     except (TypeError, ValueError):
         keep = DEFAULT_SUMMARY_KEEP
 
+    try:
+        max_tokens = int(raw.get("max_tokens"))
+    except (TypeError, ValueError):
+        max_tokens = DEFAULT_SUMMARY_MAX_TOKENS
+
     return {
         "active": bool(raw.get("enabled", True)) and (not blocks or block is not None),
         "instruction": (raw.get("instruction") or "").strip()
         or DEFAULT_SUMMARY_INSTRUCTION,
         "keep": max(0, keep),
+        # 0 = no explicit cap: the provider's params (or its adapter default) apply.
+        "max_tokens": max(0, max_tokens),
         "provider_id": (raw.get("provider_id") or "").strip(),
     }
