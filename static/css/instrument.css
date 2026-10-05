@@ -989,6 +989,7 @@
   border-left: 2px solid transparent;
   border-bottom: 1px solid var(--hair);
   cursor: pointer;
+  user-select: none;
   transition: background var(--transition), border-color var(--transition);
 }
 
