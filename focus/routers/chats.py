@@ -247,6 +247,10 @@ async def edit_message(
     return {"ok": True, **result}
 
 
+class MessagePin(BaseModel):
+    pinned: bool
+
+
 @router.put("/{chat_id}/messages/{message_id}/pin")
 async def pin_message(
     chat_id: str,
@@ -294,10 +298,6 @@ async def branch_chat(
 class SummarizeRequest(BaseModel):
     provider_id: str = ""
     message_id: str = ""
-
-
-class MessagePin(BaseModel):
-    pinned: bool
 
 
 class SummaryChunkUpdate(BaseModel):

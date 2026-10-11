@@ -1,8 +1,14 @@
-{% from "macros.html" import icon_chat, icon_paperclip, icon_send, icon_stop %}
+{% from "macros.html" import icon_chat, icon_paperclip, icon_send, icon_stop, icon_chevron_right %}
 <!-- Center -->
 <main class="main-content">
   {% if chat_id %}
   <div class="chat-center">
+    <div class="reasoning-sticky-host hidden" id="reasoning-sticky-host">
+      <button type="button" class="reasoning-sticky-pill" aria-label="Toggle reasoning">
+        {{ icon_chevron_right(12, 'class="w-3 h-3 reasoning-chevron"') }}
+        <span>Reasoning</span>
+      </button>
+    </div>
     <div class="message-list" id="message-list" data-last-role="{{ messages[-1].role if messages else '' }}">
       {% include "chat/message-list.html" %}
     </div>

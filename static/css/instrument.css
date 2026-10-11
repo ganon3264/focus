@@ -723,8 +723,15 @@
 }
 
 /* ══ Center pane ══════════════════════════════════════════════════════════ */
+/* The top inset lives on the list, not the scroller: sticky reasoning headers
+   pin to the scrollport's content-box top, so a padding here would leave a
+   strip of text visible above them. */
 .chat-center {
-  padding: 2.25rem var(--ui-inset);
+  padding: 0 var(--ui-inset);
+}
+
+.message-list {
+  padding-top: 2.25rem;
 }
 
 /* Messages are not cards. The avatar + name header already separates them, so
@@ -824,6 +831,54 @@
   border-left: 1px solid var(--hair-strong);
   padding: 0.4rem 0 0.4rem 0.75rem;
   color: var(--text-muted);
+}
+
+/* Long reasoning / tool output: pin the disclosure header to the top of the
+   scrollport for the life of the block, so it can be collapsed without
+   scrolling back. */
+.reasoning-block.details > summary,
+.details.tool-call > summary {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--bg);
+}
+
+/* The first block's toggle lives in the message meta row. Once that scrolls
+   out of view, this twin takes over at the top of the chat, styled like the
+   meta label rather than a tool card. */
+.reasoning-sticky-host {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  width: 100%;
+  max-width: var(--chat-content-width);
+  height: 0;
+  padding-left: 3.75rem;
+  pointer-events: none;
+}
+
+.reasoning-sticky-pill {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 0.15rem 0.4rem;
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: var(--text-muted);
+  font-family: var(--font-mono-ui);
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+}
+
+.reasoning-sticky-pill .reasoning-chevron {
+  transform: rotate(90deg);
+  transition: transform 0.2s ease;
 }
 
 /* ── Input bar: a console, not a pill ───────────────────────────────────── */

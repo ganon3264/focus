@@ -68,5 +68,68 @@
     }
     if (content) content.classList.toggle('hidden', !isOpen);
     msg.classList.toggle('reasoning-open', isOpen);
+    if (window.refreshStickyReasoning) window.refreshStickyReasoning();
   };
+
+  // Floating twin for the first reasoning block: the meta-row toggle keeps its
+  // place (and chevron animation); once it scrolls above the chat viewport this
+  // pill takes over at the top so a long block can still be collapsed.
+  (function () {
+    function initStickyReasoning() {
+      const host = document.querySelector('#reasoning-sticky-host');
+      const scroller = document.querySelector('.chat-center');
+      if (!host || !scroller || host.dataset.bound === '1') return;
+      host.dataset.bound = '1';
+      const pill = host.querySelector('.reasoning-sticky-pill');
+      let raf = null;
+
+      function findActiveMessageId() {
+        const top = scroller.getBoundingClientRect().top;
+        const blocks = scroller.querySelectorAll('.message.reasoning-open .reasoning-block:not(.details)');
+        for (const block of blocks) {
+          const rect = block.getBoundingClientRect();
+          if (rect.top < top && rect.bottom > top) {
+            const msg = block.closest('.message');
+            return msg ? msg.dataset.messageId : null;
+          }
+        }
+        return null;
+      }
+
+      function update() {
+        raf = null;
+        const id = findActiveMessageId();
+        host.dataset.messageId = id || '';
+        host.classList.toggle('hidden', !id);
+      }
+
+      function schedule() {
+        if (raf === null) raf = requestAnimationFrame(update);
+      }
+
+      window.refreshStickyReasoning = update;
+      scroller.addEventListener('scroll', schedule, { passive: true });
+      window.addEventListener('resize', schedule);
+
+      if (pill) {
+        pill.addEventListener('click', function () {
+          const id = host.dataset.messageId;
+          if (!id) return;
+          const msg = window.MessageIdentity ? MessageIdentity.node(id) : null;
+          if (!msg) return;
+          const btn = msg.querySelector('.reasoning-toggle-btn');
+          if (btn) window.toggleReasoning(btn);
+        });
+      }
+
+      update();
+    }
+
+    window.initStickyReasoning = initStickyReasoning;
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initStickyReasoning);
+    } else {
+      initStickyReasoning();
+    }
+  })();
 })();

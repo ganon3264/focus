@@ -104,6 +104,7 @@ function makeElement(tag) {
       },
     },
     _attrs: {},
+    style: {},
     parent: null,
     addEventListener: function () {},
     removeEventListener: function () {},

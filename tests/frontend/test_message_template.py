@@ -100,6 +100,20 @@ def test_reasoning_button_class_unchanged():
         assert required in btn, f"Missing existing class '{required}' in: {btn}"
 
 
+def test_first_reasoning_block_has_no_own_toggle():
+    """Index-0 reasoning stays controlled by the meta-row button (which keeps
+    its place and chevron animation); a separate twin handles the sticky case."""
+    html = _render_message({
+        "reasoning": "hidden",
+        "segments": [
+            {"type": "reasoning", "index": 0, "html": "think"},
+            {"type": "text", "content": "answer"},
+        ],
+    })
+    assert "reasoning-inline-toggle" not in html
+    assert 'class="reasoning-block pl-stream" data-think-id="0"' in html
+
+
 class _Ext:
     def __init__(self, name, description, roles, triggers=None, icon=""):
         self.name = name
