@@ -105,6 +105,9 @@ class OpenRouterProvider(OpenAICompatProvider):
         if provider_config:
             prefs["provider"] = provider_config
 
+        if self.config.or_service_tier:
+            prefs["service_tier"] = self.config.or_service_tier
+
         return prefs
 
     async def stream_complete(self, messages: list[dict], **kwargs):

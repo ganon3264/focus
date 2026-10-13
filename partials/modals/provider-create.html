@@ -131,7 +131,7 @@ dirty_label='#prov-form-name') %}
   </div>
   {% endcall %}
 
-  <!-- OpenRouter Dynamic Fields (route, no-fallbacks, quant — model uses shared input above) -->
+  <!-- OpenRouter Dynamic Fields (route, no-fallbacks, quant, tier — model uses shared input above) -->
   <div id="prov-form-or-fields" class="hidden flex-col gap-3">
     <div class="form-group mb-0">
       <label>Provider Routing</label>
@@ -160,6 +160,14 @@ dirty_label='#prov-form-name') %}
       <input type="hidden" name="or_quant" id="prov-form-or-quant" value="" />
       <button type="button" class="form-control text-sm w-full flex justify-between items-center cursor-pointer" onclick="openQuantSelectModal('prov-form')">
         <span id="or-quant-display-prov-form" class="truncate text-muted">Any</span>
+        <span class="opacity-50">{{ icon_search() }}</span>
+      </button>
+    </div>
+    <div class="form-group mb-0">
+      <label>Service Tier {{ hint_tooltip('Some providers sell the same model at several grades of capacity. <b>Flex</b> is cheaper but slower and less available; <b>Priority</b> is faster and more reliable at a higher price; <b>Ultrafast</b> is OpenAIs lowest-latency tier, billed at several times the standard rate. Leave on Default to never request a non-standard tier.') }}</label>
+      <input type="hidden" name="or_service_tier" id="prov-form-or-service-tier" value="" />
+      <button type="button" class="form-control text-sm w-full flex justify-between items-center cursor-pointer" onclick="openServiceTierSelectModal('prov-form')">
+        <span id="or-service-tier-display-prov-form" class="truncate text-muted">Default (standard)</span>
         <span class="opacity-50">{{ icon_search() }}</span>
       </button>
     </div>

@@ -71,6 +71,7 @@ eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'modals', 
     model: 'anthropic/claude-3',
     or_route: 'fallback',
     or_quant: 'fp16',
+    or_service_tier: 'flex',
     params: '{}',
   });
   var data = extractData(form);
@@ -78,8 +79,10 @@ eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'modals', 
   assertEqual(data.base_url, 'https://openrouter.ai/api/v1', 'openrouter: base_url set');
   assertEqual(data.config.or_route, 'fallback', 'openrouter: or_route in config');
   assertEqual(data.config.or_quant, 'fp16', 'openrouter: or_quant in config');
+  assertEqual(data.config.or_service_tier, 'flex', 'openrouter: or_service_tier in config');
   assert(!data.or_route, 'openrouter: or_route deleted');
   assert(!data.or_quant, 'openrouter: or_quant deleted');
+  assert(!data.or_service_tier, 'openrouter: or_service_tier deleted');
 })();
 
 // ── openrouter — no route/quant ──
@@ -90,12 +93,14 @@ eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'modals', 
     model: 'openai/gpt-4o',
     or_route: '',
     or_quant: '',
+    or_service_tier: '',
     params: '{}',
   });
   var data = extractData(form);
   assertEqual(data.model, 'openai/gpt-4o', 'openrouter simple: model set');
   assert(!data.config.or_route, 'openrouter simple: no or_route in config');
   assert(!data.config.or_quant, 'openrouter simple: no or_quant in config');
+  assert(!data.config.or_service_tier, 'openrouter simple: no or_service_tier in config');
 })();
 
 // ── openrouter — no model shows error toast ──

@@ -20,6 +20,7 @@ class ProviderConfig:
     retry: dict[str, Any] = field(default_factory=dict)
     or_route: str | None = None
     or_quant: str | None = None
+    or_service_tier: str | None = None
     or_no_fallbacks: bool = True
     vertex_region: str = ""
     vertex_project_id: str = ""

@@ -319,7 +319,7 @@ class TestOpenRouterProvider:
         provider = OpenRouterProvider(
             api_key="k", model="anthropic/claude-3.5-sonnet",
             params={},
-            config=ProviderConfig(or_route="r1", or_quant="q4", or_no_fallbacks=True),
+            config=ProviderConfig(or_route="r1", or_quant="q4", or_service_tier="flex", or_no_fallbacks=True),
             site_url="https://example.com", app_name="FocusTest",
         )
         client = FakeOpenAIClient([_chunk(content="x")])
@@ -332,6 +332,7 @@ class TestOpenRouterProvider:
         assert req["extra_body"]["provider"] == {
             "order": ["r1"], "quantizations": ["q4"], "allow_fallbacks": False,
         }
+        assert req["extra_body"]["service_tier"] == "flex"
         assert "stream_options" not in req, "openrouter must not send stream_options"
         headers = provider._extra_headers()
         assert headers["HTTP-Referer"] == "https://example.com"

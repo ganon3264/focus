@@ -110,6 +110,19 @@ function selectFetchedModel(id, name) {
 
 var _orRouteOptions = [{ value: '', label: 'Auto (Any)' }];
 var _orQuantOptions = [{ value: '', label: 'Any' }];
+var _orServiceTierOptions = [
+  { value: '', label: 'Default (standard)' },
+  { value: 'flex', label: 'Flex (cheaper, slower)' },
+  { value: 'priority', label: 'Priority (faster, pricier)' },
+  { value: 'ultrafast', label: 'Ultrafast (highest cost)' },
+];
+
+function _orServiceTierLabel(value) {
+  for (var i = 0; i < _orServiceTierOptions.length; i++) {
+    if (_orServiceTierOptions[i].value === (value || '')) return _orServiceTierOptions[i].label;
+  }
+  return _orServiceTierOptions[0].label;
+}
 
 function fetchOROptions(modelId) {
   if (!modelId) { _orRouteOptions = [{ value: '', label: 'Auto (Any)' }]; _orQuantOptions = [{ value: '', label: 'Any' }]; return; }
@@ -151,6 +164,20 @@ function openQuantSelectModal(prefix) {
       document.getElementById(prefix + '-or-quant').value = value;
       document.getElementById('or-quant-display-' + prefix).textContent = label;
       document.getElementById('or-quant-display-' + prefix).classList.toggle('text-muted', !value);
+      document.getElementById(prefix + '-or-quant').dispatchEvent(new Event('change', { bubbles: true }));
+    },
+  );
+}
+
+function openServiceTierSelectModal(prefix) {
+  window.openOptionPicker(
+    _orServiceTierOptions,
+    'Select Service Tier',
+    function (value, label) {
+      document.getElementById(prefix + '-or-service-tier').value = value;
+      document.getElementById('or-service-tier-display-' + prefix).textContent = label;
+      document.getElementById('or-service-tier-display-' + prefix).classList.toggle('text-muted', !value);
+      document.getElementById(prefix + '-or-service-tier').dispatchEvent(new Event('change', { bubbles: true }));
     },
   );
 }
@@ -265,6 +292,9 @@ function extractData(form) {
     if (data.or_quant) config.or_quant = data.or_quant;
     else delete config.or_quant;
 
+    if (data.or_service_tier) config.or_service_tier = data.or_service_tier;
+    else delete config.or_service_tier;
+
     const orNoFallbacksInput = form.querySelector('[name="or_no_fallbacks"]');
     config.or_no_fallbacks = orNoFallbacksInput ? orNoFallbacksInput.value === 'true' : true;
   } else if (type === 'google_vertex') {
@@ -299,6 +329,7 @@ function extractData(form) {
 
   delete data.or_route;
   delete data.or_quant;
+  delete data.or_service_tier;
   delete data.or_no_fallbacks;
   delete data.vertex_region;
   delete data.vertex_project_id;
@@ -462,6 +493,10 @@ function resetProviderForm() {
   var quantDisplay = document.getElementById('or-quant-display-prov-form');
   if (routeDisplay) { routeDisplay.textContent = 'Auto (Any)'; routeDisplay.classList.add('text-muted'); }
   if (quantDisplay) { quantDisplay.textContent = 'Any'; quantDisplay.classList.add('text-muted'); }
+  var tierInput = document.getElementById('prov-form-or-service-tier');
+  var tierDisplay = document.getElementById('or-service-tier-display-prov-form');
+  if (tierInput) tierInput.value = '';
+  if (tierDisplay) { tierDisplay.textContent = 'Default (standard)'; tierDisplay.classList.add('text-muted'); }
   var nfToggle = document.getElementById('prov-form-or-no-fallbacks-toggle');
   var nfInput = document.getElementById('prov-form-or-no-fallbacks');
   if (nfToggle) nfToggle.classList.add('active');
@@ -497,6 +532,11 @@ function populateProviderForm(data) {
     document.getElementById('or-quant-display-prov-form').textContent = savedQuant || 'Any';
     document.getElementById('or-quant-display-prov-form').classList.toggle('text-muted', !savedQuant);
     document.getElementById('prov-form-or-quant').value = savedQuant;
+    var savedTier = config.or_service_tier || '';
+    document.getElementById('prov-form-or-service-tier').value = savedTier;
+    var tierDisplay = document.getElementById('or-service-tier-display-prov-form');
+    tierDisplay.textContent = _orServiceTierLabel(savedTier);
+    tierDisplay.classList.toggle('text-muted', !savedTier);
     if (data.model) {
       var nfToggle = document.getElementById('prov-form-or-no-fallbacks-toggle');
       var nfInput = document.getElementById('prov-form-or-no-fallbacks');
