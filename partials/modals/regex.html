@@ -1,0 +1,15 @@
+{% from "macros.html" import hint_tooltip %}
+{# Body of the Regex tab in the Advanced modal. #}
+<div class="flex flex-col h-full min-h-0">
+  <div class="text-xs text-muted mb-2 shrink-0">
+    Server-side find/replace transforms.
+    <strong>Global</strong> scripts run first, then the current preset's.
+    {{ hint_tooltip('<b>Prompt + display</b> rewrites the text sent to the model and the text shown in chat, without touching stored messages. <b>Display only</b> is cosmetic. Depth is counted back from the newest message (0 = newest).') }}
+  </div>
+  <div
+    id="regex-scripts-container"
+    class="flex-1 min-h-0 overflow-y-auto scroll-fade pr-1"
+  >
+    <div class="text-muted text-sm py-4 text-center">Loading…</div>
+  </div>
+</div>

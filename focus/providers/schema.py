@@ -40,6 +40,7 @@ BASE_SAMPLER_DEFAULTS: dict[str, Any] = {
     "cache_depth": 5,
     "seed": -1,
     "verbosity": "",
+    "echo_upstream_body": False,
 }
 
 # Fields forwarded for the active provider type regardless of reasoning.
@@ -51,7 +52,7 @@ _FORWARD_ALWAYS: dict[str, tuple[str, ...]] = {
     "openrouter": (
         "top_k", "min_p", "repetition_penalty", "include_reasoning",
         "preserve_thinking", "seed", "verbosity",
-        "cache_enabled", "cache_ttl", "cache_depth",
+        "cache_enabled", "cache_ttl", "cache_depth", "echo_upstream_body",
     ),
     "google_vertex": ("top_k", "send_reasoning_history", "include_reasoning"),
     "google_aistudio": ("top_k", "send_reasoning_history", "include_reasoning"),
@@ -73,7 +74,7 @@ _FORWARD_REASONING: dict[str, tuple[str, ...]] = {
 # to per-model capability filtering.
 _PIPELINE_CONTROL_KEYS: frozenset[str] = frozenset({
     "include_reasoning", "preserve_thinking", "reasoning_effort",
-    "thinking_budget", "send_reasoning_history",
+    "thinking_budget", "send_reasoning_history", "echo_upstream_body",
 })
 
 

@@ -1,0 +1,46 @@
+{% from "macros.html" import icon_plus %}
+<div data-preset-id="{{ preset_id or '' }}">
+  <div class="regex-group">
+    <div class="regex-group-header">
+      <span class="regex-group-title">Global</span>
+      <button
+        type="button"
+        class="btn btn-create btn-sm"
+        onclick="createRegexScript('global', null)"
+      >
+        {{ icon_plus(12) }} Add
+      </button>
+    </div>
+    <div class="regex-sortable" data-scope="global">
+      {% for script in global_scripts %}{% include "modals/regex-item.html" %}{% endfor %}
+      {% if not global_scripts %}
+      <div class="regex-empty text-xs text-muted">No global scripts.</div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if preset_id %}
+  <div class="regex-group">
+    <div class="regex-group-header">
+      <span class="regex-group-title">Preset — {{ preset_name }}</span>
+      <button
+        type="button"
+        class="btn btn-create btn-sm"
+        onclick="createRegexScript('preset', '{{ preset_id }}')"
+      >
+        {{ icon_plus(12) }} Add
+      </button>
+    </div>
+    <div class="regex-sortable" data-scope="preset" data-scope-id="{{ preset_id }}">
+      {% for script in preset_scripts %}{% include "modals/regex-item.html" %}{% endfor %}
+      {% if not preset_scripts %}
+      <div class="regex-empty text-xs text-muted">No scripts for this preset.</div>
+      {% endif %}
+    </div>
+  </div>
+  {% else %}
+  <div class="regex-empty text-xs text-muted mt-3">
+    Select a preset to manage preset-scoped scripts.
+  </div>
+  {% endif %}
+</div>

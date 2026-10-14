@@ -8,11 +8,13 @@ from jinja2 import FileSystemLoader
 
 import focus.crud as crud
 import focus.db.extensions as db_extensions
+import focus.db.regex_scripts as regex_db
 import focus.db.themes as db_themes
 from focus.core.database import get_db
 from focus.core.logger import DEBUG_MODE
 from focus.core.macros import MACRO_DEFINITIONS, SPECIAL_TOKENS, apply_macros, build_base_macros
 from focus.core.message_render import render_message_segments
+from focus.core.regex_scripts import apply_to_display_messages
 from focus.core.summary import (
     DEFAULT_SUMMARY_INSTRUCTION,
     DEFAULT_SUMMARY_TEMPLATE,
@@ -42,6 +44,14 @@ def _resolve_macros_for_display(messages, char, persona, preset_blocks=None):
         if isinstance(msg.get("content"), str):
             msg["content"] = apply_macros(msg["content"], macros)
             msg["segments"] = render_message_segments(msg["content"], msg.get("variant_meta"), msg.get("segments_json"))
+
+
+async def _apply_display_regex(db: aiosqlite.Connection, chat_id: str, messages: list) -> None:
+    """Cosmetic/ephemeral transforms on rendered segments. Server-side so
+    Python owns regex semantics; stored content is never touched."""
+    scripts = await regex_db.resolve_for_chat(db, chat_id)
+    if scripts:
+        await apply_to_display_messages(messages, scripts)
 
 
 templates = Jinja2Templates(directory="templates")
@@ -172,6 +182,7 @@ async def chat_page(request: Request, chat_id: str, db: aiosqlite.Connection = D
     _, regular_blocks, var_groups = partition_blocks(preset_blocks)
 
     _resolve_macros_for_display(messages, char, persona, preset_blocks)
+    await _apply_display_regex(db, chat_id, messages)
 
     counts = await crud.get_counts(
         db, chat.get("character_id"), chat.get("persona_id") or (persona["id"] if persona else None)
@@ -274,6 +285,7 @@ async def message_list_partial(request: Request, chat_id: str, db: aiosqlite.Con
         persona = await crud.get_persona(db, chat.get("persona_id"))
 
     _resolve_macros_for_display(messages, char, persona)
+    await _apply_display_regex(db, chat_id, messages)
     enabled_extensions = await db_extensions.get_enabled_extensions(db, chat_id)
 
     return templates.TemplateResponse(
@@ -314,6 +326,7 @@ async def single_message_partial(
         persona = await crud.get_persona(db, chat.get("persona_id"))
 
     _resolve_macros_for_display([message], char, persona)
+    await _apply_display_regex(db, chat_id, [message])
     enabled_extensions = await db_extensions.get_enabled_extensions(db, chat_id)
 
     return templates.TemplateResponse(
@@ -327,6 +340,30 @@ async def single_message_partial(
             "msg_index": msg_index,
             "is_latest": is_latest,
             "enabled_extensions": enabled_extensions,
+        },
+    )
+
+
+@router.get("/partials/regex-scripts", response_class=HTMLResponse)
+async def regex_scripts_partial(
+    request: Request, preset_id: str = Query(None), db: aiosqlite.Connection = Depends(get_db)
+):
+    global_scripts = await regex_db.list_scripts(db, scope="global")
+    preset_scripts: list[dict] = []
+    preset_name = ""
+    if preset_id:
+        preset_scripts = await regex_db.list_scripts(db, scope="preset", scope_id=preset_id)
+        async with db.execute("SELECT name FROM presets WHERE id = ?", (preset_id,)) as cur:
+            row = await cur.fetchone()
+        preset_name = row["name"] if row else ""
+    return templates.TemplateResponse(
+        request,
+        "modals/regex-list.html",
+        {
+            "global_scripts": global_scripts,
+            "preset_scripts": preset_scripts,
+            "preset_id": preset_id,
+            "preset_name": preset_name,
         },
     )
 

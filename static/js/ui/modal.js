@@ -281,7 +281,8 @@
       });
   });
 
-  ModalController.onOpen('modal-backups', function () {
+  ModalController.onOpen('modal-advanced', function () {
+    if (window.reloadRegexScripts) window.reloadRegexScripts();
     if (window.BackupManager) BackupManager.loadList();
   });
 

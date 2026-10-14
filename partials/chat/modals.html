@@ -8,12 +8,29 @@
 </div>
 {% endcall %}
 
-{% call modal_shell('modal-tools', 'Tool Calls', max_width='700px', content_style='display:flex;flex-direction:column;overflow:hidden;') %}
-{% include "modals/tools.html" %}
-{% endcall %}
-
-{% call modal_shell('modal-extensions', 'Extensions', max_width='700px', content_style='display:flex;flex-direction:column;overflow:hidden;') %}
-{% include "modals/extensions.html" %}
+{% call modal_shell('modal-advanced', 'Advanced', max_width='720px', width='92vw', content_style='display:flex;flex-direction:column;height:80vh;') %}
+<div x-data="{ tab: 'tools' }" class="flex flex-col flex-1 min-h-0">
+  <div class="flex shrink-0 mb-3" style="border-bottom: 1px solid var(--border)">
+    <button type="button" class="tab-btn" :class="{'active': tab === 'tools'}" @click="tab = 'tools'">Tools</button>
+    <button type="button" class="tab-btn" :class="{'active': tab === 'extensions'}" @click="tab = 'extensions'">Extensions</button>
+    <button type="button" class="tab-btn" :class="{'active': tab === 'regex'}" @click="tab = 'regex'; window.reloadRegexScripts && reloadRegexScripts()">Regex</button>
+    <button type="button" class="tab-btn" :class="{'active': tab === 'backups'}" @click="tab = 'backups'; window.BackupManager && BackupManager.loadList()">Backups</button>
+  </div>
+  <div class="flex-1 min-h-0 flex flex-col">
+    <div x-show="tab === 'tools'" class="flex-1 min-h-0 flex flex-col">
+      {% include "modals/tools.html" %}
+    </div>
+    <div x-show="tab === 'extensions'" class="flex-1 min-h-0 flex flex-col">
+      {% include "modals/extensions.html" %}
+    </div>
+    <div x-show="tab === 'regex'" class="flex-1 min-h-0 flex flex-col">
+      {% include "modals/regex.html" %}
+    </div>
+    <div x-show="tab === 'backups'" class="flex-1 min-h-0 overflow-y-auto scroll-fade pr-1">
+      {% include "modals/backup-body.html" %}
+    </div>
+  </div>
+</div>
 {% endcall %}
 
 {% call modal_shell('modal-itemizer', 'Prompt Itemizer', max_width='700px', content_style='display:flex;flex-direction:column;height:80vh;') %}

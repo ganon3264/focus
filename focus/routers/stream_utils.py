@@ -9,6 +9,7 @@ import aiosqlite
 from fastapi import HTTPException
 
 import focus.crud as crud
+import focus.db.regex_scripts as regex_db
 from focus.core.card_parser import safe_load_card
 from focus.core.macros import build_base_macros
 from focus.core.media import tool_image_data_url
@@ -660,6 +661,7 @@ async def get_prompt_context(
         summary_sections=sections,
         summary_fallback=summary_fallback,
         include_post_history=not summary_pass,
+        regex_scripts=await regex_db.resolve_for_chat(db, chat_id),
     )
 
     for i, m in enumerate(messages):

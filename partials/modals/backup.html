@@ -1,62 +1,6 @@
-{% from "modal-shell.html" import modal_shell %} {% from "macros.html" import icon_plus,
-icon_database, icon_upload, icon_search %} {# ── BACKUPS MODAL
-────────────────────────────────────────────── #} {% call modal_shell('modal-backups', 'Backups',
-max_width='520px', width='90vw') %}
-<div class="flex flex-col gap-4 mt-1">
-  {# ── Actions ── #}
-  <div class="flex gap-2">
-    <button
-      type="button"
-      id="btn-create-backup"
-      class="btn btn-create flex-1 text-sm flex items-center justify-center gap-1.5"
-      data-action="BackupManager.create"
-    >
-      {{ icon_plus(size=14) }} Create Backup
-    </button>
-    <button
-      type="button"
-      class="btn btn-secondary flex-1 text-sm flex items-center justify-center gap-1.5"
-      data-action="BackupManager.openExportModal"
-    >
-      {{ icon_database(size=14) }} Export
-    </button>
-    <button
-      type="button"
-      class="btn btn-secondary flex-1 text-sm flex items-center justify-center gap-1.5"
-      data-action="actionTriggerFileUpload" data-target="import-file"
-    >
-      {{ icon_upload(size=14) }} Import
-    </button>
-  </div>
-
-  <input
-    type="file"
-    id="import-file"
-    class="hidden"
-    accept=".focus"
-    data-action="actionImportBackupFile"
-  />
-
-  <span id="backup-status" class="text-xs"></span>
-
-  <div class="flex gap-2">
-    <button
-      type="button"
-      class="btn btn-danger flex-1 text-sm flex items-center justify-center gap-1.5"
-      data-action="BackupManager.cleanDatabase"
-    >
-      Clean DB
-    </button>
-  </div>
-
-  {# ── Backups list ── #}
-  <div>
-    <h3 class="sidebar-title mb-2">Previous Backups</h3>
-    <div id="backups-list" class="flex flex-col max-h-96 overflow-y-auto scroll-fade"></div>
-  </div>
-</div>
-{% endcall %} {# ── EXPORT MODAL ─────────────────────────────────────────────── #} {% call
-modal_shell('modal-export', 'Export Data', max_width='440px', width='90vw', z_index='100') %}
+{% from "modal-shell.html" import modal_shell %} {% from "macros.html" import icon_search %} {# ── EXPORT
+MODAL ─────────────────────────────────────────────── #} {% call modal_shell('modal-export', 'Export
+Data', max_width='440px', width='90vw', z_index='100') %}
 <div class="flex flex-col gap-4 mt-1">
   {% for etype in ['characters', 'personas', 'presets'] %} {% set label = etype[:-1] if
   etype.endswith('s') else etype %}

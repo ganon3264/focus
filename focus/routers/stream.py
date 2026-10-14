@@ -504,6 +504,8 @@ async def _run_generation(
                         any_tool_calls = True
                         tool_calls_list = event["calls"]
                         break
+                    elif event["type"] == "debug":
+                        yield event
                     elif event["type"] == "done":
                         last_finish_reason = event.get("finish_reason")
                         break
@@ -856,6 +858,9 @@ async def _handle_event(
         }
 
     if t == "retry":
+        return event
+
+    if t == "debug":
         return event
 
     if t == "superseded":

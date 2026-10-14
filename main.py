@@ -26,6 +26,7 @@ from focus.routers import (
     personas,
     presets,
     providers,
+    regex_scripts,
     settings,
     stream,
     themes,
@@ -186,6 +187,7 @@ app.include_router(themes.router, prefix="/api/themes", tags=["themes"])
 app.include_router(tools.router, prefix="/api", tags=["tools"])
 app.include_router(exchange.router, prefix="/api", tags=["import-export"])
 app.include_router(extensions.router, prefix="/api", tags=["extensions"])
+app.include_router(regex_scripts.router, prefix="/api", tags=["regex-scripts"])
 
 app.mount("/assets", RevalidatedStaticFiles(directory="assets", cache_assets=CACHE_STATIC), name="assets")
 app.mount("/static", RevalidatedStaticFiles(directory="static", cache_assets=CACHE_STATIC), name="static")

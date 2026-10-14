@@ -235,6 +235,26 @@ CREATE TABLE IF NOT EXISTS extension_configs (
     config_json TEXT NOT NULL DEFAULT '{}'
 );
 
+CREATE TABLE IF NOT EXISTS regex_scripts (
+    id          TEXT PRIMARY KEY,
+    scope       TEXT NOT NULL DEFAULT 'global',     -- 'global' | 'preset'
+    scope_id    TEXT,                               -- preset id when scope='preset'
+    name        TEXT NOT NULL DEFAULT '',
+    pattern     TEXT NOT NULL,
+    replacement TEXT NOT NULL DEFAULT '',
+    flags       TEXT NOT NULL DEFAULT '',           -- subset of 'ims'
+    placement   TEXT NOT NULL DEFAULT 'ai',         -- csv: user,ai,reasoning
+    destination TEXT NOT NULL DEFAULT 'ephemeral',  -- 'ephemeral' | 'cosmetic'
+    enabled     INTEGER NOT NULL DEFAULT 1,
+    position    REAL NOT NULL DEFAULT 0,
+    min_depth   INTEGER NOT NULL DEFAULT 0,
+    max_depth   INTEGER NOT NULL DEFAULT -1,        -- -1 = unlimited
+    created_at  TEXT NOT NULL,
+    updated_at  TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_regex_scripts_scope ON regex_scripts(scope, scope_id, position);
+
 CREATE INDEX IF NOT EXISTS idx_gen_usage_message ON generation_usage(message_id);
 CREATE INDEX IF NOT EXISTS idx_gen_usage_chat    ON generation_usage(chat_id);
 """

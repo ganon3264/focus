@@ -71,6 +71,7 @@ The pruner's `_pruned` map is keyed by bare id (`MessageIdentity.bare`); `_forge
 - Closing a dirty modal prompts via confirm; **save handlers must call `closeModal(id, {discard: true})`** (never `captureDirty`-style resets). Use `ModalController.setDirty(id, true)` for non-field changes (e.g. attachment add/delete).
 - ESC closes: confirm modal (as Cancel) → topmost modal → lightbox. `option-selected` / `custom-select:set` trigger recompute of open modals.
 - Overlays inside htmx-swapped bodies (providers modal) re-register automatically on open.
+- **Advanced modal** (`modal-advanced` in `partials/chat/modals.html`) is a `.tab-btn` tab container (sampler pattern) holding Tools, Extensions, Regex and Backups. The three old per-feature modals no longer exist; body partials are `modals/tools.html`, `modals/extensions.html`, `modals/regex.html`, `modals/backup-body.html`. Tabs are pure Alpine `x-show` over statically-included bodies, so the Tools/Extensions components still initialise once at page load — only per-tab actions (regex reload, backups list) run on tab click.
 
 ### Toast system (`static/js/ui/notifications.js`)
 
@@ -176,6 +177,17 @@ table lookup (`HANDLERS[json.type]`); unknown types log a warning, never vanish 
 - Special tokens: `{{getvar::key}}`, `{{setvar::key::value}}`, `{{var::key::value}}`, `{{trim}}`, `{{// comment}}`, `{{media:id}}`, plus CBS `{{random:}}`/`{{pick:}}`/`{{roll:}}`/`{{reverse:}}` and the compaction macros below
 - Comments `{{// ...}}` stripped pre-resolution, depth-aware for nesting.
 - Template globals `macro_definitions`/`special_tokens` registered in `pages.py`.
+
+### Regex scripts (`focus/core/regex_scripts.py`)
+
+- Server-side, **Python-only** find/replace. Never a JS engine: both the prompt path and the display path compile with Python `re`. JS is UI glue only (the Advanced modal's Regex tab).
+- **Two application points:** prompt assembly (`prompt_chain.assemble_prompt` takes `regex_scripts` and applies them to macro-resolved `cleaned_history` *before* in-chat block injection, so depth counts real turns) and display render (`pages._apply_display_regex`, after `_resolve_macros_for_display`). UI rendering applies them server-side; stored content is never mutated.
+- **Destinations:** `ephemeral` (prompt + display) or `cosmetic` (display only). There is deliberately no persistent/bake mode.
+- **Scope/order:** `global` scripts run first, then the chat preset's; resolved by `focus/db/regex_scripts.py::resolve_for_chat`. Within a scope, order is drag-controlled (SortableJS `handle: '.regex-handle'`, like the arranger). Cross-scope drags are disabled.
+- **Depth window:** `min_depth`/`max_depth` count from the newest real message (0 = newest, `-1` = unlimited); synthetic tool/internal turns are skipped by `_real_depths`.
+- **Timeout:** each text runs via `asyncio.to_thread` + `wait_for(REGEX_TIMEOUT=3s)`; on timeout the original text wins. `MAX_INPUT_LENGTH` caps input.
+- Storage is the `regex_scripts` table; `scope_id` is polymorphic (a preset id) and listed in `exchange_remap.POLYMORPHIC_FK_COLUMNS` so backup/export remaps it. Global scripts always travel; preset scripts only when their preset is exported.
+- UI: Regex tab is a server-rendered list (`GET /partials/regex-scripts?preset_id=`), CRUD at `/api/regex-scripts`, preview at `POST /api/regex-scripts/preview` — the "Test" box calls the server because Python is the regex authority (a JS preview would lie).
 
 ### Action palette — button intent
 

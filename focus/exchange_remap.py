@@ -22,6 +22,8 @@ POLYMORPHIC_FK_COLUMNS = [
     # restored fork dangles and loses its summary chain and parent window.
     ("chats", "parent_chat_id"),
     ("chats", "summary_id"),
+    # Regex scripts scope to a preset (or nothing for global) with no FK clause.
+    ("regex_scripts", "scope_id"),
 ]
 
 # Columns that reference files on disk (no schema marker exists)

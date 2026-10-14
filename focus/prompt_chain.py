@@ -6,6 +6,7 @@ from typing import Any
 
 from focus.core.macros import apply_macros
 from focus.core.media import load_media
+from focus.core.regex_scripts import apply_to_prompt_history
 from focus.core.tracked_fields import TRACKED_FIELDS
 from focus.core.utils import MACRO_MAX_PASSES, variable_group_name
 
@@ -253,6 +254,7 @@ async def assemble_prompt(
     summary_sections: dict[str, list[dict]] | None = None,
     summary_fallback: dict | None = None,
     include_post_history: bool = True,
+    regex_scripts: list[dict] | None = None,
 ) -> list[dict[str, str]]:
     """
     Returns the full messages list ready to send to the provider.
@@ -380,6 +382,13 @@ async def assemble_prompt(
                 cleaned_msg["content"] = content
 
         cleaned_history.append(cleaned_msg)
+
+    # Prompt-side regex runs on macro-resolved history (the text the model will
+    # actually read) and after every real turn is present, so depth windows
+    # count genuine messages. In-chat block injection below is synthetic and
+    # must not shift depths, hence this runs before it.
+    if regex_scripts:
+        await apply_to_prompt_history(cleaned_history, regex_scripts)
 
     # Inject in-chat blocks into cleaned_history at their specified depths
     if in_chat_blocks:

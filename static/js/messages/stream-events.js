@@ -215,6 +215,12 @@
     if (data.field === 'reasoning') HANDLERS.reasoning(state, data);
   };
 
+  // OpenRouter debug echo (sampler toggle `echo_upstream_body`): the
+  // transformed upstream request body, or streaming timing milestones.
+  HANDLERS.debug = function (state, data) {
+    console.log('[OpenRouter] upstream debug:', data.debug);
+  };
+
   HANDLERS.token = function (state, data) {
     state.fullText += data.text;
     var seg = _findOrCreateSegment(state, 'text', function () {

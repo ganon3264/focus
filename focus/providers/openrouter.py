@@ -120,6 +120,7 @@ class OpenRouterProvider(OpenAICompatProvider):
         reasoning_context = kwargs.pop("reasoning_context", None)
         reasoning_mode = kwargs.pop("reasoning_mode", None)
         kwargs.pop("preserve_thinking", None)
+        echo_upstream_body = kwargs.pop("echo_upstream_body", False)
 
         if include_reasoning:
             reasoning = {}
@@ -144,6 +145,9 @@ class OpenRouterProvider(OpenAICompatProvider):
 
         if prefs:
             extra_body.update(prefs)
+
+        if echo_upstream_body:
+            extra_body["debug"] = {"echo_upstream_body": True}
 
         kwargs["extra_body"] = extra_body
 

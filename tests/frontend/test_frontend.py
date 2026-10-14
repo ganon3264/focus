@@ -188,6 +188,33 @@ TEMPLATES_THAT_RENDER = [
     ("modals/edit-entity.html", {"prefix": "persona", "modal_id": "modal-edit-persona", "entity_name": "Persona", "upload_fn": "uploadPersonaMedia", "avatar_fn": "uploadPersonaAvatar", "submit_fn": "submitEditPersona"}),
     ("modals/edit-entity.html", {"prefix": "persona", "modal_id": "modal-edit-persona", "entity_name": "Persona", "upload_fn": "uploadPersonaMedia", "avatar_fn": "uploadPersonaAvatar", "submit_fn": "submitEditPersona", "show_greetings": True}),
     ("modals/backup.html", {}),
+    (
+        "modals/regex-item.html",
+        {
+            "script": {
+                "id": "s1",
+                "scope": "global",
+                "name": "Strip slop",
+                "pattern": r"A beat\.",
+                "replacement": "",
+                "flags": "i",
+                "placement": "ai",
+                "destination": "ephemeral",
+                "enabled": True,
+                "min_depth": 0,
+                "max_depth": -1,
+            }
+        },
+    ),
+    (
+        "modals/regex-list.html",
+        {
+            "global_scripts": [],
+            "preset_scripts": [],
+            "preset_id": None,
+            "preset_name": "",
+        },
+    ),
     ("modals/provider-create.html", {}),
     ("modals/text-expander.html", {}),
     ("modals/theme.html", {}),

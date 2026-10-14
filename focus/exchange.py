@@ -45,6 +45,7 @@ EXPORT_TABLES = [
     "themes",
     "char_blocks",
     "preset_blocks",
+    "regex_scripts",
     "chats",
     "chat_summaries",
     "messages",
@@ -65,6 +66,7 @@ INSERT_ORDER = [
     "secrets",
     "char_blocks",
     "preset_blocks",
+    "regex_scripts",
     "chats",
     "chat_summaries",
     "messages",
@@ -250,11 +252,19 @@ async def export_data(db: aiosqlite.Connection, req: ExportRequest) -> bytes:
             ) as cur:
                 attachment_rows = [dict(r) for r in await cur.fetchall()]
 
+    # Regex scripts: globals always travel, preset-scoped ones only when their
+    # preset is part of the archive (disabled scripts included, so config
+    # round-trips verbatim).
+    regex_scripts = await _query_table(db, "regex_scripts", "scope", {"global"})
+    if preset_ids:
+        regex_scripts += await _query_table(db, "regex_scripts", "scope_id", preset_ids)
+
     # Build the database dump
     database: dict[str, list[dict]] = {
         "characters": await _query_table(db, "characters", "id", char_ids),
         "personas": await _query_table(db, "personas", "id", persona_ids),
         "presets": await _query_table(db, "presets", "id", preset_ids),
+        "regex_scripts": regex_scripts,
         "providers": await _query_table(db, "providers", "id", set())
         if not req.include_providers
         else await _query_table_all(db, "providers"),
@@ -306,6 +316,7 @@ async def export_data(db: aiosqlite.Connection, req: ExportRequest) -> bytes:
                 "secrets": len(database.get("secrets", [])),
                 "char_blocks": len(database["char_blocks"]),
                 "preset_blocks": len(database["preset_blocks"]),
+                "regex_scripts": len(database.get("regex_scripts", [])),
                 "chats": len(database["chats"]),
                 "chat_summaries": len(database["chat_summaries"]),
                 "messages": len(database["messages"]),

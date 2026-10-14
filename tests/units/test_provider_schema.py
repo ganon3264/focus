@@ -87,7 +87,7 @@ class TestForwarding:
         assert types["openrouter"]["forwardAlways"] == [
             "top_k", "min_p", "repetition_penalty", "include_reasoning",
             "preserve_thinking", "seed", "verbosity",
-            "cache_enabled", "cache_ttl", "cache_depth",
+            "cache_enabled", "cache_ttl", "cache_depth", "echo_upstream_body",
         ]
         assert types["openrouter"]["forwardReasoning"] == ["reasoning_effort", "thinking_budget"]
         assert types["google_vertex"]["forwardAlways"] == ["top_k", "send_reasoning_history", "include_reasoning"]
@@ -102,7 +102,7 @@ class TestForwarding:
         }
         # Pipeline-controlled keys are never capability-filtered.
         for control in ("include_reasoning", "preserve_thinking", "reasoning_effort",
-                        "thinking_budget", "send_reasoning_history"):
+                        "thinking_budget", "send_reasoning_history", "echo_upstream_body"):
             assert control not in types["openrouter"]["capabilityFiltered"]
             assert control not in types["google_vertex"]["capabilityFiltered"]
 

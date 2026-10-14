@@ -181,6 +181,38 @@ class ActiveProviderUpdate(BaseModel):
     provider_type: str | None = None
 
 
+class RegexScriptCreate(BaseModel):
+    scope: str = "global"
+    scope_id: str | None = None
+    name: str = ""
+    pattern: str
+    replacement: str = ""
+    flags: str = ""
+    placement: str = "ai"
+    destination: str = "ephemeral"
+    enabled: bool = True
+    min_depth: int = 0
+    max_depth: int = -1
+
+
+class RegexScriptUpdate(BaseModel):
+    scope: str | None = None
+    scope_id: str | None = None
+    name: str | None = None
+    pattern: str | None = None
+    replacement: str | None = None
+    flags: str | None = None
+    placement: str | None = None
+    destination: str | None = None
+    enabled: bool | None = None
+    min_depth: int | None = None
+    max_depth: int | None = None
+
+
+class RegexReorder(BaseModel):
+    ids: list[str] = Field(default_factory=list)
+
+
 class ExportRequest(BaseModel):
     characters: list[str] = Field(default_factory=list)
     personas: list[str] = Field(default_factory=list)

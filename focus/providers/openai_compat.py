@@ -158,6 +158,14 @@ class OpenAICompatProvider(BaseProvider):
                 async for chunk in response:
                     if chunk.usage:
                         last_usage = chunk.usage
+                    extra = getattr(chunk, "model_extra", None) or {}
+                    if extra.get("debug"):
+                        if logger.isEnabledFor(logging.DEBUG):
+                            logger.debug(
+                                "Upstream debug chunk:\n%s",
+                                _json.dumps(extra["debug"], indent=2, ensure_ascii=False),
+                            )
+                        yield {"type": "debug", "debug": extra["debug"]}
                     if not chunk.choices:
                         continue
                     if getattr(chunk.choices[0], "finish_reason", None):

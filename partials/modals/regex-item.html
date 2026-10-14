@@ -1,0 +1,156 @@
+{% from "macros.html" import icon_chevron_right, icon_close, hint_tooltip %}
+<div
+  class="arranger-item regex-item {% if not script.enabled %}disabled{% endif %}"
+  data-id="{{ script.id }}"
+  data-scope="{{ script.scope }}"
+>
+  <div class="arranger-header">
+    <div class="arranger-handle regex-handle" title="Drag to reorder"></div>
+    <div
+      class="arranger-title-group"
+      role="button"
+      tabindex="0"
+      aria-expanded="false"
+      onclick="toggleRegexBody(this)"
+    >
+      <span class="regex-chevron">{{ icon_chevron_right(12) }}</span>
+      <input
+        type="text"
+        class="arranger-input"
+        value="{{ script.name }}"
+        placeholder="Untitled script"
+        onclick="event.stopPropagation()"
+        onchange="handleRegexUpdate(this, {name: this.value})"
+      />
+    </div>
+    <div class="arranger-actions">
+      <div
+        class="arranger-toggle {% if script.enabled %}active{% endif %}"
+        role="switch"
+        tabindex="0"
+        title="Enable / disable"
+        onclick="handleRegexEnabled(this)"
+      ></div>
+      <button
+        type="button"
+        class="action-icon slim danger"
+        title="Delete"
+        aria-label="Delete script"
+        onclick="deleteRegexScript(this)"
+      >
+        {{ icon_close(12) }}
+      </button>
+    </div>
+  </div>
+
+  <div class="regex-body" style="display: none">
+    <div class="form-group mb-0">
+      <label>Find</label>
+      <input
+        type="text"
+        class="form-control regex-pattern"
+        value="{{ script.pattern }}"
+        placeholder="Python regex, e.g. A beat\."
+        onchange="handleRegexUpdate(this, {pattern: this.value})"
+      />
+    </div>
+
+    <div class="form-group mb-0">
+      <label>Replace</label>
+      <input
+        type="text"
+        class="form-control regex-replacement"
+        value="{{ script.replacement }}"
+        placeholder="leave empty to delete the match"
+        onchange="handleRegexUpdate(this, {replacement: this.value})"
+      />
+    </div>
+
+    <div class="flex flex-wrap gap-x-6 gap-y-3">
+      <div class="form-group mb-0">
+        <label>Flags</label>
+        <div class="flex gap-1 flex-wrap">
+          {% for flag, label, title in [('i', 'Ignore case', 'Case-insensitive matching'), ('m', 'Multiline', '^ and $ match at line breaks'), ('s', 'Dotall', '. also matches newlines')] %}
+          <button
+            type="button"
+            class="btn-tag regex-flag {% if flag in script.flags %}active{% endif %}"
+            data-flag="{{ flag }}"
+            title="{{ title }}"
+            onclick="toggleRegexFlag(this)"
+          >{{ label }}</button>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="form-group mb-0">
+        <label>Apply to</label>
+        <div class="flex gap-1 flex-wrap">
+          {% for place, label in [('user', 'User'), ('ai', 'AI'), ('reasoning', 'Reasoning')] %}
+          <button
+            type="button"
+            class="btn-tag regex-placement {% if place in script.placement %}active{% endif %}"
+            data-place="{{ place }}"
+            onclick="toggleRegexPlacement(this)"
+          >{{ label }}</button>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="form-group mb-0">
+        <label>Mode</label>
+        <div class="flex gap-1 flex-wrap">
+          <button
+            type="button"
+            class="btn-tag regex-mode {% if script.destination == 'ephemeral' %}active{% endif %}"
+            data-mode="ephemeral"
+            onclick="setRegexMode(this)"
+          >Prompt + display</button>
+          <button
+            type="button"
+            class="btn-tag regex-mode {% if script.destination == 'cosmetic' %}active{% endif %}"
+            data-mode="cosmetic"
+            onclick="setRegexMode(this)"
+          >Display only</button>
+        </div>
+      </div>
+
+      <div class="form-group mb-0">
+        <div class="regex-label-row">
+          <label>Depth</label>
+          {{ hint_tooltip('Distance from the newest message. 0 = newest. Leave max empty for no limit.') }}
+        </div>
+        <div class="flex items-center gap-1">
+          <input
+            type="number"
+            min="0"
+            class="form-control regex-min"
+            style="width: 4.5rem"
+            value="{{ script.min_depth }}"
+            onchange="handleRegexUpdate(this, {min_depth: parseInt(this.value) || 0})"
+          />
+          <span class="text-xs text-muted">–</span>
+          <input
+            type="number"
+            min="0"
+            class="form-control regex-max"
+            style="width: 4.5rem"
+            placeholder="∞"
+            value="{{ script.max_depth if script.max_depth >= 0 else '' }}"
+            onchange="handleRegexUpdate(this, {max_depth: this.value === '' ? -1 : parseInt(this.value)})"
+          />
+        </div>
+      </div>
+    </div>
+
+    <div class="form-group mb-0 regex-preview">
+      <label>Test</label>
+      <div class="flex items-center gap-2">
+        <input type="text" class="form-control regex-sample" placeholder="Paste sample text…" />
+        <button type="button" class="btn btn-secondary shrink-0" onclick="previewRegexScript(this)">
+          Test
+        </button>
+      </div>
+      <div class="regex-preview-out"></div>
+    </div>
+  </div>
+</div>

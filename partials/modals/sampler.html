@@ -173,6 +173,23 @@
         ></div>
       </div>
     </div>
+    <div x-show="showEchoUpstreamBody" class="form-group mb-0 flex items-center justify-between mt-2">
+      <div class="flex items-center gap-1">
+        <label
+          class="text-xs mb-0 cursor-pointer"
+          @click="samplers.echo_upstream_body = !samplers.echo_upstream_body; saveStandard()"
+          >Echo Upstream Body</label
+        >
+        {{ hint_tooltip('OpenRouter returns the transformed request body it sends upstream, logged to the browser console. <span class="hint-warning">Streaming only.</span>') }}
+      </div>
+      <div
+        class="arranger-toggle"
+        role="switch"
+        tabindex="0"
+        :class="{ 'active': samplers.echo_upstream_body }"
+        @click="samplers.echo_upstream_body = !samplers.echo_upstream_body; saveStandard()"
+      ></div>
+    </div>
     <div
       x-show="showReasoningEffort"
       x-transition.opacity.duration.200ms
@@ -566,6 +583,7 @@
         return !!(p && p.model && p.model.startsWith('anthropic/claude'));
       },
       get showReasoningToggle() { return this.shows('include_reasoning'); },
+      get showEchoUpstreamBody() { return this.shows('echo_upstream_body'); },
       get showReasoningEffort() { return this.shows('reasoning_effort', true); },
       get showPreserveThinking() { return this.shows('preserve_thinking', true); },
       get showSendReasoningHistory() { return this.shows('send_reasoning_history'); },
