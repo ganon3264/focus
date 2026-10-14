@@ -29,6 +29,7 @@ from focus.routers import (
     regex_scripts,
     settings,
     stream,
+    structured_responses,
     themes,
     tools,
 )
@@ -188,6 +189,7 @@ app.include_router(tools.router, prefix="/api", tags=["tools"])
 app.include_router(exchange.router, prefix="/api", tags=["import-export"])
 app.include_router(extensions.router, prefix="/api", tags=["extensions"])
 app.include_router(regex_scripts.router, prefix="/api", tags=["regex-scripts"])
+app.include_router(structured_responses.router, prefix="/api", tags=["structured-responses"])
 
 app.mount("/assets", RevalidatedStaticFiles(directory="assets", cache_assets=CACHE_STATIC), name="assets")
 app.mount("/static", RevalidatedStaticFiles(directory="static", cache_assets=CACHE_STATIC), name="static")

@@ -1,6 +1,6 @@
 {% from "macros.html" import icon_chevron_right, icon_close, hint_tooltip %}
 <div
-  class="arranger-item regex-item {% if not script.enabled %}disabled{% endif %}"
+  class="arranger-item regex-item {% if not script.enabled %}disabled{% endif %} {% if open|default(false) %}expanded{% endif %}"
   data-id="{{ script.id }}"
   data-scope="{{ script.scope }}"
 >
@@ -10,7 +10,7 @@
       class="arranger-title-group"
       role="button"
       tabindex="0"
-      aria-expanded="false"
+      aria-expanded="{{ 'true' if open|default(false) else 'false' }}"
       onclick="toggleRegexBody(this)"
     >
       <span class="regex-chevron">{{ icon_chevron_right(12) }}</span>
@@ -43,7 +43,7 @@
     </div>
   </div>
 
-  <div class="regex-body" style="display: none">
+  <div class="regex-body" style="display: {{ 'block' if open|default(false) else 'none' }}">
     <div class="form-group mb-0">
       <label>Find</label>
       <input
@@ -61,7 +61,7 @@
         type="text"
         class="form-control regex-replacement"
         value="{{ script.replacement }}"
-        placeholder="leave empty to delete the match"
+        placeholder="replacement text — empty removes the match (Block: prompt side only)"
         onchange="handleRegexUpdate(this, {replacement: this.value})"
       />
     </div>
@@ -70,7 +70,7 @@
       <div class="form-group mb-0">
         <label>Flags</label>
         <div class="flex gap-1 flex-wrap">
-          {% for flag, label, title in [('i', 'Ignore case', 'Case-insensitive matching'), ('m', 'Multiline', '^ and $ match at line breaks'), ('s', 'Dotall', '. also matches newlines')] %}
+          {% for flag, label, title in [('i', 'i · Ignore case', 'Python re.IGNORECASE. Case-insensitive matching. Inline form: (?i)'), ('s', 's · dot matches newline', 'Python re.DOTALL. Makes the dot (.) match newlines so the pattern can span lines. Inline form: (?s). Only changes anything if the pattern contains a dot.'), ('m', 'm · ^/$ per line', 'Python re.MULTILINE. Makes ^ and $ match at the start/end of each line. Inline form: (?m). Only changes anything if the pattern contains ^ or $. Has nothing to do with matching newlines.')] %}
           <button
             type="button"
             class="btn-tag regex-flag {% if flag in script.flags %}active{% endif %}"
@@ -97,20 +97,27 @@
       </div>
 
       <div class="form-group mb-0">
-        <label>Mode</label>
+        <label>Output</label>
         <div class="flex gap-1 flex-wrap">
           <button
             type="button"
-            class="btn-tag regex-mode {% if script.destination == 'ephemeral' %}active{% endif %}"
-            data-mode="ephemeral"
-            onclick="setRegexMode(this)"
-          >Prompt + display</button>
+            class="btn-tag regex-prompt {% if script.apply_prompt %}active{% endif %}"
+            title="Run this script against the prompt sent to the model"
+            onclick="toggleRegexPrompt(this)"
+          >Prompt</button>
           <button
             type="button"
-            class="btn-tag regex-mode {% if script.destination == 'cosmetic' %}active{% endif %}"
-            data-mode="cosmetic"
-            onclick="setRegexMode(this)"
-          >Display only</button>
+            class="btn-tag regex-display {% if script.apply_display %}active{% endif %}"
+            title="Run this script against the rendered chat"
+            onclick="toggleRegexDisplay(this)"
+            {% if script.as_block %}disabled{% endif %}
+          >Display</button>
+          <button
+            type="button"
+            class="btn-tag regex-block {% if script.as_block %}active{% endif %}"
+            title="Render the display match as a collapsible block"
+            onclick="toggleRegexBlock(this)"
+          >Block</button>
         </div>
       </div>
 

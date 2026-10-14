@@ -1,0 +1,46 @@
+{% from "macros.html" import icon_plus %}
+<div data-preset-id="{{ preset_id or '' }}">
+  <div class="structured-group">
+    <div class="structured-group-header">
+      <span class="structured-group-title">Global</span>
+      <button
+        type="button"
+        class="btn btn-create btn-sm"
+        onclick="createStructuredResponse('global', null)"
+      >
+        {{ icon_plus(12) }} Add
+      </button>
+    </div>
+    <div class="structured-sortable" data-scope="global">
+      {% for response in global_responses %}{% include "modals/structured-item.html" %}{% endfor %}
+      {% if not global_responses %}
+      <div class="structured-empty text-xs text-muted">No global responses.</div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if preset_id %}
+  <div class="structured-group">
+    <div class="structured-group-header">
+      <span class="structured-group-title">Preset — {{ preset_name }}</span>
+      <button
+        type="button"
+        class="btn btn-create btn-sm"
+        onclick="createStructuredResponse('preset', '{{ preset_id }}')"
+      >
+        {{ icon_plus(12) }} Add
+      </button>
+    </div>
+    <div class="structured-sortable" data-scope="preset" data-scope-id="{{ preset_id }}">
+      {% for response in preset_responses %}{% include "modals/structured-item.html" %}{% endfor %}
+      {% if not preset_responses %}
+      <div class="structured-empty text-xs text-muted">No responses for this preset.</div>
+      {% endif %}
+    </div>
+  </div>
+  {% else %}
+  <div class="structured-empty text-xs text-muted mt-3">
+    Select a preset to manage preset-scoped responses.
+  </div>
+  {% endif %}
+</div>

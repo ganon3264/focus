@@ -1,0 +1,86 @@
+{% from "macros.html" import icon_chevron_right, icon_close, hint_tooltip %}
+<div
+  class="arranger-item structured-item {% if not response.enabled %}disabled{% endif %}"
+  data-id="{{ response.id }}"
+  data-scope="{{ response.scope }}"
+>
+  <div class="arranger-header">
+    <div class="arranger-handle structured-handle" title="Drag to reorder"></div>
+    <div
+      class="arranger-title-group"
+      role="button"
+      tabindex="0"
+      aria-expanded="false"
+      onclick="toggleStructuredBody(this)"
+    >
+      <span class="structured-chevron">{{ icon_chevron_right(12) }}</span>
+      <input
+        type="text"
+        class="arranger-input"
+        value="{{ response.name }}"
+        placeholder="Untitled response"
+        onclick="event.stopPropagation()"
+        onchange="handleStructuredUpdate(this, {name: this.value})"
+      />
+    </div>
+    <div class="arranger-actions">
+      <div
+        class="arranger-toggle {% if response.enabled %}active{% endif %}"
+        role="switch"
+        tabindex="0"
+        title="Set active (only one per scope)"
+        onclick="handleStructuredActive(this)"
+      ></div>
+      <button
+        type="button"
+        class="action-icon slim danger"
+        title="Delete"
+        aria-label="Delete response"
+        onclick="deleteStructuredResponse(this)"
+      >
+        {{ icon_close(12) }}
+      </button>
+    </div>
+  </div>
+
+  <div class="structured-body" style="display: none">
+    <div class="form-group mb-0">
+      <div class="structured-label-row">
+        <label>JSON Schema</label>
+        {{ hint_tooltip('Sent as response_format. Gemini requires additionalProperties: false on every object and only uses pattern as a hint. Macros are resolved at generation, not while editing.') }}
+      </div>
+      <textarea
+        class="form-control structured-schema"
+        rows="8"
+        spellcheck="false"
+        placeholder='{"type":"object","properties":{"text":{"type":"string"}},"required":["text"],"additionalProperties":false}'
+        onchange="handleStructuredUpdate(this, {json_schema: this.value})"
+      >{{ response.json_schema }}</textarea>
+    </div>
+
+    <div class="form-group mb-0">
+      <label>Output Template (Handlebars)</label>
+      <textarea
+        class="form-control structured-template"
+        rows="5"
+        spellcheck="false"
+        placeholder="Use triple braces for raw text, e.g. {{ '{{{text}}}' }}"
+        onchange="handleStructuredUpdate(this, {template: this.value})"
+      >{{ response.template }}</textarea>
+    </div>
+
+    <div class="form-group mb-0 structured-preview">
+      <label>Test</label>
+      <textarea
+        class="form-control structured-sample"
+        rows="3"
+        spellcheck="false"
+        placeholder='{"text": "Hello world!"}'
+      ></textarea>
+      <button type="button" class="btn btn-secondary shrink-0" onclick="previewStructuredResponse(this)">
+        Test
+      </button>
+      <div class="structured-preview-out"></div>
+    </div>
+  </div>
+</div>

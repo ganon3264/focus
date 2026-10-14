@@ -3,6 +3,7 @@ from __future__ import annotations
 from focus.core.regex_scripts import (
     apply_to_display_messages,
     apply_to_prompt_history,
+    preview_transform,
     validate_pattern,
 )
 from focus.prompt_chain import assemble_prompt
@@ -14,7 +15,9 @@ def _script(**kw) -> dict:
         "replacement": "",
         "flags": "",
         "placement": "ai",
-        "destination": "ephemeral",
+        "apply_prompt": True,
+        "apply_display": True,
+        "as_block": False,
         "enabled": 1,
         "min_depth": 0,
         "max_depth": -1,
@@ -73,12 +76,17 @@ class TestPromptApplication:
         assert history[0]["content"] == "old"
         assert history[2]["content"] == "A beat. new"
 
-    async def test_cosmetic_not_applied_to_prompt(self):
+    async def test_display_only_not_applied_to_prompt(self):
         history = [{"role": "assistant", "content": "A beat. x"}]
         await apply_to_prompt_history(
-            history, [_script(pattern=r"A beat\.\s*", replacement="", destination="cosmetic")]
+            history, [_script(pattern=r"A beat\.\s*", replacement="", apply_prompt=False)]
         )
         assert history[0]["content"] == "A beat. x"
+
+    async def test_whitespace_pattern_is_not_a_draft(self):
+        history = [{"role": "assistant", "content": "a b c"}]
+        await apply_to_prompt_history(history, [_script(pattern=" ", replacement="")])
+        assert history[0]["content"] == "abc"
 
     async def test_empty_pattern_never_applies(self):
         # An empty regex matches at every position; a draft must not splice the
@@ -128,7 +136,7 @@ class TestDisplayApplication:
             messages,
             [
                 _script(pattern=r"A beat\.\s*", replacement="", placement="ai"),
-                _script(pattern=r"A beat\.\s*", replacement="", placement="reasoning", destination="cosmetic"),
+                _script(pattern=r"A beat\.\s*", replacement="", placement="reasoning"),
             ],
         )
         assert messages[0]["segments"][0]["content"] == "x"
@@ -149,6 +157,66 @@ class TestDisplayApplication:
             messages, [_script(pattern=r"A beat\.\s*", replacement="", placement="reasoning")]
         )
         assert messages[0]["segments"][0]["html"] == "a &lt; b"
+
+
+class TestBlockApplication:
+    async def test_block_splits_text_segment(self):
+        messages = [{"role": "assistant", "segments": [{"type": "text", "content": "before <think>secret</think> after"}]}]
+        await apply_to_display_messages(messages, [
+            _script(name="Think", pattern=r"<think>(.*?)</think>", replacement="", as_block=True, flags="s"),
+        ])
+        segs = messages[0]["segments"]
+        assert [s["type"] for s in segs] == ["text", "block", "text"]
+        assert segs[1]["title"] == "Think"
+        assert segs[1]["html"] == "secret"
+
+    async def test_block_prompt_strips_match(self):
+        history = [{"role": "assistant", "content": "before <think>secret</think> after"}]
+        await apply_to_prompt_history(history, [
+            _script(name="Think", pattern=r"<think>(.*?)</think>", replacement="", as_block=True, flags="s"),
+        ])
+        assert history[0]["content"] == "before  after"
+
+    async def test_block_prompt_skipped_when_display_only(self):
+        history = [{"role": "assistant", "content": "before <think>secret</think> after"}]
+        await apply_to_prompt_history(history, [
+            _script(name="Think", pattern=r"<think>(.*?)</think>", replacement="", as_block=True, apply_prompt=False, flags="s"),
+        ])
+        assert history[0]["content"] == "before <think>secret</think> after"
+
+    async def test_block_prompt_uses_replacement(self):
+        history = [{"role": "assistant", "content": "before <think>secret</think> after"}]
+        await apply_to_prompt_history(history, [
+            _script(name="Think", pattern=r"<think>(.*?)</think>", replacement="[thinking]", as_block=True, flags="s"),
+        ])
+        assert history[0]["content"] == "before [thinking] after"
+
+    async def test_block_skipped_when_display_off(self):
+        messages = [{"role": "assistant", "segments": [{"type": "text", "content": "before <think>x</think> after"}]}]
+        await apply_to_display_messages(messages, [
+            _script(name="Think", pattern=r"<think>(.*?)</think>", replacement="", as_block=True, apply_display=False, flags="s"),
+        ])
+        assert messages[0]["segments"] == [{"type": "text", "content": "before <think>x</think> after"}]
+
+    async def test_block_capture_defaults_to_whole_match(self):
+        messages = [{"role": "assistant", "segments": [{"type": "text", "content": "[x]"}]}]
+        await apply_to_display_messages(messages, [
+            _script(name="Note", pattern=r"\[.*?\]", replacement="", as_block=True),
+        ])
+        segs = messages[0]["segments"]
+        assert [s["type"] for s in segs] == ["block"]
+        assert segs[0]["html"] == "[x]"
+
+
+class TestPreview:
+    def test_block_preview_delimits(self):
+        out = preview_transform(
+            r"<think>(.*?)</think>", "", "s", "a<think>b</think>c", as_block=True, name="Think"
+        )
+        assert out == "a[Think]\nb\n[/Think]c"
+
+    def test_text_preview_substitutes(self):
+        assert preview_transform("a", "b", "", "a cat") == "b cbt"
 
 
 class TestAssemblePromptIntegration:

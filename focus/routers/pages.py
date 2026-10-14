@@ -9,6 +9,7 @@ from jinja2 import FileSystemLoader
 import focus.crud as crud
 import focus.db.extensions as db_extensions
 import focus.db.regex_scripts as regex_db
+import focus.db.structured_responses as structured_db
 import focus.db.themes as db_themes
 from focus.core.database import get_db
 from focus.core.logger import DEBUG_MODE
@@ -362,6 +363,49 @@ async def regex_scripts_partial(
         {
             "global_scripts": global_scripts,
             "preset_scripts": preset_scripts,
+            "preset_id": preset_id,
+            "preset_name": preset_name,
+        },
+    )
+
+
+@router.get("/partials/regex-scripts/item/{script_id}", response_class=HTMLResponse)
+async def regex_script_item_partial(
+    request: Request,
+    script_id: str,
+    open: bool = Query(False),
+    db: aiosqlite.Connection = Depends(get_db),
+):
+    from fastapi import HTTPException
+
+    script = await regex_db.get_script(db, script_id)
+    if not script:
+        raise HTTPException(404, "Regex script not found")
+    return templates.TemplateResponse(
+        request, "modals/regex-item.html", {"script": script, "open": open}
+    )
+
+
+@router.get("/partials/structured-responses", response_class=HTMLResponse)
+async def structured_responses_partial(
+    request: Request, preset_id: str = Query(None), db: aiosqlite.Connection = Depends(get_db)
+):
+    global_responses = await structured_db.list_responses(db, scope="global")
+    preset_responses: list[dict] = []
+    preset_name = ""
+    if preset_id:
+        preset_responses = await structured_db.list_responses(
+            db, scope="preset", scope_id=preset_id
+        )
+        async with db.execute("SELECT name FROM presets WHERE id = ?", (preset_id,)) as cur:
+            row = await cur.fetchone()
+        preset_name = row["name"] if row else ""
+    return templates.TemplateResponse(
+        request,
+        "modals/structured-list.html",
+        {
+            "global_responses": global_responses,
+            "preset_responses": preset_responses,
             "preset_id": preset_id,
             "preset_name": preset_name,
         },

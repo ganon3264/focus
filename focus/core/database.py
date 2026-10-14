@@ -244,7 +244,9 @@ CREATE TABLE IF NOT EXISTS regex_scripts (
     replacement TEXT NOT NULL DEFAULT '',
     flags       TEXT NOT NULL DEFAULT '',           -- subset of 'ims'
     placement   TEXT NOT NULL DEFAULT 'ai',         -- csv: user,ai,reasoning
-    destination TEXT NOT NULL DEFAULT 'ephemeral',  -- 'ephemeral' | 'cosmetic'
+    apply_prompt  INTEGER NOT NULL DEFAULT 1,       -- run against the model payload
+    apply_display INTEGER NOT NULL DEFAULT 1,       -- run against the rendered chat
+    as_block      INTEGER NOT NULL DEFAULT 0,       -- display match as a collapsible block
     enabled     INTEGER NOT NULL DEFAULT 1,
     position    REAL NOT NULL DEFAULT 0,
     min_depth   INTEGER NOT NULL DEFAULT 0,
@@ -254,6 +256,21 @@ CREATE TABLE IF NOT EXISTS regex_scripts (
 );
 
 CREATE INDEX IF NOT EXISTS idx_regex_scripts_scope ON regex_scripts(scope, scope_id, position);
+
+CREATE TABLE IF NOT EXISTS structured_responses (
+    id          TEXT PRIMARY KEY,
+    scope       TEXT NOT NULL DEFAULT 'preset',     -- 'global' | 'preset'
+    scope_id    TEXT,                               -- preset id when scope='preset'
+    name        TEXT NOT NULL DEFAULT '',
+    json_schema TEXT NOT NULL DEFAULT '',           -- JSON Schema (ST macros allowed)
+    template    TEXT NOT NULL DEFAULT '',           -- Handlebars output template
+    enabled     INTEGER NOT NULL DEFAULT 0,         -- the single active row per scope
+    position    REAL NOT NULL DEFAULT 0,
+    created_at  TEXT NOT NULL,
+    updated_at  TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_structured_responses_scope ON structured_responses(scope, scope_id, position);
 
 CREATE INDEX IF NOT EXISTS idx_gen_usage_message ON generation_usage(message_id);
 CREATE INDEX IF NOT EXISTS idx_gen_usage_chat    ON generation_usage(chat_id);

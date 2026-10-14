@@ -7,6 +7,15 @@
     return (window.StateManager && StateManager.get('preset_id')) || '';
   }
 
+  // Display transforms are applied server-side, so push each change into the
+  // live message list instead of making the user reload the page. Skip while a
+  // generation is streaming (the post-stream refresh owns the list then).
+  function refreshDisplayedMessages() {
+    if (window.Generation && Generation.isActive && Generation.isActive()) return;
+    var chatId = (window.StateManager && StateManager.get('chat_id')) || '';
+    if (chatId && window.refreshChatMessages) window.refreshChatMessages(chatId);
+  }
+
   function patchScript(id, patch) {
     return fetch('/api/regex-scripts/' + id, {
       method: 'PATCH',
@@ -23,12 +32,46 @@
     });
   }
 
+  function refreshSingleRegexScript(item) {
+    if (!item || !item.dataset.id) return;
+    var open = item.classList.contains('expanded') ? '?open=1' : '';
+    hxGet('/partials/regex-scripts/item/' + item.dataset.id + open, {
+      target: '.regex-item[data-id="' + item.dataset.id + '"]',
+      swap: 'outerHTML',
+    });
+  }
+
+  function saveScript(el, patch) {
+    var item = el.closest('.regex-item');
+    if (!item) return Promise.resolve();
+    return patchScript(item.dataset.id, patch)
+      .then(function () {
+        refreshSingleRegexScript(item);
+        refreshDisplayedMessages();
+      })
+      .catch(function () {});
+  }
+
   window.reloadRegexScripts = function () {
     var container = document.getElementById('regex-scripts-container');
     if (!container) return Promise.resolve();
+    // Keep expanded rows open across the swap.
+    var openIds = [];
+    container.querySelectorAll('.regex-item.expanded').forEach(function (item) {
+      if (item.dataset.id) openIds.push(item.dataset.id);
+    });
     var pid = currentPresetId();
     var url = '/partials/regex-scripts' + (pid ? '?preset_id=' + encodeURIComponent(pid) : '');
     return hxGet(url, { target: '#regex-scripts-container', swap: 'innerHTML' }).then(function () {
+      openIds.forEach(function (id) {
+        var item = container.querySelector('.regex-item[data-id="' + id + '"]');
+        if (!item) return;
+        var body = item.querySelector('.regex-body');
+        var title = item.querySelector('.arranger-title-group');
+        if (body) body.style.display = 'block';
+        item.classList.add('expanded');
+        if (title) title.setAttribute('aria-expanded', 'true');
+      });
       setTimeout(window.initRegexSortables, 30);
     });
   };
@@ -65,21 +108,19 @@
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ids: ids }),
+    }).then(function () {
+      refreshDisplayedMessages();
     });
   };
 
   window.handleRegexUpdate = function (el, patch) {
-    var item = el.closest('.regex-item');
-    if (!item) return;
-    patchScript(item.dataset.id, patch).catch(function () {});
+    saveScript(el, patch);
   };
 
   window.handleRegexEnabled = function (el) {
-    var item = el.closest('.regex-item');
-    if (!item) return;
     var enabled = !el.classList.contains('active');
     el.classList.toggle('active', enabled);
-    patchScript(item.dataset.id, { enabled: enabled }).catch(function () {});
+    saveScript(el, { enabled: enabled });
   };
 
   window.toggleRegexFlag = function (el) {
@@ -94,7 +135,7 @@
     item.querySelectorAll('.regex-flag').forEach(function (chip) {
       if (chip.classList.contains('active')) flags.push(chip.dataset.flag);
     });
-    patchScript(item.dataset.id, { flags: flags.join('') }).catch(function () {});
+    saveScript(el, { flags: flags.join('') });
   };
 
   window.toggleRegexPlacement = function (el) {
@@ -109,16 +150,29 @@
     item.querySelectorAll('.regex-placement').forEach(function (chip) {
       if (chip.classList.contains('active')) places.push(chip.dataset.place);
     });
-    patchScript(item.dataset.id, { placement: places.join(',') }).catch(function () {});
+    saveScript(el, { placement: places.join(',') });
   };
 
-  window.setRegexMode = function (el) {
-    var item = el.closest('.regex-item');
-    if (!item) return;
-    item.querySelectorAll('.regex-mode').forEach(function (chip) {
-      chip.classList.toggle('active', chip === el);
+  function toggleRegexToggle(el, field, extra) {
+    if (el.disabled) return;
+    var patch = {};
+    patch[field] = !el.classList.contains('active');
+    if (extra) extra(patch);
+    saveScript(el, patch);
+  }
+
+  window.toggleRegexPrompt = function (el) {
+    toggleRegexToggle(el, 'apply_prompt');
+  };
+
+  window.toggleRegexDisplay = function (el) {
+    toggleRegexToggle(el, 'apply_display');
+  };
+
+  window.toggleRegexBlock = function (el) {
+    toggleRegexToggle(el, 'as_block', function (patch) {
+      if (patch.as_block) patch.apply_display = true;
     });
-    patchScript(item.dataset.id, { destination: el.dataset.mode }).catch(function () {});
   };
 
   window.toggleRegexBody = function (el) {
@@ -142,7 +196,9 @@
         pattern: '',
         replacement: '',
         placement: 'ai',
-        destination: 'ephemeral',
+        apply_prompt: true,
+        apply_display: true,
+        as_block: false,
       }),
     })
       .then(function (r) {
@@ -169,6 +225,9 @@
           }
         });
       })
+      .then(function () {
+        refreshDisplayedMessages();
+      })
       .catch(function (e) {
         if (window.showErrorToast) showErrorToast((e && e.detail) || 'Could not create script');
       });
@@ -179,6 +238,7 @@
     if (!item) return;
     fetch('/api/regex-scripts/' + item.dataset.id, { method: 'DELETE' }).then(function () {
       window.reloadRegexScripts();
+      refreshDisplayedMessages();
     });
   };
 
@@ -198,6 +258,8 @@
         replacement: item.querySelector('.regex-replacement').value,
         flags: flags.join(''),
         sample: item.querySelector('.regex-sample').value,
+        as_block: item.querySelector('.regex-block').classList.contains('active'),
+        name: (item.querySelector('.arranger-input') || {}).value || 'Block',
       }),
     })
       .then(function (r) {

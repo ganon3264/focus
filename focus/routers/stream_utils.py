@@ -10,10 +10,12 @@ from fastapi import HTTPException
 
 import focus.crud as crud
 import focus.db.regex_scripts as regex_db
+import focus.db.structured_responses as structured_db
 from focus.core.card_parser import safe_load_card
 from focus.core.macros import build_base_macros
 from focus.core.media import tool_image_data_url
 from focus.core.models import StreamRequest
+from focus.core.structured import build_response_format
 from focus.core.summary import (
     DEFAULT_SUMMARY_ROLE,
     SUMMARY_MACROS,
@@ -37,6 +39,7 @@ class PromptCtx:
     asst_msg_id: str | None
     next_variant_index: int
     user_msg_id: str | None
+    structured: dict | None = None
 
 logger = logging.getLogger("focus.routers.stream_utils")
 
@@ -675,6 +678,10 @@ async def get_prompt_context(
                 len(content) if isinstance(content, list) else len(str(content)),
             )
 
+    structured = None
+    if not summary_pass:
+        structured = await _resolve_structured(db, chat.get("preset_id"), macros)
+
     logger.debug(
         "get_prompt_context: returning asst_msg_id=%s user_msg_id=%s next_variant_index=%d total_messages=%d",
         asst_msg_id, user_msg_id, next_variant_index, len(messages),
@@ -685,7 +692,33 @@ async def get_prompt_context(
         asst_msg_id=asst_msg_id,
         next_variant_index=next_variant_index,
         user_msg_id=user_msg_id,
+        structured=structured,
     )
+
+
+async def _resolve_structured(
+    db: aiosqlite.Connection, preset_id: str | None, macros: dict[str, str]
+) -> dict | None:
+    """Resolve the effective structured-response config for a chat's preset.
+
+    The schema is macro-resolved here (at generation time) because macros may
+    have side effects; a malformed schema aborts the request rather than
+    silently producing ordinary prose.
+    """
+    row = await structured_db.get_active(db, preset_id)
+    if not row:
+        return None
+    if not (row.get("json_schema") or "").strip() or not (row.get("template") or "").strip():
+        return None
+    try:
+        response_format = build_response_format(row, macros)
+    except ValueError as e:
+        raise HTTPException(400, f"Invalid structured response schema: {e}") from e
+    return {
+        "response_format": response_format,
+        "template": row["template"],
+        "macros": dict(macros),
+    }
 
 
 

@@ -14,6 +14,7 @@
     <button type="button" class="tab-btn" :class="{'active': tab === 'tools'}" @click="tab = 'tools'">Tools</button>
     <button type="button" class="tab-btn" :class="{'active': tab === 'extensions'}" @click="tab = 'extensions'">Extensions</button>
     <button type="button" class="tab-btn" :class="{'active': tab === 'regex'}" @click="tab = 'regex'; window.reloadRegexScripts && reloadRegexScripts()">Regex</button>
+    <button type="button" class="tab-btn" :class="{'active': tab === 'structured'}" @click="tab = 'structured'; window.reloadStructuredResponses && reloadStructuredResponses()">Structured</button>
     <button type="button" class="tab-btn" :class="{'active': tab === 'backups'}" @click="tab = 'backups'; window.BackupManager && BackupManager.loadList()">Backups</button>
   </div>
   <div class="flex-1 min-h-0 flex flex-col">
@@ -25,6 +26,9 @@
     </div>
     <div x-show="tab === 'regex'" class="flex-1 min-h-0 flex flex-col">
       {% include "modals/regex.html" %}
+    </div>
+    <div x-show="tab === 'structured'" class="flex-1 min-h-0 flex flex-col">
+      {% include "modals/structured.html" %}
     </div>
     <div x-show="tab === 'backups'" class="flex-1 min-h-0 overflow-y-auto scroll-fade pr-1">
       {% include "modals/backup-body.html" %}

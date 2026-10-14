@@ -46,6 +46,7 @@ EXPORT_TABLES = [
     "char_blocks",
     "preset_blocks",
     "regex_scripts",
+    "structured_responses",
     "chats",
     "chat_summaries",
     "messages",
@@ -67,6 +68,7 @@ INSERT_ORDER = [
     "char_blocks",
     "preset_blocks",
     "regex_scripts",
+    "structured_responses",
     "chats",
     "chat_summaries",
     "messages",
@@ -259,12 +261,19 @@ async def export_data(db: aiosqlite.Connection, req: ExportRequest) -> bytes:
     if preset_ids:
         regex_scripts += await _query_table(db, "regex_scripts", "scope_id", preset_ids)
 
+    structured_responses = await _query_table(db, "structured_responses", "scope", {"global"})
+    if preset_ids:
+        structured_responses += await _query_table(
+            db, "structured_responses", "scope_id", preset_ids
+        )
+
     # Build the database dump
     database: dict[str, list[dict]] = {
         "characters": await _query_table(db, "characters", "id", char_ids),
         "personas": await _query_table(db, "personas", "id", persona_ids),
         "presets": await _query_table(db, "presets", "id", preset_ids),
         "regex_scripts": regex_scripts,
+        "structured_responses": structured_responses,
         "providers": await _query_table(db, "providers", "id", set())
         if not req.include_providers
         else await _query_table_all(db, "providers"),
@@ -317,6 +326,7 @@ async def export_data(db: aiosqlite.Connection, req: ExportRequest) -> bytes:
                 "char_blocks": len(database["char_blocks"]),
                 "preset_blocks": len(database["preset_blocks"]),
                 "regex_scripts": len(database.get("regex_scripts", [])),
+                "structured_responses": len(database.get("structured_responses", [])),
                 "chats": len(database["chats"]),
                 "chat_summaries": len(database["chat_summaries"]),
                 "messages": len(database["messages"]),

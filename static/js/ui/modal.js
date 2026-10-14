@@ -283,6 +283,7 @@
 
   ModalController.onOpen('modal-advanced', function () {
     if (window.reloadRegexScripts) window.reloadRegexScripts();
+    if (window.reloadStructuredResponses) window.reloadStructuredResponses();
     if (window.BackupManager) BackupManager.loadList();
   });
 

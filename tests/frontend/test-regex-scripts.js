@@ -50,8 +50,9 @@ function buildItem(id) {
   var flagM = chip('regex-flag', 'flag', 'm', false);
   var placeAi = chip('regex-placement', 'place', 'ai', true);
   var placeUser = chip('regex-placement', 'place', 'user', false);
-  var modeEph = chip('regex-mode', 'mode', 'ephemeral', true);
-  var modeCos = chip('regex-mode', 'mode', 'cosmetic', false);
+  var promptChip = chip('regex-prompt', 'field', 'apply_prompt', true);
+  var displayChip = chip('regex-display', 'field', 'apply_display', true);
+  var blockChip = chip('regex-block', 'field', 'as_block', false);
   var pattern = field('regex-pattern', 'a');
   var replacement = field('regex-replacement', 'b');
   var sample = field('regex-sample', 'aaa');
@@ -62,14 +63,14 @@ function buildItem(id) {
   item.appendChild(toggle);
   item.appendChild(body);
   [
-    flagI, flagM, placeAi, placeUser, modeEph, modeCos,
+    flagI, flagM, placeAi, placeUser, promptChip, displayChip, blockChip,
     pattern, replacement, sample, out,
   ].forEach(function (c) { body.appendChild(c); });
   doc.body.appendChild(item);
   return {
     item: item, title: title, toggle: toggle, body: body,
     flagI: flagI, flagM: flagM, placeAi: placeAi,
-    modeEph: modeEph, modeCos: modeCos, out: out,
+    promptChip: promptChip, displayChip: displayChip, blockChip: blockChip, out: out,
   };
 }
 
@@ -98,16 +99,6 @@ function buildItem(id) {
   var t = buildItem('s-place');
   window.handleRegexPlacement(t.placeAi);
   assertDeepEqual(JSON.parse(fetchMock._last().opts.body), { placement: 'ai' }, 'only active placements sent');
-})();
-
-// ── mode is single-select ────────────────────────────────────────────────
-(function () {
-  fetchMock._reset();
-  var t = buildItem('s-mode');
-  window.setRegexMode(t.modeCos);
-  assert(!t.modeEph.classList.contains('active'), 'old mode cleared');
-  assert(t.modeCos.classList.contains('active'), 'new mode active');
-  assertDeepEqual(JSON.parse(fetchMock._last().opts.body), { destination: 'cosmetic' }, 'mode PATCH sent');
 })();
 
 // ── enable toggle ────────────────────────────────────────────────────────
@@ -141,8 +132,8 @@ function buildItem(id) {
   assertEqual(call.url, '/api/regex-scripts/preview', 'preview hits preview endpoint');
   assertDeepEqual(
     JSON.parse(call.opts.body),
-    { pattern: 'a', replacement: 'b', flags: 'i', sample: 'aaa' },
-    'preview payload carries pattern/replacement/flags/sample'
+    { pattern: 'a', replacement: 'b', flags: 'i', sample: 'aaa', as_block: false, name: 'Block' },
+    'preview payload carries pattern/replacement/flags/sample/block/name'
   );
   realSetTimeout(function () {
     assertEqual(t.out.textContent, 'PREVIEW-OK', 'preview result written to output');

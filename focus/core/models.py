@@ -189,7 +189,9 @@ class RegexScriptCreate(BaseModel):
     replacement: str = ""
     flags: str = ""
     placement: str = "ai"
-    destination: str = "ephemeral"
+    apply_prompt: bool = True
+    apply_display: bool = True
+    as_block: bool = False
     enabled: bool = True
     min_depth: int = 0
     max_depth: int = -1
@@ -203,13 +205,37 @@ class RegexScriptUpdate(BaseModel):
     replacement: str | None = None
     flags: str | None = None
     placement: str | None = None
-    destination: str | None = None
+    apply_prompt: bool | None = None
+    apply_display: bool | None = None
+    as_block: bool | None = None
     enabled: bool | None = None
     min_depth: int | None = None
     max_depth: int | None = None
 
 
 class RegexReorder(BaseModel):
+    ids: list[str] = Field(default_factory=list)
+
+
+class StructuredResponseCreate(BaseModel):
+    scope: str = "preset"
+    scope_id: str | None = None
+    name: str = "New response"
+    json_schema: str = ""
+    template: str = ""
+    enabled: bool = True
+
+
+class StructuredResponseUpdate(BaseModel):
+    scope: str | None = None
+    scope_id: str | None = None
+    name: str | None = None
+    json_schema: str | None = None
+    template: str | None = None
+    enabled: bool | None = None
+
+
+class StructuredReorder(BaseModel):
     ids: list[str] = Field(default_factory=list)
 
 

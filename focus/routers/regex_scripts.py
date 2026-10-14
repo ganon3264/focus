@@ -10,7 +10,7 @@ from pydantic import BaseModel
 import focus.db.regex_scripts as regex_db
 from focus.core.database import get_db
 from focus.core.models import RegexReorder, RegexScriptCreate, RegexScriptUpdate
-from focus.core.regex_scripts import compile_pattern, validate_pattern
+from focus.core.regex_scripts import compile_pattern, preview_transform, validate_pattern
 
 router = APIRouter()
 
@@ -20,13 +20,13 @@ class RegexPreview(BaseModel):
     replacement: str = ""
     flags: str = ""
     sample: str = ""
+    as_block: bool = False
+    name: str = "Block"
 
 
 def _validate(data: dict[str, Any]) -> None:
     if "scope" in data and data["scope"] not in regex_db.SCOPES:
         raise HTTPException(400, f"scope must be one of {regex_db.SCOPES}")
-    if "destination" in data and data["destination"] not in regex_db.DESTINATIONS:
-        raise HTTPException(400, f"destination must be one of {regex_db.DESTINATIONS}")
     if "placement" in data:
         normalized = regex_db.normalize_placement(data["placement"])
         if not normalized:
@@ -84,7 +84,11 @@ async def update_regex_script(
     data = body.model_dump(exclude_unset=True)
     # Validate against the merged result so a replacement can be checked against
     # unchanged pattern/flags too.
-    _validate({**existing, **data})
+    merged = {**existing, **data}
+    _validate(merged)
+    # A block lives in the display, so it keeps display on.
+    if merged.get("as_block"):
+        data["apply_display"] = True
     await regex_db.update_script(db, script_id, data)
     await db.commit()
     return await regex_db.get_script(db, script_id)
@@ -110,9 +114,11 @@ async def preview_regex_script(body: RegexPreview):
     error = validate_pattern(body.pattern, body.flags)
     if error:
         raise HTTPException(400, f"Invalid pattern: {error}")
-    pattern = compile_pattern(body.pattern, body.flags)
     try:
-        result = pattern.sub(body.replacement, body.sample)
-    except re.error as e:
+        result = preview_transform(
+            body.pattern, body.replacement, body.flags, body.sample,
+            as_block=body.as_block, name=body.name,
+        )
+    except (ValueError, re.error) as e:
         raise HTTPException(400, f"Invalid replacement: {e}")
     return {"result": result}

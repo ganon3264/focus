@@ -7,12 +7,12 @@ import aiosqlite
 from focus.core.utils import now_iso
 
 SCOPES = ("global", "preset")
-DESTINATIONS = ("ephemeral", "cosmetic")
 PLACEMENTS = ("user", "ai", "reasoning")
 
 _FIELDS = (
     "scope", "scope_id", "name", "pattern", "replacement", "flags",
-    "placement", "destination", "enabled", "min_depth", "max_depth",
+    "placement", "apply_prompt", "apply_display", "as_block",
+    "enabled", "min_depth", "max_depth",
 )
 
 
@@ -28,7 +28,8 @@ def normalize_placement(raw: str | list[str] | None) -> str:
 
 def _row_to_dict(row: aiosqlite.Row) -> dict:
     script = dict(row)
-    script["enabled"] = bool(script["enabled"])
+    for flag in ("enabled", "apply_prompt", "apply_display", "as_block"):
+        script[flag] = bool(script[flag])
     return script
 
 
@@ -75,11 +76,14 @@ async def create_script(db: aiosqlite.Connection, data: dict) -> str:
     now = now_iso()
     scope = data.get("scope") or "global"
     scope_id = data.get("scope_id") if scope == "preset" else None
+    as_block = bool(data.get("as_block", False))
+    # A block lives in the display, so setting one forces display on.
+    apply_display = bool(data.get("apply_display", True)) or as_block
     await db.execute(
         """INSERT INTO regex_scripts
            (id, scope, scope_id, name, pattern, replacement, flags, placement,
-            destination, enabled, position, min_depth, max_depth, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            apply_prompt, apply_display, as_block, enabled, position, min_depth, max_depth, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (
             script_id,
             scope,
@@ -89,7 +93,9 @@ async def create_script(db: aiosqlite.Connection, data: dict) -> str:
             data.get("replacement") or "",
             data.get("flags") or "",
             normalize_placement(data.get("placement")),
-            data.get("destination") or "ephemeral",
+            1 if data.get("apply_prompt", True) else 0,
+            1 if apply_display else 0,
+            1 if as_block else 0,
             1 if data.get("enabled", True) else 0,
             await _next_position(db, scope, scope_id),
             int(data.get("min_depth") or 0),
@@ -110,7 +116,7 @@ async def update_script(db: aiosqlite.Connection, script_id: str, data: dict) ->
         value = data[field]
         if field == "placement":
             value = normalize_placement(value)
-        elif field == "enabled":
+        elif field in ("enabled", "apply_prompt", "apply_display", "as_block"):
             value = 1 if value else 0
         elif field == "scope":
             if value not in SCOPES:

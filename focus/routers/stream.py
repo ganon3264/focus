@@ -20,6 +20,7 @@ from focus.core.media import set_image_format
 from focus.core.models import ItemizerRequest, StreamRequest
 from focus.core.retry import RetryConfig, classify, delay_for, is_retryable
 from focus.core.segments import build_segments
+from focus.core.structured import render_structured
 from focus.core.tracked_fields import TRACKED_FIELDS, build_full_meta, get_field, merge_delta
 from focus.core.utils import (
     AUDIO_TOKEN_ESTIMATE,
@@ -173,6 +174,7 @@ class _GenCtx:
     max_tool_iterations: int = DEFAULT_MAX_TOOL_ITERATIONS
     retry_config: RetryConfig = field(default_factory=RetryConfig)
     active_gen: _ActiveGeneration | None = None
+    structured: dict | None = None
 
     async def resolve_variant_id(self) -> str:
         """Return the existing variant id for continue (update in-place),
@@ -192,6 +194,12 @@ class _GenCtx:
 
 class _SaveFailedError(Exception):
     """Raised when the final variant save fails during a successful generation."""
+
+
+class _StructuredError(Exception):
+    """Raised when a structured response cannot be parsed or templated.
+
+    Aborts the generation rather than persisting raw JSON."""
 
 
 async def _load_provider(
@@ -684,6 +692,13 @@ class _GenAccumulator:
             tool_call_groups=self.tool_groups if self.tool_groups else None,
         )
 
+    def replace_text(self, text: str) -> None:
+        """Swap accumulated raw output for rendered text (structured responses)."""
+        self.text = [text]
+        self.text_slices = []
+        self.reasoning_slices = []
+        self.tool_groups = []
+
     def full_text(self) -> str:
         return "".join(self.text)
 
@@ -781,6 +796,13 @@ async def _finalize_detached(ctx: _GenCtx, acc: _GenAccumulator) -> None:
             await _finalize_gen(ctx, acc, conn=conn)
 
 
+async def _abort_structured(ctx: _GenCtx, acc: _GenAccumulator) -> None:
+    """Discard a structured generation whose JSON/template failed to render."""
+    acc.finalized = True
+    if not ctx.body.regenerate:
+        await rollback_assistant(ctx.prompt.asst_msg_id, db=ctx.db)
+
+
 async def _checkpoint_variant(ctx: _GenCtx, acc: _GenAccumulator) -> None:
     """Mid-stream partial save. Cadence decided by callers (timed / forced).
 
@@ -820,13 +842,16 @@ async def _handle_event(
 
     if t == "token":
         acc.add_text(event["text"])
-        await _maybe_checkpoint(ctx, acc)
+        # Structured responses render only after the full JSON arrives; a
+        # partial checkpoint would persist raw JSON.
+        if ctx.structured is None:
+            await _maybe_checkpoint(ctx, acc)
         return {"type": "token", "text": event["text"]}
 
     if t == "meta":
         acc.add_meta(event["field"], event["value"])
         cfg = TRACKED_FIELDS.get(event["field"])
-        if cfg and cfg["merge"] == "append":
+        if cfg and cfg["merge"] == "append" and ctx.structured is None:
             await _maybe_checkpoint(ctx, acc)
         if cfg and cfg.get("stream_to_sse"):
             return {"type": "meta", "field": event["field"], "text": event["value"]}
@@ -884,6 +909,14 @@ async def _handle_event(
         return None
 
     if t == "done":
+        if ctx.structured is not None:
+            try:
+                rendered = render_structured(
+                    acc.full_text(), ctx.structured["template"], ctx.structured["macros"]
+                )
+            except Exception as e:
+                raise _StructuredError(e) from e
+            acc.replace_text(rendered)
         await _finalize_gen(ctx, acc, success=True)
         return {
             "type": "done",
@@ -955,6 +988,10 @@ async def _stream_generate(ctx: _GenCtx) -> AsyncIterator[str]:
                 yield f"data: {json.dumps(payload)}\n\n"
             if event["type"] == "error":
                 return
+    except _StructuredError as e:
+        await _abort_structured(ctx, acc)
+        yield f"data: {json.dumps({'type': 'error', 'error': f'Structured response failed: {e}'})}\n\n"
+        return
     except _SaveFailedError as e:
         yield f"data: {json.dumps({'type': 'error', 'error': f'Generation succeeded but save failed: {_error_reason(e)}'})}\n\n"
     except GeneratorExit:
@@ -1012,6 +1049,10 @@ async def _non_stream_generate(ctx: _GenCtx) -> AsyncIterator[str]:
                 if payload is not None:
                     yield f"data: {json.dumps(payload)}\n\n"
                 return
+    except _StructuredError as e:
+        await _abort_structured(ctx, acc)
+        yield f"data: {json.dumps({'type': 'error', 'error': f'Structured response failed: {e}'})}\n\n"
+        return
     except _SaveFailedError as e:
         yield f"data: {json.dumps({'type': 'error', 'error': f'Generation succeeded but save failed: {_error_reason(e)}'})}\n\n"
     except GeneratorExit:
@@ -1094,6 +1135,13 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
         if row is not None:
             prompt_ctx.next_variant_index = row[0]
 
+    # Structured responses: always buffered (the template needs the complete
+    # JSON) and incompatible with tools. Continue streams into an existing
+    # variant, so the JSON-render path doesn't apply.
+    structured = prompt_ctx.structured
+    if structured and body.continue_text is not None:
+        structured = None
+
     messages, gen_kwargs = await prepare_generation_messages(
         prov_dict, body, prompt_ctx.messages, provider, body.chat_id,
     )
@@ -1101,10 +1149,13 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
     # `stream_enabled` selects both the provider API mode and the transport:
     # true -> live streaming, false -> a buffered provider call (SSE still).
     use_stream = bool(gen_kwargs.pop("stream_enabled", True))
+    if structured:
+        use_stream = False
+        gen_kwargs["response_format"] = structured["response_format"]
     gen_kwargs["stream"] = use_stream
 
     # Tool calling setup
-    tools_enabled = body.tools_enabled
+    tools_enabled = body.tools_enabled and structured is None
     tool_read_only = body.tool_read_only
     disable_multimodal = (body.samplers or {}).get("disable_multimodal", False)
 
@@ -1149,6 +1200,7 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
         tools_by_name=tools_by_name, tool_read_only=tool_read_only,
         disable_multimodal=disable_multimodal, stop_event=stop_event, db=db,
         max_tool_iterations=max_tool_iterations, retry_config=retry_config,
+        structured=structured,
     )
 
     # Dispatch — both modes use an SSE transport; buffered mode just doesn't

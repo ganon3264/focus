@@ -13,9 +13,6 @@ from focus.core.message_render import escape_html
 REGEX_TIMEOUT = 3.0
 MAX_INPUT_LENGTH = 500_000
 
-DESTINATIONS_PROMPT = ("ephemeral",)
-DESTINATIONS_DISPLAY = ("ephemeral", "cosmetic")
-
 _FLAG_MAP = {"i": re.IGNORECASE, "m": re.MULTILINE, "s": re.DOTALL}
 
 
@@ -41,22 +38,29 @@ def validate_pattern(pattern: str, flags: str = "") -> str | None:
     return None
 
 
-def _compiled(scripts: list[dict]) -> list[tuple]:
+def _compiled(scripts: list[dict]) -> list[dict]:
     out = []
     for script in scripts:
         # Draft rows (no pattern yet) must never run: an empty regex matches
         # everywhere and would splice the replacement into every position.
-        if not (script.get("pattern") or "").strip():
+        # Whitespace-only patterns are legitimate (they match whitespace), so
+        # only a truly empty pattern is treated as a draft.
+        if not (script.get("pattern") or ""):
             continue
         pattern = compile_pattern(script.get("pattern") or "", script.get("flags") or "")
         if pattern is not None:
-            out.append((pattern, script.get("replacement") or ""))
+            out.append({
+                "pattern": pattern,
+                "replacement": script.get("replacement") or "",
+                "as_block": bool(script.get("as_block")),
+                "name": (script.get("name") or "Block").strip() or "Block",
+            })
     return out
 
 
-def _apply_sync(text: str, compiled: list[tuple]) -> str:
-    for pattern, replacement in compiled:
-        text = pattern.sub(replacement, text)
+def _apply_sync(text: str, compiled: list[dict]) -> str:
+    for item in compiled:
+        text = item["pattern"].sub(item["replacement"], text)
     return text
 
 
@@ -119,8 +123,8 @@ def _real_depths(entries: list) -> dict[int, int]:
 
 
 async def apply_to_prompt_history(history: list[dict], scripts: list[dict]) -> None:
-    """Transform macro-resolved history in place (ephemeral scripts only)."""
-    scripts = [s for s in scripts if s.get("destination") in DESTINATIONS_PROMPT]
+    """Transform macro-resolved history in place (prompt-side scripts only)."""
+    scripts = [s for s in scripts if s.get("apply_prompt")]
     if not scripts:
         return
     for index, depth in _real_depths(history).items():
@@ -138,9 +142,78 @@ async def apply_to_prompt_history(history: list[dict], scripts: list[dict]) -> N
                 entry["reasoning"] = await apply_text(entry["reasoning"], reasoning_scripts)
 
 
+def _split_sync(text: str, compiled: list[dict]) -> list[dict]:
+    """Apply scripts to one text value as an ordered pipeline.
+
+    Returns a mixed list of parts:
+      {"kind": "text",  "text": str}
+      {"kind": "block", "text": str, "title": str}
+
+    Plain scripts substitute in place; block scripts split the current text
+    parts on every match and emit the capture group as a block. Later scripts
+    (of either kind) keep operating on the pieces, so ordering still matters.
+    """
+    parts: list[dict] = [{"kind": "text", "text": text}]
+    for item in compiled:
+        pattern = item["pattern"]
+        if not item["as_block"]:
+            parts = [
+                {
+                    "kind": part["kind"],
+                    "text": pattern.sub(item["replacement"], part["text"]),
+                    **({"title": part["title"]} if "title" in part else {}),
+                }
+                for part in parts
+            ]
+            continue
+
+        # First group when the pattern defines one, else the whole match.
+        capture = 1 if pattern.groups >= 1 else 0
+        new_parts: list[dict] = []
+        for part in parts:
+            if part["kind"] == "block":
+                new_parts.append(part)
+                continue
+            value = part["text"]
+            last = 0
+            for match in pattern.finditer(value):
+                if match.start() > last:
+                    new_parts.append({"kind": "text", "text": value[last:match.start()]})
+                try:
+                    content = match.group(capture)
+                except (IndexError, re.error):
+                    content = match.group(0)
+                new_parts.append({"kind": "block", "text": content or "", "title": item["name"]})
+                last = match.end()
+            if last < len(value):
+                new_parts.append({"kind": "text", "text": value[last:]})
+        parts = new_parts
+    return parts
+
+
+def _parts_to_segments(parts: list[dict]) -> list[dict]:
+    segments: list[dict] = []
+    block_index = 0
+    for part in parts:
+        if part["kind"] == "block":
+            content = (part["text"] or "").strip()
+            if not content:
+                continue
+            segments.append({
+                "type": "block",
+                "html": escape_html(content),
+                "title": part.get("title") or "Block",
+                "id": f"block-{block_index}",
+            })
+            block_index += 1
+        elif part["text"].strip():
+            segments.append({"type": "text", "content": part["text"]})
+    return segments
+
+
 async def apply_to_display_messages(messages: list[dict], scripts: list[dict]) -> None:
-    """Transform display segments in place (ephemeral + cosmetic scripts)."""
-    scripts = [s for s in scripts if s.get("destination") in DESTINATIONS_DISPLAY]
+    """Transform display segments in place (display-side scripts only)."""
+    scripts = [s for s in scripts if s.get("apply_display")]
     if not scripts:
         return
     for index, depth in _real_depths(messages).items():
@@ -156,10 +229,61 @@ async def apply_to_display_messages(messages: list[dict], scripts: list[dict]) -
         reasoning_scripts = for_placement(windowed, "reasoning")
         if not content_scripts and not reasoning_scripts:
             continue
-        for segment in segments:
-            seg_type = segment.get("type")
-            if seg_type == "text" and content_scripts:
-                segment["content"] = await apply_text(segment.get("content"), content_scripts)
-            elif seg_type == "reasoning" and reasoning_scripts and segment.get("html"):
-                raw = html.unescape(segment["html"])
-                segment["html"] = escape_html(await apply_text(raw, reasoning_scripts))
+
+        if content_scripts:
+            compiled = _compiled(content_scripts)
+            if compiled:
+                new_segments = []
+                for segment in segments:
+                    if segment.get("type") != "text":
+                        new_segments.append(segment)
+                        continue
+                    text = segment.get("content") or ""
+                    if not text:
+                        continue
+                    if len(text) > MAX_INPUT_LENGTH:
+                        text = text[:MAX_INPUT_LENGTH]
+                    try:
+                        parts = await asyncio.wait_for(
+                            asyncio.to_thread(_split_sync, text, compiled),
+                            timeout=REGEX_TIMEOUT,
+                        )
+                    except Exception:
+                        parts = [{"kind": "text", "text": text}]
+                    new_segments.extend(_parts_to_segments(parts))
+                segments = new_segments
+                message["segments"] = segments
+
+        if reasoning_scripts:
+            for segment in segments:
+                if segment.get("type") == "reasoning" and segment.get("html"):
+                    raw = html.unescape(segment["html"])
+                    segment["html"] = escape_html(await apply_text(raw, reasoning_scripts))
+
+
+def preview_transform(
+    pattern: str,
+    replacement: str,
+    flags: str,
+    sample: str,
+    as_block: bool = False,
+    name: str = "Block",
+) -> str:
+    """Render one script against a sample as readable text (blocks delimited)."""
+    compiled_pattern = compile_pattern(pattern, flags)
+    if compiled_pattern is None:
+        raise ValueError("pattern does not compile")
+    item = {
+        "pattern": compiled_pattern,
+        "replacement": replacement,
+        "as_block": as_block,
+        "name": name or "Block",
+    }
+    out: list[str] = []
+    for part in _split_sync(sample, [item]):
+        if part["kind"] == "block":
+            title = part.get("title") or "Block"
+            out.append(f"[{title}]\n{part['text'].strip()}\n[/{title}]")
+        else:
+            out.append(part["text"])
+    return "".join(out)

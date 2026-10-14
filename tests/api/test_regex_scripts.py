@@ -39,7 +39,9 @@ def _new_script(**overrides) -> dict:
         "pattern": r"A beat\.\s*",
         "replacement": "",
         "placement": "ai",
-        "destination": "ephemeral",
+        "apply_prompt": True,
+        "apply_display": True,
+        "as_block": False,
     }
     body.update(overrides)
     return body
@@ -95,6 +97,38 @@ class TestCrud:
         assert updated["max_depth"] == 3
         assert updated["enabled"] is False
 
+    async def test_block_forces_display(self, client):
+        # Setting a block forces display on.
+        created = (
+            await client.post(
+                "/api/regex-scripts", json=_new_script(as_block=True, apply_display=False)
+            )
+        ).json()
+        assert created["as_block"] is True
+        assert created["apply_display"] is True
+
+        # Display can't be turned off while a block is set.
+        script = (
+            await client.post("/api/regex-scripts", json=_new_script(as_block=True))
+        ).json()
+        updated = (
+            await client.patch(
+                f"/api/regex-scripts/{script['id']}", json={"apply_display": False}
+            )
+        ).json()
+        assert updated["as_block"] is True
+        assert updated["apply_display"] is True
+
+        # With the block off, display can be turned off.
+        off = (
+            await client.patch(
+                f"/api/regex-scripts/{script['id']}",
+                json={"as_block": False, "apply_display": False},
+            )
+        ).json()
+        assert off["as_block"] is False
+        assert off["apply_display"] is False
+
     async def test_create_draft_with_empty_pattern(self, client):
         # The UI creates a blank row, then the user types the pattern; a draft
         # must be persistable so it can be edited.
@@ -120,10 +154,6 @@ class TestCrud:
 
     async def test_invalid_placement_rejected(self, client):
         resp = await client.post("/api/regex-scripts", json=_new_script(placement="banana"))
-        assert resp.status_code == 400
-
-    async def test_invalid_destination_rejected(self, client):
-        resp = await client.post("/api/regex-scripts", json=_new_script(destination="bake"))
         assert resp.status_code == 400
 
     async def test_invalid_replacement_rejected(self, client):
@@ -190,6 +220,24 @@ class TestPartial:
         assert "My Preset" in resp.text
         assert "No global scripts." not in resp.text
 
+    async def test_item_partial_renders_state(self, client):
+        script = (await client.post("/api/regex-scripts", json=_new_script())).json()
+        await client.patch(f"/api/regex-scripts/{script['id']}", json={"enabled": False})
+
+        resp = await client.get(f"/partials/regex-scripts/item/{script['id']}")
+        assert resp.status_code == 200
+        assert "arranger-item regex-item disabled" in resp.text
+        assert 'style="display: none"' in resp.text
+
+        opened = await client.get(f"/partials/regex-scripts/item/{script['id']}?open=1")
+        assert opened.status_code == 200
+        assert "expanded" in opened.text
+        assert 'style="display: block"' in opened.text
+
+        assert (
+            await client.get("/partials/regex-scripts/item/missing")
+        ).status_code == 404
+
     async def test_no_preset_hides_preset_group(self, client):
         resp = await client.get("/partials/regex-scripts")
         assert resp.status_code == 200
@@ -212,7 +260,7 @@ class TestDisplayIntegration:
         await client.post(
             "/api/regex-scripts",
             json=_new_script(
-                pattern=r"A beat\.\s*", replacement="", destination="cosmetic", placement="ai"
+                pattern=r"A beat\.\s*", replacement="", apply_prompt=False, placement="ai"
             ),
         )
 
@@ -238,12 +286,42 @@ class TestDisplayIntegration:
 
         await client.post(
             "/api/regex-scripts",
-            json=_new_script(pattern=r"A beat\.\s*", replacement="", destination="cosmetic", max_depth=0),
+            json=_new_script(pattern=r"A beat\.\s*", replacement="", apply_prompt=False, max_depth=0),
         )
         html = (await client.get(f"/partials/message-list/{chat['id']}")).text
         assert ">A beat. old</div>" in html
         assert ">A beat. new</div>" not in html
         assert ">new</div>" in html
+
+    async def test_block_script_renders_collapsible_block(self, client, tmp_test_dir):
+        from tests.helpers import create_chat
+
+        chat = await create_chat(client, title="Block Chat")
+        await _insert_message(
+            os.path.join(tmp_test_dir, "test.db"),
+            chat["id"],
+            "assistant",
+            0,
+            "before\n<think>\nsecret\n</think>\nafter",
+        )
+        await client.post(
+            "/api/regex-scripts",
+            json=_new_script(
+                name="Think",
+                pattern=r"<think>(.*?)</think>",
+                flags="s",
+                replacement="",
+                as_block=True,
+                placement="ai",
+            ),
+        )
+        html = (await client.get(f"/partials/message-list/{chat['id']}")).text
+        assert "<summary>" in html
+        assert "Think" in html
+        assert "secret" in html
+        assert "after" in html
+        # Raw content is retained (escaped) for the edit modal.
+        assert "&lt;think&gt;" in html
 
 
 class TestExportRoundtrip:
