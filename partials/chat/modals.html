@@ -13,9 +13,9 @@
   <div class="flex shrink-0 mb-3" style="border-bottom: 1px solid var(--border)">
     <button type="button" class="tab-btn" :class="{'active': tab === 'tools'}" @click="tab = 'tools'">Tools</button>
     <button type="button" class="tab-btn" :class="{'active': tab === 'extensions'}" @click="tab = 'extensions'">Extensions</button>
-    <button type="button" class="tab-btn" :class="{'active': tab === 'regex'}" @click="tab = 'regex'; window.reloadRegexScripts && reloadRegexScripts()">Regex</button>
-    <button type="button" class="tab-btn" :class="{'active': tab === 'structured'}" @click="tab = 'structured'; window.reloadStructuredResponses && reloadStructuredResponses()">Structured</button>
-    <button type="button" class="tab-btn" :class="{'active': tab === 'backups'}" @click="tab = 'backups'; window.BackupManager && BackupManager.loadList()">Backups</button>
+    <button type="button" class="tab-btn" :class="{'active': tab === 'regex'}" @click="tab = 'regex'">Regex</button>
+    <button type="button" class="tab-btn" :class="{'active': tab === 'structured'}" @click="tab = 'structured'">Structured</button>
+    <button type="button" class="tab-btn" :class="{'active': tab === 'backups'}" @click="tab = 'backups'">Backups</button>
   </div>
   <div class="flex-1 min-h-0 flex flex-col">
     <div x-show="tab === 'tools'" class="flex-1 min-h-0 flex flex-col">

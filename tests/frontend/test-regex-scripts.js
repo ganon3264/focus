@@ -1,7 +1,7 @@
 // Unit tests for regex-scripts.js — row editing glue (flags, placement,
 // mode, enable toggle, expand, preview request shape).
 var h = require('./helpers.js');
-var assert = h.assert, assertEqual = h.assertEqual, assertDeepEqual = h.assertDeepEqual;
+var assert = h.assert, assertEqual = h.assertEqual, assertDeepEqual = h.assertDeepEqual, assertIncludes = h.assertIncludes;
 
 var path = require('path');
 var fs = require('fs');
@@ -116,7 +116,7 @@ function buildItem(id) {
   var t = buildItem('s-expand');
   assertEqual(t.body.style.display, 'none', 'body starts hidden');
   window.toggleRegexBody(t.title);
-  assertEqual(t.body.style.display, 'block', 'body expands on toggle');
+  assertEqual(t.body.style.display, 'flex', 'body expands on toggle');
   assert(t.item.classList.contains('expanded'), 'item marked expanded');
   window.toggleRegexBody(t.title);
   assertEqual(t.body.style.display, 'none', 'body collapses on second toggle');
@@ -137,6 +137,55 @@ function buildItem(id) {
   );
   realSetTimeout(function () {
     assertEqual(t.out.textContent, 'PREVIEW-OK', 'preview result written to output');
-    h.printSummary();
+    runLateTests();
   }, 0);
 })();
+
+function tick() {
+  return new Promise(function (resolve) { realSetTimeout(resolve, 0); });
+}
+
+// ── delete confirm gate + r.ok checks + network failures ─────────────────────
+async function runLateTests() {
+  var confirmMsg = '';
+  var toast = '';
+  global.openConfirmModal = function (msg, cb) { confirmMsg = msg; cb(); };
+  global.showErrorToast = function (m) { toast = m; };
+
+  // Confirmed delete goes through.
+  var t = buildItem('s-del-ok');
+  global.fetch = fetchMock;
+  fetchMock._reset();
+  window.deleteRegexScript(t.item);
+  assertIncludes(confirmMsg, 'Delete', 'delete asks for confirmation first');
+  assertEqual(fetchMock._last().opts.method, 'DELETE', 'confirmed delete issues DELETE');
+  await tick();
+
+  // A failed DELETE toasts instead of silently reloading.
+  toast = '';
+  global.fetch = function () {
+    return Promise.resolve({
+      ok: false,
+      json: function () { return Promise.resolve({ detail: 'nope' }); },
+    });
+  };
+  window.deleteRegexScript(t.item);
+  await tick();
+  assertEqual(toast, 'Could not delete script', 'failed delete shows an error toast');
+
+  // A failed reorder toasts.
+  toast = '';
+  window.updateRegexPositions();
+  await tick();
+  assertEqual(toast, 'Could not save script order', 'failed reorder shows an error toast');
+
+  // A network failure during preview writes into the output box.
+  var p = buildItem('s-preview-fail');
+  global.fetch = function () { return Promise.reject(new Error('network down')); };
+  window.previewRegexScript(p.item.querySelector('.regex-pattern'));
+  await tick();
+  assertEqual(p.out.textContent, 'Preview request failed', 'preview network failure fills output');
+  assert(p.out.classList.contains('regex-preview-error'), 'preview failure flagged as error');
+
+  h.printSummary();
+}

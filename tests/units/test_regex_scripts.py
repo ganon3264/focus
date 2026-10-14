@@ -39,6 +39,13 @@ class TestValidatePattern:
     def test_empty(self):
         assert validate_pattern("", "") is not None
 
+    def test_duplicate_flags_idempotent(self):
+        # Aggregation matches compile_pattern's bitwise-or, so repeated flag
+        # chars validate exactly as they run.
+        assert validate_pattern("a", "mm") is None
+        assert validate_pattern("a", "ii") is None
+        assert validate_pattern("a", "mis") is None
+
 
 class TestPromptApplication:
     async def test_ai_placement_leaves_user_alone(self):

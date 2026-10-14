@@ -48,7 +48,7 @@ def _resolve_macros_for_display(messages, char, persona, preset_blocks=None):
 
 
 async def _apply_display_regex(db: aiosqlite.Connection, chat_id: str, messages: list) -> None:
-    """Cosmetic/ephemeral transforms on rendered segments. Server-side so
+    """Display-side transforms on rendered segments. Server-side so
     Python owns regex semantics; stored content is never touched."""
     scripts = await regex_db.resolve_for_chat(db, chat_id)
     if scripts:

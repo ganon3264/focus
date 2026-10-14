@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import re
+from functools import lru_cache
 
 import json_repair
 from pybars import Compiler
@@ -20,6 +21,50 @@ from .macros import apply_macros
 _compiler = Compiler()
 
 _NAME_SANITIZE = re.compile(r"[^a-zA-Z0-9_-]")
+_STRING_LITERAL = re.compile(r'"(?:[^"\\]|\\.)*"|\'(?:[^\'\\]|\\.)*\'')
+
+
+def _banned_syntax(template: str) -> str | None:
+    """Bracket paths (``{{[...]}}``) interpolate their content into the
+    compiled template source verbatim, which is code execution; string
+    literals are repr-escaped by pybars, so they stay allowed. Only mustache
+    interiors are inspected — brackets in literal text are fine."""
+    end = len(template)
+    i = 0
+    while True:
+        start = template.find("{{", i)
+        if start < 0:
+            return None
+        j = start + 2
+        while j < end - 1:
+            ch = template[j]
+            if ch in "\"'":
+                j += 1
+                while j < end:
+                    if template[j] == "\\":
+                        j += 2
+                        continue
+                    if template[j] == ch:
+                        break
+                    j += 1
+            elif template[j] == "}" and template[j + 1] == "}":
+                break
+            j += 1
+        segment = template[start + 2 : j]
+        if "[" in _STRING_LITERAL.sub("", segment):
+            return "Bracket paths ([...]) are not allowed in templates."
+        i = j + 2
+
+
+@lru_cache(maxsize=128)
+def _compile(template: str):
+    """Compile once per template text. Also bounds pybars' per-compile module
+    registration in ``sys.modules`` and guards every entry point (save,
+    preview, generation, imported rows)."""
+    banned = _banned_syntax(template)
+    if banned:
+        raise ValueError(banned)
+    return _compiler.compile(template)
 
 
 def resolve_schema(schema_text: str, macros: dict[str, str]):
@@ -109,17 +154,22 @@ def validate_schema_text(schema_text: str) -> str | None:
     if not schema_text.strip():
         return "Schema is empty."
     try:
-        json.loads(schema_text)
+        parsed = json.loads(schema_text)
     except (TypeError, ValueError) as e:
         return f"Invalid JSON: {e}"
+    if not isinstance(parsed, dict):
+        return "Schema must be a JSON object."
     return None
 
 
 def validate_template(template: str) -> str | None:
     if not template.strip():
         return "Template is empty."
+    banned = _banned_syntax(template)
+    if banned:
+        return banned
     try:
-        _compiler.compile(template)
+        _compile(template)
     except Exception as e:
         return f"Invalid template: {e}"
     return None
@@ -130,7 +180,7 @@ def render_structured(raw, template: str, macros: dict[str, str]) -> str:
     data = parse_structured(raw)
     if data is None:
         raise ValueError("model response is not valid JSON")
-    compiled = _compiler.compile(template)
+    compiled = _compile(template)
     return str(compiled(data, helpers=_build_helpers(macros)))
 
 
@@ -141,13 +191,18 @@ def _wrap(fn):
     """Normalise pybars' calling convention.
 
     Block helpers are called as ``fn(this, options, *args)``; inline helpers and
-    subexpressions as ``fn(this, *args)``. ``args[0]`` is an options dict only
-    for block helpers, so detect it by the ``helpers`` marker.
+    subexpressions as ``fn(this, *args)``. Model data reaching an inline call
+    must not be mistaken for the options dict, so require pybars' own markers
+    (``fn`` + ``helpers``) instead of a single user-forgeable key.
     """
 
     def helper(this, *args, **kwargs):
         options = None
-        if args and isinstance(args[0], dict) and "helpers" in args[0]:
+        if (
+            args
+            and isinstance(args[0], dict)
+            and {"fn", "helpers"} <= args[0].keys()
+        ):
             options = args[0]
             args = args[1:]
         if options is not None:

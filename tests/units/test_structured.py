@@ -106,13 +106,51 @@ class TestRender:
         out = render_structured('{"greeting":"Hi {{name}}"}', "{{macro greeting}}", {"name": "Bob"})
         assert out == "Hi Bob"
 
+    def test_data_dict_with_helpers_key_is_not_options(self):
+        # Inline helper args are model data; a user key named "helpers" must
+        # not be mistaken for pybars' block-helper options dict.
+        out = render_structured('{"obj": {"helpers": [1]}}', "{{{json obj}}}", {})
+        assert out == '{"helpers": [1]}'
+
 
 class TestValidators:
     def test_schema_validation(self):
         assert validate_schema_text('{"type":"object"}') is None
         assert validate_schema_text("{nope") is not None
         assert validate_schema_text("") is not None
+        assert validate_schema_text("[1,2]") is not None
 
     def test_template_validation(self):
         assert validate_template("{{{text}}}") is None
         assert validate_template("") is not None
+
+
+class TestTemplateSafety:
+    # Bracket paths interpolate their content into the compiled template
+    # source verbatim; this executed code through the public API.
+    EXPLOIT = "{{[x') or open('/tmp/pybars_pwn','w') or ('y]}}"
+
+    def test_bracket_path_rejected_on_validate(self):
+        assert validate_template(self.EXPLOIT) is not None
+
+    def test_bracket_path_rejected_on_render(self):
+        with pytest.raises(ValueError):
+            render_structured('{"x": 1}', self.EXPLOIT, {})
+
+    def test_bracket_inside_string_literal_allowed(self):
+        assert validate_template('{{upper "[note]"}}') is None
+
+    def test_bracket_in_literal_text_allowed(self):
+        assert validate_template("Result: [{{name}}] done") is None
+
+    def test_bracket_path_after_string_arg_still_rejected(self):
+        # The mustache scanner must skip quoted `}}` and still see the path.
+        assert (
+            validate_template('{{upper "}}" [x\') or open(\'/tmp/x\',\'w\') or (\'y]}}')
+            is not None
+        )
+
+    def test_compile_is_cached_per_template_text(self):
+        from focus.core.structured import _compile
+
+        assert _compile("{{{text}}}") is _compile("{{{text}}}")

@@ -114,6 +114,10 @@ async def update_script(db: aiosqlite.Connection, script_id: str, data: dict) ->
         if field not in data:
             continue
         value = data[field]
+        # Explicit nulls are ignored (all columns are NOT NULL); scope_id is
+        # the one field whose null is meaningful.
+        if value is None and field != "scope_id":
+            continue
         if field == "placement":
             value = normalize_placement(value)
         elif field in ("enabled", "apply_prompt", "apply_display", "as_block"):

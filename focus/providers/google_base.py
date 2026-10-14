@@ -313,6 +313,7 @@ class GoogleProviderBase(BaseProvider):
         """
         merged = {**self.params, **kwargs}
         stream_requested = merged.pop("stream", True)
+        response_format = merged.pop("response_format", None)
         last_assistant_idx = self._find_last_assistant_with_signature(messages)
 
         # Convert tools from OpenAI-compatible payload to Google SDK format
@@ -326,6 +327,7 @@ class GoogleProviderBase(BaseProvider):
         system_instruction, contents = self._build_contents(messages, merged, last_assistant_idx, True)
 
         config = self._build_config(merged, system_instruction, google_tools=google_tools)
+        self._apply_response_format(config, response_format)
 
         runner = self._do_stream if stream_requested else self._do_generate
         async for chunk in runner(contents, config):
@@ -333,6 +335,21 @@ class GoogleProviderBase(BaseProvider):
 
     def _build_config(self, merged: dict, system_instruction: str | None, **kwargs) -> types.GenerateContentConfig:
         raise NotImplementedError
+
+    @staticmethod
+    def _apply_response_format(
+        config: types.GenerateContentConfig, response_format: object
+    ) -> None:
+        """Map the OpenAI-style ``response_format`` payload (json_schema) onto
+        Gemini's structured-output config; Google's config builder has no
+        ``response_format`` key of its own."""
+        if not isinstance(response_format, dict) or response_format.get("type") != "json_schema":
+            return
+        schema = (response_format.get("json_schema") or {}).get("schema")
+        if not isinstance(schema, dict):
+            return
+        config.response_mime_type = "application/json"
+        config.response_json_schema = schema
 
     @staticmethod
     def _apply_thinking_config(config: dict, model: str, include_reasoning: bool | None, reasoning_effort: str | None):

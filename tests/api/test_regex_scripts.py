@@ -97,6 +97,39 @@ class TestCrud:
         assert updated["max_depth"] == 3
         assert updated["enabled"] is False
 
+    async def test_patch_scope_to_global_clears_scope_id(self, client):
+        preset = await create_preset(client)
+        script = (
+            await client.post(
+                "/api/regex-scripts",
+                json=_new_script(scope="preset", scope_id=preset["id"]),
+            )
+        ).json()
+        resp = await client.patch(
+            f"/api/regex-scripts/{script['id']}", json={"scope": "global"}
+        )
+        assert resp.status_code == 200
+        assert resp.json()["scope_id"] is None
+
+    async def test_patch_scope_to_preset_requires_scope_id(self, client):
+        script = (await client.post("/api/regex-scripts", json=_new_script())).json()
+        resp = await client.patch(
+            f"/api/regex-scripts/{script['id']}", json={"scope": "preset"}
+        )
+        assert resp.status_code == 400
+
+    async def test_patch_ignores_explicit_nulls(self, client):
+        script = (await client.post("/api/regex-scripts", json=_new_script())).json()
+        resp = await client.patch(
+            f"/api/regex-scripts/{script['id']}",
+            json={"enabled": None, "name": None, "min_depth": None},
+        )
+        assert resp.status_code == 200
+        updated = resp.json()
+        assert updated["enabled"] is True
+        assert updated["name"] == script["name"]
+        assert updated["min_depth"] == 0
+
     async def test_block_forces_display(self, client):
         # Setting a block forces display on.
         created = (
@@ -232,7 +265,7 @@ class TestPartial:
         opened = await client.get(f"/partials/regex-scripts/item/{script['id']}?open=1")
         assert opened.status_code == 200
         assert "expanded" in opened.text
-        assert 'style="display: block"' in opened.text
+        assert 'style="display: flex"' in opened.text
 
         assert (
             await client.get("/partials/regex-scripts/item/missing")

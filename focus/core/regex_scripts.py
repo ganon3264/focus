@@ -31,8 +31,11 @@ def validate_pattern(pattern: str, flags: str = "") -> str | None:
     """Return an error message if *pattern* does not compile, else None."""
     if not pattern:
         return "pattern is empty"
+    flag_value = 0
+    for ch in flags or "":
+        flag_value |= _FLAG_MAP.get(ch, 0)
     try:
-        re.compile(pattern, sum(_FLAG_MAP.get(c, 0) for c in (flags or "")))
+        re.compile(pattern, flag_value)
     except re.error as e:
         return str(e)
     return None

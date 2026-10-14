@@ -439,6 +439,32 @@ class TestAIStudioConfig:
         config = provider._build_config({}, None)
         assert config.thinking_config.include_thoughts is True
 
+    def test_response_format_json_schema_mapping(self):
+        from google.genai import types
+
+        config = types.GenerateContentConfig()
+        GoogleProviderBase._apply_response_format(
+            config,
+            {
+                "type": "json_schema",
+                "json_schema": {"name": "R", "schema": {"type": "object"}},
+            },
+        )
+        assert config.response_mime_type == "application/json"
+        assert config.response_json_schema == {"type": "object"}
+
+    def test_response_format_other_types_ignored(self):
+        from google.genai import types
+
+        config = types.GenerateContentConfig()
+        GoogleProviderBase._apply_response_format(config, {"type": "text"})
+        GoogleProviderBase._apply_response_format(config, None)
+        GoogleProviderBase._apply_response_format(
+            config, {"type": "json_schema", "json_schema": {"schema": [1, 2]}}
+        )
+        assert config.response_mime_type is None
+        assert config.response_json_schema is None
+
     def test_client_uses_api_key(self, monkeypatch):
         captured = {}
         monkeypatch.setattr("google.genai.Client", lambda **kw: captured.update(kw) or ("c", kw))

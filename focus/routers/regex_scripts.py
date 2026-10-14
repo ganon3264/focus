@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import re
 from typing import Any
 
@@ -10,7 +11,13 @@ from pydantic import BaseModel
 import focus.db.regex_scripts as regex_db
 from focus.core.database import get_db
 from focus.core.models import RegexReorder, RegexScriptCreate, RegexScriptUpdate
-from focus.core.regex_scripts import compile_pattern, preview_transform, validate_pattern
+from focus.core.regex_scripts import (
+    MAX_INPUT_LENGTH,
+    REGEX_TIMEOUT,
+    compile_pattern,
+    preview_transform,
+    validate_pattern,
+)
 
 router = APIRouter()
 
@@ -40,10 +47,23 @@ def _validate(data: dict[str, Any]) -> None:
             raise HTTPException(400, f"Invalid pattern: {error}")
         replacement = data.get("replacement")
         if replacement is not None:
+            compiled = compile_pattern(pattern, flags)
+            if compiled is None:
+                raise HTTPException(400, "Invalid pattern")
             try:
-                compile_pattern(pattern, flags).sub(replacement, "")
+                compiled.sub(replacement, "")
             except re.error as e:
                 raise HTTPException(400, f"Invalid replacement: {e}")
+
+
+def _validate_scope_invariant(data: dict[str, Any], existing: dict[str, Any]) -> None:
+    """PATCH may move a row between scopes; keep scope_id consistent so the
+    single-active checks and export queries never see stale ids."""
+    merged_scope = data.get("scope", existing.get("scope"))
+    if merged_scope == "global":
+        data["scope_id"] = None
+    elif not (data.get("scope_id") or existing.get("scope_id")):
+        raise HTTPException(400, "scope_id is required for preset-scoped scripts")
 
 
 @router.get("/regex-scripts")
@@ -86,6 +106,7 @@ async def update_regex_script(
     # unchanged pattern/flags too.
     merged = {**existing, **data}
     _validate(merged)
+    _validate_scope_invariant(data, existing)
     # A block lives in the display, so it keeps display on.
     if merged.get("as_block"):
         data["apply_display"] = True
@@ -114,11 +135,23 @@ async def preview_regex_script(body: RegexPreview):
     error = validate_pattern(body.pattern, body.flags)
     if error:
         raise HTTPException(400, f"Invalid pattern: {error}")
+    # User-supplied sample: run off the event loop with the same wall-clock cap
+    # as the generation path so a pathological pattern cannot hang the server.
     try:
-        result = preview_transform(
-            body.pattern, body.replacement, body.flags, body.sample,
-            as_block=body.as_block, name=body.name,
+        result = await asyncio.wait_for(
+            asyncio.to_thread(
+                preview_transform,
+                body.pattern,
+                body.replacement,
+                body.flags,
+                body.sample[:MAX_INPUT_LENGTH],
+                as_block=body.as_block,
+                name=body.name,
+            ),
+            timeout=REGEX_TIMEOUT,
         )
+    except asyncio.TimeoutError:
+        raise HTTPException(400, "Pattern too slow on that sample")
     except (ValueError, re.error) as e:
         raise HTTPException(400, f"Invalid replacement: {e}")
     return {"result": result}

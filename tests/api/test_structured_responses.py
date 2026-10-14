@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import os
+import time
+import uuid
 from io import BytesIO
 from zipfile import ZipFile
 
@@ -13,6 +16,9 @@ from tests.api.test_stream_generation import (
     _assistant_variant,
     _consume_sse_events,
     _db_path,
+    _fetchone,
+    _now_iso,
+    _stream,
 )
 from tests.helpers import create_character, create_chat, create_persona, create_preset
 
@@ -129,6 +135,38 @@ class TestCrud:
         assert (
             await client.delete(f"/api/structured-responses/{created['id']}")
         ).status_code == 404
+
+    async def test_patch_scope_to_global_clears_scope_id(self, client):
+        preset = await create_preset(client)
+        created = (
+            await client.post(
+                "/api/structured-responses",
+                json=_new_response(scope="preset", scope_id=preset["id"]),
+            )
+        ).json()
+        resp = await client.patch(
+            f"/api/structured-responses/{created['id']}", json={"scope": "global"}
+        )
+        assert resp.status_code == 200
+        assert resp.json()["scope_id"] is None
+
+    async def test_patch_scope_to_preset_requires_scope_id(self, client):
+        created = (await client.post("/api/structured-responses", json=_new_response())).json()
+        resp = await client.patch(
+            f"/api/structured-responses/{created['id']}", json={"scope": "preset"}
+        )
+        assert resp.status_code == 400
+
+    async def test_patch_ignores_explicit_nulls(self, client):
+        created = (await client.post("/api/structured-responses", json=_new_response())).json()
+        resp = await client.patch(
+            f"/api/structured-responses/{created['id']}",
+            json={"enabled": None, "name": None},
+        )
+        assert resp.status_code == 200
+        updated = resp.json()
+        assert updated["enabled"] is True
+        assert updated["name"] == created["name"]
 
     async def test_invalid_schema_rejected_but_drafts_allowed(self, client):
         bad_schema = await client.post(
@@ -347,3 +385,100 @@ class TestGeneration:
         assert any(e.get("type") == "error" for e in events)
         assert not any(e.get("type") == "done" for e in events)
         assert await _assistant_variant(_db_path(tmp_test_dir), chat["id"]) is None
+
+    async def test_stop_before_first_token_finalizes_as_stop(
+        self, client, tmp_test_dir, patch_provider
+    ):
+        """A user stop in buffered mode arrives as ``done`` with nothing
+        accumulated; it must finalize as a normal stop, not surface a JSON
+        parse failure."""
+        chat, preset_id, prov_id = await _setup(client)
+        await client.post(
+            "/api/structured-responses",
+            json=_new_response(scope="preset", scope_id=preset_id),
+        )
+        started = asyncio.Event()
+        release = asyncio.Event()
+
+        class GatedProvider(FakeProvider):
+            async def stream_complete(self, messages, **kwargs):
+                started.set()
+                await release.wait()
+                yield {"type": "token", "text": '{"text":"hi"}'}
+                yield {"type": "done"}
+
+        patch_provider(GatedProvider([]))
+
+        task = asyncio.create_task(_stream(client, chat["id"], prov_id))
+        await asyncio.wait_for(started.wait(), 10)
+
+        db_path = _db_path(tmp_test_dir)
+        deadline = time.monotonic() + 5
+        asst_id = None
+        while time.monotonic() < deadline:
+            row = await _fetchone(
+                db_path,
+                "SELECT id FROM messages WHERE chat_id = ? AND role = 'assistant' AND position > 0",
+                chat["id"],
+            )
+            if row:
+                asst_id = row[0]
+                break
+            await asyncio.sleep(0.01)
+        assert asst_id, "assistant slot must exist while generation is in flight"
+
+        stop_resp = await client.post(f"/api/stop-generation/{asst_id}")
+        assert stop_resp.status_code == 200
+
+        release.set()
+        resp = await asyncio.wait_for(task, 10)
+        events = await _consume_sse_events(resp)
+        assert events[0]["type"] == "start"
+        assert events[-1]["type"] == "done"
+        assert not any(e.get("type") == "error" for e in events)
+        assert await _assistant_variant(db_path, chat["id"]) is None
+
+    async def test_continue_disables_structured(self, client, tmp_test_dir, patch_provider):
+        """Continue streams into an existing variant, so the JSON-render path
+        must be skipped: no response_format, raw text stored as-is."""
+        chat, preset_id, prov_id = await _setup(client)
+        await client.post(
+            "/api/structured-responses",
+            json=_new_response(scope="preset", scope_id=preset_id),
+        )
+        db_path = _db_path(tmp_test_dir)
+        now = _now_iso()
+        async with aiosqlite.connect(db_path) as db:
+            await db.execute(
+                "INSERT INTO messages (id, chat_id, role, position, active_index, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+                (str(uuid.uuid4()), chat["id"], "user", 0, 0, now),
+            )
+            asst_id = str(uuid.uuid4())
+            await db.execute(
+                "INSERT INTO messages (id, chat_id, role, position, active_index, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+                (asst_id, chat["id"], "assistant", 1, 0, now),
+            )
+            await db.execute(
+                "INSERT INTO message_variants (id, message_id, variant_index, content, created_at) VALUES (?, ?, ?, ?, ?)",
+                (str(uuid.uuid4()), asst_id, 0, "Old text", now),
+            )
+            await db.commit()
+
+        fake = FakeProvider(
+            [[{"type": "token", "text": " rest"}, {"type": "done"}]],
+            echoes_prefill=False,
+        )
+        patch_provider(fake)
+
+        resp = await _stream(
+            client, chat["id"], prov_id,
+            user_message="",
+            regenerate=True,
+            continue_text="cont",
+        )
+        events = await _consume_sse_events(resp)
+        assert "response_format" not in fake.all_kwargs[0]
+        tokens = [e["text"] for e in events if e.get("type") == "token"]
+        assert tokens == ["cont", " rest"], "raw text, no template render"
+        asst = await _assistant_variant(db_path, chat["id"])
+        assert asst["content"] == "cont rest"

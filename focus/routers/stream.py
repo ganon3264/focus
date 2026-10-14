@@ -909,7 +909,10 @@ async def _handle_event(
         return None
 
     if t == "done":
-        if ctx.structured is not None:
+        # A user stop before the first token also arrives as ``done`` with an
+        # empty accumulator; rendering that would raise a parse error instead
+        # of finalizing as the normal graceful stop.
+        if ctx.structured is not None and acc.full_text():
             try:
                 rendered = render_structured(
                     acc.full_text(), ctx.structured["template"], ctx.structured["macros"]
@@ -988,10 +991,6 @@ async def _stream_generate(ctx: _GenCtx) -> AsyncIterator[str]:
                 yield f"data: {json.dumps(payload)}\n\n"
             if event["type"] == "error":
                 return
-    except _StructuredError as e:
-        await _abort_structured(ctx, acc)
-        yield f"data: {json.dumps({'type': 'error', 'error': f'Structured response failed: {e}'})}\n\n"
-        return
     except _SaveFailedError as e:
         yield f"data: {json.dumps({'type': 'error', 'error': f'Generation succeeded but save failed: {_error_reason(e)}'})}\n\n"
     except GeneratorExit:
@@ -1156,6 +1155,8 @@ async def stream(body: StreamRequest, db: aiosqlite.Connection = Depends(get_db)
 
     # Tool calling setup
     tools_enabled = body.tools_enabled and structured is None
+    if body.tools_enabled and structured is not None:
+        logger.debug("Tools disabled: structured response active for chat=%s", body.chat_id)
     tool_read_only = body.tool_read_only
     disable_multimodal = (body.samplers or {}).get("disable_multimodal", False)
 

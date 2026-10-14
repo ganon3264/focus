@@ -30,11 +30,25 @@
   window.reloadStructuredResponses = function () {
     var container = document.getElementById('structured-responses-container');
     if (!container) return Promise.resolve();
+    // Keep expanded rows open across the swap.
+    var openIds = [];
+    container.querySelectorAll('.structured-item.expanded').forEach(function (item) {
+      if (item.dataset.id) openIds.push(item.dataset.id);
+    });
     var pid = currentPresetId();
     var url =
       '/partials/structured-responses' + (pid ? '?preset_id=' + encodeURIComponent(pid) : '');
     return hxGet(url, { target: '#structured-responses-container', swap: 'innerHTML' }).then(
       function () {
+        openIds.forEach(function (id) {
+          var item = container.querySelector('.structured-item[data-id="' + id + '"]');
+          if (!item) return;
+          var body = item.querySelector('.structured-body');
+          var title = item.querySelector('.arranger-title-group');
+          if (body) body.style.display = 'flex';
+          item.classList.add('expanded');
+          if (title) title.setAttribute('aria-expanded', 'true');
+        });
         setTimeout(window.initStructuredSortables, 30);
       },
     );
@@ -73,7 +87,13 @@
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ids: ids }),
-    });
+    })
+      .then(function (r) {
+        if (!r.ok) throw new Error('reorder failed');
+      })
+      .catch(function () {
+        if (window.showErrorToast) showErrorToast('Could not save response order');
+      });
   };
 
   window.handleStructuredUpdate = function (el, patch) {
@@ -100,7 +120,7 @@
     if (!item) return;
     var body = item.querySelector('.structured-body');
     var expanded = body.style.display !== 'none';
-    body.style.display = expanded ? 'none' : 'block';
+    body.style.display = expanded ? 'none' : 'flex';
     item.classList.toggle('expanded', !expanded);
     el.setAttribute('aria-expanded', String(!expanded));
   };
@@ -149,8 +169,15 @@
   window.deleteStructuredResponse = function (el) {
     var item = el.closest('.structured-item');
     if (!item) return;
-    fetch('/api/structured-responses/' + item.dataset.id, { method: 'DELETE' }).then(function () {
-      window.reloadStructuredResponses();
+    window.openConfirmModal('Delete this response?', function () {
+      fetch('/api/structured-responses/' + item.dataset.id, { method: 'DELETE' })
+        .then(function (r) {
+          if (!r.ok) throw new Error('delete failed');
+          window.reloadStructuredResponses();
+        })
+        .catch(function () {
+          if (window.showErrorToast) showErrorToast('Could not delete response');
+        });
     });
   };
 
@@ -180,6 +207,10 @@
           out.textContent = res.data.result;
           out.classList.remove('structured-preview-error');
         }
+      })
+      .catch(function () {
+        out.textContent = 'Preview request failed';
+        out.classList.add('structured-preview-error');
       });
   };
 })();

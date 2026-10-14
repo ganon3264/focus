@@ -462,6 +462,37 @@ async def init_db():
                     (json.dumps(params), json.dumps(config), provider_id),
                 )
 
+        cols = await db.execute("PRAGMA table_info(regex_scripts)")
+        col_names = {row[1] for row in await cols.fetchall()}
+        if "destination" in col_names:
+            # destination ('ephemeral' | 'cosmetic') became apply_prompt /
+            # apply_display, plus the as_block flag.
+            await db.execute(
+                "ALTER TABLE regex_scripts ADD COLUMN apply_prompt INTEGER NOT NULL DEFAULT 1"
+            )
+            await db.execute(
+                "ALTER TABLE regex_scripts ADD COLUMN apply_display INTEGER NOT NULL DEFAULT 1"
+            )
+            await db.execute(
+                "ALTER TABLE regex_scripts ADD COLUMN as_block INTEGER NOT NULL DEFAULT 0"
+            )
+            await db.execute(
+                "UPDATE regex_scripts SET "
+                "apply_prompt = CASE WHEN destination = 'ephemeral' THEN 1 ELSE 0 END, "
+                "apply_display = 1, as_block = 0"
+            )
+            await db.execute("ALTER TABLE regex_scripts DROP COLUMN destination")
+        elif col_names and "apply_prompt" not in col_names:
+            await db.execute(
+                "ALTER TABLE regex_scripts ADD COLUMN apply_prompt INTEGER NOT NULL DEFAULT 1"
+            )
+            await db.execute(
+                "ALTER TABLE regex_scripts ADD COLUMN apply_display INTEGER NOT NULL DEFAULT 1"
+            )
+            await db.execute(
+                "ALTER TABLE regex_scripts ADD COLUMN as_block INTEGER NOT NULL DEFAULT 0"
+            )
+
         from focus.db.themes import delete_legacy_theme_setting, seed_builtin_themes
 
         await seed_builtin_themes(db)

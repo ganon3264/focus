@@ -43,6 +43,16 @@ def _validate(data: dict[str, Any]) -> None:
             raise HTTPException(400, error)
 
 
+def _validate_scope_invariant(data: dict[str, Any], existing: dict[str, Any]) -> None:
+    """PATCH may move a row between scopes; keep scope_id consistent so the
+    single-active checks and export queries never see stale ids."""
+    merged_scope = data.get("scope", existing.get("scope"))
+    if merged_scope == "global":
+        data["scope_id"] = None
+    elif not (data.get("scope_id") or existing.get("scope_id")):
+        raise HTTPException(400, "scope_id is required for preset-scoped responses")
+
+
 @router.get("/structured-responses")
 async def list_structured_responses(
     preset_id: str | None = Query(None),
@@ -80,6 +90,7 @@ async def update_structured_response(
         raise HTTPException(404, "Structured response not found")
     data = body.model_dump(exclude_unset=True)
     _validate({**existing, **data})
+    _validate_scope_invariant(data, existing)
     await structured_db.update_response(db, response_id, data)
     await db.commit()
     return await structured_db.get_response(db, response_id)

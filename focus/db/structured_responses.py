@@ -111,6 +111,10 @@ async def update_response(db: aiosqlite.Connection, response_id: str, data: dict
         if field not in data:
             continue
         value = data[field]
+        # Explicit nulls are ignored (all columns are NOT NULL); scope_id is
+        # the one field whose null is meaningful.
+        if value is None and field != "scope_id":
+            continue
         if field == "enabled":
             value = 1 if value else 0
         elif field == "scope" and value not in SCOPES:

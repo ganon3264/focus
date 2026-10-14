@@ -68,7 +68,7 @@
         if (!item) return;
         var body = item.querySelector('.regex-body');
         var title = item.querySelector('.arranger-title-group');
-        if (body) body.style.display = 'block';
+        if (body) body.style.display = 'flex';
         item.classList.add('expanded');
         if (title) title.setAttribute('aria-expanded', 'true');
       });
@@ -108,9 +108,14 @@
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ids: ids }),
-    }).then(function () {
-      refreshDisplayedMessages();
-    });
+    })
+      .then(function (r) {
+        if (!r.ok) throw new Error('reorder failed');
+        refreshDisplayedMessages();
+      })
+      .catch(function () {
+        if (window.showErrorToast) showErrorToast('Could not save script order');
+      });
   };
 
   window.handleRegexUpdate = function (el, patch) {
@@ -180,7 +185,7 @@
     if (!item) return;
     var body = item.querySelector('.regex-body');
     var expanded = body.style.display !== 'none';
-    body.style.display = expanded ? 'none' : 'block';
+    body.style.display = expanded ? 'none' : 'flex';
     item.classList.toggle('expanded', !expanded);
     el.setAttribute('aria-expanded', String(!expanded));
   };
@@ -236,9 +241,16 @@
   window.deleteRegexScript = function (el) {
     var item = el.closest('.regex-item');
     if (!item) return;
-    fetch('/api/regex-scripts/' + item.dataset.id, { method: 'DELETE' }).then(function () {
-      window.reloadRegexScripts();
-      refreshDisplayedMessages();
+    window.openConfirmModal('Delete this regex script?', function () {
+      fetch('/api/regex-scripts/' + item.dataset.id, { method: 'DELETE' })
+        .then(function (r) {
+          if (!r.ok) throw new Error('delete failed');
+          window.reloadRegexScripts();
+          refreshDisplayedMessages();
+        })
+        .catch(function () {
+          if (window.showErrorToast) showErrorToast('Could not delete script');
+        });
     });
   };
 
@@ -275,6 +287,10 @@
           out.textContent = res.data.result;
           out.classList.remove('regex-preview-error');
         }
+      })
+      .catch(function () {
+        out.textContent = 'Preview request failed';
+        out.classList.add('regex-preview-error');
       });
   };
 })();
