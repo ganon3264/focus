@@ -2,10 +2,10 @@
   // Selection entry points. StateManager is the single source of truth.
   //
   // applyX(): mutate StateManager (which persists to the DB), do immediate
-  // synchronous DOM sync, then — after the persist PATCH commits — reload all
-  // selection-dependent panes in one server-rendered OOB response
-  // (/partials/selection-state). Message-list reloads separately for
-  // persona/character changes, where macro resolution changes message display.
+  // synchronous DOM sync, then — once the persist PATCH commits — hand the
+  // changed resource to the Refresh registry, which fans out to every
+  // dependent surface (the selection OOB bundle and, since preset/character/
+  // persona feed message rendering, the message list too).
 
   function byId(id) {
     return document.getElementById(id);
@@ -108,12 +108,14 @@
     return Promise.resolve();
   }
 
-  function afterPersist(persist, reloadMessages) {
+  // Fan out through the central registry when present (single source of truth
+  // for which surfaces a changed resource invalidates); fall back to the local
+  // orchestration otherwise.
+  function afterPersist(persist, resource) {
     return (persist || Promise.resolve())
       .then(function () {
-        var jobs = [reloadSelectionState()];
-        if (reloadMessages) jobs.push(reloadMessageList());
-        return Promise.all(jobs);
+        if (window.Refresh) return Refresh.changed('chats', resource);
+        return Promise.all([reloadSelectionState(), reloadMessageList()]);
       })
       .catch(function (err) {
         if (window.console && console.error) console.error('Selection reload failed', err);
@@ -124,21 +126,21 @@
     var persist = StateManager.setPreset(id || null);
     updateAddVarBtn(StateManager.get('preset_id'));
     syncSelectorSelection();
-    afterPersist(persist, false);
+    afterPersist(persist, 'presets');
   };
 
   window.applyCharacter = function (id, name) {
     var persist = StateManager.setCharacter(id || null);
     updateStatus('status-character', name);
     syncCardHighlight({ gridId: 'char-modal-grid', stateKey: 'character_id', cardPrefix: 'char-card-' });
-    afterPersist(persist, true);
+    afterPersist(persist, 'characters');
   };
 
   window.applyPersona = function (id, name) {
     var persist = StateManager.setPersona(id || null);
     updateStatus('status-persona', name);
     syncCardHighlight({ gridId: 'persona-modal-grid', stateKey: 'persona_id', cardPrefix: 'persona-card-' });
-    afterPersist(persist, true);
+    afterPersist(persist, 'personas');
   };
 
   window.applyProvider = function (id, type, name) {
@@ -160,6 +162,7 @@
     });
   };
 
+  window.reloadSelectionState = reloadSelectionState;
   window.updateAddVarBtn = updateAddVarBtn;
   window.syncSelectorSelection = syncSelectorSelection;
   window.updateStatus = updateStatus;

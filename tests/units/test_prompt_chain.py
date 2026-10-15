@@ -240,6 +240,76 @@ class TestResolveVariableBlocks:
         assert macros["x"] == "hello"
 
 
+class TestCharacterCardMedia:
+    """The card's single media pool is rendered by exactly one card block."""
+
+    async def _mock_load_media(self, media_row):
+        return {
+            "type": "image_url",
+            "image_url": {"url": f"data:{media_row['mime_type']};base64,{media_row['id']}"},
+        }
+
+    def _block(self, block_id, block_type, position):
+        return {
+            "id": block_id, "block_type": block_type, "name": block_type, "content": "",
+            "role": "system", "enabled": 1, "position": position,
+            "injection_depth": None, "injection_order": 0,
+        }
+
+    async def test_marker_card_media_injected_once(self, monkeypatch):
+        monkeypatch.setattr("focus.prompt_chain.load_media", self._mock_load_media)
+        char = {
+            "id": "char1",
+            "description": "appearance: {{media:1}} rest",
+            "personality": "",
+        }
+        blocks = [
+            self._block("d", "char_description", 0),
+            self._block("p", "char_personality", 1),
+        ]
+        images = {"char1": [{"id": "img1", "mime_type": "image/png"}]}
+        messages = await assemble_prompt(blocks, [], char, [], {}, images)
+        images_out = [
+            p for m in messages if isinstance(m.get("content"), list)
+            for p in m["content"] if p.get("type") == "image_url"
+        ]
+        assert len(images_out) == 1
+
+    async def test_marker_in_personality_claims_pool(self, monkeypatch):
+        monkeypatch.setattr("focus.prompt_chain.load_media", self._mock_load_media)
+        char = {
+            "id": "char1",
+            "description": "no marker here",
+            "personality": "trait {{media:1}}",
+        }
+        blocks = [
+            self._block("d", "char_description", 0),
+            self._block("p", "char_personality", 1),
+        ]
+        images = {"char1": [{"id": "img1", "mime_type": "image/png"}]}
+        messages = await assemble_prompt(blocks, [], char, [], {}, images)
+        images_out = [
+            p for m in messages if isinstance(m.get("content"), list)
+            for p in m["content"] if p.get("type") == "image_url"
+        ]
+        assert len(images_out) == 1
+
+    async def test_no_marker_card_media_appended_once(self, monkeypatch):
+        monkeypatch.setattr("focus.prompt_chain.load_media", self._mock_load_media)
+        char = {"id": "char1", "description": "plain", "personality": "plain"}
+        blocks = [
+            self._block("d", "char_description", 0),
+            self._block("p", "char_personality", 1),
+        ]
+        images = {"char1": [{"id": "img1", "mime_type": "image/png"}]}
+        messages = await assemble_prompt(blocks, [], char, [], {}, images)
+        images_out = [
+            p for m in messages if isinstance(m.get("content"), list)
+            for p in m["content"] if p.get("type") == "image_url"
+        ]
+        assert len(images_out) == 1
+
+
 class TestSectionTokens:
     """Section tokens are internal markers and must never reach the provider."""
 

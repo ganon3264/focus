@@ -1,4 +1,11 @@
-from focus.core.macros import MACRO_DEFINITIONS, _strip_comment_macros, apply_macros, build_base_macros, extract_setvars
+from focus.core.macros import (
+    MACRO_DEFINITIONS,
+    _strip_comment_macros,
+    apply_macros,
+    build_base_macros,
+    extract_setvars,
+    resolve_template_macros,
+)
 
 
 class TestBuildBaseMacros:
@@ -94,11 +101,57 @@ class TestExtractSetvars:
         assert macros["a"] == "1"
         assert macros["b"] == "2"
 
+    def test_value_with_nested_macro(self):
+        macros = {}
+        text = "{{setvar::pov::only for {{user}}'s body. Never {{user}}'s thoughts.}}"
+        result = extract_setvars(text, macros)
+        assert result == ""
+        assert macros["pov"] == "only for {{user}}'s body. Never {{user}}'s thoughts."
+
     def test_empty_text(self):
         macros = {}
         result = extract_setvars("", macros)
         assert result == ""
         assert macros == {}
+
+    def test_scoped_multiline_trimmed_and_dedented(self):
+        macros = {}
+        result = extract_setvars(
+            "a\n{{ setvar backstory }}\n    line one\n    line two\n{{ /setvar }}\nb",
+            macros,
+        )
+        assert result == "a\n\nb"
+        assert macros["backstory"] == "line one\nline two"
+
+    def test_scoped_preserve_flag_keeps_whitespace(self):
+        macros = {}
+        extract_setvars("{{ # setvar code }}\n  a\n    b\n{{ /setvar }}", macros)
+        assert macros["code"] == "\n  a\n    b\n"
+
+    def test_scoped_var_alias(self):
+        macros = {}
+        extract_setvars("{{ var k }}v{{ /var }}", macros)
+        assert macros["k"] == "v"
+
+    def test_scoped_key_is_trimmed(self):
+        macros = {}
+        extract_setvars("{{ setvar  spaced  }}v{{ /setvar }}", macros)
+        assert macros["spaced"] == "v"
+
+    def test_scoped_malformed_without_closing_tag_left_alone(self):
+        macros = {}
+        text = "{{ setvar x }}no close"
+        assert extract_setvars(text, macros) == text
+        assert macros == {}
+
+    def test_nested_macro_resolves_after_declaration(self):
+        text = (
+            "{{setvar::pov::only for {{user}}'s body. Never {{user}}'s thoughts.}}"
+            "{{getvar::pov}}"
+        )
+        assert apply_macros(text, {"user": "Shou"}) == (
+            "only for Shou's body. Never Shou's thoughts."
+        )
 
 
 class TestApplyMacros:
@@ -162,6 +215,12 @@ class TestApplyMacros:
         result = apply_macros("{{setvar::greet::Hi}} {{greet}}", macros)
         assert result == " Hi"
         assert macros["greet"] == "Hi"
+
+    def test_scoped_setvar_resolves_through_getvar(self):
+        result = apply_macros(
+            "{{setvar g}}\n  Hello {{char}}\n{{/setvar}}{{getvar::g}}", {"char": "Alice"}
+        )
+        assert result == "Hello Alice"
 
     def test_multiple_keys_same_line(self):
         result = apply_macros("{{a}} {{b}} {{c}}", {"a": "x", "b": "y", "c": "z"})
@@ -343,6 +402,56 @@ class TestCbsReverse:
     def test_palindrome(self):
         result = apply_macros("{{reverse:racecar}}", {})
         assert result == "racecar"
+
+
+class TestResolveTemplateMacros:
+    def test_resolves_known_macros(self):
+        assert resolve_template_macros("{{char}}", {"char": "Alice"}) == "Alice"
+        assert resolve_template_macros("{{{char}}}", {"char": "Alice"}) == "Alice"
+
+    def test_leaves_handlebars_paths_untouched(self):
+        assert resolve_template_macros("{{text}}", {"char": "Alice"}) == "{{text}}"
+        assert (
+            resolve_template_macros("{{{json obj}}}", {"char": "Alice"})
+            == "{{{json obj}}}"
+        )
+
+    def test_leaves_block_helpers_and_macro_helper_untouched(self):
+        macros = {"char": "Alice"}
+        template = "{{#each items}}{{text}} {{char}}{{/each}}"
+        assert (
+            resolve_template_macros(template, macros)
+            == "{{#each items}}{{text}} Alice{{/each}}"
+        )
+        assert (
+            resolve_template_macros('{{macro "{{char}}"}}', macros)
+            == '{{macro "{{char}}"}}'
+        )
+
+    def test_triple_braces_raw_double_escaped(self):
+        assert resolve_template_macros("{{{char}}}", {"char": "A&B"}) == "A&B"
+        assert resolve_template_macros("{{char}}", {"char": "A&B"}) == "A&amp;B"
+
+    def test_cbs_and_setvars(self):
+        assert (
+            resolve_template_macros("{{{getvar::prefill}}}", {"prefill": "x"})
+            == "x"
+        )
+        macros: dict = {}
+        out = resolve_template_macros("{{setvar::greeting::hi}} {{{getvar::greeting}}}", macros)
+        assert out == " hi"
+        assert macros["greeting"] == "hi"
+
+    def test_unknown_getvar_resolves_empty(self):
+        assert resolve_template_macros("{{{getvar::missing}}}", {}) == ""
+
+    def test_scoped_setvar_can_hold_template_fragment(self):
+        macros: dict = {}
+        out = resolve_template_macros(
+            "{{setvar frag}}\n *{{{text}}}*\n{{/setvar}}{{getvar::frag}}", macros
+        )
+        assert out == "*{{{text}}}*"
+        assert macros["frag"] == "*{{{text}}}*"
 
 
 

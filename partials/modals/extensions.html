@@ -211,8 +211,17 @@ document.addEventListener('alpine:init', function () {
 
       init: function () {
         var self = this;
-        var chatId = StateManager.get('chat_id');
-        var p1 = fetch('/api/extensions')
+        window.reloadExtensionsState = function () {
+          return Promise.all([self._loadExtensions(), self._loadStates()]).then(function () {
+            self.loaded = true;
+          });
+        };
+        window.reloadExtensionsState();
+      },
+
+      _loadExtensions: function () {
+        var self = this;
+        return fetch('/api/extensions')
           .then(function (r) { return r.json(); })
           .then(function (data) {
             self.extensions = data;
@@ -220,15 +229,21 @@ document.addEventListener('alpine:init', function () {
             // the moment extensions render, so the map must exist before the
             // saved values fetch (or its failure) can leave it behind.
             self._seedConfigs();
-            self._loadConfigs();
+            return self._loadConfigs();
           });
-        var p2 = chatId
-          ? fetch('/api/chats/' + chatId + '/extensions')
-              .then(function (r) { return r.json(); })
-              .then(function (data) { self.states = data.states || {}; })
-              .catch(function () {})
-          : Promise.resolve();
-        Promise.all([p1, p2]).then(function () { self.loaded = true; });
+      },
+
+      _loadStates: function () {
+        var self = this;
+        var chatId = StateManager.get('chat_id');
+        if (!chatId) {
+          self.states = {};
+          return Promise.resolve();
+        }
+        return fetch('/api/chats/' + chatId + '/extensions')
+          .then(function (r) { return r.json(); })
+          .then(function (data) { self.states = data.states || {}; })
+          .catch(function () {});
       },
 
       _seedConfigs: function () {
@@ -266,7 +281,8 @@ document.addEventListener('alpine:init', function () {
           body: JSON.stringify({ states: body }),
         }).then(function (r) {
           if (!r.ok) throw new Error('Failed to update extension state');
-          if (window.refreshChatMessages) window.refreshChatMessages(chatId);
+          if (window.Refresh) Refresh.changed('extensions');
+          else if (window.refreshChatMessages) window.refreshChatMessages(chatId);
           if (window.showSuccessToast) window.showSuccessToast((next ? 'Enabled ' : 'Disabled ') + name);
         }).catch(function (e) {
           self.states[name] = !next;
@@ -381,17 +397,14 @@ document.addEventListener('alpine:init', function () {
       reload: function () {
         var self = this;
         var timer = setTimeout(function () { self.reloading = true; }, 200);
-        fetch('/api/extensions/reload', { method: 'POST' })
-          .then(function () { return fetch('/api/extensions'); })
-          .then(function (r) { return r.json(); })
-          .then(function (data) {
-            clearTimeout(timer);
-            self.extensions = data;
-            self.reloading = false;
-            self._seedConfigs();
-            self._loadConfigs();
+        return fetch('/api/extensions/reload', { method: 'POST' })
+          .then(function () { return window.reloadExtensionsState(); })
+          .then(function () {
+            // A newly dropped spec needs a toolbar button without a page reload.
+            if (window.Refresh) return Refresh.changed('extensions');
           })
-          .catch(function () {
+          .catch(function () {})
+          .finally(function () {
             clearTimeout(timer);
             self.reloading = false;
           });

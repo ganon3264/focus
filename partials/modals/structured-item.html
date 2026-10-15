@@ -47,7 +47,7 @@
     <div class="form-group mb-0">
       <div class="structured-label-row">
         <label>JSON Schema</label>
-        {{ hint_tooltip('Sent as response_format. Gemini requires additionalProperties: false on every object and only uses pattern as a hint. Macros are resolved at generation, not while editing.') }}
+        {{ hint_tooltip('Sent as response_format. Gemini requires additionalProperties: false on every object and only uses pattern as a hint. Macros resolve at generation, not while editing.') }}
       </div>
       <textarea
         class="form-control structured-schema"
@@ -59,7 +59,10 @@
     </div>
 
     <div class="form-group mb-0">
-      <label>Output Template (Handlebars)</label>
+      <div class="structured-label-row">
+        <label>Output Template (Handlebars)</label>
+        {{ hint_tooltip('Macros resolve here too: <code>{{char}}</code>, <code>{{getvar::name}}</code>, etc. Use triple braces for raw output, e.g. <code>{{{text}}}</code> or <code>{{{getvar::prefill}}}</code>.') }}
+      </div>
       <textarea
         class="form-control structured-template"
         rows="5"

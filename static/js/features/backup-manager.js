@@ -109,9 +109,13 @@
           .then((r) => r.json())
           .then((d) => {
             if (d.restored) {
-              window.showSuccessToast('Backup restored');
+              window.showSuccessToast('Backup restored — reloading…');
               setStatus(document.getElementById('backup-status'), 'Backup restored successfully.');
-              M.loadList();
+              // A restore can replace arbitrary entities, so a hard reload is the
+              // one honest refresh; mirrors the import path.
+              setTimeout(() => {
+                if (typeof location !== 'undefined') location.reload();
+              }, 600);
             }
           })
           .catch(() =>

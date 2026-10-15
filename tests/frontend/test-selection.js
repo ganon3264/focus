@@ -90,9 +90,11 @@ global.htmx = {
   },
 };
 
-// Message-list reloads now go through the unified renderer, not htmx.
-global.window.refreshMessageList = function (chatId, changedIds) {
-  messageReloads.push({ chatId: chatId, changedIds: changedIds });
+// Message-list reloads now go through the central Refresh registry, which
+// calls refreshChatMessages. Record those.
+var messageReloads = [];
+global.window.refreshChatMessages = function (chatId) {
+  messageReloads.push({ chatId: chatId, changedIds: null });
   return Promise.resolve();
 };
 
@@ -101,6 +103,7 @@ var fs = require('fs');
 var path = require('path');
 eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'core', 'state-manager.js'), 'utf8'));
 eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'core', 'hx-queue.js'), 'utf8'));
+eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'core', 'refresh.js'), 'utf8'));
 eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'core', 'selection.js'), 'utf8'));
 
 function flush() {
@@ -122,6 +125,8 @@ async function presetScenario() {
   assertEqual(calls.length, 1, 'preset change reloads selection-state');
   assertIncludes(calls[0].url, '/partials/selection-state?chat_id=chat-1', 'selection-state URL');
   assertEqual(calls[0].opts.swap, 'none', 'selection-state swaps via OOB (main swap none)');
+  assertEqual(messageReloads.length, 1, 'preset change reloads the message list');
+  assertEqual(messageReloads[0].chatId, 'chat-1', 'preset message reload targets the chat');
 
   resolvers.shift()();
   await flush();
@@ -132,6 +137,7 @@ async function presetScenario() {
   await flush();
   assertEqual(calls.length, 1, 'deselecting preset reloads selection-state too');
   assertIncludes(calls[0].url, '/partials/selection-state?chat_id=chat-1', 'deselect URL');
+  assertEqual(messageReloads.length, 1, 'deselecting preset reloads the message list too');
 
   resolvers.shift()();
   await flush();

@@ -354,3 +354,35 @@ class TestExtensionsApi:
         assert len(variants) == 2, f"expected original + rewritten variant, got {variants}"
         assert variants[0]["content"] == "Hello"
         assert variants[1]["content"] == "HELLO"
+
+
+class TestMessageToolbarsPartial:
+    """GET /partials/message-toolbars/{chat_id} renders every message's toolbar,
+    including manual extension buttons for enabled extensions."""
+
+    async def test_returns_200_with_message_ids(self, client):
+        char = await create_character(client, "Char", first_mes="Hello")
+        chat = await create_chat(client, character_id=char["id"])
+        resp = await client.get(f"/partials/message-toolbars/{chat['id']}")
+        assert resp.status_code == 200
+        assert "message-toolbars" in resp.text
+        assert 'data-message-id="' in resp.text
+
+    async def test_extension_button_when_enabled(self, client):
+        char = await create_character(client, "Char", first_mes="Hello")
+        chat = await create_chat(client, character_id=char["id"])
+        await client.put(
+            f"/api/chats/{chat['id']}/extensions",
+            json={"states": {"caps_rewrite": True}},
+        )
+        resp = await client.get(f"/partials/message-toolbars/{chat['id']}")
+        assert resp.status_code == 200
+        assert 'data-action="actionRunExtension"' in resp.text
+        assert 'data-ext-name="caps_rewrite"' in resp.text
+
+    async def test_no_extension_button_when_disabled(self, client):
+        char = await create_character(client, "Char", first_mes="Hello")
+        chat = await create_chat(client, character_id=char["id"])
+        resp = await client.get(f"/partials/message-toolbars/{chat['id']}")
+        assert resp.status_code == 200
+        assert "actionRunExtension" not in resp.text

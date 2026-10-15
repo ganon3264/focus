@@ -222,8 +222,8 @@
           console.error('[stream] post-stream refresh failed:', refreshErr);
         }
 
-        if (window.updateClaudeCache && window.APP_PROVIDERS) {
-          var doneProvider = window.APP_PROVIDERS.find(function (p) { return p.id === providerId; });
+        if (window.updateClaudeCache && window.ProviderStore) {
+          var doneProvider = ProviderStore.get(providerId);
           if (window.isClaudeProvider(doneProvider)) {
             window.updateClaudeCache(providerId, body.samplers);
           }

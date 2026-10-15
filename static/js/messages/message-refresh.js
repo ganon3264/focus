@@ -215,6 +215,37 @@
   }
   window.refreshSingleMessage = refreshSingleMessage;
 
+  // Extensions only change the per-message toolbars (they render no message
+  // content), so patch just the .toolbar in place instead of swapping whole
+  // message nodes — a server swap would collapse every open reasoning block.
+  // Pruned rows are skipped: they have no live node and re-render on scroll-back.
+  async function refreshMessageToolbars(chatId) {
+    var resp = await window.hxFetch(window.api.partials.messageToolbars(chatId));
+    if (!resp.ok) return;
+    var doc = new DOMParser().parseFromString(await resp.text(), 'text/html');
+    var root = doc.querySelector('.message-toolbars');
+    if (!root) return;
+
+    var wrappers = root.querySelectorAll('[data-message-id]');
+    var touched = [];
+    for (var i = 0; i < wrappers.length; i++) {
+      var node = MessageIdentity.node(wrappers[i]);
+      if (!node) continue;
+      var liveToolbar = node.querySelector('.toolbar');
+      var freshToolbar = wrappers[i].querySelector('.toolbar');
+      if (liveToolbar && freshToolbar) {
+        liveToolbar.outerHTML = freshToolbar.outerHTML;
+        touched.push(node);
+      }
+    }
+    // The swapped nodes carry hx-post swipe buttons; htmx must re-bind them.
+    if (window.htmx && window.htmx.process) {
+      for (var j = 0; j < touched.length; j++) window.htmx.process(touched[j]);
+    }
+    if (window.reapplyDeleteMode) window.reapplyDeleteMode();
+  }
+  window.refreshMessageToolbars = refreshMessageToolbars;
+
   // Full re-render of the message list. Use this whenever client and server may
   // disagree about *which* messages exist (or their order) — a single-node
   // refresh only patches content of nodes both sides already have.

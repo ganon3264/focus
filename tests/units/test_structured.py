@@ -106,6 +106,13 @@ class TestRender:
         out = render_structured('{"greeting":"Hi {{name}}"}', "{{macro greeting}}", {"name": "Bob"})
         assert out == "Hi Bob"
 
+    def test_macros_resolved_in_template(self):
+        out = render_structured(
+            '{"text":"hi"}', "{{{getvar::prefill}}} {{{text}}}", {"prefill": "Hello"}
+        )
+        assert out == "Hello hi"
+        assert render_structured('{"text":"hi"}', "{{char}}", {"char": "Alice"}) == "Alice"
+
     def test_data_dict_with_helpers_key_is_not_options(self):
         # Inline helper args are model data; a user key named "helpers" must
         # not be mistaken for pybars' block-helper options dict.
@@ -123,6 +130,10 @@ class TestValidators:
     def test_template_validation(self):
         assert validate_template("{{{text}}}") is None
         assert validate_template("") is not None
+
+    def test_template_validation_accepts_macros(self):
+        assert validate_template("{{{getvar::prefill}}}") is None
+        assert validate_template("{{char}} and {{{text}}}") is None
 
 
 class TestTemplateSafety:

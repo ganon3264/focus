@@ -312,8 +312,21 @@
           if (cfg.dataPrefix === 'char') {
             window.dispatchEvent(new CustomEvent('character-edited', { detail: { id: id } }));
           }
-          reloadArrangerIfActive(id);
-          if (cfg.cardEndpoint && cfg.gridId) {
+          // Editing the active entity changes message/selection rendering (macros,
+          // arranger sentinel); route through the registry. Fall back to the
+          // narrow arranger reload when it is unavailable.
+          var editedResource = cfg.dataPrefix === 'char' ? 'characters' : 'personas';
+          var isActive = StateManager.get(cfg.stateKey) === id;
+          // Active edit: the characterCards/personaCards surface re-renders the
+          // open grid. Non-active edits (and the no-registry fallback) keep the
+          // targeted per-card swap + sort re-apply.
+          var viaRefresh = !!(window.Refresh && isActive);
+          if (window.Refresh) {
+            if (isActive) Refresh.changed(editedResource);
+          } else {
+            reloadArrangerIfActive(id);
+          }
+          if (!viaRefresh && cfg.cardEndpoint && cfg.gridId) {
             var currentId = StateManager.get(cfg.stateKey) || '';
             var gridEl = document.getElementById(cfg.gridId);
             var compactView = gridEl && gridEl.dataset.view === 'compact';

@@ -8,9 +8,13 @@
   }
 
   // Display transforms are applied server-side, so push each change into the
-  // live message list instead of making the user reload the page. Skip while a
-  // generation is streaming (the post-stream refresh owns the list then).
+  // live message list instead of making the user reload the page. The central
+  // registry owns the streaming guard; fall back locally when it is absent.
   function refreshDisplayedMessages() {
+    if (window.Refresh) {
+      Refresh.changed('regex_scripts');
+      return;
+    }
     if (window.Generation && Generation.isActive && Generation.isActive()) return;
     var chatId = (window.StateManager && StateManager.get('chat_id')) || '';
     if (chatId && window.refreshChatMessages) window.refreshChatMessages(chatId);
@@ -104,14 +108,18 @@
       .forEach(function (item) {
         ids.push(item.dataset.id);
       });
-    fetch('/api/regex-scripts/reorder', {
+    var opts = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ids: ids }),
-    })
+    };
+    var req = window.Refresh
+      ? Refresh.mutate('/api/regex-scripts/reorder', opts, { changed: ['regex_scripts'] })
+      : fetch('/api/regex-scripts/reorder', opts);
+    req
       .then(function (r) {
         if (!r.ok) throw new Error('reorder failed');
-        refreshDisplayedMessages();
+        if (!window.Refresh) refreshDisplayedMessages();
       })
       .catch(function () {
         if (window.showErrorToast) showErrorToast('Could not save script order');

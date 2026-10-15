@@ -12,6 +12,22 @@
     var fnSelect = resolve('selectFn', 'select' + cfg.fnEntity + 'Modal');
     var fnImport = resolve('importFn', 'import' + cfg.fnEntity + 'Modal');
 
+    // Hard delete drops the row for good, and chats.
+    // character_id/persona_id are ON DELETE SET NULL, so the client selection
+    // must be cleared too. Soft delete keeps the link (restorable), so it
+    // only invalidates. Falls back to StateManager when the selection entry
+    // point is unavailable.
+    function clearActiveSelection(id) {
+      if (StateManager.get(cfg.stateKey) !== id) return;
+      if (cfg.stateKey === 'character_id') {
+        if (window.applyCharacter) window.applyCharacter(null);
+        else StateManager.setCharacter(null);
+      } else if (cfg.stateKey === 'persona_id') {
+        if (window.applyPersona) window.applyPersona(null);
+        else StateManager.setPersona(null);
+      }
+    }
+
     // ----- promptDelete -----
     window[fnDelete] = function (id, name) {
       if (id instanceof Element) {
@@ -52,11 +68,22 @@
         }
         fetch(url, { method: 'DELETE' }).then(function (r) {
           if (r.ok) {
-            var card = document.getElementById(cfg.cardPrefix + id);
-            if (card) card.remove();
-            var grid = document.getElementById(cfg.gridId);
-            if (grid && grid.querySelectorAll('.entity-row').length === 0) {
-              grid.innerHTML = '<div class="text-muted text-center text-sm py-6 border border-dashed border-(--border) rounded-lg">' + cfg.emptyText + '</div>';
+            var isActive = StateManager.get(cfg.stateKey) === id;
+            if (isHard) {
+              clearActiveSelection(id);
+            } else if (window.Refresh && isActive) {
+              Refresh.changed(cfg.stateKey === 'character_id' ? 'characters' : 'personas');
+            }
+            // Active delete is routed through Refresh (the open grid re-renders
+            // via characterCards/personaCards); a targeted inline removal would
+            // duplicate it. Non-active (or no registry) still swaps the card out.
+            if (!(window.Refresh && isActive)) {
+              var card = document.getElementById(cfg.cardPrefix + id);
+              if (card) card.remove();
+              var grid = document.getElementById(cfg.gridId);
+              if (grid && grid.querySelectorAll('.entity-row').length === 0) {
+                grid.innerHTML = '<div class="text-muted text-center text-sm py-6 border border-dashed border-(--border) rounded-lg">' + cfg.emptyText + '</div>';
+              }
             }
             if (isHard) {
               window.showSuccessToast(name + ' permanently deleted');
@@ -182,6 +209,7 @@
         function () {
           fetch(cfg.apiBase + '/' + id + '?hard=true', { method: 'DELETE' }).then(function (r) {
             if (r.ok) {
+              clearActiveSelection(id);
               var modal = document.getElementById(cfg.trashModalId);
               if (modal) modal.remove();
               window.showSuccessToast(name + ' permanently deleted');

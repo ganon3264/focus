@@ -32,7 +32,7 @@
         </div>
         <div class="entity-actions" onclick="event.stopPropagation()">
           <button class="btn btn-secondary btn-sm" onclick="openProviderEditModal('{{ prov.id }}')" aria-label="Edit provider">{{ icon_edit() }}</button>
-          <button class="btn btn-danger btn-sm" hx-delete="/api/providers/{{ prov.id }}" hx-confirm="Delete?" hx-swap="none" hx-on:htmx:after-request="hxGet('/partials/providers-modal',{target:'#providers-modal-body-inner',swap:'innerHTML'})" aria-label="Delete provider">{{ icon_close(16) }}</button>
+          <button class="btn btn-danger btn-sm" hx-delete="/api/providers/{{ prov.id }}" hx-confirm="Delete?" hx-swap="none" hx-on:htmx:after-request="(window.ProviderStore ? ProviderStore.refresh() : Promise.resolve()).finally(function(){ hxGet('/partials/providers-modal',{target:'#providers-modal-body-inner',swap:'innerHTML'}) })" aria-label="Delete provider">{{ icon_close(16) }}</button>
         </div>
       </div>
     {% endfor %}

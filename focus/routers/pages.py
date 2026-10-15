@@ -278,14 +278,17 @@ async def message_list_partial(request: Request, chat_id: str, db: aiosqlite.Con
 
     char = None
     persona = None
+    preset_blocks = []
     async with db.execute("SELECT * FROM chats WHERE id = ?", (chat_id,)) as cur:
         chat_row = await cur.fetchone()
     if chat_row:
         chat = dict(chat_row)
         char = await crud.get_character(db, chat.get("character_id"))
         persona = await crud.get_persona(db, chat.get("persona_id"))
+        preset = await crud.get_preset(db, chat.get("preset_id"))
+        preset_blocks = preset["blocks"] if preset else []
 
-    _resolve_macros_for_display(messages, char, persona)
+    _resolve_macros_for_display(messages, char, persona, preset_blocks)
     await _apply_display_regex(db, chat_id, messages)
     enabled_extensions = await db_extensions.get_enabled_extensions(db, chat_id)
 
@@ -297,6 +300,22 @@ async def message_list_partial(request: Request, chat_id: str, db: aiosqlite.Con
             "chat_id": chat_id,
             "character": char,
             "persona": persona,
+            "enabled_extensions": enabled_extensions,
+        },
+    )
+
+
+@router.get("/partials/message-toolbars/{chat_id}", response_class=HTMLResponse)
+async def message_toolbars_partial(request: Request, chat_id: str, db: aiosqlite.Connection = Depends(get_db)):
+    messages = await crud.get_lineage_messages(db, chat_id)
+    enabled_extensions = await db_extensions.get_enabled_extensions(db, chat_id)
+
+    return templates.TemplateResponse(
+        request,
+        "chat/message-toolbars.html",
+        {
+            "messages": messages,
+            "chat_id": chat_id,
             "enabled_extensions": enabled_extensions,
         },
     )
@@ -319,14 +338,17 @@ async def single_message_partial(
 
     char = None
     persona = None
+    preset_blocks = []
     async with db.execute("SELECT * FROM chats WHERE id = ?", (chat_id,)) as cur:
         chat_row = await cur.fetchone()
     if chat_row:
         chat = dict(chat_row)
         char = await crud.get_character(db, chat.get("character_id"))
         persona = await crud.get_persona(db, chat.get("persona_id"))
+        preset = await crud.get_preset(db, chat.get("preset_id"))
+        preset_blocks = preset["blocks"] if preset else []
 
-    _resolve_macros_for_display([message], char, persona)
+    _resolve_macros_for_display([message], char, persona, preset_blocks)
     await _apply_display_regex(db, chat_id, [message])
     enabled_extensions = await db_extensions.get_enabled_extensions(db, chat_id)
 

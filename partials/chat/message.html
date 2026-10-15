@@ -76,107 +76,7 @@
           <div class="text-[1.75rem] font-bold leading-none select-none shrink-0" style="color:var(--text-faint)">#{{ msg_index }}</div>
         </div>
 
-        <div class="toolbar normal-mode-actions items-center gap-0.5">
-        {% if message.variant_count > 1 or (is_latest and message.role == 'assistant') %}
-        <button
-          class="action-btn"
-          title="Previous variant"
-          aria-label="Previous variant"
-          hx-post="/api/chats/{{ chat_id }}/messages/{{ message.id }}/swipe"
-          hx-vals='{"direction":"prev"}'
-          hx-swap="none"
-          hx-on:htmx:after-request="actionSwipePrev(event, this)"
-        >
-          {{ icon_chevron_left() }}
-        </button>
-        <span class="text-xs swipe-counter" style="display:flex;align-items:center;color:var(--text-faint)">{{ message.active_index + 1 }}/{{ message.variant_count }}</span>
-        <button
-          class="action-btn"
-          title="Next variant"
-          aria-label="Next variant"
-          hx-post="/api/chats/{{ chat_id }}/messages/{{ message.id }}/swipe"
-          hx-vals='{"direction":"next"}'
-          hx-swap="none"
-          hx-on:htmx:after-request="actionSwipeNext(event, this)"
-        >
-          {{ icon_chevron_right() }}
-        </button>
-        <div class="w-px h-4" style="background:var(--border);margin:0 2px"></div>
-        {% endif %}
-        {% if is_latest and message.role == 'assistant' and message.position != 0 %}
-        <button
-          class="action-btn"
-          title="Regenerate"
-          aria-label="Regenerate"
-          data-action="actionTriggerRegeneration"
-        >
-          {{ icon_refresh() }}
-        </button>
-        <button
-          class="action-btn continue-btn"
-          title="Continue"
-          aria-label="Continue"
-          data-action="actionContinueGeneration"
-        >
-          {{ icon_forward() }}
-        </button>
-        {% endif %}
-        {% for ext in (enabled_extensions | default([])) if message.role in (ext.roles if ext.roles is sequence else []) and 'manual' in (ext.triggers if ext.triggers is sequence else []) %}
-        <button
-          class="action-btn"
-          title="{{ ext.description }}"
-          aria-label="{{ ext.description }}"
-          data-action="actionRunExtension"
-          data-ext-name="{{ ext.name }}"
-        >
-          {% if ext.icon %}<span class="ext-icon w-4 h-4 shrink-0">{{ ext.icon | safe }}</span>{% else %}{{ icon_plug() }}{% endif %}
-        </button>
-        {% endfor %}
-        <button
-          class="action-btn"
-          title="Pin — kept verbatim in compacted chats"
-          aria-label="Toggle pin"
-          data-action="actionToggleMessagePin"
-          data-pinned="{{ '1' if message.get('pinned') else '0' }}"
-        >
-          <span class="fav-star{% if message.get('pinned') %} favorite-active{% endif %}">
-            <span class="fav-star-outline">{{ icon_star(16) }}</span>
-            <span class="fav-star-filled">{{ icon_star_filled(16) }}</span>
-          </span>
-        </button>
-        <button
-          class="action-btn"
-          title="Summarize up to here"
-          aria-label="Summarize up to here"
-          data-action="actionSummarizeMessage"
-        >
-          {{ icon_list() }}
-        </button>
-        <button
-          class="action-btn"
-          title="Branch from here"
-          aria-label="Branch from this message"
-          data-action="actionBranchMessage"
-        >
-          {{ icon_branch() }}
-        </button>
-        <button
-          class="action-btn"
-          title="Edit"
-          aria-label="Edit message"
-          data-action="actionEditMessage"
-        >
-          {{ icon_edit() }}
-        </button>
-        <button
-          class="action-btn text-danger"
-          title="Delete mode"
-          aria-label="Delete messages"
-          data-action="actionEnterDeleteMode"
-        >
-          {{ icon_trash() }}
-        </button>
-      </div>
+        {% include "chat/message-toolbar.html" %}
     </div>
     </div>
 
@@ -205,7 +105,7 @@
       {% endif %} {% endfor %}
     </div>
     {% endif %}
-    {% if message.get('segments') %}
+    {% if message.get('segments') is not none %}
     {% set ns = namespace(tool_rendered=false) %}
     {% for seg in message.segments %}
     {% if seg.type == 'text' and seg.content.strip() %}

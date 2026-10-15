@@ -248,30 +248,31 @@
     registerStatic();
   }
 
-  // Lazy content loads for list modals (preserved from the old openModal).
-  function needsFetch(targetId) {
-    var inner = document.querySelector(targetId);
-    return !inner || !inner.children.length || inner.children[0].textContent === 'Loading…';
-  }
+  // Always-refresh loaders for the entity modal grids. Exposed so the Refresh
+  // registry can re-render an open grid when its resource changes; the onOpen
+  // hooks call them too. Mirrors modal-providers (unconditional refetch).
+  window.reloadCharacterCards = function () {
+    return hxGet(window.api.partials.charactersModal + '?current_character_id=' + (StateManager.get('character_id') || ''), { target: '#characters-modal-body-inner', swap: 'innerHTML' })
+      .then(function () {
+        if (window.syncCardHighlight)
+          window.syncCardHighlight({ gridId: 'char-modal-grid', stateKey: 'character_id', cardPrefix: 'char-card-' });
+      });
+  };
+
+  window.reloadPersonaCards = function () {
+    return hxGet(window.api.partials.personasModal + '?current_persona_id=' + (StateManager.get('persona_id') || ''), { target: '#personas-modal-body-inner', swap: 'innerHTML' })
+      .then(function () {
+        if (window.syncCardHighlight)
+          window.syncCardHighlight({ gridId: 'persona-modal-grid', stateKey: 'persona_id', cardPrefix: 'persona-card-' });
+      });
+  };
 
   ModalController.onOpen('modal-characters', function () {
-    var fetchP = needsFetch('#characters-modal-body-inner')
-      ? hxGet(window.api.partials.charactersModal + '?current_character_id=' + (StateManager.get('character_id') || ''), { target: '#characters-modal-body-inner', swap: 'innerHTML' })
-      : Promise.resolve();
-    fetchP.then(function () {
-      if (window.syncCardHighlight)
-        window.syncCardHighlight({ gridId: 'char-modal-grid', stateKey: 'character_id', cardPrefix: 'char-card-' });
-    });
+    window.reloadCharacterCards();
   });
 
   ModalController.onOpen('modal-personas', function () {
-    var fetchP = needsFetch('#personas-modal-body-inner')
-      ? hxGet(window.api.partials.personasModal + '?current_persona_id=' + (StateManager.get('persona_id') || ''), { target: '#personas-modal-body-inner', swap: 'innerHTML' })
-      : Promise.resolve();
-    fetchP.then(function () {
-      if (window.syncCardHighlight)
-        window.syncCardHighlight({ gridId: 'persona-modal-grid', stateKey: 'persona_id', cardPrefix: 'persona-card-' });
-    });
+    window.reloadPersonaCards();
   });
 
   ModalController.onOpen('modal-providers', function () {
@@ -282,8 +283,18 @@
   });
 
   ModalController.onOpen('modal-advanced', function () {
+    if (window.Refresh) {
+      Refresh.load('regexList');
+      Refresh.load('structuredList');
+      Refresh.load('tools');
+      Refresh.load('extensions');
+      Refresh.load('backups');
+      return;
+    }
     if (window.reloadRegexScripts) window.reloadRegexScripts();
     if (window.reloadStructuredResponses) window.reloadStructuredResponses();
+    if (window.reloadToolsState) window.reloadToolsState();
+    if (window.reloadExtensionsState) window.reloadExtensionsState();
     if (window.BackupManager) BackupManager.loadList();
   });
 

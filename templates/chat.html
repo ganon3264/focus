@@ -53,8 +53,8 @@ function toggleSidebar(side) {
 <script src="/static/js/modals/providers.js"></script>
 
 <script>
-// App Providers for Status Panel
-window.APP_PROVIDERS = {{ providers | tojson | safe }};
+// Seed the client-side provider store (single source of truth for provider records).
+ProviderStore.init({{ providers | tojson | safe }});
 </script>
 
 <script src="/static/js/ui/status-panel.js"></script>

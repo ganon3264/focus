@@ -1,0 +1,7 @@
+{% from "macros.html" import icon_chevron_left, icon_chevron_right, icon_refresh, icon_forward,
+icon_plug, icon_star, icon_star_filled, icon_list, icon_branch, icon_edit, icon_trash %}
+<div class="message-toolbars" hidden>
+{% for message in messages %} {% set is_latest = loop.last %} {% set msg_index = loop.index %}
+<div data-message-id="{{ message.id }}">{% include "chat/message-toolbar.html" %}</div>
+{% endfor %}
+</div>

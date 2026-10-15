@@ -100,6 +100,20 @@ def test_reasoning_button_class_unchanged():
         assert required in btn, f"Missing existing class '{required}' in: {btn}"
 
 
+def test_empty_segments_do_not_resurrect_raw_content():
+    """A display regex can strip every segment; an empty segment list must not
+    fall back to the unfiltered raw content."""
+    html = _render_message({"content": "<think>secret</think>", "segments": []})
+    assert 'class="message-content' not in html
+
+
+def test_missing_segments_still_fall_back_to_raw_content():
+    """Legacy messages with no computed segments keep the raw-content path."""
+    html = _render_message({"content": "legacy text"})
+    html = html.replace('data-raw-content="legacy text"', "")
+    assert "legacy text" in html
+
+
 def test_first_reasoning_block_has_no_own_toggle():
     """Index-0 reasoning stays controlled by the meta-row button (which keeps
     its place and chevron animation); a separate twin handles the sticky case."""

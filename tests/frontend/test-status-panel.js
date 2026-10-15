@@ -81,9 +81,10 @@ global.StateManager = {
   },
   getAll: function () { return { character_id: null, persona_id: null, preset_id: null }; },
 };
-global.APP_PROVIDERS = [
+global.ProviderStore || eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'core', 'provider-store.js'), 'utf8'));
+ProviderStore.init([
   { id: 'prov1', name: 'My Provider', type: 'openai_compat', model: 'gpt-4' },
-];
+]);
 
 // Load module — export bare functions
 var src = fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'ui', 'status-panel.js'), 'utf8');
@@ -117,7 +118,7 @@ eval(src + '\nwindow.updateStatusPanel=updateStatusPanel;window.updateCacheTimer
 (function () {
   global.isClaudeProvider = function (p) { return p && p.id === 'prov2'; };
   global.StateManager.get = function () { return 'prov2'; };
-  global.APP_PROVIDERS = [{ id: 'prov2', name: 'Claude', type: 'anthropic' }];
+  ProviderStore.init([{ id: 'prov2', name: 'Claude', type: 'anthropic' }]);
   global.getClaudeCacheTimer = function () { return 125000; };
 
   cacheRow.classList.add('hidden');
@@ -152,39 +153,11 @@ eval(src + '\nwindow.updateStatusPanel=updateStatusPanel;window.updateCacheTimer
   });
 })();
 
-// ── updateStatusPanel with fallback DOM scraping ──
-(function () {
-  var oldGet = global.StateManager.get;
-  global.StateManager.get = function () { return 'prov-unknown'; };
-  global.APP_PROVIDERS = [];
-
-  var cardDisplay = makeElement('div');
-  cardDisplay.id = 'prov-display-prov-unknown';
-  var strong = makeElement('strong');
-  strong.textContent = 'Fallback Provider';
-  var textMuted = makeElement('div');
-  textMuted.classList.add('text-muted');
-  textMuted.textContent = 'google_vertex • gemini-pro';
-  cardDisplay.appendChild(strong);
-  cardDisplay.appendChild(textMuted);
-  doc._body.appendChild(cardDisplay);
-  doc.getElementById = function (id) {
-    if (id === 'prov-display-prov-unknown') return cardDisplay;
-    return mockGetElementById(id);
-  };
-
-  window.updateStatusPanel();
-  assertEqual(statusProvider.textContent, 'google_vertex', 'fallback: type from DOM');
-  assertEqual(statusModel.textContent, 'gemini-pro', 'fallback: model from DOM');
-  doc.getElementById = mockGetElementById;
-  global.StateManager.get = oldGet;
-})();
-
-// ── updateStatusPanel shows Unknown when no provider found ──
+// ── updateStatusPanel shows Unknown when the active provider is missing ──
 (function () {
   var oldGet = global.StateManager.get;
   global.StateManager.get = function () { return 'prov-missing'; };
-  global.APP_PROVIDERS = [];
+  ProviderStore.init([]);
 
   window.updateStatusPanel();
   assertEqual(statusProvider.textContent, 'Unknown', 'missing provider: shows Unknown');
@@ -195,24 +168,24 @@ eval(src + '\nwindow.updateStatusPanel=updateStatusPanel;window.updateCacheTimer
 (function () {
   var oldGet = global.StateManager.get;
   global.StateManager.get = function () { return 'prov1'; };
-  global.APP_PROVIDERS = [{
+  ProviderStore.init([{
     id: 'prov1', name: 'P', type: 'openai_compat', model: 'm',
     config_json: JSON.stringify({ api_keys: ['SECRET:a', 'SECRET:b', 'SECRET:c'], active_key: 'SECRET:b' }),
-  }];
+  }]);
   window.updateStatusPanel();
   assert(!keyRow.classList.contains('hidden'), 'multi-key row visible');
   assertEqual(keyCount.textContent, '2/3', 'key count reflects active position');
 
-  global.APP_PROVIDERS[0].config_json = JSON.stringify({ api_keys: ['SECRET:a', 'SECRET:b'], active_key: 'SECRET:b' });
-  window.updateKeySwitcher(global.APP_PROVIDERS[0]);
+  ProviderStore.all()[0].config_json = JSON.stringify({ api_keys: ['SECRET:a', 'SECRET:b'], active_key: 'SECRET:b' });
+  window.updateKeySwitcher(ProviderStore.all()[0]);
   assertEqual(keyCount.textContent, '2/2', 'key count follows the active ref');
   global.StateManager.get = oldGet;
 })();
 
 // ── Key switcher: single key hides controls ──
 (function () {
-  global.APP_PROVIDERS = [{ id: 'prov1', name: 'P', type: 't', model: 'm', api_key: 'sk-only' }];
-  window.updateKeySwitcher(global.APP_PROVIDERS[0]);
+  ProviderStore.init([{ id: 'prov1', name: 'P', type: 't', model: 'm', api_key: 'sk-only' }]);
+  window.updateKeySwitcher(ProviderStore.all()[0]);
   assert(keyRow.classList.contains('hidden'), 'single-key row hidden');
 })();
 
@@ -220,10 +193,10 @@ eval(src + '\nwindow.updateStatusPanel=updateStatusPanel;window.updateCacheTimer
 (function () {
   var oldGet = global.StateManager.get;
   global.StateManager.get = function () { return 'prov1'; };
-  global.APP_PROVIDERS = [{
+  ProviderStore.init([{
     id: 'prov1', name: 'P', type: 'openai_compat', model: 'm',
     config_json: JSON.stringify({ api_keys: ['SECRET:a', 'SECRET:b'], active_key: 'SECRET:a' }),
-  }];
+  }]);
   var url = null, bodies = [];
   var oldFetch = global.fetch;
   global.fetch = function (u, opts) { url = u; bodies.push(opts && opts.body); return Promise.resolve({ ok: true }); };

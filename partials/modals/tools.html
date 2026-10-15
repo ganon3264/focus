@@ -190,23 +190,39 @@ document.addEventListener('alpine:init', function () {
 
       init: function () {
         var self = this;
+        window.reloadToolsState = function () {
+          return Promise.all([self._loadTools(), self._loadChatState()]).catch(function () {
+            self._expose();
+          });
+        };
+        window.reloadToolsState();
+      },
+
+      _loadTools: function () {
+        var self = this;
+        return fetch('/api/tools')
+          .then(function (r) { return r.json(); })
+          .then(function (data) { self.tools = data; });
+      },
+
+      _loadChatState: function () {
+        var self = this;
         var chatId = StateManager.get('chat_id');
-        var promises = [fetch('/api/tools').then(function (r) { return r.json(); }).then(function (data) { self.tools = data; })];
-        if (chatId) {
-          promises.push(
-            fetch('/api/chats/' + chatId)
-              .then(function (r) { return r.json(); })
-              .then(function (chat) {
-                self.enabled = chat.tool_calls_enabled === 1 || chat.tool_calls_enabled === true;
-                self.readOnly = chat.tool_read_only !== 0 && chat.tool_read_only !== false;
-                if (chat.max_tool_iterations != null) self.maxIterations = chat.max_tool_iterations;
-                self.normalizeIterations();
-                self.toolStates = chat.tool_states || {};
-              })
-              .catch(function () {})
-          );
+        if (!chatId) {
+          self._expose();
+          return Promise.resolve();
         }
-        Promise.all(promises).then(function () { self._expose(); }).catch(function () { self._expose(); });
+        return fetch('/api/chats/' + chatId)
+          .then(function (r) { return r.json(); })
+          .then(function (chat) {
+            self.enabled = chat.tool_calls_enabled === 1 || chat.tool_calls_enabled === true;
+            self.readOnly = chat.tool_read_only !== 0 && chat.tool_read_only !== false;
+            if (chat.max_tool_iterations != null) self.maxIterations = chat.max_tool_iterations;
+            self.normalizeIterations();
+            self.toolStates = chat.tool_states || {};
+            self._expose();
+          })
+          .catch(function () {});
       },
 
       toggleEnabled: function () {

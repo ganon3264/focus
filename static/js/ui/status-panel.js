@@ -32,7 +32,7 @@ function updateKeySwitcher(provider) {
 
 window.actionShiftProviderKey = async function (el) {
   const activeId = StateManager.get('provider_id');
-  const provider = activeId && (window.APP_PROVIDERS || []).find(function (p) { return p.id === activeId; });
+  const provider = ProviderStore.get(activeId);
   if (!provider) return;
   const dir = parseInt(el.dataset.dir, 10) || 0;
   const keys = _providerKeys(provider);
@@ -64,46 +64,29 @@ function updateStatusPanel() {
   const providerEl = document.getElementById('status-provider');
   const presetEl = document.getElementById('status-preset');
   const modelEl = document.getElementById('status-model');
-  let provider = null;
+  const provider = activeId ? ProviderStore.get(activeId) : null;
 
   if (!activeId) {
     providerEl.textContent = 'None';
+    presetEl.textContent = 'None';
     modelEl.textContent = 'None';
+    providerEl.title = 'None';
+    presetEl.title = 'None';
+    modelEl.title = 'None';
+  } else if (provider) {
+    providerEl.textContent = provider.type;
+    presetEl.textContent = provider.name;
+    modelEl.textContent = provider.model || 'Unknown';
+    providerEl.title = provider.type;
+    presetEl.title = provider.name;
+    modelEl.title = provider.model || 'Unknown';
   } else {
-    provider = (window.APP_PROVIDERS || []).find((p) => p.id === activeId);
-
-    if (!provider) {
-      const cardDisplay = document.getElementById('prov-display-' + activeId);
-      if (cardDisplay) {
-        const nameEl = cardDisplay.querySelector('strong');
-        const typeModelEl = cardDisplay.querySelector('.text-muted');
-        if (nameEl && typeModelEl) {
-          const text = typeModelEl.textContent;
-          const parts = text.split('•').map((s) => s.trim());
-          provider = {
-            name: nameEl.textContent,
-            type: parts.length > 0 ? parts[0] : 'Unknown',
-            model: parts.length > 1 ? parts[1] : 'Unknown',
-          };
-        }
-      }
-    }
-
-    if (provider) {
-      providerEl.textContent = provider.type;
-      presetEl.textContent = provider.name;
-      modelEl.textContent = provider.model || 'Unknown';
-      providerEl.title = provider.type;
-      presetEl.title = provider.name;
-      modelEl.title = provider.model || 'Unknown';
-    } else {
-      providerEl.textContent = 'Unknown';
-      presetEl.textContent = 'Unknown';
-      modelEl.textContent = 'Unknown';
-      providerEl.title = 'Unknown';
-      presetEl.title = 'Unknown';
-      modelEl.title = 'Unknown';
-    }
+    providerEl.textContent = 'Unknown';
+    presetEl.textContent = 'Unknown';
+    modelEl.textContent = 'Unknown';
+    providerEl.title = 'Unknown';
+    presetEl.title = 'Unknown';
+    modelEl.title = 'Unknown';
   }
   updateKeySwitcher(provider);
 }
@@ -114,8 +97,7 @@ function updateCacheTimer() {
   const cacheEl = document.getElementById('status-cache');
   if (!cacheRow || !cacheEl) return;
 
-  const provider =
-    activeId && window.APP_PROVIDERS && window.APP_PROVIDERS.find((p) => p.id === activeId);
+  const provider = ProviderStore.get(activeId);
 
   if (!window.isClaudeProvider || !window.isClaudeProvider(provider)) {
     cacheRow.classList.add('hidden');
@@ -140,6 +122,10 @@ function updateCacheTimer() {
 }
 
 window.addEventListener('provider-changed', function () {
+  updateStatusPanel();
+  updateCacheTimer();
+});
+window.addEventListener('providers-changed', function () {
   updateStatusPanel();
   updateCacheTimer();
 });

@@ -288,6 +288,22 @@ async def assemble_prompt(
     active = [b for b in active if b["block_type"] != "variable"]
     resolve_variable_blocks(variables, macros)
 
+    # The character card has one media pool but two fields that can render it
+    # (description/personality). Attach the pool to exactly one block — a
+    # `{{media:N}}` marker picks its home, otherwise the first card block
+    # carries it — so the same images are never injected twice.
+    char_media_block_id: str | None = None
+    card_blocks = [
+        b for b in active if b["block_type"] in ("char_description", "char_personality")
+    ]
+    for b in card_blocks:
+        field = "description" if b["block_type"] == "char_description" else "personality"
+        if MEDIA_PATTERN.search(char_data.get(field, "") or ""):
+            char_media_block_id = b["id"]
+            break
+    if char_media_block_id is None and card_blocks:
+        char_media_block_id = card_blocks[0]["id"]
+
     pre_history: list[dict] = []
     post_history: list[dict] = []
     history_seen = False
@@ -325,14 +341,20 @@ async def assemble_prompt(
                 target.append(msg)
 
         elif btype == "char_description":
-            char_images = block_images.get(char_data.get("id"), [])
+            char_images = (
+                block_images.get(char_data.get("id"), [])
+                if block["id"] == char_media_block_id else []
+            )
             text = apply_macros(char_data.get("description", ""), macros).strip()
             content = await build_block_content(text, char_images, sections)
             if content:
                 target.append({"role": block["role"], "content": content})
 
         elif btype == "char_personality":
-            char_images = block_images.get(char_data.get("id"), [])
+            char_images = (
+                block_images.get(char_data.get("id"), [])
+                if block["id"] == char_media_block_id else []
+            )
             text = apply_macros(char_data.get("personality", ""), macros).strip()
             content = await build_block_content(text, char_images, sections)
             if content:

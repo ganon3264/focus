@@ -366,9 +366,14 @@ function submitProviderForm(el, e) {
   }).then(async function (r) {
     if (r.ok) {
       closeModal('modal-provider-create', { discard: true });
-      hxGet(api.partials.providersModal, {
-        target: '#providers-modal-body-inner',
-        swap: 'innerHTML',
+      // Refresh the store before the new card is clickable, so selecting it can
+      // never read a stale/absent record.
+      var storeReady = window.ProviderStore ? ProviderStore.refresh() : Promise.resolve();
+      storeReady.finally(function () {
+        hxGet(api.partials.providersModal, {
+          target: '#providers-modal-body-inner',
+          swap: 'innerHTML',
+        });
       });
       window.showSuccessToast(isEdit ? 'Provider updated' : 'Provider added');
     } else {

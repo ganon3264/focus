@@ -63,7 +63,7 @@ function promptDeleteChar(btn) {
 document.addEventListener('alpine:init', () => {
   Alpine.data('charEditor', () => ({
     detailId: null,
-    charsList: window.ALL_CHARS || [],
+    charsList: window.CharacterStore ? CharacterStore.all() : (window.ALL_CHARS || []),
 
     get activeChar() {
       if (!this.detailId) return null;
@@ -75,6 +75,10 @@ document.addEventListener('alpine:init', () => {
     },
 
     init() {
+      const self = this;
+      if (window.CharacterStore) {
+        CharacterStore.on(function () { self.charsList = CharacterStore.all().slice(); });
+      }
       const urlParams = new URLSearchParams(window.location.search);
       const charParam = urlParams.get('char');
       if (charParam && this.charsList.find((c) => c.id === charParam)) {
@@ -117,6 +121,10 @@ function saveCharCard(btn) {
     body: JSON.stringify(payload),
   }).then(function (r) {
     if (r.ok) {
+      if (window.CharacterStore) {
+        var existing = CharacterStore.get(charId);
+        CharacterStore.upsert(Object.assign({}, existing, { id: charId, name: payload.name }));
+      }
       window.showSuccessToast('Character saved');
       const originalText = btn.innerText;
       btn.innerText = 'Saved!';

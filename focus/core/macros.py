@@ -1,4 +1,5 @@
 import hashlib
+import html
 import logging
 import random as _random
 import re
@@ -155,6 +156,7 @@ SPECIAL_TOKENS: list[dict[str, str]] = [
     {"syntax": "{{getvar::key}}", "description": "Inject a variable or setvar value by key"},
     {"syntax": "{{setvar::key::value}}", "description": "Define a custom macro inline (consumed)"},
     {"syntax": "{{var::key::value}}", "description": "Alias for {{setvar::}}"},
+    {"syntax": "{{setvar key}}...{{/setvar}}", "description": "Scoped multiline value (trimmed/dedented; prefix # to preserve whitespace)"},
     {"syntax": "{{trim}}", "description": "Remove this line and collapse excess blank lines"},
     {"syntax": "{{// comment}}", "description": "Comment — stripped from output entirely"},
     {"syntax": "{{media:x}}", "description": "Insert attachment at position x (1-based, left to right)"},
@@ -165,19 +167,90 @@ SPECIAL_TOKENS: list[dict[str, str]] = [
 ]
 
 
+def _scoped_value(body: str) -> str:
+    """Trim a scoped macro body and remove the first line's indentation from
+    every line (mirrors SillyTavern's default scoped content trimming)."""
+    body = body.strip("\n")
+    lines = body.split("\n")
+    if lines and lines[0]:
+        indent = re.match(r"[ \t]*", lines[0]).group(0)
+        if indent:
+            lines = [
+                line[len(indent):] if line.startswith(indent) else line
+                for line in lines
+            ]
+    return "\n".join(lines).strip()
+
+
+_SCOPED_SETVAR = re.compile(
+    r"\{\{\s*(?P<flag>#)?\s*(?:setvar|var)\s+(?P<key>[^{}]+?)\s*\}\}"
+    r"(?P<body>.*?)"
+    r"\{\{\s*/\s*(?:setvar|var)\s*\}\}",
+    re.DOTALL | re.IGNORECASE,
+)
+
+
+_INLINE_SETVAR_OPEN = re.compile(r"\{\{\s*(?:setvar|var)::", re.IGNORECASE)
+
+
+def _extract_inline_setvars(text: str, macros: dict[str, str]) -> str:
+    """Extract ``{{setvar::key::value}}`` while respecting nested macros.
+
+    Scans for the closing ``}}`` by brace depth so a value containing macros
+    such as ``{{user}}`` is not truncated at their closing braces.
+    """
+    result: list[str] = []
+    i = 0
+    while True:
+        m = _INLINE_SETVAR_OPEN.search(text, i)
+        if not m:
+            result.append(text[i:])
+            break
+        j = m.end()
+        depth = 1
+        end = None
+        while j < len(text):
+            if text[j : j + 2] == "{{":
+                depth += 1
+                j += 2
+            elif text[j : j + 2] == "}}":
+                depth -= 1
+                j += 2
+                if depth == 0:
+                    end = j
+                    break
+            else:
+                j += 1
+        if end is None:
+            result.append(text[i:])
+            break
+        inner = text[m.end() : end - 2]
+        if "::" in inner:
+            key, val = inner.split("::", 1)
+            macros[key.strip()] = val.strip()
+            result.append(text[i : m.start()])
+        else:
+            result.append(text[i:end])
+        i = end
+    return "".join(result)
+
+
 def extract_setvars(text: str, macros: dict[str, str]) -> str:
     """
-    Extracts {{setvar::key::value}} or {{var::key::value}} from text,
-    updates the macros dict, and removes the declaration from the text.
+    Extracts ``{{setvar::key::value}}`` / ``{{var::key::value}}`` and the
+    scoped ``{{setvar key}}...{{/setvar}}`` form, updates the macros dict, and
+    removes the declaration from the text.
     """
-    pattern = r"\{\{(?:setvar|var)::(.*?)::(.*?)\}\}"
 
-    def repl(match):
-        key, val = match.groups()
-        macros[key.strip()] = val.strip()
+    def scoped_repl(match):
+        key = match.group("key").strip()
+        if key:
+            body = match.group("body")
+            macros[key] = body if match.group("flag") else _scoped_value(body)
         return ""
 
-    return re.sub(pattern, repl, text, flags=re.IGNORECASE)
+    text = _SCOPED_SETVAR.sub(scoped_repl, text)
+    return _extract_inline_setvars(text, macros)
 
 
 _COMMENT_START = re.compile(r"\{\{\s*//")
@@ -258,4 +331,41 @@ def apply_macros(text: str, macros: dict[str, str], max_passes: int = MACRO_MAX_
         text = re.sub(r"\n{3,}", "\n\n", text)
         text = text.strip()
 
+    return text
+
+
+_TEMPLATE_MUSTACHE = re.compile(r"\{\{\{(.*?)\}\}\}|\{\{(.*?)\}\}", re.DOTALL)
+
+
+def resolve_template_macros(text: str, macros: dict[str, str]) -> str:
+    """Resolve recognised macros in a text that also carries Handlebars.
+
+    Unlike :func:`apply_macros`, tokens that are not macros (Handlebars paths,
+    block helpers, partials, …) are left verbatim so the template still
+    compiles. Triple braces insert the value raw, double braces HTML-escape it,
+    mirroring Handlebars escaping.
+    """
+    if not text:
+        return text
+
+    text = _strip_comment_macros(text)
+    chat_id = macros.get("_chat_id") if isinstance(macros.get("_chat_id"), str) else None
+
+    def repl(match: re.Match) -> str:
+        triple = match.group(1) is not None
+        key = (match.group(1) if triple else match.group(2)).strip()
+        resolved = _resolve_cbs(key, macros, chat_id)
+        if resolved is None:
+            if key not in macros:
+                return match.group(0)
+            resolved = str(macros[key])
+        return resolved if triple else html.escape(resolved, quote=True)
+
+    prev = None
+    for _ in range(MACRO_MAX_PASSES):
+        text = extract_setvars(text, macros)
+        text = _TEMPLATE_MUSTACHE.sub(repl, text)
+        if text == prev:
+            break
+        prev = text
     return text

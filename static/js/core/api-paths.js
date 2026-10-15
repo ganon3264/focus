@@ -25,6 +25,7 @@ window.api = {
     return '/api/chats/' + chatId + '/messages/' + msgId + '/pin';
   },
 
+  charactersList: '/api/characters',
   characters: function (id) {
     return '/api/characters/' + id;
   },
@@ -103,6 +104,9 @@ window.api = {
   partials: {
     messageList: function (chatId) {
       return '/partials/message-list/' + chatId;
+    },
+    messageToolbars: function (chatId) {
+      return '/partials/message-toolbars/' + chatId;
     },
     charactersModal: '/partials/characters-modal',
     personasModal: '/partials/personas-modal',

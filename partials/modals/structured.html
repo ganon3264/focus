@@ -4,7 +4,7 @@
   <div class="text-xs text-muted mb-2 shrink-0">
     Send a JSON schema with the request and render the model's JSON reply through a
     Handlebars template. Responses always generate buffered (no live streaming).
-    {{ hint_tooltip('Only one response is active per scope; a preset response overrides a global one. The schema is sent as response_format (json_schema). Macros like <code>{{char}}</code> are resolved inside the schema at generation time.') }}
+    {{ hint_tooltip('Only one response is active per scope; a preset response overrides a global one. The schema is sent as response_format (json_schema). Macros like <code>{{char}}</code> or <code>{{getvar::name}}</code> resolve in both the schema and the template at generation time; triple braces insert raw, double braces escape.') }}
   </div>
   <div
     id="structured-responses-container"

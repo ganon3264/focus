@@ -23,6 +23,7 @@ assertEqual(api.chatBulkDelete('c1'), '/api/chats/c1/messages/bulk_delete', 'api
 assertEqual(api.chatBranch('c1', 'm1'), '/api/chats/c1/messages/m1/branch', 'api.chatBranch');
 
 // ── Character routes ──
+assertEqual(api.charactersList, '/api/characters', 'api.charactersList');
 assertEqual(api.characters('ch1'), '/api/characters/ch1', 'api.characters');
 assertEqual(api.charDelete('ch1', true), '/api/characters/ch1?delete_chats=true', 'api.charDelete with true');
 assertEqual(api.charDelete('ch1', false), '/api/characters/ch1?delete_chats=false', 'api.charDelete with false');
@@ -52,6 +53,7 @@ assertEqual(api.backupDelete('b1'), '/api/backups/b1', 'api.backupDelete');
 
 // ── Partials ──
 assertEqual(api.partials.messageList('c1'), '/partials/message-list/c1', 'partials.messageList');
+assertEqual(api.partials.messageToolbars('c1'), '/partials/message-toolbars/c1', 'partials.messageToolbars');
 
 // ── Special characters in IDs ──
 assertEqual(api.chatAttachments('abc-123'), '/api/chats/abc-123/attachments', 'chat with hyphen');

@@ -16,7 +16,7 @@ from functools import lru_cache
 import json_repair
 from pybars import Compiler
 
-from .macros import apply_macros
+from .macros import apply_macros, resolve_template_macros
 
 _compiler = Compiler()
 
@@ -165,11 +165,9 @@ def validate_schema_text(schema_text: str) -> str | None:
 def validate_template(template: str) -> str | None:
     if not template.strip():
         return "Template is empty."
-    banned = _banned_syntax(template)
-    if banned:
-        return banned
     try:
-        _compile(template)
+        resolved = resolve_template_macros(template, {})
+        _compile(resolved)
     except Exception as e:
         return f"Invalid template: {e}"
     return None
@@ -180,7 +178,7 @@ def render_structured(raw, template: str, macros: dict[str, str]) -> str:
     data = parse_structured(raw)
     if data is None:
         raise ValueError("model response is not valid JSON")
-    compiled = _compile(template)
+    compiled = _compile(resolve_template_macros(template, macros))
     return str(compiled(data, helpers=_build_helpers(macros)))
 
 
