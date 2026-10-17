@@ -295,7 +295,9 @@ async def get_provider_balance(provider_id: str, _db=Depends(get_db)):
     if not cfg:
         raise HTTPException(400, f"Balance not supported for provider type: {d['type']}")
 
-    api_key = await db.resolve_active_api_key(_db, d)
+    api_key = (await db.resolve_active_api_key(_db, d)).strip()
+    if not api_key:
+        return {"balances": []}
     cache_key = f"{d['type']}_{hash(api_key)}"
 
     async def _fetch():

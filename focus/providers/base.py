@@ -56,8 +56,9 @@ class BaseProvider(ABC):
 
     def _build_headers(self) -> dict:
         headers = {"Content-Type": "application/json"}
-        if self.api_key:
-            headers["Authorization"] = f"Bearer {self.api_key}"
+        key = self.api_key.strip()
+        if key:
+            headers["Authorization"] = f"Bearer {key}"
         return headers
 
     async def fetch_models(self) -> list[dict]:
@@ -72,8 +73,6 @@ class BaseProvider(ABC):
         extra = getattr(self, "_extra_headers", None)
         if extra:
             headers.update(extra())
-        if self.api_key and "Authorization" not in headers:
-            headers["Authorization"] = f"Bearer {self.api_key}"
         async with httpx.AsyncClient() as client:
             resp = await client.get(url, timeout=MODEL_FETCH_HTTP_TIMEOUT, headers=headers)
             resp.raise_for_status()

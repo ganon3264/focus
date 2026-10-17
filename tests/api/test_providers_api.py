@@ -290,6 +290,16 @@ class TestBalance:
             {"amount": 3.0, "currency": "CNY"},
         ]}
 
+    async def test_no_key_returns_unavailable_without_request(self, client, monkeypatch):
+        def handler(request):
+            raise AssertionError("balance must not hit the network without a key")
+
+        _patch_httpx(monkeypatch, handler)
+        pid = await _make_provider(client, ptype="openrouter")
+        resp = await client.get(f"/api/providers/{pid}/balance")
+        assert resp.status_code == 200
+        assert resp.json() == {"balances": []}
+
     async def test_unsupported_type_400(self, client):
         pid = await _make_provider(client)
         assert (await client.get(f"/api/providers/{pid}/balance")).status_code == 400

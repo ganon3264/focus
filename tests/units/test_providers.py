@@ -542,6 +542,9 @@ class TestBaseProvider:
         }
         headers = _ConcreteProvider("http://x", "k", "m", {})._build_headers()
         assert headers["Authorization"] == "Bearer k"
+        assert _ConcreteProvider("http://x", "  ", "m", {})._build_headers() == {
+            "Content-Type": "application/json",
+        }
 
     async def test_fetch_models_variants(self, monkeypatch):
         provider = _ConcreteProvider("http://example.com", "k", "m", {})
