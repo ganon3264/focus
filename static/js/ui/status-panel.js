@@ -223,19 +223,17 @@ function startSummary(chatId, messageId, btn) {
   }
   run.cancel = cancelled;
 
-  function handleEvent(raw) {
-    var line = raw.trim();
-    if (line.indexOf('data:') !== 0) return;
-    var data;
-    try { data = JSON.parse(line.slice(5).trim()); } catch (e) { return; }
-
+  function handleEvent(data) {
     if (data.type === 'retry') {
       window.startRetryFeedback(data);
     } else if (data.type === 'error') {
       fail(data.error);
     } else if (data.type === 'done') {
       if (finished) return;
-      if (data.cancelled) { cancelled(); return; }
+      if (data.cancelled) {
+        cancelled();
+        return;
+      }
       finished = true;
       teardown();
       window.resetRetryFeedback();
@@ -266,22 +264,9 @@ function startSummary(chatId, messageId, btn) {
           throw new Error(msg || 'Summarize failed');
         });
       }
-      var reader = resp.body.getReader();
-      var decoder = new TextDecoder();
-      var buffer = '';
-      (function pump() {
-        reader.read().then(function (result) {
-          if (result.done) {
-            if (!finished) fail('Summary stream ended unexpectedly');
-            return;
-          }
-          buffer += decoder.decode(result.value, { stream: true });
-          var chunks = buffer.split('\n\n');
-          buffer = chunks.pop();
-          chunks.forEach(handleEvent);
-          pump();
-        }).catch(function (e) { fail(e.message); });
-      })();
+      return window.readEventStream(resp, handleEvent).then(function () {
+        if (!finished) fail('Summary stream ended unexpectedly');
+      });
     })
     .catch(function (e) {
       if (run.stopRequested) cancelled();

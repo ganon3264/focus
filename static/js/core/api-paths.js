@@ -1,5 +1,6 @@
 window.api = {
   chats: '/api/chats',
+  chatsStale: '/api/chats/stale',
   chatAttachments: function (chatId) {
     return '/api/chats/' + chatId + '/attachments';
   },

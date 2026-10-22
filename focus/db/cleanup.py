@@ -32,23 +32,34 @@ def _asset_relative(path_str: str) -> str | None:
     return None
 
 
-async def clean_database(db: aiosqlite.Connection) -> dict:
-    """Purge soft-deleted entities and orphaned files. Returns a dict of counts."""
+async def clean_database(db: aiosqlite.Connection, progress=None) -> dict:
+    """Purge soft-deleted entities and orphaned files. Returns a dict of counts.
+
+    ``progress`` is an async ``(label, current=0, total=0)`` callback fired once
+    per completed stage, so a streaming endpoint can narrate the sweep.
+    """
     counts: dict[str, int] = {}
+
+    async def report(label: str) -> None:
+        if progress is not None:
+            await progress(label)
 
     counts["chats"] = (
         await db.execute(
             "DELETE FROM chats WHERE is_deleted = 1 OR character_id IN (SELECT id FROM characters WHERE is_deleted = 1)"
         )
     ).rowcount
+    await report("Trashed chats")
 
     counts["characters"] = (
         await db.execute("DELETE FROM characters WHERE is_deleted = 1")
     ).rowcount
+    await report("Trashed characters")
 
     counts["personas"] = (
         await db.execute("DELETE FROM personas WHERE is_deleted = 1")
     ).rowcount
+    await report("Trashed personas")
 
     counts["block_images"] = (
         await db.execute("""
@@ -72,25 +83,32 @@ async def clean_database(db: aiosqlite.Connection) -> dict:
                 ))
         """)
     ).rowcount
+    await report("Orphaned block images")
 
     counts["attachments"] = (
         await db.execute("DELETE FROM message_attachments WHERE message_id IS NULL")
     ).rowcount
+    await report("Detached attachments")
 
     await db.commit()
-    asset_counts = await clean_orphaned_assets(db)
+    asset_counts = await clean_orphaned_assets(db, progress=progress)
     counts.update(asset_counts)
     await db.execute("VACUUM")
+    await report("Vacuumed")
     return counts
 
 
-async def clean_orphaned_assets(db: aiosqlite.Connection) -> dict:
+async def clean_orphaned_assets(db: aiosqlite.Connection, progress=None) -> dict:
     """Remove every file under ASSETS_DIR not referenced by any DB row.
 
     This is the "reverse" approach: instead of tracking what was just deleted,
     we query the DB for everything still alive and delete the rest from disk.
     """
     counts: dict[str, int] = {}
+
+    async def report(label: str) -> None:
+        if progress is not None:
+            await progress(label)
 
     # ── Collect known file paths from DB ──
     known: set[str] = set()
@@ -140,6 +158,7 @@ async def clean_orphaned_assets(db: aiosqlite.Connection) -> dict:
                 f.unlink(missing_ok=True)
                 purged += 1
     counts["compressed_purged"] = purged
+    await report("Compressed cache")
 
     # ── Remove orphaned entity directories ──
     orphaned_dirs = 0
@@ -159,6 +178,7 @@ async def clean_orphaned_assets(db: aiosqlite.Connection) -> dict:
                 shutil.rmtree(entry, ignore_errors=True)
                 orphaned_dirs += 1
     counts["orphaned_entity_dirs"] = orphaned_dirs
+    await report("Orphaned folders")
 
     # ── Walk remaining filesystem and delete orphans ──
     orphaned_files = 0
@@ -171,6 +191,7 @@ async def clean_orphaned_assets(db: aiosqlite.Connection) -> dict:
             entry.unlink(missing_ok=True)
             orphaned_files += 1
     counts["orphaned_files"] = orphaned_files
+    await report("Orphaned files")
 
     # ── Remove empty directories bottom-up ──
     empty_dirs = 0
@@ -182,5 +203,6 @@ async def clean_orphaned_assets(db: aiosqlite.Connection) -> dict:
             except OSError:
                 pass
     counts["empty_dirs_removed"] = empty_dirs
+    await report("Empty folders")
 
     return counts

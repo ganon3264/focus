@@ -10,6 +10,9 @@ global.window = global;
 global.document = h.createMockDocument();
 global.openModal = function () {};
 global.closeModal = function () {};
+global.streamProgress = function () {
+  return Promise.resolve({ size_bytes: 1024 });
+};
 global.htmx = { ajax: function () { return Promise.resolve(); } };
 global.fetch = function (url, opts) {
   global._lastFetch = { url: url, opts: opts };
@@ -18,9 +21,11 @@ global.fetch = function (url, opts) {
 global._lastFetch = null;
 global.window.api = {
   backups: '/api/backups',
+  chatsStale: '/api/chats/stale',
   export: '/api/export',
   cleanDb: '/api/db/clean',
   chats: '/api/chats',
+  chatsStale: '/api/chats/stale',
   import_: '/api/import',
   backupRestore: function (id) { return '/api/backups/' + id + '/restore'; },
   backupDelete: function (id) { return '/api/backups/' + id; },
@@ -170,6 +175,35 @@ assert(!!BM, 'BackupManager loaded');
   return BM.doExport().then(function () {
     assertDeepEqual(lastBody.chats, ['chat1'], 'doExport chat filter: only char1 chats');
   });
+})();
+
+// ── Stale-chat purge ──
+(function () {
+  var confirms = [];
+  global.fetch = function (url) {
+    global._lastFetch = { url: url };
+    return Promise.resolve({
+      json: function () { return { count: 3, deleted: 0, ids: [] }; },
+      ok: true,
+    });
+  };
+  global.window.customConfirm = function (msg, cb) { confirms.push(msg); };
+
+  BM.setPurgeRange({ value: '0' });
+  assertEqual(BM._purge.days, 0, 'setPurgeRange: parses 0');
+  BM.purgeOldChats();
+  assertEqual(confirms.length, 0, 'purge: refuses when days < 1');
+
+  BM.setPurgeRange({ value: '180' });
+  assertEqual(BM._purge.days, 180, 'setPurgeRange: 180 days');
+  BM._purge.count = 3;
+  BM.purgeOldChats();
+  assertEqual(confirms.length, 1, 'purge: confirms when days >= 1');
+  assert(confirms[0].indexOf('3 chats') >= 0, 'purge: confirm shows the count');
+
+  BM.setPurgeCustom({ value: '45' });
+  assertEqual(BM._purge.days, 45, 'setPurgeCustom: 45 days');
+  assert(global._lastFetch.url === '/api/chats/stale?days=45', 'preview: hits the stale endpoint');
 })();
 
 // ── Result ──

@@ -15,6 +15,7 @@ from starlette.datastructures import Headers
 from focus.core.database import get_db, init_db, init_directories
 from focus.core.logger import get_logger
 from focus.core.paths import CACHE_STATIC
+from focus.core.progress_stream import progress_stream
 from focus.db.cleanup import clean_database as db_cleanup
 from focus.routers import (
     backup,
@@ -207,8 +208,7 @@ async def favicon():
 
 @app.post("/api/db/clean")
 async def clean_database_endpoint(_db=Depends(get_db)):
-    counts = await db_cleanup(_db)
-    return counts
+    return progress_stream(lambda progress: db_cleanup(_db, progress=progress))
 
 
 if __name__ == "__main__":

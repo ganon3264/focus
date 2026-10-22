@@ -1,5 +1,7 @@
 from tests.helpers import create_character, create_chat, create_persona, create_preset
 
+import aiosqlite
+
 
 class TestChats:
     async def test_create_empty(self, client):
@@ -60,6 +62,60 @@ class TestChats:
         await client.patch(f"/api/chats/{ch['id']}", json={"character_id": c2["id"]})
         resp = await client.get(f"/api/chats/{ch['id']}")
         assert resp.json()["character_id"] == c2["id"]
+
+
+class TestStaleChats:
+    async def _age(self, tmp_test_dir, chat_id, days):
+        import os
+        from datetime import UTC, datetime, timedelta
+
+        async with aiosqlite.connect(os.path.join(tmp_test_dir, "test.db")) as db:
+            await db.execute(
+                "UPDATE chats SET updated_at = ? WHERE id = ?",
+                ((datetime.now(UTC) - timedelta(days=days)).isoformat(), chat_id),
+            )
+            await db.commit()
+
+    async def test_count_and_trash(self, client, tmp_test_dir):
+        old = await create_chat(client, title="Old")
+        fresh = await create_chat(client, title="Fresh")
+        await self._age(tmp_test_dir, old["id"], 40)
+
+        count = await client.get("/api/chats/stale?days=30")
+        assert count.json()["count"] == 1
+
+        resp = await client.delete("/api/chats/stale?days=30")
+        assert resp.json() == {"deleted": 1, "ids": [old["id"]]}
+
+        assert (await client.get(f"/api/chats/{old['id']}")).status_code == 404
+        assert (await client.get(f"/api/chats/{fresh['id']}")).status_code == 200
+
+        trash = [c["id"] for c in (await client.get("/api/chats/trash")).json()]
+        assert old["id"] in trash
+
+        restored = await client.post(f"/api/chats/{old['id']}/restore")
+        assert restored.status_code == 200
+        assert (await client.get(f"/api/chats/{old['id']}")).status_code == 200
+
+    async def test_nothing_old_enough(self, client, tmp_test_dir):
+        ch = await create_chat(client)
+        await self._age(tmp_test_dir, ch["id"], 5)
+
+        assert (await client.get("/api/chats/stale?days=30")).json()["count"] == 0
+        assert (await client.delete("/api/chats/stale?days=30")).json()["deleted"] == 0
+        assert (await client.get(f"/api/chats/{ch['id']}")).status_code == 200
+
+    async def test_rejects_zero_days(self, client):
+        assert (await client.get("/api/chats/stale?days=0")).status_code == 422
+        assert (await client.delete("/api/chats/stale?days=0")).status_code == 422
+        assert (await client.delete("/api/chats/stale?days=999999")).status_code == 422
+
+    async def test_skips_already_trashed(self, client, tmp_test_dir):
+        ch = await create_chat(client)
+        await self._age(tmp_test_dir, ch["id"], 40)
+        await client.delete(f"/api/chats/{ch['id']}")
+
+        assert (await client.get("/api/chats/stale?days=30")).json()["count"] == 0
 
 
 class TestCrossEntity:

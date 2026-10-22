@@ -57,6 +57,13 @@ class TestChatPage:
         # Chat page must render with the greeting message present
         assert "Greetings" in resp.text
 
+    async def test_advanced_modal_has_stale_chat_purge(self, client):
+        chat, _, _, _ = await _seed_chat(client)
+        resp = await client.get(f"/chat/{chat['id']}")
+        assert 'id="purge-days"' in resp.text
+        assert 'id="btn-purge-old-chats"' in resp.text
+        assert "Older than 1 year" in resp.text
+
     async def test_unknown_chat_redirects(self, client):
         resp = await client.get("/chat/does-not-exist", follow_redirects=False)
         assert resp.status_code in (302, 307)

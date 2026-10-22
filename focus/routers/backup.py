@@ -3,17 +3,15 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from focus.backup import create_backup, delete_backup, list_backups, restore_backup
 from focus.core.database import get_db
+from focus.core.progress_stream import progress_stream
 
 router = APIRouter()
 
 
-@router.post("/", status_code=201)
-@router.post("", status_code=201)
+@router.post("/")
+@router.post("")
 async def api_create_backup(db: aiosqlite.Connection = Depends(get_db)):
-    try:
-        return await create_backup(db)
-    except OSError as e:
-        raise HTTPException(500, f"Failed to create backup: {e}")
+    return progress_stream(lambda progress: create_backup(db, progress=progress))
 
 
 @router.get("/")

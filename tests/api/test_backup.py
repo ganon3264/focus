@@ -1,3 +1,4 @@
+import json
 import os
 
 import aiosqlite
@@ -19,6 +20,23 @@ async def _count_chars(db_path: str) -> int:
         db.row_factory = aiosqlite.Row
         async with db.execute("SELECT COUNT(*) as c FROM characters") as cur:
             return (await cur.fetchone())["c"]
+
+
+def _sse_events(text: str) -> list[dict]:
+    events = []
+    for block in text.split("\n\n"):
+        for line in block.split("\n"):
+            if line.startswith("data: "):
+                events.append(json.loads(line[len("data: "):]))
+    return events
+
+
+async def _create_backup(client) -> dict:
+    resp = await client.post("/api/backups")
+    assert resp.status_code == 200
+    done = [e for e in _sse_events(resp.text) if e["type"] == "done"]
+    assert done, resp.text
+    return done[-1]["result"]
 
 
 class TestBackupFunctions:
@@ -113,26 +131,30 @@ class TestBackupFunctions:
 class TestBackupAPI:
     async def test_create_backup_endpoint(self, client):
         resp = await client.post("/api/backups")
-        assert resp.status_code == 201
-        data = resp.json()
-        assert data["size_bytes"] > 0
+        assert resp.status_code == 200
+        assert resp.headers["content-type"].startswith("text/event-stream")
+        events = _sse_events(resp.text)
+        progress = [e for e in events if e["type"] == "progress"]
+        assert any(e["label"] == "Reading database" for e in progress)
+        done = [e for e in events if e["type"] == "done"]
+        assert len(done) == 1
+        assert done[0]["result"]["size_bytes"] > 0
 
     async def test_list_backups_endpoint(self, client):
-        await client.post("/api/backups")
+        await _create_backup(client)
         resp = await client.get("/api/backups")
         assert resp.status_code == 200
         backups = resp.json()
         assert len(backups) >= 1
 
     async def test_delete_backup_endpoint(self, client):
-        resp = await client.post("/api/backups")
-        backup_id = resp.json()["id"]
+        backup = await _create_backup(client)
 
-        del_resp = await client.delete(f"/api/backups/{backup_id}")
+        del_resp = await client.delete(f"/api/backups/{backup['id']}")
         assert del_resp.status_code == 204
 
     async def test_restore_backup_endpoint(self, client):
-        await client.post("/api/backups")
+        await _create_backup(client)
 
         backups = (await client.get("/api/backups")).json()
         backup_id = backups[0]["id"]
@@ -148,6 +170,27 @@ class TestBackupAPI:
     async def test_delete_nonexistent_backup_endpoint(self, client):
         resp = await client.delete("/api/backups/nonexistent")
         assert resp.status_code == 404
+
+
+class TestCleanEndpoint:
+    async def test_streams_stages_then_counts(self, client):
+        char = await client.post("/api/characters", json={"name": "Trashed"})
+        assert char.status_code == 201
+        await client.delete(f"/api/characters/{char.json()['id']}")
+
+        resp = await client.post("/api/db/clean")
+        assert resp.status_code == 200
+        assert resp.headers["content-type"].startswith("text/event-stream")
+
+        events = _sse_events(resp.text)
+        labels = [e["label"] for e in events if e["type"] == "progress"]
+        assert labels[0] == "Trashed chats"
+        assert "Orphaned files" in labels
+        assert labels[-1] == "Vacuumed"
+
+        done = [e for e in events if e["type"] == "done"]
+        assert len(done) == 1
+        assert done[0]["result"]["characters"] == 1
 
 
 class TestGetBackupsDir:

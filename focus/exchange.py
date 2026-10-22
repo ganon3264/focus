@@ -151,7 +151,15 @@ async def _query_table(
         return [dict(r) for r in await cur.fetchall()]
 
 
-async def export_data(db: aiosqlite.Connection, req: ExportRequest) -> bytes:
+async def export_data(db: aiosqlite.Connection, req: ExportRequest, progress=None) -> bytes:
+    """Build a .focus archive. ``progress`` is an async
+    ``(label, current=0, total=0)`` callback narrating the phases.
+    """
+
+    async def report(label: str, current: int = 0, total: int = 0) -> None:
+        if progress is not None:
+            await progress(label, current, total)
+
     char_ids = await _resolve_entity_ids(db, "characters", req.characters)
     persona_ids = await _resolve_entity_ids(db, "personas", req.personas)
     preset_ids = await _resolve_entity_ids(db, "presets", req.presets)
@@ -268,6 +276,7 @@ async def export_data(db: aiosqlite.Connection, req: ExportRequest) -> bytes:
         )
 
     # Build the database dump
+    await report("Reading database")
     database: dict[str, list[dict]] = {
         "characters": await _query_table(db, "characters", "id", char_ids),
         "personas": await _query_table(db, "personas", "id", persona_ids),
@@ -343,6 +352,7 @@ async def export_data(db: aiosqlite.Connection, req: ExportRequest) -> bytes:
         zf.writestr("database.json", json.dumps(database, indent=2, ensure_ascii=False))
 
         seen_entries: set[str] = set()
+        assets: list[tuple[Path, str]] = []
         for table, field in PATH_FIELDS:
             for orig_row, new_row in zip(raw_database.get(table, []), database.get(table, [])):
                 old_path = orig_row.get(field)
@@ -363,13 +373,18 @@ async def export_data(db: aiosqlite.Connection, req: ExportRequest) -> bytes:
                     logger.warning("Duplicate archive entry, skipping: %s", entry)
                     continue
                 seen_entries.add(entry)
-                zf.write(src, entry)
+                assets.append((src, entry))
+
+        for i, (src, entry) in enumerate(assets, 1):
+            zf.write(src, entry)
+            await report("Archiving files", i, len(assets))
 
         if TOOLS_DIR.is_dir():
             for f in sorted(TOOLS_DIR.iterdir()):
                 if f.suffix == ".json" and f.is_file():
                     zf.write(f, f"tools/{f.name}")
 
+    await report("Backup written")
     return buf.getvalue()
 
 

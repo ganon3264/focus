@@ -1,4 +1,11 @@
-{% from "macros.html" import icon_plus, icon_database, icon_upload, icon_search %}
+{% from "macros.html" import icon_plus, icon_database, icon_upload, icon_search, custom_select %}
+{% set purge_options = [
+  {"value": "30", "label": "Older than 30 days"},
+  {"value": "90", "label": "Older than 90 days"},
+  {"value": "180", "label": "Older than 6 months"},
+  {"value": "365", "label": "Older than 1 year"},
+  {"value": "custom", "label": "Custom…"}
+] %}
 {# Body of the Backups tab in the Advanced modal. #}
 <div class="flex flex-col gap-4 mt-1">
   {# ── Actions ── #}
@@ -37,10 +44,44 @@
 
   <span id="backup-status" class="text-xs"></span>
 
-  <div class="flex gap-2">
+  {# ── Maintenance ── #}
+  <div class="flex flex-col gap-2">
+    <h3 class="sidebar-title">Maintenance</h3>
+    <div class="flex gap-2 items-stretch">
+      <div class="flex-1">
+        {{ custom_select(
+             name="purge-days",
+             id="purge-days",
+             options=purge_options,
+             selected="90",
+             on_change="BackupManager.setPurgeRange($el)",
+             extra_classes="form-control text-sm"
+           ) }}
+      </div>
+      <button
+        type="button"
+        id="btn-purge-old-chats"
+        class="btn btn-danger text-sm flex items-center justify-center gap-1.5 shrink-0"
+        data-action="BackupManager.purgeOldChats"
+      >
+        Move to Trash
+      </button>
+    </div>
+    <input
+      type="number"
+      id="purge-days-custom"
+      min="1"
+      step="1"
+      max="36500"
+      value="90"
+      placeholder="Days"
+      class="hidden text-sm form-control w-full"
+      data-action="BackupManager.setPurgeCustom"
+    />
+    <span id="purge-old-chats-status" class="text-xs"></span>
     <button
       type="button"
-      class="btn btn-danger flex-1 text-sm flex items-center justify-center gap-1.5"
+      class="btn btn-danger w-full text-sm flex items-center justify-center gap-1.5"
       data-action="BackupManager.cleanDatabase"
     >
       Clean DB

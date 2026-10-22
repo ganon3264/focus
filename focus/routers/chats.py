@@ -2,7 +2,7 @@ import asyncio
 import json
 import logging
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from starlette.background import BackgroundTask
@@ -15,7 +15,7 @@ from focus.core.models import ChatCreate, MessageEdit
 from focus.core.paths import ATTACHMENTS_DIR
 from focus.core.retry import RetryConfig
 from focus.core.summary import summary_config
-from focus.core.utils import read_upload
+from focus.core.utils import read_upload, sse_event
 from focus.extensions.triggers import schedule_trigger
 
 logger = logging.getLogger("focus.routers.chats")
@@ -74,6 +74,18 @@ async def list_trashed_chats(_db=Depends(get_db)):
     """
     async with _db.execute(query) as cur:
         return [dict(r) for r in await cur.fetchall()]
+
+
+@router.get("/stale")
+async def list_stale_chats(days: int = Query(30, ge=1, le=36500), _db=Depends(get_db)):
+    return {"count": await db.count_stale_chats(_db, days), "days": days}
+
+
+@router.delete("/stale")
+async def delete_stale_chats(days: int = Query(30, ge=1, le=36500), _db=Depends(get_db)):
+    ids = await db.delete_stale_chats(_db, days)
+    await _db.commit()
+    return {"deleted": len(ids), "ids": ids}
 
 
 @router.get("/{chat_id}")
@@ -328,10 +340,6 @@ _active_summaries: dict[str, asyncio.Event] = {}
 SUMMARY_ATTEMPT_TIMEOUT = 300.0
 
 
-def _sse(payload: dict) -> str:
-    return f"data: {json.dumps(payload)}\n\n"
-
-
 @router.post("/{chat_id}/summarize")
 async def summarize_chat(chat_id: str, body: SummarizeRequest, _db=Depends(get_db)):
     """Summarize *chat_id* in an ephemeral generation and fork a child chat.
@@ -365,7 +373,7 @@ async def summarize_chat(chat_id: str, body: SummarizeRequest, _db=Depends(get_d
 
     async def events():
         try:
-            yield _sse({"type": "start"})
+            yield sse_event({"type": "start"})
             summary_text: str | None = None
             async for ev in buffered_completion_with_retry(
                 prep["provider"], prep["messages"], prep["gen_kwargs"],
@@ -373,16 +381,16 @@ async def summarize_chat(chat_id: str, body: SummarizeRequest, _db=Depends(get_d
                 attempt_timeout=SUMMARY_ATTEMPT_TIMEOUT,
             ):
                 if ev.get("stopped"):
-                    yield _sse({"type": "done", "cancelled": True})
+                    yield sse_event({"type": "done", "cancelled": True})
                     return
                 if ev["type"] == "text":
                     summary_text = ev["text"]
                     continue
-                yield _sse(ev)
+                yield sse_event(ev)
                 if ev["type"] == "error":
                     return
             if not summary_text:
-                yield _sse({"type": "error", "error": "The provider returned an empty summary."})
+                yield sse_event({"type": "error", "error": "The provider returned an empty summary."})
                 return
             try:
                 summary_id = await db.create_summary(
@@ -401,9 +409,9 @@ async def summarize_chat(chat_id: str, body: SummarizeRequest, _db=Depends(get_d
                 await _db.commit()
             except Exception as e:
                 logger.exception("Failed to persist summary for chat_id=%s", chat_id)
-                yield _sse({"type": "error", "error": f"Failed to save summary: {_error_reason(e)}"})
+                yield sse_event({"type": "error", "error": f"Failed to save summary: {_error_reason(e)}"})
                 return
-            yield _sse({"type": "done", "id": child_id})
+            yield sse_event({"type": "done", "id": child_id})
         finally:
             _release()
 

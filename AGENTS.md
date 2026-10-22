@@ -93,6 +93,11 @@ The pruner's `_pruned` map is keyed by bare id (`MessageIdentity.bare`); `_forge
 - `notifications.js` is loaded in `base.html` above `{% block content %}`, so the API is always defined on every page — call it unguarded.
 - All cards stack as a list; per-card timer with hover-pause; dedup by `id` when given, else by type+message (refreshes timer and updates the text in place); max 5 visible (oldest evicted); fade in/out via `toast-in`/`toast-out` in `animations.css`. Never block with `alert()` — use toasts.
 
+### Long-running maintenance — progress stream
+
+- Slow maintenance actions (backup create, clean DB) answer `text/event-stream` and report stages while they run. Backend: `focus/core/progress_stream.py::progress_stream(run)` runs `run(progress)` in a task and streams `progress | done | error` (same envelope as generation; `done` carries `result`). The work function takes an async `progress(label, current=0, total=0)` callback — `clean_database()` and `export_data()`/`create_backup()` accept one.
+- Frontend: `static/js/core/sse.js` owns the wire side — `window.readEventStream(response, onPayload)` is the **only** SSE read loop (generation, summarize and progress all use it; returning `true` stops reading and cancels the connection) and `window.streamProgress(url, opts, onEvent)` layers the `progress | done | error` interpretation on top (resolves with the `done` result, rejects on `error` or a truncated stream). A progress caller renders **one id-keyed live toast** (`showInfoToast(..., {id, duration: 0})`), then `hideToast(id)` and a success/error toast on completion. Never fake progress by mutating button labels.
+
 ### Streaming
 
 SSE payloads are uniform envelopes — always `{"type": "<event>", ...}` with events

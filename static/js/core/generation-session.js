@@ -159,39 +159,12 @@
 
         // Both streaming and buffered (stream_enabled=false) modes answer with
         // SSE; buffered mode just replays the finished text as one token.
-        var reader = res.body.getReader();
-        var decoder = new TextDecoder();
-        var buffer = '';
-
-        try {
-          while (true) {
-            var result = await reader.read();
-            if (result.done) break;
-            buffer += decoder.decode(result.value, { stream: true });
-            var lines = buffer.split('\n');
-            buffer = lines.pop();
-            for (var i = 0; i < lines.length; i++) {
-              var line = lines[i];
-              if (!line.startsWith('data: ')) continue;
-              var raw = line.slice(6).trim();
-              if (!raw) continue;
-              var parsed;
-              try {
-                parsed = JSON.parse(raw);
-              } catch (e) {
-                continue;
-              }
-              window.dispatchStreamEvent(state, parsed);
-              if (state.errorMsg) break;
-            }
-            if (state.errorMsg) break;
-          }
-        } finally {
-          // Leaving the loop on `error` (or an abort) stops reading mid-body;
-          // cancelling hands the connection back instead of pinning it open
-          // with data the server may still be writing.
-          reader.cancel().catch(function () {});
-        }
+        // Stopping early on an error hands the connection back instead of
+        // pinning it open with data the server may still be writing.
+        await window.readEventStream(res, function (parsed) {
+          window.dispatchStreamEvent(state, parsed);
+          return !!state.errorMsg;
+        });
 
         if (state.errorMsg) {
           await handleFailure(state, state.errorMsg, 'Error');

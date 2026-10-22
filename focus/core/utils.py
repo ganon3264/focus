@@ -177,6 +177,10 @@ def now_iso() -> str:
     return datetime.now(UTC).isoformat()
 
 
+def sse_event(payload: dict) -> str:
+    return f"data: {json.dumps(payload)}\n\n"
+
+
 async def resolve_secret_key(db: aiosqlite.Connection, api_key: str) -> str:
     if not api_key or not api_key.startswith("SECRET:"):
         return api_key

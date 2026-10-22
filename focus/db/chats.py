@@ -3,6 +3,7 @@ from __future__ import annotations
 import html
 import json
 import uuid
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import aiosqlite
@@ -148,6 +149,31 @@ async def update_chat_tool_states(db: aiosqlite.Connection, chat_id: str, states
 
 async def delete_chat(db: aiosqlite.Connection, chat_id: str) -> None:
     await db.execute("UPDATE chats SET is_deleted = 1 WHERE id = ?", (chat_id,))
+
+
+def stale_chat_cutoff(days: int) -> str:
+    return (datetime.now(UTC) - timedelta(days=days)).isoformat()
+
+
+async def count_stale_chats(db: aiosqlite.Connection, days: int) -> int:
+    async with db.execute(
+        "SELECT COUNT(*) FROM chats WHERE is_deleted = 0 AND updated_at < ?",
+        (stale_chat_cutoff(days),),
+    ) as cur:
+        row = await cur.fetchone()
+    return row[0] if row else 0
+
+
+async def delete_stale_chats(db: aiosqlite.Connection, days: int) -> list[str]:
+    cutoff = stale_chat_cutoff(days)
+    async with db.execute(
+        "SELECT id FROM chats WHERE is_deleted = 0 AND updated_at < ?", (cutoff,)
+    ) as cur:
+        ids = [row[0] for row in await cur.fetchall()]
+    await db.execute(
+        "UPDATE chats SET is_deleted = 1 WHERE is_deleted = 0 AND updated_at < ?", (cutoff,)
+    )
+    return ids
 
 
 async def hard_delete_chat(db: aiosqlite.Connection, chat_id: str) -> None:

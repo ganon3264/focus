@@ -24,6 +24,7 @@ async def create_backup(
     db: aiosqlite.Connection,
     *,
     backups_path: str | None = None,
+    progress=None,
 ) -> dict:
     from focus.core.models import ExportRequest
     from focus.exchange import export_data
@@ -36,12 +37,14 @@ async def create_backup(
         include_providers=True,
         include_secrets=True,
     )
-    zip_bytes = await export_data(db, req)
+    zip_bytes = await export_data(db, req, progress=progress)
 
     ts = now_iso().replace(":", "-")
     backups_dir = get_backups_dir(backups_path)
     backup_file = backups_dir / f"{ts}.focus"
-    backup_file.write_bytes(zip_bytes)
+    if progress is not None:
+        await progress("Saving backup")
+    await asyncio.to_thread(backup_file.write_bytes, zip_bytes)
 
     logger.info("Backup created: %s (%d bytes)", ts, len(zip_bytes))
     return {

@@ -8,6 +8,7 @@ eval(require('fs').readFileSync(path.join(__dirname, '..', '..', 'static', 'js',
 
 // ── String constants ──
 assertEqual(api.chats, '/api/chats', 'api.chats');
+assertEqual(api.chatsStale, '/api/chats/stale', 'api.chatsStale');
 assertEqual(api.charImport, '/api/characters/import', 'api.charImport');
 assertEqual(api.providers, '/api/providers', 'api.providers');
 assertEqual(api.stream, '/api/stream', 'api.stream');

@@ -35,9 +35,38 @@
     else el.classList.remove('active');
   }
 
+  function toastProgress(prefix, event) {
+    const label = event.label || 'Working';
+    const step = event.total ? ' ' + event.current + '/' + event.total : '';
+    return prefix + ' — ' + label + step;
+  }
+
+  const COUNT_LABELS = {
+    chats: 'chats deleted',
+    characters: 'characters deleted',
+    personas: 'personas deleted',
+    block_images: 'orphaned images',
+    attachments: 'detached attachments',
+    compressed_purged: 'cached images purged',
+    orphaned_entity_dirs: 'orphaned folders',
+    orphaned_files: 'orphaned files',
+    empty_dirs_removed: 'empty folders',
+  };
+
+  function describeCounts(counts) {
+    const parts = [];
+    if (counts) {
+      Object.keys(COUNT_LABELS).forEach(function (key) {
+        if (counts[key]) parts.push(counts[key] + ' ' + COUNT_LABELS[key]);
+      });
+    }
+    return parts.length ? ': ' + parts.join(', ') : ' — nothing to remove.';
+  }
+
   M.loadList = async function () {
     const list = document.getElementById('backups-list');
     if (!list) return;
+    M.refreshPurgePreview();
     list.innerHTML =
       '<div class="flex justify-center py-6">' + '<div class="message-spinner"></div>' + '</div>';
     try {
@@ -87,16 +116,25 @@
     const btn = document.getElementById('btn-create-backup');
     if (!btn || btn.disabled) return;
     btn.disabled = true;
-    btn.textContent = 'Creating…';
-    fetch(window.api.backups, { method: 'POST' })
-      .then((r) => {
-        if (r.ok) window.showSuccessToast('Backup created');
+    window.showInfoToast('Creating backup…', { id: 'backup-create', duration: 0 });
+    return window
+      .streamProgress(window.api.backups, {}, function (event) {
+        window.showInfoToast(toastProgress('Creating backup', event), {
+          id: 'backup-create',
+          duration: 0,
+        });
+      })
+      .then(function (backup) {
+        window.hideToast('backup-create');
+        window.showSuccessToast('Backup created (' + formatBytes(backup.size_bytes) + ')');
         return M.loadList();
       })
-      .catch(() => M.loadList())
-      .finally(() => {
+      .catch(function (e) {
+        window.hideToast('backup-create');
+        window.showErrorToast('Backup failed: ' + e.message);
+      })
+      .finally(function () {
         btn.disabled = false;
-        btn.textContent = 'Create Backup';
       });
   };
 
@@ -347,20 +385,135 @@
       });
   };
 
-  M.cleanDatabase = function () {
+  // ── Stale chats → Trash ──
+  M._purge = { days: 90, count: 0, reqId: 0 };
+
+  M.setPurgeRange = function (el) {
+    const value = el ? el.value : '90';
+    const customInput = document.getElementById('purge-days-custom');
+    const isCustom = value === 'custom';
+    if (customInput) customInput.classList.toggle('hidden', !isCustom);
+    M._purge.days = parseInt(isCustom ? customInput && customInput.value : value, 10) || 0;
+    M.refreshPurgePreview();
+  };
+
+  M.setPurgeCustom = function (el) {
+    M._purge.days = parseInt(el.value, 10) || 0;
+    M.refreshPurgePreview();
+  };
+
+  M.refreshPurgePreview = function () {
+    const status = document.getElementById('purge-old-chats-status');
+    const btn = document.getElementById('btn-purge-old-chats');
+    const days = M._purge.days;
+    const reqId = ++M._purge.reqId;
+    const span = days === 1 ? '1 day' : days + ' days';
+
+    if (days < 1) {
+      M._purge.count = 0;
+      if (btn) btn.disabled = true;
+      setStatus(status, 'Enter at least 1 day.', true);
+      return;
+    }
+
+    if (btn) btn.disabled = true;
+    setStatus(status, 'Counting…');
+
+    fetch(window.api.chatsStale + '?days=' + days)
+      .then((r) => r.json())
+      .then((d) => {
+        if (reqId !== M._purge.reqId) return;
+        M._purge.count = d.count || 0;
+        if (btn) btn.disabled = M._purge.count === 0;
+        setStatus(
+          status,
+          M._purge.count
+            ? M._purge.count + ' chat' + (M._purge.count === 1 ? '' : 's') + ' older than ' + span
+            : 'No chats older than ' + span + '.',
+        );
+      })
+      .catch(() => {
+        if (reqId !== M._purge.reqId) return;
+        M._purge.count = 0;
+        if (btn) btn.disabled = true;
+        setStatus(status, 'Failed to count old chats.', true);
+      });
+  };
+
+  M.purgeOldChats = function () {
+    const days = M._purge.days;
+    if (days < 1) return;
+    const btn = document.getElementById('btn-purge-old-chats');
+    if (btn && btn.disabled) return;
+
+    const count = M._purge.count;
+    const span = days === 1 ? '1 day' : days + ' days';
+    window.customConfirm(
+      '<div class="text-sm" style="color:var(--text);"><strong>Move ' +
+        count +
+        ' ' +
+        (count === 1 ? 'chat' : 'chats') +
+        ' to Trash?</strong></div>' +
+        '<div class="text-sm mt-2" style="color:var(--text-muted);">Chats not updated in the last ' +
+        span +
+        ' go to the Trash Bin, where each one can be restored. Clean DB deletes them for good.</div>',
+      function () {
+        if (btn) btn.disabled = true;
+        fetch(window.api.chatsStale + '?days=' + days, { method: 'DELETE' })
+          .then((r) => (r.ok ? r.json() : Promise.reject(new Error('Purge failed'))))
+          .then((d) => {
+            window.showSuccessToast(
+              d.deleted + ' chat' + (d.deleted === 1 ? '' : 's') + ' moved to Trash',
+            );
+            const activeId = window.StateManager ? StateManager.get('chat_id') : null;
+            if (activeId && (d.ids || []).indexOf(activeId) >= 0) {
+              const charId = StateManager.get('character_id');
+              window.location.href = charId
+                ? '/chat?character_id=' + encodeURIComponent(charId)
+                : '/chat';
+              return;
+            }
+            if (window.Refresh) Refresh.changed('chats');
+            else if (window._refreshChatList) window._refreshChatList(StateManager.get('chat_id'));
+            M.refreshPurgePreview();
+          })
+          .catch(() => {
+            window.showErrorToast('Failed to move old chats to Trash.');
+            M.refreshPurgePreview();
+          });
+      },
+    );
+  };
+
+  M.cleanDatabase = function (el) {
     window.customConfirm(
       '<div class="text-sm" style="color:var(--text);"><strong>Clean Database?</strong></div>' +
         '<div class="text-sm mt-2" style="color:var(--text-muted);">Permanently deletes trashed characters, chats, and orphaned data. This cannot be undone.</div>',
       function () {
-        fetch(window.api.cleanDb, { method: 'POST' })
-          .then((r) => r.json())
-          .then((d) => {
-            const parts = [];
-            for (var k in d) parts.push(k + ': ' + d[k]);
-            window.showInfoToast('Database cleaned: ' + parts.join(', '));
-            setStatus(document.getElementById('backup-status'), 'Cleaned: ' + parts.join(', '));
+        const btn = el && typeof el.disabled === 'boolean' ? el : null;
+        if (btn) btn.disabled = true;
+        window.showInfoToast('Cleaning database…', { id: 'clean-db', duration: 0 });
+        window
+          .streamProgress(window.api.cleanDb, {}, function (event) {
+            window.showInfoToast('Cleaning — ' + (event.label || 'working'), {
+              id: 'clean-db',
+              duration: 0,
+            });
           })
-          .catch(() => setStatus(document.getElementById('backup-status'), 'Clean failed.', true));
+          .then(function (counts) {
+            window.hideToast('clean-db');
+            const detail = describeCounts(counts);
+            window.showSuccessToast('Database cleaned' + detail);
+            setStatus(document.getElementById('backup-status'), 'Cleaned' + detail);
+          })
+          .catch(function (e) {
+            window.hideToast('clean-db');
+            window.showErrorToast('Clean failed: ' + e.message);
+            setStatus(document.getElementById('backup-status'), 'Clean failed.', true);
+          })
+          .finally(function () {
+            if (btn) btn.disabled = false;
+          });
       },
     );
   };
