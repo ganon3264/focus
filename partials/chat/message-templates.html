@@ -1,0 +1,24 @@
+{# Client-rendered message chrome, rendered once per chat page.
+
+   Every element here comes from a macro in templates/macros.html — the same
+   macros partials/chat/message.html uses — so streaming, editing and the
+   server render can never drift apart. `message-builder.js` clones the
+   `[data-slot]` / structurally identifiable nodes and fills them; the
+   placeholder values below are inert (nothing inside a <template> is
+   rendered, fetched, or parsed as markup by htmx). #}
+{% from "macros.html" import message_shell, message_content, reasoning_toggle_btn,
+  reasoning_block, attachment_row, attachment_preview, tool_call_card %}
+
+<template id="tpl-message-shell-assistant">{{ message_shell(meta=True, slots=True) }}</template>
+<template id="tpl-message-shell-user">{{ message_shell(meta=False, slots=True) }}</template>
+<template id="tpl-message-content">{{ message_content(processed=True) }}</template>
+<template id="tpl-message-spinner"><div class="message-spinner" data-ui="message-spinner"></div></template>
+<template id="tpl-reasoning-toggle">{{ reasoning_toggle_btn(hidden=True) }}</template>
+<template id="tpl-reasoning-block">{{ reasoning_block(1) }}</template>
+<template id="tpl-reasoning-first">{{ reasoning_block(0, collapsible=False) }}</template>
+<template id="tpl-tool-call">{{ tool_call_card({'function': {'name': '@@name@@', 'arguments': '@@args@@'}, 'result': '', 'image_data': '@@image@@'}) }}</template>
+<template id="tpl-tool-calls-stream"><div class="tool-calls-stream pl-stream" data-ui="tool-calls-stream"></div></template>
+<template id="tpl-tool-calls-section"><div class="tool-calls-section" data-ui="tool-calls-section"></div></template>
+<template id="tpl-attachment-row">{% call attachment_row() %}{% endcall %}</template>
+<template id="tpl-attachment-image">{{ attachment_preview('@@src@@', 'image/png') }}</template>
+<template id="tpl-attachment-audio">{{ attachment_preview('@@src@@', 'audio/mpeg') }}</template>

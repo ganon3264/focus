@@ -125,7 +125,12 @@ table lookup (`HANDLERS[json.type]`); unknown types log a warning, never vanish 
   (`state.done`, `state.errorMsg`) — they never throw.
 - Token renders are rAF-coalesced (one markdown pass per frame, trailing
   edge); `finalizeStreamRender()` force-flushes before the post-stream refresh.
-- `message-builder.js`: segment builders for text/reasoning/tool_calls.
+- `message-builder.js`: segment builders for text/reasoning/tool_calls. Message
+  chrome has exactly one markup source — the macros in `templates/macros.html`,
+  rendered once into inert `<template>`s by `partials/chat/message-templates.html`.
+  The builder only clones and fills; it never authors markup. The JS tests clone
+  from `tests/frontend/fixtures/message-templates.html`, kept in sync by
+  `test_message_template.py::test_message_templates_fixture_is_current`.
 - `generation-ui.js`: toggles send/stop buttons, spinner, `clearStaleContent()`.
 - `message-refresh.js` owns the message-list DOM: `refreshMessageList(chatId, changedIds)` fetches the server partial and reconciles it in place (reorder / reuse / insert / drop), preserving scroll, open reasoning, and pruned stubs. `refreshMessagesAfterStream` and `refreshChatMessages` delegate to it; `refreshSingleMessage` is the cheap one-node path (swipe/edit) with a full-reconcile fallback. All partial fetches go through `hxFetch` so they share one serializer with `hxGet`/`hxPost`.
 - `post-process.js`: `processMessageList(container)` is the single post-render pass (markdown, reasoning, timestamps, delete-mode visibility, toolbar state, sentinel). The renderer calls it once; it is not tied to htmx events.

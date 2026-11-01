@@ -36,9 +36,7 @@
     // Spinner may be missing because swipe/continue reuse server HTML which has no spinner
     var spinner = asstDiv.querySelector('[data-ui="message-spinner"]');
     if (!spinner) {
-      spinner = document.createElement('div');
-      spinner.className = 'message-spinner';
-      spinner.dataset.ui = 'message-spinner';
+      spinner = window.buildMessageSpinner();
       asstDiv.appendChild(spinner);
     }
     spinner.classList.remove('hidden');
@@ -46,9 +44,7 @@
     if (continueText || continueReasoning) {
       var contentDiv = asstDiv.querySelector('[data-ui~="message-content"]');
       if (!contentDiv) {
-        contentDiv = document.createElement('div');
-        contentDiv.className = 'message-content markdown-content processed pl-stream';
-        contentDiv.dataset.ui = 'message-content markdown-content';
+        contentDiv = window.buildMessageContent();
         var bodyEl = asstDiv.querySelector('[data-ui="message-body"]');
         if (bodyEl) bodyEl.appendChild(contentDiv);
       }

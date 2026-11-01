@@ -113,9 +113,14 @@ function makeElement(tag) {
     hasAttribute: function (k) { return k in this._attrs; },
     removeAttribute: function (k) { delete this._attrs[k]; },
     appendChild: function (c) {
-      // If already a child, move to end (like real DOM)
+      // If already a child, move to end; if it belongs to another parent, real
+      // DOM detaches it first.
       var idx = this.children.indexOf(c);
       if (idx >= 0) this.children.splice(idx, 1);
+      if (c.parent && c.parent !== this) {
+        var pidx = c.parent.children.indexOf(c);
+        if (pidx >= 0) c.parent.children.splice(pidx, 1);
+      }
       this.children.push(c);
       c.parent = this;
       return c;
@@ -126,6 +131,19 @@ function makeElement(tag) {
         if (i >= 0) this.parent.children.splice(i, 1);
         this.parent = null;
       }
+    },
+    cloneNode: function (deep) {
+      var copy = makeElement(this.tagName.toLowerCase());
+      copy.id = this.id;
+      var attrs = this._attrs;
+      Object.keys(attrs).forEach(function (k) { copy._attrs[k] = attrs[k]; });
+      Array.from(this.classList._set).forEach(function (c) { copy.classList.add(c); });
+      if (deep) {
+        if (this._textContent != null) copy._textContent = this._textContent;
+        if (this._innerHTML != null) copy._innerHTML = this._innerHTML;
+        for (var i = 0; i < this.children.length; i++) copy.appendChild(this.children[i].cloneNode(true));
+      }
+      return copy;
     },
     insertBefore: function (newEl, refEl) {
       // Real DOM moves an already-attached node instead of duplicating it.
@@ -224,13 +242,20 @@ function makeElement(tag) {
     },
   });
   Object.defineProperty(el, 'firstElementChild', {
-    get: function () { return el.children.length > 0 ? el.children[0] : null; },
+    get: function () {
+      for (var i = 0; i < el.children.length; i++) {
+        if (!el.children[i].isText) return el.children[i];
+      }
+      return null;
+    },
   });
   Object.defineProperty(el, 'nextElementSibling', {
     get: function () {
       if (!el.parent) return null;
       var idx = el.parent.children.indexOf(el);
-      if (idx >= 0 && idx + 1 < el.parent.children.length) return el.parent.children[idx + 1];
+      for (var i = idx + 1; i < el.parent.children.length; i++) {
+        if (!el.parent.children[i].isText) return el.parent.children[i];
+      }
       return null;
     },
   });
@@ -335,12 +360,95 @@ function querySelectorAll(root, sel) {
   return results;
 }
 
+// ── <template> support ──
+// The fake DOM's innerHTML setter is flat (it drops nesting), so template
+// content is parsed with a nesting-aware parser instead. Template content is
+// never part of the host tree, mirroring the real inert behaviour.
+
+var VOID_TAGS = { img: 1, source: 1, input: 1, br: 1, hr: 1, meta: 1, link: 1 };
+
+function _parseAttrs(el, raw) {
+  var re = /([\w:@.-]+)(?:\s*=\s*"([^"]*)"|\s*=\s*'([^']*)'|\s*=\s*([^\s"'>]+))?/g;
+  var m;
+  while ((m = re.exec(raw || '')) !== null) {
+    var name = m[1];
+    var value = m[2] !== undefined ? m[2] : m[3] !== undefined ? m[3] : m[4] !== undefined ? m[4] : '';
+    if (name === 'class') {
+      value.split(/\s+/).filter(Boolean).forEach(function (c) { el.classList.add(c); });
+    } else if (name === 'id') {
+      el.id = value;
+    } else {
+      el.setAttribute(name, value);
+    }
+  }
+}
+
+function parseHtmlTree(html) {
+  var root = makeElement('div');
+  var stack = [root];
+  var tokenRe = /<(\/?)([a-zA-Z][\w-]*)((?:"[^"]*"|'[^']*'|[^>])*?)(\/?)>/g;
+  var last = 0;
+  var m;
+
+  function pushText(text) {
+    if (!text || !text.trim()) return;
+    var node = makeElement('span');
+    node.isText = true;
+    node.textContent = text;
+    stack[stack.length - 1].appendChild(node);
+  }
+
+  while ((m = tokenRe.exec(html)) !== null) {
+    pushText(html.slice(last, m.index));
+    last = tokenRe.lastIndex;
+    var closing = m[1] === '/';
+    var tag = m[2].toLowerCase();
+    if (closing) {
+      for (var i = stack.length - 1; i > 0; i--) {
+        if (stack[i].tagName === tag.toUpperCase()) { stack.length = i; break; }
+      }
+      continue;
+    }
+    var el = makeElement(tag);
+    _parseAttrs(el, m[3]);
+    stack[stack.length - 1].appendChild(el);
+    if (m[4] !== '/' && !VOID_TAGS[tag]) stack.push(el);
+  }
+  pushText(html.slice(last));
+  return root;
+}
+
+// Splits a rendered templates partial into <template> elements on the host.
+function installTemplates(doc, html) {
+  var host = doc.body || doc._body || doc._root;
+  var re = /<template id="([^"]+)"[^>]*>([\s\S]*?)<\/template>/g;
+  var m;
+  var installed = [];
+  while ((m = re.exec(html)) !== null) {
+    var tpl = makeElement('template');
+    tpl.id = m[1];
+    var content = makeElement('div');
+    var parsed = parseHtmlTree(m[2]);
+    while (parsed.children.length) content.appendChild(parsed.children[0]);
+    tpl.content = content;
+    host.appendChild(tpl);
+    installed.push(m[1]);
+  }
+  return installed;
+}
+
 function createMockDocument() {
   var body = makeElement('body');
   var doc = {
     _body: body,
     documentElement: body,
     createElement: function (tag) { return makeElement(tag); },
+    createTextNode: function (text) {
+      var node = makeElement('span');
+      node.isText = true;
+      node.textContent = text;
+      return node;
+    },
     getElementById: function (id) {
       return doc.querySelector('#' + id);
     },
@@ -497,6 +605,8 @@ module.exports = {
   createMockForm: createMockForm,
   createMockIntersectionObserver: createMockIntersectionObserver,
   createMockAbortController: createMockAbortController,
+  parseHtmlTree: parseHtmlTree,
+  installTemplates: installTemplates,
   setupBrowserGlobals: setupBrowserGlobals,
   resetGlobals: resetGlobals,
   printSummary: printSummary,

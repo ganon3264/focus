@@ -3,28 +3,26 @@
 // Index 0 (pre-answer reasoning) is a plain div controlled by the message-level
 // meta toggle; it must not grow its own control. Later blocks (post-tool) are
 // <details>/<summary> disclosures.
+//
+// The markup itself comes from the server-rendered templates fixture (see
+// fixtures/message-templates.html, kept in sync by
+// test_message_template.py::test_message_templates_fixture_is_current) — these
+// tests only assert the cloned result.
 
 var h = require('./helpers.js');
 var assert = h.assert;
-var makeElement = h.makeElement, querySelectorAll = h.querySelectorAll;
-
 var path = require('path');
 var fs = require('fs');
 
-var root = makeElement('body');
-global.document = {
-  _root: root,
-  querySelector: function (sel) { return querySelectorAll(root, sel)[0] || null; },
-  querySelectorAll: function (sel) { return querySelectorAll(root, sel); },
-  addEventListener: function () {},
-  createElement: function (tag) { return makeElement(tag); },
-  createTextNode: function (text) { var el = makeElement('span'); el._textContent = text; return el; },
-};
-root.tagName = 'BODY';
-
+var doc = h.createMockDocument();
 global.window = global;
+global.document = doc;
 global.navigator = { clipboard: { writeText: function () {} } };
+global.URL = { createObjectURL: function () { return 'blob:x'; } };
 window.getSvgSprite = function () { return '<svg></svg>'; };
+window.renderMessage = function (text) { return text; };
+
+h.installTemplates(doc, fs.readFileSync(path.join(__dirname, 'fixtures', 'message-templates.html'), 'utf8'));
 
 eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'messages', 'message-builder.js'), 'utf8'));
 
@@ -46,6 +44,7 @@ eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'messages'
   var block = window.segmentBuilders.reasoning(1);
   assert(block.tagName === 'DETAILS', 'index 1 reasoning block is a details');
   assert(!!block.querySelector('summary'), 'index 1 block has a summary toggle');
+  assert(block.getAttribute('data-think-id') === '1', 'index 1 block carries its think id');
 })();
 
 h.printSummary();

@@ -1,31 +1,152 @@
+// Client-side message chrome. Markup lives in templates/macros.html and is
+// rendered once per page into the inert <template> blocks of
+// partials/chat/message-templates.html; this module only clones and fills.
 (function () {
-  function _chevronSvg() {
-    var html = (window.getSvgSprite('chevron-right', 12) || '').replace(
-      '<svg', '<svg class="w-3 h-3 reasoning-chevron"');
-    var d = document.createElement('div');
-    d.innerHTML = html;
-    return d.firstElementChild;
+  function tpl(id) {
+    var node = document.getElementById(id);
+    if (!node || !node.content) return null;
+    var root = node.content.firstElementChild;
+    return root ? root.cloneNode(true) : null;
   }
 
-  function _summaryChevronSvg() {
-    var html = (window.getSvgSprite('chevron-right', 12) || '').replace(
-      '<svg', '<svg class="w-3 h-3 chevron"');
-    var d = document.createElement('div');
-    d.innerHTML = html;
-    return d.firstElementChild;
+  function fillHeader(root, name, imagePath, initial) {
+    var avatar = root.querySelector('[data-slot="avatar"]');
+    if (avatar) {
+      avatar.removeAttribute('data-slot');
+      var img = avatar.querySelector('img');
+      if (img && imagePath) {
+        img.src = '/' + imagePath;
+        img.alt = name + ' avatar';
+      } else if (img) {
+        avatar.insertBefore(document.createTextNode(initial), img);
+        img.remove();
+      }
+    }
+    var author = root.querySelector('[data-slot="author"]');
+    if (author) {
+      author.removeAttribute('data-slot');
+      author.textContent = name;
+    }
   }
 
-  function buildReasoningToggleButton() {
-    var toggleBtn = document.createElement('button');
-    toggleBtn.className = 'reasoning-toggle-btn hidden';
-    toggleBtn.dataset.ui = 'reasoning-toggle-btn';
-    toggleBtn.setAttribute('aria-label', 'Toggle reasoning');
-    toggleBtn.addEventListener('click', function () { window.toggleReasoning(toggleBtn); });
-    toggleBtn.appendChild(_chevronSvg());
-    var toggleSpan = document.createElement('span');
-    toggleSpan.textContent = 'Reasoning';
-    toggleBtn.appendChild(toggleSpan);
-    return toggleBtn;
+  function messageBody(root) {
+    return root.querySelector('[data-ui="message-body"]');
+  }
+
+  window.buildMessageContent = function () {
+    return tpl('tpl-message-content');
+  };
+
+  window.buildMessageSpinner = function () {
+    return tpl('tpl-message-spinner');
+  };
+
+  window.buildToolCallsSection = function () {
+    return tpl('tpl-tool-calls-section');
+  };
+
+  window.buildMessageShell = function (role) {
+    var div = tpl(role === 'user' ? 'tpl-message-shell-user' : 'tpl-message-shell-assistant');
+    if (!div) return null;
+    div.id = role === 'user' ? 'temp-user-msg' : 'streaming-message';
+    return div;
+  };
+
+  window.buildAssistantSkeleton = function (charName, charImagePath) {
+    var div = window.buildMessageShell('assistant');
+    if (!div) return null;
+    fillHeader(div, charName, charImagePath, (charName || 'A')[0]);
+    var body = messageBody(div);
+    body.appendChild(window.buildMessageContent());
+    body.appendChild(window.buildMessageSpinner());
+    return div;
+  };
+
+  window.buildAttachmentPreview = function (file) {
+    var isImage = (file.type || '').indexOf('image/') === 0;
+    var wrapper = tpl(isImage ? 'tpl-attachment-image' : 'tpl-attachment-audio');
+    if (!wrapper) return null;
+    var url = URL.createObjectURL(file);
+    if (isImage) {
+      wrapper.querySelector('img').src = url;
+    } else {
+      var source = wrapper.querySelector('source');
+      source.src = url;
+      source.type = file.type;
+    }
+    return wrapper;
+  };
+
+  window.buildUserMessageDiv = function (text, personaName, personaAvatar, stagedFiles) {
+    var div = window.buildMessageShell('user');
+    if (!div) return null;
+    fillHeader(div, personaName, personaAvatar, (personaName || 'Y')[0]);
+
+    var body = messageBody(div);
+    if (stagedFiles && stagedFiles.length > 0) {
+      var row = tpl('tpl-attachment-row');
+      stagedFiles.forEach(function (f) { row.appendChild(window.buildAttachmentPreview(f)); });
+      body.appendChild(row);
+    }
+
+    var content = window.buildMessageContent();
+    content.innerHTML = window.renderMessage(text);
+    body.appendChild(content);
+    return div;
+  };
+
+  // One tool-call card for every path: streaming (call_id + result later),
+  // edit modal (read-only, result + image already known) and the server render
+  // (same macro). Fillable nodes are addressed by the hooks the markup already
+  // carries — no class selectors, no extra attributes.
+  window.buildToolCallCard = function (call) {
+    var card = tpl('tpl-tool-call');
+    if (!card) return null;
+
+    card.querySelector('summary code').textContent = call.name;
+
+    var args = card.querySelector('summary span');
+    var argStr = typeof call.arguments === 'string' ? call.arguments : JSON.stringify(call.arguments || {});
+    if (args) {
+      if (argStr && argStr !== '{}') args.textContent = argStr;
+      else args.remove();
+    }
+
+    if (call.callId) card.setAttribute('data-call-id', call.callId);
+
+    var body = card.querySelector('[data-ui="tool-result-body"]');
+    var img = body.querySelector('img');
+    if (img) {
+      if (call.image) {
+        img.src = call.image;
+      } else {
+        // An <img> with no src renders nothing and requests nothing; it stays
+        // in the card so a late image_url has a node to land on.
+        img.removeAttribute('src');
+        img.style.display = 'none';
+      }
+    }
+
+    if (call.result == null) {
+      body.style.display = 'none';
+    } else {
+      body.querySelector('pre').textContent = call.result;
+    }
+
+    return card;
+  };
+
+  // Reasoning block used during streaming
+  //   index === 0 → <div>  (no toggle — controlled by message-level button)
+  //   index  > 0 → <details> (collapsible, matching server-side template)
+  function buildReasoningBlock(index) {
+    index = index || 0;
+    var el = tpl(index > 0 ? 'tpl-reasoning-block' : 'tpl-reasoning-first');
+    if (!el) return null;
+    if (index > 0) el.setAttribute('data-think-id', String(index));
+    var content = el.querySelector('[data-ui~="reasoning-content"]');
+    if (content) content.style.whiteSpace = 'pre-wrap';
+    return el;
   }
 
   // Ensure the message-level reasoning toggle button exists in the meta row,
@@ -36,7 +157,7 @@
     var existing = msgEl.querySelector('[data-ui="reasoning-toggle-btn"]');
     if (existing) return existing;
 
-    var btn = buildReasoningToggleButton();
+    var btn = tpl('tpl-reasoning-toggle');
     var meta = msgEl.querySelector('[data-ui="message-meta"]');
     if (meta) {
       if (meta.children.length > 0) {
@@ -52,243 +173,27 @@
     return btn;
   };
 
-  window.buildAssistantSkeleton = function (charName, charImagePath) {
-    var div = document.createElement('div');
-    div.className = 'message msg';
-    div.dataset.ui = 'message';
-    div.id = 'streaming-message';
-
-    var body = document.createElement('div');
-    body.className = 'message-body';
-    body.dataset.ui = 'message-body';
-    div.appendChild(body);
-
-    var flex = document.createElement('div');
-    flex.className = 'flex items-start gap-3 min-w-0';
-    body.appendChild(flex);
-
-    var avatar = document.createElement('div');
-    avatar.className = 'message-avatar';
-    if (charImagePath) {
-      var img = document.createElement('img');
-      img.src = '/' + charImagePath;
-      img.alt = '';
-      img.className = 'cursor-pointer';
-      img.addEventListener('click', function () { window.openLightbox(img.src); });
-      avatar.appendChild(img);
-    } else {
-      avatar.textContent = (charName || 'A')[0];
-    }
-    flex.appendChild(avatar);
-
-    var col = document.createElement('div');
-    col.className = 'min-w-0';
-    flex.appendChild(col);
-
-    var nameEl = document.createElement('div');
-    nameEl.className = 'text-sm font-medium';
-    nameEl.style.cssText = 'color:var(--text)';
-    nameEl.textContent = charName;
-    col.appendChild(nameEl);
-
-    var meta = document.createElement('div');
-    meta.className = 'text-xs text-muted flex items-center gap-1.5 flex-wrap mt-0.5';
-    meta.dataset.ui = 'message-meta';
-    col.appendChild(meta);
-
-    meta.appendChild(buildReasoningToggleButton());
-
-    var content = document.createElement('div');
-    content.className = 'message-content markdown-content processed pl-stream';
-    content.dataset.ui = 'message-content markdown-content';
-    body.appendChild(content);
-
-    var spinner = document.createElement('div');
-    spinner.className = 'message-spinner';
-    spinner.dataset.ui = 'message-spinner';
-    body.appendChild(spinner);
-
-    return div;
-  };
-
-  window.buildUserMessageDiv = function (text, personaName, personaAvatar, stagedFiles) {
-    var div = document.createElement('div');
-    div.className = 'message relative msg';
-    div.dataset.ui = 'message';
-    div.id = 'temp-user-msg';
-
-    var body = document.createElement('div');
-    body.className = 'message-body';
-    body.dataset.ui = 'message-body';
-    div.appendChild(body);
-
-    var flex = document.createElement('div');
-    flex.className = 'flex items-start gap-3 min-w-0';
-    body.appendChild(flex);
-
-    var avatar = document.createElement('div');
-    avatar.className = 'message-avatar';
-    if (personaAvatar) {
-      var img = document.createElement('img');
-      img.src = '/' + personaAvatar;
-      img.alt = '';
-      img.className = 'cursor-pointer';
-      img.addEventListener('click', function () { window.openLightbox(img.src); });
-      avatar.appendChild(img);
-    } else {
-      avatar.textContent = (personaName || 'Y')[0];
-    }
-    flex.appendChild(avatar);
-
-    var col = document.createElement('div');
-    col.className = 'min-w-0';
-    flex.appendChild(col);
-
-    var nameEl = document.createElement('div');
-    nameEl.className = 'text-sm font-medium';
-    nameEl.style.cssText = 'color:var(--text)';
-    nameEl.textContent = personaName;
-    col.appendChild(nameEl);
-
-    if (stagedFiles && stagedFiles.length > 0) {
-      var attContainer = document.createElement('div');
-      attContainer.className = 'flex gap-2 flex-wrap mb-2 pl-stream';
-      stagedFiles.forEach(function (f) { attContainer.appendChild(buildAttachmentPreview(f)); });
-      body.insertBefore(attContainer, null);
-    }
-
-    var content = document.createElement('div');
-    content.className = 'message-content markdown-content pl-stream';
-    content.dataset.ui = 'message-content markdown-content';
-    content.innerHTML = window.renderMessage(text);
-    content.classList.add('processed');
-    body.appendChild(content);
-
-    return div;
-  };
-
-  function buildAttachmentPreview(file) {
-    var wrapper = document.createElement('div');
-    wrapper.className = 'relative group';
-
-    if (file.type.startsWith('image/')) {
-      var img = document.createElement('img');
-      img.className = 'h-24 rounded object-cover border border-border cursor-pointer hover:opacity-90 transition-opacity';
-      img.src = URL.createObjectURL(file);
-      img.alt = 'attachment';
-      img.addEventListener('click', function () { window.openLightbox(img.src); });
-      wrapper.appendChild(img);
-    } else {
-      wrapper.className = 'h-16 bg-(--surface-3) px-3 rounded border border-border flex items-center gap-2 text-sm';
-      var iconSpan = document.createElement('span');
-      iconSpan.innerHTML = window.getSvgSprite ? window.getSvgSprite('music', 18) : '';
-      wrapper.appendChild(iconSpan);
-      var audio = document.createElement('audio');
-      audio.controls = true;
-      audio.className = 'h-8 max-w-[200px]';
-      audio.style.cssText = 'filter: contrast(0.8) grayscale(1)';
-      var source = document.createElement('source');
-      source.src = URL.createObjectURL(file);
-      source.type = file.type;
-      audio.appendChild(source);
-      wrapper.appendChild(audio);
-    }
-
-    return wrapper;
-  };
-
-  function buildToolCallCard(call) {
-    var details = document.createElement('details');
-    details.className = 'details tool-call';
-    details.setAttribute('data-call-id', call.id);
-
-    var summary = document.createElement('summary');
-    summary.appendChild(_summaryChevronSvg());
-
-    var code = document.createElement('code');
-    code.className = 'font-bold';
-    code.textContent = call.name;
-    summary.appendChild(code);
-
-    var argStr = JSON.stringify(call.arguments);
-    if (argStr !== '{}') {
-      var argSpan = document.createElement('span');
-      argSpan.className = 'truncate max-w-[300px]';
-      argSpan.textContent = argStr;
-      summary.appendChild(argSpan);
-    }
-
-    details.appendChild(summary);
-
-    var resultBody = document.createElement('div');
-    resultBody.className = 'tool-result-body';
-    resultBody.dataset.ui = 'tool-result-body';
-    resultBody.style.display = 'none';
-
-    var pre = document.createElement('pre');
-    pre.className = 'whitespace-pre-wrap break-all';
-    resultBody.appendChild(pre);
-    details.appendChild(resultBody);
-
-    return details;
-  };
-
-  // Reasoning block used during streaming
-  //   index === 0 → <div>  (no toggle — controlled by message-level button)
-  //   index  > 0 → <details> (collapsible, matching server-side template)
-  function buildReasoningBlock(index) {
-    index = index || 0;
-    if (index > 0) {
-      var details = document.createElement('details');
-      details.className = 'details reasoning-block pl-stream';
-      details.dataset.ui = 'reasoning-block';
-      details.setAttribute('data-think-id', String(index));
-      var summary = document.createElement('summary');
-      summary.appendChild(_summaryChevronSvg());
-      summary.appendChild(document.createTextNode(' Reasoning'));
-      details.appendChild(summary);
-      var rc = document.createElement('div');
-      rc.className = 'reasoning-content markdown-content';
-      rc.dataset.ui = 'reasoning-content markdown-content';
-      rc.style.whiteSpace = 'pre-wrap';
-      details.appendChild(rc);
-      return details;
-    }
-    var rb = document.createElement('div');
-    rb.className = 'reasoning-block pl-stream';
-    rb.dataset.ui = 'reasoning-block';
-    rb.setAttribute('data-think-id', '0');
-    var rc = document.createElement('div');
-    rc.className = 'reasoning-content markdown-content hidden';
-    rc.dataset.ui = 'reasoning-content markdown-content';
-    rc.style.whiteSpace = 'pre-wrap';
-    rb.appendChild(rc);
-    return rb;
-  };
-
   // Segment factories — single source of DOM structure per type
   window.segmentBuilders = {
     text: function () {
-      var el = document.createElement('div');
-      el.className = 'message-content markdown-content processed pl-stream';
-      el.dataset.ui = 'message-content markdown-content';
-      return el;
+      return window.buildMessageContent();
     },
     reasoning: function (index) {
       return buildReasoningBlock(index);
     },
     tool_calls: function (calls) {
-      var el = document.createElement('div');
-      el.className = 'tool-calls-stream pl-stream';
-      el.dataset.ui = 'tool-calls-stream';
+      var el = tpl('tpl-tool-calls-stream');
       for (var ci = 0; ci < calls.length; ci++) {
-        el.appendChild(buildToolCallCard(calls[ci]));
+        el.appendChild(window.buildToolCallCard({
+          name: calls[ci].name,
+          arguments: calls[ci].arguments,
+          callId: calls[ci].id,
+        }));
       }
       return el;
     },
   };
 
-  // Moves DOM knowledge here, out of handlers
   window.updateToolCallCard = function (sectionEl, callId, result, isError, imageUrl) {
     var card = sectionEl.querySelector('[data-call-id="' + callId + '"]');
     if (!card) return;
@@ -306,12 +211,10 @@
         pre.style.color = isError ? 'var(--danger)' : '';
       }
       if (imageUrl) {
-        var existingImg = body.querySelector('img');
-        if (!existingImg) {
-          var img = document.createElement('img');
+        var img = body.querySelector('img');
+        if (img) {
           img.src = imageUrl;
-          img.className = 'max-w-full h-auto rounded mt-2';
-          body.appendChild(img);
+          img.style.display = '';
         }
       }
     }

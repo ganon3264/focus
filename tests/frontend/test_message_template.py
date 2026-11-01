@@ -182,3 +182,18 @@ def test_extension_uses_custom_icon():
     # un-specified `viewBox` doesn't blow out the toolbar button.
     assert 'class="ext-icon w-4 h-4 shrink-0"' in html
     assert f'class="ext-icon w-4 h-4 shrink-0">{icon}' in html
+
+
+MESSAGE_TEMPLATES_FIXTURE = Path("tests/frontend/fixtures/message-templates.html")
+
+
+def test_message_templates_fixture_is_current():
+    """The JS tests clone these templates from a checked-in fixture. If a message
+    macro changes, the fixture must be regenerated, otherwise the frontend tests
+    keep validating the old markup."""
+    rendered = env.get_template("chat/message-templates.html").render().strip()
+    assert MESSAGE_TEMPLATES_FIXTURE.exists(), "message templates fixture is missing"
+    assert rendered == MESSAGE_TEMPLATES_FIXTURE.read_text().strip(), (
+        "fixtures/message-templates.html is stale — regenerate it from "
+        "partials/chat/message-templates.html"
+    )

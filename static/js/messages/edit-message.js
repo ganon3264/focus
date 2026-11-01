@@ -44,21 +44,12 @@
   }
 
   function renderToolCallCard(tc) {
-    var imgHtml = '';
-    var imgSrc = tc.image_data || tc.image_url || '';
-    if (imgSrc) {
-      imgHtml = '<img src="' + window.escapeHtml(imgSrc) + '" class="max-w-full h-auto rounded mt-2" />';
-    }
-    var card = document.createElement('details');
-    card.className = 'details tool-call';
-    card.innerHTML =
-      '<summary>' +
-      (window.getSvgSprite('chevron-right', 12) || '').replace('<svg', '<svg class="w-3 h-3 chevron"') +
-      '<code class="font-bold">' + window.escapeHtml(tc.function.name) + '</code>' +
-      '<span class="truncate max-w-[300px]">' + window.escapeHtml(tc.function.arguments || '') + '</span>' +
-      '</summary>' +
-      '<div class="tool-result-body" data-ui="tool-result-body"><pre class="whitespace-pre-wrap break-all">' + window.escapeHtml(tc.result || '') + '</pre>' + imgHtml + '</div>';
-    return card;
+    return window.buildToolCallCard({
+      name: tc.function.name,
+      arguments: tc.function.arguments,
+      result: tc.result || '',
+      image: tc.image_data || tc.image_url,
+    });
   }
 
   function autoResizeTextarea(ta) {
@@ -116,9 +107,7 @@
         container.appendChild(createEditTextarea(i, 'text', blk.content));
       } else if (blk.type === 'tool_boundary') {
         if (blk.calls && blk.calls.length > 0) {
-          var tcSection = document.createElement('div');
-          tcSection.className = 'tool-calls-section';
-          tcSection.dataset.ui = 'tool-calls-section';
+          var tcSection = window.buildToolCallsSection();
           for (var c = 0; c < blk.calls.length; c++) {
             tcSection.appendChild(renderToolCallCard(blk.calls[c]));
           }

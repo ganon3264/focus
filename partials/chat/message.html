@@ -1,7 +1,8 @@
 <div class="message relative msg{% if message.get('is_ancestor') %} message-ancestor{% endif %}" data-ui="message" id="message-{{ message.id }}" data-role="{{ message.role }}" data-message-id="{{ message.id }}" data-raw-content="{{ message.content }}" data-raw-reasoning="{{ message.get('reasoning') or '' }}" data-msg-index="{{ msg_index }}" data-chat-id="{{ message.get('chat_id') or chat_id }}">
   {% from "macros.html" import icon_edit, icon_refresh, icon_trash, icon_music, icon_branch,
   icon_chevron_left, icon_chevron_right, icon_forward, icon_plug, icon_list, icon_star,
-  icon_star_filled, avatar, tool_call_card %}
+  icon_star_filled, message_header, message_meta, message_content, reasoning_block,
+  attachment_row, attachment_preview, tool_calls_section %}
   <div class="delete-mode-checkbox hidden absolute -left-12 top-4" data-ui="delete-mode-checkbox">
     <input
       type="checkbox"
@@ -14,47 +15,20 @@
   <div class="message-body" data-ui="message-body">
     <div class="flex items-start justify-between relative">
       <!-- Left: avatar + name/info -->
-      <div class="flex items-start gap-3 min-w-0">
-        {% if message.role == 'user' %}
-        {{ avatar('message-avatar', (persona.avatar_path or '') if persona else '',
-          (persona.name if persona else 'User') ~ ' avatar',
-          persona.name[:1] if persona else 'U',
-          initial_tag='', img_class='cursor-pointer', img_attrs='onclick="openLightbox(this.src)"') }}
-        {% else %}
-        {{ avatar('message-avatar', (character.image_path or '') if character else '',
-          (character.name if character else 'Assistant') ~ ' avatar',
-          character.name[:1] if character else 'A',
-          initial_tag='', img_class='cursor-pointer', img_attrs='onclick="openLightbox(this.src)"') }}
-        {% endif %}
-        <div class="min-w-0">
-          <div class="text-sm font-medium message-author">
-            {{ character.name if message.role == 'assistant' and character else (persona.name if message.role == 'user' and persona else message.role) }}
-          </div>
-          {% if message.role == 'assistant' %}
-          <div class="text-xs text-muted message-meta flex items-center gap-1.5 flex-wrap mt-0.5" data-ui="message-meta">
-            {% set has_first_reasoning = (message.get('segments')|selectattr("type", "equalto", "reasoning")|selectattr("index", "equalto", 0)|list|length > 0) if message.get('segments') else message.get('reasoning') %}
-            {% if message.model_name %}
-            <span>{{ message.model_name }}</span>
-            {% if message.position != 0 and has_first_reasoning %}
-            <span class="text-muted">·</span>
-            {% endif %}
-            {% endif %}
-            {% if message.position != 0 and has_first_reasoning %}
-            <button
-              data-action="actionToggleReasoning"
-              class="reasoning-toggle-btn inline-flex items-center gap-1 text-muted hover:text-[--text] transition-colors cursor-pointer"
-              data-ui="reasoning-toggle-btn"
-              style="background:none;border:none;padding:0;font:inherit"
-              aria-label="Toggle reasoning"
-            >
-              {{ icon_chevron_right(12, 'class="w-3 h-3 reasoning-chevron"') }}
-              <span>Reasoning</span>
-            </button>
-            {% endif %}
-          </div>
-          {% endif %}
-        </div>
-      </div>
+      {% if message.role == 'user' %}
+      {% set avatar_path = (persona.avatar_path or '') if persona else '' %}
+      {% set avatar_alt = (persona.name if persona else 'User') ~ ' avatar' %}
+      {% set avatar_initial = persona.name[:1] if persona else 'U' %}
+      {% else %}
+      {% set avatar_path = (character.image_path or '') if character else '' %}
+      {% set avatar_alt = (character.name if character else 'Assistant') ~ ' avatar' %}
+      {% set avatar_initial = character.name[:1] if character else 'A' %}
+      {% endif %}
+      {% set author_name = character.name if message.role == 'assistant' and character else (persona.name if message.role == 'user' and persona else message.role) %}
+      {% set has_first_reasoning = (message.get('segments')|selectattr("type", "equalto", "reasoning")|selectattr("index", "equalto", 0)|list|length > 0) if message.get('segments') else message.get('reasoning') %}
+      {% call message_header(author_name, avatar_path, avatar_alt, avatar_initial) %}
+        {% if message.role == 'assistant' %}{{ message_meta(message.model_name or '', message.position != 0 and has_first_reasoning) }}{% endif %}
+      {% endcall %}
 
       <!-- Right: meta-right + toolbar overlay -->
       <div class="relative shrink-0" style="margin-left:1rem">
@@ -76,85 +50,37 @@
     </div>
 
     {% if message.attachments %}
-    <div class="flex gap-2 flex-wrap mb-2 pl-stream">
-      {% for att in message.attachments %} {% if att.mime_type.startswith('image/') %}
-      <div class="relative group">
-        <img
-          src="/{{ att.file_path }}"
-          class="h-24 rounded object-cover border border-border cursor-pointer hover:opacity-90 transition-opacity"
-          alt="attachment"
-          onclick="openLightbox(this.src)"
-        />
-      </div>
-      {% else %}
-      <div class="relative group">
-        <div
-          class="h-16 bg-(--surface-3) px-3 rounded border border-border flex items-center gap-2 text-sm"
-        >
-          <span>{{ icon_music(18) }}</span>
-          <audio controls class="h-8 max-w-[200px]" style="filter: contrast(0.8) grayscale(1)">
-            <source src="/{{ att.file_path }}" type="{{ att.mime_type }}" />
-          </audio>
-        </div>
-      </div>
-      {% endif %} {% endfor %}
-    </div>
+    {% call attachment_row() %}{% for att in message.attachments %}{{ attachment_preview('/' ~ att.file_path, att.mime_type) }}{% endfor %}{% endcall %}
     {% endif %}
     {% if message.get('segments') is not none %}
     {% set ns = namespace(tool_rendered=false) %}
     {% for seg in message.segments %}
     {% if seg.type == 'text' and seg.content.strip() %}
-    <div class="message-content markdown-content pl-stream" data-ui="message-content markdown-content">{{ seg.content }}</div>
+    {{ message_content(seg.content) }}
     {% elif seg.type == 'reasoning' %}
     {% if seg.index > 0 %}
-    <details class="details reasoning-block pl-stream" data-ui="reasoning-block" data-think-id="{{ seg.index }}">
-      <summary>
-        {{ icon_chevron_right(12, 'class="w-3 h-3 chevron"') }}
-        Reasoning
-      </summary>
-      <div class="reasoning-content markdown-content" data-ui="reasoning-content markdown-content">{{ seg.html | safe }}</div>
-    </details>
+    {{ reasoning_block(seg.index, seg.html | safe) }}
     {% else %}
-    <div class="reasoning-block pl-stream" data-ui="reasoning-block" data-think-id="0">
-      <div class="reasoning-content markdown-content hidden" data-ui="reasoning-content markdown-content">{{ seg.html | safe }}</div>
-    </div>
+    {{ reasoning_block(0, seg.html | safe, collapsible=False) }}
     {% endif %}
     {% elif seg.type == 'block' %}
-    <details class="details reasoning-block pl-stream" data-ui="reasoning-block" data-think-id="{{ seg.id }}">
-      <summary>
-        {{ icon_chevron_right(12, 'class="w-3 h-3 chevron"') }}
-        {{ seg.title }}
-      </summary>
-      <div class="reasoning-content markdown-content" data-ui="reasoning-content markdown-content">{{ seg.html | safe }}</div>
-    </details>
+    {{ reasoning_block(seg.id, seg.html | safe, seg.title) }}
     {% elif seg.type == 'tool_boundary' %}
     {% if seg.tool_calls %}
-    <div class="tool-calls-section pl-stream" data-ui="tool-calls-section">
-      {% for tc in seg.tool_calls %}
-      {{ tool_call_card(tc) }}
-      {% endfor %}
-    </div>
+    {{ tool_calls_section(seg.tool_calls) }}
     {% elif message.get('tool_calls') and not ns.tool_rendered %}
     {% set ns.tool_rendered = true %}
-    <div class="tool-calls-section pl-stream" data-ui="tool-calls-section">
-      {% for tc in message.get('tool_calls') %}
-      {{ tool_call_card(tc) }}
-      {% endfor %}
-    </div>
+    {{ tool_calls_section(message.get('tool_calls')) }}
     {% endif %}
     {% endif %}
     {% endfor %}
     {% if not (message.segments | selectattr("type", "equalto", "text") | list) and message.get('reasoning') %}
-    <div class="message-content markdown-content pl-stream" data-ui="message-content markdown-content"></div>
+    {{ message_content() }}
     {% endif %}
-        {% else %}
-        <div class="message-content markdown-content pl-stream" data-ui="message-content markdown-content">{{ message.content }}</div>
-        {% if message.get('tool_calls') %}
-    <div class="tool-calls-section pl-stream" data-ui="tool-calls-section">
-      {% for tc in message.get('tool_calls') %}
-      {{ tool_call_card(tc) }}
-      {% endfor %}
-    </div>
+    {% else %}
+    {{ message_content(message.content) }}
+    {% if message.get('tool_calls') %}
+    {{ tool_calls_section(message.get('tool_calls')) }}
     {% endif %}
     {% endif %}
   </div>
