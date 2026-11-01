@@ -1,12 +1,14 @@
 {% from "macros.html" import icon_close %} {% macro modal_shell(id, title, max_width='600px',
 width='95vw', content_style='display:flex;flex-direction:column;', z_index='', role='dialog',
-overlay_close=true, overlay_class='', dirty_fields='', dirty_label='') %}
+overlay_close=true, overlay_class='', dirty_fields='', dirty_label='',
+header_class='', title_class='', title_attrs='', close_class='btn btn-secondary', close_aria='Close', overlay_attrs='') %}
 <div
   id="{{ id }}"
   class="modal-overlay hidden {{ overlay_class }}"
   data-ui="modal-overlay"
   role="{{ role }}"
   aria-modal="true"
+  {% if overlay_attrs %}{{ overlay_attrs | safe }}{% endif %}
   {%
   if
   z_index
@@ -41,9 +43,9 @@ overlay_close=true, overlay_class='', dirty_fields='', dirty_label='') %}
     class="modal-content"
     style="max-width:{{ max_width }};width:{{ width }};{{ content_style }}"
   >
-    <div class="modal-header">
-      <div class="modal-title" data-ui="modal-title">{{ title }}</div>
-      <button class="btn btn-secondary" type="button" aria-label="Close" data-action="actionCloseModal" data-modal-id="{{ id }}">
+    <div class="modal-header{% if header_class %} {{ header_class }}{% endif %}">
+      <div class="modal-title{% if title_class %} {{ title_class }}{% endif %}" data-ui="modal-title{% if title_class %} {{ title_class }}{% endif %}"{% if title_attrs %} {{ title_attrs | safe }}{% endif %}>{{ title }}</div>
+      <button class="{{ close_class }}" type="button" aria-label="{{ close_aria }}" data-action="actionCloseModal" data-modal-id="{{ id }}">
         {{ icon_close(16) }}
       </button>
     </div>

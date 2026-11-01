@@ -1,5 +1,6 @@
 <!doctype html>
 {% from "macros.html" import icon_close, icon_expand %}
+{% from "modal-shell.html" import modal_shell %}
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -229,50 +230,24 @@
     </div>
 
     <!-- Global Crop Modal -->
-    <div
-      id="crop-modal"
-      class="modal-overlay heavy hidden"
-      data-ui="modal-overlay"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Image crop tool"
-      style="z-index: var(--z-overlay)"
-    >
+    {% call modal_shell('crop-modal', 'Crop Image',
+      max_width='42rem', width='90vw',
+      content_style='padding:0;overflow:hidden;display:flex;flex-direction:column;',
+      z_index='var(--z-overlay)', role='dialog', overlay_class='heavy',
+      header_class='divider py-4 px-6', overlay_close=false,
+      overlay_attrs='aria-label="Image crop tool"',
+      close_aria='Close crop tool',
+      close_class='btn btn-secondary w-8 h-8 rounded-full p-0 flex items-center justify-center') %}
       <div
-        class="modal-content"
-        style="
-          max-width: 42rem;
-          width: 90vw;
-          padding: 0;
-          overflow: hidden;
-          display: flex;
-          flex-direction: column;
-        "
-      >
-        <div
-          class="modal-header divider"
-          style="padding: 1rem 1.5rem"
-        >
-          <div class="modal-title" data-ui="modal-title">Crop Image</div>
-          <button
-            class="btn btn-secondary w-8 h-8 rounded-full p-0 flex items-center justify-center"
-            onclick="closeCropModal()"
-            aria-label="Close crop tool"
-          >
-            {{ icon_close() }}
-          </button>
-        </div>
-        <div
-          id="crop-container"
-          class="p-2"
-          style="background: var(--surface-2); height: 60vh"
-        ></div>
-        <div class="modal-footer" style="padding: 1rem 1.5rem">
-          <button class="btn btn-secondary" onclick="closeCropModal()">Cancel</button>
-          <button class="btn btn-primary" id="crop-save-btn">Save Crop</button>
-        </div>
+        id="crop-container"
+        class="p-2"
+        style="background: var(--surface-2); height: 60vh"
+      ></div>
+      <div class="modal-footer" style="padding: 1rem 1.5rem">
+        <button class="btn btn-secondary" onclick="closeCropModal()">Cancel</button>
+        <button class="btn btn-primary" id="crop-save-btn">Save Crop</button>
       </div>
-    </div>
+    {% endcall %}
 
     <!-- ── Shared app scripts ───────────────────────────────────────────
          Loaded after page content so modules that bind to the page DOM find

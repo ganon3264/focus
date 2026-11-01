@@ -27,9 +27,6 @@
     box-shadow: var(--shadow-glow);
     background: var(--surface-3);
   }
-  .form-control-sm {
-    padding: 0.3rem 0.5rem;
-  }
   .form-control-xs {
     width: 56px;
     height: 20px;

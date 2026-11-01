@@ -1,13 +1,10 @@
 <!-- Option Selection Modal (shared picker: OpenRouter route/quant, theme picker, ...) -->
-{% from "macros.html" import icon_close %}
-<div id="modal-select-option" class="modal-overlay sub hidden" data-ui="modal-overlay" role="dialog" aria-modal="true" aria-label="Select option"
-     x-data="{ search: '', options: [], title: 'Select', select(value, label) { $dispatch('option-selected', { value: value, label: label }); } }"
-     data-action="actionCloseModal">
-  <div class="modal-content" style="max-width: 400px; width: 95vw; max-height: 60vh; overflow: hidden; background: var(--surface); padding: 0;">
-    <div class="modal-header divider p-4">
-      <div class="modal-title" data-ui="modal-title" x-text="title"></div>
-      <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-select-option')" aria-label="Close">{{ icon_close(16) }}</button>
-    </div>
+{% from "modal-shell.html" import modal_shell %}
+{% call modal_shell('modal-select-option', '', max_width='400px', width='95vw',
+     content_style='display:block;max-height:60vh;overflow:hidden;background:var(--surface);padding:0;',
+     overlay_class='sub', header_class='divider p-4', title_attrs='x-text="title"',
+     close_class='btn btn-secondary btn-sm',
+     overlay_attrs='aria-label="Select option" x-data="{ search: \'\', options: [], title: \'Select\', select(value, label) { $dispatch(\'option-selected\', { value: value, label: label }); } }"') %}
     <div class="p-4" style="background: var(--surface-2); border-bottom: 1px solid var(--border);">
       <input type="text" x-model="search" placeholder="Search..." class="form-control" autocomplete="off" autofocus>
     </div>
@@ -22,5 +19,4 @@
         No options available.
       </div>
     </div>
-  </div>
-</div>
+{% endcall %}

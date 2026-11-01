@@ -1,4 +1,5 @@
 {% from "macros.html" import icon_key, icon_edit, icon_refresh, icon_search, icon_database, icon_plus, icon_close, sort_dropdown, empty_state %}
+{% from "modal-shell.html" import modal_shell %}
 <div class="flex flex-col h-full">
   <div class="flex justify-between items-center gap-2 mb-3 shrink-0" style="padding-bottom: 0.75rem;">
     <h3 class="modal-subhead mb-0">Select active provider</h3>
@@ -41,17 +42,10 @@
 {% include "modals/provider-create.html" %}
 
 <!-- Universal Model Selection Modal -->
-<div id="modal-fetch-models" class="modal-overlay sub hidden" data-ui="modal-overlay" role="dialog" aria-modal="true" aria-label="Fetch models"
-     x-data="{ search: '', models: [], loading: false, error: '' }"
-     @models-loaded.window="models = $event.detail; loading = false; error = ''"
-     @models-loading.window="loading = true; error = ''"
-     @models-error.window="error = $event.detail; loading = false"
-      data-action="actionCloseModal">
-  <div class="modal-content flex flex-col p-0" style="max-width: 800px; width: 95vw; height: 80vh; overflow: hidden; background: var(--surface);">
-    <div class="modal-header divider p-4">
-      <div class="modal-title" data-ui="modal-title">Select Model</div>
-      <button class="btn btn-secondary btn-sm" data-action="actionCloseModal" data-modal-id="modal-fetch-models" aria-label="Close">{{ icon_close(16) }}</button>
-    </div>
+{% call modal_shell('modal-fetch-models', 'Select Model', max_width='800px',
+     content_style='display:flex;flex-direction:column;height:80vh;overflow:hidden;background:var(--surface);',
+     overlay_class='sub', header_class='divider p-4', close_class='btn btn-secondary btn-sm',
+     overlay_attrs='aria-label="Fetch models" x-data="{ search: \'\', models: [], loading: false, error: \'\' }" @models-loaded.window="models = $event.detail; loading = false; error = \'\'" @models-loading.window="loading = true; error = \'\'" @models-error.window="error = $event.detail; loading = false"') %}
     
     <div class="p-4" style="background: var(--surface-2); border-bottom: 1px solid var(--border);">
        <div class="flex gap-2">
@@ -99,20 +93,14 @@
          No models match your search.
        </div>
     </div>
-  </div>
-</div>
+{% endcall %}
 
 
 <!-- Secrets Selection Modal -->
-<div id="modal-secrets" class="modal-overlay sub hidden" data-ui="modal-overlay" role="dialog" aria-modal="true" aria-label="Secrets"
-     x-data="{ secrets: [], rawKey: '', newName: '', newValue: '' }"
-     @secrets-loaded.window="secrets = $event.detail"
-     data-action="actionCloseModal">
-  <div class="modal-content flex flex-col p-0" style="max-width: 800px; width: 95vw; height: 75vh; overflow: hidden; background: var(--surface);">
-    <div class="modal-header divider p-4">
-      <div class="modal-title secrets-title" data-ui="modal-title secrets-title">Select API Key</div>
-      <button class="btn btn-secondary btn-sm" data-action="actionCloseModal" data-modal-id="modal-secrets" aria-label="Close">{{ icon_close(16) }}</button>
-    </div>
+{% call modal_shell('modal-secrets', 'Select API Key', max_width='800px',
+     content_style='display:flex;flex-direction:column;height:75vh;overflow:hidden;background:var(--surface);',
+     overlay_class='sub', header_class='divider p-4', title_class='secrets-title', close_class='btn btn-secondary btn-sm',
+     overlay_attrs='aria-label="Secrets" x-data="{ secrets: [], rawKey: \'\', newName: \'\', newValue: \'\' }" @secrets-loaded.window="secrets = $event.detail"') %}
     
     <div class="p-4" style="background: var(--surface-2); border-bottom: 1px solid var(--border);">
        <h4 class="text-sm font-bold mb-2">Saved Keys</h4>
@@ -172,5 +160,4 @@
          <button type="button" class="btn btn-danger btn-sm" @click="clearKey()">Clear Key</button>
        </div>
     </div>
-  </div>
-</div>
+{% endcall %}

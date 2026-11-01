@@ -12,6 +12,7 @@
   var registry = {};
   var dirtyStates = {};
   var openHooks = {};
+  var closeHooks = {};
 
   function overlay(id) {
     return document.getElementById(id);
@@ -128,10 +129,14 @@
 
   function forceClose(id) {
     var ov = overlay(id);
+    var wasOpen = !!ov && !ov.classList.contains('hidden');
     if (ov) ov.classList.add('hidden');
     var idx = stack.indexOf(id);
     if (idx >= 0) stack.splice(idx, 1);
     delete dirtyStates[id];
+    if (wasOpen && closeHooks[id]) {
+      closeHooks[id].forEach(function (fn) { fn(id); });
+    }
   }
 
   var ModalController = {
@@ -198,6 +203,10 @@
     onOpen: function (id, fn) {
       (openHooks[id] = openHooks[id] || []).push(fn);
     },
+
+    onClose: function (id, fn) {
+      (closeHooks[id] = closeHooks[id] || []).push(fn);
+    },
   };
 
   window.ModalController = ModalController;
@@ -210,20 +219,17 @@
     ModalController.close(id, opts);
   };
 
-  // ESC: confirm modal first (acts as Cancel), then topmost modal, then lightbox.
+  // ESC: confirm modal first (it is Cancel for whatever it is asking about and
+  // is itself on the stack), then topmost modal.
   document.addEventListener('keydown', function (e) {
     if (e.key !== 'Escape' && e.keyCode !== 27) return;
-    var confirmEl = document.getElementById('global-confirm-modal');
-    if (confirmEl && !confirmEl.classList.contains('hidden')) {
-      if (window.closeConfirmModal) window.closeConfirmModal();
+    if (window.closeConfirmModal && ModalController.isOpen('global-confirm-modal')) {
+      window.closeConfirmModal();
       return;
     }
     if (stack.length) {
       ModalController.closeTop();
-      return;
     }
-    var lb = document.getElementById('lightbox');
-    if (lb && !lb.classList.contains('hidden') && window.closeLightbox) window.closeLightbox();
   });
 
   // Programmatic pickers (option picker, custom selects) don't fire input events.

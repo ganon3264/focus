@@ -9,12 +9,18 @@ var fs = require('fs');
 // Build DOM
 var lightboxEl = makeElement('div');
 lightboxEl.id = 'lightbox';
+lightboxEl.dataset.ui = 'modal-overlay';
+lightboxEl.classList.add('modal-overlay');
+lightboxEl.classList.add('hidden');
 var lightboxImg = makeElement('img');
 lightboxImg.id = 'lightbox-img';
 lightboxEl.appendChild(lightboxImg);
 
 var cropModal = makeElement('div');
 cropModal.id = 'crop-modal';
+cropModal.dataset.ui = 'modal-overlay';
+cropModal.classList.add('modal-overlay');
+cropModal.classList.add('hidden');
 var cropContainer = makeElement('div');
 cropContainer.id = 'crop-container';
 var cropSaveBtn = makeElement('button');
@@ -24,6 +30,15 @@ cropSaveBtn.addEventListener = function (event, handler) {
   if (event === 'click') this._clickHandler = handler;
 };
 cropSaveBtn.click = function () { if (this._clickHandler) this._clickHandler(); };
+cropModal.addEventListener = function (type, fn) {
+  this._handlers = this._handlers || {};
+  (this._handlers[type] = this._handlers[type] || []).push(fn);
+};
+cropModal.dispatchEvent = function (ev) {
+  var hs = this._handlers && this._handlers[ev.type];
+  if (hs) hs.forEach(function (fn) { fn(ev); });
+  return true;
+};
 cropModal.appendChild(cropContainer);
 cropModal.appendChild(cropSaveBtn);
 
@@ -40,9 +55,17 @@ doc.getElementById = function (id) {
 };
 doc.body = doc._body;
 doc.body.addEventListener = function () {};
+doc._handlers = {};
+doc.addEventListener = function (type, fn) {
+  (this._handlers[type] = this._handlers[type] || []).push(fn);
+};
+
+var CustomEventCtor = h.createMockCustomEvent();
 
 global.window = global;
 global.document = doc;
+global.CustomEvent = CustomEventCtor;
+global.dispatchEvent = function () {};
 global.fetch = function () { return Promise.resolve({ ok: true }); };
 global.URL = { createObjectURL: function () { return 'blob:url'; } };
 global.Image = function () { this.src = ''; this.alt = ''; };
@@ -73,6 +96,10 @@ MockCropper.prototype = {
 MockCropper.default = MockCropper;
 global.Cropper = MockCropper;
 
+// Load the controller first — lightbox.js drives every overlay through it
+var MODAL_JS = fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'ui', 'modal.js'), 'utf8');
+eval(MODAL_JS);
+
 // Load module — append export assignment since bare function declarations aren't hoisted to global
 var src = fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'ui', 'lightbox.js'), 'utf8');
 eval(src + '\nwindow.openLightbox=openLightbox;window.closeLightbox=closeLightbox;window.openCropModal=openCropModal;window.closeCropModal=closeCropModal;window.handleAvatarUpload=handleAvatarUpload;');
@@ -82,13 +109,15 @@ eval(src + '\nwindow.openLightbox=openLightbox;window.closeLightbox=closeLightbo
   lightboxEl.classList.add('hidden');
   window.openLightbox('/path/to/img.jpg');
   assert(!lightboxEl.classList.contains('hidden'), 'lightbox visible after openLightbox');
+  assertEqual(window.ModalController.isOpen('lightbox'), true, 'openLightbox pushes lightbox on the stack');
   assertEqual(lightboxImg.getAttribute('src'), '/path/to/img.jpg', 'lightbox img src set');
 })();
 
 // ── closeLightbox hides overlay ──
 (function () {
-  window.closeLightbox();
+  window.closeLightbox({});
   assert(lightboxEl.classList.contains('hidden'), 'lightbox hidden after close');
+  assertEqual(window.ModalController.isOpen('lightbox'), false, 'closeLightbox pops the stack');
   assert(!lightboxImg.hasAttribute('src'), 'lightbox img src cleared (no fetch)');
 })();
 
@@ -99,14 +128,25 @@ eval(src + '\nwindow.openLightbox=openLightbox;window.closeLightbox=closeLightbo
   window.openCropModal(file, function () { callbackCalled = true; }, { aspectRatio: 1 });
   assert(!!cropperInstance, 'Cropper instance created');
   assert(!cropModal.classList.contains('hidden'), 'crop modal visible');
+  assertEqual(window.ModalController.isOpen('crop-modal'), true, 'openCropModal pushes crop modal on the stack');
 })();
 
 // ── closeCropModal destroys cropper and hides modal ──
 (function () {
-  cropModal.classList.remove('hidden');
   window.closeCropModal();
   assert(cropModal.classList.contains('hidden'), 'crop modal hidden after close');
+  assertEqual(window.ModalController.isOpen('crop-modal'), false, 'closeCropModal pops the stack');
   assert(!cropperInstance, 'cropper set to null after close');
+})();
+
+// ── the shell close button (controller path) tears the cropper down ──
+(function () {
+  window.openCropModal(new Blob(), function () {}, { aspectRatio: 1 });
+  assert(!!cropperInstance, 'cropper alive before shell close');
+
+  window.closeModal('crop-modal');
+  cropModal.dispatchEvent({ type: 'click', target: { closest: function () { return cropModal; } } });
+  assert(!cropperInstance, 'cropper destroyed on controller close');
 })();
 
 // ── crop-save-btn handler exists and invokes callback ──

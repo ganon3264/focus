@@ -340,15 +340,10 @@ assert(typeof window.closeModal === 'function', 'closeModal wrapper loaded');
 
 // ── ESC closes confirm modal first, leaving the modal open ──
 (function () {
-  var confirmEl = enableEvents(makeElement('div'));
-  confirmEl.id = 'global-confirm-modal';
-  confirmEl.classList.add('modal-overlay');
-  confirmEl.dataset.ui = 'modal-overlay';
-  confirmEl.classList.add('hidden');
-  doc._body.appendChild(confirmEl);
+  var confirmEl = makeModal('global-confirm-modal');
   var confirmClosed = 0;
   global.closeConfirmModal = function () {
-    confirmEl.classList.add('hidden');
+    window.ModalController.close('global-confirm-modal', { discard: true });
     confirmClosed++;
   };
 
@@ -356,31 +351,27 @@ assert(typeof window.closeModal === 'function', 'closeModal wrapper loaded');
   var f = addField(ov, 'edit-field-a', 'x');
   window.openModal('modal-esc-confirm');
   type(ov, f, 'edited');
-  confirmEl.classList.remove('hidden');
+  window.openModal('global-confirm-modal');
 
   dispatchKey('Escape');
   assertEqual(confirmClosed, 1, 'ESC: confirm modal closed first');
+  assert(confirmEl.classList.contains('hidden'), 'ESC: confirm hidden through the controller');
+  assertEqual(window.ModalController.isOpen('global-confirm-modal'), false, 'ESC: confirm popped off the stack');
   assert(!ov.classList.contains('hidden'), 'ESC: underlying modal stays open');
   assertEqual(window.ModalController.isDirty('modal-esc-confirm'), true, 'ESC: dirty state intact');
 
-  confirmEl.classList.add('hidden');
   window.closeModal('modal-esc-confirm', { discard: true });
 })();
 
-// ── ESC with nothing open closes lightbox ──
+// ── ESC closes the lightbox through the stack ──
 (function () {
-  var lb = makeElement('div');
-  lb.id = 'lightbox';
-  lb.classList.add('hidden');
-  doc._body.appendChild(lb);
-  var lbClosed = 0;
-  global.closeLightbox = function () { lbClosed++; };
+  var lb = makeModal('lightbox');
+  window.openModal('lightbox');
+  assert(!lb.classList.contains('hidden'), 'ESC: lightbox opened through the controller');
 
-  lb.classList.remove('hidden');
   dispatchKey('Escape');
-  assertEqual(lbClosed, 1, 'ESC: lightbox closed when no modals open');
-
-  lb.classList.add('hidden');
+  assert(lb.classList.contains('hidden'), 'ESC: lightbox closed');
+  assertEqual(window.ModalController.isOpen('lightbox'), false, 'ESC: lightbox popped off the stack');
 })();
 
 // ── onOpen hooks fire only on hidden→visible transition ──

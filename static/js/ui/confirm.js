@@ -1,10 +1,11 @@
 (function () {
+  var CONFIRM_ID = 'global-confirm-modal';
   var pendingConfirmCallback = null;
 
   window.closeConfirmModal = function () {
-    var el = document.getElementById('global-confirm-modal');
-    if (el) el.classList.add('hidden');
     pendingConfirmCallback = null;
+    if (!window.ModalController.isOpen(CONFIRM_ID)) return;
+    window.ModalController.close(CONFIRM_ID, { discard: true });
   };
 
   window.openConfirmModal = function (message, callback) {
@@ -16,8 +17,7 @@
       msgEl.textContent = message || 'Are you sure?';
     }
     pendingConfirmCallback = callback;
-    var modal = document.getElementById('global-confirm-modal');
-    if (modal) modal.classList.remove('hidden');
+    window.ModalController.open(CONFIRM_ID);
   };
 
   window.customConfirm = function (message, callback) {

@@ -1,14 +1,11 @@
 function openLightbox(src) {
-  const lb = document.getElementById('lightbox');
   const img = document.getElementById('lightbox-img');
   img.setAttribute('src', src);
-  lb.classList.remove('hidden');
+  window.ModalController.open('lightbox');
 }
 
 function closeLightbox() {
-  const lb = document.getElementById('lightbox');
-  lb.classList.add('hidden');
-  document.getElementById('lightbox-img').removeAttribute('src');
+  window.ModalController.close('lightbox', { discard: true });
 }
 
 const Cropper = window.Cropper.default;
@@ -18,7 +15,6 @@ let currentCropCallback = null;
 let currentCropOptions = null;
 
 function openCropModal(file, callback, options = {}) {
-  const modal = document.getElementById('crop-modal');
   const container = document.getElementById('crop-container');
 
   currentCropCallback = callback;
@@ -26,7 +22,7 @@ function openCropModal(file, callback, options = {}) {
 
   const url = URL.createObjectURL(file);
 
-  modal.classList.remove('hidden');
+  window.ModalController.open('crop-modal');
 
   if (cropper) {
     cropper.destroy();
@@ -67,15 +63,23 @@ function openCropModal(file, callback, options = {}) {
 }
 
 function closeCropModal() {
-  const modal = document.getElementById('crop-modal');
-  modal.classList.add('hidden');
+  window.ModalController.close('crop-modal', { discard: true });
+}
+
+// Every close path (X, Cancel, ESC, backdrop) funnels through the controller,
+// so teardown lives here instead of in each caller.
+ModalController.onClose('lightbox', () => {
+  document.getElementById('lightbox-img').removeAttribute('src');
+});
+
+ModalController.onClose('crop-modal', () => {
   if (cropper) {
     cropper.destroy();
     cropper = null;
   }
   currentCropCallback = null;
   currentCropOptions = null;
-}
+});
 
 const _cropSaveBtn = document.getElementById('crop-save-btn');
 if (_cropSaveBtn) {
