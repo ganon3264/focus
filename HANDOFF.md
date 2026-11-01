@@ -1,7 +1,8 @@
 # Handoff — UI overhaul
 
 Branch `refactor/consolidate-ui`, off `master` (d7b89ad).
-Last commit `34d27b3`. 1416 tests + 269 frontend tests green, grid audit 105/105.
+Last commit `7433320`. 1416 tests + 269 frontend tests green, grid audit
+140/140.
 
 Read this before touching CSS or templates. Then read `static/css/design.css` —
 it is the contract, not a suggestion.
@@ -24,7 +25,15 @@ class names as its DOM API. That is all resolved:
 | `76c5d3f`, `e2c0502` | every overlay opens/closes through `ModalController`; confirm/lightbox/crop/option-picker/fetch-models/secrets/trash all use `modal_shell`. `ModalController.onClose(id, fn)` exists for teardown |
 
 **B. New skin — in progress.** FL-Studio-ish pseudo-skeuomorphic language,
-calibrated on the shell + messages. Commits `329409e` … `34d27b3`.
+calibrated on the shell + messages. Commits `329409e` … `34d27b3`, then the
+pass on the shell + both sidebars (`58bd82c` … `7433320`):
+
+| commit | what |
+|---|---|
+| `58bd82c` | separators are grooves (`--hair-dark` + `--hair-lit`), not single black cuts; `--mat-lo` 28%→22% |
+| `c041d40`, `ba69810` | the reasoning caret is drawn (`.caret-mark`), the `·` became a 2px square, one gutter on both sides |
+| `ba69810` | toolbar keys take full text ink (muted ink on a white plate was invisible on light themes) |
+| `cf78be5`, `7433320` | preset variables migrated to the new language (square LEDs, drawn carets, mono values, grooves); 153 lines of legacy sidebar-var skin deleted, which also killed the 1px `border-bottom` dividers |
 
 ---
 
@@ -108,9 +117,15 @@ surfaces/messages.css   NEW: message frame/screen/rail/reasoning/tool cards
 
 Import order in `static/tailwind-input.css` puts `design.css` and
 `surfaces/*` last, unlayered — so they beat legacy rules without touching them.
-`instrument.css` (2134 lines) is still the old skin underneath and must be
-deleted once every surface is migrated. Do not add new rules to the legacy
-files.
+`instrument.css` (1976 lines and falling) is still the old skin underneath and
+must be deleted once every surface is migrated. Do not add new rules to the
+legacy files.
+
+`design.css` also owns the two primitives both sidebars and messages need:
+`.caret-mark` (a drawn caret — integer geometry, so it cannot lose an edge to
+antialiasing at 1x the way a 12px icon's diagonal does) and the `--hair-groove`
+token pair. Use them rather than an `icon_chevron_right(12)` or a lone dark
+line.
 
 When a surface is migrated: write its rules in its `surfaces/*.css`, delete the
 matching legacy block, and add the surface's boxes to the ruler.
@@ -164,6 +179,12 @@ configurable, material must work on light and dark.
 ---
 
 ## 6. Remaining work
+
+**Shell + both sidebars: done** — except one open question: the preset-variables
+section flexes to fill the pane, so a short variable list leaves ~400px of empty
+chassis above TOOLS. The suggested fix is to make that list a recessed well
+(like the status panel) so the space reads as an empty list instead of a hole.
+Not started; needs a call.
 
 **Surfaces still on the old skin** (priority order):
 
@@ -222,3 +243,10 @@ configurable, material must work on light and dark.
   "floating" lines 4px below content.
 - Message frames: heavier (current tuned values) rather than lighter.
 - Alignment is non-negotiable; if something is 1–2px off it *will* be noticed.
+- Separators are grooves (dark line + lit line under it), never a lone dark line
+  — a lone one reads as a gap between separate plates.
+- Row content gets interior padding; hairlines share edges across nesting levels.
+  An indent belongs in `padding`, not in the row's box.
+- Carets and separator dots are drawn (`.caret-mark`, a 2px square), never glyphs
+  or icons — those sit on their own half-pixel and stop sharing a centre line
+  with neighbouring type at 1x zoom.
