@@ -117,18 +117,18 @@
 }
 
 /* ── Rows ───────────────────────────────────────────────────────────────────
-   One --row-h line each, hairline painted inside the row box so the pitch stays
-   on the ruler. Two fixed line boxes (16 + 12) fill the 28 exactly: every
-   title and every date lands on the same baseline, and truncation cannot
-   change a row's height because both lines are clipped. */
+   One 40px row each (10 grid units), hairline painted inside the row box so
+   the pitch stays on the ruler. Fixed line boxes (20 + 12) plus 4px block
+   padding give the text room; every title and every date lands on the same
+   baseline, and truncation cannot change a row's height. */
 .right-sidebar .sidebar-item {
   --row-edge: inset 0 calc(-1 * var(--hair-w)) 0 var(--mat-lo);
   display: flex;
   align-items: center;
   flex: none;
   gap: var(--gutter);
-  height: var(--row-h);
-  padding: 0 var(--gutter) 0 var(--inset);
+  height: calc(var(--u) * 10);
+  padding: var(--u) var(--gutter) var(--u) var(--inset);
   overflow: hidden;
   border: none;
   border-radius: 0;
@@ -172,10 +172,10 @@
 }
 
 .right-sidebar .sidebar-item .sidebar-item-link .sidebar-item-title {
-  height: calc(var(--u) * 4);
-  line-height: calc(var(--u) * 4);
+  height: calc(var(--u) * 5);
+  line-height: calc(var(--u) * 5);
   font-family: var(--font-sans);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   color: color-mix(in srgb, var(--text) 82%, transparent);
 }
@@ -188,7 +188,7 @@
   height: calc(var(--u) * 3);
   line-height: calc(var(--u) * 3);
   font-family: var(--font-mono-ui);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 400;
   letter-spacing: 0.02em;
   color: var(--engrave);
@@ -283,7 +283,7 @@
 }
 
 .chat-pager-num {
-  min-width: var(--control-h);
+  min-width: var(--control-h-lg);
   height: var(--control-h);
   padding: 0 var(--u);
   font-size: 11px;

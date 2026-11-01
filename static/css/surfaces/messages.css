@@ -4,17 +4,17 @@
 
    Anatomy, one shape for every message:
      .message        raised frame  — --mat-raise-fill over the chassis
-     .message-rail   28px rail     — avatar · author · model, readouts right
+     .message-rail   32px rail     — avatar · author · model, readouts right
      .message-body   sunk screen   — --mat-well + --mat-inset, prose lives here
 
    Reasoning blocks and tool cards are sub-panels inside the screen: a hairline
    top edge and a mono caps summary, never a rounded card. */
 
 .message {
-  --msg-rail-h: var(--row-h);
+  --msg-rail-h: calc(var(--u) * 8);
   --msg-frame-pad: var(--gutter);
   --msg-screen-pad: var(--inset);
-  --msg-avatar-size: var(--row-h);
+  --msg-avatar-size: calc(var(--u) * 6);
 
   width: 100%;
   padding: 0;
@@ -164,21 +164,19 @@
   text-align: right;
 }
 
-.message-ts .ts-date {
-  color: var(--text-faint);
-}
-
+.message-ts .ts-date,
 .message-ts .ts-time {
-  color: var(--text-muted);
+  color: var(--text-faint);
 }
 
 .message .message-rail-end .message-index {
   font-family: var(--font-mono-ui);
-  font-size: 11px;
+  font-size: 16px;
   font-weight: 400;
+  line-height: 1;
   letter-spacing: 0.02em;
   font-variant-numeric: tabular-nums;
-  color: var(--text-faint);
+  color: var(--text-muted);
   white-space: nowrap;
 }
 
@@ -191,7 +189,7 @@
   border: none;
   border-radius: var(--radius-control);
   background-color: var(--surface);
-  background-image: var(--mat-raise-fill);
+  background-image: linear-gradient(var(--mat-hi), var(--mat-shade));
   box-shadow: var(--mat-raise);
 }
 

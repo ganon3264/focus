@@ -505,58 +505,6 @@
   padding: 0.85rem 2rem;
 }
 
-/* ── Corner motif ───────────────────────────────────────────────────────── */
-/* Bracket corners from the status readout recur on the framed surfaces that
-   hold a single control: the preset selector, grid tiles, the composer, and the
-   message hover toolbar. */
-.status-panel,
-.input-wrapper,
-.toolbar,
-.left-sidebar #preset-selector .form-control {
-  --corner-size: 8px;
-  --corner-color: var(--hair-strong);
-}
-
-.toolbar {
-  --corner-size: 6px;
-}
-
-.left-sidebar #preset-selector .form-control {
-  position: relative;
-}
-
-.status-panel::before,
-.input-wrapper::before,
-.toolbar::before,
-.left-sidebar #preset-selector .form-control::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: var(--corner-size);
-  height: var(--corner-size);
-  border: 1px solid var(--corner-color);
-  border-right: none;
-  border-bottom: none;
-  pointer-events: none;
-}
-
-.status-panel::after,
-.input-wrapper::after,
-.toolbar::after,
-.left-sidebar #preset-selector .form-control::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  right: 0;
-  width: var(--corner-size);
-  height: var(--corner-size);
-  border: 1px solid var(--corner-color);
-  border-left: none;
-  border-top: none;
-  pointer-events: none;
-}
-
 /* ── Status: an instrument readout ──────────────────────────────────────── */
 .left-sidebar .status-panel {
   position: relative;
@@ -891,7 +839,6 @@
 }
 
 .input-wrapper:focus-within {
-  --corner-color: var(--accent);
   box-shadow: none;
 }
 
