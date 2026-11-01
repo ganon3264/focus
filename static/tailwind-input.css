@@ -8,6 +8,7 @@
 @import './css/components.css';
 @import './css/animations.css';
 @import './css/instrument.css';
+@import './css/design.css';
 
 @source "../templates";
 @source "../partials";

@@ -62,16 +62,55 @@
   --control-icon-lg: 28px; /* standalone icon buttons: toolbar, textarea expander */
   --control-btn: 36px; /* icon-only .btn variant for modal footers */
 
+  /* ── Grid ──────────────────────────────────────────────────────────────
+     One unit. Every size in the shell is a multiple of it: panel insets,
+     row and control heights, gaps. Nothing is allowed to be off-grid. */
+  --u: 4px;
+  --inset: 12px;
+  --gutter: 8px;
+  --rail-h: 24px;
+  --row-h: 28px;
+  --control-h: 28px;
+  --control-h-sm: 24px;
+  --control-h-lg: 32px;
+  --hair-w: 1px;
+
+  /* ── Material ──────────────────────────────────────────────────────────
+     Pseudo-skeuomorphic chrome, derived from the active theme's surface so it
+     works on any palette: a lit edge, a shaded edge, a 4-6% gradient. Raised
+     controls get --mat-raise; recessed ones get --mat-sink. Matte means low
+     amplitude — never crank these. */
+  --mat-hi: color-mix(in srgb, var(--surface), white 14%);
+  --mat-hi-strong: color-mix(in srgb, var(--surface), white 22%);
+  --mat-lo: color-mix(in srgb, var(--surface), black 28%);
+  --mat-edge: color-mix(in srgb, var(--bg), black 42%);
+  --mat-well: color-mix(in srgb, var(--bg), black 18%);
+  --mat-shade: color-mix(in srgb, var(--surface), black 7%);
+  --mat-glow: color-mix(in srgb, var(--surface), white 5%);
+  --mat-raise: inset 0 1px 0 var(--mat-hi), inset 0 -1px 0 var(--mat-lo),
+    0 1px 0 var(--mat-edge);
+  --mat-raise-fill: linear-gradient(var(--mat-glow), var(--mat-shade));
+  --mat-inset: inset 0 1px 2px color-mix(in srgb, black 48%, transparent),
+    inset 0 -1px 0 var(--mat-hi);
+  /* Brushed texture: large chassis surfaces only, never controls. */
+  --mat-brush: repeating-linear-gradient(
+    90deg,
+    color-mix(in srgb, white 1.2%, transparent) 0 1px,
+    transparent 1px 3px
+  );
+  --radius-panel: 0;
+  --radius-control: 2px;
+
   /* Sidebar widths */
-  --sidebar-width-left: 310px;
-  --sidebar-width-right: 310px;
+  --sidebar-width-left: 312px;
+  --sidebar-width-right: 312px;
 
   /* Breathing room between a scroll region's content and its scrollbar. The bar
      itself takes its own layout width (native `thin`); this is the extra margin. */
   --scrollbar-gap: 0.625rem;
 
   /* Shared content column width (message list, input bar, staging area) */
-  --chat-content-width: min(85%, 820px);
+  --chat-content-width: min(100%, 800px);
 
   /* Role colors for arranger items (user/assistant) */
   --role-user: #10b981;
