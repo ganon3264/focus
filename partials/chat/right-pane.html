@@ -3,18 +3,17 @@
 <aside class="right-sidebar" id="right-sidebar">
   <div class="sidebar-inner">
   {# The list fills its region so the footer (rule + pager + Trash Bin) stays
-     pinned regardless of how many rows the page has. The footer's bottom edge
-     sits on the shared 1.5rem baseline with the composer and the status readout. #}
-  <div class="sidebar-section flex flex-col h-full" style="border-bottom: none; padding-bottom: 0.75rem;">
+     pinned regardless of how many rows the page has. #}
+  <div class="sidebar-section flex flex-col h-full">
     <div class="sidebar-title flex justify-between items-center">
       <button class="action-icon" onclick="toggleSidebar('right')" title="Collapse" aria-label="Toggle sidebar">{{ icon_chevron_right(14) }}</button>
       <span>Chats</span>
     </div>
     
     {% if has_characters %}
-      <button class="btn btn-create btn-sm w-full" onclick="newChat()">{{ icon_plus(14) }} New Chat</button>
+      <button class="btn btn-create" onclick="newChat()">{{ icon_plus(14) }} New Chat</button>
     {% else %}
-      <button class="btn btn-primary btn-sm w-full" onclick="openModal('modal-characters')">{{ icon_plus(14) }} Add Character</button>
+      <button class="btn btn-primary" onclick="openModal('modal-characters')">{{ icon_plus(14) }} Add Character</button>
     {% endif %}
 
     <div class="sidebar-rule"></div>
@@ -25,7 +24,7 @@
   </div>
   <div class="sidebar-footer">
     <div id="chat-pager">{% include "chat/chat-pager.html" %}</div>
-    <button class="btn btn-secondary btn-sm" onclick="openChatTrashModal()">{{ icon_trash(14) }} Trash Bin</button>
+    <button class="btn btn-secondary" onclick="openChatTrashModal()">{{ icon_trash(14) }} Trash Bin</button>
   </div>
   </div>
 </aside>

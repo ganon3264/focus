@@ -15,7 +15,7 @@
   </div>
   <div class="input-bar flex-col gap-2 items-center relative">
     <div class="input-bar-content">
-      <div id="staging-area" class="staging-area flex gap-2 overflow-x-auto empty:hidden pointer-events-auto"></div>
+      <div id="staging-area" class="staging-area flex overflow-x-auto empty:hidden pointer-events-auto"></div>
     
     <!-- Standard Input -->
     <div id="standard-input-container" class="input-wrapper relative w-full">
@@ -33,7 +33,7 @@
     </div>
 
     <!-- Delete Toolbar -->
-      <div id="delete-toolbar" class="input-wrapper delete-toolbar relative w-full hidden justify-between items-center px-4">
+      <div id="delete-toolbar" class="input-wrapper delete-toolbar relative w-full hidden">
         <div class="font-bold text-(--danger)"><span id="delete-selected-count">0</span> Selected for deletion</div>
         <div class="flex gap-2">
           <button class="btn btn-secondary btn-sm" onclick="exitDeleteMode()">Cancel</button>

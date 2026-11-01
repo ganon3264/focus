@@ -99,6 +99,8 @@ async function measure(page) {
       attach: one('#standard-input-container .attach-btn'),
       send: one('#send-btn'),
       messageList: one('#message-list'),
+      chatRows: all('.right-sidebar .sidebar-item'),
+      pagerButtons: all('.chat-pager .chat-pager-btn, .chat-pager .chat-pager-num'),
     };
   });
 }
@@ -157,6 +159,41 @@ async function measure(page) {
     failures++;
     console.error(`FAIL  tile ${i} does not sit one row below tile ${i - 2} at an 8px gutter`);
   });
+
+  m.chatRows.forEach((r, i) => checkGrid('chat row ' + i, r));
+  if (m.chatRows.length) {
+    checks++;
+    if (m.chatRows[0].x - m.rightPane.x === inset && m.chatRows[0].width === m.rightPane.width - inset * 2) {
+      checks--;
+    } else {
+      failures++;
+      console.error('FAIL  chat rows do not sit on the pane inset');
+    }
+    checks++;
+    const heights = new Set(m.chatRows.map((r) => r.height));
+    if (heights.size === 1 && [...heights][0] === 28) {
+      checks--;
+    } else {
+      failures++;
+      console.error(`FAIL  chat rows have varied heights {${[...heights]}}`);
+    }
+    checks++;
+    const pitches = new Set(m.chatRows.slice(1).map((r, i) => r.y - m.chatRows[i].y));
+    if (pitches.size <= 1) {
+      checks--;
+    } else {
+      failures++;
+      console.error(`FAIL  chat rows are not on a constant pitch {${[...pitches]}}`);
+    }
+  }
+  checks++;
+  if (m.newChat && m.preset && m.newChat.height === m.preset.height && m.newChat.y === m.preset.y && m.newChat.width === m.preset.width) {
+    checks--;
+  } else {
+    failures++;
+    console.error('FAIL  New Chat and the preset well are not the same box');
+  }
+  m.pagerButtons.forEach((r, i) => checkGrid('pager button ' + i, r));
 
   checks++;
   if (m.composer.x === m.messageList.x && m.composer.width === m.messageList.width) {

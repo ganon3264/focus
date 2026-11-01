@@ -263,8 +263,11 @@
   border: none;
   border-radius: var(--radius-control);
   background-color: var(--accent);
-  background-image: var(--mat-raise-fill);
-  box-shadow: var(--mat-raise);
+  background-image: none;
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 26%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, black 30%, transparent),
+    0 1px 0 var(--mat-edge);
   color: var(--text-on-accent);
 }
 
