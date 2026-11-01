@@ -101,6 +101,12 @@ async function measure(page) {
       tiles: all('.left-sidebar .tool-tile'),
       status: one('.left-sidebar .status-panel'),
       statusRows: all('.left-sidebar .status-panel > div'),
+      varGroups: all('.left-sidebar .var-group-container'),
+      varGroupHeaders: all('.left-sidebar .var-group-container .arranger-header'),
+      varLEDs: all('.left-sidebar .var-group-container .arranger-title-group'),
+      varOptions: all('.left-sidebar .var-option-item'),
+      varKeys: all('.left-sidebar .var-option-item > .radio-switch'),
+      varAddRows: all('.left-sidebar .radio-add-row'),
       composer: one('#standard-input-container'),
       chatInput: one('#chat-input'),
       attach: one('#standard-input-container .attach-btn'),
@@ -119,6 +125,13 @@ async function measure(page) {
   const browser = await chromium.launch({ channel: 'chrome' });
   const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
   await page.goto(URL + '/chat', { waitUntil: 'networkidle' });
+  // The option rows only exist while a variable group is expanded; the audit's
+  // own context starts collapsed.
+  const firstGroup = page.locator('.left-sidebar .arranger-title-group').first();
+  if (await firstGroup.count()) {
+    await firstGroup.click();
+    await page.waitForTimeout(300);
+  }
   const m = await measure(page);
   await browser.close();
 
@@ -133,6 +146,11 @@ async function measure(page) {
   m.tiles.forEach((r, i) => checkGrid('tool tile ' + i, r));
   checkGrid('status panel', m.status);
   m.statusRows.forEach((r, i) => checkGrid('status row ' + i, r));
+  m.varGroups.forEach((r, i) => checkGrid('var group ' + i, r));
+  m.varGroupHeaders.forEach((r, i) => checkGrid('var group header ' + i, r));
+  m.varOptions.forEach((r, i) => checkGrid('var option ' + i, r));
+  m.varKeys.forEach((r, i) => checkGrid('var key ' + i, r));
+  m.varAddRows.forEach((r, i) => checkGrid('var add row ' + i, r));
   checkGrid('composer', m.composer);
   checkGrid('chat input', m.chatInput);
   checkGrid('send', m.send);
@@ -148,6 +166,19 @@ async function measure(page) {
   checkHeight('new chat', m.newChat, [28, 32]);
   m.tiles.forEach((r, i) => checkHeight('tool tile ' + i, r, [28, 32]));
   m.statusRows.forEach((r, i) => checkHeight('status row ' + i, r, [20, 24, 28]));
+  m.varGroupHeaders.forEach((r, i) => checkHeight('var group header ' + i, r, [28, 32]));
+  m.varOptions.forEach((r, i) => checkHeight('var option ' + i, r, [24, 28]));
+  m.varKeys.forEach((r, i) => checkHeight('var key ' + i, r, [16]));
+  m.varAddRows.forEach((r, i) => checkHeight('var add row ' + i, r, [28, 32]));
+  checkInset('var group', m.varGroups[0], m.leftPane, inset);
+  check(
+    'var labels share one left edge',
+    m.varGroupHeaders.every((r) => r.x === m.varGroupHeaders[0].x),
+  );
+  check(
+    'var options indent past their group name',
+    m.varOptions.length > 0 && m.varOptions.every((r) => r.x >= m.varGroups[0].x),
+  );
   checkHeight('composer', m.composer, [40, 48, 56]);
   checkHeight('chat input', m.chatInput, [28, 32, 36]);
   checkHeight('send', m.send, [28, 32]);

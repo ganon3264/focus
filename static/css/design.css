@@ -108,10 +108,34 @@
   box-shadow: var(--mat-inset), 0 0 0 1px var(--accent);
 }
 
-/* ── Variable rows: hairlines, not boxes ──────────────────────────────────── */
+/* ── Drawn caret ───────────────────────────────────────────────────────────
+   Two hairlines on a unit square. Integer geometry, so it never loses an edge
+   to antialiasing at 1x the way an icon's diagonal does — the reason it can
+   sit next to type and stay on the same centre line. Callers rotate it. */
+.caret-mark {
+  box-sizing: border-box;
+  width: var(--u);
+  height: var(--u);
+  flex: none;
+  border-top: var(--hair-w) solid currentColor;
+  border-right: var(--hair-w) solid currentColor;
+  transform: rotate(45deg);
+  transition: transform 0.2s ease;
+}
+
+/* ── Preset variables: one engraved list ───────────────────────────────────
+   A group row is a readout — LED, name, value — one row tall, hairline groove,
+   no plate. Options are the same row one level in, with the radio switch as the
+   same square LED inside a recessed key. Set/unset is read off :has() on the
+   value's title attribute: the unset branch is the only one without it. */
+.left-sidebar [id^='preset-variables-sortable-'] {
+  gap: 0;
+}
+
 .left-sidebar .var-group-container,
 .left-sidebar .var-option-item {
   min-height: var(--row-h);
+  padding: 0;
   border: none;
   border-radius: 0;
   background: transparent;
@@ -121,7 +145,182 @@
 .left-sidebar .var-group-container:hover,
 .left-sidebar .var-option-item:hover {
   background-image: var(--mat-raise-fill);
-  box-shadow: none;
+  box-shadow: var(--hair-groove);
+}
+
+.left-sidebar .var-group-container .arranger-header {
+  display: flex;
+  align-items: center;
+  gap: var(--gutter);
+  min-height: var(--row-h);
+}
+
+.left-sidebar .var-group-container .arranger-title-group {
+  align-items: center;
+  gap: var(--gutter);
+  min-width: 0;
+}
+
+.left-sidebar .var-group-container .arranger-title-group > .action-icon,
+.left-sidebar .var-group-container .var-group-caret {
+  display: grid;
+  place-items: center;
+  width: calc(var(--u) * 4);
+  height: calc(var(--u) * 4);
+  color: var(--text-faint);
+}
+
+.left-sidebar .var-group-container .arranger-title-group::before {
+  content: '';
+  flex: none;
+  width: var(--u);
+  height: var(--u);
+  border-radius: var(--radius-control);
+  background: var(--mat-lo);
+}
+
+.left-sidebar
+  .var-group-container:has(.arranger-actions > span[title])
+  .arranger-title-group::before {
+  background: var(--accent);
+}
+
+.left-sidebar .var-group-name {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: calc(var(--u) * 4);
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.left-sidebar
+  .var-group-container:has(.arranger-actions > span[title])
+  .var-group-name {
+  color: var(--text);
+}
+
+.left-sidebar .var-group-container .arranger-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--gutter);
+  min-width: 0;
+}
+
+.left-sidebar .var-group-container .arranger-actions > span {
+  font-family: var(--font-mono-ui);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-faint);
+}
+
+.left-sidebar
+  .var-group-container:has(.arranger-actions > span[title])
+  .arranger-actions
+  > span {
+  color: var(--text);
+}
+
+.left-sidebar .sortable-var-options {
+  gap: 0;
+  padding-left: calc(var(--u) * 5);
+}
+
+.left-sidebar .var-option-item {
+  gap: var(--gutter);
+  min-height: var(--control-h-sm);
+}
+
+.left-sidebar .var-option-item > .radio-switch {
+  display: grid;
+  place-items: center;
+  width: calc(var(--u) * 4);
+  height: calc(var(--u) * 4);
+  border: none;
+  border-radius: var(--radius-control);
+  background-color: var(--mat-well);
+  box-shadow: var(--mat-inset);
+}
+
+.left-sidebar .var-option-item > .radio-switch .radio-inner {
+  width: var(--u);
+  height: var(--u);
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--text) 22%, transparent);
+}
+
+.left-sidebar .var-option-item > .radio-switch.active .radio-inner {
+  background: var(--accent);
+}
+
+.left-sidebar .var-option-item > span {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: calc(var(--u) * 4);
+  color: var(--text-muted);
+}
+
+.left-sidebar .var-option-item:has(.radio-switch.active) > span {
+  font-weight: 500;
+  color: var(--text);
+}
+
+.left-sidebar .var-option-item > .action-icon {
+  display: grid;
+  place-items: center;
+  width: var(--control-h-sm);
+  height: var(--control-h-sm);
+  border: none;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.left-sidebar .var-option-item > .action-icon:hover {
+  color: var(--text);
+}
+
+.left-sidebar .var-option-item > .action-icon.danger:hover {
+  color: var(--danger);
+}
+
+.left-sidebar .radio-add-row {
+  display: flex;
+  align-items: center;
+  min-height: var(--row-h);
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  box-shadow: var(--hair-groove);
+  background: transparent;
+  cursor: pointer;
+}
+
+.left-sidebar .radio-add-row:hover {
+  background-image: var(--mat-raise-fill);
+}
+
+.left-sidebar .radio-add-row span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--u);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: calc(var(--u) * 4);
+  color: var(--text-muted);
+}
+
+.left-sidebar .radio-add-row.is-create span svg {
+  color: var(--success-hover);
+}
+
+.left-sidebar .radio-add-row.is-create:hover span {
+  color: var(--text);
 }
 
 /* ── Tool tiles: the one place raised chrome reads as hardware ────────────── */
