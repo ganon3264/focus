@@ -82,7 +82,7 @@
      amplitude — never crank these. */
   --mat-hi: color-mix(in srgb, var(--surface), white 14%);
   --mat-hi-strong: color-mix(in srgb, var(--surface), white 22%);
-  --mat-lo: color-mix(in srgb, var(--surface), black 28%);
+  --mat-lo: color-mix(in srgb, var(--surface), black 22%);
   --mat-edge: color-mix(in srgb, var(--bg), black 42%);
   --mat-well: color-mix(in srgb, var(--surface), black 8%);
   --mat-shade: color-mix(in srgb, var(--surface), black 7%);
@@ -90,6 +90,13 @@
   --mat-raise: inset 0 1px 0 var(--mat-hi), inset 0 -1px 0 var(--mat-lo),
     0 1px 0 var(--mat-edge);
   --mat-raise-fill: linear-gradient(var(--mat-glow), var(--mat-shade));
+  /* Row separators inside a flat readout are grooves, not cuts: a dark line on
+     the row's bottom edge and a lit line on the next row's top edge, so a run
+     of rows reads as one engraved plate. A lone dark line reads as a gap. */
+  --hair-dark: color-mix(in srgb, var(--surface), black 20%);
+  --hair-lit: color-mix(in srgb, var(--surface), white 4%);
+  --hair-groove: inset 0 calc(-1 * var(--hair-w)) 0 var(--hair-dark),
+    inset 0 var(--hair-w) 0 var(--hair-lit);
   --mat-inset: inset 0 1px 2px color-mix(in srgb, black 48%, transparent),
     inset 0 -1px 0 var(--mat-hi);
   /* Brushed texture: large chassis surfaces only, never controls. */

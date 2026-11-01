@@ -29,7 +29,7 @@
 .right-sidebar .sidebar-section {
   padding: var(--inset);
   border: none;
-  box-shadow: inset 0 -1px 0 var(--mat-lo);
+  box-shadow: inset 0 -1px 0 var(--hair-dark);
 }
 
 .left-sidebar .sidebar-section:last-child {
@@ -113,10 +113,9 @@
 .left-sidebar .var-option-item {
   min-height: var(--row-h);
   border: none;
-  box-shadow: inset 0 -1px 0 var(--mat-lo);
-  background: transparent;
-  box-shadow: none;
   border-radius: 0;
+  background: transparent;
+  box-shadow: var(--hair-groove);
 }
 
 .left-sidebar .var-group-container:hover,
@@ -184,7 +183,7 @@
   min-height: var(--control-h-sm);
   padding: 0 var(--u);
   border: none;
-  box-shadow: inset 0 -1px 0 var(--mat-lo);
+  box-shadow: var(--hair-groove);
   font-family: var(--font-mono-ui);
   font-size: 10px;
   letter-spacing: 0.04em;
@@ -192,7 +191,7 @@
 }
 
 .left-sidebar .status-panel > div:last-child {
-  box-shadow: none;
+  box-shadow: inset 0 var(--hair-w) 0 var(--hair-lit);
 }
 
 .left-sidebar .status-panel > div > span:first-child {
