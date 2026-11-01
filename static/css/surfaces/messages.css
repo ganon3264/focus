@@ -105,7 +105,7 @@
 .message-meta {
   display: flex;
   align-items: center;
-  gap: var(--u);
+  gap: var(--gutter);
   min-width: 0;
   margin: 0;
   font-family: var(--font-mono-ui);
@@ -145,21 +145,14 @@
   opacity: 0.55;
 }
 
-/* The toggle's caret is drawn, not an icon: a 12px icon box carries 25% padding
-   inside the viewBox and its diagonal strokes lose their bottom row to
-   antialiasing at 1x, so the caret sat a pixel above the `·` beside it. A
-   one-unit square of two borders is integer geometry, centred by the rail's own
-   flex line, so it shares the readout's centre line at every zoom level. */
+/* The caret's shape is the shared .caret-mark primitive (design.css); only its
+   ink and its open state live here. */
 .reasoning-chevron {
-  box-sizing: border-box;
-  width: var(--u);
-  height: var(--u);
-  flex: none;
-  border-top: var(--hair-w) solid currentColor;
-  border-right: var(--hair-w) solid currentColor;
   color: var(--text-faint);
-  transform: rotate(45deg);
-  transition: transform 0.2s ease;
+}
+
+.reasoning-toggle-btn:hover .reasoning-chevron {
+  color: var(--text-muted);
 }
 
 .reasoning-open .reasoning-chevron,
@@ -249,15 +242,15 @@
   width: var(--control-h);
   height: var(--control-h);
   border-radius: var(--radius-control);
+  background-color: var(--surface);
   background-image: var(--mat-raise-fill);
   box-shadow: var(--mat-raise);
-  color: var(--text-muted);
+  color: var(--text);
 }
 
 .message .toolbar .action-btn:hover {
-  background-image: linear-gradient(var(--mat-hi), var(--mat-shade));
+  background-image: linear-gradient(var(--mat-hi-strong), var(--mat-shade));
   box-shadow: var(--mat-raise);
-  color: var(--text);
 }
 
 .message .toolbar .action-btn:active {
