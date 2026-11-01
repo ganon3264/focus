@@ -15,6 +15,12 @@
   --msg-frame-pad: var(--gutter);
   --msg-screen-pad: var(--inset);
   --msg-avatar-size: calc(var(--u) * 6);
+  /* Messages carry more depth than the controls around them: a taller frame
+     lift and a deeper screen, so each turn reads as a separate piece of gear.
+     Scoped here, not in the global material, so buttons stay quiet. */
+  --mat-glow: color-mix(in srgb, var(--surface), white 9%);
+  --mat-shade: color-mix(in srgb, var(--surface), black 10%);
+  --mat-well: color-mix(in srgb, color-mix(in srgb, var(--surface), var(--bg) 50%), black 6%);
 
   width: 100%;
   padding: 0;
