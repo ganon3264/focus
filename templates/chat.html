@@ -1,5 +1,4 @@
 {% extends "base.html" %}
-{% from "macros.html" import icon_close %}
 {% block title %}Chat - Focus{% endblock %}
 {% block head_theme_state %}
 <script>
@@ -15,12 +14,11 @@ window.THEME_STATE = {{ theme_state | tojson | safe }};
 </div>
 
 {% include "chat/modals.html" %}
+{% include "modals/trash.html" %}
 {% endblock %}
 
 {% block scripts %}
 <script src="/static/js/features/backup-manager.js"></script>
-
-<template id="icon-close-tpl">{{ icon_close(16) }}</template>
 
 <script src="/static/js/ui/option-picker.js"></script>
 <script src="/static/js/ui/theme-manager.js"></script>

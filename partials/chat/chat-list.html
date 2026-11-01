@@ -102,28 +102,15 @@
         }
         html += `</div>`;
 
-        const modalHtml = `
-        <div id="chat-trash-modal" class="modal-overlay" data-ui="modal-overlay" role="dialog" aria-modal="true" aria-label="Trash" style="z-index: var(--z-overlay);" onclick="if(event.target===this) this.remove()">
-          <div class="modal-content" style="max-width: 500px; width: 90vw;">
-            <div class="modal-header" style="margin-bottom: 1rem;">
-              <div class="modal-title" data-ui="modal-title">Trash Bin</div>
-               <button class="btn btn-secondary btn-sm" onclick="document.getElementById('chat-trash-modal').remove()" aria-label="Close">{{ icon_close(16) }}</button>
-            </div>
-            <div id="chat-trash-modal-body">
-              ${html}
-            </div>
-          </div>
-        </div>
-      `;
-        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        document.getElementById('modal-trash-body').innerHTML = html;
+        window.openModal('modal-trash');
       });
   }
 
   window.restoreChat = function (chatId) {
     fetch('/api/chats/' + chatId + '/restore', { method: 'POST' }).then((r) => {
       if (r.ok) {
-        const modal = document.getElementById('chat-trash-modal');
-        if (modal) modal.remove();
+        closeModal('modal-trash', { discard: true });
         window.showSuccessToast('Chat restored');
         // _refreshChatList filters by the current character; a bare
         // /partials/chat-list would show every character's chats.
@@ -136,8 +123,7 @@
     window.customConfirm('Permanently delete this chat? This cannot be undone.', function () {
       fetch('/api/chats/' + chatId + '?hard=true', { method: 'DELETE' }).then((r) => {
         if (r.ok) {
-          const modal = document.getElementById('chat-trash-modal');
-          if (modal) modal.remove();
+          closeModal('modal-trash', { discard: true });
           window.showSuccessToast('Chat permanently deleted');
           openChatTrashModal();
         }

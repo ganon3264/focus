@@ -129,23 +129,10 @@
           }
           bodyHtml += '</div>';
 
-          var modalHtml =
-            '<div id="' + cfg.trashModalId + '" class="modal-overlay" data-ui="modal-overlay" role="dialog" aria-modal="true" aria-label="Trash" style="z-index: var(--z-overlay);" onclick="if(event.target===this) this.remove()">' +
-            '<div class="modal-content" style="max-width: 500px; width: 90vw;">' +
-            '<div class="modal-header" style="margin-bottom: 1rem;">' +
-            '<div class="modal-title" data-ui="modal-title">Trash Bin</div>' +
-            '<button class="btn btn-secondary btn-sm" onclick="document.getElementById(\'' + cfg.trashModalId + '\').remove()" aria-label="Close">' + iconCloseSvg() + '</button>' +
-            '</div>' +
-            '<div id="' + cfg.trashModalId + '-body">' + bodyHtml + '</div></div></div>';
-
-          document.body.insertAdjacentHTML('beforeend', modalHtml);
+          document.getElementById('modal-trash-body').innerHTML = bodyHtml;
+          window.openModal('modal-trash');
         });
     };
-
-    function iconCloseSvg() {
-      var tpl = document.getElementById('icon-close-tpl');
-      return tpl ? tpl.innerHTML : '';
-    }
 
     // ----- restore -----
     window[fnRestore] = function (el) {
@@ -157,8 +144,7 @@
         }
         fetch(url, { method: 'POST' }).then(function (r) {
           if (r.ok) {
-            var modal = document.getElementById(cfg.trashModalId);
-            if (modal) modal.remove();
+            closeModal('modal-trash', { discard: true });
             window.showSuccessToast(cfg.entity + ' restored');
             var g = document.getElementById(cfg.gridId);
             if (g) {
@@ -210,8 +196,7 @@
           fetch(cfg.apiBase + '/' + id + '?hard=true', { method: 'DELETE' }).then(function (r) {
             if (r.ok) {
               clearActiveSelection(id);
-              var modal = document.getElementById(cfg.trashModalId);
-              if (modal) modal.remove();
+              closeModal('modal-trash', { discard: true });
               window.showSuccessToast(name + ' permanently deleted');
               window[fnOpenTrash]();
             }
