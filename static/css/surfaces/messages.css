@@ -186,17 +186,24 @@
   white-space: nowrap;
 }
 
-/* Hover toolbar: a control strip inside the rail, same material as the frame
-   so it covers the readouts it replaces. */
+/* Hover toolbar: no plate of its own — the frame already frames it. The
+   readouts it replaces fade out instead, so the keys sit directly on the rail. */
 .message .toolbar {
   height: var(--control-h);
-  padding: 0 var(--u);
+  padding: 0;
   gap: var(--u);
   border: none;
-  border-radius: var(--radius-control);
-  background-color: var(--surface);
-  background-image: linear-gradient(var(--mat-hi), var(--mat-shade));
-  box-shadow: var(--mat-raise);
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+
+.message .meta-right {
+  transition: opacity var(--transition);
+}
+
+.message:hover .meta-right {
+  opacity: 0;
 }
 
 .message .toolbar::before,
@@ -237,7 +244,7 @@
   width: var(--hair-w);
   height: calc(var(--u) * 4);
   margin: 0 var(--u);
-  background: var(--hair-strong);
+  background: transparent;
 }
 
 .message .swipe-counter {

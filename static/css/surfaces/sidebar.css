@@ -253,9 +253,8 @@
 }
 
 .right-sidebar .sidebar-item .sidebar-delete-btn:hover {
-  background-image:
-    linear-gradient(var(--danger-tint-strong), var(--danger-tint-strong)),
-    linear-gradient(var(--mat-hi), var(--mat-shade));
+  background-color: transparent;
+  background-image: linear-gradient(var(--mat-hi), var(--mat-shade));
   box-shadow: var(--mat-raise), inset 0 0 0 var(--hair-w) var(--danger-edge);
   color: var(--danger-hover);
 }
