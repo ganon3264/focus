@@ -1,11 +1,11 @@
-{% from "macros.html" import icon_chat, icon_paperclip, icon_send, icon_stop, icon_chevron_right %}
+{% from "macros.html" import icon_chat, icon_paperclip, icon_send, icon_stop %}
 <!-- Center -->
 <main class="main-content">
   {% if chat_id %}
   <div class="chat-center" data-ui="chat-center">
     <div class="reasoning-sticky-host hidden" id="reasoning-sticky-host">
       <button type="button" class="reasoning-sticky-pill" data-ui="reasoning-sticky-pill" aria-label="Toggle reasoning">
-        {{ icon_chevron_right(12, 'class="w-3 h-3 reasoning-chevron"') }}
+        <span class="reasoning-chevron" aria-hidden="true"></span>
         <span>Reasoning</span>
       </button>
     </div>

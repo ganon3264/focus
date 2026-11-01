@@ -342,13 +342,6 @@
   }
 
   /* ── Message-level reasoning toggle ── */
-  .reasoning-chevron {
-    color: var(--text-faint);
-    transition: transform 0.2s ease;
-  }
-  .reasoning-open .reasoning-chevron {
-    transform: rotate(90deg);
-  }
   .reasoning-toggle-btn {
     background: none;
     border: none;

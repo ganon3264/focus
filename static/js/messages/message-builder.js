@@ -151,7 +151,7 @@
 
   // Ensure the message-level reasoning toggle button exists in the meta row,
   // creating it if the reused server HTML omitted it (e.g. regenerating from a
-  // variant that had no reasoning). A `·` separator is added only when the meta
+  // variant that had no reasoning). A separator dot is added only when the meta
   // row already has content (the model name), matching the server template.
   window.ensureReasoningToggleButton = function (msgEl) {
     var existing = msgEl.querySelector('[data-ui="reasoning-toggle-btn"]');
@@ -162,8 +162,8 @@
     if (meta) {
       if (meta.children.length > 0) {
         var dot = document.createElement('span');
-        dot.className = 'text-muted';
-        dot.textContent = '·';
+        dot.className = 'meta-sep';
+        dot.setAttribute('aria-hidden', 'true');
         meta.appendChild(dot);
       }
       meta.appendChild(btn);

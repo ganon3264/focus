@@ -822,11 +822,6 @@
   cursor: pointer;
 }
 
-.reasoning-sticky-pill .reasoning-chevron {
-  transform: rotate(90deg);
-  transition: transform 0.2s ease;
-}
-
 /* ── Input bar: a console, not a pill ───────────────────────────────────── */
 .input-bar {
   padding: 0 var(--ui-inset) 1.5rem;

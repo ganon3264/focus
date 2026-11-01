@@ -124,13 +124,47 @@
 }
 
 .message-meta .reasoning-toggle-btn {
-  gap: var(--u);
+  gap: var(--gutter);
   color: var(--text-muted);
   white-space: nowrap;
 }
 
 .message-meta .reasoning-toggle-btn:hover {
   color: var(--text);
+}
+
+/* The separator between the model readout and the toggle is a square, not a
+   `·` glyph: a glyph's ink lands on its own half-pixel, so it never shares a
+   centre line with the drawn caret at 1x. Two hairline units of currentColor,
+   centred by the meta row, stays on the grid at every zoom. */
+.message-meta .meta-sep {
+  flex: none;
+  width: calc(var(--hair-w) * 2);
+  height: calc(var(--hair-w) * 2);
+  background: currentColor;
+  opacity: 0.55;
+}
+
+/* The toggle's caret is drawn, not an icon: a 12px icon box carries 25% padding
+   inside the viewBox and its diagonal strokes lose their bottom row to
+   antialiasing at 1x, so the caret sat a pixel above the `·` beside it. A
+   one-unit square of two borders is integer geometry, centred by the rail's own
+   flex line, so it shares the readout's centre line at every zoom level. */
+.reasoning-chevron {
+  box-sizing: border-box;
+  width: var(--u);
+  height: var(--u);
+  flex: none;
+  border-top: var(--hair-w) solid currentColor;
+  border-right: var(--hair-w) solid currentColor;
+  color: var(--text-faint);
+  transform: rotate(45deg);
+  transition: transform 0.2s ease;
+}
+
+.reasoning-open .reasoning-chevron,
+.reasoning-sticky-pill .reasoning-chevron {
+  transform: rotate(135deg);
 }
 
 .message-rail-end {
