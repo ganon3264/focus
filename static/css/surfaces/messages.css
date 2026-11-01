@@ -59,7 +59,7 @@
 
 .message-header-lines {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: var(--gutter);
   flex: 1;
   min-width: 0;
@@ -94,7 +94,7 @@
 .message-author {
   font-size: 13px;
   font-weight: 500;
-  line-height: 1;
+  line-height: 1.2;
   letter-spacing: 0;
   min-width: 0;
   white-space: nowrap;
@@ -144,7 +144,7 @@
 
 .message .meta-right {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: var(--gutter);
 }
 
@@ -160,7 +160,7 @@
 
 .message-ts {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: var(--u);
   font-family: var(--font-mono-ui);
   font-size: 10px;

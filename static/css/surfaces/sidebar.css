@@ -117,18 +117,17 @@
 }
 
 /* ── Rows ───────────────────────────────────────────────────────────────────
-   One 40px row each (10 grid units), hairline painted inside the row box so
-   the pitch stays on the ruler. Fixed line boxes (20 + 12) plus 4px block
-   padding give the text room; every title and every date lands on the same
-   baseline, and truncation cannot change a row's height. */
+   One 32px row each (8 grid units), hairline painted inside the row box so the
+   pitch stays on the ruler. A single line: title, then the date as a faint
+   readout — two lines per row made the column read as a wall of text. */
 .right-sidebar .sidebar-item {
   --row-edge: inset 0 calc(-1 * var(--hair-w)) 0 var(--mat-lo);
   display: flex;
   align-items: center;
   flex: none;
   gap: var(--gutter);
-  height: calc(var(--u) * 10);
-  padding: var(--u) var(--gutter) var(--u) var(--inset);
+  height: calc(var(--u) * 8);
+  padding: 0 var(--gutter) 0 var(--inset);
   overflow: hidden;
   border: none;
   border-radius: 0;
@@ -154,8 +153,9 @@
 
 .right-sidebar .sidebar-item .sidebar-item-link {
   display: flex;
-  flex-direction: column;
-  justify-content: center;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--gutter);
   flex: 1 1 auto;
   min-width: 0;
   height: 100%;
@@ -165,10 +165,18 @@
 
 .right-sidebar .sidebar-item .sidebar-item-link .sidebar-item-title,
 .right-sidebar .sidebar-item .sidebar-item-link .sidebar-item-meta {
-  flex: none;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+
+.right-sidebar .sidebar-item .sidebar-item-link .sidebar-item-title {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.right-sidebar .sidebar-item .sidebar-item-link .sidebar-item-meta {
+  flex: 0 0 auto;
 }
 
 .right-sidebar .sidebar-item .sidebar-item-link .sidebar-item-title {
@@ -185,13 +193,12 @@
 }
 
 .right-sidebar .sidebar-item .sidebar-item-link .sidebar-item-meta {
-  height: calc(var(--u) * 3);
-  line-height: calc(var(--u) * 3);
   font-family: var(--font-mono-ui);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 400;
   letter-spacing: 0.02em;
-  color: var(--engrave);
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
 }
 
 .right-sidebar .sidebar-item.active .sidebar-item-link .sidebar-item-meta {

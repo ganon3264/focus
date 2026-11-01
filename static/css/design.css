@@ -169,6 +169,7 @@
 /* ── Status: a recessed readout, tabular numbers ──────────────────────────── */
 .left-sidebar .status-panel {
   padding: var(--gutter);
+  gap: 0;
   border: none;
   border-radius: var(--radius-control);
   background-color: var(--mat-well);
@@ -183,14 +184,15 @@
   min-height: var(--control-h-sm);
   padding: 0 var(--u);
   border: none;
+  box-shadow: inset 0 -1px 0 var(--mat-lo);
   font-family: var(--font-mono-ui);
   font-size: 10px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
-.left-sidebar .status-panel > div + div {
-  box-shadow: inset 0 1px 0 var(--mat-lo);
+.left-sidebar .status-panel > div:last-child {
+  box-shadow: none;
 }
 
 .left-sidebar .status-panel > div > span:first-child {

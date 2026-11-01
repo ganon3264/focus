@@ -17,9 +17,7 @@
 >
   <a href="/chat/{{ chat.id }}" class="sidebar-item-link">
     <span class="sidebar-item-title">{{ chat.last_message or chat.title }}</span>
-    <span class="sidebar-item-meta"
-      >{{ chat.updated_at[:10] }} {{ chat.updated_at[11:16] }}{% if chat.persona_name %} · {{ chat.persona_name }}{% endif %}</span
-    >
+    <span class="sidebar-item-meta">{{ chat.updated_at[5:10] }}</span>
   </a>
   <button
     class="btn btn-danger sidebar-delete-btn"

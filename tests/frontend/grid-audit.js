@@ -175,7 +175,7 @@ async function measure(page) {
       m.chatRows[0].x - m.rightPane.x === inset && m.chatRows[0].width === m.rightPane.width - inset * 2,
     );
     const heights = new Set(m.chatRows.map((r) => r.height));
-    check('chat rows share one height of 40', heights.size === 1 && [...heights][0] === 40, `heights {${[...heights]}}`);
+    check('chat rows share one height of 32', heights.size === 1 && [...heights][0] === 32, `heights {${[...heights]}}`);
     const pitches = new Set(m.chatRows.slice(1).map((r, i) => r.y - m.chatRows[i].y));
     check('chat rows sit on a constant pitch', pitches.size <= 1, `pitches {${[...pitches]}}`);
   }
