@@ -208,12 +208,21 @@
   width: var(--control-h);
   height: var(--control-h);
   border-radius: var(--radius-control);
+  background-image: var(--mat-raise-fill);
+  box-shadow: var(--mat-raise);
   color: var(--text-muted);
 }
 
 .message .toolbar .action-btn:hover {
-  background: var(--ink-2);
+  background-image: linear-gradient(var(--mat-hi), var(--mat-shade));
+  box-shadow: var(--mat-raise);
   color: var(--text);
+}
+
+.message .toolbar .action-btn:active {
+  background-image: linear-gradient(var(--mat-shade), var(--mat-glow));
+  box-shadow: var(--mat-inset);
+  transform: translateY(1px);
 }
 
 .message .toolbar .action-btn.text-danger {

@@ -237,9 +237,10 @@
   padding: 0;
   border: none;
   border-radius: var(--radius-control);
-  background: transparent;
-  box-shadow: none;
-  color: var(--danger-ink);
+  background-color: transparent;
+  background-image: var(--mat-raise-fill);
+  box-shadow: var(--mat-raise);
+  color: var(--danger);
 }
 
 .right-sidebar .sidebar-item:hover .sidebar-item-meta,
@@ -252,9 +253,11 @@
 }
 
 .right-sidebar .sidebar-item .sidebar-delete-btn:hover {
-  background: var(--danger-tint);
-  box-shadow: none;
-  color: var(--danger);
+  background-image:
+    linear-gradient(var(--danger-tint-strong), var(--danger-tint-strong)),
+    linear-gradient(var(--mat-hi), var(--mat-shade));
+  box-shadow: var(--mat-raise), inset 0 0 0 var(--hair-w) var(--danger-edge);
+  color: var(--danger-hover);
 }
 
 /* ── Footer: pager + Trash Bin ──────────────────────────────────────────────
