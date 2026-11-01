@@ -9,9 +9,9 @@
     let pos = -1000;
     const updates = [];
     document
-      .querySelectorAll(`#preset-variables-sortable-${presetId} .sortable-var-options`)
+      .querySelectorAll(`#preset-variables-sortable-${presetId} [data-ui="sortable-var-options"]`)
       .forEach((groupBody) => {
-        groupBody.querySelectorAll('.var-option-item').forEach((opt) => {
+        groupBody.querySelectorAll('[data-ui="var-option-item"]').forEach((opt) => {
           updates.push({ id: opt.dataset.id, position: pos++ });
         });
       });
@@ -34,7 +34,7 @@
         onEnd: () => window.updateVarPositions(presetId),
       });
 
-      groupContainer.querySelectorAll('.sortable-var-options').forEach((optContainer) => {
+      groupContainer.querySelectorAll('[data-ui="sortable-var-options"]').forEach((optContainer) => {
         if (optContainer._sortable) optContainer._sortable.destroy();
         optContainer._sortable = new Sortable(optContainer, {
           animation: 150,
@@ -53,21 +53,21 @@
   };
 
   window.refreshSingleVarGroup = function (presetId, groupName) {
-    var sel = '.var-group-container[data-group-name="' + CSS.escape(groupName) + '"]';
+    var sel = '[data-ui="var-group-container"][data-group-name="' + CSS.escape(groupName) + '"]';
     if (!document.querySelector(sel)) return;
     hxGet('/partials/preset-variables/' + presetId + '/group/' + encodeURIComponent(groupName), {
       target: sel,
       swap: 'outerHTML',
     }).then(function () {
       var group = document.querySelector(sel);
-      if (group && !group.querySelector('.var-option-item')) {
+      if (group && !group.querySelector('[data-ui="var-option-item"]')) {
         group.remove();
         group = null;
       }
       if (!group) {
         var outer = document.getElementById('preset-variables-container-' + presetId);
-        if (outer && !outer.querySelector('.var-group-container')) {
-          var sortable = outer.querySelector('.flex.flex-col.gap-2');
+        if (outer && !outer.querySelector('[data-ui="var-group-container"]')) {
+          var sortable = outer.querySelector('[data-ui~="var-groups-list"]');
           if (sortable) sortable.innerHTML = '<div class="text-muted text-sm mb-2">No variables configured.</div>';
         }
       }
@@ -84,9 +84,9 @@
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     }).then(function () {
-      var idsEl = document.querySelector('.var-group-ids[data-ids*="' + blockId + '"]');
+      var idsEl = document.querySelector('[data-ui="var-group-ids"][data-ids*="' + blockId + '"]');
       if (idsEl) {
-        var container = idsEl.closest('.var-group-container');
+        var container = idsEl.closest('[data-ui="var-group-container"]');
         if (container) {
           var gname = container.getAttribute('data-group-name');
           if (gname) {
@@ -105,9 +105,9 @@
     fetch(`/api/presets/${presetId}/blocks/${blockId}`, {
       method: 'DELETE',
     }).then(function () {
-      var idsEl = document.querySelector('.var-group-ids[data-ids*="' + blockId + '"]');
+      var idsEl = document.querySelector('[data-ui="var-group-ids"][data-ids*="' + blockId + '"]');
       if (idsEl) {
-        var container = idsEl.closest('.var-group-container');
+        var container = idsEl.closest('[data-ui="var-group-container"]');
         if (container) {
           var gname = container.getAttribute('data-group-name');
           if (gname) {
@@ -129,7 +129,7 @@
     const optionLabel = el.dataset.varLabel || '';
     _currentVarBlockId = blockId;
     _currentPresetId = presetId;
-    document.querySelector('#var-edit-modal .modal-title').innerText = blockId
+    document.querySelector('#var-edit-modal [data-ui="modal-title"]').innerText = blockId
       ? 'Edit Variable Option'
       : 'Add New Variable Option';
     document.getElementById('var-modal-group').value = groupName || '';

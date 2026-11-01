@@ -4,7 +4,7 @@
 
   window.ensureSentinelAndObserver = function () {
     const ml = document.getElementById('message-list');
-    const cc = document.querySelector('.chat-center');
+    const cc = document.querySelector('[data-ui="chat-center"]');
     if (!ml || !cc) return;
 
     let s = document.getElementById('scroll-sentinel');

@@ -83,7 +83,7 @@ global.document.body.appendChild(container);
   assert(card.classList.contains('toast-info'), 'basic: info variant');
   assertEqual(card.getAttribute('role'), 'status', 'basic: role status');
   assertEqual(card.dataset.toastType, 'info', 'basic: dataset type');
-  var text = card.querySelector('.toast-text');
+  var text = card.querySelector('[data-ui="toast-text"]');
   assert(text && text.textContent === 'Hello', 'basic: text set');
   assertEqual(pendingCount(), 1, 'basic: auto-dismiss timer armed');
 })();
@@ -94,11 +94,11 @@ global.document.body.appendChild(container);
   container.children.length = 0;
   window.showInfoToast('x'.repeat(10), { maxChars: 4 });
   var card = container.children[0];
-  assertEqual(card.querySelector('.toast-text').textContent, 'xxxx\u2026', 'truncate: ellipsis appended');
+  assertEqual(card.querySelector('[data-ui="toast-text"]').textContent, 'xxxx\u2026', 'truncate: ellipsis appended');
   assertEqual(card._fullText, 'xxxxxxxxxx', 'truncate: full text retained for copy');
 
   window.showInfoToast('short', { maxChars: 40 });
-  assertEqual(container.children[1].querySelector('.toast-text').textContent, 'short', 'truncate: under limit untouched');
+  assertEqual(container.children[1].querySelector('[data-ui="toast-text"]').textContent, 'short', 'truncate: under limit untouched');
 })();
 
 // ── Success variant ──
@@ -132,8 +132,8 @@ global.document.body.appendChild(container);
   window.showInfoToast('second');
   window.showInfoToast('third');
   assertEqual(container.children.length, 3, 'queue: three stacked');
-  assertEqual(container.children[0].querySelector('.toast-text').textContent, 'first', 'queue: order preserved');
-  assertEqual(container.children[2].querySelector('.toast-text').textContent, 'third', 'queue: order preserved');
+  assertEqual(container.children[0].querySelector('[data-ui="toast-text"]').textContent, 'first', 'queue: order preserved');
+  assertEqual(container.children[2].querySelector('[data-ui="toast-text"]').textContent, 'third', 'queue: order preserved');
 })();
 
 // ── Dedup: same type+message refreshes instead of duplicating ──
@@ -197,7 +197,7 @@ global.document.body.appendChild(container);
   window.hideErrorToast();
   var remaining = container.children.filter(function (c) { return !c.classList.contains('toast-leave'); });
   assertEqual(remaining.length, 1, 'hideErrorToast: only info remains');
-  assertEqual(remaining[0].querySelector('.toast-text').textContent, 'info1', 'hideErrorToast: info untouched');
+  assertEqual(remaining[0].querySelector('[data-ui="toast-text"]').textContent, 'info1', 'hideErrorToast: info untouched');
   flushRemovals();
   assertEqual(container.children.length, 1, 'hideErrorToast: errors removed');
 })();
@@ -253,7 +253,7 @@ global.document.body.appendChild(container);
   var card = container.children[0];
   assert(card.classList.contains('toast-error'), 'import error: variant class');
   assertEqual(container.children.length, 1, 'import error: single toast');
-  var txt = card.querySelector('.toast-text').textContent;
+  var txt = card.querySelector('[data-ui="toast-text"]').textContent;
   assertIncludes(txt, 'Imported 2 of 4 cards.', 'import error: counts');
   assertIncludes(txt, '\u2022 a.png: bad', 'import error: first error listed');
   assertIncludes(txt, '\u2022 b.png: worse', 'import error: second error listed');
@@ -267,7 +267,7 @@ global.document.body.appendChild(container);
   var card = container.children[0];
   assert(card.classList.contains('toast-success'), 'import success: variant class');
   assertEqual(
-    card.querySelector('.toast-text').textContent,
+    card.querySelector('[data-ui="toast-text"]').textContent,
     'Imported 1 personas',
     'import success: message',
   );
@@ -280,7 +280,7 @@ global.document.body.appendChild(container);
   window.showImportToast(null, 'presets');
   assertEqual(container.children.length, 1, 'import empty: success fallback toast');
   assertEqual(
-    container.children[0].querySelector('.toast-text').textContent,
+    container.children[0].querySelector('[data-ui="toast-text"]').textContent,
     'Imported 0 presets',
     'import empty: zero count message',
   );
@@ -294,7 +294,7 @@ global.document.body.appendChild(container);
   window.showToast('Retrying (1/3) in 29s', { id: 'gen-retry', duration: 0 });
   assertEqual(container.children.length, 1, 'id: repeated updates reuse one card');
   assertEqual(
-    container.children[0].querySelector('.toast-text').textContent,
+    container.children[0].querySelector('[data-ui="toast-text"]').textContent,
     'Retrying (1/3) in 29s',
     'id: card text is updated in place',
   );

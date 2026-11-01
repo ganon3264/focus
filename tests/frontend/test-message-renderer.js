@@ -81,6 +81,7 @@ eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'messages'
 (function () {
   var html = window.renderMessage('```\ncode\n```');
   assertIncludes(html, 'copy-btn', 'renderMessage: code block gets copy-btn');
+  assertIncludes(html, 'data-ui="copy-btn"', 'renderMessage: copy button carries the data-ui hook');
   assertIncludes(html, 'code', 'renderMessage: code content preserved');
 })();
 

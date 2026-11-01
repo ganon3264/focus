@@ -32,7 +32,7 @@
     if (!container) return Promise.resolve();
     // Keep expanded rows open across the swap.
     var openIds = [];
-    container.querySelectorAll('.structured-item.expanded').forEach(function (item) {
+    container.querySelectorAll('[data-ui="structured-item"].expanded').forEach(function (item) {
       if (item.dataset.id) openIds.push(item.dataset.id);
     });
     var pid = currentPresetId();
@@ -41,10 +41,10 @@
     return hxGet(url, { target: '#structured-responses-container', swap: 'innerHTML' }).then(
       function () {
         openIds.forEach(function (id) {
-          var item = container.querySelector('.structured-item[data-id="' + id + '"]');
+          var item = container.querySelector('[data-ui="structured-item"][data-id="' + id + '"]');
           if (!item) return;
-          var body = item.querySelector('.structured-body');
-          var title = item.querySelector('.arranger-title-group');
+          var body = item.querySelector('[data-ui="structured-body"]');
+          var title = item.querySelector('[data-ui="arranger-title-group"]');
           if (body) body.style.display = 'flex';
           item.classList.add('expanded');
           if (title) title.setAttribute('aria-expanded', 'true');
@@ -56,7 +56,7 @@
 
   window.initStructuredSortables = function () {
     document
-      .querySelectorAll('#structured-responses-container .structured-sortable')
+      .querySelectorAll('#structured-responses-container [data-ui="structured-sortable"]')
       .forEach(function (list) {
         if (list._sortable) list._sortable.destroy();
         list._sortable = new Sortable(list, {
@@ -79,7 +79,7 @@
   window.updateStructuredPositions = function () {
     var ids = [];
     document
-      .querySelectorAll('#structured-responses-container .structured-sortable .structured-item')
+      .querySelectorAll('#structured-responses-container [data-ui="structured-sortable"] [data-ui="structured-item"]')
       .forEach(function (item) {
         ids.push(item.dataset.id);
       });
@@ -97,13 +97,13 @@
   };
 
   window.handleStructuredUpdate = function (el, patch) {
-    var item = el.closest('.structured-item');
+    var item = el.closest('[data-ui="structured-item"]');
     if (!item) return;
     patchResponse(item.dataset.id, patch).catch(function () {});
   };
 
   window.handleStructuredActive = function (el) {
-    var item = el.closest('.structured-item');
+    var item = el.closest('[data-ui="structured-item"]');
     if (!item) return;
     var enabled = !el.classList.contains('active');
     // Activating is mutually exclusive per scope, so reload to reflect which
@@ -116,9 +116,9 @@
   };
 
   window.toggleStructuredBody = function (el) {
-    var item = el.closest('.structured-item');
+    var item = el.closest('[data-ui="structured-item"]');
     if (!item) return;
-    var body = item.querySelector('.structured-body');
+    var body = item.querySelector('[data-ui="structured-body"]');
     var expanded = body.style.display !== 'none';
     body.style.display = expanded ? 'none' : 'flex';
     item.classList.toggle('expanded', !expanded);
@@ -149,13 +149,13 @@
       .then(function () {
         return window.reloadStructuredResponses().then(function () {
           var list = document.querySelector(
-            '#structured-responses-container .structured-sortable[data-scope="' + scope + '"]',
+            '#structured-responses-container [data-ui="structured-sortable"][data-scope="' + scope + '"]',
           );
           if (!list) return;
-          var items = list.querySelectorAll('.structured-item');
+          var items = list.querySelectorAll('[data-ui="structured-item"]');
           var created = items[items.length - 1];
           if (created) {
-            var title = created.querySelector('.arranger-title-group');
+            var title = created.querySelector('[data-ui="arranger-title-group"]');
             if (title) title.click();
           }
         });
@@ -167,7 +167,7 @@
   };
 
   window.deleteStructuredResponse = function (el) {
-    var item = el.closest('.structured-item');
+    var item = el.closest('[data-ui="structured-item"]');
     if (!item) return;
     window.openConfirmModal('Delete this response?', function () {
       fetch('/api/structured-responses/' + item.dataset.id, { method: 'DELETE' })
@@ -182,15 +182,15 @@
   };
 
   window.previewStructuredResponse = function (el) {
-    var item = el.closest('.structured-item');
+    var item = el.closest('[data-ui="structured-item"]');
     if (!item) return;
-    var out = item.querySelector('.structured-preview-out');
-    var sample = item.querySelector('.structured-sample').value || '{"text": "Hello world!"}';
+    var out = item.querySelector('[data-ui="structured-preview-out"]');
+    var sample = item.querySelector('[data-ui="structured-sample"]').value || '{"text": "Hello world!"}';
     fetch('/api/structured-responses/preview', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        template: item.querySelector('.structured-template').value,
+        template: item.querySelector('[data-ui="structured-template"]').value,
         json_sample: sample,
       }),
     })

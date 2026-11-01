@@ -34,7 +34,7 @@ withDataset.dataset.messageId = 'from-dataset';
 assertEqual(id.bare(withDataset), 'from-dataset', 'prefers data-message-id over the id');
 
 var placeholder = h.makeElement('div');
-placeholder.classList.add('message-placeholder');
+placeholder.dataset.ui = 'message-placeholder';
 placeholder.dataset.msgId = 'stub-id';
 assertEqual(id.bare(placeholder), 'stub-id', 'reads data-msg-id off a placeholder');
 
@@ -50,7 +50,7 @@ assert(id.node('message-abc') === node, 'node() accepts a prefixed id');
 assertEqual(id.node('missing'), null, 'node() returns null when absent');
 
 var stub = h.makeElement('div');
-stub.classList.add('message-placeholder');
+stub.dataset.ui = 'message-placeholder';
 stub.dataset.msgId = 'abc';
 doc.body.appendChild(stub);
 assert(id.placeholder('abc') === stub, 'placeholder() finds the stub');
@@ -60,7 +60,7 @@ assertEqual(id.placeholder('missing'), null, 'placeholder() returns null when ab
 // placeholders are bare-keyed; a stub carrying a prefixed data-msg-id is not
 // the canonical form and is deliberately not matched.
 var prefixedStub = h.makeElement('div');
-prefixedStub.classList.add('message-placeholder');
+prefixedStub.dataset.ui = 'message-placeholder';
 prefixedStub.dataset.msgId = 'message-xyz';
 doc.body.appendChild(prefixedStub);
 assertEqual(id.placeholder('xyz'), null, 'prefixed-keyed stub is not recognized as canonical');

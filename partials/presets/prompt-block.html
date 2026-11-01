@@ -2,6 +2,7 @@
 media_thumbnail, hint_tooltip, icon_sliders, in_chat_controls, toggle %}
 <div
   class="arranger-item {% if not block.enabled %}disabled{% endif %} {% if block.block_type != 'chat_history' and block.block_type != 'char_blocks' %}bg-role-{{ block.role }}{% endif %}"
+  data-ui="arranger-item"
   data-block-id="{{ block.id }}"
   data-block-content="{{ block.content }}"
   data-block-reasoning="{{ block.reasoning }}"
@@ -12,7 +13,7 @@ media_thumbnail, hint_tooltip, icon_sliders, in_chat_controls, toggle %}
     <div class="arranger-handle" title="Drag to reorder"></div>
     <div
       class="arranger-title-group"
-      @click="expanded = expandToggle('arrangerBlocks', $el.closest('.arranger-item').dataset.blockId)"
+      @click="expanded = expandToggle('arrangerBlocks', $el.closest('[data-ui=arranger-item]').dataset.blockId)"
       role="button"
       tabindex="0"
       aria-expanded="false"
@@ -75,7 +76,7 @@ media_thumbnail, hint_tooltip, icon_sliders, in_chat_controls, toggle %}
       <div style="width: 120px; flex-shrink: 0">
         {{ custom_select( name="role", id="role-" + block.id, options=[ {"value": "system", "label":
         "system"}, {"value": "user", "label": "user"}, {"value": "assistant", "label": "assistant"}
-        ], selected=block.role, on_change="handleArrangerBlockUpdate($el.closest('.arranger-item'), {role:$event.target.value})",
+        ], selected=block.role, on_change="handleArrangerBlockUpdate($el.closest('[data-ui=arranger-item]'), {role:$event.target.value})",
         extra_classes="arranger-select" ) }}
       </div>
       <div class="flex flex-col gap-1" style="min-width: 0">
@@ -123,7 +124,7 @@ media_thumbnail, hint_tooltip, icon_sliders, in_chat_controls, toggle %}
       <div style="width: 120px; flex-shrink: 0">
         {{ custom_select( name="role", id="role-" + block.id, options=[ {"value": "system", "label":
         "system"}, {"value": "user", "label": "user"}, {"value": "assistant", "label": "assistant"}
-        ], selected=block.role, on_change="handleArrangerBlockUpdate($el.closest('.arranger-item'), {role:$event.target.value})",
+        ], selected=block.role, on_change="handleArrangerBlockUpdate($el.closest('[data-ui=arranger-item]'), {role:$event.target.value})",
         extra_classes="arranger-select" ) }}
       </div>
       <div class="arranger-note flex flex-col gap-1" style="min-width: 0">
@@ -155,7 +156,7 @@ media_thumbnail, hint_tooltip, icon_sliders, in_chat_controls, toggle %}
       <div style="width: 120px; flex-shrink: 0">
         {{ custom_select( name="role", id="role-" + block.id, options=[ {"value": "system", "label":
         "system"}, {"value": "user", "label": "user"}, {"value": "assistant", "label": "assistant"}
-        ], selected=block.role, on_change="handleArrangerBlockUpdate($el.closest('.arranger-item'), {role:$event.target.value})",
+        ], selected=block.role, on_change="handleArrangerBlockUpdate($el.closest('[data-ui=arranger-item]'), {role:$event.target.value})",
         extra_classes="arranger-select" ) }}
       </div>
       {% endif %}

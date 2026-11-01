@@ -39,7 +39,7 @@
       var item = wrapper.querySelector('[data-preset-id="' + id + '"]');
       state.selectedId = id;
       state.selectedName = item
-        ? item.querySelector('.preset-item-name').textContent
+        ? item.querySelector('[data-ui="preset-item-name"]').textContent
         : state.selectedName;
     } else {
       state.selectedId = '';
@@ -62,7 +62,7 @@
   function syncEntityHighlight(cfg, id) {
     var root = cfg.gridId ? byId(cfg.gridId) : document;
     if (!root) return;
-    var rows = root.querySelectorAll('.entity-row');
+    var rows = root.querySelectorAll('[data-ui="entity-row"]');
     for (var i = 0; i < rows.length; i++) rows[i].classList.remove('active');
     if (id === undefined) id = StateManager.get(cfg.stateKey);
     if (id) {

@@ -54,7 +54,7 @@
              applyPreset('{{ p.id }}');
            "
       >
-        <span class="truncate flex-1 preset-item-name">{{ p.name }}</span>
+        <span class="truncate flex-1 preset-item-name" data-ui="preset-item-name">{{ p.name }}</span>
         <div class="preset-item-actions">
           <button type="button" class="preset-item-action is-create" title="Duplicate"
             onclick="event.stopPropagation(); window.openDuplicateModal(this)"

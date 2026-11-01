@@ -71,6 +71,7 @@ dirty_label='#edit-' ~ prefix ~ '-name') %}
         >
           <label
             class="btn btn-secondary btn-sm btn-media-add block-media-btn"
+            data-ui="block-media-btn"
             title="Add Image or Audio"
           >
             {{ icon_plus(20) }}
@@ -81,7 +82,7 @@ dirty_label='#edit-' ~ prefix ~ '-name') %}
               data-action="{{ upload_fn }}"
             />
           </label>
-          <span class="text-xs text-muted block-media-placeholder">Add reference image or audio</span>
+          <span class="text-xs text-muted block-media-placeholder" data-ui="block-media-placeholder">Add reference image or audio</span>
         </div>
       </div>
     </aside>

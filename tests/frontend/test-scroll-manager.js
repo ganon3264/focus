@@ -15,6 +15,7 @@ messageList.appendChild(sentinel);
 
 var chatCenter = h.makeElement('div');
 chatCenter.className = 'chat-center';
+chatCenter.dataset.ui = 'chat-center';
 chatCenter.id = 'chat-center';
 chatCenter.appendChild(messageList);
 
@@ -26,7 +27,7 @@ doc.getElementById = function (id) {
   return null;
 };
 doc.querySelector = function (sel) {
-  if (sel === '.chat-center') return chatCenter;
+  if (sel === '[data-ui="chat-center"]') return chatCenter;
   if (sel === '#message-list') return messageList;
   return null;
 };

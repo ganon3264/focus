@@ -40,18 +40,18 @@ function makeContainer() {
   container.id = 'message-list';
 
   var md = h.makeElement('div');
-  md.classList.add('markdown-content');
+  md.dataset.ui = 'markdown-content';
   md.textContent = 'hello';
   container.appendChild(md);
 
   var message = h.makeElement('div');
-  message.classList.add('message');
+  message.dataset.ui = 'message';
   var cb = h.makeElement('div');
-  cb.classList.add('delete-mode-checkbox');
+  cb.dataset.ui = 'delete-mode-checkbox';
   cb.classList.add('hidden');
   message.appendChild(cb);
   var actions = h.makeElement('div');
-  actions.classList.add('normal-mode-actions');
+  actions.dataset.ui = 'toolbar';
   message.appendChild(actions);
   container.appendChild(message);
 

@@ -79,7 +79,7 @@ window.actionOpenThemeModal = function () {
 };
 
 window.actionCloseModal = function (el, e) {
-  if (el.classList.contains("modal-overlay") && e.target !== el) return;
+  if (el.matches('[data-ui="modal-overlay"]') && e.target !== el) return;
   closeModal(el.dataset.modalId || el.id);
 };
 
@@ -148,13 +148,13 @@ window.actionUploadPersonaMedia = function (el) {
    and message-level generation/branch/edit/delete functions. */ 
 
 window.actionTriggerRegeneration = function (el) {
-  var msg = el.closest('.message');
+  var msg = el.closest('[data-ui="message"]');
   var chatId = msg.dataset.chatId;
   window.Generation.begin(chatId, msg, { isRegen: true });
 };
 
 window.actionContinueGeneration = function (el) {
-  var msg = el.closest('.message');
+  var msg = el.closest('[data-ui="message"]');
   var chatId = msg.dataset.chatId;
   window.Generation.begin(chatId, msg, {
     isRegen: true,
@@ -164,7 +164,7 @@ window.actionContinueGeneration = function (el) {
 };
 
 window.actionSummarizeMessage = function (el) {
-  var msg = el.closest('.message');
+  var msg = el.closest('[data-ui="message"]');
   window.summarizeChat(msg.dataset.chatId, msg.dataset.messageId, el);
 };
 
@@ -174,7 +174,7 @@ window.actionOpenSummary = function () {
 };
 
 window.actionToggleMessagePin = function (el) {
-  var msg = el.closest('.message');
+  var msg = el.closest('[data-ui="message"]');
   var chatId = msg.dataset.chatId;
   var messageId = msg.dataset.messageId;
   var pinned = el.dataset.pinned !== '1';
@@ -194,7 +194,7 @@ window.actionToggleMessagePin = function (el) {
 };
 
 window.actionBranchMessage = function (el) {
-  var msg = el.closest('.message');
+  var msg = el.closest('[data-ui="message"]');
   var messageId = msg.dataset.messageId;
   var chatId = msg.dataset.chatId;
   fetch(window.api.chatBranch(chatId, messageId), { method: 'POST' })
@@ -207,12 +207,12 @@ window.actionBranchMessage = function (el) {
 };
 
 window.actionEditMessage = function (el) {
-  var msg = el.closest('.message');
+  var msg = el.closest('[data-ui="message"]');
   window.editMessage(msg.dataset.messageId, msg.dataset.chatId);
 };
 
 window.actionEnterDeleteMode = function (el) {
-  var msg = el.closest('.message');
+  var msg = el.closest('[data-ui="message"]');
   window.enterDeleteMode(msg.dataset.messageId);
 };
 
@@ -225,7 +225,7 @@ window.actionUpdateDeleteSelection = function (el) {
 };
 
 window.actionSwipePrev = function (event, el) {
-  var msg = el.closest('.message');
+  var msg = el.closest('[data-ui="message"]');
   window.refreshSingleMessage(msg.dataset.chatId, msg.dataset.messageId);
 };
 
@@ -236,7 +236,7 @@ window.actionSwipeNext = function (event, el) {
     var sb = MessageIdentity.node(msgId);
     var chatId = sb && sb.closest('[data-chat-id]') ? sb.closest('[data-chat-id]').dataset.chatId : '';
     if (res.needs_generation) {
-      var ct = sb.querySelector('.swipe-counter');
+      var ct = sb.querySelector('[data-ui="swipe-counter"]');
       if (ct) ct.textContent = (res.next_variant_index + 1) + '/' + (res.next_variant_index + 1);
       window.Generation.begin(chatId, sb, { isRegen: true });
     } else {

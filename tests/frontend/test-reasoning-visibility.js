@@ -28,18 +28,18 @@ eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'messages'
 function makeMessage(opts) {
   opts = opts || {};
   var msg = makeElement('div');
-  msg.classList.add('message');
+  msg.dataset.ui = 'message';
 
   var btn = makeElement('button');
-  btn.classList.add('reasoning-toggle-btn');
+  btn.dataset.ui = 'reasoning-toggle-btn';
   if (opts.buttonHiddenInitially) btn.classList.add('hidden');
   msg.appendChild(btn);
 
   var content = makeElement('div');
-  content.classList.add('message-content');
+  content.dataset.ui = 'message-content';
   if (opts.withReasoning) {
     var block = makeElement('div');
-    block.classList.add('reasoning-block');
+    block.dataset.ui = 'reasoning-block';
     content.appendChild(block);
   }
   msg.appendChild(content);
@@ -52,14 +52,14 @@ function makeMessage(opts) {
 (function () {
   // 1. Button is hidden when no reasoning exists
   var msg1 = makeMessage({ withReasoning: false });
-  window._updateReasoningButton(msg1.querySelector('.message-content'));
-  assert(msg1.querySelector('.reasoning-toggle-btn').classList.contains('hidden'),
+  window._updateReasoningButton(msg1.querySelector('[data-ui="message-content"]'));
+  assert(msg1.querySelector('[data-ui="reasoning-toggle-btn"]').classList.contains('hidden'),
     'Button hidden when content has no reasoning-block');
 
   // 2. Button is shown when reasoning exists
   var msg2 = makeMessage({ withReasoning: true });
-  window._updateReasoningButton(msg2.querySelector('.message-content'));
-  assert(!msg2.querySelector('.reasoning-toggle-btn').classList.contains('hidden'),
+  window._updateReasoningButton(msg2.querySelector('[data-ui="message-content"]'));
+  assert(!msg2.querySelector('[data-ui="reasoning-toggle-btn"]').classList.contains('hidden'),
     'Button shown when content has reasoning-block');
 
   // 3. syncReasoningButtons toggles every message
@@ -69,9 +69,9 @@ function makeMessage(opts) {
   container.appendChild(m1);
   container.appendChild(m2);
   window.syncReasoningButtons(container);
-  assert(m1.querySelector('.reasoning-toggle-btn').classList.contains('hidden'),
+  assert(m1.querySelector('[data-ui="reasoning-toggle-btn"]').classList.contains('hidden'),
     'syncReasoningButtons: hides button on message without reasoning');
-  assert(!m2.querySelector('.reasoning-toggle-btn').classList.contains('hidden'),
+  assert(!m2.querySelector('[data-ui="reasoning-toggle-btn"]').classList.contains('hidden'),
     'syncReasoningButtons: shows button on message with reasoning');
 
   // 4. syncReasoningButtons called with null is a no-op
@@ -86,7 +86,7 @@ function makeMessage(opts) {
     var called = false;
     window.preserveOpenStates(container2, function () {
       called = true;
-      return '<div class="message"><div class="message-content"></div></div>';
+      return '<div class="message" data-ui="message"><div class="message-content" data-ui="message-content"></div></div>';
     });
     assert(called, 'preserveOpenStates calls renderFn');
   })();
@@ -96,16 +96,16 @@ function makeMessage(opts) {
     var container3 = makeElement('div');
     var block = makeElement('details');
     block.classList.add('details');
-    block.classList.add('reasoning-block');
+    block.dataset.ui = 'reasoning-block';
     block.setAttribute('open', '');
     block.dataset.thinkId = 'think-0';
     container3.appendChild(block);
 
     window.preserveOpenStates(container3, function () {
-      return '<details class="details reasoning-block" data-think-id="think-0"></details>';
+      return '<details class="details reasoning-block" data-ui="reasoning-block" data-think-id="think-0"></details>';
     });
 
-    var restoredBlock = container3.querySelector('.details.reasoning-block');
+    var restoredBlock = container3.querySelector('[data-ui="reasoning-block"]');
     assert(restoredBlock && restoredBlock.hasAttribute('open'),
       'preserveOpenStates: restores open on matching thinkId');
   })();
@@ -116,7 +116,7 @@ function makeMessage(opts) {
     var created = null;
     window.ensureReasoningToggleButton = function (msg) {
       var btn = makeElement('button');
-      btn.classList.add('reasoning-toggle-btn');
+      btn.dataset.ui = 'reasoning-toggle-btn';
       btn.classList.add('hidden');
       msg.appendChild(btn);
       created = btn;
@@ -124,12 +124,12 @@ function makeMessage(opts) {
     };
 
     var msg = makeElement('div');
-    msg.classList.add('message');
+    msg.dataset.ui = 'message';
 
     var content = makeElement('div');
-    content.classList.add('message-content');
+    content.dataset.ui = 'message-content';
     var block = makeElement('div');
-    block.classList.add('reasoning-block');
+    block.dataset.ui = 'reasoning-block';
     content.appendChild(block);
     msg.appendChild(content);
 

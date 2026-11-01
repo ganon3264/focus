@@ -4,7 +4,7 @@
   var _rafId = null;
 
   function _getCC() {
-    return document.querySelector('.chat-center');
+    return document.querySelector('[data-ui="chat-center"]');
   }
 
   function pruneMessages() {
@@ -22,7 +22,7 @@
     var streamId = window.Generation ? window.Generation.streamingId() : null;
 
     var toPrune = [];
-    var msgs = ml.querySelectorAll('.message');
+    var msgs = ml.querySelectorAll('[data-ui="message"]');
     for (var i = 0; i < msgs.length; i++) {
       var msg = msgs[i];
       var id = MessageIdentity.bare(msg);
@@ -36,7 +36,7 @@
     }
 
     var toRestore = [];
-    var phs = ml.querySelectorAll('.message-placeholder');
+    var phs = ml.querySelectorAll('[data-ui="message-placeholder"]');
     for (var j = 0; j < phs.length; j++) {
       var ph = phs[j];
       var phId = ph.dataset.msgId;
@@ -53,6 +53,7 @@
       var p = toPrune[k];
       var ph = document.createElement('div');
       ph.className = 'message-placeholder';
+      ph.dataset.ui = 'message-placeholder';
       ph.dataset.msgId = p.id;
       ph.style.height = p.height + 'px';
       p.el.replaceWith(ph);

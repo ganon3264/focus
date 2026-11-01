@@ -393,7 +393,7 @@ window.openProviderEditModal = async function (id) {
     populateProviderForm(data);
     document.getElementById('prov-form-edit-id').value = id;
     document.getElementById('prov-form-submit-btn').textContent = 'Save Provider';
-    var titleEl = document.querySelector('#modal-provider-create .modal-title');
+    var titleEl = document.querySelector('#modal-provider-create [data-ui="modal-title"]');
     if (titleEl) titleEl.textContent = 'Edit Provider';
     openModal('modal-provider-create');
   } catch (err) {
@@ -405,7 +405,7 @@ window.openProviderCreateModal = function () {
   resetProviderForm();
   document.getElementById('prov-form-edit-id').value = '';
   document.getElementById('prov-form-submit-btn').textContent = 'Add Provider';
-  var titleEl = document.querySelector('#modal-provider-create .modal-title');
+  var titleEl = document.querySelector('#modal-provider-create [data-ui="modal-title"]');
   if (titleEl) titleEl.textContent = 'Add Provider';
   openModal('modal-provider-create');
 };
@@ -564,7 +564,7 @@ window.sortProviders = function (mode) {
   _saveListPref('focus_providers_sort', mode);
   var grid = document.getElementById('providers-grid');
   if (!grid) return;
-  var cards = Array.from(grid.querySelectorAll('.provider-card'));
+  var cards = Array.from(grid.querySelectorAll('[data-ui="entity-row"]'));
   cards.sort(function (a, b) {
     var aName = a.dataset.provName || '';
     var bName = b.dataset.provName || '';
@@ -622,10 +622,10 @@ function openSecretsModal(prefix, append) {
   window._currentSecretPrefix = prefix;
   window._secretAppend = !!append;
   openModal('modal-secrets');
-  document.querySelectorAll('#modal-secrets .secret-select-btn').forEach(function (btn) {
+  document.querySelectorAll('#modal-secrets [data-ui="secret-select-btn"]').forEach(function (btn) {
     btn.classList.toggle('hidden', !prefix);
   });
-  document.querySelector('#modal-secrets .secrets-title').textContent = prefix ? 'Select API Key' : 'Manage API Keys';
+  document.querySelector('#modal-secrets [data-ui~="secrets-title"]').textContent = prefix ? 'Select API Key' : 'Manage API Keys';
   fetchSecrets();
 }
 
@@ -724,7 +724,7 @@ function _renderProviderKeys(prefix, refs) {
     const node = tpl.content.firstElementChild.cloneNode(true);
     node.dataset.ref = ref;
     node.dataset.prefix = prefix;
-    const label = node.querySelector('.key-row-label');
+    const label = node.querySelector('[data-ui="key-row-label"]');
     if (label) {
       label.textContent = _keyRowLabel(ref);
       label.title = _keyRowLabel(ref);
@@ -772,7 +772,7 @@ function addProviderKey(prefix, ref) {
 }
 
 window.actionRemoveProviderKey = function (el) {
-  const row = el.closest('.key-row');
+  const row = el.closest('[data-ui="key-row"]');
   if (!row) return;
   const prefix = row.dataset.prefix || 'prov-form';
   const refs = _getProviderKeys(prefix).filter(function (r) { return r !== row.dataset.ref; });

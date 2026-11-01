@@ -419,11 +419,11 @@
       },
 
       async init() {
-        // Format sampler-inputs on model changes (slider sync, etc.).
+        // Format sampler inputs on model changes (slider sync, etc.).
         // Registered before load*() so the initial population also formats.
         this.$watch('samplers', () => {
           this.$nextTick(() => {
-            this.$el.querySelectorAll('.sampler-input').forEach(el => {
+            this.$el.querySelectorAll('[data-ui="sampler-input"]').forEach(el => {
               if (document.activeElement !== el) {
                 const dec = parseInt(el.dataset.dec ?? '0');
                 const v = parseFloat(el.value);

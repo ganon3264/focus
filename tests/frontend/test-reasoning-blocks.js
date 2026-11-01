@@ -32,11 +32,12 @@ eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'messages'
 (function () {
   var block = window.segmentBuilders.reasoning(0);
   assert(block.tagName === 'DIV', 'index 0 reasoning block is a div');
-  assert(block.classList.contains('reasoning-block'), 'index 0 block has reasoning-block class');
-  var content = block.querySelector('.reasoning-content');
+  assert(block.dataset.ui === 'reasoning-block', 'index 0 block carries the reasoning-block hook');
+  assert(block.classList.contains('reasoning-block'), 'index 0 block keeps its styling class');
+  var content = block.querySelector('[data-ui~="reasoning-content"]');
   assert(content && content.classList.contains('hidden'),
     'index 0 content starts hidden');
-  assert(block.querySelector('.reasoning-toggle-btn') === null,
+  assert(block.querySelector('[data-ui="reasoning-toggle-btn"]') === null,
     'index 0 block does not carry its own toggle');
 })();
 

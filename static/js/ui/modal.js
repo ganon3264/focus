@@ -236,7 +236,7 @@
 
   // Register overlays present at load (overlays are static in the DOM).
   function registerStatic() {
-    var ovs = document.querySelectorAll('.modal-overlay');
+    var ovs = document.querySelectorAll('[data-ui="modal-overlay"]');
     for (var i = 0; i < ovs.length; i++) {
       ensureRegistered(ovs[i].id, ovs[i]);
     }

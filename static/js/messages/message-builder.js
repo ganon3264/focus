@@ -18,6 +18,7 @@
   function buildReasoningToggleButton() {
     var toggleBtn = document.createElement('button');
     toggleBtn.className = 'reasoning-toggle-btn hidden';
+    toggleBtn.dataset.ui = 'reasoning-toggle-btn';
     toggleBtn.setAttribute('aria-label', 'Toggle reasoning');
     toggleBtn.addEventListener('click', function () { window.toggleReasoning(toggleBtn); });
     toggleBtn.appendChild(_chevronSvg());
@@ -32,11 +33,11 @@
   // variant that had no reasoning). A `·` separator is added only when the meta
   // row already has content (the model name), matching the server template.
   window.ensureReasoningToggleButton = function (msgEl) {
-    var existing = msgEl.querySelector('.reasoning-toggle-btn');
+    var existing = msgEl.querySelector('[data-ui="reasoning-toggle-btn"]');
     if (existing) return existing;
 
     var btn = buildReasoningToggleButton();
-    var meta = msgEl.querySelector('.text-muted.flex-wrap');
+    var meta = msgEl.querySelector('[data-ui="message-meta"]');
     if (meta) {
       if (meta.children.length > 0) {
         var dot = document.createElement('span');
@@ -54,10 +55,12 @@
   window.buildAssistantSkeleton = function (charName, charImagePath) {
     var div = document.createElement('div');
     div.className = 'message msg';
+    div.dataset.ui = 'message';
     div.id = 'streaming-message';
 
     var body = document.createElement('div');
     body.className = 'message-body';
+    body.dataset.ui = 'message-body';
     div.appendChild(body);
 
     var flex = document.createElement('div');
@@ -90,16 +93,19 @@
 
     var meta = document.createElement('div');
     meta.className = 'text-xs text-muted flex items-center gap-1.5 flex-wrap mt-0.5';
+    meta.dataset.ui = 'message-meta';
     col.appendChild(meta);
 
     meta.appendChild(buildReasoningToggleButton());
 
     var content = document.createElement('div');
     content.className = 'message-content markdown-content processed pl-stream';
+    content.dataset.ui = 'message-content markdown-content';
     body.appendChild(content);
 
     var spinner = document.createElement('div');
     spinner.className = 'message-spinner';
+    spinner.dataset.ui = 'message-spinner';
     body.appendChild(spinner);
 
     return div;
@@ -108,10 +114,12 @@
   window.buildUserMessageDiv = function (text, personaName, personaAvatar, stagedFiles) {
     var div = document.createElement('div');
     div.className = 'message relative msg';
+    div.dataset.ui = 'message';
     div.id = 'temp-user-msg';
 
     var body = document.createElement('div');
     body.className = 'message-body';
+    body.dataset.ui = 'message-body';
     div.appendChild(body);
 
     var flex = document.createElement('div');
@@ -151,6 +159,7 @@
 
     var content = document.createElement('div');
     content.className = 'message-content markdown-content pl-stream';
+    content.dataset.ui = 'message-content markdown-content';
     content.innerHTML = window.renderMessage(text);
     content.classList.add('processed');
     body.appendChild(content);
@@ -213,6 +222,7 @@
 
     var resultBody = document.createElement('div');
     resultBody.className = 'tool-result-body';
+    resultBody.dataset.ui = 'tool-result-body';
     resultBody.style.display = 'none';
 
     var pre = document.createElement('pre');
@@ -231,6 +241,7 @@
     if (index > 0) {
       var details = document.createElement('details');
       details.className = 'details reasoning-block pl-stream';
+      details.dataset.ui = 'reasoning-block';
       details.setAttribute('data-think-id', String(index));
       var summary = document.createElement('summary');
       summary.appendChild(_summaryChevronSvg());
@@ -238,15 +249,18 @@
       details.appendChild(summary);
       var rc = document.createElement('div');
       rc.className = 'reasoning-content markdown-content';
+      rc.dataset.ui = 'reasoning-content markdown-content';
       rc.style.whiteSpace = 'pre-wrap';
       details.appendChild(rc);
       return details;
     }
     var rb = document.createElement('div');
     rb.className = 'reasoning-block pl-stream';
+    rb.dataset.ui = 'reasoning-block';
     rb.setAttribute('data-think-id', '0');
     var rc = document.createElement('div');
     rc.className = 'reasoning-content markdown-content hidden';
+    rc.dataset.ui = 'reasoning-content markdown-content';
     rc.style.whiteSpace = 'pre-wrap';
     rb.appendChild(rc);
     return rb;
@@ -257,6 +271,7 @@
     text: function () {
       var el = document.createElement('div');
       el.className = 'message-content markdown-content processed pl-stream';
+      el.dataset.ui = 'message-content markdown-content';
       return el;
     },
     reasoning: function (index) {
@@ -265,6 +280,7 @@
     tool_calls: function (calls) {
       var el = document.createElement('div');
       el.className = 'tool-calls-stream pl-stream';
+      el.dataset.ui = 'tool-calls-stream';
       for (var ci = 0; ci < calls.length; ci++) {
         el.appendChild(buildToolCallCard(calls[ci]));
       }
@@ -276,12 +292,12 @@
   window.updateToolCallCard = function (sectionEl, callId, result, isError, imageUrl) {
     var card = sectionEl.querySelector('[data-call-id="' + callId + '"]');
     if (!card) return;
-    var label = card.querySelector('.executing-label');
+    var label = card.querySelector('[data-ui="executing-label"]');
     if (label) {
       label.textContent = isError ? '(error)' : '(done)';
       label.style.color = isError ? 'var(--danger)' : 'var(--accent)';
     }
-    var body = card.querySelector('.tool-result-body');
+    var body = card.querySelector('[data-ui="tool-result-body"]');
     if (body) {
       body.style.display = 'block';
       var pre = body.querySelector('pre');

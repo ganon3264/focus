@@ -51,6 +51,7 @@ function makeModal(id, fieldsAttr, label) {
   var ov = enableEvents(makeElement('div'));
   ov.id = id;
   ov.classList.add('modal-overlay');
+  ov.dataset.ui = 'modal-overlay';
   ov.classList.add('hidden');
   if (fieldsAttr) ov.setAttribute('data-dirty-fields', fieldsAttr);
   if (label) ov.setAttribute('data-dirty-label', label);
@@ -342,6 +343,7 @@ assert(typeof window.closeModal === 'function', 'closeModal wrapper loaded');
   var confirmEl = enableEvents(makeElement('div'));
   confirmEl.id = 'global-confirm-modal';
   confirmEl.classList.add('modal-overlay');
+  confirmEl.dataset.ui = 'modal-overlay';
   confirmEl.classList.add('hidden');
   doc._body.appendChild(confirmEl);
   var confirmClosed = 0;

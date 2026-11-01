@@ -22,20 +22,20 @@ messageList.id = 'message-list';
 
 function makeMessageNode(id) {
   var msg = makeElement('div');
-  msg.classList.add('message');
+  msg.dataset.ui = 'message';
   msg.id = 'message-' + id;
   msg.dataset.messageId = id;
   var cb = makeElement('input');
   cb.type = 'checkbox';
-  cb.classList.add('msg-select-checkbox');
+  cb.dataset.ui = 'msg-select-checkbox';
   cb.value = id;
   cb.checked = false;
   msg.appendChild(cb);
   var normalMode = makeElement('div');
-  normalMode.classList.add('normal-mode-actions');
+  normalMode.dataset.ui = 'toolbar';
   msg.appendChild(normalMode);
   var delMode = makeElement('div');
-  delMode.classList.add('delete-mode-checkbox');
+  delMode.dataset.ui = 'delete-mode-checkbox';
   delMode.classList.add('hidden');
   msg.appendChild(delMode);
   return msg;
@@ -52,7 +52,7 @@ addMessageToDOM('msg3');
 
 function addPlaceholder(id) {
   var ph = makeElement('div');
-  ph.classList.add('message-placeholder');
+  ph.dataset.ui = 'message-placeholder';
   ph.dataset.msgId = id;
   messageList.appendChild(ph);
   return ph;
@@ -96,7 +96,7 @@ eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'messages'
 eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'messages', 'delete-mode.js'), 'utf8'));
 
 function messageNode(id) {
-  var all = messageList.querySelectorAll('.message');
+  var all = messageList.querySelectorAll('[data-ui="message"]');
   for (var i = 0; i < all.length; i++) {
     if (all[i].dataset.messageId === id) return all[i];
   }
@@ -104,7 +104,7 @@ function messageNode(id) {
 }
 function cbFor(id) {
   var msg = messageNode(id);
-  return msg ? msg.querySelector('.msg-select-checkbox') : null;
+  return msg ? msg.querySelector('[data-ui="msg-select-checkbox"]') : null;
 }
 
 // ── enterDeleteMode toggles UI ──
@@ -155,7 +155,7 @@ function noUnpruneScenario() {
 
   window.enterDeleteMode(null);
   assert(unpruneCalls === 0, 'enterDeleteMode does not unprune placeholders');
-  assert(!!messageList.querySelector('.message-placeholder[data-msg-id="msg4"]'), 'placeholder stays culled');
+  assert(!!messageList.querySelector('[data-ui="message-placeholder"][data-msg-id="msg4"]'), 'placeholder stays culled');
 
   window.exitDeleteMode();
   ph.remove();
@@ -170,10 +170,10 @@ function rangeSpansPlaceholdersScenario() {
 
   var restored = makeMessageNode('msg4');
   window.applyDeleteModeToNode(restored);
-  assert(restored.querySelector('.msg-select-checkbox').checked, 'restored selected message is checked');
-  assert(!restored.querySelector('.delete-mode-checkbox').classList.contains('hidden'),
+  assert(restored.querySelector('[data-ui="msg-select-checkbox"]').checked, 'restored selected message is checked');
+  assert(!restored.querySelector('[data-ui="delete-mode-checkbox"]').classList.contains('hidden'),
     'restored message checkbox is visible');
-  assert(restored.querySelector('.normal-mode-actions').classList.contains('hidden'),
+  assert(restored.querySelector('[data-ui="toolbar"]').classList.contains('hidden'),
     'restored message hides normal actions');
 
   window.exitDeleteMode();
@@ -184,7 +184,7 @@ function rangeSpansPlaceholdersScenario() {
 function noopOutsideScenario() {
   var node = makeMessageNode('msg9');
   window.applyDeleteModeToNode(node);
-  assert(node.querySelector('.delete-mode-checkbox').classList.contains('hidden'),
+  assert(node.querySelector('[data-ui="delete-mode-checkbox"]').classList.contains('hidden'),
     'no delete chrome outside delete mode');
 }
 
@@ -225,8 +225,8 @@ async function bulkDeletePostsScenario() {
 // ── normal-mode-actions / delete-mode-checkbox toggles ──
 function chromeTogglesScenario() {
   window.enterDeleteMode(null);
-  var normalEls = messageList.querySelectorAll('.normal-mode-actions');
-  var delEls = messageList.querySelectorAll('.delete-mode-checkbox');
+  var normalEls = messageList.querySelectorAll('[data-ui="toolbar"]');
+  var delEls = messageList.querySelectorAll('[data-ui="delete-mode-checkbox"]');
   var allNormalHidden = normalEls.every(function (el) { return el.classList.contains('hidden'); });
   var allDelVisible = delEls.every(function (el) { return !el.classList.contains('hidden'); });
   assert(allNormalHidden, 'normal-mode-actions hidden in delete mode');

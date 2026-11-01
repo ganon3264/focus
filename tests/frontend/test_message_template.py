@@ -1,10 +1,10 @@
 """Tests for the chat/message.html template reasoning button.
 
-Verifies that the server-rendered "Reasoning" button has the
-`reasoning-toggle-btn` class so the client-side `syncReasoningButtons`
-helper can manage its visibility (it must be hidden while a new stream
-is in progress and shown only once `details.reasoning` is in the
-content).
+Verifies that the server-rendered "Reasoning" button carries the
+`data-ui="reasoning-toggle-btn"` hook so the client-side
+`syncReasoningButtons` helper can find it without depending on a class
+name (it must be hidden while a new stream is in progress and shown only
+once `details.reasoning` is in the content).
 """
 
 import re
@@ -61,8 +61,8 @@ def test_reasoning_button_present_when_message_has_reasoning():
     html = _render_message({"reasoning": "hidden reasoning"})
     btn = _extract_reasoning_button(html)
     assert btn, "Expected reasoning button to be rendered"
-    assert "reasoning-toggle-btn" in btn, (
-        f"Reasoning button must have 'reasoning-toggle-btn' class so "
+    assert 'data-ui="reasoning-toggle-btn"' in btn, (
+        f"Reasoning button must carry data-ui=\"reasoning-toggle-btn\" so "
         f"syncReasoningButtons() can manage it. Got: {btn}"
     )
 
@@ -125,7 +125,7 @@ def test_first_reasoning_block_has_no_own_toggle():
         ],
     })
     assert "reasoning-inline-toggle" not in html
-    assert 'class="reasoning-block pl-stream" data-think-id="0"' in html
+    assert 'class="reasoning-block pl-stream" data-ui="reasoning-block" data-think-id="0"' in html
 
 
 class _Ext:

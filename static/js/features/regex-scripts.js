@@ -40,13 +40,13 @@
     if (!item || !item.dataset.id) return;
     var open = item.classList.contains('expanded') ? '?open=1' : '';
     hxGet('/partials/regex-scripts/item/' + item.dataset.id + open, {
-      target: '.regex-item[data-id="' + item.dataset.id + '"]',
+      target: '[data-ui="regex-item"][data-id="' + item.dataset.id + '"]',
       swap: 'outerHTML',
     });
   }
 
   function saveScript(el, patch) {
-    var item = el.closest('.regex-item');
+    var item = el.closest('[data-ui="regex-item"]');
     if (!item) return Promise.resolve();
     return patchScript(item.dataset.id, patch)
       .then(function () {
@@ -61,17 +61,17 @@
     if (!container) return Promise.resolve();
     // Keep expanded rows open across the swap.
     var openIds = [];
-    container.querySelectorAll('.regex-item.expanded').forEach(function (item) {
+    container.querySelectorAll('[data-ui="regex-item"].expanded').forEach(function (item) {
       if (item.dataset.id) openIds.push(item.dataset.id);
     });
     var pid = currentPresetId();
     var url = '/partials/regex-scripts' + (pid ? '?preset_id=' + encodeURIComponent(pid) : '');
     return hxGet(url, { target: '#regex-scripts-container', swap: 'innerHTML' }).then(function () {
       openIds.forEach(function (id) {
-        var item = container.querySelector('.regex-item[data-id="' + id + '"]');
+        var item = container.querySelector('[data-ui="regex-item"][data-id="' + id + '"]');
         if (!item) return;
-        var body = item.querySelector('.regex-body');
-        var title = item.querySelector('.arranger-title-group');
+        var body = item.querySelector('[data-ui="regex-body"]');
+        var title = item.querySelector('[data-ui="arranger-title-group"]');
         if (body) body.style.display = 'flex';
         item.classList.add('expanded');
         if (title) title.setAttribute('aria-expanded', 'true');
@@ -81,7 +81,7 @@
   };
 
   window.initRegexSortables = function () {
-    document.querySelectorAll('#regex-scripts-container .regex-sortable').forEach(function (list) {
+    document.querySelectorAll('#regex-scripts-container [data-ui="regex-sortable"]').forEach(function (list) {
       if (list._sortable) list._sortable.destroy();
       list._sortable = new Sortable(list, {
         animation: 150,
@@ -104,7 +104,7 @@
   window.updateRegexPositions = function () {
     var ids = [];
     document
-      .querySelectorAll('#regex-scripts-container .regex-sortable .regex-item')
+      .querySelectorAll('#regex-scripts-container [data-ui="regex-sortable"] [data-ui="regex-item"]')
       .forEach(function (item) {
         ids.push(item.dataset.id);
       });
@@ -142,10 +142,10 @@
   };
 
   window.handleRegexFlags = function (el) {
-    var item = el.closest('.regex-item');
+    var item = el.closest('[data-ui="regex-item"]');
     if (!item) return;
     var flags = [];
-    item.querySelectorAll('.regex-flag').forEach(function (chip) {
+    item.querySelectorAll('[data-ui="regex-flag"]').forEach(function (chip) {
       if (chip.classList.contains('active')) flags.push(chip.dataset.flag);
     });
     saveScript(el, { flags: flags.join('') });
@@ -157,10 +157,10 @@
   };
 
   window.handleRegexPlacement = function (el) {
-    var item = el.closest('.regex-item');
+    var item = el.closest('[data-ui="regex-item"]');
     if (!item) return;
     var places = [];
-    item.querySelectorAll('.regex-placement').forEach(function (chip) {
+    item.querySelectorAll('[data-ui="regex-placement"]').forEach(function (chip) {
       if (chip.classList.contains('active')) places.push(chip.dataset.place);
     });
     saveScript(el, { placement: places.join(',') });
@@ -189,9 +189,9 @@
   };
 
   window.toggleRegexBody = function (el) {
-    var item = el.closest('.regex-item');
+    var item = el.closest('[data-ui="regex-item"]');
     if (!item) return;
-    var body = item.querySelector('.regex-body');
+    var body = item.querySelector('[data-ui="regex-body"]');
     var expanded = body.style.display !== 'none';
     body.style.display = expanded ? 'none' : 'flex';
     item.classList.toggle('expanded', !expanded);
@@ -225,15 +225,15 @@
       .then(function () {
         return window.reloadRegexScripts().then(function () {
           var list = document.querySelector(
-            '#regex-scripts-container .regex-sortable[data-scope="' + scope + '"]',
+            '#regex-scripts-container [data-ui="regex-sortable"][data-scope="' + scope + '"]',
           );
           if (!list) return;
-          var items = list.querySelectorAll('.regex-item');
+          var items = list.querySelectorAll('[data-ui="regex-item"]');
           var created = items[items.length - 1];
           if (created) {
-            var title = created.querySelector('.arranger-title-group');
+            var title = created.querySelector('[data-ui="arranger-title-group"]');
             if (title) title.click();
-            var patternField = created.querySelector('.regex-pattern');
+            var patternField = created.querySelector('[data-ui="regex-pattern"]');
             if (patternField) patternField.focus();
           }
         });
@@ -247,7 +247,7 @@
   };
 
   window.deleteRegexScript = function (el) {
-    var item = el.closest('.regex-item');
+    var item = el.closest('[data-ui="regex-item"]');
     if (!item) return;
     window.openConfirmModal('Delete this regex script?', function () {
       fetch('/api/regex-scripts/' + item.dataset.id, { method: 'DELETE' })
@@ -263,23 +263,23 @@
   };
 
   window.previewRegexScript = function (el) {
-    var item = el.closest('.regex-item');
+    var item = el.closest('[data-ui="regex-item"]');
     if (!item) return;
-    var out = item.querySelector('.regex-preview-out');
+    var out = item.querySelector('[data-ui="regex-preview-out"]');
     var flags = [];
-    item.querySelectorAll('.regex-flag').forEach(function (chip) {
+    item.querySelectorAll('[data-ui="regex-flag"]').forEach(function (chip) {
       if (chip.classList.contains('active')) flags.push(chip.dataset.flag);
     });
     fetch('/api/regex-scripts/preview', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        pattern: item.querySelector('.regex-pattern').value,
-        replacement: item.querySelector('.regex-replacement').value,
+        pattern: item.querySelector('[data-ui="regex-pattern"]').value,
+        replacement: item.querySelector('[data-ui="regex-replacement"]').value,
         flags: flags.join(''),
-        sample: item.querySelector('.regex-sample').value,
-        as_block: item.querySelector('.regex-block').classList.contains('active'),
-        name: (item.querySelector('.arranger-input') || {}).value || 'Block',
+        sample: item.querySelector('[data-ui="regex-sample"]').value,
+        as_block: item.querySelector('[data-ui="regex-block"]').classList.contains('active'),
+        name: (item.querySelector('[data-ui="arranger-input"]') || {}).value || 'Block',
       }),
     })
       .then(function (r) {

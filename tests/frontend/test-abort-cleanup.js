@@ -25,10 +25,10 @@ function handleAbort(err, asstDiv, htmxAjaxCalls, showToast) {
 
 function matches(el, sel) {
   if (!el || !el.tagName) return false;
-  if (sel === '.message') return el.classList && el.classList.contains('message');
-  if (sel === '.message-content') return el.classList && el.classList.contains('message-content');
-  if (sel === '.reasoning-toggle-btn') return el.classList && el.classList.contains('reasoning-toggle-btn');
-  if (sel === '.message-spinner') return el.classList && el.classList.contains('message-spinner');
+  if (sel === '[data-ui="message"]') return el.dataset && el.dataset.ui === 'message';
+  if (sel === '[data-ui="message-content"]') return el.dataset && el.dataset.ui === 'message-content';
+  if (sel === '[data-ui="reasoning-toggle-btn"]') return el.dataset && el.dataset.ui === 'reasoning-toggle-btn';
+  if (sel === '[data-ui="message-spinner"]') return el.dataset && el.dataset.ui === 'message-spinner';
   return false;
 }
 
@@ -36,17 +36,17 @@ function matches(el, sel) {
 
 function makeAsstDiv() {
   var msg = makeElement('div');
-  msg.classList.add('message');
+  msg.dataset.ui = 'message';
   msg.id = 'streaming-message';
 
   var btn = makeElement('button');
-  btn.classList.add('reasoning-toggle-btn');
+  btn.dataset.ui = 'reasoning-toggle-btn';
   btn.classList.add('hidden');
   msg.appendChild(btn);
 
   var content = makeElement('div');
-  content.classList.add('message-content');
-  content.innerHTML = '<div class="message-spinner"></div>';
+  content.dataset.ui = 'message-content';
+  content.innerHTML = '<div class="message-spinner" data-ui="message-spinner"></div>';
   msg.appendChild(content);
 
   return msg;
@@ -54,15 +54,15 @@ function makeAsstDiv() {
 
 function makeExistingMessageDiv() {
   var msg = makeElement('div');
-  msg.classList.add('message');
+  msg.dataset.ui = 'message';
   msg.id = 'message-existing-1';
 
   var btn = makeElement('button');
-  btn.classList.add('reasoning-toggle-btn');
+  btn.dataset.ui = 'reasoning-toggle-btn';
   msg.appendChild(btn);
 
   var content = makeElement('div');
-  content.classList.add('message-content');
+  content.dataset.ui = 'message-content';
   content.innerHTML = '<p>Previous assistant content</p>';
   msg.appendChild(content);
 

@@ -21,7 +21,7 @@ gridEl.id = 'providers-grid';
 
 doc.querySelectorAll = function (sel) {
   if (sel.indexOf('balance-') !== -1) return [balanceEl];
-  if (sel.indexOf('provider-card') !== -1) return [];
+  if (sel.indexOf('entity-row') !== -1) return [];
   return [];
 };
 

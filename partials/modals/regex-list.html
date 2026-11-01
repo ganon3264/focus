@@ -11,7 +11,7 @@
         {{ icon_plus(12) }} Add
       </button>
     </div>
-    <div class="regex-sortable" data-scope="global">
+    <div class="regex-sortable" data-ui="regex-sortable" data-scope="global">
       {% for script in global_scripts %}{% include "modals/regex-item.html" %}{% endfor %}
       {% if not global_scripts %}
       <div class="regex-empty text-xs text-muted">No global scripts.</div>
@@ -31,7 +31,7 @@
         {{ icon_plus(12) }} Add
       </button>
     </div>
-    <div class="regex-sortable" data-scope="preset" data-scope-id="{{ preset_id }}">
+    <div class="regex-sortable" data-ui="regex-sortable" data-scope="preset" data-scope-id="{{ preset_id }}">
       {% for script in preset_scripts %}{% include "modals/regex-item.html" %}{% endfor %}
       {% if not preset_scripts %}
       <div class="regex-empty text-xs text-muted">No scripts for this preset.</div>

@@ -25,18 +25,18 @@ function makeToolbar(html) {
 }
 
 function makeLiveNode(id, toolbarHtml) {
-  var toolbar = makeToolbar('<div class="toolbar" data-live="' + id + '">' + toolbarHtml + '</div>');
+  var toolbar = makeToolbar('<div class="toolbar" data-ui="toolbar" data-live="' + id + '">' + toolbarHtml + '</div>');
   return {
     toolbar: toolbar,
-    querySelector: function (sel) { return sel === '.toolbar' ? toolbar : null; },
+    querySelector: function (sel) { return sel === '[data-ui="toolbar"]' ? toolbar : null; },
   };
 }
 
 function makeWrapper(id, toolbarHtml) {
-  var toolbar = { outerHTML: '<div class="toolbar">' + toolbarHtml + '</div>' };
+  var toolbar = { outerHTML: '<div class="toolbar" data-ui="toolbar">' + toolbarHtml + '</div>' };
   return {
     dataset: { messageId: id },
-    querySelector: function (sel) { return sel === '.toolbar' ? toolbar : null; },
+    querySelector: function (sel) { return sel === '[data-ui="toolbar"]' ? toolbar : null; },
   };
 }
 
@@ -49,7 +49,7 @@ function makeSandbox() {
     makeWrapper('3', 'new-3'),
   ];
   var root = { querySelectorAll: function (sel) { return sel === '[data-message-id]' ? wrappers : []; } };
-  var parsedDoc = { querySelector: function (sel) { return sel === '.message-toolbars' ? root : null; } };
+  var parsedDoc = { querySelector: function (sel) { return sel === '[data-ui="message-toolbars"]' ? root : null; } };
 
   var reapplyCalls = 0;
   var processed = [];
@@ -92,8 +92,8 @@ async function run() {
   assertEqual(sandbox._fetched, '/partials/message-toolbars/c1', 'fetches the toolbars partial');
 
   var live = sandbox._live;
-  assertEqual(live['1'].toolbar.outerHTML, '<div class="toolbar">new-1</div>', 'live toolbar 1 swapped in place');
-  assertEqual(live['3'].toolbar.outerHTML, '<div class="toolbar">new-3</div>', 'live toolbar 3 swapped in place');
+  assertEqual(live['1'].toolbar.outerHTML, '<div class="toolbar" data-ui="toolbar">new-1</div>', 'live toolbar 1 swapped in place');
+  assertEqual(live['3'].toolbar.outerHTML, '<div class="toolbar" data-ui="toolbar">new-3</div>', 'live toolbar 3 swapped in place');
   check(!live['2'], 'pruned row has no live node');
   assertEqual(sandbox._processed.length, 2, 'htmx re-binds only the swapped (live) nodes');
   assertEqual(sandbox._reapplyCalls(), 1, 'delete mode re-applied after the patch');
@@ -102,7 +102,7 @@ async function run() {
   var sandbox2 = makeSandbox();
   sandbox2.hxFetch = function () { return Promise.resolve({ ok: false }); };
   await sandbox2.window.refreshMessageToolbars('c1');
-  assertEqual(sandbox2._live['1'].toolbar.outerHTML, '<div class="toolbar" data-live="1">old-1</div>',
+  assertEqual(sandbox2._live['1'].toolbar.outerHTML, '<div class="toolbar" data-ui="toolbar" data-live="1">old-1</div>',
     'failed fetch leaves toolbars untouched');
   assertEqual(sandbox2._reapplyCalls(), 0, 'failed fetch skips delete-mode reapply');
 

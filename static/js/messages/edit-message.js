@@ -57,7 +57,7 @@
       '<code class="font-bold">' + window.escapeHtml(tc.function.name) + '</code>' +
       '<span class="truncate max-w-[300px]">' + window.escapeHtml(tc.function.arguments || '') + '</span>' +
       '</summary>' +
-      '<div class="tool-result-body"><pre class="whitespace-pre-wrap break-all">' + window.escapeHtml(tc.result || '') + '</pre>' + imgHtml + '</div>';
+      '<div class="tool-result-body" data-ui="tool-result-body"><pre class="whitespace-pre-wrap break-all">' + window.escapeHtml(tc.result || '') + '</pre>' + imgHtml + '</div>';
     return card;
   }
 
@@ -69,6 +69,7 @@
   function createEditTextarea(idx, variant, content) {
     var ta = document.createElement('textarea');
     ta.className = 'edit-block-ta edit-block-ta--' + variant;
+    ta.dataset.ui = 'edit-block-ta';
     ta.id = 'edit-msg-ta-' + idx;
     ta.setAttribute('data-block-idx', idx);
     ta.rows = 3;
@@ -101,6 +102,7 @@
       if (blk.type === 'reasoning') {
         var details = document.createElement('details');
         details.className = 'details reasoning-block';
+        details.dataset.ui = 'reasoning-block';
         details.innerHTML =
           '<summary>' +
           (window.getSvgSprite('chevron-right', 12) || '').replace('<svg', '<svg class="w-3 h-3 chevron"') +
@@ -116,6 +118,7 @@
         if (blk.calls && blk.calls.length > 0) {
           var tcSection = document.createElement('div');
           tcSection.className = 'tool-calls-section';
+          tcSection.dataset.ui = 'tool-calls-section';
           for (var c = 0; c < blk.calls.length; c++) {
             tcSection.appendChild(renderToolCallCard(blk.calls[c]));
           }
@@ -199,14 +202,14 @@
     for (var i = 0; i < blocks.length; i++) {
       var blk = blocks[i];
       if (blk.type === 'reasoning') {
-        var ta = document.querySelector('.edit-block-ta[data-block-idx="' + i + '"]');
+        var ta = document.querySelector('[data-ui="edit-block-ta"][data-block-idx="' + i + '"]');
         var text = ta ? ta.value.trim() : '';
         if (text) {
           reasoningParts.push(text);
           segments.push({ type: 'reasoning', html: window.escapeHtml(text), index: blk.index || 0 });
         }
       } else if (blk.type === 'text') {
-        var ta = document.querySelector('.edit-block-ta[data-block-idx="' + i + '"]');
+        var ta = document.querySelector('[data-ui="edit-block-ta"][data-block-idx="' + i + '"]');
         var text = ta ? ta.value.trim() : '';
         if (text) {
           textParts.push(text);

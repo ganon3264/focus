@@ -1,6 +1,7 @@
 {% from "macros.html" import icon_edit, icon_trash, icon_star, icon_star_filled, avatar %}
 <div
   class="entity-row{% if current_persona_id == p.id %} active{% endif %}"
+  data-ui="entity-row"
   id="persona-card-{{ p.id }}"
   data-persona-name="{{ p.name }}"
   data-persona-created="{{ p.created_at }}"
@@ -20,6 +21,7 @@
   </div>
   <button
     class="fav-star fav-star-inline{% if p.get('is_favorite') %} favorite-active{% endif %}"
+    data-ui="fav-star"
     onclick="event.stopPropagation(); togglePersonaFavorite(this)"
     aria-label="Toggle favorite"
     title="Favorite"

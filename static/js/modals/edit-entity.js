@@ -67,7 +67,7 @@
       Array.from(s.querySelectorAll('[data-image-id]')).forEach(function (el) {
         el.remove();
       });
-      var addBtn = s.querySelector('.block-media-btn');
+      var addBtn = s.querySelector('[data-ui="block-media-btn"]');
       workingImages.forEach(function (m) {
         var div = window.buildMediaThumbnail(
           { id: m.id, image_path: m.image_path, mime_type: m.mime_type },
@@ -76,7 +76,7 @@
         );
         s.insertBefore(div, addBtn);
       });
-      var ph = s.querySelector('.block-media-placeholder');
+      var ph = s.querySelector('[data-ui="block-media-placeholder"]');
       if (ph) ph.style.display = workingImages.length ? 'none' : 'block';
     }
 

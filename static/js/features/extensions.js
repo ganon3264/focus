@@ -33,7 +33,7 @@
   window.actionRunExtension = function (el) {
     var name = el.dataset.extName;
     if (!name) return;
-    var msg = el.closest('.message');
+    var msg = el.closest('[data-ui="message"]');
     var messageId = msg.dataset.messageId;
     var chatId = msg.dataset.chatId || StateManager.get('chat_id');
     if (!messageId || !chatId) return;

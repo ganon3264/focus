@@ -7,8 +7,8 @@
       if (!utc) continue;
       var d = new Date(utc);
       if (isNaN(d.getTime())) continue;
-      var dateEl = el.querySelector('.ts-date');
-      var timeEl = el.querySelector('.ts-time');
+      var dateEl = el.querySelector('[data-ui="ts-date"]');
+      var timeEl = el.querySelector('[data-ui="ts-time"]');
       if (dateEl) {
         dateEl.textContent = d.toLocaleDateString();
       }

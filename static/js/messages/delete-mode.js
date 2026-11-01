@@ -30,16 +30,16 @@
   window.applyDeleteModeToNode = function (msg) {
     if (!active || !msg) return;
     var id = msg.dataset.messageId;
-    var box = msg.querySelector('.delete-mode-checkbox');
+    var box = msg.querySelector('[data-ui="delete-mode-checkbox"]');
     if (box) box.classList.remove('hidden');
-    var cb = msg.querySelector('.msg-select-checkbox');
+    var cb = msg.querySelector('[data-ui="msg-select-checkbox"]');
     if (cb) cb.checked = !!(id && selectedIds.has(id));
-    var actions = msg.querySelector('.normal-mode-actions');
+    var actions = msg.querySelector('[data-ui="toolbar"]');
     if (actions) actions.classList.add('hidden');
   };
 
   function applyToLiveMessages() {
-    document.querySelectorAll('.message').forEach(function (msg) {
+    document.querySelectorAll('[data-ui="message"]').forEach(function (msg) {
       window.applyDeleteModeToNode(msg);
     });
   }
@@ -56,7 +56,7 @@
       selectedIds.clear();
       var container = document.getElementById('message-list');
       var nodes = container ? Array.prototype.filter.call(container.children, function (el) {
-        return el.classList.contains('message') || el.classList.contains('message-placeholder');
+        return el.matches('[data-ui="message"]') || el.matches('[data-ui="message-placeholder"]');
       }) : [];
       var foundStart = false;
       nodes.forEach(function (node) {
@@ -85,9 +85,9 @@
     document.getElementById('delete-toolbar').classList.add('hidden');
     document.getElementById('standard-input-container').classList.remove('hidden');
 
-    document.querySelectorAll('.normal-mode-actions').forEach(function (el) { el.classList.remove('hidden'); });
-    document.querySelectorAll('.delete-mode-checkbox').forEach(function (el) { el.classList.add('hidden'); });
-    document.querySelectorAll('.msg-select-checkbox').forEach(function (cb) { cb.checked = false; });
+    document.querySelectorAll('[data-ui="toolbar"]').forEach(function (el) { el.classList.remove('hidden'); });
+    document.querySelectorAll('[data-ui="delete-mode-checkbox"]').forEach(function (el) { el.classList.add('hidden'); });
+    document.querySelectorAll('[data-ui="msg-select-checkbox"]').forEach(function (cb) { cb.checked = false; });
 
     renderCount();
     if (typeof updateSendButtonState === 'function') updateSendButtonState();

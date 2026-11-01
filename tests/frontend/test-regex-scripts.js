@@ -21,26 +21,26 @@ eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'features'
 
 function buildItem(id) {
   var item = h.makeElement('div');
-  item.classList.add('regex-item');
+  item.dataset.ui = 'regex-item';
   item.dataset.id = id;
   var title = h.makeElement('div');
-  title.classList.add('arranger-title-group');
+  title.dataset.ui = 'arranger-title-group';
   var toggle = h.makeElement('div');
   toggle.classList.add('arranger-toggle');
   toggle.classList.add('active');
   var body = h.makeElement('div');
-  body.classList.add('regex-body');
+  body.dataset.ui = 'regex-body';
   body.style = { display: 'none' };
 
-  function field(cls, value) {
+  function field(ui, value) {
     var el = h.makeElement('input');
-    el.classList.add(cls);
+    el.dataset.ui = ui;
     el.value = value;
     return el;
   }
-  function chip(cls, key, val, active) {
+  function chip(ui, key, val, active) {
     var el = h.makeElement('button');
-    el.classList.add(cls);
+    if (ui) el.dataset.ui = ui;
     el.dataset[key] = val;
     if (active) el.classList.add('active');
     return el;
@@ -50,14 +50,14 @@ function buildItem(id) {
   var flagM = chip('regex-flag', 'flag', 'm', false);
   var placeAi = chip('regex-placement', 'place', 'ai', true);
   var placeUser = chip('regex-placement', 'place', 'user', false);
-  var promptChip = chip('regex-prompt', 'field', 'apply_prompt', true);
-  var displayChip = chip('regex-display', 'field', 'apply_display', true);
+  var promptChip = chip(null, 'field', 'apply_prompt', true);
+  var displayChip = chip(null, 'field', 'apply_display', true);
   var blockChip = chip('regex-block', 'field', 'as_block', false);
   var pattern = field('regex-pattern', 'a');
   var replacement = field('regex-replacement', 'b');
   var sample = field('regex-sample', 'aaa');
   var out = h.makeElement('div');
-  out.classList.add('regex-preview-out');
+  out.dataset.ui = 'regex-preview-out';
 
   item.appendChild(title);
   item.appendChild(toggle);
@@ -127,7 +127,7 @@ function buildItem(id) {
 (function () {
   fetchMock._reset();
   var t = buildItem('s-preview');
-  window.previewRegexScript(t.item.querySelector('.regex-pattern'));
+  window.previewRegexScript(t.item.querySelector('[data-ui="regex-pattern"]'));
   var call = fetchMock._last();
   assertEqual(call.url, '/api/regex-scripts/preview', 'preview hits preview endpoint');
   assertDeepEqual(
@@ -182,7 +182,7 @@ async function runLateTests() {
   // A network failure during preview writes into the output box.
   var p = buildItem('s-preview-fail');
   global.fetch = function () { return Promise.reject(new Error('network down')); };
-  window.previewRegexScript(p.item.querySelector('.regex-pattern'));
+  window.previewRegexScript(p.item.querySelector('[data-ui="regex-pattern"]'));
   await tick();
   assertEqual(p.out.textContent, 'Preview request failed', 'preview network failure fills output');
   assert(p.out.classList.contains('regex-preview-error'), 'preview failure flagged as error');

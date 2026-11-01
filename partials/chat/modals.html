@@ -25,7 +25,7 @@
     <div x-show="tab === 'structured'" class="flex-1 min-h-0 flex flex-col">
       {% include "modals/structured.html" %}
     </div>
-    <div x-show="tab === 'backups'" class="flex-1 min-h-0 overflow-y-auto scroll-fade pr-1">
+    <div x-show="tab === 'backups'" class="flex-1 min-h-0 overflow-y-auto scroll-fade pr-1" data-ui="scroll-fade">
       {% include "modals/backup-body.html" %}
     </div>
   </div>

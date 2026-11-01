@@ -16,7 +16,7 @@ content_style='display:flex;flex-direction:column;height:85vh;padding:1.25rem;',
 
     window.openTextExpander = function (targetEl, title) {
       _expanderTarget = targetEl;
-      document.querySelector('#modal-text-expander .modal-title').innerText = title || 'Edit Text';
+      document.querySelector('#modal-text-expander [data-ui="modal-title"]').innerText = title || 'Edit Text';
       document.getElementById('text-expander-input').value = targetEl.value;
       window.openModal('modal-text-expander');
       document.getElementById('text-expander-input').focus();

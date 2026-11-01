@@ -4,7 +4,7 @@
     var caps = (window.ProviderSchema && ProviderSchema.capabilities(type)) || {};
     // Continue is only meaningful where the provider accepts a prefill.
     var noPrefill = caps.supports_prefill === false;
-    document.querySelectorAll('.continue-btn').forEach(function (btn) {
+    document.querySelectorAll('[data-ui="continue-btn"]').forEach(function (btn) {
       btn.classList.toggle('hidden', noPrefill);
     });
   };
@@ -16,14 +16,14 @@
   window.processMessageList = function (container) {
     if (!container) return;
     if (window.htmx && window.htmx.process) window.htmx.process(container);
-    container.querySelectorAll('.markdown-content:not(.processed)').forEach(function (el) {
+    container.querySelectorAll('[data-ui~="markdown-content"]:not(.processed)').forEach(function (el) {
       el.innerHTML = window.renderMessage(el.textContent || '');
       el.classList.add('processed');
     });
     if (window.syncReasoningButtons) window.syncReasoningButtons(container);
     if (window.formatTimestamps) window.formatTimestamps();
     if (window.isDeleteModeActive && window.isDeleteModeActive() && window.applyDeleteModeToNode) {
-      container.querySelectorAll('.message').forEach(function (msg) {
+      container.querySelectorAll('[data-ui="message"]').forEach(function (msg) {
         window.applyDeleteModeToNode(msg);
       });
     }

@@ -74,6 +74,7 @@ function makeEl(tag, id, opts) {
   el.style = {};
   if (opts.value !== undefined) el.value = opts.value;
   if (opts.cls) el.className = opts.cls;
+  if (opts.ui) el.dataset.ui = opts.ui;
   doc._body.appendChild(el);
   return el;
 }
@@ -113,9 +114,9 @@ function flush() {
   makeEl('span', 'edit-char-image-placeholder');
 
   var media = makeEl('div', 'edit-char-media-section');
-  var addBtn = makeEl('label', '', { cls: 'block-media-btn' });
+  var addBtn = makeEl('label', '', { cls: 'block-media-btn', ui: 'block-media-btn' });
   media.appendChild(addBtn);
-  var ph = makeEl('span', '', { cls: 'block-media-placeholder' });
+  var ph = makeEl('span', '', { cls: 'block-media-placeholder', ui: 'block-media-placeholder' });
   media.appendChild(ph);
 
   var gsec = makeEl('div', 'edit-char-greeting-section');

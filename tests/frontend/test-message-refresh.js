@@ -51,7 +51,7 @@ function makeContainer(ids) {
   ids.forEach(function (id) {
     var msg = h.makeElement('div');
     msg.id = id;
-    msg.classList.add('message');
+    msg.dataset.ui = 'message';
     container.appendChild(msg);
     map[id] = msg;
   });
@@ -93,7 +93,7 @@ var reconcile = sandbox.window._reconcileOrder;
   var t = makeContainer(['message-a', 'message-c']);
   var newB = h.makeElement('div');
   newB.id = 'message-b';
-  newB.classList.add('message');
+  newB.dataset.ui = 'message';
 
   var inserted = reconcile(
     t.container,
@@ -128,7 +128,7 @@ var reconcile = sandbox.window._reconcileOrder;
 (function () {
   var t = makeContainer(['message-a', 'message-b']);
   var ph = h.makeElement('div');
-  ph.classList.add('message-placeholder');
+  ph.dataset.ui = 'message-placeholder';
   ph.dataset.msgId = 'b';
   t.container.insertBefore(ph, t.map['message-b']);
   t.map['message-b'].remove();
@@ -148,7 +148,7 @@ var reconcile = sandbox.window._reconcileOrder;
   );
   assertEqual(ids(t.container), 'message-list-data,message-a,,scroll-sentinel',
     'placeholder is kept in the right slot');
-  check(t.container.children[2].classList.contains('message-placeholder'),
+  check(t.container.children[2].getAttribute('data-ui') === 'message-placeholder',
     'kept node is still the placeholder');
 })();
 
@@ -156,7 +156,7 @@ var reconcile = sandbox.window._reconcileOrder;
 (function () {
   var t = makeContainer(['message-a']);
   var ph = h.makeElement('div');
-  ph.classList.add('message-placeholder');
+  ph.dataset.ui = 'message-placeholder';
   ph.dataset.msgId = 'gone';
   t.container.appendChild(ph);
 
@@ -168,7 +168,7 @@ var reconcile = sandbox.window._reconcileOrder;
     function (id) { return t.map[id]; },
     function () { return null; },
   );
-  assertEqual(t.container.querySelectorAll('.message-placeholder').length, 0,
+  assertEqual(t.container.querySelectorAll('[data-ui="message-placeholder"]').length, 0,
     'placeholder for a deleted message is removed');
 })();
 
@@ -208,13 +208,13 @@ var reconcile = sandbox.window._reconcileOrder;
   }
   function phFor(id) {
     var p = styled('div');
-    p.classList.add('message-placeholder');
+    p.dataset.ui = 'message-placeholder';
     p.dataset.msgId = id;
     return p;
   }
   function msg(id) {
     var m = styled('div');
-    m.classList.add('message');
+    m.dataset.ui = 'message';
     m.id = id;
     return m;
   }
@@ -237,7 +237,7 @@ var reconcile = sandbox.window._reconcileOrder;
   var parsedDoc = {
     getElementById: function (id) { return server[id.replace('message-', '')] || null; },
     querySelectorAll: function (sel) {
-      return sel === '.message' ? [server[1], server[2], server[3], server[4]] : [];
+      return sel === '[data-ui="message"]' ? [server[1], server[2], server[3], server[4]] : [];
     },
   };
 
@@ -277,7 +277,7 @@ var reconcile = sandbox.window._reconcileOrder;
   sandbox.window.refreshMessagesAfterStream('chat-1', '1', '3').then(function () {
     check(doc.getElementById('message-3') === server[3], 'skeleton replaced by the server node');
     check(doc.getElementById('message-3') !== skeleton, 'skeleton node is no longer attached');
-    check(container.querySelectorAll('.message-placeholder').length === 0, 'pruned placeholders replaced');
+    check(container.querySelectorAll('[data-ui="message-placeholder"]').length === 0, 'pruned placeholders replaced');
     check(doc.getElementById('message-4') === server[4], 'genuinely missing message is inserted');
     check(container.children[container.children.length - 1] === sentinel, 'sentinel stays last');
     check(processCalls === 1, 'the single processing pass runs exactly once');

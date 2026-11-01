@@ -13,10 +13,10 @@
     {{ empty_state('No providers configured. Click "Add Provider" to create one.', extra_classes='mb-4') }}
   {% endif %}
 
-  <div class="flex-1 min-h-0 overflow-y-auto scroll-fade">
+  <div class="flex-1 min-h-0 overflow-y-auto scroll-fade" data-ui="scroll-fade">
   <div class="entity-list" id="providers-grid">
     {% for prov in providers %}
-      <div class="provider-card entity-row{% if active_provider_id == prov.id %} active{% endif %}" id="prov-card-{{ prov.id }}" role="button" tabindex="0" data-action="actionSetActiveProvider" data-prov-id="{{ prov.id }}" data-prov-name="{{ prov.name }}" data-prov-type="{{ prov.type }}" data-prov-created="{{ prov.created_at }}">
+      <div class="provider-card entity-row{% if active_provider_id == prov.id %} active{% endif %}" id="prov-card-{{ prov.id }}" role="button" tabindex="0" data-action="actionSetActiveProvider" data-prov-id="{{ prov.id }}" data-prov-name="{{ prov.name }}" data-prov-type="{{ prov.type }}" data-prov-created="{{ prov.created_at }}" data-ui="entity-row">
         <div id="prov-display-{{ prov.id }}" class="entity-main">
           <div class="entity-name">{{ prov.name }}</div>
           <div class="entity-meta">{{ prov.type }} • {{ prov.model }}</div>
@@ -41,7 +41,7 @@
 {% include "modals/provider-create.html" %}
 
 <!-- Universal Model Selection Modal -->
-<div id="modal-fetch-models" class="modal-overlay sub hidden" role="dialog" aria-modal="true" aria-label="Fetch models"
+<div id="modal-fetch-models" class="modal-overlay sub hidden" data-ui="modal-overlay" role="dialog" aria-modal="true" aria-label="Fetch models"
      x-data="{ search: '', models: [], loading: false, error: '' }"
      @models-loaded.window="models = $event.detail; loading = false; error = ''"
      @models-loading.window="loading = true; error = ''"
@@ -49,7 +49,7 @@
       data-action="actionCloseModal">
   <div class="modal-content flex flex-col p-0" style="max-width: 800px; width: 95vw; height: 80vh; overflow: hidden; background: var(--surface);">
     <div class="modal-header divider p-4">
-      <div class="modal-title">Select Model</div>
+      <div class="modal-title" data-ui="modal-title">Select Model</div>
       <button class="btn btn-secondary btn-sm" data-action="actionCloseModal" data-modal-id="modal-fetch-models" aria-label="Close">{{ icon_close(16) }}</button>
     </div>
     
@@ -104,13 +104,13 @@
 
 
 <!-- Secrets Selection Modal -->
-<div id="modal-secrets" class="modal-overlay sub hidden" role="dialog" aria-modal="true" aria-label="Secrets"
+<div id="modal-secrets" class="modal-overlay sub hidden" data-ui="modal-overlay" role="dialog" aria-modal="true" aria-label="Secrets"
      x-data="{ secrets: [], rawKey: '', newName: '', newValue: '' }"
      @secrets-loaded.window="secrets = $event.detail"
      data-action="actionCloseModal">
   <div class="modal-content flex flex-col p-0" style="max-width: 800px; width: 95vw; height: 75vh; overflow: hidden; background: var(--surface);">
     <div class="modal-header divider p-4">
-      <div class="modal-title secrets-title">Select API Key</div>
+      <div class="modal-title secrets-title" data-ui="modal-title secrets-title">Select API Key</div>
       <button class="btn btn-secondary btn-sm" data-action="actionCloseModal" data-modal-id="modal-secrets" aria-label="Close">{{ icon_close(16) }}</button>
     </div>
     
@@ -125,7 +125,7 @@
                <div class="text-xs text-muted font-mono" x-text="sec.preview"></div>
              </div>
              <div class="flex gap-2">
-               <button type="button" class="btn btn-primary btn-sm secret-select-btn" @click.stop="selectSecret(sec.name)">Select</button>
+               <button type="button" class="btn btn-primary btn-sm secret-select-btn" data-ui="secret-select-btn" @click.stop="selectSecret(sec.name)">Select</button>
                <button type="button" class="btn btn-danger btn-sm" @click.stop="deleteSecret(sec.name)" aria-label="Delete secret">{{ icon_close(16) }}</button>
              </div>
            </div>

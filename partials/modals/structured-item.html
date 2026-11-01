@@ -1,6 +1,7 @@
 {% from "macros.html" import icon_chevron_right, icon_close, hint_tooltip, toggle %}
 <div
   class="arranger-item structured-item {% if not response.enabled %}disabled{% endif %}"
+  data-ui="structured-item"
   data-id="{{ response.id }}"
   data-scope="{{ response.scope }}"
 >
@@ -8,6 +9,7 @@
     <div class="arranger-handle structured-handle" title="Drag to reorder"></div>
     <div
       class="arranger-title-group"
+      data-ui="arranger-title-group"
       role="button"
       tabindex="0"
       aria-expanded="false"
@@ -17,6 +19,7 @@
       <input
         type="text"
         class="arranger-input"
+        data-ui="arranger-input"
         value="{{ response.name }}"
         placeholder="Untitled response"
         onclick="event.stopPropagation()"
@@ -37,7 +40,7 @@
     </div>
   </div>
 
-  <div class="structured-body" style="display: none">
+  <div class="structured-body" data-ui="structured-body" style="display: none">
     <div class="form-group mb-0">
       <div class="structured-label-row">
         <label>JSON Schema</label>
@@ -59,6 +62,7 @@
       </div>
       <textarea
         class="form-control structured-template"
+        data-ui="structured-template"
         rows="5"
         spellcheck="false"
         placeholder="Use triple braces for raw text, e.g. {{ '{{{text}}}' }}"
@@ -70,6 +74,7 @@
       <label>Test</label>
       <textarea
         class="form-control structured-sample"
+        data-ui="structured-sample"
         rows="3"
         spellcheck="false"
         placeholder='{"text": "Hello world!"}'
@@ -77,7 +82,7 @@
       <button type="button" class="btn btn-secondary shrink-0" onclick="previewStructuredResponse(this)">
         Test
       </button>
-      <div class="structured-preview-out"></div>
+      <div class="structured-preview-out" data-ui="structured-preview-out"></div>
     </div>
   </div>
 </div>

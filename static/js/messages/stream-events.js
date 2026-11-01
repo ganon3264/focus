@@ -17,7 +17,7 @@
     if (prev && prev.el && prev.el.parentNode) {
       prev.el.parentNode.insertBefore(el, prev.el.nextSibling);
     } else {
-      var bodyEl = state.asstDiv.querySelector('.message-body');
+      var bodyEl = state.asstDiv.querySelector('[data-ui="message-body"]');
       if (bodyEl) bodyEl.appendChild(el);
     }
     state.segments.push({ type: type, el: el });
@@ -205,7 +205,7 @@
       return window.segmentBuilders.reasoning(idx);
     });
     seg.text = (seg.text || '') + (data.text || '');
-    var rc = seg.el.querySelector('.reasoning-content');
+    var rc = seg.el.querySelector('[data-ui~="reasoning-content"]');
     if (rc) rc.textContent = seg.text;
     if (window._updateReasoningButton) window._updateReasoningButton(state.asstDiv);
   };
@@ -309,7 +309,7 @@
     }
     // Generation is over: the spinner must not depend on the post-stream refresh
     // finding this node (it does not, if the row has nothing stored).
-    var spinner = state.asstDiv.querySelector('.message-spinner');
+    var spinner = state.asstDiv.querySelector('[data-ui="message-spinner"]');
     if (spinner) spinner.remove();
     window.bindAssistantIdentity(state);
   };

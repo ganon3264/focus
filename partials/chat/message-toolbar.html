@@ -1,4 +1,4 @@
-        <div class="toolbar normal-mode-actions items-center gap-0.5">
+        <div class="toolbar normal-mode-actions items-center gap-0.5" data-ui="toolbar">
         {% if message.variant_count > 1 or (is_latest and message.role == 'assistant') %}
         <button
           class="action-btn"
@@ -11,7 +11,7 @@
         >
           {{ icon_chevron_left() }}
         </button>
-        <span class="text-xs swipe-counter" style="display:flex;align-items:center;color:var(--text-faint)">{{ message.active_index + 1 }}/{{ message.variant_count }}</span>
+        <span class="text-xs swipe-counter" data-ui="swipe-counter" style="display:flex;align-items:center;color:var(--text-faint)">{{ message.active_index + 1 }}/{{ message.variant_count }}</span>
         <button
           class="action-btn"
           title="Next variant"
@@ -36,6 +36,7 @@
         </button>
         <button
           class="action-btn continue-btn"
+          data-ui="continue-btn"
           title="Continue"
           aria-label="Continue"
           data-action="actionContinueGeneration"

@@ -42,11 +42,11 @@
     var wanted = {};
     orderedIds.forEach(function (id) { wanted[id] = true; });
 
-    var extras = container.querySelectorAll('.message');
+    var extras = container.querySelectorAll('[data-ui="message"]');
     for (var i = extras.length - 1; i >= 0; i--) {
       if (!wanted[extras[i].id]) extras[i].remove();
     }
-    var placeholders = container.querySelectorAll('.message-placeholder');
+    var placeholders = container.querySelectorAll('[data-ui="message-placeholder"]');
     for (var j = placeholders.length - 1; j >= 0; j--) {
       var ph = placeholders[j];
       if (!wanted[MessageIdentity.domId(ph.dataset.msgId)]) {
@@ -74,7 +74,7 @@
     if (!resp.ok) return;
     var doc = new DOMParser().parseFromString(await resp.text(), 'text/html');
 
-    var orderedIds = Array.prototype.map.call(doc.querySelectorAll('.message'), function (n) {
+    var orderedIds = Array.prototype.map.call(doc.querySelectorAll('[data-ui="message"]'), function (n) {
       return n.id;
     });
 
@@ -85,8 +85,8 @@
     // When the live node set diverges from the server's (a message the client
     // never saw, or one it thinks still exists), re-render every message so
     // per-message state like `data-msg-index` stays correct.
-    var liveCount = container.querySelectorAll('.message').length
-      + container.querySelectorAll('.message-placeholder').length;
+    var liveCount = container.querySelectorAll('[data-ui="message"]').length
+      + container.querySelectorAll('[data-ui="message-placeholder"]').length;
     var missing = orderedIds.some(function (id) { return !_findLiveNode(container, id); });
     var toReplace = (changedIds == null || missing || liveCount !== orderedIds.length)
       ? orderedIds.map(function (id) { return MessageIdentity.bare(id); })
@@ -149,7 +149,7 @@
   function _fittedChatPageSize() {
     var scroll = _chatListScroll();
     if (!scroll || parseInt(_chatListAttr('data-chat-total'), 10) === 0) return null;
-    var item = scroll.querySelector('.sidebar-item');
+    var item = scroll.querySelector('[data-ui="sidebar-item"]');
     var itemHeight = item ? item.getBoundingClientRect().height : CHAT_ITEM_FALLBACK_HEIGHT;
     if (!itemHeight || !scroll.clientHeight) return null;
     var size = Math.floor(scroll.clientHeight / itemHeight);
@@ -201,7 +201,7 @@
 
     var msgIndex = parseInt(existingMsg.getAttribute('data-msg-index')) || 1;
     var msgList = document.getElementById('message-list');
-    var msgs = msgList ? msgList.querySelectorAll('.message') : [];
+    var msgs = msgList ? msgList.querySelectorAll('[data-ui="message"]') : [];
     var isLatest = msgs.length > 0 ? existingMsg === msgs[msgs.length - 1] : false;
     var url = '/partials/message/' + chatId + '/' + messageId
       + '?msg_index=' + msgIndex + '&is_latest=' + isLatest;
@@ -223,7 +223,7 @@
     var resp = await window.hxFetch(window.api.partials.messageToolbars(chatId));
     if (!resp.ok) return;
     var doc = new DOMParser().parseFromString(await resp.text(), 'text/html');
-    var root = doc.querySelector('.message-toolbars');
+    var root = doc.querySelector('[data-ui="message-toolbars"]');
     if (!root) return;
 
     var wrappers = root.querySelectorAll('[data-message-id]');
@@ -231,8 +231,8 @@
     for (var i = 0; i < wrappers.length; i++) {
       var node = MessageIdentity.node(wrappers[i]);
       if (!node) continue;
-      var liveToolbar = node.querySelector('.toolbar');
-      var freshToolbar = wrappers[i].querySelector('.toolbar');
+      var liveToolbar = node.querySelector('[data-ui="toolbar"]');
+      var freshToolbar = wrappers[i].querySelector('[data-ui="toolbar"]');
       if (liveToolbar && freshToolbar) {
         liveToolbar.outerHTML = freshToolbar.outerHTML;
         touched.push(node);

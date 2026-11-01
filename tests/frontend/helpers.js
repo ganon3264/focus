@@ -288,18 +288,24 @@ function matches(el, sel) {
     if (!el.hasAttribute(boolName)) return false;
     return true;
   }
-  // Handle [attr="value"] selectors
-  var attrRe = /\[(\w[\w-]*)\s*=\s*"([^"]*)"\]/;
+  // Handle [attr="value"] and [attr~="value"] (whitespace-token) selectors
+  var attrRe = /\[(\w[\w-]*)\s*(~?)=\s*"([^"]*)"\]/;
   var attrMatch = attrRe.exec(sel);
   if (attrMatch) {
     var attrSel = attrMatch[0];
     var attrName = attrMatch[1];
-    var attrVal = attrMatch[2];
+    var attrOp = attrMatch[2];
+    var attrVal = attrMatch[3];
     var baseSel = sel.slice(0, attrMatch.index) + sel.slice(attrMatch.index + attrSel.length);
     if (baseSel) {
       if (!matches(el, baseSel)) return false;
     }
-    if (el.getAttribute(attrName) !== attrVal) return false;
+    var actual = el.getAttribute(attrName);
+    if (attrOp === '~') {
+      if (!actual) return false;
+      return actual.trim().split(/\s+/).indexOf(attrVal) !== -1;
+    }
+    if (actual !== attrVal) return false;
     return true;
   }
   var parts = sel.split(/(?=[#.])/);

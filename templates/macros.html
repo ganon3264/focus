@@ -43,7 +43,7 @@
          }
       }"
       x-effect="
-         const item = $el.closest('.arranger-item');
+         const item = $el.closest('[data-ui=arranger-item]');
          if (item) {
              if (open) {
                  item.style.position = 'relative';
@@ -210,7 +210,7 @@
       x-model.number="{{ model }}"
       @change="{{ change }}"
       {% if blur %}@blur="{{ blur }}"{% endif %}
-      class="form-control text-xs sampler-input" data-dec="{{ dec | int }}"{% if input_attrs %} {{ input_attrs | safe }}{% endif %} />
+      class="form-control text-xs sampler-input" data-ui="sampler-input" data-dec="{{ dec | int }}"{% if input_attrs %} {{ input_attrs | safe }}{% endif %} />
   </label>
   <input type="range" min="{{ min }}" max="{{ max }}" step="{{ step }}"
     x-model.number="{{ model }}" @change="{{ change }}"
@@ -466,7 +466,7 @@
 
 {% macro hint_tooltip(text) %}
 <span class="hint-wrapper" data-hint="{{ text }}" onmouseenter="showHint(this)" onmouseleave="hideHint()">
-  <span class="hint-icon">{{ icon_help(14) }}</span>
+  <span class="hint-icon" data-ui="hint-icon">{{ icon_help(14) }}</span>
 </span>
 {% endmacro %}
 
@@ -479,7 +479,7 @@
     <span class="truncate max-w-[300px]">{{ tc.function.arguments }}</span>
     {% endif %}
   </summary>
-  <div class="tool-result-body">
+  <div class="tool-result-body" data-ui="tool-result-body">
     <pre class="whitespace-pre-wrap break-all">{{ tc.result or '' }}</pre>
     {% set img = tc.image_data or tc.image_url %}
     {% if img %}

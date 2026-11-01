@@ -1,8 +1,8 @@
 {% from "macros.html" import icon_expand, icon_plus, modal_footer %} {% from "modal-shell.html" import modal_shell %} {% call
 modal_shell('modal-edit-message', 'Edit Message', max_width='800px',
 content_style='display:flex;flex-direction:column;max-height:90vh;', z_index='100',
-dirty_fields='.edit-block-ta', dirty_label='this message') %}
-<div class="flex-1 overflow-y-auto flex flex-col gap-6 scroll-fade min-h-0 pl-1">
+dirty_fields='[data-ui="edit-block-ta"]', dirty_label='this message') %}
+<div class="flex-1 overflow-y-auto flex flex-col gap-6 scroll-fade min-h-0 pl-1" data-ui="scroll-fade">
   <input type="hidden" id="edit-msg-id" />
   <input type="hidden" id="edit-msg-chat-id" />
 

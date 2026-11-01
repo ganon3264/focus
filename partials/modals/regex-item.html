@@ -1,6 +1,7 @@
 {% from "macros.html" import icon_chevron_right, icon_close, hint_tooltip, toggle %}
 <div
   class="arranger-item regex-item {% if not script.enabled %}disabled{% endif %} {% if open|default(false) %}expanded{% endif %}"
+  data-ui="regex-item"
   data-id="{{ script.id }}"
   data-scope="{{ script.scope }}"
 >
@@ -8,6 +9,7 @@
     <div class="arranger-handle regex-handle" title="Drag to reorder"></div>
     <div
       class="arranger-title-group"
+      data-ui="arranger-title-group"
       role="button"
       tabindex="0"
       aria-expanded="{{ 'true' if open|default(false) else 'false' }}"
@@ -17,6 +19,7 @@
       <input
         type="text"
         class="arranger-input"
+        data-ui="arranger-input"
         value="{{ script.name }}"
         placeholder="Untitled script"
         onclick="event.stopPropagation()"
@@ -37,12 +40,13 @@
     </div>
   </div>
 
-  <div class="regex-body" style="display: {{ 'flex' if open|default(false) else 'none' }}">
+  <div class="regex-body" data-ui="regex-body" style="display: {{ 'flex' if open|default(false) else 'none' }}">
     <div class="form-group mb-0">
       <label>Find</label>
       <input
         type="text"
         class="form-control regex-pattern"
+        data-ui="regex-pattern"
         value="{{ script.pattern }}"
         placeholder="Python regex, e.g. A beat\."
         onchange="handleRegexUpdate(this, {pattern: this.value})"
@@ -54,6 +58,7 @@
       <input
         type="text"
         class="form-control regex-replacement"
+        data-ui="regex-replacement"
         value="{{ script.replacement }}"
         placeholder="replacement text — empty removes the match (Block: prompt side only)"
         onchange="handleRegexUpdate(this, {replacement: this.value})"
@@ -68,6 +73,7 @@
           <button
             type="button"
             class="btn-tag regex-flag {% if flag in script.flags %}active{% endif %}"
+            data-ui="regex-flag"
             data-flag="{{ flag }}"
             title="{{ title }}"
             onclick="toggleRegexFlag(this)"
@@ -83,6 +89,7 @@
           <button
             type="button"
             class="btn-tag regex-placement {% if place in script.placement %}active{% endif %}"
+            data-ui="regex-placement"
             data-place="{{ place }}"
             onclick="toggleRegexPlacement(this)"
           >{{ label }}</button>
@@ -109,6 +116,7 @@
           <button
             type="button"
             class="btn-tag regex-block {% if script.as_block %}active{% endif %}"
+            data-ui="regex-block"
             title="Render the display match as a collapsible block"
             onclick="toggleRegexBlock(this)"
           >Block</button>
@@ -146,12 +154,12 @@
     <div class="form-group mb-0 regex-preview">
       <label>Test</label>
       <div class="flex items-center gap-2">
-        <input type="text" class="form-control regex-sample" placeholder="Paste sample text…" />
+        <input type="text" class="form-control regex-sample" data-ui="regex-sample" placeholder="Paste sample text…" />
         <button type="button" class="btn btn-secondary shrink-0" onclick="previewRegexScript(this)">
           Test
         </button>
       </div>
-      <div class="regex-preview-out"></div>
+      <div class="regex-preview-out" data-ui="regex-preview-out"></div>
     </div>
   </div>
 </div>

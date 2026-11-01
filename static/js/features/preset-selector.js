@@ -10,7 +10,7 @@
     selectorState.open = false;
     var modalState = Alpine.$data(document.getElementById('dup-preset-form'));
     modalState.dupSourceId = item.dataset.presetId;
-    modalState.dupValue = item.querySelector('.preset-item-name').textContent + ' Copy';
+    modalState.dupValue = item.querySelector('[data-ui="preset-item-name"]').textContent + ' Copy';
     window.openModal('modal-dup-preset');
   };
 
@@ -48,7 +48,7 @@
     selectorState.open = false;
     var modalState = Alpine.$data(document.getElementById('rename-preset-form'));
     modalState.renameTargetId = item.dataset.presetId;
-    modalState.renameValue = item.querySelector('.preset-item-name').textContent;
+    modalState.renameValue = item.querySelector('[data-ui="preset-item-name"]').textContent;
     document.getElementById('rename-preset-form').dataset.renameOriginal = modalState.renameValue;
     window.openModal('modal-rename-preset');
   };
@@ -79,7 +79,7 @@
         document
           .querySelectorAll('#preset-selector-wrapper [data-preset-id="' + pid + '"]')
           .forEach(function (el) {
-            var nameSpan = el.querySelector('.preset-item-name');
+            var nameSpan = el.querySelector('[data-ui="preset-item-name"]');
             if (nameSpan) nameSpan.textContent = trimmed;
           });
         if (state.selectedId === pid) {

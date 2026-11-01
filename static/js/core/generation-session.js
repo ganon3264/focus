@@ -47,7 +47,7 @@
 
     var asstDiv = state.asstDiv;
     if (asstDiv) {
-      var spinner = asstDiv.querySelector('.message-spinner');
+      var spinner = asstDiv.querySelector('[data-ui="message-spinner"]');
       if (spinner) spinner.remove();
       if (state.isRegen) {
         // This node is a real message: clearStaleContent wiped its content for
@@ -113,8 +113,8 @@
       // carries the full text (echoing providers resend the partial; others get
       // it synthesized server-side).
       if (opts.continueText) {
-        var bodyEl = asstDiv.querySelector('.message-body');
-        var contentDiv = bodyEl ? bodyEl.querySelector('.message-content') : null;
+        var bodyEl = asstDiv.querySelector('[data-ui="message-body"]');
+        var contentDiv = bodyEl ? bodyEl.querySelector('[data-ui~="message-content"]') : null;
         if (contentDiv) {
           state.segments.push({ type: 'text', el: contentDiv, content: '' });
         }

@@ -29,12 +29,12 @@ var MODULES = [
 // ── Assistant node factory (mirrors buildAssistantSkeleton's shape) ──
 function newAssistant(id) {
   var d = h.makeElement('div');
-  d.classList.add('message');
+  d.dataset.ui = 'message';
   if (id) d.id = id;
   var body = h.makeElement('div');
-  body.classList.add('message-body');
+  body.dataset.ui = 'message-body';
   var content = h.makeElement('div');
-  content.classList.add('message-content');
+  content.dataset.ui = 'message-content';
   body.appendChild(content);
   d.appendChild(body);
   return d;
@@ -119,12 +119,12 @@ function makeEnv() {
     syncReasoningButtons: function () {},
     buildAssistantSkeleton: function () { return newAssistant('skeleton'); },
     segmentBuilders: {
-      text: function () { var d = h.makeElement('div'); d.classList.add('message-content'); return d; },
+      text: function () { var d = h.makeElement('div'); d.dataset.ui = 'message-content'; return d; },
       reasoning: function () {
         var d = h.makeElement('div');
-        d.classList.add('reasoning-block');
+        d.dataset.ui = 'reasoning-block';
         var rc = h.makeElement('div');
-        rc.classList.add('reasoning-content');
+        rc.dataset.ui = 'reasoning-content';
         d.appendChild(rc);
         return d;
       },
@@ -335,7 +335,7 @@ test('buffered stream shows retry feedback and renders the replayed full text', 
     assert(env.toasts.some(function (t) {
       return t.type === 'info' && /^Retrying \(1\/3\)/.test(t.msg);
     }), 'buffered mode surfaces retry feedback');
-    assert(Array.prototype.some.call(r.asst.querySelectorAll('.message-content'), function (el) {
+    assert(Array.prototype.some.call(r.asst.querySelectorAll('[data-ui="message-content"]'), function (el) {
       return el.innerHTML === 'Complete reply';
     }), 'buffered mode renders the replayed full text');
     assert(!env.Generation.isActive(), 'buffered session is idle afterwards');
@@ -485,13 +485,14 @@ test('failed regenerate keeps the message node and its content', function () {
   var existing = h.makeElement('div');
   existing.id = 'message-old';
   // Built from markup so the DOM shim can snapshot/restore innerHTML verbatim.
-  existing.innerHTML = '<div class="message-body"><div class="message-content">Original reply</div></div>';
+  existing.innerHTML = '<div class="message-body" data-ui="message-body"><div class="message-content" data-ui="message-content">Original reply</div></div>';
   env.messageList.appendChild(existing);
   env.sandbox.clearStaleContent = function (div) {
-    var cs = div.querySelectorAll('.message-content');
+    var cs = div.querySelectorAll('[data-ui="message-content"]');
     for (var i = 0; i < cs.length; i++) cs[i].remove();
     var spinner = h.makeElement('div');
     spinner.className = 'message-spinner';
+    spinner.dataset.ui = 'message-spinner';
     div.appendChild(spinner);
   };
   env.sandbox.fetch = function (url) {
@@ -505,8 +506,8 @@ test('failed regenerate keeps the message node and its content', function () {
   };
   return env.Generation.begin('chat-1', existing, { isRegen: true }).then(function () {
     assert(existing.parentNode !== null, 'regenerate failure keeps the message in the list');
-    assert(existing.querySelector('.message-spinner') === null, 'spinner removed after failure');
-    assert(existing.querySelector('.message-content') !== null,
+    assert(existing.querySelector('[data-ui="message-spinner"]') === null, 'spinner removed after failure');
+    assert(existing.querySelector('[data-ui="message-content"]') !== null,
       'previous content restored after failed regenerate');
     assert(env.refreshes.indexOf('list') >= 0, 'failed regenerate re-renders the list');
   });
@@ -517,6 +518,7 @@ test('completed stream removes its own spinner', function () {
   env.sandbox.clearStaleContent = function (div) {
     var spinner = h.makeElement('div');
     spinner.className = 'message-spinner';
+    spinner.dataset.ui = 'message-spinner';
     div.appendChild(spinner);
   };
   return drive(env, [
@@ -524,7 +526,7 @@ test('completed stream removes its own spinner', function () {
     { data: { type: 'token', text: 'hi' } },
     { data: { type: 'done', message_id: 'm1' } },
   ]).then(function (r) {
-    assert(r.asst.querySelector('.message-spinner') === null,
+    assert(r.asst.querySelector('[data-ui="message-spinner"]') === null,
       'spinner is gone as soon as the stream is over');
   });
 });

@@ -52,7 +52,7 @@ window.renderMessage = function (text) {
     /<img\s[^>]*?src\s*=\s*"((?:https?:)?\/\/[^"]*)"([^>]*?)(\/?\s*>)/gi,
     function (match, src, rest, closing) {
       var alt = (match.match(/alt\s*=\s*"([^"]*)"/i) || [])[1] || '';
-      return '<span class="external-media-placeholder" data-src="' + src.replace(/"/g, '&quot;') + '" data-alt="' + alt.replace(/"/g, '&quot;') + '"><span class="external-media-label">External media</span><button class="external-media-btn" data-action="loadExternalMedia">Load</button></span>';
+      return '<span class="external-media-placeholder" data-ui="external-media-placeholder" data-src="' + src.replace(/"/g, '&quot;') + '" data-alt="' + alt.replace(/"/g, '&quot;') + '"><span class="external-media-label">External media</span><button class="external-media-btn" data-action="loadExternalMedia">Load</button></span>';
     }
   );
 
@@ -124,7 +124,7 @@ window.renderMessage = function (text) {
     if (stashed.startsWith('<pre')) {
       return stashed.replace(
         '</pre>',
-        `<button class="copy-btn" title="Copy code">${window.getSvgSprite('copy', 14)}</button></pre>`,
+        `<button class="copy-btn" data-ui="copy-btn" title="Copy code">${window.getSvgSprite('copy', 14)}</button></pre>`,
       );
     }
     return stashed;
@@ -134,7 +134,7 @@ window.renderMessage = function (text) {
 };
 
 window.loadExternalMedia = function (el) {
-  var placeholder = el.closest('.external-media-placeholder');
+  var placeholder = el.closest('[data-ui="external-media-placeholder"]');
   if (!placeholder) return;
   var img = document.createElement('img');
   img.src = placeholder.dataset.src;
@@ -144,7 +144,7 @@ window.loadExternalMedia = function (el) {
 };
 
 document.addEventListener('click', function (e) {
-  const btn = e.target.closest('.copy-btn');
+  const btn = e.target.closest('[data-ui="copy-btn"]');
   if (!btn) return;
   const pre = btn.closest('pre');
   const code = pre && pre.querySelector('code');
@@ -160,7 +160,7 @@ document.addEventListener('click', function (e) {
 
 // Initial render for server-side markdown that ships unprocessed.
 document.addEventListener('DOMContentLoaded', function () {
-  var els = document.querySelectorAll('.markdown-content:not(.processed)');
+  var els = document.querySelectorAll('[data-ui~="markdown-content"]:not(.processed)');
   for (var i = 0; i < els.length; i++) {
     els[i].innerHTML = window.renderMessage(els[i].textContent || '');
     els[i].classList.add('processed');

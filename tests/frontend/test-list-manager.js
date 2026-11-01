@@ -33,15 +33,15 @@ grid.id = 'test-grid';
 function addCard(name, created) {
   var card = makeElement('div');
   card.style = {};
-  card.classList.add('entity-row');
+  card.dataset.ui = 'entity-row';
   card.setAttribute('data-name', name);
   card.setAttribute('data-created', created);
   var full = makeElement('div');
   full.style = {};
-  full.classList.add('card-full');
+  full.dataset.ui = 'card-full';
   var compact = makeElement('div');
   compact.style = {};
-  compact.classList.add('card-compact');
+  compact.dataset.ui = 'card-compact';
   card.appendChild(full);
   card.appendChild(compact);
   grid.appendChild(card);
@@ -88,8 +88,8 @@ var cfg = {
   sortStorageKey: 'sort_test',
   viewStorageKey: 'view_test',
   sortSelectId: 'sort-select',
-  viewFullClass: 'card-full',
-  viewCompactClass: 'card-compact',
+  viewFullUi: 'card-full',
+  viewCompactUi: 'card-compact',
   apiEndpoint: '/api/test-items',
 };
 
@@ -113,7 +113,7 @@ window.ListManager.setup(cfg);
 // ── sortFn sorts az ──
 (function () {
   window.sortTest('az');
-  var cards = grid.querySelectorAll('.entity-row');
+  var cards = grid.querySelectorAll('[data-ui="entity-row"]');
   assertEqual(cards[0].getAttribute('data-name'), 'Alpha', 'sort az: first is Alpha');
   assertEqual(cards[1].getAttribute('data-name'), 'Beta', 'sort az: second is Beta');
   assertEqual(cards[2].getAttribute('data-name'), 'Gamma', 'sort az: third is Gamma');
@@ -122,7 +122,7 @@ window.ListManager.setup(cfg);
 // ── sortFn sorts za ──
 (function () {
   window.sortTest('za');
-  var cards = grid.querySelectorAll('.entity-row');
+  var cards = grid.querySelectorAll('[data-ui="entity-row"]');
   var names = [];
   for (var i = 0; i < cards.length; i++) names.push(cards[i].getAttribute('data-name'));
   assertEqual(names[0], 'Gamma', 'sort za: first is Gamma');
@@ -131,7 +131,7 @@ window.ListManager.setup(cfg);
 // ── sortFn sorts newest ──
 (function () {
   window.sortTest('newest');
-  var cards = grid.querySelectorAll('.entity-row');
+  var cards = grid.querySelectorAll('[data-ui="entity-row"]');
   var names = [];
   for (var i = 0; i < cards.length; i++) names.push(cards[i].getAttribute('data-name'));
   assertEqual(names[0], 'Alpha', 'sort newest: first is Alpha');
@@ -140,7 +140,7 @@ window.ListManager.setup(cfg);
 // ── sortFn sorts oldest ──
 (function () {
   window.sortTest('oldest');
-  var cards = grid.querySelectorAll('.entity-row');
+  var cards = grid.querySelectorAll('[data-ui="entity-row"]');
   var names = [];
   for (var i = 0; i < cards.length; i++) names.push(cards[i].getAttribute('data-name'));
   assertEqual(names[0], 'Beta', 'sort oldest: first is Beta');
@@ -151,12 +151,12 @@ window.ListManager.setup(cfg);
   window.applyCompactTest(true);
   assertEqual(grid.dataset.view, 'compact', 'compact view set');
   assert(
-    grid.querySelectorAll('.card-full')[0].style.display === 'none',
-    'compact hides .card-full',
+    grid.querySelectorAll('[data-ui="card-full"]')[0].style.display === 'none',
+    'compact hides [data-ui="card-full"]',
   );
   assert(
-    grid.querySelectorAll('.card-compact')[0].style.display === 'block',
-    'compact shows .card-compact',
+    grid.querySelectorAll('[data-ui="card-compact"]')[0].style.display === 'block',
+    'compact shows [data-ui="card-compact"]',
   );
 
   window.applyCompactTest(false);

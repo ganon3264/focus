@@ -81,7 +81,7 @@
               var card = document.getElementById(cfg.cardPrefix + id);
               if (card) card.remove();
               var grid = document.getElementById(cfg.gridId);
-              if (grid && grid.querySelectorAll('.entity-row').length === 0) {
+              if (grid && grid.querySelectorAll('[data-ui="entity-row"]').length === 0) {
                 grid.innerHTML = '<div class="text-muted text-center text-sm py-6 border border-dashed border-(--border) rounded-lg">' + cfg.emptyText + '</div>';
               }
             }
@@ -130,10 +130,10 @@
           bodyHtml += '</div>';
 
           var modalHtml =
-            '<div id="' + cfg.trashModalId + '" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Trash" style="z-index: var(--z-overlay);" onclick="if(event.target===this) this.remove()">' +
+            '<div id="' + cfg.trashModalId + '" class="modal-overlay" data-ui="modal-overlay" role="dialog" aria-modal="true" aria-label="Trash" style="z-index: var(--z-overlay);" onclick="if(event.target===this) this.remove()">' +
             '<div class="modal-content" style="max-width: 500px; width: 90vw;">' +
             '<div class="modal-header" style="margin-bottom: 1rem;">' +
-            '<div class="modal-title">Trash Bin</div>' +
+            '<div class="modal-title" data-ui="modal-title">Trash Bin</div>' +
             '<button class="btn btn-secondary btn-sm" onclick="document.getElementById(\'' + cfg.trashModalId + '\').remove()" aria-label="Close">' + iconCloseSvg() + '</button>' +
             '</div>' +
             '<div id="' + cfg.trashModalId + '-body">' + bodyHtml + '</div></div></div>';

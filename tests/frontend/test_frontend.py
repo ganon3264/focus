@@ -420,3 +420,24 @@ def test_renderable_templates_have_balanced_divs(template_name):
     assert source.count("<div") == source.count("</div>"), (
         f"{template_name}: unbalanced <div> tags"
     )
+
+
+STATE_CLASSES = {
+    "hidden", "active", "collapsed", "expanded", "disabled", "disabled-row",
+    "copied", "ready", "drag-over", "selected",
+}
+CLASS_LOOKUP_RE = re.compile(r"(?:querySelector(?:All)?|closest|matches)\(\s*['\"]\.([\w-]+)")
+
+
+@pytest.mark.parametrize("template_name", ALL_TEMPLATES)
+def test_no_class_based_dom_lookups(template_name):
+    """Markup is looked up through `data-ui` hooks, never through classes.
+
+    Classes stay presentational (and carry state like `hidden`/`active`); a
+    rename or a Tailwind pass must never be able to break a querySelector.
+    """
+    source = loader.get_source(env, template_name)[0]
+    offenders = [
+        m.group(0) for m in CLASS_LOOKUP_RE.finditer(source) if m.group(1) not in STATE_CLASSES
+    ]
+    assert not offenders, f"{template_name}: class-based DOM lookup {offenders}"

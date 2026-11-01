@@ -115,7 +115,7 @@
         }
       };
 
-      /* ── Scroll Fade for .scroll-fade containers ─────────────── */
+      /* ── Scroll Fade for [data-ui="scroll-fade"] containers ─────────────── */
       window.initScrollFade = function (el) {
         if (el._scrollFadeDone) return;
         el._scrollFadeDone = true;
@@ -165,15 +165,15 @@
       };
 
       window.domReady(function () {
-        document.querySelectorAll('.scroll-fade').forEach(window.initScrollFade);
+        document.querySelectorAll('[data-ui="scroll-fade"]').forEach(window.initScrollFade);
       });
       document.addEventListener('htmx:load', function (e) {
-        e.detail.elt.querySelectorAll('.scroll-fade').forEach(window.initScrollFade);
+        e.detail.elt.querySelectorAll('[data-ui="scroll-fade"]').forEach(window.initScrollFade);
       });
 
       /* ── Hint tooltip helpers ──────────────────────────────── */
       window.showHint = function (el) {
-        var icon = el.querySelector('.hint-icon');
+        var icon = el.querySelector('[data-ui="hint-icon"]');
         if (!icon) return;
         var tip = document.getElementById('hint-tooltip');
         if (!tip) return;
@@ -204,6 +204,7 @@
     <div
       id="lightbox"
       class="modal-overlay heavy hidden"
+      data-ui="modal-overlay"
       role="dialog"
       aria-modal="true"
       aria-label="Image lightbox"
@@ -231,6 +232,7 @@
     <div
       id="crop-modal"
       class="modal-overlay heavy hidden"
+      data-ui="modal-overlay"
       role="dialog"
       aria-modal="true"
       aria-label="Image crop tool"
@@ -251,7 +253,7 @@
           class="modal-header divider"
           style="padding: 1rem 1.5rem"
         >
-          <div class="modal-title">Crop Image</div>
+          <div class="modal-title" data-ui="modal-title">Crop Image</div>
           <button
             class="btn btn-secondary w-8 h-8 rounded-full p-0 flex items-center justify-center"
             onclick="closeCropModal()"

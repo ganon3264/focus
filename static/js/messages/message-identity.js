@@ -34,7 +34,7 @@
   function placeholder(ref, root) {
     var id = bare(ref);
     if (id == null) return null;
-    return (root || document).querySelector('.message-placeholder[data-msg-id="' + id + '"]');
+    return (root || document).querySelector('[data-ui="message-placeholder"][data-msg-id="' + id + '"]');
   }
 
   window.MessageIdentity = {

@@ -10,7 +10,7 @@
   }
 
   function getToastText(card) {
-    var textEl = card.querySelector('.toast-text');
+    var textEl = card.querySelector('[data-ui="toast-text"]');
     return textEl ? textEl.textContent : '';
   }
 
@@ -99,7 +99,7 @@
       if (sameId || sameText) {
         existing._fullText = fullText;
         if (getToastText(existing) !== message) {
-          var textEl = existing.querySelector('.toast-text');
+          var textEl = existing.querySelector('[data-ui="toast-text"]');
           if (textEl) textEl.textContent = message;
         }
         armTimer(existing, duration);
@@ -116,6 +116,7 @@
 
     var text = document.createElement('span');
     text.className = 'toast-text';
+    text.dataset.ui = 'toast-text';
     text.textContent = message;
     card.appendChild(text);
 

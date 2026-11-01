@@ -1,5 +1,5 @@
 {% from "macros.html" import icon_help, icon_plus, custom_select, hint_tooltip, modal_footer, toggle %}
-<div style="flex: 1; min-height: 0; overflow-y: auto;" class="scroll-fade">
+<div style="flex: 1; min-height: 0; overflow-y: auto;" class="scroll-fade" data-ui="scroll-fade">
   <div class="arranger-list" id="arranger-list-{{ preset_id }}">
     {% for block in blocks %} {% include "presets/prompt-block.html" %} {% endfor %}
   </div>
@@ -241,7 +241,7 @@ dirty_label='summary settings') %}
       var qs = params.toString();
       if (qs) url += '?' + qs;
       hxGet(url, {
-        target: '.arranger-item[data-block-id="' + blockId + '"]',
+        target: '[data-ui="arranger-item"][data-block-id="' + blockId + '"]',
         swap: 'outerHTML',
       });
     };
@@ -270,7 +270,7 @@ dirty_label='summary settings') %}
 
     window.openBlockModal = function (el, part) {
       part = part || 'content';
-      const item = el.classList.contains('arranger-item') ? el : el.closest('.arranger-item');
+      const item = el.matches('[data-ui="arranger-item"]') ? el : el.closest('[data-ui="arranger-item"]');
       const blockId = item ? item.dataset.blockId : '';
       const presetId = item ? item.dataset.presetId : '';
       _currentBlockId = blockId;
@@ -372,7 +372,7 @@ dirty_label='summary settings') %}
     };
 
     window.uploadBlockMedia = function (input) {
-      const item = input.closest('.arranger-item');
+      const item = input.closest('[data-ui="arranger-item"]');
       const presetId = item ? item.dataset.presetId : '';
       const blockId = item ? item.dataset.blockId : '';
       if (!presetId || !blockId || !input.files || !input.files[0]) return;
@@ -389,7 +389,7 @@ dirty_label='summary settings') %}
     window.deleteBlockMedia = function (el) {
       const container = el.closest ? el.closest('[data-image-id]') : null;
       const imageId = container ? container.dataset.imageId : '';
-      const item = container ? container.closest('.arranger-item') : null;
+      const item = container ? container.closest('[data-ui="arranger-item"]') : null;
       const presetId = item ? item.dataset.presetId : '';
       const blockId = item ? item.dataset.blockId : '';
       if (!presetId || !blockId || !imageId) return;
@@ -401,7 +401,7 @@ dirty_label='summary settings') %}
     };
 
     window.handleArrangerBlockUpdate = function (el, payload) {
-      const item = el.classList.contains('arranger-item') ? el : el.closest('.arranger-item');
+      const item = el.matches('[data-ui="arranger-item"]') ? el : el.closest('[data-ui="arranger-item"]');
       const presetId = item ? item.dataset.presetId : '';
       const blockId = item ? item.dataset.blockId : '';
       if (!presetId || !blockId) return;
@@ -413,7 +413,7 @@ dirty_label='summary settings') %}
     };
 
     window.handleArrangerBlockDelete = function (el) {
-      const item = el.classList.contains('arranger-item') ? el : el.closest('.arranger-item');
+      const item = el.matches('[data-ui="arranger-item"]') ? el : el.closest('[data-ui="arranger-item"]');
       const presetId = item ? item.dataset.presetId : '';
       const blockId = item ? item.dataset.blockId : '';
       if (!presetId || !blockId) return;

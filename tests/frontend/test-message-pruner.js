@@ -20,12 +20,12 @@ function addMsg(id, top) {
   var msg = makeElement('div');
   msg.style = {};
   msg.id = id;
-  msg.classList.add('message');
+  msg.dataset.ui = 'message';
   msg.getBoundingClientRect = function () {
     return { top: top, bottom: top + 60, left: 0, right: 0, width: 400, height: 60 };
   };
   msg.offsetHeight = 60;
-  msg.outerHTML = '<div id="' + id + '" class="message">content</div>';
+  msg.outerHTML = '<div id="' + id + '" class="message" data-ui="message">content</div>';
   msg.replaceWith = function (newEl) {
     var parent = msg.parent;
     if (parent) {
@@ -65,7 +65,7 @@ doc.getElementById = function (id) {
   return null;
 };
 doc.querySelector = function (sel) {
-  if (sel === '.chat-center') return cc;
+  if (sel === '[data-ui="chat-center"]') return cc;
   return _origQuerySelector(sel);
 };
 doc.body = doc._body;
@@ -96,7 +96,7 @@ assert(typeof window.pruneMessages === 'function', 'pruneMessages loaded');
   // Actually: topBound = 0 - 800 = -800, botBound = 0 + 800 + 800 = 1600
   // msg3 is at 900-960 which is within bounds, so nothing should be pruned
   window.pruneMessages();
-  var phs = ml.querySelectorAll('.message-placeholder');
+  var phs = ml.querySelectorAll('[data-ui="message-placeholder"]');
   assertEqual(phs.length, 0, 'no pruning when all messages in range');
 })();
 
@@ -105,7 +105,7 @@ assert(typeof window.pruneMessages === 'function', 'pruneMessages loaded');
   // Add a message very far down
   var msgFar = addMsg('msg-far', 5000);
   window.pruneMessages();
-  var ph = ml.querySelector('.message-placeholder[data-msg-id="msg-far"]');
+  var ph = ml.querySelector('[data-ui="message-placeholder"][data-msg-id="msg-far"]');
   assert(!!ph, 'far message pruned to placeholder');
   assert(ph.style.height === '60px', 'placeholder height matches');
   assert(window._isMessagePruned('msg-far'), '_isMessagePruned returns true');
@@ -113,7 +113,7 @@ assert(typeof window.pruneMessages === 'function', 'pruneMessages loaded');
 
 // ── _unpruneMessage restores a pruned message ──
 (function () {
-  var ph = document.querySelector('.message-placeholder[data-msg-id="msg-far"]');
+  var ph = document.querySelector('[data-ui="message-placeholder"][data-msg-id="msg-far"]');
   assert(!!ph, 'placeholder exists before unprune');
   var restored = window._unpruneMessage('msg-far');
   assert(!!restored, '_unpruneMessage returns restored element');
@@ -176,7 +176,7 @@ assert(typeof window.pruneMessages === 'function', 'pruneMessages loaded');
 (function () {
   var msgBare = addMsg('message-bare-test', 99999);
   window.pruneMessages();
-  var ph = ml.querySelector('.message-placeholder[data-msg-id="bare-test"]');
+  var ph = ml.querySelector('[data-ui="message-placeholder"][data-msg-id="bare-test"]');
   assert(!!ph, 'placeholder data-msg-id is the bare message id');
   assert(window._isMessagePruned('bare-test'), '_isMessagePruned true for bare id');
   assert(window._isMessagePruned('message-bare-test'), '_isMessagePruned normalizes a prefixed DOM id');
@@ -192,7 +192,7 @@ assert(typeof window.pruneMessages === 'function', 'pruneMessages loaded');
   assert(window._isMessagePruned('forget-test'), 'forget-test is pruned');
   window._forgetPruned('forget-test');
   assert(!window._isMessagePruned('forget-test'), '_forgetPruned drops the entry');
-  assert(!!ml.querySelector('.message-placeholder[data-msg-id="forget-test"]'),
+  assert(!!ml.querySelector('[data-ui="message-placeholder"][data-msg-id="forget-test"]'),
     '_forgetPruned leaves the placeholder in the DOM');
 })();
 

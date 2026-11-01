@@ -269,7 +269,7 @@
 
   M.openEntitySelect = function (type) {
     M._entitySelectType = type;
-    const title = document.querySelector('#modal-entity-select .modal-title');
+    const title = document.querySelector('#modal-entity-select [data-ui="modal-title"]');
     const label =
       type === 'characters' ? 'Characters' : type === 'personas' ? 'Personas' : 'Presets';
     if (title) title.textContent = 'Select ' + label;
