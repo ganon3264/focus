@@ -187,22 +187,23 @@ class TestChatPagination:
         assert 'data-chat-page="2"' in resp.text
 
 
-class TestStandalonePages:
-    async def test_characters_page(self, client):
+class TestStandalonePagesGone:
+    """Characters, personas and providers live only in their modals; the old
+    standalone pages were removed and must not be reachable."""
+
+    async def test_characters_page_removed(self, client):
         await create_character(client, "Standalone")
         resp = await client.get("/characters")
-        assert resp.status_code == 200
-        assert "Standalone" in resp.text
+        assert resp.status_code == 404
 
-    async def test_providers_page(self, client):
+    async def test_providers_page_removed(self, client):
         resp = await client.get("/providers")
-        assert resp.status_code == 200
+        assert resp.status_code == 404
 
-    async def test_personas_page(self, client):
+    async def test_personas_page_removed(self, client):
         await create_persona(client, "StandalonePersona")
         resp = await client.get("/personas")
-        assert resp.status_code == 200
-        assert "StandalonePersona" in resp.text
+        assert resp.status_code == 404
 
 
 class TestPresetPartials:

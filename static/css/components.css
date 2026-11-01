@@ -45,19 +45,10 @@
     flex-shrink: 0;
     display: inline-block;
     vertical-align: middle;
-    background: var(--surface-2);
     border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
     cursor: pointer;
     position: relative;
     transition: background var(--transition), border-color var(--transition);
-  }
-  .checkbox:hover:not(:disabled) {
-    border-color: var(--border-hover);
-  }
-  .checkbox:checked {
-    background: var(--accent);
-    border-color: var(--accent);
   }
   .checkbox:checked::after {
     content: '';
@@ -84,10 +75,8 @@
     padding-right: 0.5rem;
     padding-top: 0.35rem;
     padding-bottom: 0.35rem;
-    background: var(--surface-2);
     border: 1px solid var(--border);
     color: var(--text);
-    border-radius: var(--radius-sm);
   }
 
   .edit-block-ta {
@@ -161,61 +150,23 @@
     transform: scale(0.97);
   }
   .btn-primary {
-    background: var(--accent);
-    color: var(--text-on-accent);
     box-shadow: var(--shadow-sm);
   }
   .btn-primary:hover {
-    background: var(--accent-hover);
     box-shadow: var(--shadow-md);
     transform: translateY(-1px);
   }
-  /* Create/Add affordance — one green button per surface. Green is otherwise
-     unused for actions (only toasts), so "new" stays scannable without
-     competing with the indigo confirm/select accent. Tinted at rest, a step
-     deeper on hover — never a solid block. */
-  .btn-create {
-    background: var(--success-dim);
-    color: var(--success-hover);
-    border: 1px solid color-mix(in srgb, var(--success) 40%, transparent);
-    box-shadow: var(--shadow-sm);
-  }
-  .btn-create:hover {
-    background: color-mix(in srgb, var(--success) 26%, transparent);
-    border-color: var(--success);
-    box-shadow: var(--shadow-md);
-    transform: translateY(-1px);
-  }
-
   /* Additive affordances outside the .btn family share the same green cue:
      menu actions, icon add buttons, inline option adders, text-link adders. */
-  .preset-item-action.is-create,
-  .action-icon.is-create,
-  .radio-add-row.is-create,
-  .btn-edit.is-create,
-  .btn-link.is-create {
-    color: var(--success-hover);
-  }
-  .preset-item-action.is-create:hover,
-  .action-icon.is-create:hover {
-    background: var(--success-dim);
-    color: var(--success-hover);
-  }
-  .btn-edit.is-create:hover,
-  .btn-edit.is-create:focus-visible {
-    background: var(--success);
-    border-color: var(--success);
-    color: var(--text-on-accent);
-  }
   .radio-add-row.is-create {
+    color: var(--success-hover);
     border-color: color-mix(in srgb, var(--success) 40%, transparent);
   }
   .radio-add-row.is-create:hover {
     border-color: var(--success);
     background: var(--success-dim);
   }
-  .btn-secondary,
-  .btn-edit {
+  .btn-secondary {
     background: var(--surface-2);
     border: 1px solid var(--border);
     box-shadow: var(--shadow-sm);
@@ -226,24 +177,6 @@
   .btn-secondary:hover {
     background: var(--surface-3);
     border-color: var(--border-hover);
-  }
-  .btn-danger {
-    background: var(--danger-dim);
-    color: var(--danger);
-    box-shadow: var(--shadow-sm);
-  }
-  .btn-danger:hover {
-    background: var(--danger);
-    color: var(--text-on-accent);
-  }
-  .btn-edit {
-    color: var(--text);
-  }
-  .btn-edit:hover,
-  .btn-edit:focus-visible {
-    background: var(--accent);
-    color: var(--text-on-accent);
-    border-color: var(--accent);
   }
   .btn-link {
     background: none;
@@ -287,23 +220,14 @@
     justify-content: center;
     height: 48px;
     padding: 0 0.5rem;
-    border-style: dashed;
     flex-shrink: 0;
     margin: 0;
-    color: var(--success-hover);
-  }
-  .btn-media-add:hover {
-    border-color: var(--success);
-    background: var(--success-dim);
-    color: var(--success-hover);
   }
 
   /* Dropdowns */
   .dropdown-panel {
     background: var(--surface-2);
     border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-lg);
   }
   .dropdown-item {
     cursor: pointer;
@@ -324,28 +248,14 @@
     width: 32px;
     height: 18px;
     border-radius: var(--radius-sm);
-    background: var(--surface-3);
     cursor: pointer;
     transition: background 0.3s ease;
-    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
   }
   .arranger-toggle::after {
     content: '';
     position: absolute;
-    top: 2px;
-    left: 2px;
-    width: 14px;
-    height: 14px;
     border-radius: 1px;
-    background: var(--text-on-accent);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-  }
-  .arranger-toggle.active {
-    background: var(--active-text);
-  }
-  .arranger-toggle.active::after {
-    transform: translateX(14px);
   }
 
   /* Radio Switch for variable options */
@@ -422,25 +332,14 @@
   .arranger-list {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
     min-height: 0;
     overflow-y: auto;
     padding: 0.25rem 0;
     margin-bottom: 0.75rem;
   }
   .arranger-item {
-    background: var(--surface-2);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: 0.5rem 0.75rem;
     cursor: grab;
     transition: all var(--transition);
-    box-shadow: var(--shadow-sm);
-  }
-  .arranger-item:hover {
-    border-color: var(--border-hover);
-    box-shadow: var(--shadow-md);
-    transform: translateY(-1px);
   }
   .arranger-item:active {
     cursor: grabbing;
@@ -452,8 +351,6 @@
   }
   .arranger-item.sortable-ghost {
     opacity: 0.3;
-    border-color: var(--active-border);
-    background: var(--active-bg);
   }
 
   .drag-over {
@@ -467,10 +364,8 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 0.5rem;
   }
   .arranger-handle {
-    width: 14px;
     height: var(--control-slim);
     cursor: grab;
     flex-shrink: 0;
@@ -525,15 +420,12 @@
   .arranger-title-group {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
     flex: 1;
     min-width: 0;
   }
   .arranger-badge {
-    font-size: 0.6rem;
     text-transform: uppercase;
     font-weight: 700;
-    padding: 0.2rem 0.4rem;
     border-radius: var(--radius-sm);
     background: var(--surface-3);
     color: var(--text-muted);
@@ -550,11 +442,9 @@
     border: none;
     border-bottom: 1px solid transparent;
     color: var(--text);
-    font-size: 0.85rem;
     font-weight: 600;
     flex: 1;
     min-width: 0;
-    padding: 0.1rem 0.25rem;
     outline: none;
     transition: all var(--transition);
   }
@@ -596,10 +486,6 @@
     border-color: var(--active-border);
     color: var(--active-text);
   }
-  .action-icon.danger:hover {
-    background: var(--danger-dim);
-    color: var(--danger);
-  }
 
   /* Media thumbnail (shared by server macro + JS createMediaThumbnail) */
   .media-thumb {
@@ -628,28 +514,12 @@
     border-radius: inherit;
   }
 
-  .arranger-item.bg-role-system,
   .var-group-container.bg-role-system {
     background: var(--active-bg);
     border-color: var(--active-border);
   }
-  .arranger-item.bg-role-system:hover,
   .var-group-container.bg-role-system:hover {
     border-color: var(--active-border);
-  }
-  .arranger-item.bg-role-user {
-    background: color-mix(in srgb, var(--role-user) 8%, transparent);
-    border-color: color-mix(in srgb, var(--role-user) 25%, transparent);
-  }
-  .arranger-item.bg-role-user:hover {
-    border-color: color-mix(in srgb, var(--role-user) 50%, transparent);
-  }
-  .arranger-item.bg-role-assistant {
-    background: color-mix(in srgb, var(--role-assistant) 8%, transparent);
-    border-color: color-mix(in srgb, var(--role-assistant) 25%, transparent);
-  }
-  .arranger-item.bg-role-assistant:hover {
-    border-color: color-mix(in srgb, var(--role-assistant) 50%, transparent);
   }
 
   .arranger-body {
@@ -704,39 +574,21 @@
     gap: 0.4rem;
   }
   .btn-tag {
-    background: var(--surface-2);
     border: 1px solid var(--border);
-    color: var(--text-muted);
-    font-size: 0.7rem;
-    font-weight: 600;
     padding: 0.3rem 0.6rem;
-    border-radius: var(--radius-full);
     cursor: pointer;
     transition: all var(--transition);
     outline: none;
   }
-  .btn-tag:hover {
-    background: var(--surface-3);
-    color: var(--text);
-    border-color: var(--border-hover);
-  }
-  .btn-tag.active {
-    background: var(--active-bg);
-    border-color: var(--active-border);
-    color: var(--active-text);
-  }
 
   /* Itemizer role headers */
   .itemizer-role-system {
-    background: var(--accent-dim);
     color: var(--accent);
   }
   .itemizer-role-user {
-    background: color-mix(in srgb, var(--role-user) 10%, transparent);
     color: var(--role-user);
   }
   .itemizer-role-assistant {
-    background: color-mix(in srgb, var(--role-assistant) 10%, transparent);
     color: var(--role-assistant);
   }
 
@@ -744,17 +596,11 @@
   .modal-overlay {
     position: fixed;
     inset: 0;
-    background: var(--modal-backdrop);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
     display: grid;
     place-items: center;
     z-index: var(--z-modal);
     padding: 1rem;
     animation: fade-in 0.2s ease-out;
-  }
-  .modal-overlay.heavy {
-    background: var(--modal-backdrop-heavy);
   }
   .modal-overlay.sub {
     z-index: var(--z-modal-sub);
@@ -762,109 +608,31 @@
   .modal-content {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: var(--radius-xl);
-    padding: 1.5rem;
     width: 100%;
     max-width: 500px;
     max-height: 90vh;
     overflow-y: auto;
-    box-shadow: var(--shadow-lg);
     animation: slide-up 0.2s ease-out;
   }
   .modal-header {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1.5rem;
-  }
-  .modal-header.divider {
-    margin-bottom: 0;
-    border-bottom: 1px solid var(--border);
-  }
-  .modal-title {
-    font-size: 1.15rem;
-    font-weight: 600;
-    color: var(--text);
   }
   .modal-footer {
     display: flex;
     justify-content: flex-end;
     gap: 0.5rem;
-    padding-top: 1rem;
-    margin-top: 1rem;
-    border-top: 1px solid var(--border);
   }
   .tab-btn {
     padding: 0.5rem 1rem;
-    font-size: 0.9rem;
-    font-weight: 500;
     border: none;
     background: transparent;
     color: var(--text-muted);
     cursor: pointer;
     border-bottom: 2px solid transparent;
     transition: all var(--transition);
-    font-family: inherit;
-  }
-  .tab-btn.active {
-    background: var(--active-bg);
-    border-bottom-color: var(--active-border);
-    color: var(--active-text);
   }
 
-  /* Cards */
-  .tile-card {
-    background: var(--surface-2);
-    border: 1px solid var(--border);
-  }
-  .card {
-    background: var(--surface-2);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    overflow: hidden;
-    cursor: pointer;
-    transition: all var(--transition);
-    box-shadow: var(--shadow-sm);
-    display: flex;
-    flex-direction: column;
-  }
-  .card:hover {
-    border-color: var(--border-hover);
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-md);
-  }
-  .card.active {
-    /* Opaque tint: the transparent --active-bg drops surface-2 and composites
-       over the modal body, so it can read darker than unselected cards. */
-    background: color-mix(in srgb, var(--accent) 20%, var(--surface-2));
-    border-color: var(--accent);
-    box-shadow: inset 3px 0 0 0 var(--accent), var(--shadow-sm);
-  }
-  .card.active:hover {
-    box-shadow: inset 3px 0 0 0 var(--accent), var(--shadow-md);
-  }
-  .card.active .card-name {
-    color: var(--active-text);
-  }
-  .card-image {
-    background: var(--surface-3);
-    display: grid;
-    place-items: center;
-    overflow: hidden;
-    position: relative;
-    border-bottom: 1px solid var(--border);
-  }
-  .card-image img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transition: transform 0.5s ease;
-  }
-  .card:hover .card-image img {
-    transform: scale(1.05);
-  }
-
-  /* Card favorite star + group badge */
+  /* Favorite star */
   .fav-star {
     cursor: pointer;
     line-height: 0;
@@ -888,24 +656,6 @@
     line-height: 0;
   }
 
-  .card-group-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    max-width: 100%;
-    font-size: 0.7rem;
-    color: var(--text-muted);
-    background: var(--surface-3);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-full);
-    padding: 0.1rem 0.5rem;
-  }
-  .card-group-badge span {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
   /* Hint-tooltip text color overrides */
   #hint-tooltip .hint-danger   { color: var(--danger); }
   #hint-tooltip .hint-warning  { color: var(--role-assistant); }
@@ -915,29 +665,19 @@
 
   /* Theme modal slot assign buttons */
   .slot-btn {
-    font-size: 11px;
-    font-weight: bold;
     height: 24px;
     padding: 0;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: var(--radius-sm);
     border: 1px solid var(--border);
-    background: var(--surface-2);
     color: var(--text-muted);
     cursor: pointer;
     transition: all 0.15s ease;
     flex-shrink: 0;
   }
   .slot-btn:hover {
-    border-color: var(--accent);
     color: var(--text);
-  }
-  .slot-btn.slot-active {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: var(--text-on-accent);
   }
 
   /* Sampler modal sliders + numeric inputs */

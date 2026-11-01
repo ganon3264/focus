@@ -1,5 +1,5 @@
 {% from "macros.html" import custom_select, icon_plus, icon_close, icon_chevron_right,
-media_thumbnail, hint_tooltip, icon_sliders %}
+media_thumbnail, hint_tooltip, icon_sliders, in_chat_controls, toggle %}
 <div
   class="arranger-item {% if not block.enabled %}disabled{% endif %} {% if block.block_type != 'chat_history' and block.block_type != 'char_blocks' %}bg-role-{{ block.role }}{% endif %}"
   data-block-id="{{ block.id }}"
@@ -48,14 +48,7 @@ media_thumbnail, hint_tooltip, icon_sliders %}
       {% endif %}
     </div>
     <div class="arranger-actions">
-      <div
-        class="arranger-toggle {% if block.enabled %}active{% endif %}"
-        role="switch"
-        tabindex="0"
-        title="Toggle Block"
-        data-enabled="{{ 0 if block.enabled else 1 }}"
-        onclick="handleArrangerBlockUpdate(this, {enabled: parseInt(this.dataset.enabled)})"
-      ></div>
+      {{ toggle('title="Toggle Block" data-enabled="' ~ (0 if block.enabled else 1) ~ '" onclick="handleArrangerBlockUpdate(this, {enabled: parseInt(this.dataset.enabled)})"', active=block.enabled) }}
       {% if block.block_type != 'chat_history' %}
       <button
         type="button"
@@ -110,48 +103,7 @@ media_thumbnail, hint_tooltip, icon_sliders %}
     </div>
 
     <!-- In-Chat Injection Controls -->
-    <div class="flex items-center gap-3 mt-3 pt-2" style="border-top: 1px solid var(--border)">
-      <div class="flex items-center gap-2">
-        <span class="flex items-center gap-1 text-xs text-muted select-none">
-          In-Chat
-          {{ hint_tooltip('Injects this block into the conversation at a specific position instead of at the prompt start.') }}
-        </span>
-        <div
-          class="arranger-toggle {% if block.injection_depth is not none %}active{% endif %}"
-          role="switch"
-          tabindex="0"
-          title="Toggle In-Chat Mode"
-          data-curr-depth="{{ block.injection_depth if block.injection_depth is not none else '' }}"
-          onclick="handleArrangerBlockUpdate(this, {injection_depth: this.dataset.currDepth ? null : 0})"
-        ></div>
-      </div>
-      {% if block.injection_depth is not none %}
-      <div class="flex items-center gap-3">
-        <label class="flex items-center gap-1 text-xs text-muted">
-          Depth
-          {{ hint_tooltip('Position from the latest message. 0 = after the most recent message.') }}
-          <input
-            type="number"
-            min="0"
-            value="{{ block.injection_depth }}"
-            class="form-control form-control-xs"
-            onchange="handleArrangerBlockUpdate(this, {injection_depth: parseInt(this.value) || 0})"
-          />
-        </label>
-        <label class="flex items-center gap-1 text-xs text-muted">
-          Order
-          {{ hint_tooltip('Sort order for blocks at the same depth. Lower values come first.') }}
-          <input
-            type="number"
-            min="0"
-            value="{{ block.injection_order | default(0) }}"
-            class="form-control form-control-xs"
-            onchange="handleArrangerBlockUpdate(this, {injection_order: parseInt(this.value) || 0})"
-          />
-        </label>
-      </div>
-      {% endif %}
-    </div>
+    {{ in_chat_controls(block) }}
 
     {% elif block.block_type == 'char_blocks' %}
     <div class="arranger-body">
@@ -228,48 +180,7 @@ media_thumbnail, hint_tooltip, icon_sliders %}
 
     {% if block.block_type != 'chat_history' %}
     <!-- In-Chat Injection Controls -->
-    <div class="flex items-center gap-3 mt-3 pt-2" style="border-top: 1px solid var(--border)">
-      <div class="flex items-center gap-2">
-        <span class="flex items-center gap-1 text-xs text-muted select-none">
-          In-Chat
-          {{ hint_tooltip('Injects this block into the conversation at a specific position instead of at the prompt start.') }}
-        </span>
-        <div
-          class="arranger-toggle {% if block.injection_depth is not none %}active{% endif %}"
-          role="switch"
-          tabindex="0"
-          title="Toggle In-Chat Mode"
-          data-curr-depth="{{ block.injection_depth if block.injection_depth is not none else '' }}"
-          onclick="handleArrangerBlockUpdate(this, {injection_depth: this.dataset.currDepth ? null : 0})"
-        ></div>
-      </div>
-      {% if block.injection_depth is not none %}
-      <div class="flex items-center gap-3">
-        <label class="flex items-center gap-1 text-xs text-muted">
-          Depth
-          {{ hint_tooltip('Position from the latest message. 0 = after the most recent message.') }}
-          <input
-            type="number"
-            min="0"
-            value="{{ block.injection_depth }}"
-            class="form-control form-control-xs"
-            onchange="handleArrangerBlockUpdate(this, {injection_depth: parseInt(this.value) || 0})"
-          />
-        </label>
-        <label class="flex items-center gap-1 text-xs text-muted">
-          Order
-          {{ hint_tooltip('Sort order for blocks at the same depth. Lower values come first.') }}
-          <input
-            type="number"
-            min="0"
-            value="{{ block.injection_order | default(0) }}"
-            class="form-control form-control-xs"
-            onchange="handleArrangerBlockUpdate(this, {injection_order: parseInt(this.value) || 0})"
-          />
-        </label>
-      </div>
-      {% endif %}
-    </div>
+    {{ in_chat_controls(block) }}
     {% endif %} {% endif %}
 
     <!-- Media attachments -->

@@ -1,5 +1,5 @@
 <div class="flex flex-col h-full">
-  {% from "macros.html" import icon_edit, icon_trash, icon_search, icon_plus, icon_close, sort_dropdown, filter_dropdown %}
+  {% from "macros.html" import icon_trash, icon_plus, icon_close, sort_dropdown, filter_dropdown, search_toolbar, empty_state %}
   <div class="flex flex-col gap-3 pb-4">
     <div class="flex gap-2">
       <button
@@ -8,37 +8,17 @@
       >
         {{ icon_plus(size=14) }} New
       </button>
-      <a
-        href="/personas"
-        class="btn btn-secondary btn-sm flex items-center justify-center text-decoration-none gap-1.5"
-        >{{ icon_edit(size=14) }} Editor</a
-      >
     </div>
-    <div class="flex gap-2 items-center h-8">
-      <div class="flex-1 relative min-w-0">
-        <span
-          class="absolute left-2.5 top-1/2 -translate-y-1/2 flex text-muted pointer-events-none"
-          >{{ icon_search(size=14) }}</span
-        >
-        <input
-          type="text"
-          placeholder="Search personas..."
-          oninput="filterPersonas(this.value)"
-          class="search-input text-sm w-full h-full"
-        />
-      </div>
+    {% call search_toolbar('Search personas...', input_attrs='oninput="filterPersonas(this.value)"',
+      wrapper_classes='flex gap-2 items-center h-8', field_classes='flex-1 relative min-w-0') %}
       {{ filter_dropdown('setPersonaFilter', 'getPersonaFilterGroups') }}
       {{ sort_dropdown('focus_persona_sort', 'sortPersonas') }}
-    </div>
+    {% endcall %}
   </div>
 
   <div class="flex-1 overflow-y-auto min-h-0 py-3 scroll-fade">
     {% if not personas %}
-    <div
-      class="text-muted text-center text-sm py-6 border border-dashed border-(--border) rounded-lg"
-    >
-      No personas found. Create one to get started!
-    </div>
+    {{ empty_state('No personas found. Create one to get started!') }}
     {% endif %}
 
     <div class="entity-list" id="persona-modal-grid">

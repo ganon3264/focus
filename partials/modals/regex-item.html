@@ -1,4 +1,4 @@
-{% from "macros.html" import icon_chevron_right, icon_close, hint_tooltip %}
+{% from "macros.html" import icon_chevron_right, icon_close, hint_tooltip, toggle %}
 <div
   class="arranger-item regex-item {% if not script.enabled %}disabled{% endif %} {% if open|default(false) %}expanded{% endif %}"
   data-id="{{ script.id }}"
@@ -24,13 +24,7 @@
       />
     </div>
     <div class="arranger-actions">
-      <div
-        class="arranger-toggle {% if script.enabled %}active{% endif %}"
-        role="switch"
-        tabindex="0"
-        title="Enable / disable"
-        onclick="handleRegexEnabled(this)"
-      ></div>
+      {{ toggle('title="Enable / disable" onclick="handleRegexEnabled(this)"', active=script.enabled) }}
       <button
         type="button"
         class="action-icon slim danger"

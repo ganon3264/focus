@@ -1,4 +1,4 @@
-{% from "macros.html" import icon_expand, icon_plus, icon_trash, icon_chevron_left, icon_chevron_right, icon_help, hint_tooltip %} {% from "modal-shell.html" import modal_shell
+{% from "macros.html" import icon_expand, icon_plus, icon_trash, icon_chevron_left, icon_chevron_right, icon_help, hint_tooltip, avatar, modal_footer %} {% from "modal-shell.html" import modal_shell
 %} {% call modal_shell(modal_id, 'Edit ' ~ entity_name, max_width='1040px',
 content_style='display:flex;flex-direction:column;height:min(88vh, 780px);', z_index='100',
 dirty_fields='#edit-' ~ prefix ~ '-name,#edit-' ~ prefix ~ '-desc,#edit-' ~ prefix ~ '-group' ~ (',#edit-' ~ prefix ~ '-theme-id' if show_theme|default(false) else ''),
@@ -13,12 +13,12 @@ dirty_label='#edit-' ~ prefix ~ '-name') %}
   <div class="edit-entity-body">
     <aside class="edit-entity-side">
       <div class="edit-identity">
-        <label class="edit-avatar" title="Change Avatar">
+        {% call avatar('edit-avatar', tag='label', attrs='title="Change Avatar"', initial_tag='') %}
           <img id="edit-{{ prefix }}-image-preview" alt="" />
           <span id="edit-{{ prefix }}-image-placeholder" class="edit-avatar-placeholder"></span>
           <div class="edit-avatar-overlay">Upload</div>
           <input type="file" accept="image/*" class="hidden" data-action="{{ avatar_fn }}" />
-        </label>
+        {% endcall %}
 
         <div class="edit-identity-fields">
           <div class="form-group mb-0 min-w-0">
@@ -114,11 +114,7 @@ dirty_label='#edit-' ~ prefix ~ '-name') %}
     </div>
   </div>
 
-  <div class="edit-entity-footer">
-    <span data-dirty-hint class="text-xs font-bold hidden" style="color: var(--accent);">
-      Unsaved changes — press Save to apply
-    </span>
-    <div class="flex items-center gap-2 ml-auto">
+  {% call modal_footer(wrapper_classes='edit-entity-footer') %}
       <button
         type="button"
         class="btn btn-secondary btn-icon"
@@ -138,7 +134,6 @@ dirty_label='#edit-' ~ prefix ~ '-name') %}
         Cancel
       </button>
       <button class="btn btn-primary" style="width: 100px" type="submit" data-dirty-save>Save</button>
-    </div>
-  </div>
+  {% endcall %}
 </form>
 {% endcall %}

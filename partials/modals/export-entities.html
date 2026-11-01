@@ -1,3 +1,4 @@
+{% from "macros.html" import avatar %}
 <div class="flex flex-col gap-1">
   {% if not entities %}
   <div class="text-muted text-xs text-center py-3">No matches.</div>
@@ -9,16 +10,10 @@
     data-export-type="{{ etype }}"
     onclick="BackupManager.toggleExportEntity(this)"
   >
-    <div
-      class="w-8 h-8 rounded-sm overflow-hidden shrink-0 border border-[var(--border)] flex items-center justify-center"
-      style="background: var(--surface-3)"
-    >
-      {% if img_path %}
-      <img src="/{{ img_path }}" alt="" class="w-full h-full object-cover" />
-      {% else %}
-      <span class="text-xs font-bold text-muted">{{ e.name[:1].upper() }}</span>
-      {% endif %}
-    </div>
+    {{ avatar('w-8 h-8 rounded-sm overflow-hidden shrink-0 border border-[var(--border)] flex items-center justify-center',
+      img_path, '', e.name[:1].upper(),
+      attrs='style="background: var(--surface-3)"', img_class='w-full h-full object-cover',
+      initial_class='text-xs font-bold text-muted') }}
 
     <span class="flex-1 min-w-0 text-sm font-medium truncate">{{ e.name }}</span>
 

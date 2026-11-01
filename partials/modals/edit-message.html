@@ -1,4 +1,4 @@
-{% from "macros.html" import icon_expand, icon_plus %} {% from "modal-shell.html" import modal_shell %} {% call
+{% from "macros.html" import icon_expand, icon_plus, modal_footer %} {% from "modal-shell.html" import modal_shell %} {% call
 modal_shell('modal-edit-message', 'Edit Message', max_width='800px',
 content_style='display:flex;flex-direction:column;max-height:90vh;', z_index='100',
 dirty_fields='.edit-block-ta', dirty_label='this message') %}
@@ -32,22 +32,17 @@ dirty_fields='.edit-block-ta', dirty_label='this message') %}
     class="edit-msg-drop flex gap-2 flex-wrap empty:hidden p-3"
   ></div>
 </div>
-<div class="flex items-center gap-2 mt-6 pt-4">
-  <span data-dirty-hint class="text-xs font-bold hidden" style="color: var(--accent);">
-    Unsaved changes — press Save to apply
-  </span>
-  <div class="flex items-center gap-2 ml-auto">
-    <button
-      class="btn btn-secondary"
-      style="width: 100px"
-      type="button"
-      onclick="closeModal('modal-edit-message')"
-    >
-      Cancel
-    </button>
-    <button class="btn btn-primary" style="width: 100px" data-dirty-save onclick="saveMessageEdit()">Save</button>
-  </div>
-</div>
+{% call modal_footer(wrapper_classes='flex items-center gap-2 mt-6 pt-4') %}
+  <button
+    class="btn btn-secondary"
+    style="width: 100px"
+    type="button"
+    onclick="closeModal('modal-edit-message')"
+  >
+    Cancel
+  </button>
+  <button class="btn btn-primary" style="width: 100px" data-dirty-save onclick="saveMessageEdit()">Save</button>
+{% endcall %}
 {% endcall %}
 <template id="edit-msg-expand-btn">
   <button type="button" class="expand-btn" aria-label="Expand text area" data-action="actionOpenTextExpander">

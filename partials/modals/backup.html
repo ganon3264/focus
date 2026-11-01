@@ -1,4 +1,4 @@
-{% from "modal-shell.html" import modal_shell %} {% from "macros.html" import icon_search %} {# ── EXPORT
+{% from "modal-shell.html" import modal_shell %} {% from "macros.html" import search_toolbar, modal_footer, toggle %} {# ── EXPORT
 MODAL ─────────────────────────────────────────────── #} {% call modal_shell('modal-export', 'Export
 Data', max_width='440px', width='90vw', z_index='100') %}
 <div class="flex flex-col gap-4 mt-1">
@@ -43,37 +43,19 @@ Data', max_width='440px', width='90vw', z_index='100') %}
   <div class="flex flex-col gap-2">
     <div class="flex items-center justify-between">
       <span class="text-sm">Include Chats</span>
-      <div
-        class="arranger-toggle"
-        role="switch"
-        tabindex="0"
-        id="export-toggle-chats"
-        data-action="actionToggleExportFlag" data-export-flag="chats"
-      ></div>
+      {{ toggle('id="export-toggle-chats" data-action="actionToggleExportFlag" data-export-flag="chats"') }}
     </div>
     <div class="flex items-center justify-between">
       <span class="text-sm">Include Providers</span>
-      <div
-        class="arranger-toggle"
-        role="switch"
-        tabindex="0"
-        id="export-toggle-providers"
-        data-action="actionToggleExportFlag" data-export-flag="providers"
-      ></div>
+      {{ toggle('id="export-toggle-providers" data-action="actionToggleExportFlag" data-export-flag="providers"') }}
     </div>
     <div class="flex items-center justify-between">
       <span class="text-sm">Include Secrets</span>
-      <div
-        class="arranger-toggle"
-        role="switch"
-        tabindex="0"
-        id="export-toggle-secrets"
-        data-action="actionToggleExportFlag" data-export-flag="secrets"
-      ></div>
+      {{ toggle('id="export-toggle-secrets" data-action="actionToggleExportFlag" data-export-flag="secrets"') }}
     </div>
   </div>
 
-  <div class="flex justify-end gap-2 mt-1">
+  {% call modal_footer(wrapper_classes='flex justify-end gap-2 mt-1', buttons_classes='', hint='') %}
     <button type="button" class="btn btn-secondary" data-action="actionCloseExportModal">
       Cancel
     </button>
@@ -85,23 +67,13 @@ Data', max_width='440px', width='90vw', z_index='100') %}
     >
       Export
     </button>
-  </div>
+  {% endcall %}
 </div>
 {% endcall %} {# ── ENTITY SELECT MODAL (reusable) ───────────────────────────── #} {% call
 modal_shell('modal-entity-select', 'Select', max_width='420px', width='90vw', z_index='200') %}
 <div class="flex flex-col gap-3 mt-1">
-  <div class="relative">
-    <span
-      class="absolute left-2.5 top-1/2 -translate-y-1/2 flex text-muted pointer-events-none"
-      >{{ icon_search(size=14) }}</span
-    >
-    <input
-      type="text"
-      placeholder="Filter..."
-      data-action="actionFilterEntityList"
-      class="search-input text-sm w-full"
-    />
-  </div>
+  {{ search_toolbar('Filter...', input_attrs='data-action="actionFilterEntityList"',
+    wrapper_classes='', field_classes='relative', input_classes='search-input text-sm w-full') }}
   <div id="entity-select-list" class="flex flex-col gap-1 max-h-[45vh] overflow-y-auto">
     <div class="text-muted text-xs text-center py-4">Loading...</div>
   </div>

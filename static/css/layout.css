@@ -39,13 +39,7 @@
   }
 
   :where(input, textarea, select):focus {
-    border-color: var(--accent);
-    box-shadow: var(--shadow-glow);
     background: var(--surface-3);
-  }
-  :where(input, textarea, select):focus:not(:focus-visible) {
-    box-shadow: var(--shadow-glow);
-    border-color: var(--accent);
   }
   :where(input, textarea, select):focus-visible {
     outline: 2px solid var(--accent);
@@ -65,12 +59,10 @@
   .left-sidebar {
     width: var(--sidebar-width-left);
     background: var(--surface);
-    border-right: 1px solid var(--border);
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
     z-index: 10;
-    box-shadow: var(--shadow-sm);
     transition: width var(--transition), opacity var(--transition);
     overflow: hidden;
   }
@@ -89,13 +81,11 @@
   .right-sidebar {
     width: var(--sidebar-width-right);
     background: var(--surface);
-    border-left: 1px solid var(--border);
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
     z-index: 10;
     transition: width var(--transition), opacity var(--transition);
-    box-shadow: var(--shadow-edge);
     overflow: hidden;
   }
   .right-sidebar.collapsed {
@@ -285,7 +275,6 @@
     cursor: pointer;
     transition: background var(--transition);
     z-index: 20;
-    box-shadow: var(--shadow-sm);
   }
   .right-tab:hover {
     background: var(--surface-2);
@@ -307,7 +296,6 @@
     cursor: pointer;
     transition: background var(--transition);
     z-index: 20;
-    box-shadow: var(--shadow-sm);
   }
   .left-tab:hover {
     background: var(--surface-2);

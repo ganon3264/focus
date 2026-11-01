@@ -1,4 +1,4 @@
-{% from "macros.html" import icon_close %}
+{% from "macros.html" import icon_close, empty_state %}
 <div
   class="flex-1 overflow-y-auto scroll-fade min-h-0"
   data-chat-list-scroll
@@ -7,11 +7,7 @@
   data-chat-total="{{ pagination.total }}"
 >
 {% if not chats %}
-<div
-  class="text-muted text-center text-sm py-4 border border-dashed border-(--border) rounded-lg mt-2"
->
-  No chats found.
-</div>
+{{ empty_state('No chats found.', padding='py-4', extra_classes='mt-2') }}
 {% endif %} {% for chat in chats %}
 <div
   class="sidebar-item group {% if current_chat_id == chat.id %}active{% endif %}"

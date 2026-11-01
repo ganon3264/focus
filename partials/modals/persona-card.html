@@ -1,4 +1,4 @@
-{% from "macros.html" import icon_edit, icon_trash, icon_star, icon_star_filled %}
+{% from "macros.html" import icon_edit, icon_trash, icon_star, icon_star_filled, avatar %}
 <div
   class="entity-row{% if current_persona_id == p.id %} active{% endif %}"
   id="persona-card-{{ p.id }}"
@@ -11,13 +11,7 @@
   onclick="selectPersonaModal(this)"
   data-persona-id="{{ p.id }}"
 >
-  <div class="entity-thumb">
-    {% if p.avatar_path %}
-    <img src="/{{ p.avatar_path }}" alt="{{ p.name }} avatar" loading="lazy" />
-    {% else %}
-    <span>{{ p.name[:1] }}</span>
-    {% endif %}
-  </div>
+  {{ avatar('entity-thumb', p.avatar_path, p.name ~ ' avatar', p.name[:1], img_attrs='loading="lazy"') }}
   <div class="entity-main">
     <div class="entity-name">{{ p.name }}</div>
     <div class="entity-meta">

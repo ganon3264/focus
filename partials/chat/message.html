@@ -1,7 +1,7 @@
 <div class="message relative msg{% if message.get('is_ancestor') %} message-ancestor{% endif %}" id="message-{{ message.id }}" data-role="{{ message.role }}" data-message-id="{{ message.id }}" data-raw-content="{{ message.content }}" data-raw-reasoning="{{ message.get('reasoning') or '' }}" data-msg-index="{{ msg_index }}" data-chat-id="{{ message.get('chat_id') or chat_id }}">
   {% from "macros.html" import icon_edit, icon_refresh, icon_trash, icon_music, icon_branch,
   icon_chevron_left, icon_chevron_right, icon_forward, icon_plug, icon_list, icon_star,
-  icon_star_filled, tool_call_card %}
+  icon_star_filled, avatar, tool_call_card %}
   <div class="delete-mode-checkbox hidden absolute -left-12 top-4">
     <input
       type="checkbox"
@@ -14,24 +14,17 @@
     <div class="flex items-start justify-between relative">
       <!-- Left: avatar + name/info -->
       <div class="flex items-start gap-3 min-w-0">
-        <div class="message-avatar">
-          {% if message.role == 'user' %} {% if persona and persona.avatar_path %}
-          <img
-            src="/{{ persona.avatar_path }}"
-            alt="{{ persona.name if persona else 'User' }} avatar"
-            class="cursor-pointer"
-            onclick="openLightbox(this.src)"
-          />
-          {% else %} {{ persona.name[:1] if persona else 'U' }} {% endif %} {% else %} {% if character and
-          character.image_path %}
-          <img
-            src="/{{ character.image_path }}"
-            alt="{{ character.name if character else 'Assistant' }} avatar"
-            class="cursor-pointer"
-            onclick="openLightbox(this.src)"
-          />
-          {% else %} {{ character.name[:1] if character else 'A' }} {% endif %} {% endif %}
-        </div>
+        {% if message.role == 'user' %}
+        {{ avatar('message-avatar', (persona.avatar_path or '') if persona else '',
+          (persona.name if persona else 'User') ~ ' avatar',
+          persona.name[:1] if persona else 'U',
+          initial_tag='', img_class='cursor-pointer', img_attrs='onclick="openLightbox(this.src)"') }}
+        {% else %}
+        {{ avatar('message-avatar', (character.image_path or '') if character else '',
+          (character.name if character else 'Assistant') ~ ' avatar',
+          character.name[:1] if character else 'A',
+          initial_tag='', img_class='cursor-pointer', img_attrs='onclick="openLightbox(this.src)"') }}
+        {% endif %}
         <div class="min-w-0">
           <div class="text-sm font-medium message-author">
             {{ character.name if message.role == 'assistant' and character else (persona.name if message.role == 'user' and persona else message.role) }}

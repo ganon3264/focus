@@ -1,4 +1,4 @@
-{% from "macros.html" import hint_tooltip %}
+{% from "macros.html" import hint_tooltip, modal_footer, tab_bar %}
 {% from "modal-shell.html" import modal_shell %}
 
 <!-- MAIN MODALS -->
@@ -10,13 +10,8 @@
 
 {% call modal_shell('modal-advanced', 'Advanced', max_width='720px', width='92vw', content_style='display:flex;flex-direction:column;height:80vh;') %}
 <div x-data="{ tab: 'tools' }" class="flex flex-col flex-1 min-h-0">
-  <div class="flex shrink-0 mb-3" style="border-bottom: 1px solid var(--border)">
-    <button type="button" class="tab-btn" :class="{'active': tab === 'tools'}" @click="tab = 'tools'">Tools</button>
-    <button type="button" class="tab-btn" :class="{'active': tab === 'extensions'}" @click="tab = 'extensions'">Extensions</button>
-    <button type="button" class="tab-btn" :class="{'active': tab === 'regex'}" @click="tab = 'regex'">Regex</button>
-    <button type="button" class="tab-btn" :class="{'active': tab === 'structured'}" @click="tab = 'structured'">Structured</button>
-    <button type="button" class="tab-btn" :class="{'active': tab === 'backups'}" @click="tab = 'backups'">Backups</button>
-  </div>
+  {{ tab_bar([('tools', 'Tools'), ('extensions', 'Extensions'), ('regex', 'Regex'), ('structured', 'Structured'), ('backups', 'Backups')],
+    wrapper_classes='flex shrink-0 mb-3', button_attrs='type="button"') }}
   <div class="flex-1 min-h-0 flex flex-col">
     <div x-show="tab === 'tools'" class="flex-1 min-h-0 flex flex-col">
       {% include "modals/tools.html" %}
@@ -153,15 +148,10 @@
     </div>
     <textarea id="var-modal-content" rows="6" class="form-control" style="resize:vertical;" placeholder="Enter the text to inject..."></textarea>
   </div>
-  <div class="flex items-center gap-2 mt-2">
-    <span data-dirty-hint class="text-xs font-bold hidden" style="color: var(--accent);">
-      Unsaved changes — press Save to apply
-    </span>
-    <div class="flex justify-end gap-2 items-center ml-auto">
-      <button type="button" class="btn btn-secondary" data-action="actionCloseModal" data-modal-id="var-edit-modal">Cancel</button>
-      <button type="button" class="btn btn-primary" id="var-modal-save" data-dirty-save onclick="saveVarModal()">Save</button>
-    </div>
-  </div>
+  {% call modal_footer(buttons_classes='flex justify-end gap-2 items-center ml-auto') %}
+    <button type="button" class="btn btn-secondary" data-action="actionCloseModal" data-modal-id="var-edit-modal">Cancel</button>
+    <button type="button" class="btn btn-primary" id="var-modal-save" data-dirty-save onclick="saveVarModal()">Save</button>
+  {% endcall %}
 </div>
 {% endcall %}
 

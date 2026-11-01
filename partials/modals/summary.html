@@ -1,4 +1,5 @@
 {% from "modal-shell.html" import modal_shell %}
+{% from "macros.html" import modal_footer %}
 {% call modal_shell('modal-summary', 'Summary', max_width='640px', content_style='display:flex;flex-direction:column;height:70vh;') %}
 <div x-data="summaryModal()" @summary-open.window="load()" class="flex flex-col h-full min-h-0 gap-3">
   <div class="text-xs text-muted shrink-0">
@@ -26,7 +27,7 @@
     </template>
   </div>
 
-  <div class="flex justify-end gap-2 shrink-0">
+  {% call modal_footer(wrapper_classes='flex justify-end gap-2 shrink-0', buttons_classes='', hint='') %}
     <button type="button" class="btn btn-secondary" data-action="actionCloseModal" data-modal-id="modal-summary">Close</button>
     <button
       type="button"
@@ -35,7 +36,7 @@
       :disabled="saving || !dirty"
       :class="(saving || !dirty) ? 'opacity-50' : ''"
     >Save</button>
-  </div>
+  {% endcall %}
 </div>
 {% endcall %}
 

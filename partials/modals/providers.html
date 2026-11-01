@@ -1,4 +1,4 @@
-{% from "macros.html" import icon_key, icon_edit, icon_refresh, icon_search, icon_database, icon_plus, icon_close, sort_dropdown %}
+{% from "macros.html" import icon_key, icon_edit, icon_refresh, icon_search, icon_database, icon_plus, icon_close, sort_dropdown, empty_state %}
 <div class="flex flex-col h-full">
   <div class="flex justify-between items-center gap-2 mb-3 shrink-0" style="padding-bottom: 0.75rem;">
     <h3 class="modal-subhead mb-0">Select active provider</h3>
@@ -10,9 +10,7 @@
   </div>
   
   {% if not providers %}
-    <div class="text-muted text-center text-sm py-6 border border-dashed border-(--border) rounded-lg mb-4">
-      No providers configured. Click "Add Provider" to create one.
-    </div>
+    {{ empty_state('No providers configured. Click "Add Provider" to create one.', extra_classes='mb-4') }}
   {% endif %}
 
   <div class="flex-1 min-h-0 overflow-y-auto scroll-fade">

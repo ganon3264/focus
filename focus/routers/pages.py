@@ -236,42 +236,6 @@ async def chat_page(request: Request, chat_id: str, db: aiosqlite.Connection = D
     )
 
 
-@router.get("/characters", response_class=HTMLResponse)
-async def characters_page(request: Request, db: aiosqlite.Connection = Depends(get_db)):
-    characters = await crud.get_characters(db)
-    return templates.TemplateResponse(
-        request,
-        "characters.html",
-        {
-            "characters": characters,
-        },
-    )
-
-
-@router.get("/providers", response_class=HTMLResponse)
-async def providers_page(request: Request, db: aiosqlite.Connection = Depends(get_db)):
-    providers = await crud.get_providers(db)
-    return templates.TemplateResponse(
-        request,
-        "providers.html",
-        {
-            "providers": providers,
-        },
-    )
-
-
-@router.get("/personas", response_class=HTMLResponse)
-async def personas_page(request: Request, db: aiosqlite.Connection = Depends(get_db)):
-    personas = await crud.get_personas(db)
-    return templates.TemplateResponse(
-        request,
-        "personas.html",
-        {
-            "personas": personas,
-        },
-    )
-
-
 @router.get("/partials/message-list/{chat_id}", response_class=HTMLResponse)
 async def message_list_partial(request: Request, chat_id: str, db: aiosqlite.Connection = Depends(get_db)):
     messages = await crud.get_lineage_messages(db, chat_id)

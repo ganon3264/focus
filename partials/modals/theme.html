@@ -1,4 +1,4 @@
-{% from "macros.html" import icon_trash %} {% from "modal-shell.html" import modal_shell %} {% set theme_colors =
+{% from "macros.html" import icon_trash, modal_footer %} {% from "modal-shell.html" import modal_shell %} {% set theme_colors =
 [ ('Background', '--bg'), ('Surface (Primary)', '--surface'), ('Surface (Secondary)', '--surface-2'), ('Surface
 (Tertiary)', '--surface-3'), ('Borders', '--border'), ('Accent Color', '--accent'), ('Text (Main)', '--text'), ('Text
 (Muted)', '--text-muted'), ('User Role', '--role-user'), ('Assistant Role', '--role-assistant') ] %} {% call
@@ -106,23 +106,18 @@ content_style='display:flex;flex-direction:column;max-height:82vh;', z_index='10
     </section>
   </div>
 
-  <div class="flex items-center gap-2 pt-2">
-    <span x-show="dirty" class="text-xs font-bold shrink-0" style="color: var(--accent);">
-      Unsaved changes — press Save to apply
-    </span>
-    <div class="flex justify-end gap-2 ml-auto">
-      <button class="btn btn-danger" x-show="selectedId && selectedIsSystem" @click="reset()">Reset</button>
-      <button
-        class="btn btn-secondary"
-        @click="
-          closeModal('modal-themes');
-          resetThemePreview();
-        "
-      >
-        Cancel
-      </button>
-      <button class="btn btn-primary" @click="save()" :disabled="!dirty" :class="dirty ? '' : 'opacity-50'">Save</button>
-    </div>
-  </div>
+  {% call modal_footer(wrapper_classes='flex items-center gap-2 pt-2', buttons_classes='flex justify-end gap-2 ml-auto', hint='alpine') %}
+    <button class="btn btn-danger" x-show="selectedId && selectedIsSystem" @click="reset()">Reset</button>
+    <button
+      class="btn btn-secondary"
+      @click="
+        closeModal('modal-themes');
+        resetThemePreview();
+      "
+    >
+      Cancel
+    </button>
+    <button class="btn btn-primary" @click="save()" :disabled="!dirty" :class="dirty ? '' : 'opacity-50'">Save</button>
+  {% endcall %}
 </div>
 {% endcall %}

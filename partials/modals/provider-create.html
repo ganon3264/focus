@@ -1,4 +1,4 @@
-{% from "macros.html" import custom_select, icon_trash, icon_search, hint_tooltip %} {% from "modal-shell.html" import modal_shell %} {% call modal_shell('modal-provider-create', 'Add Provider', max_width='500px', z_index='100',
+{% from "macros.html" import custom_select, icon_trash, icon_search, hint_tooltip, modal_footer, toggle %} {% from "modal-shell.html" import modal_shell %} {% call modal_shell('modal-provider-create', 'Add Provider', max_width='500px', z_index='100',
 dirty_fields='#provider-form input,#provider-form select,#provider-form textarea',
 dirty_label='#prov-form-name') %}
 <form id="provider-form" data-action="actionSubmitProviderForm" class="flex flex-col gap-3 p-4">
@@ -80,14 +80,7 @@ dirty_label='#prov-form-name') %}
       <label class="text-sm mb-0 cursor-pointer" onclick="toggleRetryEnabled('prov-form')">Auto-retry failed requests</label>
       <div class="flex items-center gap-2">
         <button type="button" class="btn-link" onclick="openRetryModal()">More…</button>
-        <div
-          class="arranger-toggle active"
-          role="switch"
-          tabindex="0"
-          id="prov-form-retry-toggle"
-          aria-label="Auto-retry failed requests"
-          onclick="toggleRetryEnabled('prov-form')"
-        ></div>
+        {{ toggle('id="prov-form-retry-toggle" aria-label="Auto-retry failed requests" onclick="toggleRetryEnabled(\'prov-form\')"', active=true) }}
       </div>
       <input type="hidden" name="retry_enabled" id="prov-form-retry-enabled" value="true" />
     </div>
@@ -146,13 +139,7 @@ dirty_label='#prov-form-name') %}
       class="form-group mb-0 flex items-center justify-between hidden"
     >
       <label class="text-xs mb-0 cursor-pointer" onclick="toggleNoFallbacks('prov-form')">Lock provider (no fallbacks)</label>
-      <div
-        class="arranger-toggle active"
-        role="switch"
-        tabindex="0"
-        id="prov-form-or-no-fallbacks-toggle"
-        onclick="toggleNoFallbacks('prov-form')"
-      ></div>
+      {{ toggle('id="prov-form-or-no-fallbacks-toggle" onclick="toggleNoFallbacks(\'prov-form\')"', active=true) }}
       <input type="hidden" name="or_no_fallbacks" id="prov-form-or-no-fallbacks" value="true" />
     </div>
     <div class="form-group mb-0">
@@ -213,11 +200,8 @@ dirty_label='#prov-form-name') %}
     />
   </div>
 
-  <div class="flex items-center gap-2 mt-2">
-    <span data-dirty-hint class="text-xs font-bold hidden" style="color: var(--accent);">
-      Unsaved changes — press Save to apply
-    </span>
+  {% call modal_footer(buttons_classes='') %}
     <button type="submit" id="prov-form-submit-btn" class="btn btn-create text-sm ml-auto" data-dirty-save>Add Provider</button>
-  </div>
+  {% endcall %}
 </form>
 {% endcall %}

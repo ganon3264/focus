@@ -194,6 +194,105 @@
 </div>
 {% endmacro %}
 
+{% macro toggle(attrs='', active=false, extra_classes='') %}
+<div class="arranger-toggle{{ (' ' ~ extra_classes) if extra_classes else '' }}{{ ' active' if active else '' }}" role="switch" tabindex="0"{% if attrs %} {{ attrs | safe }}{% endif %}></div>
+{% endmacro %}
+
+{% macro slider_row(label, model, min, max, step, dec=0, change='saveStandard()', blur=None, hint='', wrapper_classes='', wrapper_attrs='', input_attrs='') %}
+{% if blur is none %}{% set blur = '$el.value = fmt(parseFloat($el.value) || 0, ' ~ (dec | int) ~ ')' %}{% endif %}
+<div class="form-group mb-0{{ (' ' ~ wrapper_classes) if wrapper_classes else '' }}"{% if wrapper_attrs %} {{ wrapper_attrs | safe }}{% endif %}>
+  <label class="flex justify-between text-xs mb-1">
+    {% if hint %}<span class="flex items-center gap-1">
+      {{ label }}
+      {{ hint_tooltip(hint) }}
+    </span>{% else %}<span>{{ label }}</span>{% endif %}
+    <input type="text" inputmode="{{ 'numeric' if (dec | int) == 0 else 'decimal' }}"
+      x-model.number="{{ model }}"
+      @change="{{ change }}"
+      {% if blur %}@blur="{{ blur }}"{% endif %}
+      class="form-control text-xs sampler-input" data-dec="{{ dec | int }}"{% if input_attrs %} {{ input_attrs | safe }}{% endif %} />
+  </label>
+  <input type="range" min="{{ min }}" max="{{ max }}" step="{{ step }}"
+    x-model.number="{{ model }}" @change="{{ change }}"
+    class="styled-slider" />
+</div>
+{% endmacro %}
+
+{% macro avatar(classes, image_path='', alt='', initial='', tag='div', attrs='', img_class='', img_attrs='', initial_tag='span', initial_class='') %}
+<{{ tag }} class="{{ classes }}"{% if attrs %} {{ attrs | safe }}{% endif %}>{% if image_path %}<img src="/{{ image_path }}" alt="{{ alt }}"{% if img_class %} class="{{ img_class }}"{% endif %}{% if img_attrs %} {{ img_attrs | safe }}{% endif %} />{% elif initial_tag %}<{{ initial_tag }}{% if initial_class %} class="{{ initial_class }}"{% endif %}>{{ initial }}</{{ initial_tag }}>{% else %}{{ initial }}{% endif %}{% if caller is defined %}{{ caller() }}{% endif %}</{{ tag }}>
+{% endmacro %}
+
+{% macro search_toolbar(placeholder, input_attrs='', wrapper_classes='flex items-center gap-2 mb-2 shrink-0 h-8', field_classes='flex-1 relative', input_classes='search-input text-sm w-full h-full') %}
+{% if wrapper_classes %}<div class="{{ wrapper_classes }}">{% endif %}
+  <div class="{{ field_classes }}">
+    <span class="absolute left-2.5 top-1/2 -translate-y-1/2 flex text-muted pointer-events-none">{{ icon_search(size=14) }}</span>
+    <input type="text" placeholder="{{ placeholder }}"{% if input_attrs %} {{ input_attrs | safe }}{% endif %} class="{{ input_classes }}" />
+  </div>
+  {% if caller is defined %}{{ caller() }}{% endif %}
+{% if wrapper_classes %}</div>{% endif %}
+{% endmacro %}
+
+{% macro modal_footer(wrapper_classes='flex items-center gap-2 mt-2', buttons_classes='flex items-center gap-2 ml-auto', hint='dirty') %}
+<div class="{{ wrapper_classes }}">
+  {% if hint == 'dirty' %}<span data-dirty-hint class="text-xs font-bold hidden" style="color: var(--accent);">
+    Unsaved changes — press Save to apply
+  </span>{% elif hint == 'alpine' %}<span x-show="dirty" class="text-xs font-bold shrink-0" style="color: var(--accent);">
+    Unsaved changes — press Save to apply
+  </span>{% endif %}
+  {% if buttons_classes %}<div class="{{ buttons_classes }}">{{ caller() }}</div>{% else %}{{ caller() }}{% endif %}
+</div>
+{% endmacro %}
+
+{% macro tab_bar(tabs, wrapper_classes='flex mb-4', button_attrs='') %}
+<div class="{{ wrapper_classes }}" style="border-bottom: 1px solid var(--border)">
+  {% for tab_id, tab_label in tabs %}
+  <button{% if button_attrs %} {{ button_attrs | safe }}{% endif %} class="tab-btn" :class="{'active': tab === '{{ tab_id }}'}" @click="tab = '{{ tab_id }}'">{{ tab_label }}</button>
+  {% endfor %}
+</div>
+{% endmacro %}
+
+{% macro empty_state(content='', padding='py-6', extra_classes='', attrs='', classes='') %}
+<div class="{{ classes if classes else 'text-muted text-center text-sm ' ~ padding ~ ' border border-dashed border-(--border) rounded-lg' }}{{ (' ' ~ extra_classes) if extra_classes else '' }}"{% if attrs %} {{ attrs | safe }}{% endif %}>{% if caller is defined %}{{ caller() }}{% else %}{{ content | safe }}{% endif %}</div>
+{% endmacro %}
+
+{% macro in_chat_controls(block) %}
+<div class="flex items-center gap-3 mt-3 pt-2" style="border-top: 1px solid var(--border)">
+  <div class="flex items-center gap-2">
+    <span class="flex items-center gap-1 text-xs text-muted select-none">
+      In-Chat
+      {{ hint_tooltip('Injects this block into the conversation at a specific position instead of at the prompt start.') }}
+    </span>
+    {{ toggle('title="Toggle In-Chat Mode" data-curr-depth="' ~ (block.injection_depth if block.injection_depth is not none else '') ~ '" onclick="handleArrangerBlockUpdate(this, {injection_depth: this.dataset.currDepth ? null : 0})"', active=block.injection_depth is not none) }}
+  </div>
+  {% if block.injection_depth is not none %}
+  <div class="flex items-center gap-3">
+    <label class="flex items-center gap-1 text-xs text-muted">
+      Depth
+      {{ hint_tooltip('Position from the latest message. 0 = after the most recent message.') }}
+      <input
+        type="number"
+        min="0"
+        value="{{ block.injection_depth }}"
+        class="form-control form-control-xs"
+        onchange="handleArrangerBlockUpdate(this, {injection_depth: parseInt(this.value) || 0})"
+      />
+    </label>
+    <label class="flex items-center gap-1 text-xs text-muted">
+      Order
+      {{ hint_tooltip('Sort order for blocks at the same depth. Lower values come first.') }}
+      <input
+        type="number"
+        min="0"
+        value="{{ block.injection_order | default(0) }}"
+        class="form-control form-control-xs"
+        onchange="handleArrangerBlockUpdate(this, {injection_order: parseInt(this.value) || 0})"
+      />
+    </label>
+  </div>
+  {% endif %}
+</div>
+{% endmacro %}
+
 {# ── SVG Icon Macros ───────────────────────────────────────────────────── #}
 
 {% macro _icon_svg_base(size, extra_attrs='') %}aria-hidden="true" viewBox="0 0 24 24" width="{{ size }}" height="{{ size }}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" {{ extra_attrs | safe }}{% endmacro %}

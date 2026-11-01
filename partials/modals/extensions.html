@@ -1,22 +1,13 @@
-{% from "macros.html" import hint_tooltip, icon_search, icon_chevron_down, icon_check, icon_key %}
+{% from "macros.html" import hint_tooltip, icon_chevron_down, search_toolbar, toggle %}
 <div x-data="extensionsModal()" id="extensions-modal-data" class="flex flex-col gap-4 flex-1 min-h-0">
 
-  <div class="flex items-center gap-2 mb-2 shrink-0 h-8">
-    <div class="flex-1 relative">
-      <span class="absolute left-2.5 top-1/2 -translate-y-1/2 flex text-muted pointer-events-none">{{ icon_search(size=14) }}</span>
-      <input
-        type="text"
-        placeholder="Search extensions..."
-        x-model="searchQuery"
-        class="search-input text-sm w-full h-full"
-      >
-    </div>
+  {% call search_toolbar('Search extensions...', input_attrs='x-model="searchQuery"') %}
     <button
       class="btn btn-secondary btn-sm flex items-center justify-center shrink-0 h-full"
       @click="reload()"
       x-text="reloading ? 'Reloading...' : 'Reload'"
     ></button>
-  </div>
+  {% endcall %}
 
   <div class="text-xs text-muted mb-1 shrink-0">
     Extensions run as trusted scripts with no sandbox — verify the code before installing. They can read
@@ -52,13 +43,7 @@
                   ></span>
                   <div class="text-xs font-bold truncate" x-text="ext.name"></div>
                 </div>
-                <div
-                  class="arranger-toggle shrink-0"
-                  role="switch"
-                  tabindex="0"
-                  :class="{ 'active': enabled(ext.name) }"
-                  @click="toggle(ext.name)"
-                ></div>
+                {{ toggle(':class="{ \'active\': enabled(ext.name) }" @click="toggle(ext.name)"', extra_classes='shrink-0') }}
               </div>
               <div class="text-xs text-muted mt-1 leading-snug" x-text="ext.description"></div>
               <div class="flex flex-wrap gap-1 mt-1">
@@ -85,13 +70,7 @@
                     <div class="flex items-center gap-2">
                       <label class="text-xs text-muted w-40 shrink-0" x-html="renderDesc(p.description || p.name)"></label>
                       <template x-if="p.type === 'boolean'">
-                        <div
-                          class="arranger-toggle shrink-0"
-                          role="switch"
-                          tabindex="0"
-                          :class="{ 'active': !!configs[ext.name][p.name] }"
-                          @click="configs[ext.name][p.name] = !configs[ext.name][p.name]"
-                        ></div>
+                        {{ toggle(':class="{ \'active\': !!configs[ext.name][p.name] }" @click="configs[ext.name][p.name] = !configs[ext.name][p.name]"', extra_classes='shrink-0') }}
                       </template>
                       <template x-if="p.type === 'string' && p.enum && p.enum.length">
                         <div class="relative flex-1" x-data="{ open: false }" @click.away="open = false">

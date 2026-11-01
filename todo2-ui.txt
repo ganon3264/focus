@@ -1,0 +1,4 @@
+1. Chat list, paged instead of infinite scroll
+2. fix scrollbars
+3. text seems a bit small in some areas
+4. better line continuity, i.e. status bar - chat - trash bin

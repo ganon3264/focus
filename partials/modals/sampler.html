@@ -1,4 +1,4 @@
-{% from "macros.html" import icon_plus, icon_close, icon_expand, hint_tooltip %}
+{% from "macros.html" import icon_plus, icon_close, icon_expand, hint_tooltip, slider_row, tab_bar, toggle %}
 <div
   x-data="samplerModal()"
   @provider-changed.window="onProviderChanged($event.detail)"
@@ -6,88 +6,18 @@
   class="flex flex-col h-full"
 >
   <!-- Tabs -->
-  <div class="flex mb-4" style="border-bottom: 1px solid var(--border)">
-    <button class="tab-btn" :class="{'active': tab === 'standard'}" @click="tab = 'standard'">
-      Standard
-    </button>
-    <button class="tab-btn" :class="{'active': tab === 'advanced'}" @click="tab = 'advanced'">
-      Advanced
-    </button>
-    <button class="tab-btn" :class="{'active': tab === 'custom'}" @click="tab = 'custom'">
-      Custom Body
-    </button>
-  </div>
+  {{ tab_bar([('standard', 'Standard'), ('advanced', 'Advanced'), ('custom', 'Custom Body')]) }}
 
   <!-- Standard Tab -->
   <div x-show="tab === 'standard'" class="flex flex-col gap-3 overflow-y-auto pr-2 pb-2">
     <!-- ── Universal sliders ── -->
-    <div class="form-group mb-0">
-      <label class="flex justify-between text-xs mb-1">
-        <span>Temperature</span>
-        <input type="text" inputmode="decimal"
-          x-model.number="samplers.temperature"
-          @change="saveStandard()"
-          @blur="$el.value = fmt(parseFloat($el.value) || 0, 2)"
-          class="form-control text-xs sampler-input" data-dec="2" />
-      </label>
-      <input type="range" min="0" max="2" step="0.01"
-        x-model.number="samplers.temperature" @change="saveStandard()"
-        class="styled-slider" />
-    </div>
-    <div class="form-group mb-0">
-      <label class="flex justify-between text-xs mb-1">
-        <span>Max Tokens</span>
-        <input type="text" inputmode="numeric"
-          x-model.number="samplers.max_tokens"
-          @change="saveStandard()"
-          @blur="$el.value = fmt(parseFloat($el.value) || 0, 0)"
-          class="form-control text-xs sampler-input" data-dec="0" />
-      </label>
-      <input type="range" min="256" max="131072" step="256"
-        x-model.number="samplers.max_tokens" @change="saveStandard()"
-        class="styled-slider" />
-    </div>
-    <div class="form-group mb-0">
-      <label class="flex justify-between text-xs mb-1">
-        <span>Top P</span>
-        <input type="text" inputmode="decimal"
-          x-model.number="samplers.top_p"
-          @change="saveStandard()"
-          @blur="$el.value = fmt(parseFloat($el.value) || 0, 2)"
-          class="form-control text-xs sampler-input" data-dec="2" />
-      </label>
-      <input type="range" min="0" max="1" step="0.01"
-        x-model.number="samplers.top_p" @change="saveStandard()"
-        class="styled-slider" />
-    </div>
+    {{ slider_row('Temperature', 'samplers.temperature', '0', '2', '0.01', 2) }}
+    {{ slider_row('Max Tokens', 'samplers.max_tokens', '256', '131072', '256', 0) }}
+    {{ slider_row('Top P', 'samplers.top_p', '0', '1', '0.01', 2) }}
 
     <!-- ── Provider-specific sliders ── -->
-    <div class="form-group mb-0" x-show="showTopK">
-      <label class="flex justify-between text-xs mb-1">
-        <span>Top K</span>
-        <input type="text" inputmode="numeric"
-          x-model.number="samplers.top_k"
-          @change="saveStandard()"
-          @blur="$el.value = fmt(parseFloat($el.value) || 0, 0)"
-          class="form-control text-xs sampler-input" data-dec="0" />
-      </label>
-      <input type="range" min="0" max="100" step="1"
-        x-model.number="samplers.top_k" @change="saveStandard()"
-        class="styled-slider" />
-    </div>
-    <div class="form-group mb-0" x-show="showMinP">
-      <label class="flex justify-between text-xs mb-1">
-        <span>Min P</span>
-        <input type="text" inputmode="decimal"
-          x-model.number="samplers.min_p"
-          @change="saveStandard()"
-          @blur="$el.value = fmt(parseFloat($el.value) || 0, 2)"
-          class="form-control text-xs sampler-input" data-dec="2" />
-      </label>
-      <input type="range" min="0" max="1" step="0.01"
-        x-model.number="samplers.min_p" @change="saveStandard()"
-        class="styled-slider" />
-    </div>
+    {{ slider_row('Top K', 'samplers.top_k', '0', '100', '1', 0, wrapper_attrs='x-show="showTopK"') }}
+    {{ slider_row('Min P', 'samplers.min_p', '0', '1', '0.01', 2, wrapper_attrs='x-show="showMinP"') }}
 
     <!-- ── Universal toggles ── -->
     <div class="form-group mb-0 flex items-center justify-between mt-2">
@@ -96,13 +26,7 @@
         @click="samplers.stream_enabled = !samplers.stream_enabled; saveStandard()"
         >Streaming</label
       >
-      <div
-        class="arranger-toggle"
-        role="switch"
-        tabindex="0"
-        :class="{ 'active': samplers.stream_enabled }"
-        @click="samplers.stream_enabled = !samplers.stream_enabled; saveStandard()"
-      ></div>
+      {{ toggle(':class="{ \'active\': samplers.stream_enabled }" @click="samplers.stream_enabled = !samplers.stream_enabled; saveStandard()"') }}
     </div>
     <div class="form-group mb-0 flex items-center justify-between mt-2">
       <div class="flex items-center gap-1">
@@ -113,13 +37,7 @@
         >
         {{ hint_tooltip('Allows sending images and audio to the model as prompt context. <span class="hint-warning">Disable if your provider does not support multimodal inputs.</span>') }}
       </div>
-      <div
-        class="arranger-toggle"
-        role="switch"
-        tabindex="0"
-        :class="{ 'active': samplers.enable_multimodal }"
-        @click="samplers.enable_multimodal = !samplers.enable_multimodal; saveStandard()"
-      ></div>
+      {{ toggle(':class="{ \'active\': samplers.enable_multimodal }" @click="samplers.enable_multimodal = !samplers.enable_multimodal; saveStandard()"') }}
     </div>
 
     <div
@@ -164,13 +82,7 @@
           @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()"
           >Enable Thinking / Reasoning</label
         >
-        <div
-          class="arranger-toggle"
-          role="switch"
-          tabindex="0"
-          :class="{ 'active': samplers.include_reasoning }"
-          @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()"
-        ></div>
+        {{ toggle(':class="{ \'active\': samplers.include_reasoning }" @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()"') }}
       </div>
     </div>
     <div x-show="showEchoUpstreamBody" class="form-group mb-0 flex items-center justify-between mt-2">
@@ -182,13 +94,7 @@
         >
         {{ hint_tooltip('OpenRouter returns the transformed request body it sends upstream, logged to the browser console. <span class="hint-warning">Streaming only.</span>') }}
       </div>
-      <div
-        class="arranger-toggle"
-        role="switch"
-        tabindex="0"
-        :class="{ 'active': samplers.echo_upstream_body }"
-        @click="samplers.echo_upstream_body = !samplers.echo_upstream_body; saveStandard()"
-      ></div>
+      {{ toggle(':class="{ \'active\': samplers.echo_upstream_body }" @click="samplers.echo_upstream_body = !samplers.echo_upstream_body; saveStandard()"') }}
     </div>
     <div
       x-show="showReasoningEffort"
@@ -253,79 +159,22 @@
   <!-- Advanced Tab -->
   <div x-show="tab === 'advanced'" class="flex flex-col gap-3 overflow-y-auto pr-2 pb-2">
     <div x-show="showFrequencyPenalty" class="flex flex-col gap-3">
-      <div class="form-group mb-0">
-        <label class="flex justify-between text-xs mb-1">
-          <span>Frequency Penalty</span>
-          <input type="text" inputmode="decimal"
-            x-model.number="samplers.frequency_penalty"
-            @change="saveStandard()"
-            @blur="$el.value = fmt(parseFloat($el.value) || 0, 2)"
-            class="form-control text-xs sampler-input" data-dec="2" />
-        </label>
-        <input type="range" min="-2" max="2" step="0.01"
-          x-model.number="samplers.frequency_penalty" @change="saveStandard()"
-          class="styled-slider" />
-      </div>
-      <div class="form-group mb-0">
-        <label class="flex justify-between text-xs mb-1">
-          <span>Presence Penalty</span>
-          <input type="text" inputmode="decimal"
-            x-model.number="samplers.presence_penalty"
-            @change="saveStandard()"
-            @blur="$el.value = fmt(parseFloat($el.value) || 0, 2)"
-            class="form-control text-xs sampler-input" data-dec="2" />
-        </label>
-        <input type="range" min="-2" max="2" step="0.01"
-          x-model.number="samplers.presence_penalty" @change="saveStandard()"
-          class="styled-slider" />
-      </div>
+      {{ slider_row('Frequency Penalty', 'samplers.frequency_penalty', '-2', '2', '0.01', 2) }}
+      {{ slider_row('Presence Penalty', 'samplers.presence_penalty', '-2', '2', '0.01', 2) }}
     </div>
-    <div class="form-group mb-0" x-show="showRepetitionPenalty">
-      <label class="flex justify-between text-xs mb-1">
-        <span>Repetition Penalty</span>
-        <input type="text" inputmode="decimal"
-          x-model.number="samplers.repetition_penalty"
-          @change="saveStandard()"
-          @blur="$el.value = fmt(parseFloat($el.value) || 0, 2)"
-            class="form-control text-xs sampler-input" data-dec="2" />
-        </label>
-        <input type="range" min="0" max="2" step="0.01"
-          x-model.number="samplers.repetition_penalty" @change="saveStandard()"
-          class="styled-slider" />
-    </div>
+    {{ slider_row('Repetition Penalty', 'samplers.repetition_penalty', '0', '2', '0.01', 2, wrapper_attrs='x-show="showRepetitionPenalty"') }}
     <div
       x-show="showThinkingBudget"
       x-transition.opacity.duration.200ms
       style="display: none"
     >
-      <div class="form-group mb-0">
-        <label class="flex justify-between text-xs mb-1">
-          <span>Thinking Budget</span>
-          <input type="text" inputmode="numeric"
-            x-model.number="samplers.thinking_budget"
-            @change="saveStandard()"
-            @blur="$el.value = parseFloat($el.value) ? fmt(parseFloat($el.value), 0) : 'auto'"
-            class="form-control text-xs sampler-input" data-dec="0" data-auto="1"
-            placeholder="0 = auto" />
-        </label>
-        <input type="range" min="0" max="128000" step="1"
-          x-model.number="samplers.thinking_budget" @change="saveStandard()"
-          class="styled-slider" />
-      </div>
+      {{ slider_row('Thinking Budget', 'samplers.thinking_budget', '0', '128000', '1', 0,
+        blur="$el.value = parseFloat($el.value) ? fmt(parseFloat($el.value), 0) : 'auto'",
+        input_attrs='data-auto="1" placeholder="0 = auto"') }}
     </div>
-    <div x-show="showSeed" class="form-group mb-0">
-      <label class="flex justify-between text-xs mb-1">
-        <span>Seed</span>
-        <input type="text" inputmode="numeric"
-          x-model.number="samplers.seed"
-          @change="saveStandard()"
-          @blur="handleSeedBlur($el)"
-          class="form-control text-xs sampler-input" data-dec="0" data-seed-random />
-      </label>
-      <input type="range" min="-1" max="999999" step="1"
-        x-model.number="samplers.seed" @change="saveStandard()"
-        class="styled-slider" />
-    </div>
+    {{ slider_row('Seed', 'samplers.seed', '-1', '999999', '1', 0,
+      blur='handleSeedBlur($el)', wrapper_attrs='x-show="showSeed"',
+      input_attrs='data-seed-random') }}
     <div x-show="showVerbosity" class="form-group mb-0">
       <label class="flex justify-between text-xs mb-2"><span>Verbosity</span></label>
       <div class="flex gap-2 flex-wrap">
@@ -371,13 +220,7 @@
           >
           {{ hint_tooltip('Enables cache for Anthropic models. Recommended for costs reduction. <span class="hint-warning">Check if your prompt preset has any changing macros/variables at its beginning that might invalidate the cache.</span>') }}
         </div>
-        <div
-          class="arranger-toggle"
-          role="switch"
-          tabindex="0"
-          :class="{ 'active': samplers.cache_enabled }"
-          @click="samplers.cache_enabled = !samplers.cache_enabled; saveStandard()"
-        ></div>
+        {{ toggle(':class="{ \'active\': samplers.cache_enabled }" @click="samplers.cache_enabled = !samplers.cache_enabled; saveStandard()"') }}
       </div>
       <div
         x-show="samplers.cache_enabled"
@@ -396,32 +239,14 @@
               >
               {{ hint_tooltip('By default cache has an expiry time of 5 minutes. This extends it to 1 hour, but it also increases cost. <span class="hint-danger">Not recommended.</span>') }}
             </div>
-            <div
-              class="arranger-toggle"
-              role="switch"
-              tabindex="0"
-              :class="{ 'active': samplers.cache_ttl === '1h' }"
-              @click="samplers.cache_ttl = samplers.cache_ttl === '1h' ? 'ephemeral' : '1h'; saveStandard()"
-            ></div>
+            {{ toggle(':class="{ \'active\': samplers.cache_ttl === \'1h\' }" @click="samplers.cache_ttl = samplers.cache_ttl === \'1h\' ? \'ephemeral\' : \'1h\'; saveStandard()"') }}
           </div>
         </div>
         <div class="tree-child">
           <span class="tree-dot"></span>
-          <div class="form-group mb-0">
-            <label class="flex justify-between text-xs mb-1">
-              <span class="flex items-center gap-1">
-                Depth of Turns
-                {{ hint_tooltip('Number of <span class="hint-success">User</span> turns to skip from caching, where 0 would be the latest message sent by the <span class="hint-success">User.</span> <span class="hint-warning">Effectiveness of this setting depends on your preset. No In-Chat entries active → leave at 1. Using one → set this to at least its Depth value.</span>') }}
-              </span>
-              <input type="text" inputmode="numeric"
-                x-model.number="samplers.cache_depth"
-                @change="saveStandard()"
-                class="form-control text-xs sampler-input" data-dec="0" />
-            </label>
-            <input type="range" min="1" max="10" step="1"
-              x-model.number="samplers.cache_depth" @change="saveStandard()"
-              class="styled-slider" />
-          </div>
+          {{ slider_row('Depth of Turns', 'samplers.cache_depth', '1', '10', '1', 0,
+            blur='',
+            hint='Number of <span class="hint-success">User</span> turns to skip from caching, where 0 would be the latest message sent by the <span class="hint-success">User.</span> <span class="hint-warning">Effectiveness of this setting depends on your preset. No In-Chat entries active → leave at 1. Using one → set this to at least its Depth value.</span>') }}
         </div>
       </div>
     </div>
@@ -431,13 +256,7 @@
         @click="samplers.send_reasoning_history = !samplers.send_reasoning_history; saveStandard()"
         >Send Reasoning History</label
       >
-      <div
-        class="arranger-toggle"
-        role="switch"
-        tabindex="0"
-        :class="{ 'active': samplers.send_reasoning_history }"
-        @click="samplers.send_reasoning_history = !samplers.send_reasoning_history; saveStandard()"
-      ></div>
+      {{ toggle(':class="{ \'active\': samplers.send_reasoning_history }" @click="samplers.send_reasoning_history = !samplers.send_reasoning_history; saveStandard()"') }}
     </div>
   </div>
 
@@ -453,14 +272,7 @@
         class="flex items-center gap-2 mb-2 p-2 rounded-md"
         style="background: var(--surface-2); border: 1px solid var(--border)"
       >
-        <div
-          class="arranger-toggle"
-          role="switch"
-          tabindex="0"
-          :class="{ active: item.enabled }"
-          @click="item.enabled = !item.enabled; saveCustom()"
-          title="Enable/Disable"
-        ></div>
+        {{ toggle(':class="{ active: item.enabled }" @click="item.enabled = !item.enabled; saveCustom()" title="Enable/Disable"') }}
         <input
           type="text"
           x-model="item.key"

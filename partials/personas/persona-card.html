@@ -1,12 +1,8 @@
+{% from "macros.html" import avatar %}
 <div class="p-3" id="persona-{{ p.id }}" data-name="{{ p.name | escape }}" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);">
   <div class="flex gap-3 items-center mb-2">
-    <div class="avatar-thumb" style="width:48px;height:48px;font-size:1.2rem;">
-      {% if p.avatar_path %}
-        <img src="/{{ p.avatar_path }}" alt="{{ p.name }} avatar">
-      {% else %}
-        {{ p.name[:1] }}
-      {% endif %}
-    </div>
+    {{ avatar('avatar-thumb', p.avatar_path, p.name ~ ' avatar', p.name[:1],
+      attrs='style="width:48px;height:48px;font-size:1.2rem;"', initial_tag='') }}
     <div class="flex-1 min-w-0">
       <div class="font-bold">{{ p.name }}</div>
       <div class="text-sm text-muted truncate">{{ p.description[:60] if p.description else '' }}</div>

@@ -1,4 +1,4 @@
-{% from "macros.html" import icon_chevron_right, icon_close, hint_tooltip %}
+{% from "macros.html" import icon_chevron_right, icon_close, hint_tooltip, toggle %}
 <div
   class="arranger-item structured-item {% if not response.enabled %}disabled{% endif %}"
   data-id="{{ response.id }}"
@@ -24,13 +24,7 @@
       />
     </div>
     <div class="arranger-actions">
-      <div
-        class="arranger-toggle {% if response.enabled %}active{% endif %}"
-        role="switch"
-        tabindex="0"
-        title="Set active (only one per scope)"
-        onclick="handleStructuredActive(this)"
-      ></div>
+      {{ toggle('title="Set active (only one per scope)" onclick="handleStructuredActive(this)"', active=response.enabled) }}
       <button
         type="button"
         class="action-icon slim danger"

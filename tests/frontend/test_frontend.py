@@ -131,7 +131,7 @@ def test_base_loads_shared_scripts_after_content():
     assert last_shared < scripts_block, "page scripts block must come after shared scripts"
 
 
-PAGE_TEMPLATES = ["chat.html", "characters.html", "personas.html", "providers.html"]
+PAGE_TEMPLATES = ["chat.html"]
 
 
 @pytest.mark.parametrize("template_name", PAGE_TEMPLATES)

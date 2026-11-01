@@ -1,0 +1,8 @@
+# Not in any particular order
+1. Overhaul the standalone character editor
+~~2. Add groups and favorites to personas/characters modals~~ DONE
+~~3. Samplers modal - decimals appear only AFTER interacting with it; make them appear at all times where appropriate~~ DONE
+~~4. Duplicate prompt logging; raw payload vs messages + samplers~~ DONE
+~~5. Macro reference modal in the arranger; ugly, needs revamp~~ DONE
+~~6. Send and abort button in the chat; very flat and ugly, needs depth~~ DONE
+7. Favorites in provider modal

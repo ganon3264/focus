@@ -1,4 +1,4 @@
-{% from "macros.html" import icon_help, icon_plus, custom_select, hint_tooltip %}
+{% from "macros.html" import icon_help, icon_plus, custom_select, hint_tooltip, modal_footer, toggle %}
 <div style="flex: 1; min-height: 0; overflow-y: auto;" class="scroll-fade">
   <div class="arranger-list" id="arranger-list-{{ preset_id }}">
     {% for block in blocks %} {% include "presets/prompt-block.html" %} {% endfor %}
@@ -101,11 +101,7 @@ overlay_close=true, dirty_fields='#block-modal-textarea,#block-modal-reasoning',
     placeholder="Enter reasoning content that will be prefilled before the model response…"
   ></textarea>
 </div>
-<div class="flex items-center gap-2 mt-3">
-  <span data-dirty-hint class="text-xs font-bold hidden" style="color: var(--accent);">
-    Unsaved changes — press Save to apply
-  </span>
-  <div class="flex items-center gap-2 ml-auto">
+{% call modal_footer(wrapper_classes='flex items-center gap-2 mt-3') %}
     <button type="button" class="btn btn-secondary btn-icon" style="width: calc(1lh + 1rem + 2px); height: calc(1lh + 1rem + 2px)" onclick="openMacroHelp()" title="Macro reference" aria-label="Macro reference">
       {{ icon_help(16) }}
     </button>
@@ -113,8 +109,7 @@ overlay_close=true, dirty_fields='#block-modal-textarea,#block-modal-reasoning',
     <button type="button" class="btn btn-primary" id="block-modal-save" data-dirty-save onclick="saveBlockModal()">
       Save
     </button>
-  </div>
-</div>
+{% endcall %}
 </div>
 {% endcall %}
 
@@ -134,13 +129,7 @@ dirty_label='summary settings') %}
       {{ hint_tooltip('When off, this preset neither generates nor injects summaries.') }}
     </span>
     <input type="hidden" id="summary-settings-enabled" value="{{ 1 if summary_settings.active else 0 }}" />
-    <div
-      class="arranger-toggle {% if summary_settings.active %}active{% endif %}"
-      role="switch"
-      tabindex="0"
-      title="Toggle Summary"
-      onclick="toggleSummarySetting(this)"
-    ></div>
+    {{ toggle('title="Toggle Summary" onclick="toggleSummarySetting(this)"', active=summary_settings.active) }}
   </div>
 
   <div class="flex flex-col gap-1">
@@ -199,17 +188,12 @@ dirty_label='summary settings') %}
     <code>{{ '{{summary_media}}' }}</code>.
   </div>
 
-  <div class="flex items-center gap-2 mt-1">
-    <span data-dirty-hint class="text-xs font-bold hidden" style="color: var(--accent);">
-      Unsaved changes — press Save to apply
-    </span>
-    <div class="flex items-center gap-2 ml-auto">
+  {% call modal_footer(wrapper_classes='flex items-center gap-2 mt-1') %}
       <button type="button" class="btn btn-secondary" data-action="actionCloseModal" data-modal-id="modal-summary-settings">Cancel</button>
       <button type="button" class="btn btn-primary" data-dirty-save onclick="saveSummarySettings()">
         Save
       </button>
-    </div>
-  </div>
+  {% endcall %}
 </div>
 {% endcall %}
 

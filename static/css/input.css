@@ -11,13 +11,7 @@
     transform: translateY(-50%) translateX(6px);
     opacity: 0;
     pointer-events: none;
-    background: var(--surface);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    border-radius: var(--radius-sm);
     padding: 0.15rem 0.25rem;
-    border: 1px solid var(--border);
-    box-shadow: var(--shadow-md);
     z-index: 10;
     transition: opacity 0.18s ease, transform 0.18s ease;
   }
@@ -92,22 +86,9 @@
     color: var(--text);
   }
   .attach-btn {
-    background: var(--surface-2);
     border: 1px solid var(--border);
-    color: var(--text-muted);
     width: 44px;
     height: 44px;
-    border-radius: var(--radius-full);
-  }
-  .attach-btn:hover {
-    background: var(--surface-3);
-    border-color: var(--border-hover);
-    color: var(--text);
-  }
-  .attach-btn.has-files {
-    color: var(--accent);
-    border-color: var(--active-border);
-    background: var(--accent-faint);
   }
   .action-btn svg,
   .action-icon svg,
@@ -119,7 +100,6 @@
   }
 
   .input-bar {
-    padding: 0rem 1.5rem 1.5rem;
     display: flex;
     justify-content: center;
     z-index: 20;
@@ -143,9 +123,6 @@
     gap: 0.5rem;
     align-items: center;
     background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-full);
-    padding: 0.6rem;
     width: 100%;
     max-width: var(--chat-content-width);
     transition: border-color var(--transition);
@@ -154,10 +131,6 @@
   .delete-toolbar {
     background: var(--surface-2);
     border-color: var(--danger);
-  }
-  .input-wrapper:focus-within {
-    border-color: var(--accent);
-    box-shadow: var(--shadow-glow);
   }
   #chat-input {
     flex: 1;
@@ -179,18 +152,9 @@
     color: var(--text-faint);
   }
   .send-btn {
-    background: var(--surface-2);
-    color: var(--accent);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-full);
     width: 44px;
     height: 44px;
     font-size: 0;
-  }
-  .send-btn:hover {
-    background: var(--surface-3);
-    border-color: var(--border-hover);
-    color: var(--accent-hover);
   }
   .send-btn svg {
     width: 18px;
