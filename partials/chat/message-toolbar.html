@@ -11,7 +11,7 @@
         >
           {{ icon_chevron_left() }}
         </button>
-        <span class="text-xs swipe-counter" data-ui="swipe-counter" style="display:flex;align-items:center;color:var(--text-faint)">{{ message.active_index + 1 }}/{{ message.variant_count }}</span>
+        <span class="swipe-counter" data-ui="swipe-counter">{{ message.active_index + 1 }}/{{ message.variant_count }}</span>
         <button
           class="action-btn"
           title="Next variant"
@@ -23,7 +23,7 @@
         >
           {{ icon_chevron_right() }}
         </button>
-        <div class="w-px h-4" style="background:var(--border);margin:0 2px"></div>
+        <div class="toolbar-sep"></div>
         {% endif %}
         {% if is_latest and message.role == 'assistant' and message.position != 0 %}
         <button

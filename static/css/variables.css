@@ -84,7 +84,7 @@
   --mat-hi-strong: color-mix(in srgb, var(--surface), white 22%);
   --mat-lo: color-mix(in srgb, var(--surface), black 28%);
   --mat-edge: color-mix(in srgb, var(--bg), black 42%);
-  --mat-well: color-mix(in srgb, var(--bg), black 18%);
+  --mat-well: color-mix(in srgb, var(--surface), black 8%);
   --mat-shade: color-mix(in srgb, var(--surface), black 7%);
   --mat-glow: color-mix(in srgb, var(--surface), white 5%);
   --mat-raise: inset 0 1px 0 var(--mat-hi), inset 0 -1px 0 var(--mat-lo),

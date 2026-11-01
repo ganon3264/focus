@@ -12,43 +12,42 @@
       data-action="actionUpdateDeleteSelection"
     />
   </div>
-  <div class="message-body" data-ui="message-body">
-    <div class="flex items-start justify-between relative">
-      <!-- Left: avatar + name/info -->
-      {% if message.role == 'user' %}
-      {% set avatar_path = (persona.avatar_path or '') if persona else '' %}
-      {% set avatar_alt = (persona.name if persona else 'User') ~ ' avatar' %}
-      {% set avatar_initial = persona.name[:1] if persona else 'U' %}
-      {% else %}
-      {% set avatar_path = (character.image_path or '') if character else '' %}
-      {% set avatar_alt = (character.name if character else 'Assistant') ~ ' avatar' %}
-      {% set avatar_initial = character.name[:1] if character else 'A' %}
-      {% endif %}
-      {% set author_name = character.name if message.role == 'assistant' and character else (persona.name if message.role == 'user' and persona else message.role) %}
-      {% set has_first_reasoning = (message.get('segments')|selectattr("type", "equalto", "reasoning")|selectattr("index", "equalto", 0)|list|length > 0) if message.get('segments') else message.get('reasoning') %}
-      {% call message_header(author_name, avatar_path, avatar_alt, avatar_initial) %}
-        {% if message.role == 'assistant' %}{{ message_meta(message.model_name or '', message.position != 0 and has_first_reasoning) }}{% endif %}
-      {% endcall %}
 
-      <!-- Right: meta-right + toolbar overlay -->
-      <div class="relative shrink-0" style="margin-left:1rem">
-        <div class="meta-right flex items-center gap-3 mt-0.5">
-          {% if message.get('pinned') %}
-          <span class="fav-star favorite-active" title="Pinned — kept verbatim in compacted chats">
-            <span class="fav-star-filled">{{ icon_star_filled(14) }}</span>
-          </span>
-          {% endif %}
-          <div class="text-xs text-right leading-tight shrink-0" data-utc="{{ message.created_at or '' }}">
-            <div class="text-muted ts-date">{{ message.created_at[:10] if message.created_at else '' }}</div>
-            <div style="color:var(--text-faint)" class="ts-time">{{ message.created_at[11:16] if message.created_at else '' }}</div>
-          </div>
-          <div class="text-[1.75rem] font-bold leading-none select-none shrink-0" style="color:var(--text-faint)">#{{ msg_index }}</div>
+  <div class="message-rail" data-ui="message-rail">
+    {% if message.role == 'user' %}
+    {% set avatar_path = (persona.avatar_path or '') if persona else '' %}
+    {% set avatar_alt = (persona.name if persona else 'User') ~ ' avatar' %}
+    {% set avatar_initial = persona.name[:1] if persona else 'U' %}
+    {% else %}
+    {% set avatar_path = (character.image_path or '') if character else '' %}
+    {% set avatar_alt = (character.name if character else 'Assistant') ~ ' avatar' %}
+    {% set avatar_initial = character.name[:1] if character else 'A' %}
+    {% endif %}
+    {% set author_name = character.name if message.role == 'assistant' and character else (persona.name if message.role == 'user' and persona else message.role) %}
+    {% set has_first_reasoning = (message.get('segments')|selectattr("type", "equalto", "reasoning")|selectattr("index", "equalto", 0)|list|length > 0) if message.get('segments') else message.get('reasoning') %}
+    {% call message_header(author_name, avatar_path, avatar_alt, avatar_initial) %}
+      {% if message.role == 'assistant' %}{{ message_meta(message.model_name or '', message.position != 0 and has_first_reasoning) }}{% endif %}
+    {% endcall %}
+
+    <div class="message-rail-end">
+      <div class="meta-right">
+        {% if message.get('pinned') %}
+        <span class="fav-star favorite-active" title="Pinned — kept verbatim in compacted chats">
+          <span class="fav-star-filled">{{ icon_star_filled(14) }}</span>
+        </span>
+        {% endif %}
+        <div class="message-ts" data-utc="{{ message.created_at or '' }}">
+          <div class="ts-date">{{ message.created_at[:10] if message.created_at else '' }}</div>
+          <div class="ts-time">{{ message.created_at[11:16] if message.created_at else '' }}</div>
         </div>
+        <div class="message-index">#{{ msg_index }}</div>
+      </div>
 
-        {% include "chat/message-toolbar.html" %}
+      {% include "chat/message-toolbar.html" %}
     </div>
-    </div>
+  </div>
 
+  <div class="message-body" data-ui="message-body">
     {% if message.attachments %}
     {% call attachment_row() %}{% for att in message.attachments %}{{ attachment_preview('/' ~ att.file_path, att.mime_type) }}{% endfor %}{% endcall %}
     {% endif %}

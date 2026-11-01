@@ -496,17 +496,17 @@
 {% endmacro %}
 
 {% macro message_author(author='', slots=False) %}
-<div class="text-sm font-medium message-author"{{ slot(slots, 'author') }}>{{ author }}</div>
+<div class="message-author"{{ slot(slots, 'author') }}>{{ author }}</div>
 {% endmacro %}
 
 {% macro message_meta(model_name='', show_reasoning=False) %}
-<div class="text-xs text-muted message-meta flex items-center gap-1.5 flex-wrap mt-0.5" data-ui="message-meta">{% if model_name %}<span>{{ model_name }}</span>{% if show_reasoning %}<span class="text-muted">·</span>{% endif %}{% endif %}{% if show_reasoning %}{{ reasoning_toggle_btn() }}{% endif %}</div>
+<div class="message-meta" data-ui="message-meta">{% if model_name %}<span>{{ model_name }}</span>{% if show_reasoning %}<span>·</span>{% endif %}{% endif %}{% if show_reasoning %}{{ reasoning_toggle_btn() }}{% endif %}</div>
 {% endmacro %}
 
 {% macro message_header(author='', avatar_path='', avatar_alt='', avatar_initial='', slots=False) %}
-<div class="flex items-start gap-3 min-w-0">
+<div class="message-header">
   {{ message_avatar(avatar_path, avatar_alt, avatar_initial, slots) }}
-  <div class="min-w-0">
+  <div class="message-header-lines">
     {{ message_author(author, slots) }}{% if caller is defined %}{{ caller() }}{% endif %}
   </div>
 </div>
@@ -514,9 +514,11 @@
 
 {% macro message_shell(meta=True, slots=False) %}
 <div class="message relative msg" data-ui="message">
-  <div class="message-body" data-ui="message-body">
+  <div class="message-rail" data-ui="message-rail">
     {% call message_header('', ('@@avatar@@' if slots else ''), '', '', slots) %}{% if meta %}{{ message_meta() }}{% endif %}{% endcall %}
+    <div class="message-rail-end"></div>
   </div>
+  <div class="message-body" data-ui="message-body"></div>
 </div>
 {% endmacro %}
 
@@ -531,7 +533,7 @@
 <details class="details reasoning-block pl-stream" data-ui="reasoning-block" data-think-id="{{ think_id }}">
   <summary>
     {{ icon_chevron_right(12, 'class="w-3 h-3 chevron"') }}
-    {{ title }}
+    <span>{{ title }}</span>
   </summary>
   <div class="reasoning-content markdown-content" data-ui="reasoning-content markdown-content">{{ content }}</div>
 </details>
@@ -544,44 +546,37 @@
 
 {% macro attachment_preview(src='', mime_type='') %}
 {% if mime_type and mime_type.startswith('image/') %}
-<div class="relative group">
-  <img
-    src="{{ src }}"
-    class="h-24 rounded object-cover border border-border cursor-pointer hover:opacity-90 transition-opacity"
-    alt="attachment"
-    onclick="openLightbox(this.src)"
-  />
+<div class="message-attachment">
+  <img src="{{ src }}" alt="attachment" onclick="openLightbox(this.src)" />
 </div>
 {% else %}
-<div class="relative group">
-  <div class="h-16 bg-(--surface-3) px-3 rounded border border-border flex items-center gap-2 text-sm">
-    <span>{{ icon_music(18) }}</span>
-    <audio controls class="h-8 max-w-[200px]" style="filter: contrast(0.8) grayscale(1)">
-      <source src="{{ src }}" type="{{ mime_type }}" />
-    </audio>
-  </div>
+<div class="message-attachment message-attachment-audio">
+  {{ icon_music(16) }}
+  <audio controls>
+    <source src="{{ src }}" type="{{ mime_type }}" />
+  </audio>
 </div>
 {% endif %}
 {% endmacro %}
 
 {% macro attachment_row() %}
-<div class="flex gap-2 flex-wrap mb-2 pl-stream">{{ caller() if caller is defined }}</div>
+<div class="attachment-row pl-stream">{{ caller() if caller is defined }}</div>
 {% endmacro %}
 
 {% macro tool_call_card(tc) %}
 <details class="details tool-call">
   <summary>
     {{ icon_chevron_right(12, 'class="w-3 h-3 chevron"') }}
-    <code class="font-bold">{{ tc.function.name }}</code>
+    <code>{{ tc.function.name }}</code>
     {% if tc.function.arguments and tc.function.arguments != '{}' %}
-    <span class="truncate max-w-[300px]">{{ tc.function.arguments }}</span>
+    <span>{{ tc.function.arguments }}</span>
     {% endif %}
   </summary>
   <div class="tool-result-body" data-ui="tool-result-body">
-    <pre class="whitespace-pre-wrap break-all">{{ tc.result or '' }}</pre>
+    <pre>{{ tc.result or '' }}</pre>
     {% set img = tc.image_data or tc.image_url %}
     {% if img %}
-    <img src="{{ img }}" class="max-w-full h-auto rounded mt-2" />
+    <img src="{{ img }}" alt="" />
     {% endif %}
   </div>
 </details>

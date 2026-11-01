@@ -64,6 +64,13 @@ function checkSameColumn(name, rects) {
   console.error(`FAIL  ${name} columns disagree — lefts {${[...lefts]}} widths {${[...widths]}}`);
 }
 
+function check(name, cond, detail) {
+  checks++;
+  if (cond) return;
+  failures++;
+  console.error(`FAIL  ${name}${detail ? ' — ' + detail : ''}`);
+}
+
 function checkInset(name, rect, pane, inset) {
   checks++;
   const dx = rect.x - pane.x;
@@ -101,6 +108,9 @@ async function measure(page) {
       messageList: one('#message-list'),
       chatRows: all('.right-sidebar .sidebar-item'),
       pagerButtons: all('.chat-pager .chat-pager-btn, .chat-pager .chat-pager-num'),
+      messages: all('[data-ui="message"]'),
+      rails: all('[data-ui="message"] .message-rail'),
+      bodies: all('[data-ui="message"] [data-ui="message-body"]'),
     };
   });
 }
@@ -143,65 +153,61 @@ async function measure(page) {
   checkHeight('send', m.send, [28, 32]);
 
   const firstRow = m.tiles.slice(0, 2);
-  checks++;
-  if (firstRow.length === 2 && firstRow[0].width === firstRow[1].width &&
-      firstRow[1].x === firstRow[0].x + firstRow[0].width + 8) {
-    checks--;
-  } else {
-    failures++;
-    console.error('FAIL  tile columns do not tile at an 8px gutter');
-  }
+  check(
+    'tile columns tile at an 8px gutter',
+    firstRow.length === 2 &&
+      firstRow[0].width === firstRow[1].width &&
+      firstRow[1].x === firstRow[0].x + firstRow[0].width + 8,
+  );
   m.tiles.forEach((r, i) => {
     if (i < 2) return;
-    checks++;
     const prev = m.tiles[i - 2];
-    if (r.y === prev.y + prev.height + 8 && r.x === prev.x) return;
-    failures++;
-    console.error(`FAIL  tile ${i} does not sit one row below tile ${i - 2} at an 8px gutter`);
+    check(
+      `tile ${i} sits one row below tile ${i - 2} at an 8px gutter`,
+      r.y === prev.y + prev.height + 8 && r.x === prev.x,
+    );
   });
 
   m.chatRows.forEach((r, i) => checkGrid('chat row ' + i, r));
   if (m.chatRows.length) {
-    checks++;
-    if (m.chatRows[0].x - m.rightPane.x === inset && m.chatRows[0].width === m.rightPane.width - inset * 2) {
-      checks--;
-    } else {
-      failures++;
-      console.error('FAIL  chat rows do not sit on the pane inset');
-    }
-    checks++;
+    check(
+      'chat rows sit on the pane inset',
+      m.chatRows[0].x - m.rightPane.x === inset && m.chatRows[0].width === m.rightPane.width - inset * 2,
+    );
     const heights = new Set(m.chatRows.map((r) => r.height));
-    if (heights.size === 1 && [...heights][0] === 28) {
-      checks--;
-    } else {
-      failures++;
-      console.error(`FAIL  chat rows have varied heights {${[...heights]}}`);
-    }
-    checks++;
+    check('chat rows share one height of 28', heights.size === 1 && [...heights][0] === 28, `heights {${[...heights]}}`);
     const pitches = new Set(m.chatRows.slice(1).map((r, i) => r.y - m.chatRows[i].y));
-    if (pitches.size <= 1) {
-      checks--;
-    } else {
-      failures++;
-      console.error(`FAIL  chat rows are not on a constant pitch {${[...pitches]}}`);
-    }
+    check('chat rows sit on a constant pitch', pitches.size <= 1, `pitches {${[...pitches]}}`);
   }
-  checks++;
-  if (m.newChat && m.preset && m.newChat.height === m.preset.height && m.newChat.y === m.preset.y && m.newChat.width === m.preset.width) {
-    checks--;
-  } else {
-    failures++;
-    console.error('FAIL  New Chat and the preset well are not the same box');
-  }
+  check(
+    'New Chat and the preset well are the same box',
+    !!m.newChat && !!m.preset && m.newChat.height === m.preset.height && m.newChat.y === m.preset.y && m.newChat.width === m.preset.width,
+  );
   m.pagerButtons.forEach((r, i) => checkGrid('pager button ' + i, r));
 
-  checks++;
-  if (m.composer.x === m.messageList.x && m.composer.width === m.messageList.width) {
-    checks--;
-  } else {
-    failures++;
-    console.error(`FAIL  composer (x=${m.composer.x} w=${m.composer.width}) is not on the message column (x=${m.messageList.x} w=${m.messageList.width})`);
-  }
+  m.messages.forEach((r, i) =>
+    check(
+      `message ${i} sits on the content column`,
+      r.x % 4 === 0 && r.width % 4 === 0 && r.width === m.messageList.width,
+      `x=${r.x} w=${r.width} column=${m.messageList.width}`,
+    ),
+  );
+  m.rails.forEach((r, i) => check(`message ${i} rail is 28`, r.height === 28, `h=${r.height}`));
+  m.bodies.forEach((r, i) => {
+    const frame = m.messages[i];
+    const dx = r.x - frame.x;
+    check(
+      `message ${i} screen is inset 8 with width frame-16`,
+      dx === 8 && r.width === frame.width - 16 && r.x % 4 === 0,
+      `inset=${dx} w=${r.width} frame=${frame.width}`,
+    );
+  });
+
+  check(
+    'composer sits on the message column',
+    m.composer.x === m.messageList.x && m.composer.width === m.messageList.width,
+    `composer x=${m.composer.x} w=${m.composer.width} column x=${m.messageList.x} w=${m.messageList.width}`,
+  );
 
   console.log(`\n${checks - failures}/${checks} checks passed, ${failures} failed`);
   process.exit(failures ? 1 : 0);
