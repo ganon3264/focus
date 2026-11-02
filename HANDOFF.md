@@ -1,301 +1,243 @@
 # Handoff — UI overhaul
 
-Branch `refactor/consolidate-ui`, off `master` (d7b89ad).
-Last commit `7433320`. 1416 tests + 269 frontend tests green, grid audit
-140/140.
+Branch `refactor/consolidate-ui`, off `master` (d7b89ad). Last commit `4239045`.
+1416 backend tests + 269 frontend tests green; grid audit 91/91 on the current
+(short) chat, 141/141 when the full sidebar/message surface is present.
 
-Read this before touching CSS or templates. Then read `static/css/design.css` —
-it is the contract, not a suggestion.
+Read this, then `static/css/primitives.css` (the closed vocabulary), then
+`PRIMITIVE-MAP.md` (the class audit that produced it). The CSS import order in
+`static/tailwind-input.css` is the load-bearing part of the architecture:
+legacy → surfaces → primitives, so primitives win every collision.
 
 ---
 
 ## 1. What this branch is
 
-Two tracks, in order:
-
-**A. Fragmentation cleanup — done.** The repo had the same component authored in
-two or three files, markup duplicated between Jinja and JS, and JS using CSS
-class names as its DOM API. That is all resolved:
+**A. Fragmentation cleanup — done.** Same component authored in two or three
+files, markup duplicated between Jinja and JS, JS using class names as its DOM
+API. Resolved in:
 
 | commit | what |
 |---|---|
-| `86a141e` | 201 dead cross-file CSS declarations, `.card` family, 8 macros (toggle, slider row, avatar, search toolbar, modal footer, tab bar, empty state, in-chat controls), deleted `/characters` `/personas` `/providers` pages |
-| `aab1fd3` | every JS DOM lookup is a `data-ui="<name>"` hook instead of a class selector (142 converted); guard test in `test_frontend.py` |
-| `3e44407` | message markup has one source: macros in `templates/macros.html` → rendered once into inert `<template>`s by `partials/chat/message-templates.html` → `message-builder.js` clones and fills. Fixture kept in sync by `test_message_template.py::test_message_templates_fixture_is_current` |
-| `76c5d3f`, `e2c0502` | every overlay opens/closes through `ModalController`; confirm/lightbox/crop/option-picker/fetch-models/secrets/trash all use `modal_shell`. `ModalController.onClose(id, fn)` exists for teardown |
+| `86a141e` | 201 dead cross-file CSS declarations, `.card` family, 8 macros, deleted `/characters` `/personas` `/providers` pages |
+| `aab1fd3` | every JS DOM lookup is a `data-ui="<name>"` hook (142 converted), guard test in `test_frontend.py` |
+| `3e44407` | message markup has one source: macros → `partials/chat/message-templates.html` → `message-builder.js` clones. Fixture kept in sync by `test_message_template.py` |
+| `76c5d3f`, `e2c0502` | every overlay opens/closes through `ModalController` |
 
-**B. New skin — reset to primitives (in progress).** The surface-by-surface
-pass was abandoned after the shell, both sidebars and messages were done. It
-produced *overrides*, not replacements: 1642 new lines against 153 deleted, 37
-selectors owned by two files, and `:not()` ladders (`.btn-secondary:not(.tool-tile)`)
-that made `.btn-secondary` mean two different things. That is why the left
-sidebar's tiles and the right sidebar's Trash Bin looked like different apps.
+**B. New skin — rebuilt primitive-first.** The first skin pass (shell, messages,
+sidebars) was abandoned because it produced *overrides* instead of replacements:
+1642 new lines against 153 deleted, 37 two-owner selectors, and `:not()` ladders
+that made one class mean two things. `PRIMITIVE-MAP.md` maps all 243 legacy
+classes onto one closed vocabulary (57 layout-only, 12 decisions, 25 protected
+JS hooks).
 
-`PRIMITIVE-MAP.md` is the audit that replaced it: all 243 legacy classes mapped
-to one closed vocabulary, 57 flagged layout-only, 12 open decisions, 25
-protected JS hooks. Read it before writing CSS.
-
-| commit | what |
-|---|---|
-| `329409e` … `34d27b3` | first skin pass: shell, messages, composer |
-| `58bd82c` … `7433320` | shell + both sidebars (kept as calibration reference) |
-| `PRIMITIVE-MAP.md` | class → primitive audit of the whole app |
-| `primitives.css` | the closed vocabulary + token repair + ladder deletion |
-
----
-
-## 2. Design contract
-
-### Grid
-
-One unit, `--u` = 4px. Every size in the app is a multiple of it. Tokens live in
-`static/css/variables.css`:
-
-| token | value | use |
+| step | state | what |
 |---|---|---|
-| `--inset` | 12 | panel padding, pane inset |
-| `--gutter` | 8 | gap between controls |
-| `--rail-h` | 24 | section rails |
-| `--row-h` | 28 | generic rows |
-| `--control-h` | 28 | control height |
-| `--control-h-sm` | 24 | dense icon keys |
-| `--control-h-lg` | 32 | primary controls, message rail, chat rows |
-| `--hair-w` | 1 | hairlines |
-| `--radius-panel` | 0 | panels/screens |
-| `--radius-control` | 2 | controls |
-
-**Hairlines are `inset box-shadow`, never `border`.** A border adds to the box;
-1px per row is exactly how a 16-row panel drifts off the ruler (this really
-happened). When converting a border to a shadow, also set `border: none` —
-leaving the old border in place is the other half of that bug.
-
-Text that must line up across rows uses fixed line boxes whose sum is the row
-height, so truncation can't change a row's geometry.
-
-### Material
-
-Four recipes, all theme-derived (`color-mix` against `--surface`/`--bg`) and
-declared in `variables.css`:
-
-| token | meaning |
-|---|---|
-| `--mat-raise` | box-shadow stack: lit top, shaded bottom, outer bottom line |
-| `--mat-raise-fill` | `linear-gradient(--mat-glow, --mat-shade)` |
-| `--mat-inset` | recessed: inner top shadow + lit bottom lip |
-| `--mat-well` | fill for recessed surfaces |
-| `--mat-brush` | 1.2% vertical brushing, chassis surfaces only |
-
-Rules:
-- **Raised = touchable, flat = readout.** Buttons/keys get the bevel; screens,
-  wells, status panels and the chat-list readout column stay flat.
-- **Fill is never the state indicator.** State is bevel + ink. Red is ink and
-  edge, not a wash (a translucent danger tint over the raise gradient reads as
-  "flat web hover" and was explicitly rejected).
-- Matte = low amplitude. Do not crank the gradients.
-- Messages carry *more* depth than controls: `--mat-glow +9%`, `--mat-shade
-  −10%`, `--mat-well` mixes surface→bg then darkens 6% (works on light themes
-  without turning into a grey slab). These overrides are scoped to `.message` in
-  `surfaces/messages.css` on purpose — do not promote them globally.
-- Depth is 1px. No big shadows except the floating modal layer.
-
-### Typography / alignment
-- Labels: mono caps, tracked, engraved (`text-shadow: 0 1px 0 --mat-lo`).
-- Readouts/values: mono, `font-variant-numeric: tabular-nums`.
-- Prose: Ronzino, 24px line rhythm.
-- Readouts that sit next to a larger name are **optically centred**, not
-  baseline-aligned (baseline makes small type hang low).
-- Panes share rail baselines: the left and right section titles start at the same
-  y and the same inset.
+| 0 | done | `PRIMITIVE-MAP.md` audit |
+| — | done | `primitives.css` written, tokens repaired, `:not()` ladders + `.btn*` legacy family deleted (`2796b9d`) |
+| 1 | done | shell + both sidebars (`70221c5`), `surfaces/shell.css` added |
+| 2 | done | messages + composer (`2b1feb5`), `chat.css` `input.css` `design.css` deleted |
+| — | done | polish rounds: grip LED, well rows, disclosure plates, reasoning block, prose metrics, composer (`c201e7b` … `4239045`) |
+| 3 | **next** | modals + forms |
+| 4 | todo | overlays (toasts, tooltips, lightbox, option picker) |
+| 5 | todo | delete the last legacy files + add the ownership guard test |
 
 ---
 
-## 3. CSS architecture — target layout
+## 2. The primitive contract
+
+Closed set — shapes are fixed, modifiers compose:
 
 ```
-variables.css     grid + material + ink/tint scales   (single source)
-tokens.css        Tailwind @theme (fonts/radius/shadows)
-base.css          reset
-primitives.css    ← THE closed vocabulary; the only file that styles a control
-surfaces/shell.css
-surfaces/sidebar.css
-surfaces/messages.css   (incl. the prose scope — `.markdown-content` is a
-                         scope, not a primitive)
-surfaces/modals.css
-surfaces/forms.css
-surfaces/overlays.css   (toasts, tooltips, lightbox, option picker)
+controls   .btn .key .nav .link .chip .tab .pager
+inputs     .field .check .switch
+structure  .rail .row .well .frame .panel .card .divider .disclosure .grip
+feedback   .toast .tooltip .spinner .empty .note .tag .avatar
 ```
 
-**Deleted so far:** `chat.css`, `input.css`, `design.css`. **Still to delete:**
-`layout.css`, `components.css`, `animations.css`, and `instrument.css` (now
-modals + forms only).
+- Intents: `.primary .create .danger .warning .success`. Sizes: `.sm .lg .xl`,
+  plus `.raised` on `.key` (a key that needs a plate of its own inside a well).
+- State is class-driven exactly as JS toggles it: `.active .disabled .expanded
+  .hidden .drag-over .copied .favorite-active .on`.
+- **Intent is ink + edge, or a tinted plate** (`.create`/`.toast-success`), never
+  a wash over a raised control. `.key.primary` is a solid accent key with a
+  lit-from-above gradient; `.key.primary.danger` swaps the hue for stop.
+- **Fill is the state in exactly one place**: `.grip` (the preset-variable drag
+  handle) — grey = no choice set, accent = set. The user chose the solid bar over
+  engraved lines; do not "fix" it back.
+- **A surface may set layout on its own container; it may not restyle a
+  primitive.** If a surface needs a different look, the primitive is wrong. Named
+  slots exist for exactly this: `.disclosure-title` / `.disclosure-meta`,
+  `.row-title` / `.row-meta` / `.row-label` / `.row-value` / `.row-actions`.
+  Never select on child position inside a primitive.
+- Hairlines are `inset box-shadow`, never `border`. Geometry is multiples of
+  `--u` (4px). No `:not()` ladders, no surface-scoped overrides of a primitive.
 
-### Primitive contract
+### Tokens (`variables.css`)
 
-- Shapes are fixed and finite — `.btn .key .nav .link .chip .tab` | `.field
-  .check .switch` | `.rail .row .well .frame .panel .card .divider .disclosure
-  .grip` | `.toast .tooltip .spinner .empty .note .tag .avatar .pager`.
-  Modifiers compose: `.sm .lg`, `.primary .create .danger .warning .success`.
-- **A surface may set layout on its own container; it may never restyle a
-  primitive.** If a surface needs a different look, the primitive is wrong.
-- No `:not()` ladders, no surface-scoped overrides of a primitive, no `border`
-  for hairlines. One owner per selector.
-- Intents are ink + edge, never a wash over the plate (a translucent fill on the
-  raise gradient reads as flat web hover).
-- State class names are fixed because JS toggles them: `active`, `disabled`,
-  `expanded`, `hidden`, `drag-over`, `copied`, `favorite-active`,
-  `message-placeholder`, `reasoning-open`, `processed`, `ready`, `details`,
-  `toast`, `toast-text`, `toast-actions`, `toast-leave`, `toast-btn`. They must
-  resolve identically in every primitive that carries them.
+Grid: `--u` 4, `--inset` 12, `--gutter` 8, `--rail-h` 24, `--row-h` 28,
+`--control-h{,-sm,-lg}` 28/24/32, `--hair-w` 1, `--radius-panel` 0,
+`--radius-control` 2.
+
+Material: `--mat-raise`, `--mat-raise-fill`, `--mat-inset`, `--mat-well`,
+`--mat-brush`, `--mat-hi/shade/lo/edge/glow`, `--hair-dark`/`--hair-lit`,
+`--hair-groove`.
+
+Ink/tint: `--ink-1/2`, `--hair`, `--hair-strong`, `--engrave`, `--tint-1/2/3`,
+`--edge`, `--danger-*`, `--success-*`.
+
+Font metrics: `--prose-ink-lead: 7px`, `--prose-ink-trail: 4px` — distance
+between a prose line box's edge and its ink at Ronzino 14/24. They are
+subtracted from `.message-body > .message-content`'s block margins so prose reads
+at the same rhythm as a plate beside it. **Re-measure if the body face or rhythm
+changes.**
+
+---
+
+## 3. CSS architecture
+
+```
+variables.css   grid + material + ink/tint + font metrics   (single source)
+tokens.css      Tailwind @theme (fonts/radius/shadows)
+base.css        reset + the one scrollbar rule
+primitives.css  THE vocabulary — the only file that styles a control
+surfaces/shell.css     chassis, pane widths, collapsed grips
+surfaces/sidebar.css   sections, preset selector/menu, variables, tools, status, chat rows, footer
+surfaces/messages.css  chat column, message frame/rail/screen, prose scope, composer
+```
+
+Import order: `tailwindcss → variables → tokens → base → layout → components →
+animations → instrument → surfaces/shell → surfaces/sidebar → surfaces/messages →
+primitives`. Surfaces are unlayered and come after legacy; primitives come last.
+
+**Still legacy** (target of steps 3–5): `instrument.css` (1248 — modals + forms
+only), `components.css` (645 — form/control leftovers, modal extras),
+`animations.css` (193 — toasts + keyframes), `layout.css` (50 — element-level
+form defaults; the only file left in `@layer components`).
 
 ---
 
 ## 4. Verification
 
 ```bash
-# app (already running on :8010 during development; don't start a second one
-# on the same port)
 fuser -k 8010/tcp; uv run python main.py --host 127.0.0.1 --port 8010
 
-# after any CSS change (tailwind.css is a generated, gitignored artifact)
+# after any CSS change — tailwind.css is a generated, gitignored artifact
 ./bin/tailwindcss-linux-x64 -i static/tailwind-input.css -o static/tailwind.css
 
-# the ruler — measures the live app in Chrome, fails on off-grid boxes
-node tests/frontend/grid-audit.js http://127.0.0.1:8010
-
-# tests
+node tests/frontend/grid-audit.js http://127.0.0.1:8010   # the ruler
 uv run pytest tests/ -q
 uv run pytest tests/frontend -q --no-cov -p no:cacheprovider
 ```
 
-`grid-audit.js` reads `getBoundingClientRect()` for panes, rails, chat rows, tool
-tiles, status rows, message frames/screens and the composer, then asserts:
-multiples of 4; sibling rows agree on top/height; pane insets; left/right rail
-baselines; preset well == New Chat box; message frames on the 800px column and
-screens inset exactly 8; composer on the message column. **Add selectors for
-every new surface** — a check that is not in the file does not exist.
+`grid-audit.js` measures the live app in Chrome: multiples of 4, sibling rows on
+one top/height, pane insets, left/right rail baselines, tiles, status rows, var
+groups/options, chat rows (against their scroll lane), pager, message frames on
+the 800px column, screen inset 8, composer on the message column. **Add
+selectors for every new surface** — a check that is not in the file does not
+exist. It now *skips* checks whose surface is absent (empty chat, no preset
+variables) instead of crashing; keep that property.
 
-Playwright is installed (`chromium.launch({ channel: 'chrome' })`); Chrome is at
-`/usr/bin/google-chrome`. Screenshot both colour schemes; the theme is user
-configurable, material must work on light and dark.
+Screenshot both schemes after any visual change. Playwright is installed
+(`chromium.launch({ channel: 'chrome' })`); apply the CSS build first, then
+hard-reload — the bundle is served with an ETag.
 
 ---
 
 ## 5. Environment / state
 
-- Dark theme slot in the local DB was switched to `builtin-instrument` (lifted
-  mid-grey chassis, amber accent). The user's custom "Midnight purple" theme is
-  untouched. Near-black themes cannot show bevels — no luminance headroom.
-- `Slate` and `Instrument` seeds were lifted to mid-greys in
-  `focus/db/themes.py`; `tests/api/test_themes.py` asserts those values.
-- Untracked scratch at repo root (`Screenshot_*.png`, `anima.md`, `todo*.txt`,
-  `workspace/`) belongs to the user. **Never `git add -A`.**
-- Browser caches the resolved theme in `localStorage['focus-theme-state']` and
-  the CSS bundle is served with an ETag. "It didn't change" is usually a stale
-  reload, not a bug — hard-reload before debugging.
+- Dark theme slot in the local DB is `builtin-instrument` (lifted mid-grey
+  chassis, amber accent). Near-black themes cannot show bevels.
+- `Slate` and `Instrument` seeds are lifted mid-greys in `focus/db/themes.py`;
+  `tests/api/test_themes.py` asserts those values.
+- Untracked scratch at repo root (`paste*.jpg`, `Screenshot_*.png`, `anima.md`,
+  `todo*.txt`, `workspace/`) belongs to the user. **Never `git add -A`.**
+- Browser caches the resolved theme in `localStorage['focus-theme-state']`.
+  "It didn't change" is usually a stale reload.
 
 ---
 
 ## 6. Remaining work
 
-Order matters: primitives first, then one surface per commit, each deleting the
-legacy blocks it replaces in the *same* commit. A commit that adds rules without
-deleting the old owner is how the last attempt went wrong.
+3. **Modals + forms.** Re-class `partials/modal-shell.html`, `partials/chat/modals.html`,
+   `partials/modals/*` to `.panel`/`.rail`/`.row`/`.field`/`.check`/`.switch`/`.btn`;
+   write `surfaces/modals.css` + `surfaces/forms.css`; delete the matching blocks
+   from `instrument.css` and `components.css`. Known leftovers to fix here: the
+   edit-message modal's textarea still carries legacy `.edit-block-ta` styling on
+   top of `.field`; `.btn-edit`, `.btn-icon`, `.btn-hero`, `.slot-btn`, `.btn-tag`,
+   `.tab-btn`, `.tree-child`, `.key-row`, `.secret-item` are all still legacy.
+   Resolves map §2 #7, #8, #9 — form modals are where the consistency payoff lands.
+4. **Overlays.** `.toast` (intent = tinted plate + ink, already in primitives),
+   `#hint-tooltip` → `.tooltip`, `#lightbox` → `.panel`, the option picker,
+   confirm. Delete `animations.css`'s component blocks, keep the keyframes.
+5. **Delete + guard.** `rm` `instrument.css`, `components.css`, `animations.css`,
+   `layout.css` (move the element-level form defaults into `base.css` or drop
+   them). Then add `tests/frontend/test_css_ownership.py`: fail if any file
+   outside `primitives.css` sets a look property (`background*`, `box-shadow`,
+   `color`, `border*`, `font*`, `text-transform`, `letter-spacing`) on a selector
+   whose subject is a primitive class, or contains `:not(`. That test is the gate
+   that stops the old two-owner pattern from returning.
 
-0. **`primitives.css` — done.** Vocabulary written, absorbed tokens moved to
-   `variables.css`, the three `:not()` ladders and the `.btn*` legacy family
-   deleted, `--font-mono-ui`/`font-synthesis-weight` moved out of
-   `instrument.css`. Grid audit 140/140, both schemes checked.
-1. **Shell + both sidebars — done.** Markup re-clased to primitives, legacy
-   sidebar skin deleted from `instrument.css`/`layout.css`/`components.css`,
-   `surfaces/shell.css` added, `surfaces/sidebar.css` rewritten,
-   `design.css` reduced to the composer. Ruler 141/141. Resolved map §2 #1, #2,
-   #3, #4, #6, #12. Known leftover: `.btn-danger`/`.btn-create`/`.btn-hero` in
-   the composer and the modals are now unstyled variants until their surface
-   lands (they fall back to the neutral plate).
-2. **Messages + composer — done.** `.frame`/`.well`/`.disclosure`/`.key`/
-   `.avatar`/`.field`/`.check`; `chat.css`, `input.css` and `design.css`
-   deleted, plus the centre-pane/input-bar blocks in `instrument.css`.
-   Resolved #5, #10, #11. Leftover: the message spinner keeps its own
-   avatar-tracing animation instead of `.spinner` (D10 stays open).
-3. **Modals + forms** — `.panel`/`.rail`/`.row`/`.field`/`.check`/`.switch`,
-   delete the modal + form blocks from `instrument.css` and `components.css`.
-   Resolves #7, #8, #9. Consistency here is free — it is composition now.
-4. **Overlays** — toast/tooltip/lightbox/option picker on `.toast`/`.tooltip`/
-   `.panel`, delete `animations.css`.
-5. **Delete** `instrument.css`, `design.css`, `layout.css`, `chat.css`,
-   `input.css`, `components.css`, `animations.css`. Then add
-   `tests/frontend/test_css_ownership.py`: fail if any file outside
-   `primitives.css` sets a look property (`background*`, `box-shadow`, `color`,
-   `border*`, `font*`, `text-transform`, `letter-spacing`) on a selector whose
-   subject is a primitive class, or contains `:not(`. That test is the gate that
-   keeps this from rotting back.
-
-Open decisions from the map (§4) are already called: D1 new `.check` shape;
-D2 `.tag` for static markers (`.chip` stays toggle-only); D3 `.field[type=range]`;
-D4 radio uses `.check`; D5 `.note` inline + `.tooltip` overlay (two things);
-D6 prose is a scope in `surfaces/messages.css`; D7 `.pager` composite; D8 role
-colour as a row *edge*; D9 `.grip` drawn, not `⋮⋮`; D10 one `.spinner`;
-D11 `.frame` for raised panels; D12 `.field.ghost` / `.field.swatch`.
-
-**Still open:** the preset-variables section flexes to fill the left pane, so a
-short list leaves ~400px of empty chassis above TOOLS. Make the list a recessed
-well so the space reads as an empty list, not a hole. Not started.
+Deferred debt, deliberately: form read/write has ~15 implementations and 102
+hardcoded IDs; registry bypasses (87 raw `fetch` vs 31 `hx*`) untouched.
 
 ---
 
-## 7. Traps
+## 7. Traps learned the hard way
 
-- **Don't rename** ids, `data-ui`, `data-action`, `hx-*`, or the state classes
-  JS toggles (`hidden`, `active`, `processed`, `reasoning-open`, `drag-over`,
-  `expanded`). JS is fully described by `data-ui`; classes are styling only.
-- Tailwind utilities are in a layer and **lose** to unlayered `instrument.css`
-  and `surfaces/*`. Adding `p-0` or `rounded-md` to fight a legacy rule does
-  nothing; write the rule in the owning surface file.
-- The pruner stores `offsetHeight`; changing message heights is fine, changing
-  the DOM shape JS queries is not.
-- **Disclosure heads have named slots.** `.disclosure-title` and
-  `.disclosure-meta` are the two text slots inside a head; never select on child
-  position inside a primitive from a surface file.
-- **Prose boxes carry font metrics.** `--prose-ink-lead` (7) / `--prose-ink-trail`
-  (4) live in `variables.css` and are subtracted from `.message-body >
-  .message-content`'s block margins, because a line box's leading otherwise makes
-  a plate→prose gap read 7px wider than plate→plate. They are metrics for
-  Ronzino 14/24; re-measure if the body face or rhythm changes.
-- **The composer floats.** `.input-bar` has 14u (56px) bottom padding so the
-  composer's centre sits on the status readout's midline. If the status panel
-  grows (cache/key rows appear) that alignment drifts by 12px per row.
-- **The pre-answer reasoning block has no head.** Its toggle lives on the
-  message rail, next to the model readout (`message_meta(..., show_reasoning)`),
-  and the index-0 block is a headless `.disclosure` whose content is hidden
-  until that toggle opens it. While hidden the block is `display: none`, so it
-  leaves no strip and no gap. Later (`<details>`) blocks carry their own
-  summaries. Every block is a `.disclosure` plate with a hairline ring — the
-  ring is what makes the body read as enclosed on themes where the plate and the
-  surface behind it are the same value.
-- Message markup is single-sourced. Editing `templates/macros.html` message
-  macros requires regenerating `tests/frontend/fixtures/message-templates.html`
-  or the fixture test fails (it renders the same Jinja template with the test's
-  env — just do that).
-- If delegating to agents: give them exclusive file ownership (the surfaces are
-  split precisely so two agents never share a file), the token names they may
-  use, and the ruler command as the acceptance gate. They cannot judge "does
-  this look like FL" — the material is tokenised so they don't need to, but any
-  agent that starts inventing shadows or px values is off-contract.
+- **`.message` must carry `.frame`.** The look comes from the primitive; drop the
+  class and messages render as bare prose. This happened once and cost a round.
+- **The pre-answer reasoning block has no head.** Its toggle lives on the rail
+  (`message_meta(..., show_reasoning)`); the index-0 block is a headless
+  `.disclosure` hidden with `display: none` while its content is `.hidden`, so it
+  leaves no strip and no gap. `toggleReasoning` unhides the content; every
+  `<details>` block carries its own `summary`. `ensureReasoningToggleButton`
+  inserts into `message-meta`, never into the block.
+- **Disclosures need a ring.** A fill alone disappears on themes where
+  `--surface` and `--mat-well` are the same value; `.disclosure` carries
+  `inset 0 0 0 1px var(--hair)` and that is what makes the body read as enclosed.
+- **Only the rail's own caret turns.** `.message.reasoning-open .message-meta
+  .reasoning-chevron` — an unscoped rule flipped every disclosure in the message.
+- **`textarea` needs `rows="1"`.** Without it, `height: auto` falls back to the
+  UA's two-row intrinsic height and `resizeTextarea` makes the composer jump on
+  the first keystroke. Height is driven by `scrollHeight` vs the CSS
+  `max-height`; never reintroduce a constant like the old `44px`.
+- **Chat rows are measured against their scroll lane**, not the pane: the
+  scrollbar gutter makes `pane width - 2*inset` impossible.
+- **The composer floats**: `.input-bar` has 10u (40px) bottom padding, putting the
+  composer's centre at 936 vs the status readout's midline 920. The status panel
+  grows by 12px per extra row (cache/key rows), so that alignment drifts.
+- **Tailwind utilities lose** to unlayered surface/primitives rules. Adding `p-0`
+  or `rounded-md` to fight them does nothing; write the rule in the owning file —
+  and for look properties, in `primitives.css` behind a modifier.
+- **Message markup is single-sourced.** Editing the message macros means
+  regenerating `tests/frontend/fixtures/message-templates.html` (render
+  `chat/message-templates.html` with a plain Jinja env; the test compares text).
+- **The pruner stores `offsetHeight`**; message heights may change, the DOM shape
+  JS queries may not.
+- Don't rename `id`, `data-ui`, `data-action`, `hx-*`, or the state classes JS
+  toggles (`hidden active disabled expanded details drag-over processed ready
+  copied favorite-active reasoning-open message-placeholder toast*`).
+
+---
 
 ## 8. User's explicit preferences (learned the hard way)
 
-- Compact chat list: one line per row, fixed 80px readout column carrying date
-  over persona; persona must stay visible.
-- No red washes on destructive controls; red in ink only.
-- No corner/bracket motifs; no rounded cards.
-- Everything aligned: hairlines on row boundaries (midway between values), no
-  "floating" lines 4px below content.
-- Message frames: heavier (current tuned values) rather than lighter.
-- Alignment is non-negotiable; if something is 1–2px off it *will* be noticed.
-- Separators are grooves (dark line + lit line under it), never a lone dark line
-  — a lone one reads as a gap between separate plates.
-- Row content gets interior padding; hairlines share edges across nesting levels.
-  An indent belongs in `padding`, not in the row's box.
-- Carets and separator dots are drawn (`.caret-mark`, a 2px square), never glyphs
-  or icons — those sit on their own half-pixel and stop sharing a centre line
-  with neighbouring type at 1x zoom.
+- Compact chat list: one line per row, fixed 80px readout column (date over
+  persona); persona must stay visible.
+- No red washes on destructive controls in general — but **intent plates**
+  (create, toast success/error, primary key) carry their hue across the whole
+  surface, because a 1px edge does not read as "this failed" from across the
+  screen.
+- No corner/bracket motifs, no rounded cards. Controls get `--radius-control` (2),
+  panels stay square.
+- Everything aligned; if something is 1–2px off it *will* be noticed. Gaps next to
+  prose are compensated by font metrics, not eyeballed.
+- Separators are grooves (dark line + lit line under it), never a lone dark line.
+- Row content gets interior padding; an indent belongs in `padding`, not in the
+  row's box. Rows inside a `.well` paint no groove at all — the well is the frame.
+- Carets and separator dots are drawn (`.caret-mark`, a 2px square), never glyphs.
+- Message frames: heavier rather than lighter. The reasoning toggle stays next to
+  the model name. Disclosures are plates, not loose ruled prose.
+- Composer: 14px body, floating clear of the floor, and it must not change size
+  on the first keystroke.
