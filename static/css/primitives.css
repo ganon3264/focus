@@ -788,25 +788,25 @@ textarea.field {
   box-shadow: inset 0 var(--hair-w) 0 var(--hair);
 }
 
-/* ── .grip — drag handle ───────────────────────────────────────────────────
-   Three engraved lines on the grid, in currentColor so a caller can light it.
-   A lifted grip (`.on`) means the thing it holds has a value set. */
+/* ── .grip — drag handle and its LED ──────────────────────────────────────
+   One solid bar, lit from above like every other raised thing: the one place a
+   fill is the state, because that is what an indicator is. Grey when the thing
+   it holds is unset, accent when it is set. */
 .grip {
   flex: none;
-  width: calc(var(--u) * 3);
+  width: calc(var(--u) * 2);
   height: calc(var(--u) * 5);
-  background-image: repeating-linear-gradient(
-    90deg,
-    currentColor 0 var(--hair-w),
-    transparent var(--hair-w) var(--u)
-  );
-  color: color-mix(in srgb, var(--text) 22%, transparent);
-  opacity: 0.9;
+  border-radius: var(--radius-control);
+  background-color: color-mix(in srgb, var(--text) 24%, transparent);
+  box-shadow:
+    inset 0 var(--hair-w) 0 color-mix(in srgb, white 18%, transparent),
+    inset 0 calc(-1 * var(--hair-w)) 0 color-mix(in srgb, black 35%, transparent);
   cursor: grab;
+  transition: background-color var(--transition);
 }
 
 .grip.on {
-  color: var(--accent);
+  background-color: var(--accent);
 }
 
 .grip:active {
