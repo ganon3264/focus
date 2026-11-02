@@ -194,6 +194,10 @@
 </div>
 {% endmacro %}
 
+{# A row whose last verb is absent still takes its space: a missing delete key
+   must not slide the remaining keys into another column. #}
+{% macro verb_slot() %}<span class="key sm slot-empty" aria-hidden="true"></span>{% endmacro %}
+
 {% macro toggle(attrs='', active=false, extra_classes='') %}
 <div class="switch{{ (' ' ~ extra_classes) if extra_classes else '' }}{{ ' active' if active else '' }}" role="switch" tabindex="0"{% if attrs %} {{ attrs | safe }}{% endif %}></div>
 {% endmacro %}
@@ -260,6 +264,7 @@
   </span>
   <span class="row-actions">
     {{ toggle('title="Toggle In-Chat Mode" data-curr-depth="' ~ (block.injection_depth if block.injection_depth is not none else '') ~ '" onclick="handleArrangerBlockUpdate(this, {injection_depth: this.dataset.currDepth ? null : 0})"', active=block.injection_depth is not none) }}
+    {{ verb_slot() }}
   </span>
 </div>
   {% if block.injection_depth is not none %}

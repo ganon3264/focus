@@ -1,5 +1,5 @@
 {% from "macros.html" import custom_select, icon_plus, icon_close, icon_chevron_right,
-media_thumbnail, hint_tooltip, icon_sliders, in_chat_controls, toggle %}
+media_thumbnail, hint_tooltip, icon_sliders, in_chat_controls, toggle, verb_slot %}
 <div
   class="arranger-item{% if not block.enabled %} disabled{% endif %}"
   data-ui="arranger-item"
@@ -44,6 +44,8 @@ media_thumbnail, hint_tooltip, icon_sliders, in_chat_controls, toggle %}
       >
         {{ icon_close(14) }}
       </button>
+      {% else %}
+      {{ verb_slot() }}
       {% endif %}
     </div>
   </div>
@@ -61,20 +63,14 @@ media_thumbnail, hint_tooltip, icon_sliders, in_chat_controls, toggle %}
           role="button"
           tabindex="0"
           onclick="openBlockModal(this, 'content')"
-        >
-          {% if block.content %}{{ block.content[:80] }}{% if block.content | length > 80 %}…{% endif
-          %}{% else %}<span class="note">Empty — click to edit</span>{% endif %}
-        </div>
+        >{{ block.content[:80] }}{% if block.content | length > 80 %}…{% endif %}{% if not block.content %}<span class="note">Empty — click to edit</span>{% endif %}</div>
         {% if block.role == 'assistant' %}
         <div
           class="well p-2 preview-out reasoning-preview"
           role="button"
           tabindex="0"
           onclick="openBlockModal(this, 'reasoning')"
-        >
-          {% if block.reasoning %}<span class="row-label">reasoning</span> {{ block.reasoning[:80] }}{% if block.reasoning | length > 80 %}…{% endif %}
-          {% else %}<span class="note">No reasoning — click to add</span>{% endif %}
-        </div>
+        >{% if block.reasoning %}<span class="row-label">reasoning</span> {{ block.reasoning[:80] }}{% if block.reasoning | length > 80 %}…{% endif %}{% else %}<span class="note">No reasoning — click to add</span>{% endif %}</div>
         {% endif %}
       </div>
     </div>
@@ -109,10 +105,7 @@ media_thumbnail, hint_tooltip, icon_sliders, in_chat_controls, toggle %}
           role="button"
           tabindex="0"
           onclick="openBlockModal(this, 'content')"
-        >
-          {% if block.content %}{{ block.content[:80] }}{% if block.content | length > 80 %}…{% endif
-          %}{% else %}<span class="note">Empty — click to edit</span>{% endif %}
-        </div>
+        >{{ block.content[:80] }}{% if block.content | length > 80 %}…{% endif %}{% if not block.content %}<span class="note">Empty — click to edit</span>{% endif %}</div>
         <button
           type="button"
           class="btn sm self-start"
@@ -162,10 +155,10 @@ media_thumbnail, hint_tooltip, icon_sliders, in_chat_controls, toggle %}
       {% for img in block.images %} {{ media_thumbnail(img, "deleteBlockMedia", '') }} {% endfor %}
 
       <label
-        class="key xl create"
+        class="key lg create"
         title="Add image or audio"
       >
-        {{ icon_plus(20) }}
+        {{ icon_plus(18) }}
         <input
           type="file"
           accept="image/*,audio/*"

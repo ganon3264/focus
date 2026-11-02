@@ -559,6 +559,15 @@
   align-items: center;
   gap: var(--gutter);
   padding: var(--gutter) 0 0 calc(var(--u) * 5);
+  /* A block's media is a tray inside an expanded row, not a gallery: thumbs and
+     the add tile share one 32px slot. */
+  --thumb-size: calc(var(--u) * 8);
+}
+
+/* A row whose last verb is absent reserves its slot, so the verbs that are
+   there keep one column down the list. */
+.slot-empty {
+  visibility: hidden;
 }
 
 .arranger-add-buttons {
@@ -668,13 +677,16 @@
 
 /* A readout of what the engine returned: monospace, pre-wrap, closed on a
    hairline so an empty result leaves no gap. */
+/* A preview is a readout, not a field: one line, clamped. It opens the editor
+   on click, so there is nothing to type here and nothing to grow. */
 .preview-out {
   font-family: var(--font-mono-ui);
   font-size: 11px;
   line-height: calc(var(--u) * 4);
   color: var(--text);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .preview-out:empty {

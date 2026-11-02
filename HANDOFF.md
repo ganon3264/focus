@@ -260,6 +260,13 @@ What is left is the debt the pass deliberately did not take on:
 ## 8. Traps learned the hard way
 
 - **`.message` must carry `.frame`.** The look comes from the primitive.
+- **A preview is not a field.** `.preview-out` used `white-space: pre-wrap`, so
+  the template's own newlines and indentation around the block content became
+  visible blank lines and a one-line block previewed 80px tall. It is `nowrap`
+  with an ellipsis now; the template whitespace inside the div is trimmed too.
+- **A row missing a verb shifts the rest.** The arranger's switch sat 28px
+  right on rows with no delete key. `verb_slot()` renders an invisible `.key.sm`
+  so the cluster keeps its column (same reason the provider rail is `flush`).
 - **A surface override of a primitive's geometry loses silently.** `.row.sm`
   (primitives, imported last) beats `.preset-menu .row { min-height }` at equal
   specificity — so restyle by picking the right modifier, not by re-declaring.
