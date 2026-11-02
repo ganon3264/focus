@@ -101,12 +101,6 @@
   min-width: 0;
 }
 
-.message .avatar {
-  width: var(--msg-avatar-size);
-  height: var(--msg-avatar-size);
-  cursor: pointer;
-}
-
 .message-author {
   min-width: 0;
   overflow: hidden;
@@ -242,27 +236,22 @@
   color: var(--text);
 }
 
-/* Prose carries its line leading inside its own box: at 14/24 the first glyph's
-   ink sits 7px below the box top, so the screen's 12px gap reads as 19 next to
-   text while it reads as 12 next to a plate. Prose that follows a plate is
-   pulled up by that lead, so both gaps look like one number. */
-.message-body > .disclosure + .message-content,
-.message-body > .tool-calls-section + .message-content {
+/* Prose carries its line leading inside its own box, so a 12px gap reads as 19
+   above the first glyph and 16 below the last. Both edges are pulled in by the
+   font's own lead/trail, so a prose box measures the same as a plate on either
+   side — one rule, whatever the neighbour is. */
+.message-body > .message-content {
   margin-top: calc(-1 * var(--prose-ink-lead));
+  margin-bottom: calc(-1 * var(--prose-ink-trail));
 }
 
-.message-content.markdown-content p {
+.markdown-content p {
   margin: 0 0 var(--inset);
 }
 
+/* Outranks `.markdown-content p` on its own, so no message-scoped patch is
+   needed: the final block never contributes a trailing gutter. */
 .markdown-content > :last-child {
-  margin-bottom: 0;
-}
-
-/* Same rule, scoped to the message: `.message .markdown-content p` is more
-   specific than the bare last-child rule, so the final paragraph kept a gutter
-   of trailing margin and every message ended 12px deeper than it should. */
-.message .markdown-content > :last-child {
   margin-bottom: 0;
 }
 
@@ -402,31 +391,11 @@
   display: none;
 }
 
-.message .disclosure > summary > :is(span, code) {
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
 /* Only the rail's own toggle turns. `reasoning-open` sits on the message, so an
    unscoped rule flipped every disclosure's caret in the same message. */
 .message.reasoning-open .message-meta .reasoning-chevron,
 .reasoning-sticky-pill .reasoning-chevron {
   transform: rotate(135deg);
-}
-
-.message .disclosure.tool-call > summary code {
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  color: var(--text);
-}
-
-.message .disclosure.tool-call > summary > span:last-child {
-  flex: 1;
-  letter-spacing: 0.02em;
-  text-transform: none;
-  color: var(--text-faint);
 }
 
 .reasoning-content,
@@ -587,10 +556,14 @@
 
 /* ── Composer ─────────────────────────────────────────────────────────────
    A recessed console well with one raised action. */
+/* The composer floats clear of the pane's bottom edge: its centre lands on the
+   midline of the status readout in the left pane, so the two panes share one
+   horizontal band instead of the input hugging the viewport floor. */
 .input-bar {
   display: flex;
   justify-content: center;
   z-index: 20;
+  padding-bottom: calc(var(--u) * 14);
   pointer-events: none;
 }
 

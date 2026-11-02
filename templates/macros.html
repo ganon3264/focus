@@ -532,7 +532,7 @@
 <details class="disclosure reasoning-block pl-stream" data-ui="reasoning-block" data-think-id="{{ think_id }}">
   <summary>
     <span class="caret-mark reasoning-chevron" aria-hidden="true"></span>
-    <span>{{ title }}</span>
+    <span class="disclosure-title">{{ title }}</span>
   </summary>
   <div class="disclosure-body reasoning-content markdown-content" data-ui="reasoning-content markdown-content">{{ content }}</div>
 </details>
@@ -566,9 +566,9 @@
 <details class="disclosure tool-call">
   <summary>
     <span class="caret-mark reasoning-chevron" aria-hidden="true"></span>
-    <code>{{ tc.function.name }}</code>
+    <code class="disclosure-title">{{ tc.function.name }}</code>
     {% if tc.function.arguments and tc.function.arguments != '{}' %}
-    <span>{{ tc.function.arguments }}</span>
+    <span class="disclosure-meta">{{ tc.function.arguments }}</span>
     {% endif %}
   </summary>
   <div class="disclosure-body tool-result-body" data-ui="tool-result-body">

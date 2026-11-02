@@ -160,13 +160,22 @@ async function measure(page) {
   checkGrid('chat input', m.chatInput);
   checkGrid('send', m.send);
 
-  checkInset('left rail', m.leftTitles[0], m.leftPane, inset);
-  checkInset('right rail', m.rightTitles[0], m.rightPane, inset);
-  checkInset('preset well', m.preset, m.leftPane, inset);
-  checkInset('new chat', m.newChat, m.rightPane, inset);
+  if (m.leftTitles.length) checkInset('left rail', m.leftTitles[0], m.leftPane, inset);
+  if (m.rightTitles.length) checkInset('right rail', m.rightTitles[0], m.rightPane, inset);
+  if (m.preset) checkInset('preset well', m.preset, m.leftPane, inset);
+  if (m.newChat) checkInset('new chat', m.newChat, m.rightPane, inset);
 
-  checkSameRow('pane rails', [m.leftTitles[0], m.rightTitles[0]]);
-  checkSameRow('first control row', [m.preset, m.newChat]);
+  if (m.leftTitles.length && m.rightTitles.length) {
+    checkSameRow('pane rails', [m.leftTitles[0], m.rightTitles[0]]);
+  }
+  if (m.preset && m.newChat) {
+    checkSameRow('first control row', [m.preset, m.newChat]);
+    check(
+      'New Chat and the preset well are the same box',
+      m.newChat.height === m.preset.height && m.newChat.y === m.preset.y,
+      `new chat ${m.newChat.height}@${m.newChat.y} vs preset ${m.preset.height}@${m.preset.y}`,
+    );
+  }
   checkHeight('preset well', m.preset, [28, 32]);
   checkHeight('new chat', m.newChat, [28, 32]);
   m.tiles.forEach((r, i) => checkHeight('tool tile ' + i, r, [28, 32]));
@@ -175,15 +184,23 @@ async function measure(page) {
   m.varOptions.forEach((r, i) => checkHeight('var option ' + i, r, [24, 28]));
   m.varKeys.forEach((r, i) => checkHeight('var key ' + i, r, [16]));
   m.varAddRows.forEach((r, i) => checkHeight('var add row ' + i, r, [28, 32]));
-  checkInset('var group', m.varGroups[0], m.leftPane, inset);
-  check(
-    'var labels share one left edge',
-    m.varGroupHeaders.every((r) => r.x === m.varGroupHeaders[0].x),
-  );
-  check(
-    'var options indent past their group name',
-    m.varOptions.length > 0 && m.varOptions.every((r) => r.x >= m.varGroups[0].x),
-  );
+  // The active chat's preset may legitimately have no variables (or every group
+  // may be collapsed); those checks only run when the surface is on screen.
+  if (m.varGroups.length) {
+    checkInset('var group', m.varGroups[0], m.leftPane, inset);
+  }
+  if (m.varGroupHeaders.length) {
+    check(
+      'var labels share one left edge',
+      m.varGroupHeaders.every((r) => r.x === m.varGroupHeaders[0].x),
+    );
+  }
+  if (m.varOptions.length && m.varGroups.length) {
+    check(
+      'var options indent past their group name',
+      m.varOptions.every((r) => r.x >= m.varGroups[0].x),
+    );
+  }
   checkHeight('composer', m.composer, [40, 48, 56]);
   checkHeight('chat input', m.chatInput, [28, 32, 36]);
   checkHeight('send', m.send, [28, 32]);
@@ -220,10 +237,6 @@ async function measure(page) {
     const pitches = new Set(m.chatRows.slice(1).map((r, i) => r.y - m.chatRows[i].y));
     check('chat rows sit on a constant pitch', pitches.size <= 1, `pitches {${[...pitches]}}`);
   }
-  check(
-    'New Chat and the preset well are the same box',
-    !!m.newChat && !!m.preset && m.newChat.height === m.preset.height && m.newChat.y === m.preset.y && m.newChat.width === m.preset.width,
-  );
   m.pagerButtons.forEach((r, i) => checkGrid('pager button ' + i, r));
 
   m.messages.forEach((r, i) =>

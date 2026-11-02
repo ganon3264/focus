@@ -824,6 +824,32 @@ textarea.field {
   padding: var(--gutter);
 }
 
+/* Slots inside the head. The head is a flex row of caret · title · meta, so the
+   primitive names the two text slots instead of letting every caller select on
+   child position. */
+.disclosure-title,
+.disclosure-meta {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.disclosure-title {
+  flex: 0 1 auto;
+  font-family: inherit;
+  font-size: inherit;
+  letter-spacing: inherit;
+  color: var(--text);
+}
+
+.disclosure-meta {
+  flex: 1 1 auto;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--text-faint);
+}
+
 /* ── .grip — drag handle and its LED ──────────────────────────────────────
    One solid bar, lit from above like every other raised thing: the one place a
    fill is the state, because that is what an indicator is. Grey when the thing

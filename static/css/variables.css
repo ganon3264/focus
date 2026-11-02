@@ -148,10 +148,11 @@
   /* Shared content column width (message list, input bar, staging area) */
   --chat-content-width: min(100%, 800px);
 
-  /* Distance from a prose line box's top to the first glyph's ink, at the
-     14px/24px body rhythm. Font metric, not a design choice: gaps next to prose
-     subtract it so they read the same as gaps next to a plate. */
+  /* Distance between a prose line box's edge and its ink, at the 14px/24px body
+     rhythm. Font metrics, not design values: gaps next to prose subtract them so
+     prose reads at the same rhythm as a plate beside it. */
   --prose-ink-lead: 7px;
+  --prose-ink-trail: 4px;
 
   /* Role colors for arranger items (user/assistant) */
   --role-user: #10b981;
