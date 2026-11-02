@@ -592,6 +592,7 @@ textarea.field {
 /* An icon inside a row title rides the text's centre line instead of opening a
    taller line box — that is how a row stays 32px tall with or without one. */
 .row-title > svg {
+  display: inline-block;
   flex: none;
   vertical-align: middle;
 }
@@ -788,17 +789,24 @@ textarea.field {
 }
 
 /* ── .grip — drag handle ───────────────────────────────────────────────────
-   Two engraved lines on the grid: the last text glyph in the chrome is gone. */
+   Three engraved lines on the grid, in currentColor so a caller can light it.
+   A lifted grip (`.on`) means the thing it holds has a value set. */
 .grip {
   flex: none;
   width: calc(var(--u) * 3);
-  height: calc(var(--u) * 6);
-  background: none;
-  box-shadow:
-    inset var(--u) 0 0 var(--text-faint),
-    inset calc(var(--u) * 2) 0 0 var(--text-faint);
-  opacity: 0.6;
+  height: calc(var(--u) * 5);
+  background-image: repeating-linear-gradient(
+    90deg,
+    currentColor 0 var(--hair-w),
+    transparent var(--hair-w) var(--u)
+  );
+  color: color-mix(in srgb, var(--text) 22%, transparent);
+  opacity: 0.9;
   cursor: grab;
+}
+
+.grip.on {
+  color: var(--accent);
 }
 
 .grip:active {

@@ -6,7 +6,7 @@
     <div class="row"
          @click="expanded = expandToggle('varGroups', $el.closest('[data-ui=var-group-container]').dataset.groupName)"
          role="button" tabindex="0" aria-expanded="false" style="cursor: pointer;">
-      <div class="grip"></div>
+      <div class="grip{% if selected %} on{% endif %}"></div>
       <span class="caret-mark" data-ui="var-group-caret" :class="expanded ? 'rotate-90' : ''" aria-hidden="true"></span>
       <span class="row-title">{{ vname }}</span>
       <div class="row-actions">
