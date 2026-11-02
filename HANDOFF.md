@@ -24,16 +24,23 @@ class names as its DOM API. That is all resolved:
 | `3e44407` | message markup has one source: macros in `templates/macros.html` → rendered once into inert `<template>`s by `partials/chat/message-templates.html` → `message-builder.js` clones and fills. Fixture kept in sync by `test_message_template.py::test_message_templates_fixture_is_current` |
 | `76c5d3f`, `e2c0502` | every overlay opens/closes through `ModalController`; confirm/lightbox/crop/option-picker/fetch-models/secrets/trash all use `modal_shell`. `ModalController.onClose(id, fn)` exists for teardown |
 
-**B. New skin — in progress.** FL-Studio-ish pseudo-skeuomorphic language,
-calibrated on the shell + messages. Commits `329409e` … `34d27b3`, then the
-pass on the shell + both sidebars (`58bd82c` … `7433320`):
+**B. New skin — reset to primitives (in progress).** The surface-by-surface
+pass was abandoned after the shell, both sidebars and messages were done. It
+produced *overrides*, not replacements: 1642 new lines against 153 deleted, 37
+selectors owned by two files, and `:not()` ladders (`.btn-secondary:not(.tool-tile)`)
+that made `.btn-secondary` mean two different things. That is why the left
+sidebar's tiles and the right sidebar's Trash Bin looked like different apps.
+
+`PRIMITIVE-MAP.md` is the audit that replaced it: all 243 legacy classes mapped
+to one closed vocabulary, 57 flagged layout-only, 12 open decisions, 25
+protected JS hooks. Read it before writing CSS.
 
 | commit | what |
 |---|---|
-| `58bd82c` | separators are grooves (`--hair-dark` + `--hair-lit`), not single black cuts; `--mat-lo` 28%→22% |
-| `c041d40`, `ba69810` | the reasoning caret is drawn (`.caret-mark`), the `·` became a 2px square, one gutter on both sides |
-| `ba69810` | toolbar keys take full text ink (muted ink on a white plate was invisible on light themes) |
-| `cf78be5`, `7433320` | preset variables migrated to the new language (square LEDs, drawn carets, mono values, grooves); 153 lines of legacy sidebar-var skin deleted, which also killed the 1px `border-bottom` dividers |
+| `329409e` … `34d27b3` | first skin pass: shell, messages, composer |
+| `58bd82c` … `7433320` | shell + both sidebars (kept as calibration reference) |
+| `PRIMITIVE-MAP.md` | class → primitive audit of the whole app |
+| `primitives.css` | the closed vocabulary + token repair + ladder deletion |
 
 ---
 
@@ -102,33 +109,44 @@ Rules:
 
 ---
 
-## 3. CSS architecture (transitional)
+## 3. CSS architecture — target layout
 
 ```
-variables.css   grid + material tokens            (single source)
-tokens.css      Tailwind @theme (fonts/radius)
-base.css        reset
-layout/chat/input/components/animations   ← LEGACY, layered
-instrument.css  ← LEGACY, unlayered, still wins over the above
-design.css      NEW: primitives + calibrated left sidebar & composer
-surfaces/sidebar.css    NEW: right sidebar, chat list, pager, composer chrome
-surfaces/messages.css   NEW: message frame/screen/rail/reasoning/tool cards
+variables.css     grid + material + ink/tint scales   (single source)
+tokens.css        Tailwind @theme (fonts/radius/shadows)
+base.css          reset
+primitives.css    ← THE closed vocabulary; the only file that styles a control
+surfaces/shell.css
+surfaces/sidebar.css
+surfaces/messages.css   (incl. the prose scope — `.markdown-content` is a
+                         scope, not a primitive)
+surfaces/modals.css
+surfaces/forms.css
+surfaces/overlays.css   (toasts, tooltips, lightbox, option picker)
 ```
 
-Import order in `static/tailwind-input.css` puts `design.css` and
-`surfaces/*` last, unlayered — so they beat legacy rules without touching them.
-`instrument.css` (1976 lines and falling) is still the old skin underneath and
-must be deleted once every surface is migrated. Do not add new rules to the
-legacy files.
+**To be deleted:** `layout.css`, `chat.css`, `input.css`, `components.css`,
+`animations.css` (1910 lines, layered), `instrument.css` (legacy skin, still the
+owner of modals/forms), and `design.css` (the calibration file, once its left
+sidebar rules are re-expressed against primitives).
 
-`design.css` also owns the two primitives both sidebars and messages need:
-`.caret-mark` (a drawn caret — integer geometry, so it cannot lose an edge to
-antialiasing at 1x the way a 12px icon's diagonal does) and the `--hair-groove`
-token pair. Use them rather than an `icon_chevron_right(12)` or a lone dark
-line.
+### Primitive contract
 
-When a surface is migrated: write its rules in its `surfaces/*.css`, delete the
-matching legacy block, and add the surface's boxes to the ruler.
+- Shapes are fixed and finite — `.btn .key .nav .link .chip .tab` | `.field
+  .check .switch` | `.rail .row .well .frame .panel .card .divider .disclosure
+  .grip` | `.toast .tooltip .spinner .empty .note .tag .avatar .pager`.
+  Modifiers compose: `.sm .lg`, `.primary .create .danger .warning .success`.
+- **A surface may set layout on its own container; it may never restyle a
+  primitive.** If a surface needs a different look, the primitive is wrong.
+- No `:not()` ladders, no surface-scoped overrides of a primitive, no `border`
+  for hairlines. One owner per selector.
+- Intents are ink + edge, never a wash over the plate (a translucent fill on the
+  raise gradient reads as flat web hover).
+- State class names are fixed because JS toggles them: `active`, `disabled`,
+  `expanded`, `hidden`, `drag-over`, `copied`, `favorite-active`,
+  `message-placeholder`, `reasoning-open`, `processed`, `ready`, `details`,
+  `toast`, `toast-text`, `toast-actions`, `toast-leave`, `toast-btn`. They must
+  resolve identically in every primitive that carries them.
 
 ---
 
@@ -180,36 +198,44 @@ configurable, material must work on light and dark.
 
 ## 6. Remaining work
 
-**Shell + both sidebars: done** — except one open question: the preset-variables
-section flexes to fill the pane, so a short variable list leaves ~400px of empty
-chassis above TOOLS. The suggested fix is to make that list a recessed well
-(like the status panel) so the space reads as an empty list instead of a hole.
-Not started; needs a call.
+Order matters: primitives first, then one surface per commit, each deleting the
+legacy blocks it replaces in the *same* commit. A commit that adds rules without
+deleting the old owner is how the last attempt went wrong.
 
-**Surfaces still on the old skin** (priority order):
+0. **`primitives.css` — done.** Vocabulary written, absorbed tokens moved to
+   `variables.css`, the three `:not()` ladders and the `.btn*` legacy family
+   deleted, `--font-mono-ui`/`font-synthesis-weight` moved out of
+   `instrument.css`. Grid audit 140/140, both schemes checked.
+1. **Shell + sidebars** — re-class markup to `.rail/.row/.nav/.key/.btn/.well`,
+   fold `design.css` left-sidebar rules into `surfaces/sidebar.css` against
+   primitives, delete the sidebar blocks from `instrument.css` and
+   `layout.css`. Resolves map §2 #1, #2, #3, #4, #6, #12.
+2. **Messages + composer** — `.frame`/`.well`/`.disclosure`/`.key`, delete
+   `chat.css`, `input.css`, `surfaces/messages.css`'s legacy overlaps.
+   Resolves #5, #10, #11.
+3. **Modals + forms** — `.panel`/`.rail`/`.row`/`.field`/`.check`/`.switch`,
+   delete the modal + form blocks from `instrument.css` and `components.css`.
+   Resolves #7, #8, #9. Consistency here is free — it is composition now.
+4. **Overlays** — toast/tooltip/lightbox/option picker on `.toast`/`.tooltip`/
+   `.panel`, delete `animations.css`.
+5. **Delete** `instrument.css`, `design.css`, `layout.css`, `chat.css`,
+   `input.css`, `components.css`, `animations.css`. Then add
+   `tests/frontend/test_css_ownership.py`: fail if any file outside
+   `primitives.css` sets a look property (`background*`, `box-shadow`, `color`,
+   `border*`, `font*`, `text-transform`, `letter-spacing`) on a selector whose
+   subject is a primitive class, or contains `:not(`. That test is the gate that
+   keeps this from rotting back.
 
-1. **Modals** — `modal_shell`, headers, tab bars (`partials/chat/modals.html`,
-   `partials/modals/sampler.html`), advanced list rows (tools, extensions,
-   regex, structured, backups). New file: `static/css/surfaces/modals.css`.
-   Legacy blocks: `instrument.css` modal sections, `components.css` modal/tab.
-2. **Form modals** — providers, sampler, arranger, theme, edit-entity, itemizer,
-   summary, text-expander, option picker. New file: `surfaces/forms.css`. These
-   consume the most primitives; if a primitive is missing, add it to
-   `design.css` once and use it everywhere.
-3. **Pickers, toasts, tooltips, lightbox** — `option-picker.html`,
-   `animations.css` toast blocks, `#hint-tooltip`, `#lightbox`.
-4. **Remaining flat keys** — sidebar collapse chevrons, pager arrows at rest,
-   lightbox close, media-thumb ×. One class each.
+Open decisions from the map (§4) are already called: D1 new `.check` shape;
+D2 `.tag` for static markers (`.chip` stays toggle-only); D3 `.field[type=range]`;
+D4 radio uses `.check`; D5 `.note` inline + `.tooltip` overlay (two things);
+D6 prose is a scope in `surfaces/messages.css`; D7 `.pager` composite; D8 role
+colour as a row *edge*; D9 `.grip` drawn, not `⋮⋮`; D10 one `.spinner`;
+D11 `.frame` for raised panels; D12 `.field.ghost` / `.field.swatch`.
 
-**Then:**
-- Delete `instrument.css` and remove the now-dead blocks from
-  `layout/chat/input/components.css`; one owner per selector.
-- Dead-code sweep (unused classes / `window._*` / api-paths).
-- Optional debt, deliberately deferred: form read/write has ~15 implementations
-  and 102 hardcoded IDs (`providers.js` names only 25 of the 32 `prov-form-*`
-  fields it renders). It does not block the skin; do it after, once the final
-  control set is known.
-- Registry bypasses (87 raw `fetch` vs 31 `hx*`, `Refresh` bypasses) untouched.
+**Still open:** the preset-variables section flexes to fill the left pane, so a
+short list leaves ~400px of empty chassis above TOOLS. Make the list a recessed
+well so the space reads as an empty list, not a hole. Not started.
 
 ---
 

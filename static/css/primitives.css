@@ -1,0 +1,1019 @@
+/* ── Primitives ───────────────────────────────────────────────────────────────
+   The closed control vocabulary. A surface picks a shape and an intent; it never
+   authors a look. Two things that look alike are the same primitive here, which
+   is the whole point of the file.
+
+   Contract:
+   - Shapes are fixed: .btn .key .nav .link .chip .tab | .field .check .switch |
+     .rail .row .well .frame .panel .card .divider .disclosure .grip |
+     .toast .tooltip .spinner .empty .note .tag .avatar .pager
+   - Modifiers compose with every shape: .sm .lg (size), .primary .create
+     .danger .warning .success (intent).
+   - State is class-driven, exactly as JS toggles it: .active .disabled
+     .expanded .drag-over .copied .favorite-active.
+   - Geometry comes from the grid tokens, depth from the material recipes,
+     hairlines from inset box-shadow. Nothing here invents a shadow or a pixel.
+   - No :not() ladders, no surface-scoped overrides, no `border` for hairlines.
+     A surface may set layout on its own container; it may not restyle a
+     primitive. tests/frontend/test_css_ownership.py enforces that.
+   -------------------------------------------------------------------------- */
+
+/* ══ Controls ═══════════════════════════════════════════════════════════════ */
+
+/* Shared geometry: shapes differ in plate and padding, never in what a pointer
+   does when it touches them. */
+:is(.btn, .key, .nav, .chip, .link, .tab) {
+  box-sizing: border-box;
+  margin: 0;
+  border: none;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    color var(--transition),
+    background-image var(--transition),
+    box-shadow var(--transition);
+}
+
+/* Plated: the raised chrome that reads as hardware. */
+:is(.btn, .nav, .chip) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--gutter);
+  border-radius: var(--radius-control);
+  background-color: var(--surface);
+  background-image: var(--mat-raise-fill);
+  box-shadow: var(--mat-raise);
+  color: var(--text-muted);
+}
+
+:is(.btn, .nav, .chip):hover {
+  background-image: linear-gradient(var(--mat-hi), var(--mat-shade));
+  color: var(--text);
+}
+
+:is(.btn, .nav, .chip):active {
+  background-image: linear-gradient(var(--mat-shade), var(--mat-glow));
+  box-shadow: var(--mat-inset);
+  transform: translateY(var(--hair-w));
+}
+
+/* Bare: reads as type on the surface it sits on, raises only under the pointer.
+   A rail of keys or a row of links is a readout, not a control panel. */
+:is(.key, .link, .tab) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--gutter);
+  border-radius: var(--radius-control);
+  background: none;
+  box-shadow: none;
+  color: var(--engrave);
+}
+
+:is(.key, .link, .tab):hover {
+  color: var(--text);
+}
+
+:is(.btn, .key, .nav, .chip, .link, .tab):focus-visible {
+  outline: none;
+  box-shadow:
+    var(--mat-raise),
+    0 0 0 var(--hair-w) var(--accent);
+}
+
+:is(.key, .link, .tab):focus-visible {
+  box-shadow: 0 0 0 var(--hair-w) var(--accent);
+}
+
+:is(.btn, .key, .nav, .chip, .link, .tab):is(:disabled, .disabled) {
+  background-image: none;
+  box-shadow: none;
+  color: var(--text-faint);
+  cursor: default;
+  opacity: 0.45;
+  transform: none;
+}
+
+/* ── .btn — labelled control ─────────────────────────────────────────────── */
+.btn {
+  height: var(--control-h);
+  padding: 0 var(--inset);
+}
+
+.btn.sm {
+  height: var(--control-h-sm);
+  padding: 0 var(--gutter);
+  font-size: 11px;
+}
+
+.btn.lg {
+  height: var(--control-h-lg);
+  padding: 0 var(--inset);
+}
+
+/* ── .key — square icon control ──────────────────────────────────────────── */
+.key {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: var(--control-h);
+  height: var(--control-h);
+  padding: 0;
+}
+
+.key:hover {
+  background-image: var(--mat-raise-fill);
+  box-shadow: var(--mat-raise);
+  color: var(--text);
+}
+
+.key.sm {
+  width: var(--control-h-sm);
+  height: var(--control-h-sm);
+}
+
+.key.lg {
+  width: var(--control-h-lg);
+  height: var(--control-h-lg);
+}
+
+/* A solid key is the surface's one focal action (send). Danger keeps that shape
+   and swaps the hue — the fill is the control, never a state. */
+.key.primary {
+  background-color: var(--accent);
+  background-image: none;
+  box-shadow:
+    inset 0 var(--hair-w) 0 color-mix(in srgb, white 26%, transparent),
+    inset 0 calc(-1 * var(--hair-w)) 0 color-mix(in srgb, black 30%, transparent),
+    0 var(--hair-w) 0 var(--mat-edge);
+  color: var(--text-on-accent);
+}
+
+.key.primary:hover {
+  background-image: none;
+  filter: brightness(1.08);
+  color: var(--text-on-accent);
+}
+
+.key.primary.danger {
+  background-color: var(--danger);
+}
+
+/* ── .nav — icon + label tile ────────────────────────────────────────────── */
+.nav {
+  height: var(--control-h-lg);
+  padding: 0 var(--gutter);
+  font-size: 11px;
+  justify-content: flex-start;
+}
+
+/* ── .link — text action ─────────────────────────────────────────────────── */
+.link {
+  height: var(--control-h);
+  padding: 0 var(--u);
+  font-family: var(--font-mono-ui);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* ── .chip — toggleable pill ─────────────────────────────────────────────── */
+.chip {
+  height: var(--control-h-sm);
+  padding: 0 var(--gutter);
+  font-family: var(--font-mono-ui);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+.chip.active {
+  background-image: linear-gradient(var(--tint-2), var(--tint-2)), var(--mat-raise-fill);
+  box-shadow:
+    var(--mat-raise),
+    inset 0 0 0 var(--hair-w) var(--edge);
+  color: var(--accent);
+}
+
+/* ── .tab — tab header ───────────────────────────────────────────────────── */
+.tab {
+  height: var(--control-h-lg);
+  padding: 0 var(--inset);
+  border-radius: 0;
+  box-shadow: inset 0 calc(-1 * var(--hair-w) * 2) 0 transparent;
+}
+
+.tab.active {
+  box-shadow: inset 0 calc(-1 * var(--hair-w) * 2) 0 var(--accent);
+  color: var(--text);
+}
+
+/* ══ Intents ════════════════════════════════════════════════════════════════
+   Ink and edge, never a wash over the plate: a translucent fill on top of the
+   raise gradient reads as flat web hover and kills the material. */
+
+:is(.btn, .nav, .chip).primary {
+  background-image: linear-gradient(var(--tint-2), var(--tint-2)), var(--mat-raise-fill);
+  color: var(--accent);
+}
+
+:is(.btn, .nav, .chip).primary:hover {
+  background-image:
+    linear-gradient(var(--tint-3), var(--tint-3)),
+    linear-gradient(var(--mat-hi), var(--mat-shade));
+  color: var(--text);
+}
+
+:is(.btn, .nav, .chip).create {
+  background-image:
+    linear-gradient(var(--success-tint), var(--success-tint)), var(--mat-raise-fill);
+  box-shadow:
+    var(--mat-raise),
+    inset 0 0 0 var(--hair-w) var(--success-edge);
+  color: var(--success);
+}
+
+:is(.btn, .nav, .chip).create:hover {
+  background-image:
+    linear-gradient(var(--success-tint-strong), var(--success-tint-strong)),
+    linear-gradient(var(--mat-hi), var(--mat-shade));
+  color: var(--success-hover);
+}
+
+:is(.btn, .nav, .chip).danger {
+  color: var(--danger);
+  box-shadow:
+    var(--mat-raise),
+    inset 0 0 0 var(--hair-w) var(--danger-edge);
+}
+
+:is(.btn, .nav, .chip).danger:hover {
+  color: var(--danger-hover);
+}
+
+:is(.key, .link, .tab).danger {
+  color: var(--danger-ink);
+}
+
+:is(.key, .link, .tab).danger:hover {
+  color: var(--danger);
+}
+
+:is(.btn, .nav, .chip).warning,
+.note.warning {
+  color: var(--warning);
+}
+
+:is(.btn, .nav, .chip).success,
+.note.success {
+  color: var(--success);
+}
+
+/* ══ Inputs ═════════════════════════════════════════════════════════════════ */
+
+/* ── .field — text, textarea, select, range ──────────────────────────────── */
+.field {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  min-height: var(--control-h);
+  padding: 0 var(--gutter);
+  border: none;
+  border-radius: var(--radius-control);
+  background-color: var(--mat-well);
+  background-image: none;
+  box-shadow: var(--mat-inset);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: var(--control-h);
+  color: var(--text);
+}
+
+.field::placeholder {
+  color: var(--text-faint);
+}
+
+.field:is(:focus, :focus-visible) {
+  outline: none;
+  box-shadow:
+    var(--mat-inset),
+    0 0 0 var(--hair-w) var(--accent);
+}
+
+.field.sm {
+  min-height: var(--control-h-sm);
+  padding: 0 var(--u);
+  font-family: var(--font-mono-ui);
+  font-size: 11px;
+  line-height: var(--control-h-sm);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+textarea.field {
+  min-height: calc(var(--u) * 24);
+  padding: var(--gutter);
+  font-size: 13px;
+  line-height: calc(var(--u) * 6);
+  resize: vertical;
+}
+
+/* Non-form editable: a name you can retype in place, a colour you can pick.
+   Neither may read as a box, so the well is gone; the caret marks the target. */
+.field.ghost {
+  min-height: var(--control-h);
+  padding: 0 var(--u);
+  background: none;
+  box-shadow: inset 0 calc(-1 * var(--hair-w)) 0 transparent;
+}
+
+.field.ghost:is(:focus, :focus-visible) {
+  box-shadow: inset 0 calc(-1 * var(--hair-w)) 0 var(--accent);
+}
+
+.field.swatch {
+  width: var(--control-h-lg);
+  height: var(--control-h-lg);
+  min-height: 0;
+  padding: var(--u);
+  cursor: pointer;
+}
+
+.field[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  min-height: var(--control-h);
+  padding: 0;
+  background: none;
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.field[type='range']::-webkit-slider-runnable-track {
+  height: var(--u);
+  border-radius: var(--radius-control);
+  background-color: var(--mat-well);
+  box-shadow: var(--mat-inset);
+}
+
+.field[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: calc(var(--u) * 3);
+  height: calc(var(--u) * 5);
+  margin-top: calc((var(--u) - var(--u) * 5) / 2);
+  border: none;
+  border-radius: var(--radius-control);
+  background-color: var(--surface);
+  background-image: var(--mat-raise-fill);
+  box-shadow: var(--mat-raise);
+}
+
+.field[type='range']::-moz-range-track {
+  height: var(--u);
+  border-radius: var(--radius-control);
+  background-color: var(--mat-well);
+  box-shadow: var(--mat-inset);
+}
+
+.field[type='range']::-moz-range-thumb {
+  width: calc(var(--u) * 3);
+  height: calc(var(--u) * 5);
+  border: none;
+  border-radius: var(--radius-control);
+  background-color: var(--surface);
+  background-image: var(--mat-raise-fill);
+  box-shadow: var(--mat-raise);
+}
+
+/* ── .check — tick box, and the radio's shape too ──────────────────────────
+   A latch (.switch) says "on/off"; a check says "part of this set". The radio
+   keeps the check's square so the language holds one interactive-square shape
+   on a 4px grid and no circles. */
+.check {
+  -webkit-appearance: none;
+  appearance: none;
+  box-sizing: border-box;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: calc(var(--u) * 4);
+  height: calc(var(--u) * 4);
+  margin: 0;
+  border: none;
+  border-radius: var(--radius-control);
+  background-color: var(--mat-well);
+  box-shadow: var(--mat-inset);
+  color: transparent;
+  cursor: pointer;
+}
+
+.check::after {
+  content: '';
+  width: calc(var(--u) * 2);
+  height: calc(var(--u) * 2);
+  background: currentColor;
+}
+
+.check:is(:checked, .active) {
+  background-color: var(--accent);
+  background-image: none;
+  box-shadow:
+    inset 0 var(--hair-w) 0 color-mix(in srgb, white 22%, transparent),
+    inset 0 calc(-1 * var(--hair-w)) 0 color-mix(in srgb, black 26%, transparent);
+  color: var(--text-on-accent);
+}
+
+.check:is(:focus-visible, :focus) {
+  outline: none;
+  box-shadow:
+    var(--mat-inset),
+    0 0 0 var(--hair-w) var(--accent);
+}
+
+.check:is(:disabled, .disabled) {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* ── .switch — latch ─────────────────────────────────────────────────────── */
+.switch {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  width: calc(var(--u) * 8);
+  height: calc(var(--u) * 4);
+  margin: 0;
+  padding: calc(var(--u) / 2);
+  border: none;
+  border-radius: var(--radius-control);
+  background-color: var(--mat-well);
+  box-shadow: var(--mat-inset);
+  cursor: pointer;
+  transition: background-color var(--transition);
+}
+
+.switch::after {
+  content: '';
+  width: calc(var(--u) * 3);
+  height: calc(var(--u) * 3);
+  border-radius: var(--radius-control);
+  background-color: var(--text-faint);
+  box-shadow: 0 calc(-1 * var(--hair-w)) 0 color-mix(in srgb, black 30%, transparent);
+  transition:
+    transform var(--transition),
+    background-color var(--transition);
+}
+
+.switch.active {
+  background-color: var(--tint-3);
+  box-shadow:
+    var(--mat-inset),
+    inset 0 0 0 var(--hair-w) var(--edge);
+}
+
+.switch.active::after {
+  transform: translateX(calc(var(--u) * 4));
+  background-color: var(--accent);
+}
+
+.switch:focus-visible {
+  outline: none;
+  box-shadow:
+    var(--mat-inset),
+    0 0 0 var(--hair-w) var(--accent);
+}
+
+/* ══ Structure ══════════════════════════════════════════════════════════════ */
+
+/* ── .rail — section header ────────────────────────────────────────────────
+   The one engraved label. A trailing hairline fills the row, so the header and
+   the content under it share a single rule rather than two. */
+.rail {
+  display: flex;
+  align-items: center;
+  gap: var(--gutter);
+  height: var(--rail-h);
+  margin: 0 0 var(--gutter);
+  font-family: var(--font-mono-ui);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  text-shadow: 0 1px 0 var(--mat-lo);
+}
+
+.rail::after {
+  content: '';
+  order: 1;
+  flex: 1;
+  height: var(--hair-w);
+  background: var(--mat-lo);
+}
+
+.rail-actions {
+  order: 2;
+  display: flex;
+  align-items: center;
+  gap: var(--u);
+  margin-right: calc(-1 * (var(--control-h-sm) - var(--inset)) / 2);
+}
+
+/* ── .row — one line of data ───────────────────────────────────────────────
+   Rows are readouts: flat, hairline-grooved, one line tall. The groove is an
+   inset shadow on the row's own box, so a run of rows stays on the ruler and
+   the last row closes on a lit edge instead of a dangling line. */
+.row {
+  --row-edge: var(--hair-groove);
+  box-sizing: border-box;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--gutter);
+  min-height: var(--control-h-lg);
+  padding: 0 var(--gutter);
+  border: none;
+  border-radius: 0;
+  background-color: transparent;
+  background-image: none;
+  box-shadow: var(--row-edge);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: color-mix(in srgb, var(--text) 82%, transparent);
+  text-align: left;
+  cursor: pointer;
+}
+
+.row:last-child {
+  --row-edge: inset 0 var(--hair-w) 0 var(--hair-lit);
+}
+
+.row:hover {
+  background-color: var(--ink-1);
+  box-shadow: var(--row-edge);
+  color: var(--text);
+}
+
+.row.active {
+  background-color: var(--ink-2);
+  box-shadow:
+    inset calc(var(--hair-w) * 2) 0 0 var(--accent),
+    var(--row-edge);
+  color: var(--text);
+}
+
+.row.sm {
+  min-height: var(--control-h-sm);
+  font-size: 12px;
+}
+
+/* Indent is padding, so the hairlines still share an edge with the parent. */
+.row.inset {
+  padding-left: calc(var(--u) * 7);
+}
+
+.row-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.row-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--gutter);
+  flex: 0 0 auto;
+  font-family: var(--font-mono-ui);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-faint);
+}
+
+.row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--u);
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+/* Role is an edge, not a fill: the row's own state keeps the ink it needs. */
+.row.role-user {
+  box-shadow:
+    inset calc(var(--hair-w) * 2) 0 0 var(--role-user),
+    var(--row-edge);
+}
+
+.row.role-assistant {
+  box-shadow:
+    inset calc(var(--hair-w) * 2) 0 0 var(--role-assistant),
+    var(--row-edge);
+}
+
+.row.role-system {
+  box-shadow:
+    inset calc(var(--hair-w) * 2) 0 0 var(--edge),
+    var(--row-edge);
+}
+
+/* ── .well — recessed surface ────────────────────────────────────────────── */
+.well {
+  box-sizing: border-box;
+  border: none;
+  border-radius: var(--radius-control);
+  background-color: var(--mat-well);
+  background-image: none;
+  box-shadow: var(--mat-inset);
+}
+
+.well.drag-over {
+  box-shadow:
+    var(--mat-inset),
+    inset 0 0 0 var(--hair-w) var(--accent);
+}
+
+/* ── .frame — raised panel ───────────────────────────────────────────────── */
+.frame {
+  box-sizing: border-box;
+  border: none;
+  border-radius: var(--radius-panel);
+  background-color: var(--surface);
+  background-image: var(--mat-raise-fill);
+  box-shadow: var(--mat-raise);
+}
+
+/* ── .panel — the floating layer ─────────────────────────────────────────── */
+.panel {
+  box-sizing: border-box;
+  border: none;
+  border-radius: var(--radius-control);
+  background-color: var(--surface-2);
+  background-image: var(--mat-raise-fill);
+  box-shadow:
+    var(--mat-raise),
+    0 12px 32px color-mix(in srgb, black 40%, transparent);
+}
+
+/* ── .card — thumbnail + data ────────────────────────────────────────────── */
+.card {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gutter);
+  padding: var(--gutter);
+  border: none;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.card:hover {
+  background-color: var(--ink-1);
+}
+
+/* ── .divider ────────────────────────────────────────────────────────────── */
+.divider {
+  flex: none;
+  height: var(--hair-w);
+  margin: 0;
+  border: none;
+  background: none;
+  box-shadow: inset 0 calc(-1 * var(--hair-w)) 0 var(--hair-dark);
+}
+
+/* ── .disclosure — summary + body ──────────────────────────────────────────
+   Reasoning and tool output live here. The header is a rail-weight label, the
+   body is ruled off it; the caret is the drawn mark, never a glyph. */
+.disclosure > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--gutter);
+  height: var(--control-h);
+  list-style: none;
+  cursor: pointer;
+  font-family: var(--font-mono-ui);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.disclosure > summary:hover {
+  color: var(--text);
+}
+
+.disclosure[open] > summary .caret-mark,
+.disclosure.expanded > summary .caret-mark {
+  transform: rotate(135deg);
+}
+
+.disclosure-body {
+  padding: var(--gutter) 0;
+  box-shadow: inset 0 var(--hair-w) 0 var(--hair);
+}
+
+/* ── .grip — drag handle ───────────────────────────────────────────────────
+   Two engraved lines on the grid: the last text glyph in the chrome is gone. */
+.grip {
+  flex: none;
+  width: calc(var(--u) * 3);
+  height: calc(var(--u) * 6);
+  background: none;
+  box-shadow:
+    inset var(--u) 0 0 var(--text-faint),
+    inset calc(var(--u) * 2) 0 0 var(--text-faint);
+  opacity: 0.6;
+  cursor: grab;
+}
+
+.grip:active {
+  cursor: grabbing;
+}
+
+/* ── .caret-mark — the drawn caret ─────────────────────────────────────────
+   Integer geometry on a unit square, so it cannot lose an edge to antialiasing
+   at 1x the way an icon's diagonal does. Callers rotate it. */
+.caret-mark {
+  box-sizing: border-box;
+  flex: none;
+  width: var(--u);
+  height: var(--u);
+  border-top: var(--hair-w) solid currentColor;
+  border-right: var(--hair-w) solid currentColor;
+  transform: rotate(45deg);
+  transition: transform var(--transition);
+}
+
+/* ══ Feedback ═══════════════════════════════════════════════════════════════ */
+
+/* ── .toast — one stack, one card, intent as ink ─────────────────────────── */
+.toast {
+  box-sizing: border-box;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--gutter);
+  max-width: 480px;
+  padding: var(--gutter) var(--inset);
+  border: none;
+  border-radius: var(--radius-control);
+  background-color: var(--surface-2);
+  background-image: var(--mat-raise-fill);
+  box-shadow:
+    var(--mat-raise),
+    0 12px 32px color-mix(in srgb, black 35%, transparent);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: calc(var(--u) * 4);
+  color: var(--text);
+}
+
+.toast-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.toast-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--u);
+  flex: 0 0 auto;
+}
+
+/* Intent is the whole plate, not a hairline: at 1px an edge does not read as
+   "this failed" from across the screen. Same recipe as a create button — the
+   hue laid over the raise gradient, ink at full strength — so a toast is
+   legible before anything in it is read. */
+.toast-info {
+  background-image: linear-gradient(var(--tint-2), var(--tint-2)), var(--mat-raise-fill);
+  box-shadow:
+    var(--mat-raise),
+    inset 0 0 0 var(--hair-w) var(--edge);
+  color: var(--accent);
+}
+
+.toast-success {
+  background-image:
+    linear-gradient(var(--success-tint), var(--success-tint)), var(--mat-raise-fill);
+  box-shadow:
+    var(--mat-raise),
+    inset 0 0 0 var(--hair-w) var(--success-edge);
+  color: var(--success-hover);
+}
+
+.toast-error {
+  background-image:
+    linear-gradient(var(--danger-tint), var(--danger-tint)), var(--mat-raise-fill);
+  box-shadow:
+    var(--mat-raise),
+    inset 0 0 0 var(--hair-w) var(--danger-edge);
+  color: var(--danger);
+}
+
+/* ── .tooltip ────────────────────────────────────────────────────────────── */
+.tooltip {
+  z-index: var(--z-max);
+  max-width: calc(var(--u) * 60);
+  padding: var(--u) var(--gutter);
+  border: none;
+  border-radius: var(--radius-control);
+  background-color: var(--surface-3);
+  box-shadow:
+    var(--mat-raise),
+    0 var(--u) calc(var(--u) * 4) color-mix(in srgb, black 30%, transparent);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  line-height: calc(var(--u) * 4);
+  color: var(--text);
+  pointer-events: none;
+}
+
+/* ── .spinner — four steps, not a smooth circle rotation ─────────────────── */
+.spinner {
+  box-sizing: border-box;
+  flex: none;
+  width: calc(var(--u) * 4);
+  height: calc(var(--u) * 4);
+  border: var(--hair-w) solid var(--hair-strong);
+  border-top-color: var(--accent);
+  background: none;
+  animation: primitive-step 1s steps(4, end) infinite;
+}
+
+.spinner.sm {
+  width: var(--u);
+  height: calc(var(--u) * 3);
+  border: none;
+  background-color: var(--accent);
+  animation: primitive-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes primitive-step {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes primitive-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}
+
+/* ── .empty — empty-state caption ────────────────────────────────────────── */
+.empty {
+  padding: var(--inset);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: calc(var(--u) * 4);
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* ── .note — inline helper text ──────────────────────────────────────────── */
+.note {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-style: normal;
+  line-height: calc(var(--u) * 4);
+  color: var(--text-faint);
+}
+
+.note.danger {
+  color: var(--danger);
+}
+
+/* ── .tag — static marker ────────────────────────────────────────────────── */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--u);
+  height: calc(var(--u) * 4);
+  padding: 0 var(--u);
+  border-radius: var(--radius-control);
+  background: none;
+  box-shadow: inset 0 0 0 var(--hair-w) var(--hair);
+  font-family: var(--font-mono-ui);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.tag.active {
+  box-shadow: inset 0 0 0 var(--hair-w) var(--edge);
+  color: var(--accent);
+}
+
+/* ── .avatar ─────────────────────────────────────────────────────────────── */
+.avatar {
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: calc(var(--u) * 6);
+  height: calc(var(--u) * 6);
+  overflow: hidden;
+  border: none;
+  border-radius: var(--radius-control);
+  background-color: var(--surface-2);
+  box-shadow: inset 0 0 0 var(--hair-w) var(--hair-strong);
+  font-family: var(--font-mono-ui);
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.avatar > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 50%;
+}
+
+.avatar.sm {
+  width: calc(var(--u) * 4);
+  height: calc(var(--u) * 4);
+  font-size: 10px;
+}
+
+.avatar.lg {
+  width: calc(var(--u) * 8);
+  height: calc(var(--u) * 8);
+  font-size: 12px;
+}
+
+/* ── .pager — three controls on one row ──────────────────────────────────── */
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--gutter);
+  height: var(--control-h);
+}
+
+.pager-num {
+  min-width: var(--control-h-lg);
+  padding: 0 var(--u);
+  font-family: var(--font-mono-ui);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.pager-num.active {
+  box-shadow: inset 0 0 0 var(--hair-w) var(--edge);
+  color: var(--accent);
+}
+
+/* ── .favorite-active — the one amber flag ───────────────────────────────── */
+.favorite-active {
+  color: var(--warning);
+}
+
+/* ── .copied — transient key confirmation ────────────────────────────────── */
+.copied {
+  color: var(--accent);
+  box-shadow: inset 0 0 0 var(--hair-w) var(--edge);
+}
+
+/* ── Ruler overlay (dev): 4px lattice + 24px majors ──────────────────────── */
+body.show-grid::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-max);
+  pointer-events: none;
+  background-image:
+    repeating-linear-gradient(90deg, color-mix(in srgb, var(--accent) 10%, transparent) 0 1px, transparent 1px var(--u)),
+    repeating-linear-gradient(0deg, color-mix(in srgb, var(--accent) 10%, transparent) 0 1px, transparent 1px var(--u)),
+    repeating-linear-gradient(90deg, color-mix(in srgb, var(--accent) 22%, transparent) 0 1px, transparent 1px calc(var(--u) * 6)),
+    repeating-linear-gradient(0deg, color-mix(in srgb, var(--accent) 22%, transparent) 0 1px, transparent 1px calc(var(--u) * 6));
+}

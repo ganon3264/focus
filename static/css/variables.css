@@ -108,6 +108,35 @@
   --radius-panel: 0;
   --radius-control: 2px;
 
+  /* ── Ink & tint scales ─────────────────────────────────────────────────
+     Every grey fill and edge in the UI is one of the ink tokens; every accent
+     wash is one of the tint tokens. Material and primitives read only these, so
+     a theme change moves the whole language at once. */
+  --ink-1: color-mix(in srgb, var(--text) 3%, transparent);
+  --ink-2: color-mix(in srgb, var(--text) 6%, transparent);
+  --hair: color-mix(in srgb, var(--text) 8%, transparent);
+  --hair-strong: color-mix(in srgb, var(--text) 18%, transparent);
+  --engrave: color-mix(in srgb, var(--text-muted) 80%, transparent);
+
+  --tint-1: color-mix(in srgb, var(--accent) 6%, transparent);
+  --tint-2: color-mix(in srgb, var(--accent) 10%, transparent);
+  --tint-3: color-mix(in srgb, var(--accent) 16%, transparent);
+  --edge: color-mix(in srgb, var(--accent) 45%, transparent);
+
+  --danger-tint: color-mix(in srgb, var(--danger) 12%, transparent);
+  --danger-edge: color-mix(in srgb, var(--danger) 45%, transparent);
+  --danger-ink: color-mix(in srgb, var(--danger) 70%, transparent);
+
+  --success-tint: color-mix(in srgb, var(--success) 12%, transparent);
+  --success-tint-strong: color-mix(in srgb, var(--success) 20%, transparent);
+  --success-edge: color-mix(in srgb, var(--success) 45%, transparent);
+
+  /* The system mono face ships 400/700 only; never let the browser fake 500/600,
+     which smears small glyphs. */
+  --font-mono-ui: 'Necto Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
+    'Liberation Mono', monospace;
+  font-synthesis-weight: none;
+
   /* Sidebar widths */
   --sidebar-width-left: 312px;
   --sidebar-width-right: 312px;

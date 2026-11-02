@@ -108,21 +108,6 @@
   box-shadow: var(--mat-inset), 0 0 0 1px var(--accent);
 }
 
-/* ── Drawn caret ───────────────────────────────────────────────────────────
-   Two hairlines on a unit square. Integer geometry, so it never loses an edge
-   to antialiasing at 1x the way an icon's diagonal does — the reason it can
-   sit next to type and stay on the same centre line. Callers rotate it. */
-.caret-mark {
-  box-sizing: border-box;
-  width: var(--u);
-  height: var(--u);
-  flex: none;
-  border-top: var(--hair-w) solid currentColor;
-  border-right: var(--hair-w) solid currentColor;
-  transform: rotate(45deg);
-  transition: transform 0.2s ease;
-}
-
 /* ── Preset variables: one engraved list ───────────────────────────────────
    A group row is a readout — LED, name, value — one row tall, hairline groove,
    no plate. Options are the same row one level in, with the radio switch as the
@@ -485,16 +470,3 @@
   transform: translateY(1px);
 }
 
-/* ── Ruler overlay (dev): 4px lattice + 24px majors ──────────────────────── */
-body.show-grid::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: var(--z-max);
-  pointer-events: none;
-  background-image:
-    repeating-linear-gradient(90deg, color-mix(in srgb, var(--accent) 10%, transparent) 0 1px, transparent 1px var(--u)),
-    repeating-linear-gradient(0deg, color-mix(in srgb, var(--accent) 10%, transparent) 0 1px, transparent 1px var(--u)),
-    repeating-linear-gradient(90deg, color-mix(in srgb, var(--accent) 22%, transparent) 0 1px, transparent 1px calc(var(--u) * 6)),
-    repeating-linear-gradient(0deg, color-mix(in srgb, var(--accent) 22%, transparent) 0 1px, transparent 1px calc(var(--u) * 6));
-}

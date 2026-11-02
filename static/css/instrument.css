@@ -7,38 +7,9 @@
    theme-independent by design.
    -------------------------------------------------------------------------- */
 :root {
-  --font-mono-ui: 'Necto Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
-    'Liberation Mono', monospace;
-  /* Neutral wash scale — every grey fill/edge in the layer is one of these. */
-  --ink-1: color-mix(in srgb, var(--text) 3%, transparent);
-  --ink-2: color-mix(in srgb, var(--text) 6%, transparent);
-  --hair: color-mix(in srgb, var(--text) 8%, transparent);
-  --hair-strong: color-mix(in srgb, var(--text) 18%, transparent);
-  --engrave: color-mix(in srgb, var(--text-muted) 80%, transparent);
-
-  /* Accent tint scale — rest / hover / active, plus the matching edges. */
-  --tint-1: color-mix(in srgb, var(--accent) 6%, transparent);
-  --tint-2: color-mix(in srgb, var(--accent) 10%, transparent);
-  --tint-3: color-mix(in srgb, var(--accent) 16%, transparent);
-  --edge: color-mix(in srgb, var(--accent) 45%, transparent);
-
-  /* Danger keeps its own hue at the same tint levels. */
-  --danger-tint: color-mix(in srgb, var(--danger) 12%, transparent);
-  --danger-edge: color-mix(in srgb, var(--danger) 45%, transparent);
-  --danger-ink: color-mix(in srgb, var(--danger) 70%, transparent);
-
-  /* Create keeps its own hue at the same tint levels. */
-  --success-tint: color-mix(in srgb, var(--success) 12%, transparent);
-  --success-tint-strong: color-mix(in srgb, var(--success) 20%, transparent);
-  --success-edge: color-mix(in srgb, var(--success) 45%, transparent);
-
   /* One inset for every framed surface (sidebars, modals, composer). */
   --ui-inset: 1.25rem;
   --ui-gap: 1rem;
-
-  /* The system mono face ships 400/700 only; never let the browser fake 500/600,
-     which smears small glyphs. */
-  font-synthesis-weight: none;
 }
 
 /* ── Shell ──────────────────────────────────────────────────────────────── */
@@ -292,66 +263,6 @@
   gap: 0.35rem;
 }
 
-.left-sidebar .tool-tile {
-  background: var(--ink-1);
-  border: none;
-  border-left: 2px solid transparent;
-  border-radius: var(--radius-sm);
-  padding: 0.6rem 0.5rem;
-  font-weight: 500;
-  color: color-mix(in srgb, var(--text) 74%, transparent);
-}
-
-.left-sidebar .tool-tile:hover,
-.left-sidebar .tool-tile:focus-visible {
-  background: var(--tint-2);
-  border-left-color: var(--accent);
-  color: var(--text);
-}
-
-/* `.btn-secondary:hover` sets all four border colours, which would fight the
-   tile's accent edge on hover. Keep the secondary treatment off the tiles. */
-.btn-secondary:not(.tool-tile) {
-  background: var(--ink-1);
-  border: 1px solid var(--hair-strong);
-  border-radius: var(--radius-sm);
-  box-shadow: none;
-  color: var(--text-muted);
-}
-
-.btn-secondary:not(.tool-tile):hover {
-  background: transparent;
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-/* ── Buttons: one console control family ───────────────────────────────── */
-/* Every `.btn` shares one quiet sans label, a hairline edge and a 3px corner;
-   variants differ only in ink. Engraved caps belong to section headers, not to
-   button chrome. Navigation tiles (`.tool-tile`) and text links opt out and
-   keep their own typography below. */
-.btn:not(.tool-tile):not(.btn-link) {
-  font-family: var(--font-sans);
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.01em;
-  border-radius: var(--radius-sm);
-  box-shadow: none;
-  transform: none;
-  white-space: nowrap;
-}
-
-.btn:not(.tool-tile):not(.btn-link):active {
-  transform: none;
-}
-
-/* The empty-state hero is the one button that leads a whole screen, so it keeps
-   the family type but earns a little more size and air. */
-.btn-hero:not(.tool-tile):not(.btn-link) {
-  font-size: 13px;
-  padding: 0.85rem 2rem;
-}
-
 /* ── Status: an instrument readout ──────────────────────────────────────── */
 .left-sidebar .status-panel {
   position: relative;
@@ -396,34 +307,8 @@
   order: 2;
 }
 
-/* Primary action: an outlined console button rather than a solid accent block,
-   so each surface keeps a single focal colour (its active/selected row). */
-.btn-primary {
-  background: var(--tint-2);
-  border: 1px solid var(--edge);
-  color: var(--accent);
-}
+/* ── Create, primary and danger are primitives now ──────────────────────── */
 
-.btn-primary:hover {
-  background: var(--tint-3);
-  border-color: var(--accent);
-}
-
-/* Create keeps its green hue at the same flat hairline shape. */
-.btn-create {
-  background: var(--success-tint);
-  border: 1px solid var(--success-edge);
-  border-radius: 0;
-  box-shadow: none;
-  color: var(--success-hover);
-}
-
-.btn-create:hover {
-  background: var(--success-tint-strong);
-  border-color: var(--success);
-  color: var(--success-hover);
-  transform: none;
-}
 /* Chat list: hairline rows; the active chat is marked by an accent edge. */
 .right-sidebar .sidebar-list {
   gap: 0;
@@ -488,24 +373,6 @@
   border-style: solid;
   border-color: var(--hair);
   border-radius: 0;
-}
-
-/* Destructive controls are one shape everywhere: no chrome at rest — the danger
-   ink alone marks the verb — and the tint lays down on hover/focus. */
-.btn-danger {
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 0;
-  box-shadow: none;
-  color: var(--danger-ink);
-}
-
-.btn-danger:hover,
-.btn-danger:focus-visible {
-  background: var(--danger-tint);
-  border-color: transparent;
-  color: var(--danger);
-  transform: none;
 }
 
 /* Collapsed sidebar tabs share the flat hairline treatment. */

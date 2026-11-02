@@ -11,6 +11,7 @@
 @import './css/design.css';
 @import './css/surfaces/sidebar.css';
 @import './css/surfaces/messages.css';
+@import './css/primitives.css';
 
 @source "../templates";
 @source "../partials";
