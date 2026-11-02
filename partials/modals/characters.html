@@ -2,13 +2,13 @@
    rail carrying the collection's verbs, the search/filter row, the list, the
    foot. Only the list scrolls; every band is full-bleed and closes with a
    groove, so the modal reads as a chassis rather than a wall of rows. #}
-<div class="entity-modal">
+<div class="modal-bands">
   {% from "macros.html" import icon_trash, icon_plus, icon_upload, sort_dropdown,
   filter_dropdown, search_toolbar, empty_state %}
-  <div class="entity-modal-head">
+  <div class="modal-band-head">
     <div class="rail">
       <span>{{ characters|length }} {{ 'character' if characters|length == 1 else 'characters' }}</span>
-      <div class="rail-actions">
+      <div class="rail-actions flush">
         <form onsubmit="importCharModal(event)">
           <label class="key sm" title="Import character cards" aria-label="Import characters">
             {{ icon_upload(14) }}
@@ -33,26 +33,26 @@
     </div>
   </div>
 
-  <div class="entity-modal-toolbar">
+  <div class="modal-band-toolbar">
     {% call search_toolbar('Search characters…', input_attrs='oninput="filterCharacters(this.value)"', wrapper_classes='') %}
       {{ filter_dropdown('setCharFilter', 'getCharFilterGroups') }}
       {{ sort_dropdown('focus_char_sort', 'sortCharacters') }}
     {% endcall %}
   </div>
 
-  <div class="entity-modal-list">
+  <div class="modal-band-lane">
     {% if not characters %}
     {{ empty_state('No characters found. Create or import one to get started!') }}
     {% endif %}
 
-    <div class="entity-list" id="char-modal-grid">
+    <div class="entity-list reveal-verbs" id="char-modal-grid">
       {% for char in characters %}
       {% include "modals/character-card.html" %}
       {% endfor %}
     </div>
   </div>
 
-  <div class="entity-modal-foot">
+  <div class="modal-band-foot">
     <button class="btn sm" onclick="openTrashModal()">
       {{ icon_trash(14) }} Trash Bin
     </button>

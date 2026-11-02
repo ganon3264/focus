@@ -1,7 +1,7 @@
 {% from "modal-shell.html" import modal_shell %}
 {% call modal_shell('modal-char-blocks', 'Custom Blocks', max_width='720px',
-content_style='height:min(80vh, 680px);', z_index='200') %}
-<div id="char-blocks-container" class="flex flex-col flex-1 min-h-0" data-ui="char-blocks-container">
+content_style='height:min(80vh, 680px);', z_index='200', overlay_class='modal-bands-shell') %}
+<div id="char-blocks-container" class="modal-bands" data-ui="char-blocks-container">
   <p class="empty">Loading…</p>
 </div>
 {% endcall %}

@@ -98,7 +98,7 @@
       fetch(cfg.apiBase + '/trash')
         .then(function (r) { return r.json(); })
         .then(function (items) {
-          var bodyHtml = '<div class="flex flex-col max-h-[60vh] overflow-y-auto">';
+          var bodyHtml = '';
           if (items.length === 0) {
             bodyHtml += '<div class="empty">Trash is empty.</div>';
           } else {
@@ -119,9 +119,15 @@
                 '</span></div>';
             });
           }
-          bodyHtml += '</div>';
-
-          document.getElementById('modal-trash-body').innerHTML = bodyHtml;
+          var body = document.getElementById('modal-trash-body');
+          body.innerHTML = bodyHtml;
+          var count = document.querySelector('#modal-trash [data-ui="trash-count"]');
+          if (count) {
+            count.textContent =
+              items.length === 0
+                ? 'Trash'
+                : items.length + (items.length === 1 ? ' item' : ' items');
+          }
           window.openModal('modal-trash');
         });
     };

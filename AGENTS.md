@@ -95,15 +95,29 @@ The pruner's `_pruned` map is keyed by bare id (`MessageIdentity.bare`); `_forge
 - The count on the door comes from `data-char-blocks` on the card's edit button; the modal re-syncs it after every load (`syncCount`).
 - Blocks are prompt-side only (the preset's `char_blocks` sentinel splices them in), so editing one does not invalidate the message list.
 
-### Entity lists (characters / personas)
+### Banded modals — every list modal
 
-- `partials/modals/characters.html` and `personas.html` are a chassis of **bands**, not one scroll island: head rail (count + Import/New) → toolbar (search + filter + sort) → list → foot (Trash). Only the list scrolls.
-- Bands pull out to the panel's inner edges with `margin-inline: calc(-1 * var(--entity-pad))` (where `--entity-pad: var(--modal-pad)`) and pad back in, so grooves run full width while the content keeps the modal's one inset. **Never zero `.modal-body`'s padding to get full-bleed** — `grid-audit.js` measures the body's first child against it.
-- The list lane is its own plane (`background: var(--surface)` — the chat list's fill), with the two columns separated by `column-rule`. It has **no scroll fade**: the plane boundary is the edge. `scrollbar-gutter: auto` so the bar rides the lane's padding instead of pushing the rows off the 24px inset.
-- Rows keep the chat-row anatomy: avatar → `.row-title` → `.row-meta` (the group as a `.tag`, blank when ungrouped) → `.row-actions`. All three verbs (star, edit, delete) are hover-revealed via `.entity-modal-shell .entity-row > .row-actions > .key`; a favourite's star stays lit because it is state, not a verb.
-- `modal_shell(..., overlay_class='entity-modal-shell')` scopes the body/head treatment. The provider list is **not** in this shell (its edit key stays visible).
+- A modal whose body is a list is a chassis of bands, not one scroll island:
 
-### Toast system (`static/js/ui/notifications.js`)
+  | class | role |
+  |---|---|
+  | `.modal-bands-shell` (`modal_shell(overlay_class=…)`) | tints the title bar into the chrome |
+  | `.modal-bands` | the flex column inside `.modal-body` |
+  | `.modal-band-head` | readout rail: count + the collection's verbs |
+  | `.modal-band-toolbar` | optional search / filter / sort row |
+  | `.modal-band-lane` | the one scrolling plane — paints `--surface`, opens with a groove |
+  | `.modal-band-foot` | optional closing verb row (Trash Bin, Add Block) |
+
+- Bands pull out to the panel's inner edges with `margin-inline: calc(-1 * var(--band-pad))` and pad back in, so grooves and plane edges run full width while the content keeps the modal's one inset. **The first and last bands absorb the body's own padding** (`margin-top`/`margin-bottom: -pad` + padding back) — a tinted strip that is not a band reads as discoloration.
+- Chrome (title bar + head/toolbar/foot bands) is one tint (`--ink-1`); the lane is the only thing painting a different value. A lane that is the last child closes on the panel floor (`:last-child` rule).
+- No scroll fade on the lane: the plane boundary is the edge. `scrollbar-gutter: auto` so the bar rides the lane's padding instead of pushing the rows off the inset.
+- Users of the vocabulary: characters, personas, providers, trash bin, custom character blocks, prompt arranger. The Advanced modal (tab container), the theme customizer and the export form are deliberately not banded.
+- A rail's last action must be `flush` (`.rail-actions.flush`) when it is a labelled `.btn` — the default optical pull would push it past the modal inset.
+- **Counts live in the rail, outside the swap target.** Update them from `htmx:afterSwap` keyed on the lane/target id, never from the `hxGet` promise (it resolves before the swap) — `arranger-count` and the block door's count work this way.
+- Entity rows: `.row.entity-row` in two column-major lanes (`.entity-list`, `column-rule` between them). `reveal-verbs` makes the row's keys appear on hover (characters/personas); without it they stay visible (providers, where the row's edit key is the primary verb).
+- Rows: avatar → `.row-title` → `.row-meta` (the group as a `.tag`, blank when ungrouped) → `.row-actions`. A favourite's star stays lit at rest because it is state, not a verb.
+
+### Toast system### Toast system (`static/js/ui/notifications.js`)
 
 - One stack: `#toast-container` in `base.html` (fixed top-center, `z-index: var(--z-max)`, above all modals).
 - API: `showToast(msg, {type, duration|id, maxChars})`, aliases `showInfoToast` (accent, 3s), `showSuccessToast` (green, 3s), `showErrorToast` (danger, persists with Copy/Close), `showImportToast(data, pluralLabel)` (shared import report: error list or success count), `hideErrorToast()`, `hideInfoToast()`, `hideToast(id)`, `hideAllToasts()`.

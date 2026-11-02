@@ -42,6 +42,7 @@ all 243 legacy classes onto one closed vocabulary.
 
 | 6 | done | character editor rebuilt + card blocks ported back (see §6) |
 | 7 | done | entity list modals (characters / personas) rebuilt as a banded chassis: rail + toolbar + list plane + foot, hover-revealed verbs, group tags |
+| 8 | done | the banded chassis is a vocabulary (`modal-bands*`) and the rest of the list modals adopted it: providers, trash bin, custom blocks, prompt arranger |
 
 ---
 
@@ -220,7 +221,15 @@ Traps this step produced:
 - **Full-bleed bands inside `.modal-body` come from negative margins, not from
   zeroing the body padding.** The ruler measures the body's first child against
   the 24px inset; `padding: 0` on the body fails it (and is the one-inset rule
-  the user checks first).
+  the user checks first). The first and last bands must also absorb the body's
+  vertical padding, or a tinted strip that is not a band shows up as a colour
+  step above the rail and below the foot.
+- **A rail action that is a labelled `.btn` needs `flush`.** `.rail-actions`
+  pulls itself out 6px to align a 24px key's glyph; applied to a button with
+  text, the button overhangs the modal inset by 6px.
+- **A count rendered outside the swap target goes stale.** `hxGet`'s promise
+  resolves before htmx swaps, so the count must be re-read from `htmx:afterSwap`
+  keyed on the target (arranger rail, block door).
 - **`custom_select`'s `extra_classes` land on the trigger button**, not its
   `w-full` wrapper — a `flex` basis passed there never sizes the wrapper. Wrap the
   macro in a `<div class="arranger-select">` (this was also quietly squeezing the

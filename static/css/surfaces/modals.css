@@ -120,87 +120,109 @@
   box-shadow: inset 0 calc(-1 * var(--hair-w)) 0 var(--hair);
 }
 
-/* ── Entity lists ─────────────────────────────────────────────────────────
-   Characters, personas and providers share one row: a .row card in two
-   column-major lanes, its groove from the row primitive, its avatar, title,
-   readout and keys all primitives.
+/* ── Banded modal body ────────────────────────────────────────────────────
+   A modal whose content is a list is a chassis of bands: a readout rail (the
+   collection's verbs), an optional toolbar (search/filter/sort), the list lane,
+   an optional foot. Only the lane scrolls.
 
-   The characters/personas modals are a chassis of bands rather than one flat
-   scroll island: the readout rail owns the collection's verbs, then the
-   search/filter row, then the list, then the foot. Only the list scrolls. The
-   bands pull out to the panel's inner edges (the .modal-foot negative-margin
-   trick) and pad back in, so a groove runs the full width while the content
-   keeps the modal's one inset.
+   Bands pull out to the panel's inner edges with the .modal-foot negative-margin
+   trick and pad back in, so a groove or a plane change runs the full width while
+   the content keeps the modal's one inset. The first and last bands absorb the
+   body's own padding — a tinted strip that is not a band is discoloration.
 
-   Chrome is one field: the title bar and the body — its padding included —
-   share the tint, so no band stops short of the panel edge and leaves a strip
-   of another value behind it. The list lane paints its own plane on top. */
-.entity-modal-shell .modal-head,
-.entity-modal-shell .modal-body {
+   Chrome is one field: the title bar and every chrome band share `.modal-band`'s
+   tint; the lane is the only thing that paints a different value. */
+.modal-bands-shell .modal-head {
   background-color: var(--ink-1);
 }
 
-.entity-modal {
-  --entity-pad: var(--modal-pad);
+.modal-bands {
+  --band-pad: var(--modal-pad);
   display: flex;
   flex-direction: column;
   height: 100%;
   min-height: 0;
 }
 
-.entity-modal-head,
-.entity-modal-toolbar,
-.entity-modal-list,
-.entity-modal-foot {
-  margin-inline: calc(-1 * var(--entity-pad));
-  padding-inline: var(--entity-pad);
+.modal-band,
+.modal-band-head,
+.modal-band-toolbar,
+.modal-band-lane,
+.modal-band-foot {
+  margin-inline: calc(-1 * var(--band-pad));
+  padding-inline: var(--band-pad);
 }
 
-.entity-modal-head {
+.modal-band-head,
+.modal-band-toolbar,
+.modal-band-foot {
   flex: none;
+  background-color: var(--ink-1);
 }
 
-.entity-modal-head > .rail {
+.modal-band-head {
+  margin-top: calc(-1 * var(--band-pad));
+  padding-top: var(--band-pad);
+}
+
+.modal-band-head > .rail {
   margin: 0;
 }
 
-.entity-modal-toolbar {
+.modal-band-toolbar {
   display: flex;
   align-items: center;
   gap: var(--gutter);
-  flex: none;
   padding-block: var(--inset);
-  box-shadow:
-    inset 0 calc(-1 * var(--hair-w)) 0 var(--hair-dark),
-    inset 0 calc(-2 * var(--hair-w)) 0 var(--hair-lit);
 }
 
-/* The search field takes every pixel the two pickers do not need. */
-.entity-modal-toolbar > .search-field {
+/* The search field takes every pixel the pickers do not need. */
+.modal-band-toolbar > .search-field {
   flex: 1 1 auto;
 }
 
-.entity-modal-list {
+/* The lane is its own plane, opened by a groove. The bar rides in the lane's
+   padding (no reserved gutter), so the rows keep the same inset on both sides. */
+.modal-band-lane {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
-  /* The lane is full-bleed, so the bar rides in the padding instead of a
-     reserved gutter — the rows keep the same 24px inset on both sides. */
   scrollbar-gutter: auto;
-  /* The list is its own plane: one step down from the panel, so the rows read
-     inside a region instead of floating in the modal's fill. */
   background-color: var(--surface);
   padding-block: var(--gutter);
-}
-
-.entity-modal-foot {
-  display: flex;
-  justify-content: flex-end;
-  flex: none;
-  padding-block: var(--inset) 0;
   box-shadow:
     inset 0 var(--hair-w) 0 var(--hair-dark),
     inset 0 calc(var(--hair-w) * 2) 0 var(--hair-lit);
+}
+
+/* Nothing below the lane: it closes on the panel floor itself. */
+.modal-band-lane:last-child {
+  margin-bottom: calc(-1 * var(--band-pad));
+  padding-bottom: calc(var(--band-pad) + var(--gutter));
+}
+
+.modal-band-foot {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--gutter);
+  margin-bottom: calc(-1 * var(--band-pad));
+  padding-block: var(--inset) var(--band-pad);
+  box-shadow:
+    inset 0 var(--hair-w) 0 var(--hair-dark),
+    inset 0 calc(var(--hair-w) * 2) 0 var(--hair-lit);
+}
+
+/* ── Entity lists ─────────────────────────────────────────────────────────
+   Characters, personas and providers share one row: a .row card in two
+   column-major lanes, its groove from the row primitive, its avatar, title,
+   readout and keys all primitives. */
+.entity-list {
+  column-count: 2;
+  column-gap: var(--inset);
+  /* Two lanes of identical rows read as one field without a seam between
+     them; the rule is that seam. */
+  column-rule: var(--hair-w) solid var(--hair-dark);
 }
 
 .entity-list {
@@ -240,15 +262,16 @@
 
 /* The row is the target; its verbs arrive with the pointer (star, edit, delete)
    and nothing shifts when they do. A favourite's star stays lit at rest — it is
-   state, not a verb. */
-.entity-modal-shell .entity-row > .row-actions > .key {
+   state, not a verb. A list where the row action *is* the primary verb (the
+   provider list) opts out by not carrying `reveal-verbs`. */
+.entity-list.reveal-verbs .entity-row > .row-actions > .key {
   opacity: 0;
   transition: opacity var(--transition);
 }
 
-.entity-modal-shell .entity-row:hover > .row-actions > .key,
-.entity-modal-shell .entity-row:focus-within > .row-actions > .key,
-.entity-modal-shell .entity-row > .row-actions > .fav-star.favorite-active {
+.entity-list.reveal-verbs .entity-row:hover > .row-actions > .key,
+.entity-list.reveal-verbs .entity-row:focus-within > .row-actions > .key,
+.entity-list.reveal-verbs .entity-row > .row-actions > .fav-star.favorite-active {
   opacity: 1;
 }
 
@@ -353,12 +376,6 @@
   margin-top: auto;
 }
 
-/* The list takes the modal's free height; the one create verb sits on the
-   floor of the plate. */
-.char-blocks-add {
-  margin-top: auto;
-  padding-top: var(--gutter);
-}
 
 /* The avatar is a label: the file input hides inside it and the caption only
    appears under the pointer. */

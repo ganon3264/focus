@@ -1,2 +1,11 @@
 {% from "modal-shell.html" import modal_shell %}
-{% call modal_shell('modal-trash', 'Trash Bin', max_width='500px', width='90vw', z_index='var(--z-overlay)', overlay_attrs='aria-label="Trash"') %}<div id="modal-trash-body"></div>{% endcall %}
+{% call modal_shell('modal-trash', 'Trash Bin', max_width='500px', width='90vw',
+z_index='var(--z-overlay)', overlay_class='modal-bands-shell',
+overlay_attrs='aria-label="Trash"') %}
+<div class="modal-bands">
+  <div class="modal-band-head">
+    <div class="rail"><span data-ui="trash-count">Trash</span></div>
+  </div>
+  <div class="modal-band-lane" id="modal-trash-body"></div>
+</div>
+{% endcall %}

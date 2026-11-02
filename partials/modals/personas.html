@@ -1,12 +1,12 @@
 {# Entity list modal — personas. Same chassis as the character list (see
    modals/characters.html); personas have no import and no trash bin. #}
-<div class="entity-modal">
+<div class="modal-bands">
   {% from "macros.html" import icon_plus, sort_dropdown, filter_dropdown,
   search_toolbar, empty_state %}
-  <div class="entity-modal-head">
+  <div class="modal-band-head">
     <div class="rail">
       <span>{{ personas|length }} {{ 'persona' if personas|length == 1 else 'personas' }}</span>
-      <div class="rail-actions">
+      <div class="rail-actions flush">
         <button
           type="button"
           onclick="openNewPersonaPopup()"
@@ -18,19 +18,19 @@
     </div>
   </div>
 
-  <div class="entity-modal-toolbar">
+  <div class="modal-band-toolbar">
     {% call search_toolbar('Search personas…', input_attrs='oninput="filterPersonas(this.value)"', wrapper_classes='') %}
       {{ filter_dropdown('setPersonaFilter', 'getPersonaFilterGroups') }}
       {{ sort_dropdown('focus_persona_sort', 'sortPersonas') }}
     {% endcall %}
   </div>
 
-  <div class="entity-modal-list">
+  <div class="modal-band-lane">
     {% if not personas %}
     {{ empty_state('No personas found. Create one to get started!') }}
     {% endif %}
 
-    <div class="entity-list" id="persona-modal-grid">
+    <div class="entity-list reveal-verbs" id="persona-modal-grid">
       {% for p in personas %}
       {% include "modals/persona-card.html" %}
       {% endfor %}

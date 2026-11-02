@@ -1,4 +1,4 @@
-{% from "macros.html" import hint_tooltip, modal_footer, tab_bar %}
+{% from "macros.html" import hint_tooltip, modal_footer, tab_bar, icon_plus %}
 {% from "modal-shell.html" import modal_shell %}
 
 <!-- MAIN MODALS -->
@@ -40,7 +40,7 @@
 
 {% include "modals/summary.html" %}
 
-{% call modal_shell('modal-characters', 'Characters', max_width='800px', content_style='height:80vh;', overlay_class='entity-modal-shell') %}
+{% call modal_shell('modal-characters', 'Characters', max_width='800px', content_style='height:80vh;', overlay_class='modal-bands-shell') %}
 <div id="characters-modal-body" class="flex-1 min-h-0 flex flex-col">
   <div id="characters-modal-body-inner" class="h-full">Loading…</div>
 </div>
@@ -49,7 +49,7 @@
 {% set prefix = 'char' %}{% set modal_id = 'modal-edit-character' %}{% set entity_name = 'Character' %}{% set upload_fn = 'actionUploadCharMedia' %}{% set avatar_fn = 'actionUploadCharAvatar' %}{% set submit_fn = 'actionSubmitEditCharacter' %}{% set show_theme = true %}{% set show_greetings = true %}
 {% include "modals/edit-entity.html" %}
 
-{% call modal_shell('modal-personas', 'Personas', max_width='800px', content_style='height:80vh;', overlay_class='entity-modal-shell') %}
+{% call modal_shell('modal-personas', 'Personas', max_width='800px', content_style='height:80vh;', overlay_class='modal-bands-shell') %}
 <div id="personas-modal-body" class="flex-1 min-h-0 flex flex-col">
   <div id="personas-modal-body-inner" class="h-full">Loading…</div>
 </div>
@@ -60,7 +60,7 @@
 {% set prefix = 'persona' %}{% set modal_id = 'modal-edit-persona' %}{% set entity_name = 'Persona' %}{% set upload_fn = 'actionUploadPersonaMedia' %}{% set avatar_fn = 'actionUploadPersonaAvatar' %}{% set submit_fn = 'actionSubmitEditPersona' %}{% set show_theme = false %}{% set show_greetings = false %}
 {% include "modals/edit-entity.html" %}
 
-{% call modal_shell('modal-providers', 'Providers', max_width='1000px', content_style='height:80vh;') %}
+{% call modal_shell('modal-providers', 'Providers', max_width='1000px', content_style='height:80vh;', overlay_class='modal-bands-shell') %}
 <div id="providers-modal-body" class="flex-1 min-h-0 flex flex-col">
   <div id="providers-modal-body-inner" class="h-full">Loading…</div>
 </div>
@@ -108,21 +108,57 @@
 {% endcall %}
 
 <!-- PROMPT ARRANGER MODAL -->
-{% call modal_shell('modal-arranger', 'Prompt Arranger', max_width='600px', width='90vw', content_style='height:85vh;') %}
-<div id="arranger-modal-body" style="flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 0.5rem 1rem 1rem 1rem;">
-  <div class="flex items-center gap-1 mb-2 text-xs text-muted">
-    Arrange and configure prompt blocks that make up your preset.
-    {{ hint_tooltip('Text blocks are fully custom written content. Sentinel types (Character Description, Personality, User Persona, Chat History, Character Blocks) auto-populate from the active character or persona card.') }}
+{% call modal_shell('modal-arranger', 'Prompt Arranger', max_width='600px', width='90vw',
+content_style='height:85vh;', overlay_class='modal-bands-shell') %}
+<div id="arranger-modal-body" class="modal-bands">
+  <div class="modal-band-head">
+    <div class="rail">
+      <span>Blocks</span>
+      {{ hint_tooltip('Arrange the blocks that make up your preset. Text blocks are fully custom written content. Sentinel types (Character Description, Personality, User Persona, Chat History, Character Blocks) auto-populate from the active character or persona card.') }}
+      <div class="rail-actions flush">
+        <span class="row-meta" data-ui="arranger-count">{{ (preset_blocks | default([])) | length }}</span>
+      </div>
+    </div>
   </div>
-  <div id="arranger-content" style="flex: 1; min-height: 0; display: flex; flex-direction: column;">
+
+  <div id="arranger-content" class="modal-band-lane">
     {% if preset %}
       {% with preset_id = preset.id, blocks = preset_blocks %}
         {% include "presets/prompt-arranger.html" %}
       {% endwith %}
     {% else %}
-      <div class="text-muted text-center mt-4">Select a preset first.</div>
+      <p class="empty">Select a preset first.</p>
     {% endif %}
   </div>
+
+  {% if preset %}
+  <div class="modal-band-foot">
+    <div x-data="{ open: false }" data-preset-id="{{ preset.id }}" class="relative flex-1">
+      <button type="button" class="btn create w-full" @click="open = !open">
+        {{ icon_plus(14) }} Add Block
+      </button>
+
+      <div
+        x-show="open"
+        @click.away="open = false"
+        x-transition.opacity.duration.200ms
+        class="panel absolute bottom-full left-0 right-0 mb-2 p-2 z-50"
+        style="display: none"
+      >
+        <div class="rail">Block type</div>
+        <div class="arranger-add-buttons">
+          <button type="button" class="btn sm justify-start" @click="open = false; addBlock($el.closest('[data-preset-id]').dataset.presetId, 'text', $el)">Text (Custom Prompt)</button>
+          <button type="button" class="btn sm justify-start" @click="open = false; addBlock($el.closest('[data-preset-id]').dataset.presetId, 'char_description', $el)">Character Description</button>
+          <button type="button" class="btn sm justify-start" @click="open = false; addBlock($el.closest('[data-preset-id]').dataset.presetId, 'char_personality', $el)">Character Personality</button>
+          <button type="button" class="btn sm justify-start" @click="open = false; addBlock($el.closest('[data-preset-id]').dataset.presetId, 'char_blocks', $el)">Character Blocks</button>
+          <button type="button" class="btn sm justify-start" @click="open = false; addBlock($el.closest('[data-preset-id]').dataset.presetId, 'user_persona', $el)">User Persona</button>
+          <button type="button" class="btn sm justify-start" @click="open = false; addBlock($el.closest('[data-preset-id]').dataset.presetId, 'chat_history', $el)">Chat History</button>
+          <button type="button" class="btn sm justify-start" @click="open = false; addBlock($el.closest('[data-preset-id]').dataset.presetId, 'summary', $el, 'Summary', window.SUMMARY_DEFAULT_TEMPLATE)">Summary</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
 </div>
 {% endcall %}
 

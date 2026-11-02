@@ -1,4 +1,14 @@
 (function () {
+  // The arranger's rail count lives outside #arranger-content (the swap target),
+  // so it is re-read after the swap, never from the hxGet promise.
+  document.addEventListener('htmx:afterSwap', function (e) {
+    var target = e.detail && e.detail.target;
+    if (!target || target.id !== 'arranger-content') return;
+    var label = document.querySelector('#modal-arranger [data-ui="arranger-count"]');
+    if (!label) return;
+    label.textContent = target.querySelectorAll('[data-ui="arranger-item"]').length;
+  });
+
   window.reloadPromptArranger = function (presetId) {
     // The arranger content lives inside a stable #arranger-content wrapper
     // (header hint stays outside it), so reloading only swaps the content.

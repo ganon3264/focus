@@ -1,22 +1,24 @@
 {% from "macros.html" import icon_key, icon_edit, icon_refresh, icon_search, icon_database, icon_plus, icon_close, sort_dropdown, empty_state %}
 {% from "modal-shell.html" import modal_shell %}
-<div class="flex flex-col h-full">
-  <div class="flex justify-between items-center gap-2 shrink-0">
-    <h3 class="note">Select active provider</h3>
-    <div class="flex gap-2 items-center shrink-0">
-      {{ sort_dropdown('focus_providers_sort', 'sortProviders') }}
-      <button class="btn sm flex items-center gap-1.5" onclick="openSecretsManager()">{{ icon_key(14) }} Keys</button>
-      <button class="btn create sm flex items-center gap-1.5" data-action="actionOpenProviderCreateModal">{{ icon_plus(14) }} Add Provider</button>
+<div class="modal-bands">
+  <div class="modal-band-head">
+    <div class="rail">
+      <span>{{ providers|length }} {{ 'provider' if providers|length == 1 else 'providers' }}</span>
+      <div class="rail-actions flush">
+        {{ sort_dropdown('focus_providers_sort', 'sortProviders') }}
+        <button type="button" class="btn sm" onclick="openSecretsManager()">{{ icon_key(14) }} Keys</button>
+        <button type="button" class="btn sm create" data-action="actionOpenProviderCreateModal">{{ icon_plus(14) }} Add Provider</button>
+      </div>
     </div>
   </div>
-  
-  {% if not providers %}
-    {{ empty_state('No providers configured. Click "Add Provider" to create one.', extra_classes='mb-4') }}
-  {% endif %}
 
-  <div class="flex-1 min-h-0 overflow-y-auto">
-  <div class="entity-list" id="providers-grid">
-    {% for prov in providers %}
+  <div class="modal-band-lane">
+    {% if not providers %}
+    {{ empty_state('No providers configured. Add one to get started.') }}
+    {% endif %}
+
+    <div class="entity-list" id="providers-grid">
+      {% for prov in providers %}
       <div class="row entity-row provider-row{% if active_provider_id == prov.id %} active{% endif %}" id="prov-card-{{ prov.id }}" role="button" tabindex="0" data-action="actionSetActiveProvider" data-prov-id="{{ prov.id }}" data-prov-name="{{ prov.name }}" data-prov-type="{{ prov.type }}" data-prov-created="{{ prov.created_at }}" data-ui="entity-row">
         <span id="prov-display-{{ prov.id }}" class="row-title">{{ prov.name }}</span>
         <span class="row-meta">{{ prov.type }} · {{ prov.model }}</span>
@@ -28,11 +30,11 @@
           {% endif %}
         </span>
         <span class="row-actions" onclick="event.stopPropagation()">
-          <button class="key sm" onclick="openProviderEditModal('{{ prov.id }}')" aria-label="Edit provider">{{ icon_edit() }}</button>
-          <button class="key sm danger entity-delete" hx-delete="/api/providers/{{ prov.id }}" hx-confirm="Delete?" hx-swap="none" hx-on:htmx:after-request="(window.ProviderStore ? ProviderStore.refresh() : Promise.resolve()).finally(function(){ hxGet('/partials/providers-modal',{target:'#providers-modal-body-inner',swap:'innerHTML'}) })" aria-label="Delete provider">{{ icon_close(16) }}</button>
+          <button type="button" class="key sm" onclick="openProviderEditModal('{{ prov.id }}')" aria-label="Edit provider">{{ icon_edit() }}</button>
+          <button type="button" class="key sm danger entity-delete" hx-delete="/api/providers/{{ prov.id }}" hx-confirm="Delete?" hx-swap="none" hx-on:htmx:after-request="(window.ProviderStore ? ProviderStore.refresh() : Promise.resolve()).finally(function(){ hxGet('/partials/providers-modal',{target:'#providers-modal-body-inner',swap:'innerHTML'}) })" aria-label="Delete provider">{{ icon_close(16) }}</button>
         </span>
       </div>
-    {% endfor %}
+      {% endfor %}
     </div>
   </div>
 </div>
