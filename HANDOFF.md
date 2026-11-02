@@ -193,6 +193,13 @@ hardcoded IDs; registry bypasses (87 raw `fetch` vs 31 `hx*`) untouched.
   leaves no strip and no gap. `toggleReasoning` unhides the content; every
   `<details>` block carries its own `summary`. `ensureReasoningToggleButton`
   inserts into `message-meta`, never into the block.
+- **Its "follow" is `#reasoning-sticky-host`**, not `position: sticky` on the
+  block: a zero-height sticky host at the top of the scrollport holds a `.chip`
+  pill that collapses the block. It aligns to the reasoning plate's left edge
+  (`calc(gutter + inset)` = 20) — the paddings are inlined because the host is
+  outside `.message` and cannot see `--msg-frame-pad`/`--msg-screen-pad`; an
+  undefined `var()` in `padding` computes to 0 without warning. The JS only shows
+  it while a `.reasoning-open` message's block straddles the scrollport top.
 - **Disclosures need a ring.** A fill alone disappears on themes where
   `--surface` and `--mat-well` are the same value; `.disclosure` carries
   `inset 0 0 0 1px var(--hair)` and that is what makes the body read as enclosed.
