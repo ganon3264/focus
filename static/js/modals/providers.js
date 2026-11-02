@@ -584,18 +584,18 @@ async function fetchProviderBalances() {
     try {
       const res = await fetch(api.providerBalance(providerId));
       if (!res.ok) {
-        el.textContent = 'Balance: error';
+        el.textContent = 'error';
         return;
       }
       const data = await res.json();
       const balances = data.balances || [];
       if (balances.length === 0) {
-        el.textContent = 'Balance: unavailable';
+        el.textContent = 'unavailable';
         return;
       }
-      el.textContent = 'Balance: ' + balances.map(b => '$' + Number(b.amount).toFixed(2) + ' ' + b.currency).join(', ');
+      el.textContent = balances.map(b => '$' + Number(b.amount).toFixed(2) + ' ' + b.currency).join(', ');
     } catch (e) {
-      el.textContent = 'Balance: unavailable';
+      el.textContent = 'unavailable';
     }
   });
 }

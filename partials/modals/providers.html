@@ -17,11 +17,13 @@
     {{ empty_state('No providers configured. Add one to get started.') }}
     {% endif %}
 
-    <div class="entity-list" id="providers-grid">
+    <div class="provider-list" id="providers-grid">
       {% for prov in providers %}
       <div class="row entity-row provider-row{% if active_provider_id == prov.id %} active{% endif %}" id="prov-card-{{ prov.id }}" role="button" tabindex="0" data-action="actionSetActiveProvider" data-prov-id="{{ prov.id }}" data-prov-name="{{ prov.name }}" data-prov-type="{{ prov.type }}" data-prov-created="{{ prov.created_at }}" data-ui="entity-row">
-        <span id="prov-display-{{ prov.id }}" class="row-title">{{ prov.name }}</span>
-        <span class="row-meta">{{ prov.type }} · {{ prov.model }}</span>
+        <span class="provider-identity">
+          <span id="prov-display-{{ prov.id }}" class="row-title" title="{{ prov.name }}">{{ prov.name }}</span>
+          <span class="row-meta" title="{{ prov.type }} · {{ prov.model }}">{{ prov.type }} · {{ prov.model }}</span>
+        </span>
         <span class="row-value provider-balance">
           {% if prov.type in ('deepseek', 'openrouter', 'moonshot') %}
           <span id="balance-{{ prov.id }}"><span class="balance-loading">—</span></span>

@@ -10,8 +10,8 @@
   data-char-id="{{ char_id }}"
   x-data="{ expanded: expandGet('charBlocks', $el.dataset.blockId) }"
 >
-  <div class="row arranger-header role-{{ block.role }}">
-    <div class="grip char-block-handle" title="Drag to reorder"></div>
+  <div class="row arranger-header">
+    <div class="grip char-block-handle role-{{ block.role }}" title="Drag to reorder"></div>
     <div
       class="arranger-title-group"
       data-ui="char-block-title"

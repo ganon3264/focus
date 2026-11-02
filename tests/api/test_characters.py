@@ -507,7 +507,9 @@ class TestCharacterBlocks:
         assert resp.status_code == 200
         html = resp.text
         assert 'data-ui="char-block"' in html
-        assert 'class="row arranger-header role-assistant"' in html
+        assert 'class="row arranger-header"' in html
+        # The role is the grip's fill, not the row's left edge.
+        assert 'class="grip char-block-handle role-assistant"' in html
         assert 'value="Mood"' in html
         assert "Tired." in html
 

@@ -9,8 +9,8 @@ media_thumbnail, hint_tooltip, icon_sliders, in_chat_controls, toggle %}
   data-preset-id="{{ preset_id }}"
   x-data="{ expanded: expandGet('arrangerBlocks', $el.dataset.blockId) }"
 >
-  <div class="row arranger-header{% if block.block_type != 'chat_history' and block.block_type != 'char_blocks' %} role-{{ block.role }}{% endif %}">
-    <div class="grip arranger-handle" title="Drag to reorder"></div>
+  <div class="row arranger-header">
+    <div class="grip arranger-handle{% if block.block_type != 'chat_history' and block.block_type != 'char_blocks' %} role-{{ block.role }}{% endif %}" title="Drag to reorder"></div>
     <div
       class="arranger-title-group"
       @click="expanded = expandToggle('arrangerBlocks', $el.closest('[data-ui=arranger-item]').dataset.blockId)"

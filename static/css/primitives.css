@@ -993,8 +993,9 @@ textarea.field {
 
 /* ── .grip — drag handle and its LED ──────────────────────────────────────
    One solid bar, lit from above like every other raised thing: the one place a
-   fill is the state, because that is what an indicator is. Grey when the thing
-   it holds is unset, accent when it is set. */
+   fill is a signal, because that is what an indicator is. Grey when the thing
+   it holds is unset, accent when it is set, and the role colour when the row
+   is a prompt block whose role is the point. */
 .grip {
   flex: none;
   width: calc(var(--u) * 2);
@@ -1006,6 +1007,22 @@ textarea.field {
     inset 0 calc(-1 * var(--hair-w)) 0 color-mix(in srgb, black 35%, transparent);
   cursor: grab;
   transition: background-color var(--transition);
+}
+
+/* A grip can carry the role of the thing it holds instead of a state: the same
+   cue the row edge would give, on the handle you actually grab. */
+.grip.role-user {
+  background-color: var(--role-user);
+}
+
+.grip.role-assistant {
+  background-color: var(--role-assistant);
+}
+
+/* `--edge` is the row's translucent hairline; a grip is a fill, so the system
+   role takes the solid accent instead of washing out. */
+.grip.role-system {
+  background-color: var(--accent);
 }
 
 .grip.on {

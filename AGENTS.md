@@ -116,8 +116,10 @@ The pruner's `_pruned` map is keyed by bare id (`MessageIdentity.bare`); `_forge
 - `grid-audit.js` measures the rhythm on characters, providers, itemizer and arranger: rail on the modal inset, rail 24 below the title groove, 12px of air before the next band, first row 8 into the lane, last band on the panel floor, foot verb on the inset.
 - A rail's last action must be `flush` (`.rail-actions.flush`) when it is a labelled `.btn` — the default optical pull would push it past the modal inset.
 - **Counts live in the rail, outside the swap target.** Update them from `htmx:afterSwap` keyed on the lane/target id, never from the `hxGet` promise (it resolves before the swap) — `arranger-count` and the block door's count work this way.
+- Block rows (arranger, custom blocks): the role is the **grip's** fill (`.grip.role-*`), not a coloured left edge on the row — the handle is the thing you grab, so the cue belongs on it. Sentinel rows (chat history, character blocks) keep a neutral grip.
 - Entity rows: `.row.entity-row` in two column-major lanes (`.entity-list`, `column-rule` between them). `reveal-verbs` makes the row's keys appear on hover (characters/personas); without it they stay visible (providers, where the row's edit key is the primary verb).
 - Rows: avatar → `.row-title` → `.row-meta` (the group as a `.tag`, blank when ungrouped) → `.row-actions`. A favourite's star stays lit at rest because it is state, not a verb.
+- **Providers are one column, two lines**: `.provider-row` (48px) holds a `.provider-identity` stack (name over `type · model`) then the balance readout and the verbs. Four items on one baseline was unreadable at 2-up width. The 48px height takes `.entity-row.provider-row` because `.row` is 32 and arrives last.
 
 ### Toast system### Toast system (`static/js/ui/notifications.js`)
 

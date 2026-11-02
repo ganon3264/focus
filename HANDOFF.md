@@ -73,7 +73,9 @@ feedback   .toast .tooltip .spinner .empty .note .tag .avatar
   shadow. No gradient — a floating plate reads by its edge and its shadow.
 - **Intent is ink + edge, or a tinted plate** (`.create`/`.toast-success`), never
   a wash over a raised control.
-- **Fill is the state in exactly one place**: `.grip`. Do not "fix" it back.
+- **Fill is a signal in exactly one place**: `.grip` — the drag state (`.on`,
+  accent) or the role of the block it holds (`.role-*`, matching the role
+  colours; system takes the solid accent because `--edge` is a hairline tone).
 - **A surface may set layout on its own container; it may not restyle a
   primitive.** Named slots exist for this: `.disclosure-title`/`-meta`,
   `.row-*`, `.rail-actions`. Never select on child position inside a primitive.
@@ -261,6 +263,8 @@ What is left is the debt the pass deliberately did not take on:
 - **A surface override of a primitive's geometry loses silently.** `.row.sm`
   (primitives, imported last) beats `.preset-menu .row { min-height }` at equal
   specificity — so restyle by picking the right modifier, not by re-declaring.
+  The provider row's 48px height needs `.entity-row.provider-row` for the same
+  reason: a lone `.provider-row` loses to `.row`'s 32px.
 - **`scrollbar-gutter: stable` moves the right edge in.** A scrolled list and a
   scrolled-out header beside it need the same reserved lane, or their trailing
   keys sit 10px apart. The preset menu reserves it on the rail too.
