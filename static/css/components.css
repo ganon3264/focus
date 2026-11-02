@@ -159,10 +159,6 @@
     color: var(--success-hover);
     border-color: color-mix(in srgb, var(--success) 40%, transparent);
   }
-  .radio-add-row.is-create:hover {
-    border-color: var(--success);
-    background: var(--success-dim);
-  }
   .btn-secondary {
     background: var(--surface-2);
     border: 1px solid var(--border);
@@ -253,76 +249,6 @@
     position: absolute;
     border-radius: 1px;
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  /* Radio Switch for variable options */
-  .radio-switch {
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    border: 2px solid var(--border);
-    display: grid;
-    place-items: center;
-    flex-shrink: 0;
-    cursor: pointer;
-    transition: all var(--transition);
-    background: transparent;
-  }
-  .radio-switch:hover {
-    border-color: var(--border-hover);
-  }
-  .radio-switch.active {
-    border-color: var(--accent);
-  }
-  .radio-switch .radio-inner {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: transparent;
-    transition: all var(--transition);
-  }
-  .radio-switch.active .radio-inner {
-    background: var(--accent);
-  }
-  .radio-add-row {
-    border: 1px dashed var(--border);
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-    transition: all var(--transition);
-  }
-  .radio-add-row:hover {
-    border-color: var(--accent);
-    background: var(--accent-faint);
-  }
-
-  /* Variable group containers — compact card */
-  .var-group-container {
-    padding: 0.375rem 0.75rem;
-    border-radius: var(--radius-sm);
-    box-shadow: none;
-    cursor: pointer;
-  }
-  .var-option-item {
-    padding: 0.375rem 0.5rem;
-    background: var(--surface-2);
-    border: 1px solid var(--border);
-  }
-  .var-option-item:hover {
-    border-color: var(--border-hover);
-  }
-
-  .var-group-name {
-    cursor: pointer;
-    font-size: 0.75rem;
-    font-weight: 700;
-    color: var(--text);
-  }
-
-  .status-panel {
-    background: var(--surface-2);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    padding: 0.5rem;
   }
 
   /* Prompt Arranger Drag & Drop */
@@ -509,14 +435,6 @@
      top-right corner aligns with the clipped thumbnail edge */
   .media-thumb-close {
     border-radius: inherit;
-  }
-
-  .var-group-container.bg-role-system {
-    background: var(--active-bg);
-    border-color: var(--active-border);
-  }
-  .var-group-container.bg-role-system:hover {
-    border-color: var(--active-border);
   }
 
   .arranger-body {
@@ -750,28 +668,6 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.5rem;
-}
-.tool-tile {
-  justify-content: flex-start;
-  gap: 0.5rem;
-  padding: 0.5rem 0.65rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-.tool-tile > span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.tool-tile > svg {
-  flex-shrink: 0;
-  color: var(--text-muted);
-  transition: color var(--transition);
-}
-.tool-tile:hover > svg,
-.tool-tile:focus-visible > svg {
-  color: var(--accent);
 }
 
 /* Extension toolbar / modal icons — the spec embeds raw SVG, sized to fill. */

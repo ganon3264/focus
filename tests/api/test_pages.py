@@ -139,7 +139,7 @@ class TestChatPagination:
         await self._seed(client, 17, char["id"])
         resp = await client.get(f"/partials/chat-list?character_id={char['id']}")
         assert resp.status_code == 200
-        assert 'class="chat-pager"' in resp.text
+        assert 'class="pager"' in resp.text
         assert 'data-chat-page="1"' in resp.text
         assert "goToChatPage(1)" in resp.text
         assert "goToChatPage(2)" in resp.text
@@ -149,7 +149,7 @@ class TestChatPagination:
         await create_chat(client, character_id=char["id"], title="Only")
         resp = await client.get(f"/partials/chat-list?character_id={char['id']}")
         assert resp.status_code == 200
-        assert 'class="chat-pager"' not in resp.text
+        assert 'class="pager"' not in resp.text
 
     async def test_second_page_has_older_chats(self, client):
         char = await create_character(client, "Paged2")
@@ -176,7 +176,7 @@ class TestChatPagination:
         resp = await client.get(f"/chat/{oldest['id']}")
         assert resp.status_code == 200
         assert 'data-chat-page="2"' in resp.text
-        assert "sidebar-item group active" in resp.text
+        assert 'class="row group active"' in resp.text
 
     async def test_selection_state_preserves_page(self, client):
         char = await create_character(client, "Paged5")

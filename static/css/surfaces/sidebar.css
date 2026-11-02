@@ -1,160 +1,195 @@
-/* Surface: sidebar. Unlayered owner of this surface's geometry and chrome.
-   Materials and primitives come from design.css; nothing here invents a
-   shadow, a radius, or a spacing value off the grid. */
+/* Surface: sidebars. Sections, the preset selector and its menu, preset
+   variables, the tool grid, the status readout, the chat rows and the footer.
+   Layout only — every control is a primitive; nothing here invents a look. */
 
-/* ── Right pane chassis ─────────────────────────────────────────────────────
-   Only one section in this pane: the rail, the create action, the divider and
-   the list. The footer owns the rule above it, so the section paints none. */
-.right-sidebar .sidebar-section {
-  flex: 1 1 auto;
+/* ── Sections ─────────────────────────────────────────────────────────────
+   One inset, one groove between sections, no frame. The rule is painted inside
+   the section box so the pane's inner column stays on the ruler. */
+.sidebar-section {
+  display: flex;
+  flex-direction: column;
   min-height: 0;
-  /* No bottom inset: the footer's rule closes the list, so the rows run to it
-     the way a table's last row meets its border. */
-  padding: var(--inset) var(--inset) 0;
+  padding: var(--inset);
   border: none;
-  box-shadow: none;
-}
-
-/* ── The one create action ──────────────────────────────────────────────────
-   Raised chrome, not a tinted flat block: this is the only control in the pane
-   that brings a new entity into being, so it carries the hardware. The create
-   colour rides on top of the material gradient instead of replacing it. */
-.right-sidebar .sidebar-section > .btn {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--gutter);
-  width: 100%;
-  height: var(--control-h-lg);
-  padding: 0 var(--gutter);
-  border: none;
-  border-radius: var(--radius-control);
-  background-color: var(--surface);
-  background-image: var(--mat-raise-fill);
-  box-shadow: var(--mat-raise);
-  font-family: var(--font-sans);
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--text-muted);
-}
-
-.right-sidebar .sidebar-section > .btn:hover {
-  background-image: linear-gradient(var(--mat-hi), var(--mat-shade));
-  color: var(--text);
-}
-
-.right-sidebar .sidebar-section > .btn:active {
-  background-image: linear-gradient(var(--mat-shade), var(--mat-glow));
-  box-shadow: var(--mat-inset);
-  transform: translateY(var(--hair-w));
-}
-
-.right-sidebar .sidebar-section > .btn:focus-visible {
-  outline: none;
-  box-shadow: var(--mat-raise), 0 0 0 var(--hair-w) var(--accent);
-}
-
-.right-sidebar .sidebar-section > .btn-create {
-  background-image: linear-gradient(var(--success-tint), var(--success-tint)),
-    var(--mat-raise-fill);
-  color: var(--success-hover);
-}
-
-.right-sidebar .sidebar-section > .btn-create:hover {
-  background-image: linear-gradient(var(--success-tint-strong), var(--success-tint-strong)),
-    linear-gradient(var(--mat-hi), var(--mat-shade));
-  color: var(--success-hover);
-}
-
-.right-sidebar .sidebar-section > .btn-create:active {
-  background-image: linear-gradient(var(--success-tint-strong), var(--success-tint-strong));
-}
-
-.right-sidebar .sidebar-section > .btn-primary {
-  background-image: linear-gradient(var(--tint-2), var(--tint-2)), var(--mat-raise-fill);
-  color: var(--accent);
-}
-
-/* ── Divider under the create action ────────────────────────────────────────
-   Sits on the same pixel row as the left pane's preset-section hairline: both
-   are drawn at inset + rail + gutter + control, so the two panes read as one
-   body line. The box is a hairline tall, so its top edge is one pixel above the
-   grid line it divides — that is what puts the first row back on the ruler. */
-.right-sidebar .sidebar-rule {
-  flex: none;
-  height: var(--hair-w);
-  margin: calc(var(--inset) - var(--hair-w)) 0 0;
-  border: none;
-  background: none;
   box-shadow: inset 0 calc(-1 * var(--hair-w)) 0 var(--hair-dark);
 }
 
-/* ── List region ────────────────────────────────────────────────────────────
-   The scroll lane lives in the pane's right inset, so rows keep the inset on
-   both edges. */
-.right-sidebar #chat-list.sidebar-list {
+.sidebar-section:last-child {
+  box-shadow: none;
+}
+
+/* ── Left pane ────────────────────────────────────────────────────────────── */
+
+/* The preset selector is a readout you can drop open: full width, control
+   height, chevron at the end (layout only — the field supplies the rest). */
+#preset-selector-wrapper {
+  gap: var(--gutter);
+}
+
+#preset-selector .field {
+  height: var(--control-h-lg);
+  padding: 0 var(--gutter);
+  line-height: normal;
+  cursor: pointer;
+}
+
+/* ── Preset menu ─────────────────────────────────────────────────────────── */
+.preset-menu {
+  padding: var(--u);
+  overflow: hidden;
+}
+
+.preset-menu > .rail {
+  margin: 0;
+  padding: 0 var(--u);
+}
+
+.preset-menu-list {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+.preset-menu .row {
+  min-height: var(--control-h);
+  padding: 0 var(--u);
+  font-size: 12px;
+}
+
+/* The row's actions appear with the pointer, so a resting menu is a list of
+   names and nothing else. */
+.preset-menu .row-actions {
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+
+.preset-menu .row:hover .row-actions,
+.preset-menu .row:focus-within .row-actions {
+  opacity: 1;
+}
+
+/* ── Preset variables ──────────────────────────────────────────────────────
+   A group is a row plus its own option list. Grooves are shared: the group's
+   line and the rows under it paint one continuous ruled block. */
+.var-group {
+  display: flex;
+  flex-direction: column;
+}
+
+#preset-variables [data-ui~='var-groups-list'] {
+  gap: 0;
+}
+
+.var-group > .row {
+  padding: 0 var(--gutter);
+}
+
+.var-group .row.inset {
+  min-height: var(--control-h-sm);
+}
+
+.sortable-var-options {
+  gap: 0;
+}
+
+.var-group .grip {
+  margin-right: calc(-1 * var(--u));
+}
+
+/* ── Tools ──────────────────────────────────────────────────────────────── */
+.tools-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--gutter);
+}
+
+/* ── Status readout ─────────────────────────────────────────────────────── */
+.sidebar-section.mt-auto {
+  margin-top: auto;
+}
+
+.left-sidebar .well {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: var(--gutter);
+}
+
+.left-sidebar .well > .row {
+  justify-content: space-between;
+  padding: 0 var(--u);
+}
+
+/* ── Right pane ───────────────────────────────────────────────────────────── */
+
+/* No bottom inset: the footer's rule closes the list, so the rows run into it
+   the way a table's last row meets its border. */
+.right-sidebar .sidebar-section {
+  flex: 1 1 auto;
+  padding: var(--inset) var(--inset) 0;
+  box-shadow: none;
+}
+
+.right-sidebar .sidebar-section > .btn {
+  flex: none;
+  justify-content: center;
+  width: 100%;
+  height: var(--control-h-lg);
+}
+
+/* The create action is separated from the list by a divider that lands on the
+   same y as the left pane's first section groove. */
+.right-sidebar .sidebar-section > .divider {
+  margin: calc(var(--inset) - var(--hair-w)) 0 0;
+}
+
+.sidebar-list {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+#chat-list {
   gap: 0;
-  margin: 0;
-  padding: 0;
 }
 
-/* Empty list: a caption, not a framed box — the list has no frame anywhere
-   else, so an empty one should not grow one. */
-.right-sidebar #chat-list [class*='border-dashed'] {
-  padding: var(--inset);
-  border: none;
-  border-radius: 0;
-  background: none;
-  font-family: var(--font-sans);
-  font-size: 12px;
-  line-height: calc(var(--u) * 4);
-  color: var(--text-muted);
+/* The generic scroll rule reserves a gap plus a stable bar lane; on a 312px pane
+   that lands the rows on an odd width. The rows carry their own right padding,
+   so the gap is not needed here — the bar sits against the row edge. */
+#chat-list [data-chat-list-scroll] {
+  padding-right: 0;
 }
 
-/* ── Rows ───────────────────────────────────────────────────────────────────
-   One 32px row each (8 grid units), hairline painted inside the row box so the
-   pitch stays on the ruler. A single line: title, then the date as a faint
-   readout — two lines per row made the column read as a wall of text. */
-.right-sidebar .sidebar-item {
-  --row-edge: var(--hair-groove);
-  position: relative;
-  display: flex;
-  align-items: center;
+/* ── Chat rows ────────────────────────────────────────────────────────────
+   One line, one 32px pitch, an 80px readout column carrying date over persona.
+   The delete key takes the readout's place under the pointer. */
+#chat-list .row {
   flex: none;
-  gap: var(--gutter);
-  height: calc(var(--u) * 8);
-  padding: 0 var(--gutter) 0 var(--inset);
+  padding-left: var(--inset);
   overflow: hidden;
-  border: none;
-  border-radius: 0;
-  background-color: transparent;
-  background-image: none;
-  box-shadow: var(--row-edge);
 }
 
-.right-sidebar .sidebar-item:last-child {
-  --row-edge: inset 0 var(--hair-w) 0 var(--hair-lit);
+#chat-list .row > .key {
+  position: absolute;
+  top: 50%;
+  right: var(--gutter);
+  transform: translateY(-50%);
+  opacity: 0;
+  transition: opacity var(--transition);
 }
 
-.right-sidebar .sidebar-item:hover {
-  background-color: var(--ink-1);
-  box-shadow: var(--row-edge);
+#chat-list .row:hover > .key,
+#chat-list .row:focus-within > .key {
+  opacity: 1;
 }
 
-.right-sidebar .sidebar-item.active {
-  background-color: var(--ink-2);
-  box-shadow: inset calc(2 * var(--hair-w)) 0 0 var(--accent), var(--row-edge);
-  color: inherit;
-}
-
-.right-sidebar .sidebar-item .sidebar-item-link {
+.row-link {
   display: flex;
-  flex-direction: row;
   align-items: center;
   gap: var(--gutter);
   flex: 1 1 auto;
@@ -164,287 +199,57 @@
   text-decoration: none;
 }
 
-.right-sidebar .sidebar-item .sidebar-item-link .sidebar-item-title,
-.right-sidebar .sidebar-item .sidebar-item-link .sidebar-item-meta {
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.right-sidebar .sidebar-item .sidebar-item-link .sidebar-item-title {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.right-sidebar .sidebar-item .sidebar-item-link .sidebar-item-meta {
-  flex: 0 0 auto;
-}
-
-.right-sidebar .sidebar-item .sidebar-item-link .sidebar-item-title {
-  height: calc(var(--u) * 5);
-  line-height: calc(var(--u) * 5);
-  font-family: var(--font-sans);
-  font-size: 13px;
-  font-weight: 500;
-  color: color-mix(in srgb, var(--text) 82%, transparent);
-}
-
-.right-sidebar .sidebar-item.active .sidebar-item-link .sidebar-item-title {
-  color: var(--text);
-}
-
-.right-sidebar .sidebar-item .sidebar-item-link .sidebar-item-meta {
-  display: flex;
+#chat-list .row-meta {
+  flex: 0 0 80px;
   flex-direction: column;
   align-items: flex-end;
   gap: 0;
-  flex: 0 0 80px;
-  width: 80px;
-  font-family: var(--font-mono-ui);
-  font-size: 10px;
-  font-weight: 400;
   line-height: calc(var(--u) * 3);
-  letter-spacing: 0.02em;
-  font-variant-numeric: tabular-nums;
   text-align: right;
   transition: opacity var(--transition);
 }
 
-.right-sidebar .sidebar-item .sidebar-item-date {
-  color: var(--text-faint);
-}
-
-.right-sidebar .sidebar-item .sidebar-item-persona {
-  color: var(--text-muted);
-  font-size: 11px;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  max-width: 100%;
-}
-
-.right-sidebar .sidebar-item.active .sidebar-item-link .sidebar-item-meta {
-  color: var(--text-muted);
-}
-
-.right-sidebar .sidebar-item .sidebar-delete-btn {
-  position: absolute;
-  top: 50%;
-  right: var(--gutter);
-  transform: translateY(-50%);
-  width: var(--control-h-sm);
-  height: var(--control-h-sm);
-  padding: 0;
-  border: none;
-  border-radius: var(--radius-control);
-  background-color: transparent;
-  background-image: var(--mat-raise-fill);
-  box-shadow: var(--mat-raise);
-  color: var(--danger);
-}
-
-.right-sidebar .sidebar-item:hover .sidebar-item-meta,
-.right-sidebar .sidebar-item:focus-within .sidebar-item-meta {
+#chat-list .row:hover .row-meta {
   opacity: 0;
 }
 
-.right-sidebar .sidebar-item .sidebar-delete-btn {
-  transition: opacity var(--transition);
+.row-meta-date {
+  color: var(--text-faint);
 }
 
-.right-sidebar .sidebar-item .sidebar-delete-btn:hover {
-  background-color: transparent;
-  background-image: linear-gradient(var(--mat-hi), var(--mat-shade));
-  box-shadow: var(--mat-raise);
-  color: var(--danger-hover);
+.row-meta-persona {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 11px;
+  line-height: calc(var(--u) * 4);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--text-muted);
 }
 
-/* ── Footer: pager + Trash Bin ──────────────────────────────────────────────
-   One inset column, one rule, one rhythm. The rule is the top edge of the
-   footer's own box; the pager centres inside the inset column and the Trash
-   control spans it, so both share the pane's left and right edges. */
+#chat-list .empty {
+  margin: var(--gutter) 0 0;
+}
+
+/* ── Footer ───────────────────────────────────────────────────────────────
+   One inset column, one rule, one rhythm: pager, then the Trash control. */
 .sidebar-footer {
-  flex-shrink: 0;
   display: flex;
+  flex: none;
   flex-direction: column;
-  align-items: stretch;
   gap: var(--gutter);
   padding: var(--inset);
-  border: none;
   box-shadow: inset 0 var(--hair-w) 0 var(--hair-dark);
-  text-align: center;
 }
 
 /* The wrapper is only an oob-swap target: `contents` lets the pager sit
-   straight in the footer's flex column, so a page with no pager adds nothing
-   to the rhythm instead of leaving an empty 8px gap. */
+   straight in the footer's column. */
 #chat-pager {
   display: contents;
 }
 
-.chat-pager {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--gutter);
-  height: var(--control-h);
-}
-
-.chat-pager-btn,
-.chat-pager-num {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  border: none;
-  border-radius: var(--radius-control);
-  background: transparent;
-  box-shadow: none;
-  font-family: var(--font-mono-ui);
-  font-size: 11px;
-  font-weight: 400;
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.chat-pager-btn {
-  width: var(--control-h);
-  height: var(--control-h);
-  color: var(--engrave);
-}
-
-.chat-pager-btn:hover:not(:disabled) {
-  background-image: var(--mat-raise-fill);
-  box-shadow: var(--mat-raise);
-  color: var(--text);
-}
-
-.chat-pager-btn:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
-.chat-pager-num {
-  min-width: var(--control-h-lg);
-  height: var(--control-h);
-  padding: 0 var(--u);
-  font-size: 11px;
-  color: var(--text-muted);
-}
-
-.chat-pager-num:hover:not(.active) {
-  background-color: var(--ink-1);
-  color: var(--text);
-}
-
-.chat-pager-num.active {
-  background-color: var(--tint-2);
-  box-shadow: inset 0 0 0 var(--hair-w) var(--edge);
-  color: var(--accent);
-}
-
 .sidebar-footer > .btn {
-  display: inline-flex;
-  align-items: center;
   justify-content: center;
-  gap: var(--gutter);
   width: 100%;
   height: var(--control-h-lg);
-  border: none;
-  border-radius: var(--radius-control);
-  background-color: var(--surface);
-  background-image: var(--mat-raise-fill);
-  box-shadow: var(--mat-raise);
-  font-family: var(--font-sans);
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--text-muted);
-}
-
-.sidebar-footer > .btn:hover {
-  background-image: linear-gradient(var(--mat-hi), var(--mat-shade));
-  color: var(--text);
-}
-
-.sidebar-footer > .btn:active {
-  background-image: linear-gradient(var(--mat-shade), var(--mat-glow));
-  box-shadow: var(--mat-inset);
-  transform: translateY(var(--hair-w));
-}
-
-.sidebar-footer > .btn:focus-visible {
-  outline: none;
-  box-shadow: var(--mat-raise), 0 0 0 var(--hair-w) var(--accent);
-}
-
-/* ── Composer chrome ────────────────────────────────────────────────────────
-   The input well and its send action are calibrated in design.css; only the
-   neighbours are owned here: the staging tray, the delete toolbar, and the
-   armed stop state. */
-.input-bar-content {
-  gap: var(--gutter);
-}
-
-#staging-area {
-  gap: var(--gutter);
-}
-
-#staging-area > div {
-  flex: none;
-  height: calc(var(--control-h-lg) + var(--gutter));
-  padding: var(--u);
-  gap: var(--u);
-  border: none;
-  border-radius: var(--radius-control);
-  background-color: var(--ink-1);
-  background-image: none;
-  box-shadow: none;
-}
-
-/* Both tile kinds (image thumb, audio glyph) are the chip's direct div. */
-#staging-area > div > div {
-  width: var(--control-h-lg);
-  height: var(--control-h-lg);
-  border: none;
-  border-radius: var(--radius-control);
-  /* Outside the box, not inset: an inset ring on a media tile paints under the
-     image and disappears. */
-  box-shadow: 0 0 0 var(--hair-w) var(--mat-lo);
-}
-
-#delete-toolbar.input-wrapper {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--gutter);
-  min-height: calc(var(--inset) * 4);
-  padding: 0 var(--inset);
-  border: none;
-  border-radius: var(--radius-control);
-  background-color: var(--mat-well);
-  box-shadow: var(--mat-inset), inset 0 0 0 var(--hair-w) var(--danger-edge);
-}
-
-#delete-toolbar .btn {
-  height: var(--control-h-lg);
-}
-
-/* The stop state is the one control that must not look like the send control:
-   the raised gradient is opaque and would erase the fill beneath it, so this
-   one takes the danger as its whole surface and keeps only the lit edges. */
-#standard-input-container #stop-btn {
-  background-color: var(--danger);
-  background-image: none;
-  box-shadow: var(--mat-raise);
-  color: var(--text-on-accent);
-}
-
-#standard-input-container #stop-btn:hover {
-  filter: brightness(1.08);
-}
-
-#standard-input-container #stop-btn:active {
-  box-shadow: var(--mat-inset);
-  transform: translateY(var(--hair-w));
 }

@@ -547,6 +547,7 @@ textarea.field {
   font-family: var(--font-sans);
   font-size: 13px;
   font-weight: 500;
+  line-height: calc(var(--u) * 4);
   color: color-mix(in srgb, var(--text) 82%, transparent);
   text-align: left;
   cursor: pointer;
@@ -588,6 +589,13 @@ textarea.field {
   text-overflow: ellipsis;
 }
 
+/* An icon inside a row title rides the text's centre line instead of opening a
+   taller line box — that is how a row stays 32px tall with or without one. */
+.row-title > svg {
+  flex: none;
+  vertical-align: middle;
+}
+
 .row-meta {
   display: flex;
   align-items: center;
@@ -599,6 +607,36 @@ textarea.field {
   letter-spacing: 0.02em;
   font-variant-numeric: tabular-nums;
   color: var(--text-faint);
+}
+
+.row-meta.strong {
+  color: var(--text);
+}
+
+/* The truncated half of a readout pair: one value, right-aligned, ellipsised. */
+.row-value {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--font-mono-ui);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--text);
+}
+
+/* The engraved label half of a readout pair (status rows, itemizer bar). */
+.row-label {
+  flex: none;
+  font-family: var(--font-mono-ui);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--engrave);
 }
 
 .row-actions {
@@ -627,6 +665,24 @@ textarea.field {
   box-shadow:
     inset calc(var(--hair-w) * 2) 0 0 var(--edge),
     var(--row-edge);
+}
+
+/* Rows that bring something into being, and rows that destroy: the verb is the
+   ink, exactly as it is on a key or a button. */
+.row.create {
+  color: var(--success);
+}
+
+.row.create:hover {
+  color: var(--success-hover);
+}
+
+.row.danger {
+  color: var(--danger-ink);
+}
+
+.row.danger:hover {
+  color: var(--danger);
 }
 
 /* ── .well — recessed surface ────────────────────────────────────────────── */
@@ -978,8 +1034,14 @@ textarea.field {
   height: var(--control-h);
 }
 
+.pager > .key {
+  width: var(--control-h);
+  height: var(--control-h);
+}
+
 .pager-num {
   min-width: var(--control-h-lg);
+  height: var(--control-h);
   padding: 0 var(--u);
   font-family: var(--font-mono-ui);
   font-size: 11px;

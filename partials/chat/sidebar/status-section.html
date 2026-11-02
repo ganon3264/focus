@@ -1,20 +1,20 @@
 {% from "macros.html" import icon_key, icon_chevron_left, icon_chevron_right %}
 <div class="sidebar-section mt-auto">
-  <div class="sidebar-title">Status</div>
-  <div class="status-panel flex flex-col gap-1 text-xs">
-    <div class="flex justify-between gap-2"><span class="text-muted">Character</span> <span class="font-bold truncate max-w-[130px]" id="status-character" title="{{ character.name if character else 'None' }}">{{ character.name if character else 'None' }}</span></div>
-    <div class="flex justify-between gap-2"><span class="text-muted">Persona</span> <span class="font-bold truncate max-w-[130px]" id="status-persona" title="{{ persona.name if persona else 'None' }}">{{ persona.name if persona else 'None' }}</span></div>
-    <div class="flex justify-between gap-2"><span class="text-muted">Profile</span> <span class="font-bold truncate max-w-[130px]" id="status-preset" title="None">None</span></div>
-    <div class="status-key-row hidden items-center justify-between gap-2" id="status-key-row">
-      <span class="text-muted">Keys</span>
+  <div class="rail">Status</div>
+  <div class="well flex flex-col gap-1">
+    <div class="row sm"><span class="row-label">Character</span> <span class="row-value max-w-[130px]" id="status-character" title="{{ character.name if character else 'None' }}">{{ character.name if character else 'None' }}</span></div>
+    <div class="row sm"><span class="row-label">Persona</span> <span class="row-value max-w-[130px]" id="status-persona" title="{{ persona.name if persona else 'None' }}">{{ persona.name if persona else 'None' }}</span></div>
+    <div class="row sm"><span class="row-label">Profile</span> <span class="row-value max-w-[130px]" id="status-preset" title="None">None</span></div>
+    <div class="row sm hidden" id="status-key-row">
+      <span class="row-label">Keys</span>
       <span class="flex items-center gap-1 min-w-0">
-        <button type="button" class="key-nav" id="status-key-prev" data-action="actionShiftProviderKey" data-dir="-1" title="Previous key" aria-label="Previous API key">{{ icon_chevron_left(13) }}</button>
-        <span class="key-badge">{{ icon_key(12) }}<span id="status-key-count"></span></span>
-        <button type="button" class="key-nav" id="status-key-next" data-action="actionShiftProviderKey" data-dir="1" title="Next key" aria-label="Next API key">{{ icon_chevron_right(13) }}</button>
+        <button type="button" class="key sm" id="status-key-prev" data-action="actionShiftProviderKey" data-dir="-1" title="Previous key" aria-label="Previous API key">{{ icon_chevron_left(13) }}</button>
+        <span class="tag">{{ icon_key(12) }}<span id="status-key-count"></span></span>
+        <button type="button" class="key sm" id="status-key-next" data-action="actionShiftProviderKey" data-dir="1" title="Next key" aria-label="Next API key">{{ icon_chevron_right(13) }}</button>
       </span>
     </div>
-    <div class="flex justify-between gap-2"><span class="text-muted">Provider</span> <span class="font-bold truncate max-w-[130px]" id="status-provider" title="None">None</span></div>
-    <div class="flex justify-between gap-2"><span class="text-muted">Model</span> <span class="font-bold truncate max-w-[130px]" id="status-model" title="None">None</span></div>
-    <div class="flex justify-between gap-2 hidden" id="status-cache-row"><span class="text-muted">Cache</span> <span class="font-bold truncate max-w-[130px]" id="status-cache"></span></div>
+    <div class="row sm"><span class="row-label">Provider</span> <span class="row-value max-w-[130px]" id="status-provider" title="None">None</span></div>
+    <div class="row sm"><span class="row-label">Model</span> <span class="row-value max-w-[130px]" id="status-model" title="None">None</span></div>
+    <div class="row sm hidden" id="status-cache-row"><span class="row-label">Cache</span> <span class="row-value max-w-[130px]" id="status-cache"></span></div>
   </div>
 </div>

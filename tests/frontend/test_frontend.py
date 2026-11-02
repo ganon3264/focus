@@ -151,7 +151,7 @@ def test_page_scripts_live_in_scripts_block(template_name):
 def test_css_valid():
     """Every split CSS file must parse without fatal errors."""
     css_dir = STATIC_DIR / "css"
-    for f in sorted(css_dir.glob("*.css")):
+    for f in sorted(list(css_dir.glob("*.css")) + list((css_dir / "surfaces").glob("*.css"))):
         css_text = f.read_text()
         cssutils.log.enabled = False
         sheet = cssutils.parseString(css_text)
@@ -164,8 +164,8 @@ def test_css_valid():
     root_css = (css_dir / "variables.css").read_text()
     assert ":root" in root_css
 
-    layout_css = (css_dir / "layout.css").read_text()
-    assert ".left-sidebar" in layout_css
+    shell_css = (css_dir / "surfaces" / "shell.css").read_text()
+    assert ".left-sidebar" in shell_css
 
 
 def test_tailwind_bundle_contains_custom_css():

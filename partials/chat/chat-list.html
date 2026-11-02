@@ -8,22 +8,22 @@
   data-chat-total="{{ pagination.total }}"
 >
 {% if not chats %}
-{{ empty_state('No chats found.', padding='py-4', extra_classes='mt-2') }}
+{{ empty_state('No chats found.', classes='empty mt-2') }}
 {% endif %} {% for chat in chats %}
 <div
-  class="sidebar-item group {% if current_chat_id == chat.id %}active{% endif %}"
+  class="row group {% if current_chat_id == chat.id %}active{% endif %}"
   data-ui="sidebar-item"
   data-chat-id="{{ chat.id }}"
 >
-  <a href="/chat/{{ chat.id }}" class="sidebar-item-link">
-    <span class="sidebar-item-title">{{ chat.last_message or chat.title }}</span>
-    <span class="sidebar-item-meta">
-      <span class="sidebar-item-date">{{ chat.updated_at[5:10] }}</span>
-      {% if chat.persona_name %}<span class="sidebar-item-persona">{{ chat.persona_name }}</span>{% endif %}
+  <a href="/chat/{{ chat.id }}" class="row-link">
+    <span class="row-title">{{ chat.last_message or chat.title }}</span>
+    <span class="row-meta">
+      <span class="row-meta-date">{{ chat.updated_at[5:10] }}</span>
+      {% if chat.persona_name %}<span class="row-meta-persona">{{ chat.persona_name }}</span>{% endif %}
     </span>
   </a>
   <button
-    class="btn btn-danger sidebar-delete-btn"
+    class="key sm danger"
     data-chat-id="{{ chat.id }}"
     onclick="event.preventDefault(); deleteChat(this)"
     aria-label="Delete chat"
@@ -94,8 +94,8 @@
                 <div class="text-xs text-muted">${date}${persona}</div>
               </div>
               <div class="flex gap-2 shrink-0">
-                <button class="btn btn-secondary btn-sm" onclick="restoreChat('${c.id}')">Restore</button>
-                <button class="btn btn-danger btn-sm" onclick="hardDeleteChat('${c.id}')">Delete Forever</button>
+                <button class="btn sm" onclick="restoreChat('${c.id}')">Restore</button>
+                <button class="btn sm danger" onclick="hardDeleteChat('${c.id}')">Delete Forever</button>
               </div>
             </div>
           `;

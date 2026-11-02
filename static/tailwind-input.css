@@ -9,6 +9,7 @@
 @import './css/animations.css';
 @import './css/instrument.css';
 @import './css/design.css';
+@import './css/surfaces/shell.css';
 @import './css/surfaces/sidebar.css';
 @import './css/surfaces/messages.css';
 @import './css/primitives.css';

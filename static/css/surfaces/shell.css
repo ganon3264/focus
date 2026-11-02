@@ -1,0 +1,108 @@
+/* Surface: shell. Chassis, pane widths and the collapsed-pane grips.
+   Layout only — every control inside a pane comes from primitives.css. */
+
+.app-shell {
+  position: relative;
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.main-content {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--bg);
+}
+
+.left-sidebar,
+.right-sidebar {
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  z-index: 10;
+  overflow: hidden;
+  border: none;
+  background-color: var(--surface);
+  background-image: var(--mat-brush);
+  transition:
+    width var(--transition),
+    opacity var(--transition);
+}
+
+.left-sidebar {
+  width: var(--sidebar-width-left);
+  box-shadow: inset calc(-1 * var(--hair-w)) 0 0 var(--mat-edge);
+}
+
+.right-sidebar {
+  width: var(--sidebar-width-right);
+  box-shadow: inset var(--hair-w) 0 0 var(--mat-edge);
+}
+
+.left-sidebar.collapsed,
+.right-sidebar.collapsed {
+  width: 0;
+  opacity: 0;
+}
+
+/* The inner column keeps its width while the pane animates shut, so the rows
+   do not reflow mid-transition. */
+.sidebar-inner {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ── Collapsed grips ──────────────────────────────────────────────────────
+   A strip of chassis, one hairline edge, an engraved label on its side. */
+.left-tab,
+.right-tab {
+  position: absolute;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--u) * 10);
+  height: 100%;
+  background-color: var(--surface);
+  background-image: var(--mat-brush);
+  cursor: pointer;
+  transition: background-color var(--transition);
+}
+
+.left-tab {
+  left: 0;
+  box-shadow: inset calc(-1 * var(--hair-w)) 0 0 var(--mat-edge);
+}
+
+.right-tab {
+  right: 0;
+  box-shadow: inset var(--hair-w) 0 0 var(--mat-edge);
+}
+
+.left-tab:hover,
+.right-tab:hover {
+  background-color: var(--surface-2);
+}
+
+.rail-vertical {
+  display: flex;
+  align-items: center;
+  gap: var(--u);
+  padding: var(--gutter) 0;
+  writing-mode: vertical-rl;
+  font-family: var(--font-mono-ui);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  text-shadow: 0 1px 0 var(--mat-lo);
+}

@@ -15,27 +15,27 @@
   <input type="file" accept=".json" style="display:none;" id="preset-import-file" onchange="importPreset(this.files[0])">
 
   <div class="relative">
-    <button type="button" @click="open = !open" class="form-control flex justify-between items-center text-left w-full cursor-pointer">
+    <button type="button" @click="open = !open" class="field flex justify-between items-center text-left w-full cursor-pointer">
        <span x-text="selectedName" class="truncate font-medium"></span>
         <span class="text-xs text-muted inline-flex transition-transform duration-200" :class="open ? 'rotate-180' : ''">{{ icon_chevron_down(12) }}</span>
     </button>
     <div x-show="open" @click.away="open = false" x-transition.opacity.duration.200ms
-         class="dropdown-panel preset-menu absolute top-full left-0 right-0 mt-1 z-50 flex flex-col max-h-60"
+         class="panel preset-menu absolute top-full left-0 right-0 mt-1 z-50 flex flex-col max-h-60"
          style="display: none;">
 
       <!-- Engraved label + compact create/import actions, mirroring the sidebar
            section-header vocabulary. -->
-      <div class="preset-menu-head">
-        <span class="preset-menu-label">Presets</span>
-        <div class="preset-menu-head-actions">
-          <button type="button" class="preset-item-action is-create" title="New preset" aria-label="New preset"
+      <div class="rail">
+        <span>Presets</span>
+        <div class="rail-actions">
+          <button type="button" class="key sm create" title="New preset" aria-label="New preset"
             @click="open = false"
             hx-post="/api/presets"
             hx-vals='{"name":"New Preset"}'
             hx-swap="none"
             hx-on:htmx:after-request="handlePresetCreated(event)"
           >{{ icon_plus(14) }}</button>
-          <button type="button" class="preset-item-action" title="Import preset" aria-label="Import preset"
+          <button type="button" class="key sm" title="Import preset" aria-label="Import preset"
             @click="
               open = false;
               document.getElementById('preset-import-file').click();
@@ -46,23 +46,23 @@
 
       <div class="preset-menu-list">
       {% for p in presets %}
-      <div class="dropdown-item preset-menu-item flex items-center gap-2"
-           :class="{ 'is-selected': selectedId === '{{ p.id }}' }"
+      <div class="row"
+           :class="{ 'active': selectedId === '{{ p.id }}' }"
            data-preset-id="{{ p.id }}"
            @click="
              open = false;
              applyPreset('{{ p.id }}');
            "
       >
-        <span class="truncate flex-1 preset-item-name" data-ui="preset-item-name">{{ p.name }}</span>
-        <div class="preset-item-actions">
-          <button type="button" class="preset-item-action is-create" title="Duplicate"
+        <span class="row-title" data-ui="preset-item-name">{{ p.name }}</span>
+        <div class="row-actions">
+          <button type="button" class="key sm create" title="Duplicate"
             onclick="event.stopPropagation(); window.openDuplicateModal(this)"
           >{{ icon_copy(14) }}</button>
-          <button type="button" class="preset-item-action" title="Rename"
+          <button type="button" class="key sm" title="Rename"
             onclick="event.stopPropagation(); window.openRenameModal(this)"
           >{{ icon_edit(14) }}</button>
-          <button type="button" class="preset-item-action danger" title="Delete"
+          <button type="button" class="key sm danger" title="Delete"
             onclick="event.stopPropagation(); window.deletePresetById(this.closest('[data-preset-id]').dataset.presetId)"
           >{{ icon_trash(14) }}</button>
         </div>

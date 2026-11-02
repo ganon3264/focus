@@ -30,7 +30,7 @@
       groupContainer._sortable = new Sortable(groupContainer, {
         animation: 150,
         ghostClass: 'sortable-ghost',
-        handle: '.arranger-header',
+        handle: '.grip',
         onEnd: () => window.updateVarPositions(presetId),
       });
 

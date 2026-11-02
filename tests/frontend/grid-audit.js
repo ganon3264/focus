@@ -93,27 +93,32 @@ async function measure(page) {
     return {
       leftPane: one('.left-sidebar'),
       rightPane: one('.right-sidebar'),
-      leftTitles: all('.left-sidebar .sidebar-title'),
-      rightTitles: all('.right-sidebar .sidebar-title'),
+      leftTitles: all('.left-sidebar .rail'),
+      rightTitles: all('.right-sidebar .rail'),
       leftSections: all('.left-sidebar .sidebar-section'),
-      preset: one('#preset-selector .form-control'),
+      preset: one('#preset-selector .field'),
       newChat: one('.right-sidebar .sidebar-section > .btn'),
-      tiles: all('.left-sidebar .tool-tile'),
-      status: one('.left-sidebar .status-panel'),
-      statusRows: all('.left-sidebar .status-panel > div'),
-      varGroups: all('.left-sidebar .var-group-container'),
-      varGroupHeaders: all('.left-sidebar .var-group-container .arranger-header'),
-      varLEDs: all('.left-sidebar .var-group-container .arranger-title-group'),
-      varOptions: all('.left-sidebar .var-option-item'),
-      varKeys: all('.left-sidebar .var-option-item > .radio-switch'),
-      varAddRows: all('.left-sidebar .radio-add-row'),
+      tiles: all('.left-sidebar .nav'),
+      status: one('.left-sidebar .well'),
+      statusRows: all('.left-sidebar .well > .row'),
+      varGroups: all('.left-sidebar .var-group'),
+      varGroupHeaders: all('.left-sidebar .var-group > .row'),
+      varLEDs: all('.left-sidebar .var-group > .row > .caret-mark'),
+      varOptions: all('.left-sidebar .row.inset'),
+      varKeys: all('.left-sidebar .row.inset > .check'),
+      varAddRows: all('.left-sidebar .row.create'),
       composer: one('#standard-input-container'),
       chatInput: one('#chat-input'),
       attach: one('#standard-input-container .attach-btn'),
       send: one('#send-btn'),
       messageList: one('#message-list'),
-      chatRows: all('.right-sidebar .sidebar-item'),
-      pagerButtons: all('.chat-pager .chat-pager-btn, .chat-pager .chat-pager-num'),
+      chatRows: all('.right-sidebar .row:not(.inset)'),
+      chatLane: one('#chat-list [data-chat-list-scroll]'),
+      chatLaneInner: (() => {
+        const el = document.querySelector('#chat-list [data-chat-list-scroll]');
+        return el ? Math.round(el.clientWidth) : null;
+      })(),
+      pagerButtons: all('.pager .key, .pager .pager-num'),
       messages: all('[data-ui="message"]'),
       rails: all('[data-ui="message"] .message-rail'),
       bodies: all('[data-ui="message"] [data-ui="message-body"]'),
@@ -127,7 +132,7 @@ async function measure(page) {
   await page.goto(URL + '/chat', { waitUntil: 'networkidle' });
   // The option rows only exist while a variable group is expanded; the audit's
   // own context starts collapsed.
-  const firstGroup = page.locator('.left-sidebar .arranger-title-group').first();
+  const firstGroup = page.locator('.left-sidebar .var-group > .row .row-title').first();
   if (await firstGroup.count()) {
     await firstGroup.click();
     await page.waitForTimeout(300);
@@ -201,9 +206,14 @@ async function measure(page) {
 
   m.chatRows.forEach((r, i) => checkGrid('chat row ' + i, r));
   if (m.chatRows.length) {
+    // Rows live inside the scroll lane, so the lane owns the inset and the rows
+    // span its content box — the bar lane is subtracted, which is why this is
+    // measured against the lane and not the pane.
+    check('chat scroll lane sits on the pane inset', m.chatLane.x - m.rightPane.x === inset);
     check(
-      'chat rows sit on the pane inset',
-      m.chatRows[0].x - m.rightPane.x === inset && m.chatRows[0].width === m.rightPane.width - inset * 2,
+      'chat rows fill the scroll lane',
+      m.chatRows.every((r) => r.x === m.chatLane.x && r.width === m.chatLaneInner),
+      `row x=${m.chatRows[0].x} w=${m.chatRows[0].width} lane x=${m.chatLane.x} inner=${m.chatLaneInner}`,
     );
     const heights = new Set(m.chatRows.map((r) => r.height));
     check('chat rows share one height of 32', heights.size === 1 && [...heights][0] === 32, `heights {${[...heights]}}`);

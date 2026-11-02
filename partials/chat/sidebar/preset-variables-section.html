@@ -1,9 +1,11 @@
 {% from "macros.html" import icon_plus %}
 <div class="sidebar-section" style="flex: 1;">
-  <div class="sidebar-title">
+  <div class="rail">
     <span>Preset Variables</span>
     {% if preset %}
-    <button type="button" id="preset-add-var-btn" class="action-icon is-create" onclick="openVarEditModal(this)" title="Add Variable" data-preset-id="{{ preset.id }}">{{ icon_plus(14) }}</button>
+    <div class="rail-actions">
+      <button type="button" id="preset-add-var-btn" class="key sm create" onclick="openVarEditModal(this)" title="Add Variable" data-preset-id="{{ preset.id }}">{{ icon_plus(14) }}</button>
+    </div>
     {% endif %}
   </div>
   <div id="preset-variables" style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
@@ -12,7 +14,7 @@
         {% include "presets/preset-variables.html" %}
       {% endwith %}
     {% else %}
-      <div class="text-muted text-sm mt-2">Select a preset to edit variables.</div>
+      <div class="note mt-2">Select a preset to edit variables.</div>
     {% endif %}
   </div>
 </div>

@@ -9,12 +9,12 @@
       {% include "presets/preset-variables.html" %}
     {% endwith %}
   {% else %}
-    <div class="text-muted text-sm mt-2">Select a preset to edit variables.</div>
+    <div class="note mt-2">Select a preset to edit variables.</div>
   {% endif %}
 </div>
 
 <div id="arranger-modal-body" hx-swap-oob="innerHTML">
-  <div class="flex items-center gap-1 mb-2 text-xs text-muted">
+  <div class="note flex items-center gap-1 mb-2">
     Arrange and configure prompt blocks that make up your preset.
     {{ hint_tooltip('Text blocks are fully custom written content. Sentinel types (Character Description, Personality, User Persona, Chat History, Character Blocks) auto-populate from the active character or persona card.') }}
   </div>
@@ -24,7 +24,7 @@
         {% include "presets/prompt-arranger.html" %}
       {% endwith %}
     {% else %}
-      <div class="text-muted text-center mt-4">Select a preset first.</div>
+      <div class="empty mt-4">Select a preset first.</div>
     {% endif %}
   </div>
 </div>
