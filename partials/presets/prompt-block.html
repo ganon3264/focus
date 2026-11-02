@@ -50,7 +50,7 @@ media_thumbnail, hint_tooltip, icon_sliders, in_chat_controls, toggle, verb_slot
     </div>
   </div>
 
-  <div x-show="expanded" x-transition.opacity.duration.200ms style="display: none">
+  <div x-show="expanded" x-transition.opacity.duration.200ms class="arranger-expand" style="display: none">
     {% if block.block_type == 'text' %}
     <div class="arranger-body">
       <div class="arranger-select">{{ custom_select( name="role", id="role-" + block.id, options=[ {"value": "system", "label":

@@ -260,6 +260,11 @@ What is left is the debt the pass deliberately did not take on:
 ## 8. Traps learned the hard way
 
 - **`.message` must carry `.frame`.** The look comes from the primitive.
+- **An expanded block body is one column, not four stacked blocks with their own
+  margins.** It used to be `.arranger-body` (padding 8 0 0 20) → a `.row` with
+  `margin-top: 4` → a `.field-row` with none → `.arranger-media` with
+  `padding: 8 0 0 20`: four different indents and three different gaps. Now one
+  `.arranger-expand` wrapper owns the inset and the gap; children carry none.
 - **A preview is not a field.** `.preview-out` used `white-space: pre-wrap`, so
   the template's own newlines and indentation around the block content became
   visible blank lines and a one-line block previewed 80px tall. It is `nowrap`

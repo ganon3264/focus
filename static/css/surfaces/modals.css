@@ -542,11 +542,21 @@
   flex: none;
 }
 
+/* The expanded body is one column: every child starts under the block's title
+   (20 from the item edge, i.e. past the grip and caret) and ends on the row's
+   content edge (8), on one gap. Nothing inside adds its own margin — that is
+   what made the body a stack of different insets. */
+.arranger-expand {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gutter);
+  padding: var(--gutter) var(--gutter) var(--gutter) calc(var(--u) * 5);
+}
+
 .arranger-body {
   display: flex;
   align-items: flex-start;
   gap: var(--gutter);
-  padding: var(--gutter) 0 0 calc(var(--u) * 5);
 }
 
 .arranger-note {
@@ -558,7 +568,6 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--gutter);
-  padding: var(--gutter) 0 0 calc(var(--u) * 5);
   /* A block's media is a tray inside an expanded row, not a gallery: thumbs and
      the add tile share one 32px slot. */
   --thumb-size: calc(var(--u) * 8);
