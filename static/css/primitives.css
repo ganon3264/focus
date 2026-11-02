@@ -670,6 +670,13 @@ textarea.field {
 
 /* Rows that bring something into being, and rows that destroy: the verb is the
    ink, exactly as it is on a key or a button. */
+/* A row inside a well is a readout, not a table entry: the well is already the
+   frame, so the row paints no groove of its own. */
+.well > .row,
+.well > .row:last-child {
+  --row-edge: none;
+}
+
 .row.create {
   color: var(--success);
 }
