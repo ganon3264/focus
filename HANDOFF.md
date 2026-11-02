@@ -253,6 +253,17 @@ well so the space reads as an empty list, not a hole. Not started.
   nothing; write the rule in the owning surface file.
 - The pruner stores `offsetHeight`; changing message heights is fine, changing
   the DOM shape JS queries is not.
+- **Disclosure heads have named slots.** `.disclosure-title` and
+  `.disclosure-meta` are the two text slots inside a head; never select on child
+  position inside a primitive from a surface file.
+- **Prose boxes carry font metrics.** `--prose-ink-lead` (7) / `--prose-ink-trail`
+  (4) live in `variables.css` and are subtracted from `.message-body >
+  .message-content`'s block margins, because a line box's leading otherwise makes
+  a plate→prose gap read 7px wider than plate→plate. They are metrics for
+  Ronzino 14/24; re-measure if the body face or rhythm changes.
+- **The composer floats.** `.input-bar` has 14u (56px) bottom padding so the
+  composer's centre sits on the status readout's midline. If the status panel
+  grows (cache/key rows appear) that alignment drifts by 12px per row.
 - **The pre-answer reasoning block has no head.** Its toggle lives on the
   message rail, next to the model readout (`message_meta(..., show_reasoning)`),
   and the index-0 block is a headless `.disclosure` whose content is hidden
