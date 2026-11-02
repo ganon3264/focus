@@ -121,19 +121,22 @@
 }
 
 /* ── Entity lists ─────────────────────────────────────────────────────────
-   Characters, personas and providers share one list: .row cards in two
-   column-major lanes. The row owns the groove; the avatar, the title, the
-   readout and the keys are primitives. */
-/* ── Entity list modal (characters / personas) ────────────────────────────
-   A chassis of bands instead of one flat scroll island: the readout rail owns
-   the collection's verbs, then the search/filter row, then the list, then the
-   foot. Only the list scrolls. The bands pull out to the panel's inner edges
-   (the same negative-margin trick as .modal-foot) and pad back in, so a groove
-   runs the full width while the content keeps the modal's one inset. */
-/* The title bar joins the chrome strip, so the top of the modal is one block
-   (title, readout, search) closed by a groove, the list is its own plane, and
-   the foot closes it again. */
-.entity-modal-shell .modal-head {
+   Characters, personas and providers share one row: a .row card in two
+   column-major lanes, its groove from the row primitive, its avatar, title,
+   readout and keys all primitives.
+
+   The characters/personas modals are a chassis of bands rather than one flat
+   scroll island: the readout rail owns the collection's verbs, then the
+   search/filter row, then the list, then the foot. Only the list scrolls. The
+   bands pull out to the panel's inner edges (the .modal-foot negative-margin
+   trick) and pad back in, so a groove runs the full width while the content
+   keeps the modal's one inset.
+
+   Chrome is one field: the title bar and the body — its padding included —
+   share the tint, so no band stops short of the panel edge and leaves a strip
+   of another value behind it. The list lane paints its own plane on top. */
+.entity-modal-shell .modal-head,
+.entity-modal-shell .modal-body {
   background-color: var(--ink-1);
 }
 
@@ -155,7 +158,6 @@
 
 .entity-modal-head {
   flex: none;
-  background-color: var(--ink-1);
 }
 
 .entity-modal-head > .rail {
@@ -168,7 +170,6 @@
   gap: var(--gutter);
   flex: none;
   padding-block: var(--inset);
-  background-color: var(--ink-1);
   box-shadow:
     inset 0 calc(-1 * var(--hair-w)) 0 var(--hair-dark),
     inset 0 calc(-2 * var(--hair-w)) 0 var(--hair-lit);
@@ -197,7 +198,6 @@
   justify-content: flex-end;
   flex: none;
   padding-block: var(--inset) 0;
-  background-color: var(--ink-1);
   box-shadow:
     inset 0 var(--hair-w) 0 var(--hair-dark),
     inset 0 calc(var(--hair-w) * 2) 0 var(--hair-lit);
