@@ -1,6 +1,6 @@
 # Handoff — UI overhaul
 
-Branch `refactor/consolidate-ui`, off `master` (d7b89ad). Last commit `70263f1`.
+Branch `refactor/consolidate-ui`, off `master` (d7b89ad). Last commit `72bb243`.
 1416 backend tests + 269 frontend tests green; grid audit **164/164** (panes,
 messages, the modal chassis, and field/control centre lines).
 
@@ -35,7 +35,7 @@ all 243 legacy classes onto one closed vocabulary.
 | 1 | done | shell + both sidebars (`70221c5`), `surfaces/shell.css` |
 | 2 | done | messages + composer (`2b1feb5`), `chat.css` `input.css` `design.css` deleted |
 | — | done | polish rounds: grip LED, well rows, disclosure plates, reasoning, prose metrics, composer |
-| 3 | done | modals + forms (`70263f1`), `surfaces/modals.css` `surfaces/forms.css`, `instrument.css` `components.css` `layout.css` deleted |
+| 3 | done | modals + forms (`70263f1`, `275750f`, `b4d74a7`, `72bb243`), `surfaces/modals.css` `surfaces/forms.css`, `instrument.css` `components.css` `layout.css` deleted |
 | 4 | **next** | overlays: toasts, `#hint-tooltip`, lightbox |
 | 5 | todo | ownership guard test |
 
