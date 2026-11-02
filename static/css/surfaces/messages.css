@@ -217,7 +217,13 @@
 /* ── Screen ───────────────────────────────────────────────────────────────
    One well under the rail, inset by a gutter on the three sides the frame
    still shows. */
+/* One rhythm for the whole screen: the children are a column with a single gap,
+   so a block has the same space above it whether or not it is the first one, and
+   a closed disclosure never leaves a margin behind. */
 .message-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--msg-screen-pad);
   margin: 0 var(--msg-frame-pad) var(--msg-frame-pad);
   padding: var(--msg-screen-pad);
   min-width: 0;
@@ -234,6 +240,15 @@
   font-size: 14px;
   line-height: 24px;
   color: var(--text);
+}
+
+/* Prose carries its line leading inside its own box: at 14/24 the first glyph's
+   ink sits 7px below the box top, so the screen's 12px gap reads as 19 next to
+   text while it reads as 12 next to a plate. Prose that follows a plate is
+   pulled up by that lead, so both gaps look like one number. */
+.message-body > .disclosure + .message-content,
+.message-body > .tool-calls-section + .message-content {
+  margin-top: calc(-1 * var(--prose-ink-lead));
 }
 
 .message-content.markdown-content p {
@@ -359,22 +374,12 @@
 /* ── Sub-panels: reasoning and tool calls ─────────────────────────────────
    Inside the screen these are ruled sections: one hairline at the top edge, a
    mono caps summary, and a body ruled off it. */
-/* Sub-panels stack on the screen like plates: one gutter apart, never flush
-   with the screen edge, and the first one starts at the screen's padding. */
+/* Sub-panels are plates on the screen; their spacing is the column gap, so
+   nothing here carries a margin. */
 .message .reasoning-block,
 .message .tool-calls-section,
 .message .tool-calls-stream {
-  margin-top: var(--gutter);
-}
-
-.message .reasoning-block + .reasoning-block,
-.message .reasoning-block + .tool-calls-section,
-.message .tool-calls-section + .reasoning-block {
-  margin-top: var(--gutter);
-}
-
-.message-body > :first-child {
-  margin-top: 0;
+  margin: 0;
 }
 
 /* The head pins to the scrollport while its own body scrolls under it. Its fill
@@ -390,7 +395,9 @@
 
 /* The pre-answer reasoning block is controlled from the rail, so it has no head
    of its own: while its content is hidden it must not leave a strip or a gap
-   behind. `toggleReasoning` unhides the content, which brings the plate back. */
+   behind. `toggleReasoning` unhides the content, which brings the plate back.
+   `display: none` also takes it out of the flex column, so the gap does not
+   double up around an empty block. */
 .message .reasoning-block:not(:has(summary)):has(> .reasoning-content.hidden) {
   display: none;
 }
@@ -402,7 +409,10 @@
   text-overflow: ellipsis;
 }
 
-.message.reasoning-open .reasoning-chevron {
+/* Only the rail's own toggle turns. `reasoning-open` sits on the message, so an
+   unscoped rule flipped every disclosure's caret in the same message. */
+.message.reasoning-open .message-meta .reasoning-chevron,
+.reasoning-sticky-pill .reasoning-chevron {
   transform: rotate(135deg);
 }
 
@@ -464,7 +474,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--gutter);
-  margin: 0 0 var(--inset);
+  margin: 0;
 }
 
 .message-attachment {
