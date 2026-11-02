@@ -1,8 +1,8 @@
 // Unit tests for message-builder.js reasoning segment structure.
 //
 // Index 0 (pre-answer reasoning) is a plain div — it cannot be <details>
-// because streaming writes into it — but it is a disclosure panel like the rest:
-// its head carries the toggle. Later blocks (post-tool) are <details>.
+// because streaming writes into it — and it has no head: the message rail's
+// toggle controls it. Later blocks (post-tool) are <details>.
 //
 // The markup itself comes from the server-rendered templates fixture (see
 // fixtures/message-templates.html, kept in sync by
@@ -26,7 +26,7 @@ h.installTemplates(doc, fs.readFileSync(path.join(__dirname, 'fixtures', 'messag
 
 eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'messages', 'message-builder.js'), 'utf8'));
 
-// 1. First reasoning block is a div with hidden content and its own head toggle
+// 1. First reasoning block is a headless div with hidden content
 (function () {
   var block = window.segmentBuilders.reasoning(0);
   assert(block.tagName === 'DIV', 'index 0 reasoning block is a div');
@@ -35,8 +35,8 @@ eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'messages'
   var content = block.querySelector('[data-ui~="reasoning-content"]');
   assert(content && content.classList.contains('hidden'),
     'index 0 content starts hidden');
-  assert(!!block.querySelector('.disclosure-head [data-ui="reasoning-toggle-btn"]'),
-    'index 0 block carries its toggle in its head');
+  assert(block.querySelector('[data-ui="reasoning-toggle-btn"]') === null,
+    'index 0 block carries no toggle of its own');
 })();
 
 // 2. Subsequent reasoning blocks are collapsible details

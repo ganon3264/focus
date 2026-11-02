@@ -157,19 +157,19 @@
     var existing = msgEl.querySelector('[data-ui="reasoning-toggle-btn"]');
     if (existing) return existing;
 
-    // The toggle lives in the first reasoning block's head, not on the rail:
-    // reasoning reads inside the screen with the rest of the content.
-    var block = msgEl.querySelector('[data-ui="reasoning-block"]:not(details)');
-    if (!block) return null;
-
     var btn = tpl('tpl-reasoning-toggle');
-    var head = block.querySelector('.disclosure-head');
-    if (!head) {
-      head = document.createElement('div');
-      head.className = 'disclosure-head';
-      block.insertBefore(head, block.firstChild);
+    var meta = msgEl.querySelector('[data-ui="message-meta"]');
+    if (meta) {
+      if (meta.children.length > 0) {
+        var dot = document.createElement('span');
+        dot.className = 'meta-sep';
+        dot.setAttribute('aria-hidden', 'true');
+        meta.appendChild(dot);
+      }
+      meta.appendChild(btn);
+    } else {
+      msgEl.appendChild(btn);
     }
-    head.appendChild(btn);
     return btn;
   };
 

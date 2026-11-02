@@ -79,12 +79,12 @@ def test_reasoning_button_absent_when_no_reasoning():
     assert _extract_reasoning_button(html) == ""
 
 
-def test_reasoning_button_is_not_on_the_rail():
-    """The model readout stays alone on the rail; reasoning reads inside the
-    screen, so its toggle belongs to the first block, not the message header."""
+def test_reasoning_button_lives_on_the_rail():
+    """The pre-answer reasoning block has no head of its own — the rail's toggle
+    controls it, so the block leaves nothing behind while it is collapsed."""
     html = _render_message({"reasoning": "hidden", "segments": REASONING_SEGMENTS})
     meta = re.search(r'<div class="row-meta message-meta".*?</div>', html, re.S).group(0)
-    assert "reasoning-toggle-btn" not in meta, meta
+    assert "reasoning-toggle-btn" in meta, meta
 
 
 def test_reasoning_button_absent_for_user_messages():
@@ -115,17 +115,17 @@ def test_missing_segments_still_fall_back_to_raw_content():
     assert "legacy text" in html
 
 
-def test_first_reasoning_block_carries_its_own_toggle():
-    """Index-0 reasoning is a disclosure panel like every later block: its head
-    holds the toggle, and the body behind it is the hidden streaming target."""
+def test_first_reasoning_block_has_no_head():
+    """Index-0 reasoning is a headless panel: only its body, hidden until the
+    rail's toggle opens it — no strip, no toggle of its own."""
     html = _render_message({"reasoning": "hidden", "segments": REASONING_SEGMENTS})
     block = re.search(
-        r'<div class="disclosure reasoning-block pl-stream"[^>]*data-think-id="0".*?</div>\s*</div>',
+        r'<div class="disclosure reasoning-block pl-stream".*?data-think-id="0"(.*?)</div>\s*\n',
         html,
         re.S,
-    ).group(0)
-    assert 'class="disclosure-head"' in block, block
-    assert 'data-ui="reasoning-toggle-btn"' in block, block
+    ).group(1)
+    assert "<summary" not in block, block
+    assert "reasoning-toggle-btn" not in block, block
     assert "reasoning-content markdown-content hidden" in block, block
 
 

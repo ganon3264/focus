@@ -771,20 +771,20 @@ textarea.field {
 }
 
 /* ── .disclosure — expandable sub-panel ───────────────────────────────────
-   The one place depth stacks inside depth: a raised plate whose head is a
-   full-width strip. The head is the touchable part, so it carries the material;
-   the body sits flat on the plate. `summary` is the native form, `.disclosure-head`
-   the div form used where the block cannot be a <details> (streaming target). */
+   A plate with a visible hairline ring, so the body is enclosed by the same
+   edge as its head on any theme — a fill alone disappears on themes where the
+   plate and the surface behind it are the same value. */
 .disclosure {
   border: none;
   border-radius: var(--radius-control);
   background-color: var(--surface);
   background-image: var(--mat-raise-fill);
-  box-shadow: var(--mat-raise);
+  box-shadow:
+    var(--mat-raise),
+    inset 0 0 0 var(--hair-w) var(--hair);
 }
 
-.disclosure > summary,
-.disclosure > .disclosure-head {
+.disclosure > summary {
   display: flex;
   align-items: center;
   gap: var(--gutter);
@@ -806,20 +806,17 @@ textarea.field {
   display: none;
 }
 
-.disclosure > summary:hover,
-.disclosure > .disclosure-head:hover {
+.disclosure > summary:hover {
   color: var(--text);
 }
 
-.disclosure[open] > summary,
-.disclosure.is-open > .disclosure-head {
+.disclosure[open] > summary {
   color: var(--text);
   box-shadow: inset 0 calc(-1 * var(--hair-w)) 0 var(--hair);
 }
 
 .disclosure[open] > summary .caret-mark,
-.disclosure.expanded > summary .caret-mark,
-.disclosure.is-open > .disclosure-head .caret-mark {
+.disclosure.expanded > summary .caret-mark {
   transform: rotate(135deg);
 }
 
