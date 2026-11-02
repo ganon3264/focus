@@ -687,7 +687,9 @@
 /* A readout of what the engine returned: monospace, pre-wrap, closed on a
    hairline so an empty result leaves no gap. */
 /* A preview is a readout, not a field: one line, clamped. It opens the editor
-   on click, so there is nothing to type here and nothing to grow. */
+   on click, so there is nothing to type here and nothing to grow. Its box is
+   control height, so it shares a top and bottom edge with the role picker
+   beside it (the padding takes up the difference). */
 .preview-out {
   font-family: var(--font-mono-ui);
   font-size: 11px;
@@ -696,6 +698,8 @@
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+  height: var(--control-h);
+  padding-block: calc((var(--control-h) - (var(--u) * 4)) / 2);
 }
 
 .preview-out:empty {
