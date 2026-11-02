@@ -770,40 +770,61 @@ textarea.field {
   box-shadow: inset 0 calc(-1 * var(--hair-w)) 0 var(--hair-dark);
 }
 
-/* ── .disclosure — summary + body ──────────────────────────────────────────
-   Reasoning and tool output live here. The header is a rail-weight label, the
-   body is ruled off it; the caret is the drawn mark, never a glyph. */
-.disclosure > summary {
+/* ── .disclosure — expandable sub-panel ───────────────────────────────────
+   The one place depth stacks inside depth: a raised plate whose head is a
+   full-width strip. The head is the touchable part, so it carries the material;
+   the body sits flat on the plate. `summary` is the native form, `.disclosure-head`
+   the div form used where the block cannot be a <details> (streaming target). */
+.disclosure {
+  border: none;
+  border-radius: var(--radius-control);
+  background-color: var(--surface);
+  background-image: var(--mat-raise-fill);
+  box-shadow: var(--mat-raise);
+}
+
+.disclosure > summary,
+.disclosure > .disclosure-head {
   display: flex;
   align-items: center;
   gap: var(--gutter);
   height: var(--control-h);
+  padding: 0 var(--gutter);
   list-style: none;
   cursor: pointer;
+  background: none;
   font-family: var(--font-mono-ui);
   font-size: 10px;
   font-weight: 400;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-muted);
+  box-shadow: inset 0 calc(-1 * var(--hair-w)) 0 transparent;
 }
 
 .disclosure > summary::-webkit-details-marker {
   display: none;
 }
 
-.disclosure > summary:hover {
+.disclosure > summary:hover,
+.disclosure > .disclosure-head:hover {
   color: var(--text);
 }
 
+.disclosure[open] > summary,
+.disclosure.is-open > .disclosure-head {
+  color: var(--text);
+  box-shadow: inset 0 calc(-1 * var(--hair-w)) 0 var(--hair);
+}
+
 .disclosure[open] > summary .caret-mark,
-.disclosure.expanded > summary .caret-mark {
+.disclosure.expanded > summary .caret-mark,
+.disclosure.is-open > .disclosure-head .caret-mark {
   transform: rotate(135deg);
 }
 
 .disclosure-body {
-  padding: var(--gutter) 0;
-  box-shadow: inset 0 var(--hair-w) 0 var(--hair);
+  padding: var(--gutter);
 }
 
 /* ── .grip — drag handle and its LED ──────────────────────────────────────

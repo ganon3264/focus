@@ -26,7 +26,7 @@
     {% set author_name = character.name if message.role == 'assistant' and character else (persona.name if message.role == 'user' and persona else message.role) %}
     {% set has_first_reasoning = (message.get('segments')|selectattr("type", "equalto", "reasoning")|selectattr("index", "equalto", 0)|list|length > 0) if message.get('segments') else message.get('reasoning') %}
     {% call message_header(author_name, avatar_path, avatar_alt, avatar_initial) %}
-      {% if message.role == 'assistant' %}{{ message_meta(message.model_name or '', message.position != 0 and has_first_reasoning) }}{% endif %}
+      {% if message.role == 'assistant' %}{{ message_meta(message.model_name or '') }}{% endif %}
     {% endcall %}
 
     <div class="message-rail-end">

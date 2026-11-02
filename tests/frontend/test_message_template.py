@@ -56,9 +56,15 @@ def _extract_reasoning_button(html: str) -> str:
     return match.group(0) if match else ""
 
 
+REASONING_SEGMENTS = [
+    {"type": "reasoning", "index": 0, "html": "think"},
+    {"type": "text", "content": "answer"},
+]
+
+
 def test_reasoning_button_present_when_message_has_reasoning():
-    """Server should render the button when message has a reasoning field."""
-    html = _render_message({"reasoning": "hidden reasoning"})
+    """Server should render the button when a reasoning block is on the page."""
+    html = _render_message({"reasoning": "hidden reasoning", "segments": REASONING_SEGMENTS})
     btn = _extract_reasoning_button(html)
     assert btn, "Expected reasoning button to be rendered"
     assert 'data-ui="reasoning-toggle-btn"' in btn, (
@@ -73,10 +79,12 @@ def test_reasoning_button_absent_when_no_reasoning():
     assert _extract_reasoning_button(html) == ""
 
 
-def test_reasoning_button_absent_for_position_zero():
-    """Greeting message (position 0) never shows the reasoning button."""
-    html = _render_message({"position": 0, "reasoning": "hidden"})
-    assert _extract_reasoning_button(html) == ""
+def test_reasoning_button_is_not_on_the_rail():
+    """The model readout stays alone on the rail; reasoning reads inside the
+    screen, so its toggle belongs to the first block, not the message header."""
+    html = _render_message({"reasoning": "hidden", "segments": REASONING_SEGMENTS})
+    meta = re.search(r'<div class="row-meta message-meta".*?</div>', html, re.S).group(0)
+    assert "reasoning-toggle-btn" not in meta, meta
 
 
 def test_reasoning_button_absent_for_user_messages():
@@ -87,7 +95,7 @@ def test_reasoning_button_absent_for_user_messages():
 
 def test_reasoning_button_uses_the_link_primitive():
     """The toggle's look comes from the primitive layer, not from utilities."""
-    html = _render_message({"reasoning": "hidden"})
+    html = _render_message({"reasoning": "hidden", "segments": REASONING_SEGMENTS})
     btn = _extract_reasoning_button(html)
     assert 'class="reasoning-toggle-btn link' in btn, btn
     assert 'data-ui="reasoning-toggle-btn"' in btn, btn
@@ -107,18 +115,18 @@ def test_missing_segments_still_fall_back_to_raw_content():
     assert "legacy text" in html
 
 
-def test_first_reasoning_block_has_no_own_toggle():
-    """Index-0 reasoning stays controlled by the meta-row button (which keeps
-    its place and chevron animation); a separate twin handles the sticky case."""
-    html = _render_message({
-        "reasoning": "hidden",
-        "segments": [
-            {"type": "reasoning", "index": 0, "html": "think"},
-            {"type": "text", "content": "answer"},
-        ],
-    })
-    assert "reasoning-inline-toggle" not in html
-    assert 'class="reasoning-block pl-stream" data-ui="reasoning-block" data-think-id="0"' in html
+def test_first_reasoning_block_carries_its_own_toggle():
+    """Index-0 reasoning is a disclosure panel like every later block: its head
+    holds the toggle, and the body behind it is the hidden streaming target."""
+    html = _render_message({"reasoning": "hidden", "segments": REASONING_SEGMENTS})
+    block = re.search(
+        r'<div class="disclosure reasoning-block pl-stream"[^>]*data-think-id="0".*?</div>\s*</div>',
+        html,
+        re.S,
+    ).group(0)
+    assert 'class="disclosure-head"' in block, block
+    assert 'data-ui="reasoning-toggle-btn"' in block, block
+    assert "reasoning-content markdown-content hidden" in block, block
 
 
 class _Ext:

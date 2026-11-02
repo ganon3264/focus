@@ -352,22 +352,34 @@
 /* ── Sub-panels: reasoning and tool calls ─────────────────────────────────
    Inside the screen these are ruled sections: one hairline at the top edge, a
    mono caps summary, and a body ruled off it. */
+/* Sub-panels stack on the screen like plates: one gutter apart, never flush
+   with the screen edge, and the first one starts at the screen's padding. */
 .message .reasoning-block,
 .message .tool-calls-section,
 .message .tool-calls-stream {
-  margin-top: var(--inset);
-  box-shadow: inset 0 var(--hair-w) 0 var(--hair);
+  margin-top: var(--gutter);
+}
+
+.message .reasoning-block + .reasoning-block,
+.message .reasoning-block + .tool-calls-section,
+.message .tool-calls-section + .reasoning-block {
+  margin-top: var(--gutter);
 }
 
 .message-body > :first-child {
   margin-top: 0;
 }
 
-.message .disclosure > summary {
+/* The head pins to the scrollport while its own body scrolls under it. Its fill
+   repeats the plate's gradient so the seam never shows. */
+.message .disclosure > summary,
+.message .disclosure > .disclosure-head {
   position: sticky;
   top: 0;
   z-index: 5;
-  background-color: var(--mat-well);
+  /* Slightly stronger lift than the plate under it, so the strip reads as its
+     own raised band instead of a painted line. */
+  background-image: linear-gradient(var(--mat-hi), var(--mat-shade));
 }
 
 .message .disclosure > summary > :is(span, code) {
@@ -377,9 +389,21 @@
   text-overflow: ellipsis;
 }
 
-.message .disclosure[open] > summary {
-  box-shadow: inset 0 calc(-1 * var(--hair-w)) 0 var(--hair);
-  color: var(--text);
+/* The div-form head is a strip: the toggle fills it, so the whole line is the
+   target instead of just the label. */
+.message .disclosure-head {
+  padding: 0;
+}
+
+.message .disclosure-head .reasoning-toggle-btn {
+  flex: 1 1 auto;
+  justify-content: flex-start;
+  height: 100%;
+  padding: 0 var(--gutter);
+}
+
+.message.reasoning-open .reasoning-chevron {
+  transform: rotate(135deg);
 }
 
 .message .disclosure.tool-call > summary code {
@@ -398,11 +422,6 @@
 .reasoning-content,
 .tool-result-body {
   margin: 0;
-  padding: var(--u) 0 var(--inset) var(--inset);
-  border: none;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
   color: var(--text-muted);
 }
 

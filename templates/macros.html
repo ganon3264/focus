@@ -499,7 +499,7 @@
 {% endmacro %}
 
 {% macro message_meta(model_name='', show_reasoning=False) %}
-<div class="row-meta message-meta" data-ui="message-meta">{% if model_name %}<span>{{ model_name }}</span>{% if show_reasoning %}<span class="meta-sep" aria-hidden="true"></span>{% endif %}{% endif %}{% if show_reasoning %}{{ reasoning_toggle_btn() }}{% endif %}</div>
+<div class="row-meta message-meta" data-ui="message-meta">{% if model_name %}<span>{{ model_name }}</span>{% endif %}</div>
 {% endmacro %}
 
 {% macro message_header(author='', avatar_path='', avatar_alt='', avatar_initial='', slots=False) %}
@@ -534,11 +534,12 @@
     <span class="caret-mark reasoning-chevron" aria-hidden="true"></span>
     <span>{{ title }}</span>
   </summary>
-  <div class="reasoning-content markdown-content" data-ui="reasoning-content markdown-content">{{ content }}</div>
+  <div class="disclosure-body reasoning-content markdown-content" data-ui="reasoning-content markdown-content">{{ content }}</div>
 </details>
 {% else %}
-<div class="reasoning-block pl-stream" data-ui="reasoning-block" data-think-id="0">
-  <div class="reasoning-content markdown-content hidden" data-ui="reasoning-content markdown-content">{{ content }}</div>
+<div class="disclosure reasoning-block pl-stream" data-ui="reasoning-block" data-think-id="0">
+  <div class="disclosure-head">{{ reasoning_toggle_btn() }}</div>
+  <div class="disclosure-body reasoning-content markdown-content hidden" data-ui="reasoning-content markdown-content">{{ content }}</div>
 </div>
 {% endif %}
 {% endmacro %}
