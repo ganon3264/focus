@@ -125,7 +125,9 @@
       actions.className = 'toast-actions';
       var copyIcon = (window.getSvgSprite ? window.getSvgSprite('copy', 14) : '') || 'Copy';
       var copy = document.createElement('button');
-      copy.className = 'toast-btn';
+      copy.type = 'button';
+      copy.className = 'key sm';
+      copy.dataset.ui = 'toast-copy';
       copy.setAttribute('aria-label', 'Copy error');
       copy.innerHTML = copyIcon;
       copy.addEventListener('click', function () {
@@ -147,7 +149,9 @@
         }
       });
       var close = document.createElement('button');
-      close.className = 'toast-btn toast-close';
+      close.type = 'button';
+      close.className = 'key sm';
+      close.dataset.ui = 'toast-close';
       close.setAttribute('aria-label', 'Dismiss');
       close.innerHTML = (window.getSvgSprite ? window.getSvgSprite('close', 14) : '') || '×';
       close.addEventListener('click', function () {

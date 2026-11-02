@@ -183,11 +183,11 @@
         tip.style.left = (r.left + r.width / 2) + 'px';
         tip.style.top = (r.bottom + 4) + 'px';
         tip.style.transform = 'translateX(-50%)';
-        tip.style.display = 'block';
+        tip.classList.remove('hidden');
       };
       window.hideHint = function () {
         var tip = document.getElementById('hint-tooltip');
-        if (tip) tip.style.display = 'none';
+        if (tip) tip.classList.add('hidden');
       };
     </script>
     <!-- / inline scripts ───────────────────────────────────────────────── -->
@@ -204,29 +204,33 @@
     <!-- Global Lightbox for Images -->
     <div
       id="lightbox"
-      class="modal-overlay heavy hidden"
+      class="modal-overlay hidden"
       data-ui="modal-overlay"
       role="dialog"
       aria-modal="true"
       aria-label="Image lightbox"
       style="z-index: var(--z-overlay)"
-      onclick="closeLightbox(event)"
+      data-action="actionCloseModal"
+      data-modal-id="lightbox"
     >
-      <button
-        id="lightbox-close"
-        class="absolute top-4 right-4 text-white/50 hover:text-white bg-black/50 hover:bg-black/75 rounded-full w-10 h-10 flex items-center justify-center transition-colors text-xl font-bold cursor-pointer focus:outline-hidden z-50"
-        onclick="closeLightbox(event)"
-        title="Close"
-        aria-label="Close lightbox"
-      >
-        {{ icon_close(24) }}
-      </button>
-      <img
-        id="lightbox-img"
-        alt="Enlarged image"
-        class="max-w-[95vw] max-h-[95vh] object-contain rounded shadow-2xl"
-        onclick="event.stopPropagation()"
-      />
+      <div class="panel modal-panel lightbox-panel">
+        <div class="modal-head">
+          <span class="modal-title" data-ui="modal-title">Image</span>
+          <button
+            id="lightbox-close"
+            class="key sm"
+            type="button"
+            aria-label="Close lightbox"
+            data-action="actionCloseModal"
+            data-modal-id="lightbox"
+          >
+            {{ icon_close(14) }}
+          </button>
+        </div>
+        <div class="modal-body">
+          <img id="lightbox-img" class="lightbox-img" alt="Enlarged image" />
+        </div>
+      </div>
     </div>
 
     <!-- Global Crop Modal -->
@@ -296,6 +300,6 @@
     <script src="/static/js/ui/chat-controls.js"></script>
 
     {% block scripts %}{% endblock %}
-    <div id="hint-tooltip" class="hint-tooltip"></div>
+    <div id="hint-tooltip" class="tooltip hidden"></div>
   </body>
 </html>

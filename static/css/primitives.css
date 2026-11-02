@@ -1033,6 +1033,22 @@ textarea.field {
 /* ══ Feedback ═══════════════════════════════════════════════════════════════ */
 
 /* ── .toast — one stack, one card, intent as ink ─────────────────────────── */
+/* The stack is layout only: fixed above everything, one column, never wider
+   than the viewport. Cards pass the pointer through; the stack does not. */
+.toast-container {
+  position: fixed;
+  top: var(--inset);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: var(--z-max);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--gutter);
+  max-width: min(92vw, 480px);
+  pointer-events: none;
+}
+
 .toast {
   box-sizing: border-box;
   display: flex;
@@ -1051,6 +1067,12 @@ textarea.field {
   font-size: 12px;
   line-height: calc(var(--u) * 4);
   color: var(--text);
+  pointer-events: auto;
+  animation: toast-in 0.2s ease-out;
+}
+
+.toast-leave {
+  animation: toast-out 0.2s ease-in forwards;
 }
 
 .toast-text {
@@ -1063,6 +1085,18 @@ textarea.field {
   align-items: center;
   gap: var(--u);
   flex: 0 0 auto;
+}
+
+/* An error carries a provider's raw text: mono, wrapped, bounded, so a 4KB
+   traceback cannot push the stack off the screen. */
+.toast-error .toast-text {
+  font-family: var(--font-mono-ui);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 40vh;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  padding-right: var(--scrollbar-gap);
 }
 
 /* Intent is the whole plate, not a hairline: at 1px an edge does not read as
@@ -1095,8 +1129,9 @@ textarea.field {
   color: var(--danger);
 }
 
-/* ── .tooltip ────────────────────────────────────────────────────────────── */
+/* ── .tooltip — a floating caption placed by JS at the anchor's coordinates ── */
 .tooltip {
+  position: fixed;
   z-index: var(--z-max);
   max-width: calc(var(--u) * 60);
   padding: var(--u) var(--gutter);

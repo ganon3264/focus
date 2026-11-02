@@ -120,7 +120,7 @@ global.document.body.appendChild(container);
   assertEqual(pendingCount(), 0, 'error: no auto-dismiss timer');
   var actions = card.querySelector('.toast-actions');
   assert(actions, 'error: actions present');
-  var btns = actions.querySelectorAll('.toast-btn');
+  var btns = actions.querySelectorAll('.key');
   assertEqual(btns.length, 2, 'error: copy + close buttons');
 })();
 
@@ -229,7 +229,7 @@ global.document.body.appendChild(container);
   container.children.length = 0;
   window.showErrorToast('close me');
   var card = container.children[0];
-  var closeBtn = card.querySelector('.toast-close');
+  var closeBtn = card.querySelector('[data-ui="toast-close"]');
   assert(closeBtn, 'close: button exists');
   closeBtn._listeners.click[0]();
   assert(card.classList.contains('toast-leave'), 'close: card dismissed');

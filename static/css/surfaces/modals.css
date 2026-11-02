@@ -610,3 +610,23 @@
   min-height: 0;
   overflow-y: auto;
 }
+
+/* ── Lightbox ─────────────────────────────────────────────────────────────
+   Same chassis as every modal: the plate is the picture's frame, so the body
+   drops its inset and the image takes the plate's whole width. */
+.lightbox-panel {
+  width: auto;
+}
+
+.lightbox-panel .modal-body {
+  padding: 0;
+  align-items: center;
+  justify-content: center;
+}
+
+.lightbox-img {
+  display: block;
+  max-width: calc(100vw - var(--u) * 12);
+  max-height: calc(100vh - var(--u) * 28);
+  object-fit: contain;
+}
