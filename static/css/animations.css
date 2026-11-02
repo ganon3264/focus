@@ -1,4 +1,6 @@
-/* ── Animation keyframes (unlayered) ──────────────────────────────────────── */
+/* ── Animation keyframes (unlayered) ────────────────────────────────────────
+   Keyframes only. The overlays that use them (toast stack, hint tooltip,
+   lightbox) are primitives and live in primitives.css / surfaces/modals.css. */
 @keyframes fade-in {
   from { opacity: 0; }
   to   { opacity: 1; }

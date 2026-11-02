@@ -383,11 +383,11 @@
 }
 
 /* The pre-answer reasoning block is controlled from the rail, so it has no head
-   of its own: while its content is hidden it must not leave a strip or a gap
-   behind. `toggleReasoning` unhides the content, which brings the plate back.
-   `display: none` also takes it out of the flex column, so the gap does not
-   double up around an empty block. */
-.message .reasoning-block:not(:has(summary)):has(> .reasoning-content.hidden) {
+   of its own (`headless`): while its content is hidden it must not leave a
+   strip or a gap behind. `toggleReasoning` unhides the content, which brings
+   the plate back. `display: none` also takes it out of the flex column, so the
+   gap does not double up around an empty block. */
+.message .reasoning-block.headless:has(> .reasoning-content.hidden) {
   display: none;
 }
 

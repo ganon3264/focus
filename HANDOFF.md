@@ -1,8 +1,9 @@
 # Handoff — UI overhaul
 
-Branch `refactor/consolidate-ui`, off `master` (d7b89ad). Last commit `72bb243`.
-1416 backend tests + 269 frontend tests green; grid audit **164/164** (panes,
-messages, the modal chassis, and field/control centre lines).
+Branch `refactor/consolidate-ui`, off `master` (d7b89ad). Last commit on the
+skin pass: overlays + ownership guard. 1428 backend tests + 281 frontend tests
+green; grid audit **164/164** (panes, messages, the modal chassis, and
+field/control centre lines).
 
 Read this, then `static/css/primitives.css` (the closed vocabulary), then
 `PRIMITIVE-MAP.md` (the class audit that produced it). The CSS import order in
@@ -36,8 +37,8 @@ all 243 legacy classes onto one closed vocabulary.
 | 2 | done | messages + composer (`2b1feb5`), `chat.css` `input.css` `design.css` deleted |
 | — | done | polish rounds: grip LED, well rows, disclosure plates, reasoning, prose metrics, composer |
 | 3 | done | modals + forms (`70263f1`, `275750f`, `b4d74a7`, `72bb243`), `surfaces/modals.css` `surfaces/forms.css`, `instrument.css` `components.css` `layout.css` deleted |
-| 4 | **next** | overlays: toasts, `#hint-tooltip`, lightbox |
-| 5 | todo | ownership guard test |
+| 4 | done | overlays (`fe30ea1`): toast stack is the `.toast` primitive (`.key.sm` verbs), `#hint-tooltip` is a `.tooltip` toggled by `.hidden`, lightbox is `modal-overlay` + `panel` + `modal-head`; `animations.css` keeps only keyframes |
+| 5 | done | `tests/frontend/test_css_ownership.py` — no surface authors a primitive's look, no `:not()` in any stylesheet. Two real violations it flushed out: `.preset-menu .row { font-size }` (now `.row.sm`) and the reasoning block's `:not(:has(summary))` (now `.reasoning-block.headless`) |
 
 ---
 
@@ -98,7 +99,7 @@ body face or rhythm changes.
 variables.css   grid + material + ink/tint + font metrics   (single source)
 tokens.css      Tailwind @theme (fonts/radius/shadows)
 base.css        reset, scroll rule, media slot, machine type, sortable ghost
-animations.css  keyframes + toasts + hint tooltip   (step 4 target)
+animations.css  keyframes only (overlays are primitives now)
 surfaces/shell.css      chassis, pane widths, collapsed grips
 surfaces/sidebar.css    sections, preset selector/menu, variables, tools, status, chat rows, footer
 surfaces/messages.css   chat column, message frame/rail/screen, prose scope, composer
@@ -181,26 +182,30 @@ the 1–2px errors are invisible at 1600×1000.
 
 ## 6. Remaining work
 
-4. **Overlays.** `animations.css` still owns `.toast*`, `.toast-container`,
-   `#hint-tooltip`, `.hint-*` and the keyframes. Move the toast stack onto the
-   `.toast` primitive (intent = tinted plate, already written), `#hint-tooltip`
-   onto `.tooltip`, `#lightbox` onto `.modal-overlay` + `.panel`, delete the
-   component blocks and keep only the keyframes. The option picker and confirm
-   already route through `modal_shell`.
-5. **Guard.** Add `tests/frontend/test_css_ownership.py`: fail if any file
-   outside `primitives.css` sets a look property (`background*`, `box-shadow`,
-   `color`, `border*`, `font*`, `text-transform`, `letter-spacing`) on a selector
-   whose subject is a primitive class, or contains `:not(`. That is the gate that
-   stops the two-owner pattern from returning.
+The migration is closed. What is left is the debt the pass deliberately did not
+take on:
 
-Deferred debt, deliberately: form read/write has ~15 implementations and 102
-hardcoded IDs; registry bypasses (87 raw `fetch` vs 31 `hx*`) untouched.
+- **Form read/write** has ~15 implementations and 102 hardcoded IDs.
+- **Registry bypasses**: 87 raw `fetch` vs 31 `hx*` calls.
+- The character card-block editor still needs a port into the character modal
+  (`CharacterStore` has no callers since `/characters` went away).
+- `grid-audit.js` measures panes, messages, the modal chassis and field/control
+  centre lines — toasts, the hint tooltip and the lightbox are eyeballed only.
 
 ---
 
 ## 7. Traps learned the hard way
 
 - **`.message` must carry `.frame`.** The look comes from the primitive.
+- **A surface override of a primitive's geometry loses silently.** `.row.sm`
+  (primitives, imported last) beats `.preset-menu .row { min-height }` at equal
+  specificity — so restyle by picking the right modifier, not by re-declaring.
+- **`scrollbar-gutter: stable` moves the right edge in.** A scrolled list and a
+  scrolled-out header beside it need the same reserved lane, or their trailing
+  keys sit 10px apart. The preset menu reserves it on the rail too.
+- **`test_css_ownership.py` is the gate, not a linter.** It proves itself on a
+  synthetic violation; if it goes green on a `static/css` tree it cannot parse,
+  `test_guard_scans_the_real_surfaces` fails first.
 - **`.rail` on `.modal-head` is a bug**: `.rail`'s 24px height wins, the head
   collapses, the title touches the panel top while the sides keep their padding.
   Same class of bug as `.divider` on a header (it sets `height: 1px`).

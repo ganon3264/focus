@@ -39,9 +39,17 @@
   overflow: hidden;
 }
 
+/* The menu list reserves a scrollbar lane; the rail reserves the same one, so
+   the header's keys and the rows' hover keys share one right edge. The rail's
+   default optical pull is dropped here — it would align the glyph with a text
+   column this dropdown does not have. */
 .preset-menu > .rail {
   margin: 0;
-  padding: 0 var(--u);
+  padding: 0 calc(var(--u) + var(--scrollbar-gap)) 0 var(--u);
+}
+
+.preset-menu .rail-actions {
+  margin-right: 0;
 }
 
 .preset-menu-list {
@@ -53,9 +61,7 @@
 }
 
 .preset-menu .row {
-  min-height: var(--control-h);
   padding: 0 var(--u);
-  font-size: 12px;
 }
 
 /* The row's actions appear with the pointer, so a resting menu is a list of

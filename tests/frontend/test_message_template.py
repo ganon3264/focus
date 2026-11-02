@@ -120,7 +120,7 @@ def test_first_reasoning_block_has_no_head():
     rail's toggle opens it — no strip, no toggle of its own."""
     html = _render_message({"reasoning": "hidden", "segments": REASONING_SEGMENTS})
     block = re.search(
-        r'<div class="disclosure reasoning-block pl-stream".*?data-think-id="0"(.*?)</div>\s*\n',
+        r'<div class="disclosure reasoning-block headless pl-stream".*?data-think-id="0"(.*?)</div>\s*\n',
         html,
         re.S,
     ).group(1)

@@ -46,7 +46,7 @@
 
       <div class="preset-menu-list">
       {% for p in presets %}
-      <div class="row"
+      <div class="row sm"
            :class="{ 'active': selectedId === '{{ p.id }}' }"
            data-preset-id="{{ p.id }}"
            @click="
