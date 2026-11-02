@@ -1,4 +1,4 @@
-<div class="message relative msg{% if message.get('is_ancestor') %} message-ancestor{% endif %}" data-ui="message" id="message-{{ message.id }}" data-role="{{ message.role }}" data-message-id="{{ message.id }}" data-raw-content="{{ message.content }}" data-raw-reasoning="{{ message.get('reasoning') or '' }}" data-msg-index="{{ msg_index }}" data-chat-id="{{ message.get('chat_id') or chat_id }}">
+<div class="message frame relative msg{% if message.get('is_ancestor') %} message-ancestor{% endif %}" data-ui="message" id="message-{{ message.id }}" data-role="{{ message.role }}" data-message-id="{{ message.id }}" data-raw-content="{{ message.content }}" data-raw-reasoning="{{ message.get('reasoning') or '' }}" data-msg-index="{{ msg_index }}" data-chat-id="{{ message.get('chat_id') or chat_id }}">
   {% from "macros.html" import icon_edit, icon_refresh, icon_trash, icon_music, icon_branch,
   icon_chevron_left, icon_chevron_right, icon_forward, icon_plug, icon_list, icon_star,
   icon_star_filled, message_header, message_meta, message_content, reasoning_block,
@@ -6,7 +6,7 @@
   <div class="delete-mode-checkbox hidden absolute -left-12 top-4" data-ui="delete-mode-checkbox">
     <input
       type="checkbox"
-      class="checkbox w-5 h-5 msg-select-checkbox"
+      class="check lg msg-select-checkbox"
       data-ui="msg-select-checkbox"
       value="{{ message.id }}"
       data-action="actionUpdateDeleteSelection"
@@ -36,9 +36,9 @@
           <span class="fav-star-filled">{{ icon_star_filled(14) }}</span>
         </span>
         {% endif %}
-        <div class="message-ts" data-utc="{{ message.created_at or '' }}">
-          <div class="ts-date">{{ message.created_at[:10] if message.created_at else '' }}</div>
-          <div class="ts-time">{{ message.created_at[11:16] if message.created_at else '' }}</div>
+        <div class="row-meta message-ts" data-utc="{{ message.created_at or '' }}">
+          <span>{{ message.created_at[:10] if message.created_at else '' }}</span>
+          <span>{{ message.created_at[11:16] if message.created_at else '' }}</span>
         </div>
         <div class="message-index">#{{ msg_index }}</div>
       </div>
@@ -47,7 +47,7 @@
     </div>
   </div>
 
-  <div class="message-body" data-ui="message-body">
+  <div class="well message-body" data-ui="message-body">
     {% if message.attachments %}
     {% call attachment_row() %}{% for att in message.attachments %}{{ attachment_preview('/' ~ att.file_path, att.mime_type) }}{% endfor %}{% endcall %}
     {% endif %}
@@ -84,8 +84,8 @@
     {% endif %}
   </div>
   {% if message.get('is_summary_last') %}
-  <div class="summary-boundary">
-    <button type="button" class="summary-boundary-btn" data-action="actionOpenSummary">
+  <div class="divider summary-boundary">
+    <button type="button" class="link summary-boundary-btn" data-action="actionOpenSummary">
       <span>Summarized above</span>
       <span class="summary-boundary-edit">View / edit</span>
     </button>

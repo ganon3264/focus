@@ -59,7 +59,7 @@
 
   function createEditTextarea(idx, variant, content) {
     var ta = document.createElement('textarea');
-    ta.className = 'edit-block-ta edit-block-ta--' + variant;
+    ta.className = 'field edit-block-ta edit-block-ta--' + variant;
     ta.dataset.ui = 'edit-block-ta';
     ta.id = 'edit-msg-ta-' + idx;
     ta.setAttribute('data-block-idx', idx);
@@ -92,12 +92,12 @@
 
       if (blk.type === 'reasoning') {
         var details = document.createElement('details');
-        details.className = 'details reasoning-block';
+        details.className = 'disclosure reasoning-block';
         details.dataset.ui = 'reasoning-block';
         details.innerHTML =
           '<summary>' +
-          (window.getSvgSprite('chevron-right', 12) || '').replace('<svg', '<svg class="w-3 h-3 chevron"') +
-          '<span class="text-xs text-muted">Reasoning</span>' +
+          '<span class="caret-mark reasoning-chevron" aria-hidden="true"></span>' +
+          '<span>Reasoning</span>' +
           '</summary>' +
           '<div style="margin-top:0.5rem"></div>';
         container.appendChild(details);

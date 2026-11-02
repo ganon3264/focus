@@ -1,7 +1,7 @@
         <div class="toolbar normal-mode-actions items-center gap-0.5" data-ui="toolbar">
         {% if message.variant_count > 1 or (is_latest and message.role == 'assistant') %}
         <button
-          class="action-btn"
+          class="key"
           title="Previous variant"
           aria-label="Previous variant"
           hx-post="/api/chats/{{ chat_id }}/messages/{{ message.id }}/swipe"
@@ -11,9 +11,9 @@
         >
           {{ icon_chevron_left() }}
         </button>
-        <span class="swipe-counter" data-ui="swipe-counter">{{ message.active_index + 1 }}/{{ message.variant_count }}</span>
+        <span class="row-meta swipe-counter" data-ui="swipe-counter">{{ message.active_index + 1 }}/{{ message.variant_count }}</span>
         <button
-          class="action-btn"
+          class="key"
           title="Next variant"
           aria-label="Next variant"
           hx-post="/api/chats/{{ chat_id }}/messages/{{ message.id }}/swipe"
@@ -27,7 +27,7 @@
         {% endif %}
         {% if is_latest and message.role == 'assistant' and message.position != 0 %}
         <button
-          class="action-btn"
+          class="key"
           title="Regenerate"
           aria-label="Regenerate"
           data-action="actionTriggerRegeneration"
@@ -35,7 +35,7 @@
           {{ icon_refresh() }}
         </button>
         <button
-          class="action-btn continue-btn"
+          class="key continue-btn"
           data-ui="continue-btn"
           title="Continue"
           aria-label="Continue"
@@ -46,7 +46,7 @@
         {% endif %}
         {% for ext in (enabled_extensions | default([])) if message.role in (ext.roles if ext.roles is sequence else []) and 'manual' in (ext.triggers if ext.triggers is sequence else []) %}
         <button
-          class="action-btn"
+          class="key"
           title="{{ ext.description }}"
           aria-label="{{ ext.description }}"
           data-action="actionRunExtension"
@@ -56,7 +56,7 @@
         </button>
         {% endfor %}
         <button
-          class="action-btn"
+          class="key"
           title="Pin — kept verbatim in compacted chats"
           aria-label="Toggle pin"
           data-action="actionToggleMessagePin"
@@ -68,7 +68,7 @@
           </span>
         </button>
         <button
-          class="action-btn"
+          class="key"
           title="Summarize up to here"
           aria-label="Summarize up to here"
           data-action="actionSummarizeMessage"
@@ -76,7 +76,7 @@
           {{ icon_list() }}
         </button>
         <button
-          class="action-btn"
+          class="key"
           title="Branch from here"
           aria-label="Branch from this message"
           data-action="actionBranchMessage"
@@ -84,7 +84,7 @@
           {{ icon_branch() }}
         </button>
         <button
-          class="action-btn"
+          class="key"
           title="Edit"
           aria-label="Edit message"
           data-action="actionEditMessage"
@@ -92,7 +92,7 @@
           {{ icon_edit() }}
         </button>
         <button
-          class="action-btn text-danger"
+          class="key danger"
           title="Delete mode"
           aria-label="Delete messages"
           data-action="actionEnterDeleteMode"

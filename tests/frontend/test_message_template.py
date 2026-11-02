@@ -85,19 +85,12 @@ def test_reasoning_button_absent_for_user_messages():
     assert _extract_reasoning_button(html) == ""
 
 
-def test_reasoning_button_class_unchanged():
-    """Regression: existing class list is preserved alongside the new one."""
+def test_reasoning_button_uses_the_link_primitive():
+    """The toggle's look comes from the primitive layer, not from utilities."""
     html = _render_message({"reasoning": "hidden"})
     btn = _extract_reasoning_button(html)
-    for required in (
-        "inline-flex",
-        "items-center",
-        "gap-1",
-        "text-muted",
-        "transition-colors",
-        "cursor-pointer",
-    ):
-        assert required in btn, f"Missing existing class '{required}' in: {btn}"
+    assert 'class="reasoning-toggle-btn link' in btn, btn
+    assert 'data-ui="reasoning-toggle-btn"' in btn, btn
 
 
 def test_empty_segments_do_not_resurrect_raw_content():

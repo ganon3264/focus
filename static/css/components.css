@@ -102,30 +102,6 @@
     flex-direction: column;
     width: 100%;
   }
-  .expand-btn {
-    position: absolute;
-    top: 0.4rem;
-    right: 0.4rem;
-    background: var(--surface-3);
-    border: 1px solid var(--border);
-    color: var(--text-muted);
-    width: var(--control-icon-lg);
-    height: var(--control-icon-lg);
-    border-radius: var(--radius-sm);
-    font-size: 1.1rem;
-    opacity: 0;
-    outline: none;
-  }
-  .textarea-wrapper:hover .expand-btn {
-    opacity: 1;
-  }
-  .textarea-wrapper:focus-within .expand-btn {
-    opacity: 0.3;
-  }
-  .expand-btn:hover {
-    color: var(--text);
-    background: var(--border-hover);
-  }
 
   /* Buttons */
   .btn {
@@ -546,19 +522,6 @@
     border-bottom: 2px solid transparent;
     transition: all var(--transition);
   }
-
-  /* Favorite star */
-  .fav-star {
-    cursor: pointer;
-    line-height: 0;
-    color: var(--text-muted);
-    transition: color var(--transition);
-  }
-  .fav-star .fav-star-outline { display: inline-flex; }
-  .fav-star .fav-star-filled { display: none; }
-  .fav-star.favorite-active { color: var(--warning); }
-  .fav-star.favorite-active .fav-star-outline { display: none; }
-  .fav-star.favorite-active .fav-star-filled { display: inline-flex; }
 
   .fav-star-inline {
     background: transparent;

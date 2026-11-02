@@ -15,29 +15,29 @@
   </div>
   <div class="input-bar flex-col gap-2 items-center relative">
     <div class="input-bar-content">
-      <div id="staging-area" class="staging-area flex overflow-x-auto empty:hidden pointer-events-auto"></div>
+      <div id="staging-area" class="well staging-area flex overflow-x-auto empty:hidden pointer-events-auto"></div>
     
     <!-- Standard Input -->
-    <div id="standard-input-container" class="input-wrapper relative w-full">
+    <div id="standard-input-container" class="well input-wrapper relative w-full">
       <input type="file" id="file-upload" class="hidden" multiple accept="image/*,audio/*">
-       <button id="attach-btn" class="attach-btn" data-action="actionTriggerFileUpload" data-target="file-upload" title="Attach files" aria-label="Attach files">
+       <button id="attach-btn" class="key lg attach-btn" data-action="actionTriggerFileUpload" data-target="file-upload" title="Attach files" aria-label="Attach files">
         {{ icon_paperclip(20) }}
       </button>
       <textarea id="chat-input" placeholder="Type a message…"></textarea>
-       <button id="send-btn" class="send-btn" aria-label="Send message">
+       <button id="send-btn" class="key lg primary send-btn" aria-label="Send message">
         {{ icon_send() }}
       </button>
-       <button id="stop-btn" class="send-btn stop-btn hidden" aria-label="Stop generating">
+       <button id="stop-btn" class="key lg primary danger stop-btn hidden" aria-label="Stop generating">
         {{ icon_stop() }}
       </button>
     </div>
 
     <!-- Delete Toolbar -->
-      <div id="delete-toolbar" class="input-wrapper delete-toolbar relative w-full hidden">
-        <div class="font-bold text-(--danger)"><span id="delete-selected-count">0</span> Selected for deletion</div>
+      <div id="delete-toolbar" class="well danger delete-toolbar relative w-full hidden">
+        <div class="row-label danger"><span id="delete-selected-count">0</span> Selected for deletion</div>
         <div class="flex gap-2">
-          <button class="btn btn-secondary btn-sm" onclick="exitDeleteMode()">Cancel</button>
-          <button class="btn btn-danger btn-sm" data-chat-id="{{ chat_id }}" onclick="bulkDeleteSelected(this.dataset.chatId || StateManager.get('chat_id'))">Delete Selected</button>
+          <button class="btn sm" onclick="exitDeleteMode()">Cancel</button>
+          <button class="btn sm danger" data-chat-id="{{ chat_id }}" onclick="bulkDeleteSelected(this.dataset.chatId || StateManager.get('chat_id'))">Delete Selected</button>
         </div>
       </div>
     </div>
@@ -46,31 +46,27 @@
   <!-- Greeter State -->
   <div class="flex-1 flex flex-col items-center justify-center p-8 text-center" style="height: 100%;">
     {% if character %}
-    <div style="width: 100px; height: 100px; border-radius: 50%; overflow: hidden; margin-bottom: 1.5rem; border: 2px solid var(--border); box-shadow: var(--shadow-md);">
+    <div class="avatar xl greeter-avatar">
       {% if character.image_path %}
-        <img src="/{{ character.image_path }}" alt="{{ character.name }}" style="width: 100%; height: 100%; object-fit: cover; cursor: pointer;" onclick="openLightbox(this.src)">
+        <img src="/{{ character.image_path }}" alt="{{ character.name }}" onclick="openLightbox(this.src)">
       {% else %}
-        <div style="width: 100%; height: 100%; background: var(--surface-3); display: grid; place-items: center; font-size: 2.5rem; font-weight: bold; color: var(--text-muted);">
-          {{ character.name[:1] }}
-        </div>
+        {{ character.name[:1] }}
       {% endif %}
     </div>
     <h1 class="text-2xl font-bold mb-2">{{ character.name }}</h1>
     <p class="text-muted max-w-md mb-6 leading-relaxed">
       You don't have any active chats with {{ character.name }}. Start a new conversation!
     </p>
-    <button class="btn btn-create btn-hero" onclick="newChat()">
+    <button class="btn lg create" onclick="newChat()">
       Start Chat
     </button>
     {% else %}
-    <div style="width: 80px; height: 80px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-xl); display: grid; place-items: center; margin-bottom: 1.5rem; box-shadow: var(--shadow-sm);">
-      {{ icon_chat(40) }}
-    </div>
+    <div class="avatar xl greeter-avatar">{{ icon_chat(40) }}</div>
     <h1 class="text-2xl font-bold mb-2">Welcome to Focus</h1>
     <p class="text-muted max-w-md mb-6 leading-relaxed">
       You don't have any active chats open. Select a character from your roster to resume a previous conversation, or start a new one.
     </p>
-    <button class="btn btn-primary btn-hero" onclick="openModal('modal-characters')">
+    <button class="btn lg primary" onclick="openModal('modal-characters')">
       View Characters
     </button>
     {% endif %}

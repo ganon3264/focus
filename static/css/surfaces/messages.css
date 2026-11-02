@@ -1,46 +1,82 @@
-/* Surface: messages. Unlayered owner of this surface's geometry and chrome.
-   Materials and primitives come from design.css; nothing here invents a
-   shadow, a radius, or a spacing value off the grid.
+/* Surface: messages + composer. Layout, the prose scope, and the message's own
+   material depth. Every control, readout and disclosure is a primitive. */
 
-   Anatomy, one shape for every message:
-     .message        raised frame  — --mat-raise-fill over the chassis
-     .message-rail   32px rail     — avatar · author · model, readouts right
-     .message-body   sunk screen   — --mat-well + --mat-inset, prose lives here
+/* ── Chat column ──────────────────────────────────────────────────────────
+   The top inset lives on the list, not the scroller: sticky reasoning headers
+   pin to the scrollport's content-box top, so padding here would leave a strip
+   of text above them. */
+.chat-center {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+  -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 6rem), transparent 100%);
+  mask-image: linear-gradient(to bottom, black calc(100% - 6rem), transparent 100%);
+}
 
-   Reasoning blocks and tool cards are sub-panels inside the screen: a hairline
-   top edge and a mono caps summary, never a rounded card. */
+.message-list {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 4);
+  width: 100%;
+  max-width: var(--chat-content-width);
+  padding-top: var(--inset);
+  padding-bottom: calc(var(--u) * 24);
+}
 
+#message-list {
+  opacity: 0;
+}
+
+#message-list.ready {
+  opacity: 1;
+  transition: opacity var(--transition);
+}
+
+.message-placeholder {
+  flex-shrink: 0;
+  width: 100%;
+  pointer-events: none;
+}
+
+/* ── The frame ────────────────────────────────────────────────────────────
+   Messages carry more depth than the controls around them: a taller lift and a
+   deeper screen, so each turn reads as its own piece of gear. Tokens only, so
+   the primitive recipe still owns the shape. */
 .message {
   --msg-rail-h: calc(var(--u) * 8);
   --msg-frame-pad: var(--gutter);
   --msg-screen-pad: var(--inset);
   --msg-avatar-size: calc(var(--u) * 6);
-  /* Messages carry more depth than the controls around them: a taller frame
-     lift and a deeper screen, so each turn reads as a separate piece of gear.
-     Scoped here, not in the global material, so buttons stay quiet. */
   --mat-glow: color-mix(in srgb, var(--surface), white 9%);
   --mat-shade: color-mix(in srgb, var(--surface), black 10%);
   --mat-well: color-mix(in srgb, color-mix(in srgb, var(--surface), var(--bg) 50%), black 6%);
 
   width: 100%;
-  padding: 0;
-  border: none;
-  border-radius: var(--radius-panel);
-  background-color: var(--surface);
-  background-image: var(--mat-raise-fill);
-  box-shadow: var(--mat-raise);
-  transition: background-image var(--transition), box-shadow var(--transition);
 }
 
 .message:hover {
-  background-color: var(--surface);
   background-image: linear-gradient(var(--mat-hi), var(--mat-shade));
-  border-left: none;
+}
+
+.message-ancestor {
+  opacity: 0.72;
+}
+
+.message-ancestor:hover {
+  opacity: 1;
+}
+
+.message-ancestor .toolbar,
+.message-ancestor .delete-mode-checkbox {
+  display: none;
 }
 
 /* ── Rail ─────────────────────────────────────────────────────────────────
-   One height for every message. Avatar, author and the model readout sit on
-   the same baseline; the timestamp and the ordinal are pushed to the end. */
+   One height for every message. Avatar, author and model readout share a
+   baseline; the timestamp and the ordinal are pushed to the end. */
 .message-rail {
   display: flex;
   align-items: center;
@@ -51,93 +87,52 @@
 
 .message-header {
   display: flex;
+  flex: 1 1 auto;
   align-items: center;
   gap: var(--gutter);
-  flex: 1;
   min-width: 0;
 }
 
 .message-header-lines {
   display: flex;
+  flex: 1 1 auto;
   align-items: center;
   gap: var(--gutter);
-  flex: 1;
   min-width: 0;
 }
 
-.message-avatar {
+.message .avatar {
   width: var(--msg-avatar-size);
   height: var(--msg-avatar-size);
-  line-height: var(--msg-avatar-size);
-  flex-shrink: 0;
-  padding: 0;
-  border: none;
-  border-radius: var(--radius-control);
-  background: var(--surface-2);
-  box-shadow: inset 0 0 0 var(--hair-w) var(--hair-strong);
-  font-family: var(--font-mono-ui);
-  font-size: 11px;
-  font-weight: 400;
-  color: var(--text-muted);
-  text-align: center;
-  overflow: hidden;
-}
-
-.message-avatar img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: 50% 50%;
+  cursor: pointer;
 }
 
 .message-author {
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--font-sans);
   font-size: 13px;
   font-weight: 500;
-  line-height: 1.2;
-  letter-spacing: 0;
-  min-width: 0;
+  line-height: calc(var(--u) * 4);
   white-space: nowrap;
-  overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .message-meta {
-  display: flex;
-  align-items: center;
-  gap: var(--gutter);
-  min-width: 0;
-  margin: 0;
-  font-family: var(--font-mono-ui);
-  font-size: 10px;
-  font-weight: 400;
-  letter-spacing: 0.04em;
-  color: var(--text-muted);
   flex: 0 1 auto;
+  min-width: 0;
 }
 
 .message-meta > span {
   min-width: 0;
-  white-space: nowrap;
   overflow: hidden;
+  white-space: nowrap;
   text-overflow: ellipsis;
 }
 
-.message-meta .reasoning-toggle-btn {
-  gap: var(--gutter);
-  color: var(--text-muted);
-  white-space: nowrap;
-}
-
-.message-meta .reasoning-toggle-btn:hover {
-  color: var(--text);
-}
-
-/* The separator between the model readout and the toggle is a square, not a
-   `·` glyph: a glyph's ink lands on its own half-pixel, so it never shares a
-   centre line with the drawn caret at 1x. Two hairline units of currentColor,
-   centred by the meta row, stays on the grid at every zoom. */
-.message-meta .meta-sep {
+/* The separator is a square, not a `·`: a glyph's ink lands on its own
+   half-pixel and stops sharing a centre line with the drawn caret. */
+.meta-sep {
   flex: none;
   width: calc(var(--hair-w) * 2);
   height: calc(var(--hair-w) * 2);
@@ -145,64 +140,34 @@
   opacity: 0.55;
 }
 
-/* The caret's shape is the shared .caret-mark primitive (design.css); only its
-   ink and its open state live here. */
-.reasoning-chevron {
-  color: var(--text-faint);
-}
-
-.reasoning-toggle-btn:hover .reasoning-chevron {
-  color: var(--text-muted);
-}
-
-.reasoning-open .reasoning-chevron,
-.reasoning-sticky-pill .reasoning-chevron {
-  transform: rotate(135deg);
-}
-
 .message-rail-end {
   position: relative;
   display: flex;
   align-items: center;
   gap: var(--gutter);
-  margin-left: auto;
   flex-shrink: 0;
+  margin-left: auto;
 }
 
-.message .meta-right {
+.meta-right {
   display: flex;
   align-items: center;
   gap: var(--gutter);
+  transition: opacity var(--transition);
 }
 
-.message .meta-right .fav-star {
-  display: inline-flex;
-  align-items: center;
-  color: var(--text-faint);
+.message:hover .meta-right {
+  opacity: 0;
+  pointer-events: none;
 }
 
-.message .meta-right .fav-star.favorite-active {
-  color: var(--warning);
+@media (max-width: 639px) {
+  .meta-right {
+    display: none !important;
+  }
 }
 
-.message-ts {
-  display: flex;
-  align-items: center;
-  gap: var(--u);
-  font-family: var(--font-mono-ui);
-  font-size: 10px;
-  letter-spacing: 0.02em;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  text-align: right;
-}
-
-.message-ts .ts-date,
-.message-ts .ts-time {
-  color: var(--text-faint);
-}
-
-.message .message-rail-end .message-index {
+.message-index {
   font-family: var(--font-mono-ui);
   font-size: 16px;
   font-weight: 400;
@@ -213,134 +178,89 @@
   white-space: nowrap;
 }
 
-/* Hover toolbar: no plate of its own — the frame already frames it. The
-   readouts it replaces fade out instead, so the keys sit directly on the rail. */
+/* ── Hover toolbar ────────────────────────────────────────────────────────
+   No plate of its own — the frame already frames it. The readouts it replaces
+   fade out instead, so the keys sit directly on the rail. */
 .message .toolbar {
-  height: var(--control-h);
-  padding: 0;
+  position: absolute;
+  top: 50%;
+  right: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
   gap: var(--u);
-  border: none;
-  border-radius: 0;
-  background: none;
-  box-shadow: none;
-}
-
-.message .meta-right {
-  transition: opacity var(--transition);
-}
-
-.message:hover .meta-right {
-  opacity: 0;
-}
-
-.message .toolbar::before,
-.message .toolbar::after {
-  content: none;
-}
-
-.message .toolbar .action-btn {
-  width: var(--control-h);
   height: var(--control-h);
-  border-radius: var(--radius-control);
-  background-color: var(--surface);
-  background-image: var(--mat-raise-fill);
-  box-shadow: var(--mat-raise);
-  color: var(--text);
+  opacity: 0;
+  transform: translateY(-50%) translateX(6px);
+  pointer-events: none;
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease;
 }
 
-.message .toolbar .action-btn:hover {
-  background-image: linear-gradient(var(--mat-hi-strong), var(--mat-shade));
-  box-shadow: var(--mat-raise);
+.message:hover .toolbar {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+  pointer-events: auto;
 }
 
-.message .toolbar .action-btn:active {
-  background-image: linear-gradient(var(--mat-shade), var(--mat-glow));
-  box-shadow: var(--mat-inset);
-  transform: translateY(1px);
-}
-
-.message .toolbar .action-btn.text-danger {
-  color: var(--danger-ink);
-}
-
-.message .toolbar .action-btn.text-danger:hover {
-  color: var(--danger);
-}
-
-.message .toolbar-sep {
+.toolbar-sep {
   width: var(--hair-w);
   height: calc(var(--u) * 4);
   margin: 0 var(--u);
-  background: transparent;
 }
 
-.message .swipe-counter {
-  display: flex;
-  align-items: center;
-  font-family: var(--font-mono-ui);
-  font-size: 11px;
-  color: var(--text-faint);
-  font-variant-numeric: tabular-nums;
-}
-
-.message .delete-mode-checkbox {
-  top: var(--u);
-  left: calc(-1 * (var(--control-h-sm) + var(--gutter)));
+.swipe-counter {
+  margin: 0 var(--u);
 }
 
 /* ── Screen ───────────────────────────────────────────────────────────────
-   The prose display: one well under the rail, inset by a gutter on the three
-   sides the frame still shows. */
-.message .message-body {
+   One well under the rail, inset by a gutter on the three sides the frame
+   still shows. */
+.message-body {
   margin: 0 var(--msg-frame-pad) var(--msg-frame-pad);
   padding: var(--msg-screen-pad);
   min-width: 0;
-  border-radius: var(--radius-control);
-  background-color: var(--mat-well);
-  box-shadow: var(--mat-inset);
 }
 
-/* The prose used to hang off the avatar column; the rail owns the avatar now,
-   so the streamed indent is zero and streamed output matches the finished one. */
-.message .pl-stream {
+.pl-stream {
   padding-left: 0;
 }
 
-.message .message-content {
+/* ── Prose scope ──────────────────────────────────────────────────────────
+   Not a primitive: this is what text looks like inside a screen. */
+.message-content {
   margin: 0;
   font-size: 14px;
   line-height: 24px;
   color: var(--text);
 }
 
-.message .message-content.markdown-content p {
+.message-content.markdown-content p {
   margin: 0 0 var(--inset);
 }
 
-.message .message-content.markdown-content > p:last-child {
+.markdown-content > :last-child {
   margin-bottom: 0;
 }
 
-.message .markdown-content > :last-child {
-  margin-bottom: 0;
-}
-
-.message .markdown-content :is(h1, h2, h3, h4, h5, h6) {
+.markdown-content :is(h1, h2, h3, h4, h5, h6) {
   margin: var(--inset) 0 var(--gutter);
   line-height: 1.3;
   letter-spacing: 0;
 }
 
-.message .markdown-content :is(ul, ol) {
+.markdown-content :is(ul, ol) {
   margin: var(--gutter) 0;
   padding-left: calc(var(--inset) * 2);
 }
 
-.message .markdown-content li {
+.markdown-content li {
   margin-bottom: var(--u);
 }
 
-.message .markdown-content pre {
+.markdown-content pre {
+  position: relative;
   margin: var(--inset) 0;
   padding: var(--inset);
   border: none;
@@ -355,7 +275,7 @@
   overflow-wrap: break-word;
 }
 
-.message .markdown-content code {
+.markdown-content code {
   padding: 0 var(--u);
   border-radius: var(--radius-control);
   background: var(--ink-2);
@@ -364,12 +284,12 @@
   color: var(--text);
 }
 
-.message .markdown-content pre code {
+.markdown-content pre code {
   padding: 0;
   background: none;
 }
 
-.message .markdown-content blockquote {
+.markdown-content blockquote {
   margin: var(--inset) 0;
   padding: var(--gutter) var(--inset);
   border: none;
@@ -379,191 +299,128 @@
   color: var(--text-muted);
 }
 
-.message .markdown-content hr {
+.markdown-content hr {
   height: var(--hair-w);
   margin: var(--inset) 0;
   border: none;
   background: var(--hair);
 }
 
-.message .markdown-content table {
+.markdown-content table {
   margin: var(--inset) 0;
   border-collapse: collapse;
   font-size: 12px;
 }
 
-.message .markdown-content :is(th, td) {
+.markdown-content :is(th, td) {
   padding: var(--u) var(--gutter);
   border: none;
   box-shadow: inset 0 calc(-1 * var(--hair-w)) 0 var(--hair);
   text-align: left;
 }
 
-.message .markdown-content th {
+.markdown-content th {
   background: var(--ink-1);
   font-weight: 500;
   color: var(--text);
 }
 
-.message .markdown-content td {
+.markdown-content td {
   color: var(--text-muted);
 }
 
-.message .markdown-content tbody tr:nth-child(even) td {
-  background: transparent;
+.accent-quote {
+  color: var(--accent);
 }
 
-.message .copy-btn {
+/* Copy key on a fenced block. */
+.markdown-content .copy-btn {
+  position: absolute;
   top: var(--u);
   right: var(--u);
-  padding: var(--u);
-  border: none;
-  border-radius: var(--radius-control);
-  background: var(--surface);
-  box-shadow: inset 0 0 0 var(--hair-w) var(--hair-strong);
-  color: var(--text-muted);
+  width: var(--control-h-sm);
+  height: var(--control-h-sm);
+  opacity: 0;
+  transition: opacity var(--transition);
 }
 
-.message .copy-btn:hover {
-  background: var(--surface-2);
-  border: none;
-  color: var(--text);
+.markdown-content pre:hover .copy-btn,
+.markdown-content .copy-btn:focus-visible {
+  opacity: 1;
 }
 
-/* External media placeholder: a hairline slot, not a dashed card. */
-.message .external-media-placeholder {
-  padding: var(--u) var(--gutter);
-  margin: var(--u) 0;
-  border: none;
-  border-radius: var(--radius-control);
-  background: var(--ink-1);
-  box-shadow: inset 0 0 0 var(--hair-w) var(--hair);
-  color: var(--text-muted);
-}
-
-.message .external-media-btn {
-  padding: 0 var(--gutter);
-  border: none;
-  border-radius: var(--radius-control);
-  background: var(--surface);
-  box-shadow: inset 0 0 0 var(--hair-w) var(--hair-strong);
-  color: var(--text);
-}
-
-.message .external-media-btn:hover {
-  background: var(--surface-2);
-  border: none;
-}
-
-/* ── Sub-panels: reasoning + tool calls ───────────────────────────────────
-   Inside the screen these are ruled sections: one hairline at the top edge and
-   a mono caps summary. No fill, no radius, no frame. */
+/* ── Sub-panels: reasoning and tool calls ─────────────────────────────────
+   Inside the screen these are ruled sections: one hairline at the top edge, a
+   mono caps summary, and a body ruled off it. */
 .message .reasoning-block,
 .message .tool-calls-section,
 .message .tool-calls-stream {
   margin-top: var(--inset);
-  border-radius: var(--radius-panel);
   box-shadow: inset 0 var(--hair-w) 0 var(--hair);
 }
 
-.message .message-body > :first-child {
+.message-body > :first-child {
   margin-top: 0;
 }
 
-.message .details > summary {
-  display: flex;
-  align-items: center;
-  gap: var(--gutter);
-  min-height: var(--row-h);
-  padding: 0;
-  border: none;
-  background: transparent;
-  box-shadow: none;
-  font-family: var(--font-mono-ui);
-  font-size: 10px;
-  font-weight: 400;
-  letter-spacing: 0.1em;
-  line-height: 16px;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-
-.message .details > summary > :is(span, code) {
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.message .details > summary:hover {
-  color: var(--text);
-  border: none;
-}
-
-.message .details[open] > summary {
-  box-shadow: inset 0 calc(-1 * var(--hair-w)) 0 var(--hair);
-  color: var(--text);
-}
-
-.message .details .chevron {
-  flex-shrink: 0;
-  color: var(--text-faint);
-}
-
-.message .details[open] > summary .chevron {
-  color: var(--text-muted);
-}
-
-/* Sticky headers live on the well, not on the page background. */
-.message .reasoning-block.details > summary,
-.message .details.tool-call > summary {
+.message .disclosure > summary {
   position: sticky;
   top: 0;
   z-index: 5;
   background-color: var(--mat-well);
 }
 
-.message .details.tool-call > summary code {
-  font-family: var(--font-mono-ui);
+.message .disclosure > summary > :is(span, code) {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.message .disclosure[open] > summary {
+  box-shadow: inset 0 calc(-1 * var(--hair-w)) 0 var(--hair);
+  color: var(--text);
+}
+
+.message .disclosure.tool-call > summary code {
   font-size: 10px;
-  font-weight: 400;
   letter-spacing: 0.1em;
   color: var(--text);
 }
 
-.message .details.tool-call > summary span {
+.message .disclosure.tool-call > summary > span:last-child {
   flex: 1;
-  font-family: var(--font-mono-ui);
-  font-size: 10px;
   letter-spacing: 0.02em;
   text-transform: none;
   color: var(--text-faint);
 }
 
-.message .reasoning-content,
-.message .tool-result-body {
+.reasoning-content,
+.tool-result-body {
   margin: 0;
   padding: var(--u) 0 var(--inset) var(--inset);
   border: none;
   border-radius: 0;
   background: transparent;
-  box-shadow: inset var(--hair-w) 0 0 var(--hair);
-  font-size: 12px;
-  line-height: 20px;
+  box-shadow: none;
   color: var(--text-muted);
 }
 
-.message .reasoning-content p {
+.reasoning-content {
+  font-size: 12px;
+  line-height: 20px;
+}
+
+.reasoning-content p {
   margin: 0 0 var(--gutter);
 }
 
-.message .reasoning-content pre {
+.reasoning-content pre {
   margin: var(--gutter) 0;
   background: var(--ink-1);
-  border: none;
 }
 
-.message .tool-result-body pre {
+.tool-result-body pre {
   margin: 0;
   padding: 0;
   border: none;
@@ -571,12 +428,11 @@
   font-family: var(--font-mono-ui);
   font-size: 11px;
   line-height: 16px;
-  color: var(--text-muted);
   white-space: pre-wrap;
   word-break: break-word;
 }
 
-.message .tool-result-body img {
+.tool-result-body img {
   max-width: 100%;
   height: auto;
   margin-top: var(--gutter);
@@ -585,34 +441,32 @@
 
 /* ── Attachments ──────────────────────────────────────────────────────────
    Hairline-framed media, sized on the lattice. */
-.message .attachment-row {
+.attachment-row {
   display: flex;
   flex-wrap: wrap;
   gap: var(--gutter);
   margin: 0 0 var(--inset);
 }
 
-.message .message-attachment {
+.message-attachment {
   position: relative;
-  border-radius: var(--radius-control);
-  box-shadow: inset 0 0 0 var(--hair-w) var(--hair);
   overflow: hidden;
 }
 
-.message .message-attachment img {
+.message-attachment img {
   display: block;
-  height: calc(var(--u) * 24);
   width: auto;
+  height: calc(var(--u) * 24);
   object-fit: cover;
   cursor: pointer;
   transition: opacity var(--transition);
 }
 
-.message .message-attachment img:hover {
+.message-attachment img:hover {
   opacity: 0.9;
 }
 
-.message .message-attachment-audio {
+.message-attachment-audio {
   display: flex;
   align-items: center;
   gap: var(--gutter);
@@ -621,72 +475,179 @@
   color: var(--text-muted);
 }
 
-.message .message-attachment-audio audio {
+.message-attachment-audio audio {
   height: var(--control-h-lg);
   max-width: calc(var(--u) * 50);
   filter: contrast(0.8) grayscale(1);
 }
 
-/* ── Boundary marker between compacted and live turns ────────────────────── */
-.message .summary-boundary {
-  margin-top: 0;
-  padding: var(--gutter) 0;
-  border-top: none;
-  box-shadow: inset 0 var(--hair-w) 0 var(--hair);
+/* External media slot and its load action. */
+.external-media-placeholder {
+  display: flex;
+  align-items: center;
+  gap: var(--gutter);
+  margin: var(--u) 0;
+  padding: var(--u) var(--gutter);
 }
 
-.message .summary-boundary-btn {
-  gap: var(--gutter);
-  padding: 0;
+.external-media-label {
+  min-width: 0;
+  overflow: hidden;
   font-family: var(--font-mono-ui);
   font-size: 10px;
-  letter-spacing: 0.1em;
-  color: var(--text-faint);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--text-muted);
 }
 
-.message .summary-boundary-btn:hover {
-  color: var(--text);
+/* ── Boundary between compacted and live turns ───────────────────────────── */
+.summary-boundary {
+  margin-top: 0;
 }
 
-.message .summary-boundary-edit {
+.summary-boundary-btn {
+  justify-content: flex-start;
+  width: 100%;
+  padding: var(--gutter) 0;
+}
+
+.summary-boundary-edit {
+  margin-left: auto;
   letter-spacing: 0;
   text-transform: none;
-  opacity: 1;
-}
-
-/* The sticky reasoning header travels with this surface: the toggle that pins
-   to the top of the scrollport sits on the first line of prose, not on the old
-   hanging indent the rail replaced. */
-#reasoning-sticky-host {
-  padding-left: calc(var(--gutter) + var(--inset));
+  color: var(--text-muted);
 }
 
 /* ── Streaming skeleton ───────────────────────────────────────────────────
    Same rail and screen as a finished message. The loader rides the avatar's
-   own box — a light tracing the portrait's bezel — so it stays inside the
-   frame instead of hanging off the rail. */
-.message .message-spinner {
+   own box, so it stays inside the frame instead of hanging off the rail. */
+.message-spinner {
+  position: absolute;
   top: 0;
   left: var(--msg-frame-pad);
   right: auto;
+  z-index: 2;
   width: var(--msg-avatar-size);
   height: var(--msg-avatar-size);
-  z-index: 2;
 }
 
-.message .message-spinner::after {
-  inset: 0;
-}
-
-.message .message-spinner::before {
-  width: calc(var(--u) * 3);
-  height: var(--u);
-  border-radius: var(--radius-control);
-  box-shadow: none;
-  offset-path: inset(0 round var(--radius-control));
-}
-
-.message:has(.message-spinner) .message-avatar {
+.message:has(.message-spinner) .avatar {
   position: relative;
   z-index: 0;
+}
+
+.gen-pulse {
+  display: inline-block;
+  width: calc(var(--u) * 2);
+  height: calc(var(--u) * 4);
+  margin-left: var(--u);
+  background: var(--accent);
+  animation: gen-pulse-blink 1.2s ease-in-out infinite;
+}
+
+@keyframes gen-pulse-blink {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+/* ── Greeter (empty centre pane) ──────────────────────────────────────────── */
+.greeter-avatar {
+  margin-bottom: calc(var(--u) * 6);
+}
+
+/* ── Composer ─────────────────────────────────────────────────────────────
+   A recessed console well with one raised action. */
+.input-bar {
+  display: flex;
+  justify-content: center;
+  z-index: 20;
+  pointer-events: none;
+}
+
+.input-bar-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--gutter);
+  width: 100%;
+}
+
+.staging-area {
+  width: 100%;
+  max-width: var(--chat-content-width);
+  min-height: 0;
+  pointer-events: auto;
+}
+
+#staging-area > div {
+  flex: none;
+  height: calc(var(--control-h-lg) + var(--gutter));
+  padding: var(--u);
+  gap: var(--u);
+}
+
+#staging-area > div > div {
+  width: var(--control-h-lg);
+  height: var(--control-h-lg);
+  border: none;
+  border-radius: var(--radius-control);
+  /* Outside the box, not inset: an inset ring on a media tile paints under the
+     image and disappears. */
+  box-shadow: 0 0 0 var(--hair-w) var(--mat-lo);
+}
+
+#standard-input-container {
+  display: flex;
+  align-items: center;
+  gap: var(--gutter);
+  width: 100%;
+  max-width: var(--chat-content-width);
+  min-height: calc(var(--u) * 12);
+  padding: var(--gutter);
+  pointer-events: auto;
+}
+
+#standard-input-container:focus-within {
+  box-shadow:
+    var(--mat-inset),
+    0 0 0 var(--hair-w) var(--mat-lo);
+}
+
+#chat-input {
+  flex: 1 1 auto;
+  height: var(--control-h-lg);
+  max-height: calc(var(--u) * 62);
+  min-height: var(--control-h-lg);
+  padding: var(--u) var(--inset);
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 24px;
+  color: var(--text);
+  outline: none;
+  resize: none;
+  overflow-y: hidden;
+}
+
+#chat-input::placeholder {
+  font-family: var(--font-mono-ui);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--engrave);
+}
+
+#delete-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gutter);
+  width: 100%;
+  max-width: var(--chat-content-width);
+  min-height: calc(var(--u) * 12);
+  padding: 0 var(--inset);
+  pointer-events: auto;
 }

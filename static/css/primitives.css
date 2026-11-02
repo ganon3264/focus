@@ -420,6 +420,11 @@ textarea.field {
   background: currentColor;
 }
 
+.check.lg {
+  width: calc(var(--u) * 5);
+  height: calc(var(--u) * 5);
+}
+
 .check:is(:checked, .active) {
   background-color: var(--accent);
   background-image: none;
@@ -701,6 +706,12 @@ textarea.field {
   background-color: var(--mat-well);
   background-image: none;
   box-shadow: var(--mat-inset);
+}
+
+.well.danger {
+  box-shadow:
+    var(--mat-inset),
+    inset 0 0 0 var(--hair-w) var(--danger-edge);
 }
 
 .well.drag-over {
@@ -1040,6 +1051,12 @@ textarea.field {
   font-size: 12px;
 }
 
+.avatar.xl {
+  width: calc(var(--u) * 24);
+  height: calc(var(--u) * 24);
+  font-size: 24px;
+}
+
 /* ── .pager — three controls on one row ──────────────────────────────────── */
 .pager {
   display: flex;
@@ -1070,9 +1087,37 @@ textarea.field {
   color: var(--accent);
 }
 
-/* ── .favorite-active — the one amber flag ───────────────────────────────── */
+/* ── .favorite-active — the one amber flag ────────────────────────────────
+   The star carries both glyphs; the state decides which one is drawn. */
 .favorite-active {
   color: var(--warning);
+}
+
+.fav-star {
+  display: inline-flex;
+  align-items: center;
+  line-height: 0;
+  color: var(--text-faint);
+}
+
+.fav-star .fav-star-outline {
+  display: inline-flex;
+}
+
+.fav-star .fav-star-filled {
+  display: none;
+}
+
+.fav-star.favorite-active {
+  color: var(--warning);
+}
+
+.fav-star.favorite-active .fav-star-outline {
+  display: none;
+}
+
+.fav-star.favorite-active .fav-star-filled {
+  display: inline-flex;
 }
 
 /* ── .copied — transient key confirmation ────────────────────────────────── */
