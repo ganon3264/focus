@@ -1,22 +1,31 @@
-<div class="flex flex-col h-full">
-  {% from "macros.html" import icon_trash, icon_plus, icon_close, sort_dropdown, filter_dropdown, search_toolbar, empty_state %}
-  <div class="flex flex-col gap-2">
-    <div class="flex gap-2">
-      <button
-        onclick="openNewPersonaPopup()"
-        class="btn create sm flex items-center justify-center gap-1.5 cursor-pointer m-0"
-      >
-        {{ icon_plus(size=14) }} New
-      </button>
+{# Entity list modal — personas. Same chassis as the character list (see
+   modals/characters.html); personas have no import and no trash bin. #}
+<div class="entity-modal">
+  {% from "macros.html" import icon_plus, sort_dropdown, filter_dropdown,
+  search_toolbar, empty_state %}
+  <div class="entity-modal-head">
+    <div class="rail">
+      <span>{{ personas|length }} {{ 'persona' if personas|length == 1 else 'personas' }}</span>
+      <div class="rail-actions">
+        <button
+          type="button"
+          onclick="openNewPersonaPopup()"
+          class="btn sm create"
+        >
+          {{ icon_plus(14) }} New
+        </button>
+      </div>
     </div>
-    {% call search_toolbar('Search personas...', input_attrs='oninput="filterPersonas(this.value)"',
-      wrapper_classes='flex gap-2 items-center') %}
+  </div>
+
+  <div class="entity-modal-toolbar">
+    {% call search_toolbar('Search personas…', input_attrs='oninput="filterPersonas(this.value)"', wrapper_classes='') %}
       {{ filter_dropdown('setPersonaFilter', 'getPersonaFilterGroups') }}
       {{ sort_dropdown('focus_persona_sort', 'sortPersonas') }}
     {% endcall %}
   </div>
 
-  <div class="flex-1 min-h-0 overflow-y-auto">
+  <div class="entity-modal-list">
     {% if not personas %}
     {{ empty_state('No personas found. Create one to get started!') }}
     {% endif %}
@@ -27,14 +36,7 @@
       {% endfor %}
     </div>
   </div>
-
-  <div class="flex justify-end">
-    <button class="btn sm flex items-center gap-2" onclick="openPersonaTrashModal()">
-      <span>{{ icon_trash() }}</span> Trash Bin
-    </button>
-  </div>
 </div>
-
 <script>
   setupEntityModal({
     entity: 'Persona',

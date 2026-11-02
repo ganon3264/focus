@@ -425,6 +425,18 @@ def test_renderable_templates_have_balanced_divs(template_name):
     )
 
 
+PARTIAL_TEMPLATES = [t for t in ALL_TEMPLATES if t.startswith("partials/")]
+
+
+@pytest.mark.parametrize("template_name", PARTIAL_TEMPLATES)
+def test_partial_has_one_inline_script(template_name):
+    """One <script> per partial. A second one is a copy-paste artefact: the
+    browser parses the first block up to the stray tag, the rest silently never
+    runs, and the page keeps rendering while its wiring is gone."""
+    source = loader.get_source(env, template_name)[0]
+    assert source.count("<script") <= 1, f"{template_name}: more than one script block"
+
+
 STATE_CLASSES = {
     "hidden", "active", "collapsed", "expanded", "disabled", "disabled-row",
     "copied", "ready", "drag-over", "selected",

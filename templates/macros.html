@@ -270,7 +270,7 @@
       type="number"
       min="0"
       value="{{ block.injection_depth }}"
-      class="field sm"
+      class="field sm num"
       onchange="handleArrangerBlockUpdate(this, {injection_depth: parseInt(this.value) || 0})"
     />
   </label>
@@ -280,7 +280,7 @@
       type="number"
       min="0"
       value="{{ block.injection_order | default(0) }}"
-      class="field sm"
+      class="field sm num"
       onchange="handleArrangerBlockUpdate(this, {injection_order: parseInt(this.value) || 0})"
     />
   </label>

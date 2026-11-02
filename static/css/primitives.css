@@ -351,11 +351,15 @@
   font-family: var(--font-mono-ui);
   font-size: 11px;
   line-height: var(--control-h-sm);
+}
+
+/* Numeric readouts are centred and intrinsic; a compact text field is not a
+   number and keeps the field's own left inset. */
+.field.num {
   font-variant-numeric: tabular-nums;
   text-align: center;
 }
 
-/* A readout beside its caption: intrinsic width, never the whole line. */
 .field.sm.num {
   width: calc(var(--u) * 16);
   flex: none;

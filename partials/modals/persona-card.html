@@ -14,18 +14,8 @@
 >
   {{ avatar('avatar', p.avatar_path, p.name ~ ' avatar', p.name[:1], img_attrs='loading="lazy"') }}
   <span class="row-title" title="{{ p.description or '' }}">{{ p.name }}</span>
-  <span class="row-meta">{{ p.get('group_name') or '—' }}</span>
+  <span class="row-meta">{% if p.get('group_name') %}<span class="tag">{{ p.get('group_name') }}</span>{% endif %}</span>
   <span class="row-actions" onclick="event.stopPropagation()">
-    <button
-      class="key sm fav-star{% if p.get('is_favorite') %} favorite-active{% endif %}"
-      data-ui="fav-star"
-      onclick="event.stopPropagation(); togglePersonaFavorite(this)"
-      aria-label="Toggle favorite"
-      title="Favorite"
-    >
-      <span class="fav-star-outline">{{ icon_star(14) }}</span>
-      <span class="fav-star-filled">{{ icon_star_filled(14) }}</span>
-    </button>
     <button
       class="key sm"
       data-persona-id="{{ p.id }}"
@@ -50,5 +40,15 @@
       {{ icon_trash() }}
     </button>
     {% endif %}
+    <button
+      class="key sm fav-star{% if p.get('is_favorite') %} favorite-active{% endif %}"
+      data-ui="fav-star"
+      onclick="event.stopPropagation(); togglePersonaFavorite(this)"
+      aria-label="Toggle favorite"
+      title="Favorite"
+    >
+      <span class="fav-star-outline">{{ icon_star(14) }}</span>
+      <span class="fav-star-filled">{{ icon_star_filled(14) }}</span>
+    </button>
   </span>
 </div>

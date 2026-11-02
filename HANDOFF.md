@@ -41,6 +41,7 @@ all 243 legacy classes onto one closed vocabulary.
 | 5 | done | `tests/frontend/test_css_ownership.py` — no surface authors a primitive's look, no `:not()` in any stylesheet. Two real violations it flushed out: `.preset-menu .row { font-size }` (now `.row.sm`) and the reasoning block's `:not(:has(summary))` (now `.reasoning-block.headless`) |
 
 | 6 | done | character editor rebuilt + card blocks ported back (see §6) |
+| 7 | done | entity list modals (characters / personas) rebuilt as a banded chassis: rail + toolbar + list plane + foot, hover-revealed verbs, group tags |
 
 ---
 
@@ -216,6 +217,10 @@ Traps this step produced:
 - **Writes must be serialised.** Two `PATCH`es fired back to back (e.g. role then
   enable) can commit out of order on the server. `hxFetch` puts block writes on
   the same queue as the reloads.
+- **Full-bleed bands inside `.modal-body` come from negative margins, not from
+  zeroing the body padding.** The ruler measures the body's first child against
+  the 24px inset; `padding: 0` on the body fails it (and is the one-inset rule
+  the user checks first).
 - **`custom_select`'s `extra_classes` land on the trigger button**, not its
   `w-full` wrapper — a `flex` basis passed there never sizes the wrapper. Wrap the
   macro in a `<div class="arranger-select">` (this was also quietly squeezing the

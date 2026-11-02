@@ -124,9 +124,91 @@
    Characters, personas and providers share one list: .row cards in two
    column-major lanes. The row owns the groove; the avatar, the title, the
    readout and the keys are primitives. */
+/* ── Entity list modal (characters / personas) ────────────────────────────
+   A chassis of bands instead of one flat scroll island: the readout rail owns
+   the collection's verbs, then the search/filter row, then the list, then the
+   foot. Only the list scrolls. The bands pull out to the panel's inner edges
+   (the same negative-margin trick as .modal-foot) and pad back in, so a groove
+   runs the full width while the content keeps the modal's one inset. */
+/* The title bar joins the chrome strip, so the top of the modal is one block
+   (title, readout, search) closed by a groove, the list is its own plane, and
+   the foot closes it again. */
+.entity-modal-shell .modal-head {
+  background-color: var(--ink-1);
+}
+
+.entity-modal {
+  --entity-pad: var(--modal-pad);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.entity-modal-head,
+.entity-modal-toolbar,
+.entity-modal-list,
+.entity-modal-foot {
+  margin-inline: calc(-1 * var(--entity-pad));
+  padding-inline: var(--entity-pad);
+}
+
+.entity-modal-head {
+  flex: none;
+  background-color: var(--ink-1);
+}
+
+.entity-modal-head > .rail {
+  margin: 0;
+}
+
+.entity-modal-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--gutter);
+  flex: none;
+  padding-block: var(--inset);
+  background-color: var(--ink-1);
+  box-shadow:
+    inset 0 calc(-1 * var(--hair-w)) 0 var(--hair-dark),
+    inset 0 calc(-2 * var(--hair-w)) 0 var(--hair-lit);
+}
+
+/* The search field takes every pixel the two pickers do not need. */
+.entity-modal-toolbar > .search-field {
+  flex: 1 1 auto;
+}
+
+.entity-modal-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  /* The lane is full-bleed, so the bar rides in the padding instead of a
+     reserved gutter — the rows keep the same 24px inset on both sides. */
+  scrollbar-gutter: auto;
+  /* The list is its own plane: one step down from the panel, so the rows read
+     inside a region instead of floating in the modal's fill. */
+  background-color: var(--surface);
+  padding-block: var(--gutter);
+}
+
+.entity-modal-foot {
+  display: flex;
+  justify-content: flex-end;
+  flex: none;
+  padding-block: var(--inset) 0;
+  background-color: var(--ink-1);
+  box-shadow:
+    inset 0 var(--hair-w) 0 var(--hair-dark),
+    inset 0 calc(var(--hair-w) * 2) 0 var(--hair-lit);
+}
+
 .entity-list {
   column-count: 2;
   column-gap: var(--inset);
+  /* Two lanes of identical rows read as one field without a seam between
+     them; the rule is that seam. */
+  column-rule: var(--hair-w) solid var(--hair-dark);
 }
 
 .entity-list > .entity-row {
@@ -143,7 +225,31 @@
 .entity-row > .row-meta {
   flex: 0 0 calc(var(--u) * 20);
   justify-content: flex-end;
+  overflow: hidden;
   text-align: right;
+}
+
+/* A group is a marker, not a value: the tag gives the readout column something
+   to look at, and an empty group leaves the column blank instead of a dash on
+   every second row. */
+.entity-row > .row-meta > .tag {
+  flex: none;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+/* The row is the target; its verbs arrive with the pointer (star, edit, delete)
+   and nothing shifts when they do. A favourite's star stays lit at rest — it is
+   state, not a verb. */
+.entity-modal-shell .entity-row > .row-actions > .key {
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+
+.entity-modal-shell .entity-row:hover > .row-actions > .key,
+.entity-modal-shell .entity-row:focus-within > .row-actions > .key,
+.entity-modal-shell .entity-row > .row-actions > .fav-star.favorite-active {
+  opacity: 1;
 }
 
 .entity-row > .row-actions > .entity-delete {

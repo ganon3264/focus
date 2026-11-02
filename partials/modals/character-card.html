@@ -14,18 +14,8 @@
 >
   {{ avatar('avatar', char.image_path, char.name ~ ' avatar', char.name[:1], img_attrs='loading="lazy"') }}
   <span class="row-title" title="{{ char.card.get('description','') }}">{{ char.name }}</span>
-  <span class="row-meta">{{ char.get('group_name') or '—' }}</span>
+  <span class="row-meta">{% if char.get('group_name') %}<span class="tag">{{ char.get('group_name') }}</span>{% endif %}</span>
   <span class="row-actions" onclick="event.stopPropagation()">
-    <button
-      class="key sm fav-star{% if char.get('is_favorite') %} favorite-active{% endif %}"
-      data-ui="fav-star"
-      onclick="event.stopPropagation(); toggleCharFavorite(this)"
-      aria-label="Toggle favorite"
-      title="Favorite"
-    >
-      <span class="fav-star-outline">{{ icon_star(14) }}</span>
-      <span class="fav-star-filled">{{ icon_star_filled(14) }}</span>
-    </button>
     <button
       class="key sm"
       data-char-id="{{ char.id }}"
@@ -52,6 +42,16 @@
       aria-label="Delete character"
     >
       {{ icon_trash() }}
+    </button>
+    <button
+      class="key sm fav-star{% if char.get('is_favorite') %} favorite-active{% endif %}"
+      data-ui="fav-star"
+      onclick="event.stopPropagation(); toggleCharFavorite(this)"
+      aria-label="Toggle favorite"
+      title="Favorite"
+    >
+      <span class="fav-star-outline">{{ icon_star(14) }}</span>
+      <span class="fav-star-filled">{{ icon_star_filled(14) }}</span>
     </button>
   </span>
 </div>

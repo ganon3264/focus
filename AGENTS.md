@@ -95,6 +95,14 @@ The pruner's `_pruned` map is keyed by bare id (`MessageIdentity.bare`); `_forge
 - The count on the door comes from `data-char-blocks` on the card's edit button; the modal re-syncs it after every load (`syncCount`).
 - Blocks are prompt-side only (the preset's `char_blocks` sentinel splices them in), so editing one does not invalidate the message list.
 
+### Entity lists (characters / personas)
+
+- `partials/modals/characters.html` and `personas.html` are a chassis of **bands**, not one scroll island: head rail (count + Import/New) → toolbar (search + filter + sort) → list → foot (Trash). Only the list scrolls.
+- Bands pull out to the panel's inner edges with `margin-inline: calc(-1 * var(--entity-pad))` (where `--entity-pad: var(--modal-pad)`) and pad back in, so grooves run full width while the content keeps the modal's one inset. **Never zero `.modal-body`'s padding to get full-bleed** — `grid-audit.js` measures the body's first child against it.
+- The list lane is its own plane (`background: var(--surface)` — the chat list's fill), with the two columns separated by `column-rule`. It has **no scroll fade**: the plane boundary is the edge. `scrollbar-gutter: auto` so the bar rides the lane's padding instead of pushing the rows off the 24px inset.
+- Rows keep the chat-row anatomy: avatar → `.row-title` → `.row-meta` (the group as a `.tag`, blank when ungrouped) → `.row-actions`. All three verbs (star, edit, delete) are hover-revealed via `.entity-modal-shell .entity-row > .row-actions > .key`; a favourite's star stays lit because it is state, not a verb.
+- `modal_shell(..., overlay_class='entity-modal-shell')` scopes the body/head treatment. The provider list is **not** in this shell (its edit key stays visible).
+
 ### Toast system (`static/js/ui/notifications.js`)
 
 - One stack: `#toast-container` in `base.html` (fixed top-center, `z-index: var(--z-max)`, above all modals).
