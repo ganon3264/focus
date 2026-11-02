@@ -207,6 +207,7 @@
   font-family: var(--font-mono-ui);
   font-size: 10px;
   letter-spacing: 0.04em;
+  text-transform: uppercase;
   font-variant-numeric: tabular-nums;
 }
 

@@ -398,6 +398,30 @@
   transform: rotate(135deg);
 }
 
+/* ── Sticky twin of the rail toggle ───────────────────────────────────────
+   The pre-answer reasoning block has no head, so there is no strip to pin while
+   its body scrolls — this chip takes over at the top of the scrollport instead
+   and collapses the block. The host is zero-height: it pins without occupying
+   space in the scroll content. */
+#reasoning-sticky-host {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  display: flex;
+  width: 100%;
+  max-width: var(--chat-content-width);
+  height: 0;
+  /* Aligned with the reasoning block's plate: frame pad + screen pad. The host
+     sits outside `.message`, so it cannot use that scope's tokens. */
+  padding-left: calc(var(--gutter) + var(--inset));
+  pointer-events: none;
+}
+
+.reasoning-sticky-pill {
+  pointer-events: auto;
+  transform: translateY(var(--gutter));
+}
+
 .reasoning-content,
 .tool-result-body {
   margin: 0;
