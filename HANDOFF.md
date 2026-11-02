@@ -125,10 +125,9 @@ surfaces/forms.css
 surfaces/overlays.css   (toasts, tooltips, lightbox, option picker)
 ```
 
-**To be deleted:** `layout.css`, `chat.css`, `input.css`, `components.css`,
-`animations.css` (1910 lines, layered), `instrument.css` (legacy skin, still the
-owner of modals/forms), and `design.css` (the calibration file, once its left
-sidebar rules are re-expressed against primitives).
+**Deleted so far:** `chat.css`, `input.css`, `design.css`. **Still to delete:**
+`layout.css`, `components.css`, `animations.css`, and `instrument.css` (now
+modals + forms only).
 
 ### Primitive contract
 
@@ -213,9 +212,11 @@ deleting the old owner is how the last attempt went wrong.
    #3, #4, #6, #12. Known leftover: `.btn-danger`/`.btn-create`/`.btn-hero` in
    the composer and the modals are now unstyled variants until their surface
    lands (they fall back to the neutral plate).
-2. **Messages + composer** — `.frame`/`.well`/`.disclosure`/`.key`, delete
-   `chat.css`, `input.css`, `surfaces/messages.css`'s legacy overlaps.
-   Resolves #5, #10, #11.
+2. **Messages + composer — done.** `.frame`/`.well`/`.disclosure`/`.key`/
+   `.avatar`/`.field`/`.check`; `chat.css`, `input.css` and `design.css`
+   deleted, plus the centre-pane/input-bar blocks in `instrument.css`.
+   Resolved #5, #10, #11. Leftover: the message spinner keeps its own
+   avatar-tracing animation instead of `.spinner` (D10 stays open).
 3. **Modals + forms** — `.panel`/`.rail`/`.row`/`.field`/`.check`/`.switch`,
    delete the modal + form blocks from `instrument.css` and `components.css`.
    Resolves #7, #8, #9. Consistency here is free — it is composition now.
