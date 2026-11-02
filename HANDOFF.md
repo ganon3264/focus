@@ -253,6 +253,12 @@ well so the space reads as an empty list, not a hole. Not started.
   nothing; write the rule in the owning surface file.
 - The pruner stores `offsetHeight`; changing message heights is fine, changing
   the DOM shape JS queries is not.
+- **Reasoning lives inside the message screen.** The index-0 block is still a
+  plain `<div>` (streaming writes tokens into its content), but it renders a
+  `.disclosure-head` with the toggle in it — the rail carries only the model
+  readout. `ensureReasoningToggleButton` inserts into that head; do not move the
+  toggle back to `message-meta`. `<details>` blocks and the streaming block share
+  the same panel look via `.disclosure` / `.disclosure-head`.
 - Message markup is single-sourced. Editing `templates/macros.html` message
   macros requires regenerating `tests/frontend/fixtures/message-templates.html`
   or the fixture test fails (it renders the same Jinja template with the test's
