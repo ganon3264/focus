@@ -1,6 +1,6 @@
 {% from "macros.html" import icon_expand, icon_plus, icon_trash, icon_chevron_left, icon_chevron_right, icon_help, hint_tooltip, avatar, modal_footer %} {% from "modal-shell.html" import modal_shell
 %} {% call modal_shell(modal_id, 'Edit ' ~ entity_name, max_width='1040px',
-content_style='display:flex;flex-direction:column;height:min(88vh, 780px);', z_index='100',
+content_style='height:min(88vh, 780px);', z_index='100',
 dirty_fields='#edit-' ~ prefix ~ '-name,#edit-' ~ prefix ~ '-desc,#edit-' ~ prefix ~ '-group' ~ (',#edit-' ~ prefix ~ '-theme-id' if show_theme|default(false) else ''),
 dirty_label='#edit-' ~ prefix ~ '-name') %}
 <form
@@ -13,32 +13,32 @@ dirty_label='#edit-' ~ prefix ~ '-name') %}
   <div class="edit-entity-body">
     <aside class="edit-entity-side">
       <div class="edit-identity">
-        {% call avatar('edit-avatar', tag='label', attrs='title="Change Avatar"', initial_tag='') %}
+        {% call avatar('avatar xl edit-avatar', tag='label', attrs='title="Change Avatar"', initial_tag='') %}
           <img id="edit-{{ prefix }}-image-preview" alt="" />
-          <span id="edit-{{ prefix }}-image-placeholder" class="edit-avatar-placeholder"></span>
+          <span id="edit-{{ prefix }}-image-placeholder" class="edit-avatar-empty"></span>
           <div class="edit-avatar-overlay">Upload</div>
           <input type="file" accept="image/*" class="hidden" data-action="{{ avatar_fn }}" />
         {% endcall %}
 
         <div class="edit-identity-fields">
-          <div class="form-group mb-0 min-w-0">
+          <div class="form-group">
             <label>Name</label>
             <input
               type="text"
               name="name"
               id="edit-{{ prefix }}-name"
               required
-              class="form-control w-full"
+              class="field"
             />
           </div>
 
-          <div class="form-group mb-0 min-w-0">
+          <div class="form-group">
             <label>Group</label>
             <input
               type="text"
               name="group_name"
               id="edit-{{ prefix }}-group"
-              class="form-control w-full"
+              class="field"
               placeholder="Optional group"
             />
           </div>
@@ -46,33 +46,32 @@ dirty_label='#edit-' ~ prefix ~ '-name') %}
       </div>
 
       {% if show_theme|default(false) %}
-      <div class="form-group mb-0">
+      <div class="form-group">
         <label>Theme</label>
         <button
           type="button"
-          class="btn btn-secondary w-full flex items-center justify-center text-sm"
+          class="field select"
           onclick="openCharThemePicker()"
         >
-          <span id="edit-char-theme-label" class="text-muted">Inherit (global)</span>
+          <span id="edit-char-theme-label">Inherit (global)</span>
         </button>
         <input type="hidden" name="theme_id" id="edit-char-theme-id" value="" />
       </div>
       {% endif %}
 
-      <div class="form-group mb-0">
-        <div class="edit-entity-field-head">
-          <label>Reference Media</label>
+      <div class="form-group">
+        <div class="flex items-center gap-1">
+          <span class="field-label">Reference media</span>
           {{ hint_tooltip('{{media:x}} inserts the attachment in position x, counting left to right as shown above. Unpositioned media is appended after the block in the same order.') }}
         </div>
         <div
-          class="char-block-media-section"
+          class="char-block-media-section media-row"
           id="edit-{{ prefix }}-media-section"
-          style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center"
         >
           <label
-            class="btn btn-secondary btn-sm btn-media-add block-media-btn"
+            class="key xl create block-media-btn"
             data-ui="block-media-btn"
-            title="Add Image or Audio"
+            title="Add image or audio"
           >
             {{ icon_plus(20) }}
             <input
@@ -82,29 +81,29 @@ dirty_label='#edit-' ~ prefix ~ '-name') %}
               data-action="{{ upload_fn }}"
             />
           </label>
-          <span class="text-xs text-muted block-media-placeholder" data-ui="block-media-placeholder">Add reference image or audio</span>
+          <span class="note block-media-placeholder" data-ui="block-media-placeholder">Add reference image or audio</span>
         </div>
       </div>
     </aside>
 
     <div class="edit-entity-main">
-      <div class="form-group mb-0">
+      <div class="form-group">
         <label>Description</label>
         <div class="textarea-wrapper">
           <textarea
             name="description"
             id="edit-{{ prefix }}-desc"
             rows="14"
-            class="form-control w-full"
+            class="field"
             style="resize: none"
           ></textarea>
           <button
             type="button"
-            class="expand-btn"
+            class="key sm field-expand"
             aria-label="Expand text area"
             data-action="actionOpenTextExpander" data-target-id="edit-{{ prefix }}-desc" data-expander-title="Edit {{ entity_name }} Description"
           >
-            {{ icon_expand(18) }}
+            {{ icon_expand(16) }}
           </button>
         </div>
       </div>
@@ -115,11 +114,10 @@ dirty_label='#edit-' ~ prefix ~ '-name') %}
     </div>
   </div>
 
-  {% call modal_footer(wrapper_classes='edit-entity-footer') %}
+  {% call modal_footer() %}
       <button
         type="button"
-        class="btn btn-secondary btn-icon"
-        style="width: calc(1lh + 1rem + 2px); height: calc(1lh + 1rem + 2px)"
+        class="key"
         onclick="openMacroHelp()"
         title="Macro reference"
         aria-label="Macro reference"
@@ -127,14 +125,13 @@ dirty_label='#edit-' ~ prefix ~ '-name') %}
         {{ icon_help(16) }}
       </button>
       <button
-        class="btn btn-secondary"
-        style="width: 100px"
+        class="btn"
         type="button"
         data-action="actionCloseModal" data-modal-id="{{ modal_id }}"
       >
         Cancel
       </button>
-      <button class="btn btn-primary" style="width: 100px" type="submit" data-dirty-save>Save</button>
+      <button class="btn primary" type="submit" data-dirty-save>Save</button>
   {% endcall %}
 </form>
 {% endcall %}

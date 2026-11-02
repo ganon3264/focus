@@ -1,22 +1,20 @@
 <!-- Option Selection Modal (shared picker: OpenRouter route/quant, theme picker, ...) -->
 {% from "modal-shell.html" import modal_shell %}
+{% from "macros.html" import icon_search %}
 {% call modal_shell('modal-select-option', '', max_width='400px', width='95vw',
-     content_style='display:block;max-height:60vh;overflow:hidden;background:var(--surface);padding:0;',
-     overlay_class='sub', header_class='divider p-4', title_attrs='x-text="title"',
-     close_class='btn btn-secondary btn-sm',
+     content_style='height:60vh;',
+     overlay_class='sub', title_attrs='x-text="title"',
      overlay_attrs='aria-label="Select option" x-data="{ search: \'\', options: [], title: \'Select\', select(value, label) { $dispatch(\'option-selected\', { value: value, label: label }); } }"') %}
-    <div class="p-4" style="background: var(--surface-2); border-bottom: 1px solid var(--border);">
-      <input type="text" x-model="search" placeholder="Search..." class="form-control" autocomplete="off" autofocus>
-    </div>
-    <div class="flex-1 overflow-y-auto p-2" style="max-height: 40vh; background: var(--surface);">
-      <template x-for="opt in options.filter(o => o.label.toLowerCase().includes(search.toLowerCase()))" :key="opt.value">
-        <div class="p-3 cursor-pointer rounded-md transition-colors hover:bg-[var(--surface-3)]"
-             @click="select(opt.value, opt.label); closeModal('modal-select-option')">
-          <span x-text="opt.label" class="text-sm"></span>
-        </div>
-      </template>
-      <div x-show="options.length === 0" class="p-4 text-center text-muted text-sm">
-        No options available.
+  <div class="search-field shrink-0">
+    <span class="search-mark">{{ icon_search(14) }}</span>
+    <input type="text" x-model="search" placeholder="Search..." class="field" autocomplete="off" autofocus>
+  </div>
+  <div class="option-list flex-1 min-h-0">
+    <template x-for="opt in options.filter(o => o.label.toLowerCase().includes(search.toLowerCase()))" :key="opt.value">
+      <div class="row" @click="select(opt.value, opt.label); closeModal('modal-select-option')">
+        <span class="row-title" x-text="opt.label"></span>
       </div>
-    </div>
+    </template>
+    <div x-show="options.length === 0" class="empty">No options available.</div>
+  </div>
 {% endcall %}

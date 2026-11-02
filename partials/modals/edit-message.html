@@ -1,19 +1,20 @@
 {% from "macros.html" import icon_expand, icon_plus, modal_footer %} {% from "modal-shell.html" import modal_shell %} {% call
 modal_shell('modal-edit-message', 'Edit Message', max_width='800px',
-content_style='display:flex;flex-direction:column;max-height:90vh;', z_index='100',
+content_style='max-height:90vh;', z_index='100',
 dirty_fields='[data-ui="edit-block-ta"]', dirty_label='this message') %}
-<div class="flex-1 overflow-y-auto flex flex-col gap-6 scroll-fade min-h-0 pl-1" data-ui="scroll-fade">
+<div class="flex-1 flex flex-col gap-4 min-h-0">
   <input type="hidden" id="edit-msg-id" />
   <input type="hidden" id="edit-msg-chat-id" />
 
   <div id="edit-msg-blocks" class="flex flex-col gap-4"></div>
 </div>
 
-<div style="flex-shrink:0;padding-top:1rem;margin-top:1rem">
-  <div class="flex justify-between items-center mb-2">
-    <label class="text-sm font-medium text-muted">Attachments</label>
+<div class="shrink-0">
+  <div class="rail">
+    <span>Attachments</span>
+    <span class="rail-actions">
     <button
-      class="btn btn-create btn-sm"
+      class="btn create sm"
       onclick="document.getElementById('edit-msg-attach-input').click()"
     >
       {{ icon_plus(14) }} Add Media
@@ -26,26 +27,26 @@ dirty_fields='[data-ui="edit-block-ta"]', dirty_label='this message') %}
       accept="image/*,audio/*"
       onchange="uploadMessageAttachment(this)"
     />
+    </span>
   </div>
   <div
     id="edit-msg-attachments"
-    class="edit-msg-drop flex gap-2 flex-wrap empty:hidden p-3"
+    class="edit-msg-drop well drag-target media-row empty:hidden p-3"
   ></div>
 </div>
-{% call modal_footer(wrapper_classes='flex items-center gap-2 mt-6 pt-4') %}
+{% call modal_footer(hint='') %}
   <button
-    class="btn btn-secondary"
-    style="width: 100px"
+    class="btn"
     type="button"
     onclick="closeModal('modal-edit-message')"
   >
     Cancel
   </button>
-  <button class="btn btn-primary" style="width: 100px" data-dirty-save onclick="saveMessageEdit()">Save</button>
+  <button class="btn primary" data-dirty-save onclick="saveMessageEdit()">Save</button>
 {% endcall %}
 {% endcall %}
 <template id="edit-msg-expand-btn">
-  <button type="button" class="expand-btn" aria-label="Expand text area" data-action="actionOpenTextExpander">
+  <button type="button" class="key sm field-expand" aria-label="Expand text area" data-action="actionOpenTextExpander">
     {{ icon_expand(18) }}
   </button>
 </template>

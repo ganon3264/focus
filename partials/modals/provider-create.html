@@ -1,10 +1,10 @@
 {% from "macros.html" import custom_select, icon_trash, icon_search, hint_tooltip, modal_footer, toggle %} {% from "modal-shell.html" import modal_shell %} {% call modal_shell('modal-provider-create', 'Add Provider', max_width='500px', z_index='100',
 dirty_fields='#provider-form input,#provider-form select,#provider-form textarea',
 dirty_label='#prov-form-name') %}
-<form id="provider-form" data-action="actionSubmitProviderForm" class="flex flex-col gap-3 p-4">
+<form id="provider-form" data-action="actionSubmitProviderForm" class="flex flex-col gap-3 flex-1">
   <input type="hidden" name="edit_id" id="prov-form-edit-id" value="">
 
-  <div class="form-group mb-0">
+  <div class="form-group">
     <label>Name</label>
     <input
       type="text"
@@ -12,149 +12,143 @@ dirty_label='#prov-form-name') %}
       id="prov-form-name"
       required
       placeholder="e.g. Local LLM"
-      class="text-sm form-control w-full"
+      class="field"
     />
   </div>
 
-  <div class="form-group mb-0">
+  <div class="form-group">
     <label>Type</label>
-    {{ custom_select( name="type", id="prov-form-type", options=provider_type_options(), selected="openai_compat", on_change="toggleProviderFields('prov-form')", extra_classes="form-control text-sm w-full" ) }}
+    {{ custom_select( name="type", id="prov-form-type", options=provider_type_options(), selected="openai_compat", on_change="toggleProviderFields('prov-form')", extra_classes="w-full" ) }}
   </div>
 
-  <div class="form-group mb-0" id="prov-form-baseurl">
+  <div class="form-group" id="prov-form-baseurl">
     <label>Base URL</label>
     <input
       type="text"
       name="base_url"
       id="prov-form-base-url"
       placeholder="https://api.example.com/v1"
-      class="text-sm form-control w-full"
+      class="field"
     />
   </div>
 
-  <div class="form-group mb-0">
-    <div class="flex items-center justify-between mb-1">
-      <label class="mb-0 flex items-center gap-1">API Keys {{ hint_tooltip('Add more keys to switch between them easily. With more than one, a <span class="hint-success">Keys</span> row appears in the status panel in the lower left corner so you can rotate the active key on the fly.') }}</label>
-      <button type="button" class="btn-link is-create" onclick="openSecretsModal('prov-form', true)">Add Key +</button>
+  <div class="form-group">
+    <div class="field-inline">
+      <span class="field-label inline-flex items-center gap-1">API Keys {{ hint_tooltip('Add more keys to switch between them easily. With more than one, a <span class="note success">Keys</span> row appears in the status panel in the lower left corner so you can rotate the active key on the fly.') }}</span>
+      <button type="button" class="link create" onclick="openSecretsModal('prov-form', true)">Add Key +</button>
     </div>
     <div id="prov-form-key-list" class="flex flex-col gap-1"></div>
     <input type="hidden" name="api_keys_json" id="prov-form-api-keys" value="[]" />
     <input type="hidden" name="api_key" id="api-key-input-prov-form" value="" />
   </div>
   <template id="prov-form-key-row-template">
-    <div class="key-row flex items-center gap-2" data-ui="key-row">
-      <div class="arranger-handle" title="Drag to reorder"></div>
-      <span class="key-row-label text-sm truncate flex-1" data-ui="key-row-label"></span>
-      <button type="button" class="btn btn-danger btn-sm" data-action="actionRemoveProviderKey" aria-label="Remove key">{{ icon_trash(14) }}</button>
+    <div class="row" data-ui="key-row">
+      <div class="grip arranger-handle" title="Drag to reorder"></div>
+      <span class="row-title" data-ui="key-row-label"></span>
+      <button type="button" class="key sm danger" data-action="actionRemoveProviderKey" aria-label="Remove key">{{ icon_trash(14) }}</button>
     </div>
   </template>
 
   <!-- Default Model Input -->
-  <div class="form-group mb-0" id="prov-form-model-input">
+  <div class="form-group" id="prov-form-model-input">
     <label>Model</label>
-    <div class="flex gap-2">
+    <div class="field-row">
       <input
         type="text"
         name="model"
         id="model-text-prov-form"
         required
         placeholder="gpt-4"
-        class="text-sm form-control w-full"
+        class="field"
       />
       <button
         type="button"
-        class="btn btn-secondary"
+        class="key"
         onclick="openFetchModelModal('prov-form')"
         aria-label="Fetch models"
-        title="Fetch Models from Provider"
-        style="width: 44px; display: grid; place-items: center"
+        title="Fetch models from provider"
       >
-        {{ icon_search(18) }}
+        {{ icon_search(16) }}
       </button>
     </div>
   </div>
 
   <!-- Auto-retry (applies to every provider type) -->
-  <div class="form-group mb-0" style="border-top: 1px solid var(--border); padding-top: 0.75rem;">
-    <div class="flex items-center justify-between">
-      <label class="text-sm mb-0 cursor-pointer" onclick="toggleRetryEnabled('prov-form')">Auto-retry failed requests</label>
-      <div class="flex items-center gap-2">
-        <button type="button" class="btn-link" onclick="openRetryModal()">More…</button>
-        {{ toggle('id="prov-form-retry-toggle" aria-label="Auto-retry failed requests" onclick="toggleRetryEnabled(\'prov-form\')"', active=true) }}
-      </div>
-      <input type="hidden" name="retry_enabled" id="prov-form-retry-enabled" value="true" />
-    </div>
+  <div class="row flat" style="margin-top: var(--u)">
+    <label class="row-title" onclick="toggleRetryEnabled('prov-form')">Auto-retry failed requests</label>
+    <span class="row-actions">
+      <button type="button" class="link" onclick="openRetryModal()">More…</button>
+      {{ toggle('id="prov-form-retry-toggle" aria-label="Auto-retry failed requests" onclick="toggleRetryEnabled(\'prov-form\')"', active=true) }}
+    </span>
+    <input type="hidden" name="retry_enabled" id="prov-form-retry-enabled" value="true" />
   </div>
 
   {% call modal_shell('modal-provider-retry', 'Auto-retry settings', max_width='440px', width='95vw', z_index='200') %}
-  <div class="flex flex-col gap-3 p-4" onkeydown="if (event.key === 'Enter' && event.target.tagName !== 'BUTTON') event.preventDefault()">
+  <div class="flex flex-col gap-3" onkeydown="if (event.key === 'Enter' && event.target.tagName !== 'BUTTON') event.preventDefault()">
     <div class="flex gap-2">
       <div class="form-group mb-0 flex-1">
         <label class="text-xs">Max retries</label>
-        <input type="number" name="retry_max_retries" id="prov-form-retry-max" step="1" value="5" class="text-sm form-control w-full" onchange="refreshRetryHint()" />
+        <input type="number" name="retry_max_retries" id="prov-form-retry-max" step="1" value="5" class="field" onchange="refreshRetryHint()" />
       </div>
       <div class="form-group mb-0 flex-1">
         <label class="text-xs">Base delay (s)</label>
-        <input type="number" name="retry_base_delay" id="prov-form-retry-base" step="0.5" value="2" class="text-sm form-control w-full" />
+        <input type="number" name="retry_base_delay" id="prov-form-retry-base" step="0.5" value="2" class="field" />
       </div>
       <div class="form-group mb-0 flex-1">
         <label class="text-xs">Max delay (s)</label>
-        <input type="number" name="retry_max_delay" id="prov-form-retry-max-delay" step="0.5" value="20" class="text-sm form-control w-full" />
+        <input type="number" name="retry_max_delay" id="prov-form-retry-max-delay" step="0.5" value="20" class="field" />
       </div>
     </div>
-    <div class="flex flex-wrap items-center gap-3 text-xs">
-      <label class="flex items-center gap-1.5 cursor-pointer mb-0">
-        <input type="checkbox" class="checkbox" name="retry_rate_limit" id="prov-form-retry-rate" onchange="refreshRetryHint()" /> Rate limit (429)
+    <div class="flex flex-wrap items-center gap-3">
+      <label class="check-row">
+        <input type="checkbox" class="check" name="retry_rate_limit" id="prov-form-retry-rate" onchange="refreshRetryHint()" /> Rate limit (429)
       </label>
-      <label class="flex items-center gap-1.5 cursor-pointer mb-0">
-        <input type="checkbox" class="checkbox" name="retry_server_error" id="prov-form-retry-server" checked onchange="refreshRetryHint()" /> Server errors (5xx)
+      <label class="check-row">
+        <input type="checkbox" class="check" name="retry_server_error" id="prov-form-retry-server" checked onchange="refreshRetryHint()" /> Server errors (5xx)
       </label>
-      <label class="flex items-center gap-1.5 cursor-pointer mb-0">
-        <input type="checkbox" class="checkbox" name="retry_timeout" id="prov-form-retry-timeout" checked onchange="refreshRetryHint()" /> Timeouts / connection errors
+      <label class="check-row">
+        <input type="checkbox" class="check" name="retry_timeout" id="prov-form-retry-timeout" checked onchange="refreshRetryHint()" /> Timeouts / connection errors
       </label>
     </div>
-    <div class="form-group mb-0">
+    <div class="form-group">
       <label class="text-xs">Additional HTTP status codes {{ hint_tooltip('Comma-separated, retried in addition to the classes above. Transport failures have no status code — use the Timeouts box for those.') }}</label>
-      <input type="text" name="retry_extra_statuses" id="prov-form-retry-extra" placeholder="e.g. 408, 425" class="text-sm form-control w-full" onchange="refreshRetryHint()" />
+      <input type="text" name="retry_extra_statuses" id="prov-form-retry-extra" placeholder="e.g. 408, 425" class="field" onchange="refreshRetryHint()" />
     </div>
-    <div id="prov-form-retry-hint" class="text-xs text-muted hidden">No retry classes or status codes selected — auto-retry will do nothing.</div>
-    <div class="flex">
-      <button type="button" class="btn btn-primary btn-sm ml-auto" onclick="closeModal('modal-provider-retry')">Done</button>
-    </div>
+    <div id="prov-form-retry-hint" class="note hidden">No retry classes or status codes selected — auto-retry will do nothing.</div>
+    {% call modal_footer(hint='') %}
+      <button type="button" class="btn primary" onclick="closeModal('modal-provider-retry')">Done</button>
+    {% endcall %}
   </div>
   {% endcall %}
 
   <!-- OpenRouter Dynamic Fields (route, no-fallbacks, quant, tier — model uses shared input above) -->
   <div id="prov-form-or-fields" class="hidden flex-col gap-3">
-    <div class="form-group mb-0">
+    <div class="form-group">
       <label>Provider Routing</label>
       <input type="hidden" name="or_route" id="prov-form-or-route" value="" />
-      <button type="button" class="form-control text-sm w-full flex justify-between items-center cursor-pointer" onclick="openRouteSelectModal('prov-form')">
-        <span id="or-route-display-prov-form" class="truncate text-muted">Auto (Any)</span>
+      <button type="button" class="field select" onclick="openRouteSelectModal('prov-form')">
+        <span id="or-route-display-prov-form" class="truncate">Auto (Any)</span>
         <span class="opacity-50">{{ icon_search() }}</span>
       </button>
     </div>
-    <div
-      id="prov-form-or-no-fallbacks-row"
-      class="form-group mb-0 flex items-center justify-between hidden"
-    >
-      <label class="text-xs mb-0 cursor-pointer" onclick="toggleNoFallbacks('prov-form')">Lock provider (no fallbacks)</label>
-      {{ toggle('id="prov-form-or-no-fallbacks-toggle" onclick="toggleNoFallbacks(\'prov-form\')"', active=true) }}
+    <div id="prov-form-or-no-fallbacks-row" class="row flat hidden" onclick="toggleNoFallbacks('prov-form')">
+      <span class="row-title">Lock provider (no fallbacks)</span>
+      <span class="row-actions">{{ toggle('id="prov-form-or-no-fallbacks-toggle" onclick="toggleNoFallbacks(\'prov-form\')"', active=true) }}</span>
       <input type="hidden" name="or_no_fallbacks" id="prov-form-or-no-fallbacks" value="true" />
     </div>
-    <div class="form-group mb-0">
+    <div class="form-group">
       <label>Quantization</label>
       <input type="hidden" name="or_quant" id="prov-form-or-quant" value="" />
-      <button type="button" class="form-control text-sm w-full flex justify-between items-center cursor-pointer" onclick="openQuantSelectModal('prov-form')">
-        <span id="or-quant-display-prov-form" class="truncate text-muted">Any</span>
+      <button type="button" class="field select" onclick="openQuantSelectModal('prov-form')">
+        <span id="or-quant-display-prov-form" class="truncate">Any</span>
         <span class="opacity-50">{{ icon_search() }}</span>
       </button>
     </div>
-    <div class="form-group mb-0">
+    <div class="form-group">
       <label>Service Tier {{ hint_tooltip('Some providers sell the same model at several grades of capacity. <b>Flex</b> is cheaper but slower and less available; <b>Priority</b> is faster and more reliable at a higher price; <b>Ultrafast</b> is OpenAIs lowest-latency tier, billed at several times the standard rate. Leave on Default to never request a non-standard tier.') }}</label>
       <input type="hidden" name="or_service_tier" id="prov-form-or-service-tier" value="" />
-      <button type="button" class="form-control text-sm w-full flex justify-between items-center cursor-pointer" onclick="openServiceTierSelectModal('prov-form')">
-        <span id="or-service-tier-display-prov-form" class="truncate text-muted">Default (standard)</span>
+      <button type="button" class="field select" onclick="openServiceTierSelectModal('prov-form')">
+        <span id="or-service-tier-display-prov-form" class="truncate">Default (standard)</span>
         <span class="opacity-50">{{ icon_search() }}</span>
       </button>
     </div>
@@ -162,46 +156,46 @@ dirty_label='#prov-form-name') %}
 
   <!-- Vertex Dynamic Fields -->
   <div id="prov-form-vertex-fields" class="hidden flex-col gap-3">
-    <div class="form-group mb-0">
+    <div class="form-group">
       <label>Project ID</label>
       <input
         type="text"
         name="vertex_project_id"
         id="prov-form-vertex-project-id"
         placeholder="Optional (Uses ADC if blank)"
-        class="text-sm form-control w-full"
+        class="field"
       />
     </div>
-    <div class="form-group mb-0">
+    <div class="form-group">
       <label>Region</label>
-      {{ custom_select( name="vertex_region", id="prov-form-vertex-region", options=[ {"value": "global", "label": "Global"}, {"value": "us-central1", "label": "us-central1 (Iowa)"}, {"value": "us-east4", "label": "us-east4 (N. Virginia)"}, {"value": "us-west1", "label": "us-west1 (Oregon)"}, {"value": "us-west4", "label": "us-west4 (Las Vegas)"}, {"value": "europe-west1", "label": "europe-west1 (Belgium)"}, {"value": "europe-west2", "label": "europe-west2 (London)"}, {"value": "europe-west3", "label": "europe-west3 (Frankfurt)"}, {"value": "europe-west4", "label": "europe-west4 (Netherlands)"}, {"value": "europe-west9", "label": "europe-west9 (Paris)"}, {"value": "asia-northeast1", "label": "asia-northeast1 (Tokyo)"}, {"value": "asia-northeast3", "label": "asia-northeast3 (Seoul)"}, {"value": "asia-southeast1", "label": "asia-southeast1 (Singapore)"} ], selected="global", extra_classes="form-control text-sm w-full" ) }}
+      {{ custom_select( name="vertex_region", id="prov-form-vertex-region", options=[ {"value": "global", "label": "Global"}, {"value": "us-central1", "label": "us-central1 (Iowa)"}, {"value": "us-east4", "label": "us-east4 (N. Virginia)"}, {"value": "us-west1", "label": "us-west1 (Oregon)"}, {"value": "us-west4", "label": "us-west4 (Las Vegas)"}, {"value": "europe-west1", "label": "europe-west1 (Belgium)"}, {"value": "europe-west2", "label": "europe-west2 (London)"}, {"value": "europe-west3", "label": "europe-west3 (Frankfurt)"}, {"value": "europe-west4", "label": "europe-west4 (Netherlands)"}, {"value": "europe-west9", "label": "europe-west9 (Paris)"}, {"value": "asia-northeast1", "label": "asia-northeast1 (Tokyo)"}, {"value": "asia-northeast3", "label": "asia-northeast3 (Seoul)"}, {"value": "asia-southeast1", "label": "asia-southeast1 (Singapore)"} ], selected="global", extra_classes="w-full" ) }}
     </div>
   </div>
 
-  <div class="form-group mb-0 hidden">
+  <div class="form-group hidden">
     <label>Params JSON</label>
     <input
       type="text"
       name="params"
       id="prov-form-params"
       value="{}"
-      class="text-sm form-control w-full"
+      class="field"
     />
   </div>
 
-  <div class="form-group mb-0 hidden">
+  <div class="form-group hidden">
     <label>Config JSON</label>
     <input
       type="text"
       name="config"
       id="prov-form-config"
       value="{}"
-      class="text-sm form-control w-full"
+      class="field"
     />
   </div>
 
-  {% call modal_footer(buttons_classes='') %}
-    <button type="submit" id="prov-form-submit-btn" class="btn btn-create text-sm ml-auto" data-dirty-save>Add Provider</button>
+  {% call modal_footer(hint='') %}
+    <button type="submit" id="prov-form-submit-btn" class="btn create ml-auto" data-dirty-save>Add Provider</button>
   {% endcall %}
 </form>
 {% endcall %}

@@ -1,12 +1,12 @@
 {% from "modal-shell.html" import modal_shell %} {% call modal_shell('modal-text-expander', 'Edit
 Text', max_width='896px',
-content_style='display:flex;flex-direction:column;height:85vh;padding:1.25rem;', z_index='1000') %}
+content_style='height:85vh;', z_index='1000') %}
 <textarea
   id="text-expander-input"
-  class="form-control w-full flex-1 mb-4"
-  style="resize: none; font-family: ui-monospace, monospace; font-size: 0.9rem; line-height: 1.6"
+  class="field mono w-full flex-1"
+  style="resize: none;"
 ></textarea>
-<p class="text-xs text-muted shrink-0 text-center">Changes apply to the field as you type.</p>
+<p class="note shrink-0 text-center">Changes apply to the field as you type.</p>
 {% endcall %}
 
 <script>

@@ -1,27 +1,14 @@
 {% from "macros.html" import avatar %}
-<div class="flex flex-col gap-1">
+<div class="flex flex-col">
   {% if not entities %}
-  <div class="text-muted text-xs text-center py-3">No matches.</div>
+  <div class="empty">No matches.</div>
   {% endif %} {% for e in entities %} {% set img_path = e.image_path or e.avatar_path or None %}
-  <div
-    class="flex items-center gap-2.5 p-2 rounded-lg cursor-pointer transition-colors hover:bg-[var(--surface-3)]"
-    style="background: var(--surface-2); border: 1px solid var(--border)"
-    data-export-id="{{ e.id }}"
-    data-export-type="{{ etype }}"
-    onclick="BackupManager.toggleExportEntity(this)"
-  >
-    {{ avatar('w-8 h-8 rounded-sm overflow-hidden shrink-0 border border-[var(--border)] flex items-center justify-center',
-      img_path, '', e.name[:1].upper(),
-      attrs='style="background: var(--surface-3)"', img_class='w-full h-full object-cover',
-      initial_class='text-xs font-bold text-muted') }}
-
-    <span class="flex-1 min-w-0 text-sm font-medium truncate">{{ e.name }}</span>
-
-    <input
-      type="checkbox"
-      class="checkbox pointer-events-none shrink-0"
-      onclick="event.stopPropagation()"
-    />
+  <div class="row" data-export-id="{{ e.id }}" data-export-type="{{ etype }}" onclick="BackupManager.toggleExportEntity(this)">
+    {{ avatar('avatar', img_path, '', e.name[:1].upper(), img_attrs='loading="lazy"') }}
+    <span class="row-title">{{ e.name }}</span>
+    <span class="row-actions">
+      <input type="checkbox" class="check pointer-events-none" onclick="event.stopPropagation()" />
+    </span>
   </div>
   {% endfor %}
 </div>

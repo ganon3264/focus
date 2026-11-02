@@ -1,0 +1,597 @@
+/* ── Modals ────────────────────────────────────────────────────────────────
+   The floating layer. The panel itself is the .panel primitive; this file owns
+   the chassis (scrim, plate, head, scrolling body, sticky foot) and the
+   geometry each modal needs. One inset — `--modal-pad` — is shared by head,
+   body and foot, so the title, the content and the verbs sit on the same four
+   margins. No modal restyles a control. */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: calc(var(--u) * 6);
+  z-index: var(--z-modal);
+  background: var(--modal-backdrop-heavy);
+  animation: fade-in 0.16s ease-out;
+}
+
+.modal-overlay.sub {
+  z-index: var(--z-modal-sub);
+}
+
+.modal-panel {
+  --modal-pad: calc(var(--u) * 6);
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-height: calc(100vh - var(--u) * 12);
+  overflow: hidden;
+  animation: slide-up 0.16s ease-out;
+}
+
+/* Head: the engraved title and the close key on one line, the same padding on
+   all four sides, closed by a full-bleed groove. */
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--inset);
+  flex: none;
+  padding: var(--modal-pad) var(--modal-pad) calc(var(--u) * 4);
+  box-shadow: inset 0 calc(-1 * var(--hair-w)) 0 var(--hair);
+}
+
+.modal-title {
+  font-family: var(--font-mono-ui);
+  font-size: 11px;
+  line-height: calc(var(--u) * 4);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.modal-head > .key {
+  margin: calc(-1 * var(--u)) calc(-1 * var(--u)) calc(-1 * var(--u)) 0;
+}
+
+/* Body: the one scroll lane. Its gutter is reserved on both edges so the
+   content's right margin equals its left margin whether or not it scrolls. */
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--modal-pad) var(--modal-pad) 0;
+}
+
+/* With no foot, the body supplies the bottom margin itself. */
+.modal-body:not(:has(.modal-foot)) {
+  padding-bottom: var(--modal-pad);
+}
+
+/* An inner scroll lane inside a modal must not add the app-wide bar gap: the
+   body already owns the inset, and a one-sided gap breaks the four margins. */
+.modal-body :where(.overflow-y-auto, .overflow-auto, .scroll-fade) {
+  padding-right: 0;
+  scrollbar-gutter: auto;
+}
+
+/* Verbs stay reachable: the foot is sticky against the body's bottom edge, so a
+   long form scrolls under it instead of pushing it out of the panel. */
+.modal-foot {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--gutter);
+  margin: auto calc(-1 * var(--modal-pad)) 0;
+  padding: calc(var(--u) * 4) var(--modal-pad) var(--modal-pad);
+  background-color: var(--surface-2);
+  box-shadow: inset 0 var(--hair-w) 0 var(--hair);
+}
+
+.modal-foot-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--gutter);
+  margin-left: auto;
+}
+
+.modal-dirty {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--accent);
+}
+
+/* A tab strip under a modal head: it sits on the body's top margin and its own
+   rule closes it. */
+.tab-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--u);
+  flex: none;
+  margin: 0 calc(-1 * var(--modal-pad)) var(--inset);
+  padding: 0 var(--modal-pad);
+  box-shadow: inset 0 calc(-1 * var(--hair-w)) 0 var(--hair);
+}
+
+/* ── Entity lists ─────────────────────────────────────────────────────────
+   Characters, personas and providers share one list: .row cards in two
+   column-major lanes. The row owns the groove; the avatar, the title, the
+   readout and the keys are primitives. */
+.entity-list {
+  column-count: 2;
+  column-gap: var(--inset);
+}
+
+.entity-list > .entity-row {
+  break-inside: avoid;
+}
+
+/* The name owns the line; the readout column and the verbs never squeeze it.
+   Delete stays in the flow (so nothing shifts) but only shows under the
+   pointer, exactly like a chat row. */
+.entity-row > .row-title {
+  flex: 1 1 auto;
+}
+
+.entity-row > .row-meta {
+  flex: 0 0 calc(var(--u) * 20);
+  justify-content: flex-end;
+  text-align: right;
+}
+
+.entity-row > .row-actions > .entity-delete {
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+
+.entity-row:hover > .row-actions > .entity-delete,
+.entity-row:focus-within > .row-actions > .entity-delete {
+  opacity: 1;
+}
+
+/* Grids of data cards: available tools, installed extensions. */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--gutter);
+}
+
+.card-grid > .card {
+  min-width: 0;
+}
+
+/* ── Entity editor (character / persona) ──────────────────────────────────
+   A card sidebar (avatar, identity, theme, media) beside the content column;
+   description and greeting split the remaining height. */
+.edit-entity-form {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.edit-entity-body {
+  display: grid;
+  grid-template-columns: calc(var(--u) * 80) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  gap: var(--inset);
+  flex: 1;
+  min-height: 0;
+}
+
+.edit-entity-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--inset);
+  min-height: 0;
+  padding-right: var(--inset);
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  box-shadow: inset calc(-1 * var(--hair-w)) 0 0 var(--hair-dark);
+}
+
+.edit-entity-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--inset);
+  min-height: 0;
+}
+
+.edit-entity-main > .form-group {
+  flex: 2 1 0;
+  min-height: 0;
+}
+
+.edit-entity-main > .entity-greeting {
+  flex: 1 1 0;
+}
+
+.edit-identity {
+  display: flex;
+  gap: var(--gutter);
+  align-items: stretch;
+}
+
+.edit-identity-fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gutter);
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.edit-identity-fields > .form-group {
+  flex: 1 1 0;
+}
+
+/* The avatar is a label: the file input hides inside it and the caption only
+   appears under the pointer. */
+.edit-avatar {
+  position: relative;
+  flex: none;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.edit-avatar > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.edit-avatar-empty {
+  font-size: 24px;
+  color: var(--text-faint);
+}
+
+.edit-avatar-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, black 55%, transparent);
+  color: var(--text-on-accent);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+
+.edit-avatar:hover .edit-avatar-overlay {
+  opacity: 1;
+}
+
+/* Media row under a field: thumbnails plus the one create tile. */
+.media-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--gutter);
+}
+
+/* ── Theme customizer ─────────────────────────────────────────────────────
+   Theme list on the left, palette on the right. */
+.theme-modal-body {
+  display: grid;
+  grid-template-columns: calc(var(--u) * 80) minmax(0, 1fr);
+  gap: var(--inset);
+  flex: 1;
+  min-height: 0;
+}
+
+.theme-modal-list-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gutter);
+  min-height: 0;
+  padding-right: var(--inset);
+  box-shadow: inset calc(-1 * var(--hair-w)) 0 0 var(--hair-dark);
+}
+
+.theme-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.theme-swatches {
+  display: inline-flex;
+  gap: var(--u);
+  flex: none;
+}
+
+.theme-swatch {
+  width: calc(var(--u) * 3);
+  height: calc(var(--u) * 3);
+  flex: none;
+}
+
+.theme-modal-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--inset);
+  min-width: 0;
+  overflow-y: auto;
+}
+
+.theme-name-row {
+  display: flex;
+  align-items: center;
+  gap: var(--gutter);
+}
+
+.theme-color-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--inset);
+}
+
+.theme-color-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--u);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.theme-slot-spacer {
+  width: calc(var(--u) * 6);
+  flex: none;
+}
+
+/* ── Arranger rows ────────────────────────────────────────────────────────
+   The prompt arranger and the Advanced list tabs share one anatomy: a row whose
+   grip drags it, whose title group expands it, and whose trailing keys toggle
+   and delete it. Role is the row's own left edge. */
+.arranger-list {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.arranger-item {
+  display: flex;
+  flex-direction: column;
+  flex: none;
+}
+
+.arranger-item.disabled {
+  opacity: 0.5;
+}
+
+.arranger-header {
+  display: flex;
+  align-items: center;
+  gap: var(--gutter);
+}
+
+.arranger-title-group {
+  display: flex;
+  align-items: center;
+  gap: var(--gutter);
+  flex: 1 1 auto;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.arranger-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--u);
+  flex: none;
+}
+
+.arranger-body {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--gutter);
+  padding: var(--gutter) 0 0 calc(var(--u) * 5);
+}
+
+.arranger-note {
+  min-width: 0;
+}
+
+.arranger-media {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--gutter);
+  padding: var(--gutter) 0 0 calc(var(--u) * 5);
+}
+
+.arranger-add-buttons {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--gutter);
+}
+
+/* A block's name is edited in place: the field is a line of text until it is
+   focused. */
+.arranger-input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.arranger-select {
+  flex: 0 0 calc(var(--u) * 30);
+  min-width: 0;
+}
+
+.arranger-preview {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* ── Itemizer ─────────────────────────────────────────────────────────────
+   One toolbar readout over a list of input messages; each message expands to
+   its parts. */
+.itemizer-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gutter);
+  flex: none;
+  height: var(--control-h-lg);
+  padding: 0 var(--gutter);
+  margin-bottom: var(--gutter);
+  box-shadow: inset 0 calc(-1 * var(--hair-w)) 0 var(--hair-dark);
+}
+
+.itemizer-readout {
+  color: var(--accent);
+}
+
+.itemizer-list {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.itemizer-item {
+  display: flex;
+  flex-direction: column;
+  flex: none;
+}
+
+.itemizer-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gutter);
+  padding: var(--gutter);
+  margin: 0 var(--gutter) var(--gutter);
+}
+
+.itemizer-text {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: calc(var(--u) * 5);
+  color: var(--text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.itemizer-part {
+  align-self: flex-start;
+  max-width: 100%;
+}
+
+.itemizer-reasoning {
+  display: flex;
+  flex-direction: column;
+  gap: var(--u);
+  padding-left: var(--gutter);
+  box-shadow: inset calc(var(--hair-w) * 2) 0 0 var(--hair);
+}
+
+/* ── Regex scripts / structured responses ─────────────────────────────────
+   Two scopes (global, preset), each a rail over a sortable list. */
+.regex-group,
+.structured-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gutter);
+}
+
+.regex-group + .regex-group,
+.structured-group + .structured-group {
+  margin-top: var(--inset);
+}
+
+.regex-sortable,
+.structured-sortable {
+  display: flex;
+  flex-direction: column;
+}
+
+.regex-body,
+.structured-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--inset);
+  padding: var(--inset) 0 0 calc(var(--u) * 5);
+}
+
+.regex-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--inset);
+}
+
+/* A readout of what the engine returned: monospace, pre-wrap, closed on a
+   hairline so an empty result leaves no gap. */
+.preview-out {
+  font-family: var(--font-mono-ui);
+  font-size: 11px;
+  line-height: calc(var(--u) * 4);
+  color: var(--text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.preview-out:empty {
+  display: none;
+}
+
+.preview-out.danger {
+  color: var(--danger);
+}
+
+/* ── Backups ──────────────────────────────────────────────────────────────
+   Data rows, not cards: the date carries the ink, the size is the readout, the
+   keys sit at the far edge. */
+.backup-row {
+  display: flex;
+  align-items: center;
+  gap: var(--gutter);
+  flex: none;
+}
+
+.backup-row-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* ── Providers ────────────────────────────────────────────────────────────
+   One provider is one row: name over type · model, balance at the edge. */
+.provider-row .row-title {
+  flex: 0 1 auto;
+}
+
+.provider-balance {
+  flex: 0 0 auto;
+}
+
+/* Saved keys: a row that opens on a key, a trailing Select verb. */
+.secret-row .row-title {
+  flex: 0 1 auto;
+}
+
+/* ── Confirm / option picker ──────────────────────────────────────────────*/
+.confirm-text {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: calc(var(--u) * 5);
+  color: var(--text);
+}
+
+.option-list {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+}

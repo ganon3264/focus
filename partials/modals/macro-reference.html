@@ -2,57 +2,56 @@
 {% from "modal-shell.html" import modal_shell %}
 <!-- Macro Reference Modal -->
 {% call modal_shell('macro-help-modal', 'Macro Reference', max_width='600px', z_index='2000') %}
-<div x-data="macroHelp()" class="flex flex-col gap-2">
-  <div class="relative">
-    <span style="position:absolute;left:0.75rem;top:50%;transform:translateY(-50%);color:var(--text-muted);pointer-events:none;display:flex;">{{ icon_search(14) }}</span>
+<div x-data="macroHelp()" class="flex flex-col gap-2 flex-1 min-h-0">
+  <div class="search-field">
+    <span class="search-mark">{{ icon_search(14) }}</span>
     <input
       type="text"
       x-model="query"
-      class="form-control"
-      style="padding-left:2.25rem;"
+      class="field"
       placeholder="Search macros and tokens…"
       autocomplete="off"
     />
   </div>
-  <div class="flex flex-col max-h-[60vh] overflow-y-auto scroll-fade" data-ui="scroll-fade">
+  <div class="flex flex-col flex-1 min-h-0 overflow-y-auto">
     <template x-if="filteredMacros.length > 0">
-      <div class="flex items-center justify-between mt-1 mb-1 text-xs font-bold text-muted uppercase tracking-wider">
-        <span>Built-in Macros</span>
-        <span class="text-[10px] font-mono" x-text="filteredMacros.length + ' / ' + macros.length"></span>
+      <div class="rail mt-1">
+        <span>Built-in macros</span>
+        <span class="rail-actions flush row-meta" x-text="filteredMacros.length + ' / ' + macros.length"></span>
       </div>
     </template>
     <template x-for="m in filteredMacros" :key="m.syntax">
       <button
         type="button"
-        class="w-full flex items-center gap-2 px-2 py-1.5 rounded-md transition-colors hover:bg-[var(--surface-3)] cursor-pointer"
+        class="row"
         @click="copy(m.syntax)"
         :title="'Click to copy ' + m.syntax"
       >
-        <code class="font-mono text-xs bg-(--surface-3) px-1.5 py-0.5 rounded whitespace-nowrap shrink-0" x-text="m.syntax"></code>
-        <span class="text-xs text-muted flex-1 min-w-0" x-text="m.description"></span>
-        <span class="text-[10px] uppercase tracking-wider text-muted border border-(--border) rounded-full px-1.5 py-0.5 shrink-0" x-text="m.badge"></span>
+        <code class="mono row-value shrink-0" x-text="m.syntax"></code>
+        <span class="row-title" x-text="m.description"></span>
+        <span class="tag" x-text="m.badge"></span>
       </button>
     </template>
     <template x-if="filteredTokens.length > 0">
-      <div class="flex items-center justify-between mt-3 mb-1 pt-2 text-xs font-bold text-muted uppercase tracking-wider" style="border-top: 1px solid var(--border)">
-        <span>Special Tokens</span>
-        <span class="text-[10px] font-mono" x-text="filteredTokens.length + ' / ' + tokens.length"></span>
+      <div class="rail mt-2">
+        <span>Special tokens</span>
+        <span class="rail-actions flush row-meta" x-text="filteredTokens.length + ' / ' + tokens.length"></span>
       </div>
     </template>
     <template x-for="t in filteredTokens" :key="t.syntax">
       <button
         type="button"
-        class="w-full flex items-center gap-2 px-2 py-1.5 rounded-md transition-colors hover:bg-[var(--surface-3)] cursor-pointer"
+        class="row"
         @click="copy(t.syntax)"
         :title="'Click to copy ' + t.syntax"
       >
-        <code class="font-mono text-xs bg-(--surface-3) px-1.5 py-0.5 rounded whitespace-nowrap shrink-0" x-text="t.syntax"></code>
-        <span class="text-xs text-muted flex-1 min-w-0" x-text="t.description"></span>
-        <span class="text-[10px] uppercase tracking-wider text-muted border border-(--border) rounded-full px-1.5 py-0.5 shrink-0" x-text="t.badge"></span>
+        <code class="mono row-value shrink-0" x-text="t.syntax"></code>
+        <span class="row-title" x-text="t.description"></span>
+        <span class="tag" x-text="t.badge"></span>
       </button>
     </template>
     <template x-if="filteredMacros.length === 0 && filteredTokens.length === 0">
-      <div class="text-center text-muted text-sm py-6">No matches for “<span x-text="query"></span>”</div>
+      <div class="empty">No matches for “<span x-text="query"></span>”</div>
     </template>
   </div>
 </div>

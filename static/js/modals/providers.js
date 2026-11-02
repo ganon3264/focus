@@ -625,7 +625,7 @@ function openSecretsModal(prefix, append) {
   document.querySelectorAll('#modal-secrets [data-ui="secret-select-btn"]').forEach(function (btn) {
     btn.classList.toggle('hidden', !prefix);
   });
-  document.querySelector('#modal-secrets [data-ui~="secrets-title"]').textContent = prefix ? 'Select API Key' : 'Manage API Keys';
+  document.querySelector('#modal-secrets [data-ui="modal-title"]').textContent = prefix ? 'Select API Key' : 'Manage API Keys';
   fetchSecrets();
 }
 
@@ -713,7 +713,7 @@ function _renderProviderKeys(prefix, refs) {
   container.innerHTML = '';
   if (!refs.length) {
     const empty = document.createElement('div');
-    empty.className = 'text-xs text-muted';
+    empty.className = 'empty';
     empty.textContent = 'No keys yet — click "Add Key".';
     container.appendChild(empty);
     return;

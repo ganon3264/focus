@@ -34,25 +34,22 @@
         name = id.dataset[cfg.nameAttr] || name;
         id = id.dataset[cfg.idAttr];
       }
-      var html = '<div class="mb-4 text-sm" style="color:var(--text);">Delete ' + cfg.entityLower + ' <strong>' + window.escapeHtml(name) + '</strong>?</div>' +
-        '<div class="flex flex-col gap-3">' +
-        '<label class="flex items-start gap-3 cursor-pointer p-3 rounded-lg hover:bg-(--surface-3) transition-colors border border-(--border)">' +
-        '<div class="mt-0.5"><input type="radio" name="' + cfg.entityLower + '_delete_option" value="soft" checked class="w-4 h-4 cursor-pointer" style="accent-color: var(--accent);"></div>' +
+      var html = '<div class="confirm-text mb-2">Delete ' + cfg.entityLower + ' <strong>' + window.escapeHtml(name) + '</strong>?</div>' +
         '<div class="flex flex-col">' +
-        '<span class="text-sm font-bold" style="color:var(--text);">Move ' + cfg.entity + ' to Trash</span>' +
-        '<span class="text-xs text-muted">You can restore the ' + cfg.entityLower + ' later.</span></div></label>';
+        '<label class="row">' +
+        '<input type="radio" name="' + cfg.entityLower + '_delete_option" value="soft" checked class="check">' +
+        '<span class="row-title">Move ' + cfg.entity + ' to Trash</span>' +
+        '<span class="row-meta">Restorable</span></label>';
       if (cfg.deleteWithChats) {
-        html += '<label class="flex items-start gap-3 cursor-pointer p-3 rounded-lg hover:bg-(--surface-3) transition-colors border border-(--border) relative group">' +
-          '<div class="mt-0.5"><input type="radio" name="' + cfg.entityLower + '_delete_option" value="soft_with_chats" class="w-4 h-4 cursor-pointer" style="accent-color: var(--accent);"></div>' +
-          '<div class="flex flex-col">' +
-          '<span class="text-sm font-bold" style="color:var(--text);">Move ' + cfg.entity + ' &amp; Conversations to Trash</span>' +
-          '<span class="text-xs text-muted">Hides their chats too. Both can be restored.</span></div></label>';
+        html += '<label class="row">' +
+          '<input type="radio" name="' + cfg.entityLower + '_delete_option" value="soft_with_chats" class="check">' +
+          '<span class="row-title">Move ' + cfg.entity + ' &amp; Conversations to Trash</span>' +
+          '<span class="row-meta">Hides their chats too</span></label>';
       }
-      html += '<label class="flex items-start gap-3 cursor-pointer p-3 rounded-lg hover:bg-(--surface-3) transition-colors border border-(--border)">' +
-        '<div class="mt-0.5"><input type="radio" name="' + cfg.entityLower + '_delete_option" value="hard" class="w-4 h-4 cursor-pointer" style="accent-color: var(--accent);"></div>' +
-        '<div class="flex flex-col">' +
-        '<span class="text-sm font-bold" style="color:var(--text);">Delete Forever</span>' +
-        '<span class="text-xs text-muted">Permanently delete this ' + cfg.entityLower + '. Cannot be undone.</span></div></label>' +
+      html += '<label class="row">' +
+        '<input type="radio" name="' + cfg.entityLower + '_delete_option" value="hard" class="check">' +
+        '<span class="row-title">Delete Forever</span>' +
+        '<span class="row-meta">Cannot be undone</span></label>' +
         '</div>';
       window.customConfirm(html, function () {
         var selected = document.querySelector('input[name="' + cfg.entityLower + '_delete_option"]:checked').value;
@@ -82,7 +79,7 @@
               if (card) card.remove();
               var grid = document.getElementById(cfg.gridId);
               if (grid && grid.querySelectorAll('[data-ui="entity-row"]').length === 0) {
-                grid.innerHTML = '<div class="text-muted text-center text-sm py-6 border border-dashed border-(--border) rounded-lg">' + cfg.emptyText + '</div>';
+                grid.innerHTML = '<div class="empty">' + cfg.emptyText + '</div>';
               }
             }
             if (isHard) {
@@ -101,30 +98,25 @@
       fetch(cfg.apiBase + '/trash')
         .then(function (r) { return r.json(); })
         .then(function (items) {
-          var bodyHtml = '<div class="flex flex-col gap-2 max-h-[60vh] overflow-y-auto pr-1">';
+          var bodyHtml = '<div class="flex flex-col max-h-[60vh] overflow-y-auto">';
           if (items.length === 0) {
-            bodyHtml += '<div class="text-muted text-center py-6 border border-dashed border-(--border) rounded-lg">Trash is empty.</div>';
+            bodyHtml += '<div class="empty">Trash is empty.</div>';
           } else {
             items.forEach(function (item) {
               var imgUrl = item[cfg.imageField];
               var initial = window.escapeHtml((item.name || '?').charAt(0));
-              bodyHtml +=
-                '<div class="flex justify-between items-center p-3 border border-(--border) rounded-lg bg-(--surface-2)">' +
-                '<div class="flex items-center gap-3">' +
-                '<div class="w-10 h-10 rounded-sm overflow-hidden bg-(--surface-3) flex items-center justify-center border border-(--border)">';
+              bodyHtml += '<div class="row">';
               if (imgUrl) {
-                bodyHtml += '<img src="/' + window.escapeHtml(imgUrl) + '" loading="lazy" class="w-full h-full object-cover">';
+                bodyHtml += '<span class="avatar"><img src="/' + window.escapeHtml(imgUrl) + '" loading="lazy" alt=""></span>';
               } else {
-                bodyHtml += '<span class="text-sm font-bold text-muted">' + initial + '</span>';
+                bodyHtml += '<span class="avatar">' + initial + '</span>';
               }
               bodyHtml +=
-                '</div>' +
-                '<span class="font-bold text-sm" style="color:var(--text);">' + window.escapeHtml(item.name) + '</span>' +
-                '</div>' +
-                '<div class="flex gap-2">' +
-                '<button class="btn btn-secondary btn-sm" data-id="' + window.escapeHtml(item.id) + '" onclick="' + fnRestore + '(this)">Restore</button>' +
-                '<button class="btn btn-danger btn-sm" data-id="' + window.escapeHtml(item.id) + '" data-name="' + window.escapeHtml(item.name) + '" onclick="' + fnHardDelete + '(this)">Delete Forever</button>' +
-                '</div></div>';
+                '<span class="row-title">' + window.escapeHtml(item.name) + '</span>' +
+                '<span class="row-actions">' +
+                '<button class="btn sm" data-id="' + window.escapeHtml(item.id) + '" onclick="' + fnRestore + '(this)">Restore</button>' +
+                '<button class="key sm danger" data-id="' + window.escapeHtml(item.id) + '" data-name="' + window.escapeHtml(item.name) + '" onclick="' + fnHardDelete + '(this)" aria-label="Delete forever">' + window.getSvgSprite('trash', 16) + '</button>' +
+                '</span></div>';
             });
           }
           bodyHtml += '</div>';
@@ -172,12 +164,11 @@
 
       if (cfg.hasRestoreDialog) {
         var html =
-          '<div class="mb-4 text-sm" style="color:var(--text);">Restore ' + cfg.entityLower + '?</div>' +
-          '<label class="flex items-start gap-3 cursor-pointer p-3 rounded-lg hover:bg-(--surface-3) transition-colors border border-(--border)">' +
-          '<div class="mt-0.5"><input type="checkbox" id="restore_chats_cb" checked class="w-4 h-4 cursor-pointer" style="accent-color: var(--accent);"></div>' +
-          '<div class="flex flex-col">' +
-          '<span class="text-sm font-bold" style="color:var(--text);">Also restore conversations</span>' +
-          '<span class="text-xs text-muted">Brings back chats previously deleted with this ' + cfg.entityLower + '.</span></div></label>';
+          '<div class="confirm-text mb-2">Restore ' + cfg.entityLower + '?</div>' +
+          '<label class="row">' +
+          '<input type="checkbox" id="restore_chats_cb" checked class="check">' +
+          '<span class="row-title">Also restore conversations</span>' +
+          '<span class="row-meta">Brings back chats deleted with it</span></label>';
         window.customConfirm(html, function () {
           doRestore(document.getElementById('restore_chats_cb').checked);
         });

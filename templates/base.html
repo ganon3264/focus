@@ -81,7 +81,7 @@
   </head>
   <body class="bg-dark text-light">
     {% from "macros.html" import icon_close, icon_music, icon_send, icon_regen, icon_crop,
-    icon_copy, icon_check, icon_chevron_right, icon_help %}
+    icon_copy, icon_check, icon_chevron_right, icon_help, icon_trash %}
     <div style="display: none" aria-hidden="true" id="svg-sprite">
       <svg data-svg-icon="close">{{ icon_close(16) }}</svg>
       <svg data-svg-icon="music">{{ icon_music(24) }}</svg>
@@ -92,6 +92,7 @@
       <svg data-svg-icon="check">{{ icon_check(14) }}</svg>
       <svg data-svg-icon="chevron-right">{{ icon_chevron_right(12) }}</svg>
       <svg data-svg-icon="help">{{ icon_help(14) }}</svg>
+      <svg data-svg-icon="trash">{{ icon_trash(16) }}</svg>
     </div>
     <!-- ── inline scripts ──────────────────────────────────────────────── -->
     <script>
@@ -232,20 +233,20 @@
     <!-- Global Crop Modal -->
     {% call modal_shell('crop-modal', 'Crop Image',
       max_width='42rem', width='90vw',
-      content_style='padding:0;overflow:hidden;display:flex;flex-direction:column;',
-      z_index='var(--z-overlay)', role='dialog', overlay_class='heavy',
-      header_class='divider py-4 px-6', overlay_close=false,
+      content_style='overflow:hidden;',
+      z_index='var(--z-overlay)', role='dialog', overlay_close=false,
       overlay_attrs='aria-label="Image crop tool"',
-      close_aria='Close crop tool',
-      close_class='btn btn-secondary w-8 h-8 rounded-full p-0 flex items-center justify-center') %}
+      close_aria='Close crop tool') %}
       <div
         id="crop-container"
-        class="p-2"
-        style="background: var(--surface-2); height: 60vh"
+        class="well p-2"
+        style="height: 60vh"
       ></div>
-      <div class="modal-footer" style="padding: 1rem 1.5rem">
-        <button class="btn btn-secondary" onclick="closeCropModal()">Cancel</button>
-        <button class="btn btn-primary" id="crop-save-btn">Save Crop</button>
+      <div class="modal-foot">
+        <div class="modal-foot-actions">
+          <button class="btn" onclick="closeCropModal()">Cancel</button>
+          <button class="btn primary" id="crop-save-btn">Save Crop</button>
+        </div>
       </div>
     {% endcall %}
 

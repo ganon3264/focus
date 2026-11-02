@@ -1,7 +1,7 @@
 {% from "macros.html" import custom_select, icon_plus, icon_close, icon_chevron_right,
 media_thumbnail, hint_tooltip, icon_sliders, in_chat_controls, toggle %}
 <div
-  class="arranger-item {% if not block.enabled %}disabled{% endif %} {% if block.block_type != 'chat_history' and block.block_type != 'char_blocks' %}bg-role-{{ block.role }}{% endif %}"
+  class="arranger-item{% if not block.enabled %} disabled{% endif %}"
   data-ui="arranger-item"
   data-block-id="{{ block.id }}"
   data-block-content="{{ block.content }}"
@@ -9,43 +9,27 @@ media_thumbnail, hint_tooltip, icon_sliders, in_chat_controls, toggle %}
   data-preset-id="{{ preset_id }}"
   x-data="{ expanded: expandGet('arrangerBlocks', $el.dataset.blockId) }"
 >
-  <div class="arranger-header">
-    <div class="arranger-handle" title="Drag to reorder"></div>
+  <div class="row arranger-header{% if block.block_type != 'chat_history' and block.block_type != 'char_blocks' %} role-{{ block.role }}{% endif %}">
+    <div class="grip arranger-handle" title="Drag to reorder"></div>
     <div
       class="arranger-title-group"
       @click="expanded = expandToggle('arrangerBlocks', $el.closest('[data-ui=arranger-item]').dataset.blockId)"
       role="button"
       tabindex="0"
       aria-expanded="false"
-      style="cursor: pointer"
     >
-      <span
-        style="
-          font-size: 0.8rem;
-          color: var(--text-muted);
-          width: 16px;
-          text-align: center;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          transition: rotate var(--transition);
-        "
-        :class="expanded ? 'rotate-90' : ''"
-        >{{ icon_chevron_right(12) }}</span
-      >
+      <span class="caret-mark" :class="expanded ? 'caret-open' : ''"></span>
       {% if block.block_type == 'text' %}
       <input
         type="text"
-        class="arranger-input"
+        class="field ghost arranger-input"
         value="{{ block.name }}"
         @click.stop
         onchange="handleArrangerBlockUpdate(this, {name:this.value})"
       />
       {% else %}
-      <span class="arranger-badge badge-auto">AUTO</span>
-      <span class="arranger-input" style="cursor: pointer"
-        >{{ block.block_type | replace('_', ' ') | title }}</span
-      >
+      <span class="tag">AUTO</span>
+      <span class="arranger-input">{{ block.block_type | replace('_', ' ') | title }}</span>
       {% endif %}
     </div>
     <div class="arranger-actions">
@@ -53,51 +37,43 @@ media_thumbnail, hint_tooltip, icon_sliders, in_chat_controls, toggle %}
       {% if block.block_type != 'chat_history' %}
       <button
         type="button"
-        class="action-icon slim danger"
+        class="key sm danger"
         title="Delete"
         aria-label="Delete block"
         onclick="promptDeleteBlock(this)"
       >
-        {{ icon_close(12) }}
+        {{ icon_close(14) }}
       </button>
-      {% else %}
-      <div style="width: 18px; height: 18px"></div>
       {% endif %}
     </div>
   </div>
 
-  <div
-    x-show="expanded"
-    x-transition.opacity.duration.200ms
-    style="margin-top: 0.5rem; display: none"
-  >
+  <div x-show="expanded" x-transition.opacity.duration.200ms style="display: none">
     {% if block.block_type == 'text' %}
     <div class="arranger-body">
-      <div style="width: 120px; flex-shrink: 0">
-        {{ custom_select( name="role", id="role-" + block.id, options=[ {"value": "system", "label":
-        "system"}, {"value": "user", "label": "user"}, {"value": "assistant", "label": "assistant"}
-        ], selected=block.role, on_change="handleArrangerBlockUpdate($el.closest('[data-ui=arranger-item]'), {role:$event.target.value})",
-        extra_classes="arranger-select" ) }}
-      </div>
-      <div class="flex flex-col gap-1" style="min-width: 0">
+      {{ custom_select( name="role", id="role-" + block.id, options=[ {"value": "system", "label":
+      "system"}, {"value": "user", "label": "user"}, {"value": "assistant", "label": "assistant"}
+      ], selected=block.role, on_change="handleArrangerBlockUpdate($el.closest('[data-ui=arranger-item]'), {role:$event.target.value})",
+      extra_classes="arranger-select" ) }}
+      <div class="arranger-preview flex flex-col gap-1">
         <div
-          class="block-preview"
+          class="well p-2 preview-out"
           role="button"
           tabindex="0"
           onclick="openBlockModal(this, 'content')"
         >
           {% if block.content %}{{ block.content[:80] }}{% if block.content | length > 80 %}…{% endif
-          %}{% else %}<em class="empty-text">Empty — click to edit</em>{% endif %}
+          %}{% else %}<span class="note">Empty — click to edit</span>{% endif %}
         </div>
         {% if block.role == 'assistant' %}
         <div
-          class="block-preview reasoning-preview"
+          class="well p-2 preview-out reasoning-preview"
           role="button"
           tabindex="0"
           onclick="openBlockModal(this, 'reasoning')"
         >
-          {% if block.reasoning %}<span class="text-xs font-mono text-muted">reasoning: </span>{{ block.reasoning[:80] }}{% if block.reasoning | length > 80 %}…{% endif %}
-          {% else %}<em class="empty-text">No reasoning — click to add</em>{% endif %}
+          {% if block.reasoning %}<span class="row-label">reasoning</span> {{ block.reasoning[:80] }}{% if block.reasoning | length > 80 %}…{% endif %}
+          {% else %}<span class="note">No reasoning — click to add</span>{% endif %}
         </div>
         {% endif %}
       </div>
@@ -109,40 +85,37 @@ media_thumbnail, hint_tooltip, icon_sliders, in_chat_controls, toggle %}
     {% elif block.block_type == 'char_blocks' %}
     <div class="arranger-body">
       <div class="arranger-note flex flex-col gap-1">
-        <span>Character custom blocks are injected automatically</span>
+        <span class="note">Character custom blocks are injected automatically</span>
         {% if counts %}
-        <div class="text-xs mt-1" style="color: var(--text)">
-          Blocks: <strong>{{ counts.char_blocks }}</strong> | Attachments:
-          <strong>{{ counts.char_block_attachments }}</strong>
-        </div>
+        <span class="row-meta">
+          blocks {{ counts.char_blocks }} · attachments {{ counts.char_block_attachments }}
+        </span>
         {% endif %}
       </div>
     </div>
 
     {% elif block.block_type == 'summary' %}
     <div class="arranger-body">
-      <div style="width: 120px; flex-shrink: 0">
-        {{ custom_select( name="role", id="role-" + block.id, options=[ {"value": "system", "label":
-        "system"}, {"value": "user", "label": "user"}, {"value": "assistant", "label": "assistant"}
-        ], selected=block.role, on_change="handleArrangerBlockUpdate($el.closest('[data-ui=arranger-item]'), {role:$event.target.value})",
-        extra_classes="arranger-select" ) }}
-      </div>
-      <div class="arranger-note flex flex-col gap-1" style="min-width: 0">
-        <span>Injected only in chats that have been summarized. Edit to place
+      {{ custom_select( name="role", id="role-" + block.id, options=[ {"value": "system", "label":
+      "system"}, {"value": "user", "label": "user"}, {"value": "assistant", "label": "assistant"}
+      ], selected=block.role, on_change="handleArrangerBlockUpdate($el.closest('[data-ui=arranger-item]'), {role:$event.target.value})",
+      extra_classes="arranger-select" ) }}
+      <div class="arranger-note arranger-preview flex flex-col gap-1">
+        <span class="note">Injected only in chats that have been summarized. Edit to place
         <code>{{ '{{summary}}' }}</code>, <code>{{ '{{summary_messages}}' }}</code> and
         <code>{{ '{{summary_media}}' }}</code>.</span>
         <div
-          class="block-preview"
+          class="well p-2 preview-out"
           role="button"
           tabindex="0"
           onclick="openBlockModal(this, 'content')"
         >
           {% if block.content %}{{ block.content[:80] }}{% if block.content | length > 80 %}…{% endif
-          %}{% else %}<em class="empty-text">Empty — click to edit</em>{% endif %}
+          %}{% else %}<span class="note">Empty — click to edit</span>{% endif %}
         </div>
         <button
           type="button"
-          class="btn btn-secondary btn-sm self-start"
+          class="btn sm self-start"
           onclick="openSummarySettings()"
         >
           {{ icon_sliders(14) }} Summary settings
@@ -153,28 +126,26 @@ media_thumbnail, hint_tooltip, icon_sliders, in_chat_controls, toggle %}
     {% else %}
     <div class="arranger-body">
       {% if block.block_type != 'chat_history' %}
-      <div style="width: 120px; flex-shrink: 0">
-        {{ custom_select( name="role", id="role-" + block.id, options=[ {"value": "system", "label":
-        "system"}, {"value": "user", "label": "user"}, {"value": "assistant", "label": "assistant"}
-        ], selected=block.role, on_change="handleArrangerBlockUpdate($el.closest('[data-ui=arranger-item]'), {role:$event.target.value})",
-        extra_classes="arranger-select" ) }}
-      </div>
+      {{ custom_select( name="role", id="role-" + block.id, options=[ {"value": "system", "label":
+      "system"}, {"value": "user", "label": "user"}, {"value": "assistant", "label": "assistant"}
+      ], selected=block.role, on_change="handleArrangerBlockUpdate($el.closest('[data-ui=arranger-item]'), {role:$event.target.value})",
+      extra_classes="arranger-select" ) }}
       {% endif %}
       <div class="arranger-note flex flex-col gap-1">
         {% if block.block_type == 'char_description' %}
-        <span>Character description is injected automatically</span>
-        {% if counts and counts.char_attachments > 0 %}<span class="text-xs text-(--text)"
-          >Attachments: <strong>{{ counts.char_attachments }}</strong></span
+        <span class="note">Character description is injected automatically</span>
+        {% if counts and counts.char_attachments > 0 %}<span class="row-meta"
+          >attachments {{ counts.char_attachments }}</span
         >{% endif %} {% endif %} {% if block.block_type == 'char_personality' %}
-        <span>Character personality is injected automatically</span>
-        {% if counts and counts.char_attachments > 0 %}<span class="text-xs text-(--text)"
-          >Attachments: <strong>{{ counts.char_attachments }}</strong></span
-        >{% endif %} {% endif %} {% if block.block_type == 'chat_history' %}<span
+        <span class="note">Character personality is injected automatically</span>
+        {% if counts and counts.char_attachments > 0 %}<span class="row-meta"
+          >attachments {{ counts.char_attachments }}</span
+        >{% endif %} {% endif %} {% if block.block_type == 'chat_history' %}<span class="note"
           >Chat messages are inserted at this position</span
         >{% endif %} {% if block.block_type == 'user_persona' %}
-        <span>User persona description is injected automatically</span>
-        {% if counts and counts.persona_attachments > 0 %}<span class="text-xs text-(--text)"
-          >Attachments: <strong>{{ counts.persona_attachments }}</strong></span
+        <span class="note">User persona description is injected automatically</span>
+        {% if counts and counts.persona_attachments > 0 %}<span class="row-meta"
+          >attachments {{ counts.persona_attachments }}</span
         >{% endif %} {% endif %}
       </div>
     </div>
@@ -187,15 +158,12 @@ media_thumbnail, hint_tooltip, icon_sliders, in_chat_controls, toggle %}
     <!-- Media attachments -->
     {% if block.block_type not in ['chat_history', 'char_blocks', 'char_description',
     'char_personality', 'user_persona', 'summary'] %}
-    <div
-      class="arranger-media-section"
-      style="margin-top: 0.5rem; display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center"
-    >
+    <div class="arranger-media">
       {% for img in block.images %} {{ media_thumbnail(img, "deleteBlockMedia", '') }} {% endfor %}
 
       <label
-        class="btn btn-secondary btn-sm btn-media-add"
-        title="Add Image or Audio"
+        class="key xl create"
+        title="Add image or audio"
       >
         {{ icon_plus(20) }}
         <input
@@ -206,7 +174,7 @@ media_thumbnail, hint_tooltip, icon_sliders, in_chat_controls, toggle %}
         />
       </label>
       {% if not block.images %}
-      <span class="text-xs text-muted block-media-placeholder">Add reference image or audio</span>
+      <span class="note block-media-placeholder">Add reference image or audio</span>
       {% endif %}
     </div>
     {% endif %}

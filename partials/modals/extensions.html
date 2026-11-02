@@ -3,36 +3,34 @@
 
   {% call search_toolbar('Search extensions...', input_attrs='x-model="searchQuery"') %}
     <button
-      class="btn btn-secondary btn-sm flex items-center justify-center shrink-0 h-full"
+      class="btn sm flex items-center justify-center shrink-0 h-full"
       @click="reload()"
       x-text="reloading ? 'Reloading...' : 'Reload'"
     ></button>
   {% endcall %}
 
-  <div class="text-xs text-muted mb-1 shrink-0">
+  <p class="note shrink-0">
     Extensions run as trusted scripts with no sandbox — verify the code before installing. They can read
     your database and files with your privileges.
-    {{ hint_tooltip('Extensions are triggered from the message toolbar, unlike tools which the model calls mid-generation. <span class="hint-danger">Treat them like tools: only install code you trust.</span>') }}
-  </div>
+    {{ hint_tooltip('Extensions are triggered from the message toolbar, unlike tools which the model calls mid-generation. <span class="note danger">Treat them like tools: only install code you trust.</span>') }}
+  </p>
 
-  <div x-show="!loaded" class="text-muted text-sm">Loading…</div>
+  <div x-show="!loaded" class="empty">Loading…</div>
 
-  <div class="flex-1 overflow-y-auto min-h-[360px] scroll-fade" data-ui="scroll-fade">
+  <div class="flex-1 overflow-y-auto min-h-[360px]">
     <template x-for="(groupExtensions, category) in grouped" :key="category">
       <div class="mb-3">
-        <div class="flex items-center gap-1 mb-1.5 cursor-pointer select-none" @click="toggleCategory(category)">
-          <span class="text-xs font-bold text-muted uppercase tracking-wider" x-text="category"></span>
-          <span
-            class="text-xs text-muted"
-            :class="openCategories[category] !== false ? 'rotate-180' : ''"
-            style="transition:transform 0.2s;display:inline-flex"
-          >{{ icon_chevron_down(12) }}</span>
+        <div class="rail cursor-pointer select-none" @click="toggleCategory(category)">
+          <span x-text="category"></span>
+          <span class="rail-actions flush">
+            <span class="caret-mark" :class="openCategories[category] !== false ? 'caret-open' : ''"></span>
+          </span>
         </div>
-        <div class="flex flex-col gap-2" x-show="openCategories[category] !== false">
+        <div class="flex flex-col" x-show="openCategories[category] !== false">
           <template x-for="ext in groupExtensions" :key="ext.name">
             <div
-              class="tile-card p-2 rounded-md"
-              :class="!enabled(ext.name) ? 'opacity-60' : ''"
+              class="card"
+              :class="!enabled(ext.name) ? 'disabled' : ''"
             >
               <div class="flex items-center justify-between gap-1">
                 <div class="flex items-center gap-1.5 min-w-0">
@@ -48,27 +46,23 @@
               <div class="text-xs text-muted mt-1 leading-snug" x-text="ext.description"></div>
               <div class="flex flex-wrap gap-1 mt-1">
                 <template x-for="trig in ext.triggers" :key="trig">
-                  <span
-                    class="text-xs px-1 py-0.5 rounded leading-tight"
-                    style="background:var(--surface-3);color:var(--text-muted)"
-                    x-text="trig"
-                  ></span>
+                  <span class="tag" x-text="trig"></span>
                 </template>
               </div>
 
               <div x-show="ext.params && ext.params.length" class="mt-2">
                 <button
-                  class="text-xs font-bold flex items-center gap-1 cursor-pointer"
-                  style="color:var(--accent)"
+                  type="button"
+                  class="link"
                   @click="toggleConfig(ext.name)"
                 >
-                  <span :class="openConfigs[ext.name] ? 'rotate-180' : ''" style="transition:transform 0.2s;display:inline-flex">{{ icon_chevron_down(10) }}</span>
+                  <span class="caret-mark" :class="openConfigs[ext.name] ? 'caret-open' : ''"></span>
                   Configure
                 </button>
                 <div x-show="openConfigs[ext.name]" x-cloak class="mt-2 flex flex-col gap-2">
                   <template x-for="p in ext.params" :key="p.name">
                     <div class="flex items-center gap-2">
-                      <label class="text-xs text-muted w-40 shrink-0" x-html="renderDesc(p.description || p.name)"></label>
+                      <label class="field-label w-40 shrink-0" x-html="renderDesc(p.description || p.name)"></label>
                       <template x-if="p.type === 'boolean'">
                         {{ toggle(':class="{ \'active\': !!configs[ext.name][p.name] }" @click="configs[ext.name][p.name] = !configs[ext.name][p.name]"', extra_classes='shrink-0') }}
                       </template>
@@ -77,24 +71,24 @@
                           <button
                             type="button"
                             @click="open = !open"
-                            class="form-control flex items-center justify-between gap-1 text-left cursor-pointer"
+                            class="field flex items-center justify-between gap-1 text-left cursor-pointer"
                           >
                             <span class="truncate" x-text="configs[ext.name][p.name]"></span>
-                            <span class="text-xs text-muted inline-flex transition-transform duration-200 shrink-0" :class="open ? 'rotate-180' : ''">{{ icon_chevron_down(12) }}</span>
+                            <span class="row-meta inline-flex shrink-0" :class="open ? 'caret-open' : ''">{{ icon_chevron_down(12) }}</span>
                           </button>
                           <div
                             x-show="open"
                             x-transition.opacity.duration.200ms
-                            class="dropdown-panel absolute top-full left-0 right-0 mt-1 z-50 max-h-60 overflow-y-auto"
+                            class="panel absolute top-full left-0 right-0 mt-1 z-50 max-h-60 overflow-y-auto"
                             style="display: none;"
                           >
                             <template x-for="opt in p.enum" :key="opt">
                               <div
-                                class="dropdown-item px-3 py-2 text-sm"
-                                :class="{ 'text-[var(--accent)] font-medium': configs[ext.name][p.name] === opt }"
+                                class="row"
+                                :class="{ 'active': configs[ext.name][p.name] === opt }"
                                 @click="configs[ext.name][p.name] = opt; open = false"
                               >
-                                <span x-text="opt"></span>
+                                <span class="row-title" x-text="opt"></span>
                               </div>
                             </template>
                           </div>
@@ -102,7 +96,7 @@
                       </template>
                       <template x-if="p.type !== 'boolean' && !(p.type === 'string' && p.enum && p.enum.length)">
                         <input
-                          class="form-control flex-1"
+                          class="field flex-1"
                           :type="p.type === 'integer' || p.type === 'number' ? 'number' : (p.type === 'array' ? 'text' : 'text')"
                           x-model="configs[ext.name][p.name]"
                           :placeholder="p.default != null ? String(p.default) : ''"
@@ -112,25 +106,24 @@
                   </template>
                   <div class="flex justify-end gap-2 mt-1">
                     <button
-                      class="btn btn-secondary btn-sm"
+                      class="btn sm"
                       @click="testConfig(ext.name)"
                       :disabled="testingConfig === ext.name"
                       :class="testingConfig === ext.name ? 'opacity-60 cursor-not-allowed' : ''"
                     >
                       <span x-text="testingConfig === ext.name ? 'Testing…' : 'Test'"></span>
                     </button>
-                    <button class="btn btn-primary btn-sm" @click="saveConfig(ext.name)">Save</button>
+                    <button class="btn primary sm" @click="saveConfig(ext.name)">Save</button>
                   </div>
 
                   <div
                     x-show="testResult[ext.name]"
                     x-cloak
-                    class="mt-2 flex flex-col gap-1 p-2 rounded-md"
-                    style="background:var(--surface-3);border:1px solid var(--border)"
+                    class="well mt-2 flex flex-col gap-1 p-2"
                   >
                     <div
-                      class="text-xs leading-snug"
-                      :class="testResult[ext.name] && testResult[ext.name].status === 'error' ? 'text-red-500' : 'text-muted'"
+                      class="note"
+                      :class="testResult[ext.name] && testResult[ext.name].status === 'error' ? 'danger' : ''"
                       x-text="testSummary(ext.name)"
                     ></div>
                     <template x-if="testAudio[ext.name]">

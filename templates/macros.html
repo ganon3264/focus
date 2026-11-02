@@ -57,20 +57,20 @@
   <input type="hidden" name="{{ name }}" id="{{ id }}" :value="selectedValue"
          @change.stop="{{ on_change }}">
 
-  <button type="button" x-ref="trigger" @click="toggle()" class="flex justify-between items-center text-left w-full cursor-pointer {{ extra_classes }}">
-     <span x-text="selectedLabel" class="truncate font-medium"></span>
-     <span class="text-xs text-muted inline-flex transition-transform duration-200" :class="open ? 'rotate-180' : ''">{{ icon_chevron_down(12) }}</span>
+  <button type="button" x-ref="trigger" @click="toggle()" class="field select {{ extra_classes }}">
+     <span x-text="selectedLabel"></span>
+     <span class="row-meta inline-flex transition-transform duration-200" :class="open ? 'rotate-180' : ''">{{ icon_chevron_down(12) }}</span>
    </button>
 
    <div x-show="open" @click.away="open = false" x-transition.opacity.duration.200ms
         :class="dropUp ? 'bottom-full mb-1' : 'top-full mt-1'"
         :style="{ maxHeight: panelMax + 'px' }"
-        class="dropdown-panel absolute left-0 right-0 z-50 overflow-y-auto"
+        class="panel absolute left-0 right-0 z-50 overflow-y-auto"
         style="display: none;">
 
       {% for opt in options %}
-      <div class="dropdown-item px-3 py-2 {{ extra_classes }}"
-           :class="{ 'text-[var(--accent)] font-medium': selectedValue === '{{ opt.value | replace("'", "\\'") }}' }"
+      <div class="row"
+           :class="{ 'active': selectedValue === '{{ opt.value | replace("'", "\\'") }}' }"
            data-value="{{ opt.value }}"
            @click="
              selectedValue = '{{ opt.value | replace("'", "\\'") }}';
@@ -105,7 +105,7 @@
        }
      }">
   <button type="button" @click="open = !open"
-           class="btn btn-secondary btn-sm flex items-center justify-between gap-1 cursor-pointer h-full">
+           class="btn sm flex items-center justify-between gap-1 h-full">
     <span class="inline-flex items-center gap-1">
       <template x-if="active === 'az' || active === 'za'">
         <span class="inline-flex items-center gap-1">
@@ -118,23 +118,23 @@
         <span x-text="label"></span>
       </template>
     </span>
-    <span class="text-muted inline-flex transition-transform duration-200" :class="open ? 'rotate-180' : ''"
+    <span class="row-meta inline-flex transition-transform duration-200" :class="open ? 'rotate-180' : ''"
           >{{ icon_chevron_down(12) }}</span>
   </button>
   <div x-show="open" @click.away="open = false" x-transition.opacity.duration.200ms
-       class="dropdown-panel absolute top-full right-0 mt-1 z-50"
+       class="panel absolute top-full right-0 mt-1 z-50"
                style="display: none; min-width: 120px;">
-    <div class="dropdown-item px-3 py-2 text-sm whitespace-nowrap"
-         :class="{ 'text-[var(--accent)] font-medium': active === 'newest' }"
+    <div class="row"
+         :class="{ 'active': active === 'newest' }"
          @click="select('newest')">Newest</div>
-    <div class="dropdown-item px-3 py-2 text-sm whitespace-nowrap"
-         :class="{ 'text-[var(--accent)] font-medium': active === 'oldest' }"
+    <div class="row"
+         :class="{ 'active': active === 'oldest' }"
          @click="select('oldest')">Oldest</div>
-    <div class="dropdown-item px-3 py-2 text-sm whitespace-nowrap flex items-center gap-1"
-         :class="{ 'text-[var(--accent)] font-medium': active === 'az' }"
+    <div class="row"
+         :class="{ 'active': active === 'az' }"
          @click="select('az')">A {{ icon_arrow_right(12) }} Z</div>
-    <div class="dropdown-item px-3 py-2 text-sm whitespace-nowrap flex items-center gap-1"
-         :class="{ 'text-[var(--accent)] font-medium': active === 'za' }"
+    <div class="row"
+         :class="{ 'active': active === 'za' }"
          @click="select('za')">Z {{ icon_arrow_right(12) }} A</div>
   </div>
 </div>
@@ -169,25 +169,25 @@
      }"
      x-init="refreshGroups()">
   <button type="button" @click="open = !open; if (open) refreshGroups()"
-           class="btn btn-secondary btn-sm flex items-center justify-between gap-1 cursor-pointer h-full">
+           class="btn sm flex items-center justify-between gap-1 h-full">
     <span x-text="label" class="truncate max-w-[120px] inline-block"></span>
-    <span class="text-muted inline-flex transition-transform duration-200" :class="open ? 'rotate-180' : ''"
+    <span class="row-meta inline-flex transition-transform duration-200" :class="open ? 'rotate-180' : ''"
           >{{ icon_chevron_down(12) }}</span>
   </button>
   <div x-show="open" @click.away="open = false" x-transition.opacity.duration.200ms
-       class="dropdown-panel absolute top-full right-0 mt-1 z-50 max-h-60 overflow-y-auto"
+       class="panel absolute top-full right-0 mt-1 z-50 max-h-60 overflow-y-auto"
        style="display: none; min-width: 150px;">
-    <div class="dropdown-item px-3 py-2 text-sm whitespace-nowrap"
-         :class="{ 'text-[var(--accent)] font-medium': mode === 'all' }"
+    <div class="row"
+         :class="{ 'active': mode === 'all' }"
          @click="select('all')">All</div>
-    <div class="dropdown-item px-3 py-2 text-sm whitespace-nowrap"
-         :class="{ 'text-[var(--accent)] font-medium': mode === 'favorites' }"
+    <div class="row"
+         :class="{ 'active': mode === 'favorites' }"
          @click="select('favorites')">
       <span class="inline-flex items-center gap-1.5">{{ icon_star(12) }} Favorites</span>
     </div>
     <template x-for="g in groups" :key="g">
-      <div class="dropdown-item px-3 py-2 text-sm whitespace-nowrap"
-           :class="{ 'text-[var(--accent)] font-medium': mode === 'group' && group === g }"
+      <div class="row"
+           :class="{ 'active': mode === 'group' && group === g }"
            @click="select('group', g)" x-text="g"></div>
     </template>
   </div>
@@ -195,26 +195,26 @@
 {% endmacro %}
 
 {% macro toggle(attrs='', active=false, extra_classes='') %}
-<div class="arranger-toggle{{ (' ' ~ extra_classes) if extra_classes else '' }}{{ ' active' if active else '' }}" role="switch" tabindex="0"{% if attrs %} {{ attrs | safe }}{% endif %}></div>
+<div class="switch{{ (' ' ~ extra_classes) if extra_classes else '' }}{{ ' active' if active else '' }}" role="switch" tabindex="0"{% if attrs %} {{ attrs | safe }}{% endif %}></div>
 {% endmacro %}
 
 {% macro slider_row(label, model, min, max, step, dec=0, change='saveStandard()', blur=None, hint='', wrapper_classes='', wrapper_attrs='', input_attrs='') %}
 {% if blur is none %}{% set blur = '$el.value = fmt(parseFloat($el.value) || 0, ' ~ (dec | int) ~ ')' %}{% endif %}
-<div class="form-group mb-0{{ (' ' ~ wrapper_classes) if wrapper_classes else '' }}"{% if wrapper_attrs %} {{ wrapper_attrs | safe }}{% endif %}>
-  <label class="flex justify-between text-xs mb-1">
-    {% if hint %}<span class="flex items-center gap-1">
+<div class="form-group{{ (' ' ~ wrapper_classes) if wrapper_classes else '' }}"{% if wrapper_attrs %} {{ wrapper_attrs | safe }}{% endif %}>
+  <div class="field-inline">
+    <span class="field-label inline-flex items-center gap-1">
       {{ label }}
-      {{ hint_tooltip(hint) }}
-    </span>{% else %}<span>{{ label }}</span>{% endif %}
+      {% if hint %}{{ hint_tooltip(hint) }}{% endif %}
+    </span>
     <input type="text" inputmode="{{ 'numeric' if (dec | int) == 0 else 'decimal' }}"
       x-model.number="{{ model }}"
       @change="{{ change }}"
       {% if blur %}@blur="{{ blur }}"{% endif %}
-      class="form-control text-xs sampler-input" data-ui="sampler-input" data-dec="{{ dec | int }}"{% if input_attrs %} {{ input_attrs | safe }}{% endif %} />
-  </label>
+      class="field sm num" data-ui="sampler-input" data-dec="{{ dec | int }}"{% if input_attrs %} {{ input_attrs | safe }}{% endif %} />
+  </div>
   <input type="range" min="{{ min }}" max="{{ max }}" step="{{ step }}"
     x-model.number="{{ model }}" @change="{{ change }}"
-    class="styled-slider" />
+    class="field" />
 </div>
 {% endmacro %}
 
@@ -222,75 +222,70 @@
 <{{ tag }} class="{{ classes }}"{% if attrs %} {{ attrs | safe }}{% endif %}>{% if image_path %}<img src="/{{ image_path }}" alt="{{ alt }}"{% if img_class %} class="{{ img_class }}"{% endif %}{% if img_attrs %} {{ img_attrs | safe }}{% endif %} />{% elif initial_tag %}<{{ initial_tag }}{% if initial_class %} class="{{ initial_class }}"{% endif %}>{{ initial }}</{{ initial_tag }}>{% else %}{{ initial }}{% endif %}{% if caller is defined %}{{ caller() }}{% endif %}</{{ tag }}>
 {% endmacro %}
 
-{% macro search_toolbar(placeholder, input_attrs='', wrapper_classes='flex items-center gap-2 mb-2 shrink-0 h-8', field_classes='flex-1 relative', input_classes='search-input text-sm w-full h-full') %}
+{% macro search_toolbar(placeholder, input_attrs='', wrapper_classes='flex items-center gap-2 mb-2 shrink-0', field_classes='search-field', input_classes='field sm w-full') %}
 {% if wrapper_classes %}<div class="{{ wrapper_classes }}">{% endif %}
   <div class="{{ field_classes }}">
-    <span class="absolute left-2.5 top-1/2 -translate-y-1/2 flex text-muted pointer-events-none">{{ icon_search(size=14) }}</span>
+    <span class="search-mark">{{ icon_search(size=14) }}</span>
     <input type="text" placeholder="{{ placeholder }}"{% if input_attrs %} {{ input_attrs | safe }}{% endif %} class="{{ input_classes }}" />
   </div>
   {% if caller is defined %}{{ caller() }}{% endif %}
 {% if wrapper_classes %}</div>{% endif %}
 {% endmacro %}
 
-{% macro modal_footer(wrapper_classes='flex items-center gap-2 mt-2', buttons_classes='flex items-center gap-2 ml-auto', hint='dirty') %}
-<div class="{{ wrapper_classes }}">
-  {% if hint == 'dirty' %}<span data-dirty-hint class="text-xs font-bold hidden" style="color: var(--accent);">
-    Unsaved changes — press Save to apply
-  </span>{% elif hint == 'alpine' %}<span x-show="dirty" class="text-xs font-bold shrink-0" style="color: var(--accent);">
-    Unsaved changes — press Save to apply
-  </span>{% endif %}
-  {% if buttons_classes %}<div class="{{ buttons_classes }}">{{ caller() }}</div>{% else %}{{ caller() }}{% endif %}
+{% macro modal_footer(hint='dirty') %}
+<div class="modal-foot">
+  {% if hint == 'dirty' %}<span class="modal-dirty hidden" data-dirty-hint>Unsaved changes — press Save to apply</span>
+  {% elif hint == 'alpine' %}<span class="modal-dirty" x-show="dirty">Unsaved changes — press Save to apply</span>{% endif %}
+  <div class="modal-foot-actions">{{ caller() }}</div>
 </div>
 {% endmacro %}
 
-{% macro tab_bar(tabs, wrapper_classes='flex mb-4', button_attrs='') %}
-<div class="{{ wrapper_classes }}" style="border-bottom: 1px solid var(--border)">
+{% macro tab_bar(tabs, wrapper_classes='', button_attrs='') %}
+<div class="tab-bar{{ (' ' ~ wrapper_classes) if wrapper_classes else '' }}">
   {% for tab_id, tab_label in tabs %}
-  <button{% if button_attrs %} {{ button_attrs | safe }}{% endif %} class="tab-btn" :class="{'active': tab === '{{ tab_id }}'}" @click="tab = '{{ tab_id }}'">{{ tab_label }}</button>
+  <button{% if button_attrs %} {{ button_attrs | safe }}{% endif %} class="tab" :class="{'active': tab === '{{ tab_id }}'}" @click="tab = '{{ tab_id }}'">{{ tab_label }}</button>
   {% endfor %}
 </div>
 {% endmacro %}
 
-{% macro empty_state(content='', padding='py-6', extra_classes='', attrs='', classes='') %}
-<div class="{{ classes if classes else 'text-muted text-center text-sm ' ~ padding ~ ' border border-dashed border-(--border) rounded-lg' }}{{ (' ' ~ extra_classes) if extra_classes else '' }}"{% if attrs %} {{ attrs | safe }}{% endif %}>{% if caller is defined %}{{ caller() }}{% else %}{{ content | safe }}{% endif %}</div>
+{% macro empty_state(content='', padding='', extra_classes='', attrs='', classes='') %}
+<div class="{{ classes if classes else 'empty' }}{{ (' ' ~ extra_classes) if extra_classes else '' }}"{% if attrs %} {{ attrs | safe }}{% endif %}>{% if caller is defined %}{{ caller() }}{% else %}{{ content | safe }}{% endif %}</div>
 {% endmacro %}
 
 {% macro in_chat_controls(block) %}
-<div class="flex items-center gap-3 mt-3 pt-2" style="border-top: 1px solid var(--border)">
-  <div class="flex items-center gap-2">
-    <span class="flex items-center gap-1 text-xs text-muted select-none">
-      In-Chat
-      {{ hint_tooltip('Injects this block into the conversation at a specific position instead of at the prompt start.') }}
-    </span>
+<div class="row" style="margin-top: var(--u)">
+  <span class="row-title inline-flex items-center gap-1">
+    In-Chat
+    {{ hint_tooltip('Injects this block into the conversation at a specific position instead of at the prompt start.') }}
+  </span>
+  <span class="row-actions">
     {{ toggle('title="Toggle In-Chat Mode" data-curr-depth="' ~ (block.injection_depth if block.injection_depth is not none else '') ~ '" onclick="handleArrangerBlockUpdate(this, {injection_depth: this.dataset.currDepth ? null : 0})"', active=block.injection_depth is not none) }}
-  </div>
-  {% if block.injection_depth is not none %}
-  <div class="flex items-center gap-3">
-    <label class="flex items-center gap-1 text-xs text-muted">
-      Depth
-      {{ hint_tooltip('Position from the latest message. 0 = after the most recent message.') }}
-      <input
-        type="number"
-        min="0"
-        value="{{ block.injection_depth }}"
-        class="form-control form-control-xs"
-        onchange="handleArrangerBlockUpdate(this, {injection_depth: parseInt(this.value) || 0})"
-      />
-    </label>
-    <label class="flex items-center gap-1 text-xs text-muted">
-      Order
-      {{ hint_tooltip('Sort order for blocks at the same depth. Lower values come first.') }}
-      <input
-        type="number"
-        min="0"
-        value="{{ block.injection_order | default(0) }}"
-        class="form-control form-control-xs"
-        onchange="handleArrangerBlockUpdate(this, {injection_order: parseInt(this.value) || 0})"
-      />
-    </label>
-  </div>
-  {% endif %}
+  </span>
 </div>
+  {% if block.injection_depth is not none %}
+<div class="field-row">
+  <label class="field-inline gap-1">
+    <span class="field-label inline-flex items-center gap-1">Depth {{ hint_tooltip('Position from the latest message. 0 = after the most recent message.') }}</span>
+    <input
+      type="number"
+      min="0"
+      value="{{ block.injection_depth }}"
+      class="field sm"
+      onchange="handleArrangerBlockUpdate(this, {injection_depth: parseInt(this.value) || 0})"
+    />
+  </label>
+  <label class="field-inline gap-1">
+    <span class="field-label inline-flex items-center gap-1">Order {{ hint_tooltip('Sort order for blocks at the same depth. Lower values come first.') }}</span>
+    <input
+      type="number"
+      min="0"
+      value="{{ block.injection_order | default(0) }}"
+      class="field sm"
+      onchange="handleArrangerBlockUpdate(this, {injection_order: parseInt(this.value) || 0})"
+    />
+  </label>
+</div>
+  {% endif %}
 {% endmacro %}
 
 {# ── SVG Icon Macros ───────────────────────────────────────────────────── #}
@@ -450,13 +445,13 @@
 {% endmacro %}
 
 {% macro media_thumbnail(img, action_name, extra_attrs='') %}
-<div class="media-thumb relative group" data-image-id="{{ img.id }}"{{ extra_attrs | safe }}>
+<div class="media-thumb well relative" data-image-id="{{ img.id }}"{{ extra_attrs | safe }}>
   {% if img.mime_type and img.mime_type.startswith('audio/') %}
-  <div class="media-thumb-audio" title="Audio Attachment">{{ icon_music(24) }}</div>
+  <div class="media-thumb-audio" title="Audio Attachment">{{ icon_music(20) }}</div>
   {% else %}
   <img src="/{{ img.image_path }}" alt="" class="media-thumb-img cursor-pointer" onclick="openLightbox(this.src)">
   {% endif %}
-  <button type="button" aria-label="Delete media" class="media-thumb-close absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" data-action="{{ action_name }}">{{ icon_close(10) }}</button>
+  <button type="button" aria-label="Delete media" class="key sm danger media-thumb-close" data-action="{{ action_name }}">{{ icon_close(14) }}</button>
 </div>
 {% endmacro %}
 

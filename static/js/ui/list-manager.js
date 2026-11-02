@@ -141,13 +141,13 @@ window.ListManager = {
 
     window[cfg.newItemFn] = function () {
       var html =
-        '<div class="mb-4">' +
-        '<label class="text-xs font-bold text-muted block mb-2 uppercase tracking-wider">' +
+        '<div class="form-group">' +
+        '<label>' +
         cfg.newItemLabel +
         '</label>' +
         '<input type="text" id="' +
         cfg.newItemInputId +
-        '" class="form-control" placeholder="Enter name..." required>' +
+        '" class="field" placeholder="Enter name..." required>' +
         '</div>';
       window.customConfirm(html, function () {
         var name = document.getElementById(cfg.newItemInputId).value.trim();

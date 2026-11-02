@@ -5,8 +5,8 @@
   data-id="{{ script.id }}"
   data-scope="{{ script.scope }}"
 >
-  <div class="arranger-header">
-    <div class="arranger-handle regex-handle" title="Drag to reorder"></div>
+  <div class="row arranger-header">
+    <div class="grip regex-handle" title="Drag to reorder"></div>
     <div
       class="arranger-title-group"
       data-ui="arranger-title-group"
@@ -15,10 +15,10 @@
       aria-expanded="{{ 'true' if open|default(false) else 'false' }}"
       onclick="toggleRegexBody(this)"
     >
-      <span class="regex-chevron">{{ icon_chevron_right(12) }}</span>
+      <span class="caret-mark regex-chevron"></span>
       <input
         type="text"
-        class="arranger-input"
+        class="field ghost arranger-input"
         data-ui="arranger-input"
         value="{{ script.name }}"
         placeholder="Untitled script"
@@ -30,7 +30,7 @@
       {{ toggle('title="Enable / disable" onclick="handleRegexEnabled(this)"', active=script.enabled) }}
       <button
         type="button"
-        class="action-icon slim danger"
+        class="key sm danger"
         title="Delete"
         aria-label="Delete script"
         onclick="deleteRegexScript(this)"
@@ -41,11 +41,11 @@
   </div>
 
   <div class="regex-body" data-ui="regex-body" style="display: {{ 'flex' if open|default(false) else 'none' }}">
-    <div class="form-group mb-0">
+    <div class="form-group">
       <label>Find</label>
       <input
         type="text"
-        class="form-control regex-pattern"
+        class="field regex-pattern"
         data-ui="regex-pattern"
         value="{{ script.pattern }}"
         placeholder="Python regex, e.g. A beat\."
@@ -53,11 +53,11 @@
       />
     </div>
 
-    <div class="form-group mb-0">
+    <div class="form-group">
       <label>Replace</label>
       <input
         type="text"
-        class="form-control regex-replacement"
+        class="field regex-replacement"
         data-ui="regex-replacement"
         value="{{ script.replacement }}"
         placeholder="replacement text — empty removes the match (Block: prompt side only)"
@@ -65,14 +65,14 @@
       />
     </div>
 
-    <div class="flex flex-wrap gap-x-6 gap-y-3">
-      <div class="form-group mb-0">
+    <div class="regex-flags">
+      <div class="form-group">
         <label>Flags</label>
-        <div class="flex gap-1 flex-wrap">
+        <div class="field-row flex-wrap">
           {% for flag, label, title in [('i', 'i · Ignore case', 'Python re.IGNORECASE. Case-insensitive matching. Inline form: (?i)'), ('s', 's · dot matches newline', 'Python re.DOTALL. Makes the dot (.) match newlines so the pattern can span lines. Inline form: (?s). Only changes anything if the pattern contains a dot.'), ('m', 'm · ^/$ per line', 'Python re.MULTILINE. Makes ^ and $ match at the start/end of each line. Inline form: (?m). Only changes anything if the pattern contains ^ or $. Has nothing to do with matching newlines.')] %}
           <button
             type="button"
-            class="btn-tag regex-flag {% if flag in script.flags %}active{% endif %}"
+            class="chip regex-flag {% if flag in script.flags %} active{% endif %}"
             data-ui="regex-flag"
             data-flag="{{ flag }}"
             title="{{ title }}"
@@ -82,13 +82,13 @@
         </div>
       </div>
 
-      <div class="form-group mb-0">
+      <div class="form-group">
         <label>Apply to</label>
-        <div class="flex gap-1 flex-wrap">
+        <div class="field-row flex-wrap">
           {% for place, label in [('user', 'User'), ('ai', 'AI'), ('reasoning', 'Reasoning')] %}
           <button
             type="button"
-            class="btn-tag regex-placement {% if place in script.placement %}active{% endif %}"
+            class="chip regex-placement {% if place in script.placement %} active{% endif %}"
             data-ui="regex-placement"
             data-place="{{ place }}"
             onclick="toggleRegexPlacement(this)"
@@ -97,25 +97,25 @@
         </div>
       </div>
 
-      <div class="form-group mb-0">
+      <div class="form-group">
         <label>Output</label>
-        <div class="flex gap-1 flex-wrap">
+        <div class="field-row flex-wrap">
           <button
             type="button"
-            class="btn-tag regex-prompt {% if script.apply_prompt %}active{% endif %}"
+            class="chip regex-prompt {% if script.apply_prompt %} active{% endif %}"
             title="Run this script against the prompt sent to the model"
             onclick="toggleRegexPrompt(this)"
           >Prompt</button>
           <button
             type="button"
-            class="btn-tag regex-display {% if script.apply_display %}active{% endif %}"
+            class="chip regex-display {% if script.apply_display %} active{% endif %}"
             title="Run this script against the rendered chat"
             onclick="toggleRegexDisplay(this)"
             {% if script.as_block %}disabled{% endif %}
           >Display</button>
           <button
             type="button"
-            class="btn-tag regex-block {% if script.as_block %}active{% endif %}"
+            class="chip regex-block {% if script.as_block %} active{% endif %}"
             data-ui="regex-block"
             title="Render the display match as a collapsible block"
             onclick="toggleRegexBlock(this)"
@@ -123,25 +123,25 @@
         </div>
       </div>
 
-      <div class="form-group mb-0">
-        <div class="regex-label-row">
+      <div class="form-group">
+        <div class="field-inline">
           <label>Depth</label>
           {{ hint_tooltip('Distance from the newest message. 0 = newest. Leave max empty for no limit.') }}
         </div>
-        <div class="flex items-center gap-1">
+        <div class="field-row">
           <input
             type="number"
             min="0"
-            class="form-control regex-min"
+            class="field regex-min"
             style="width: 4.5rem"
             value="{{ script.min_depth }}"
             onchange="handleRegexUpdate(this, {min_depth: parseInt(this.value) || 0})"
           />
-          <span class="text-xs text-muted">–</span>
+          <span class="note">–</span>
           <input
             type="number"
             min="0"
-            class="form-control regex-max"
+            class="field regex-max"
             style="width: 4.5rem"
             placeholder="∞"
             value="{{ script.max_depth if script.max_depth >= 0 else '' }}"
@@ -151,15 +151,15 @@
       </div>
     </div>
 
-    <div class="form-group mb-0 regex-preview">
+    <div class="form-group regex-preview">
       <label>Test</label>
-      <div class="flex items-center gap-2">
-        <input type="text" class="form-control regex-sample" data-ui="regex-sample" placeholder="Paste sample text…" />
-        <button type="button" class="btn btn-secondary shrink-0" onclick="previewRegexScript(this)">
+      <div class="field-row">
+        <input type="text" class="field regex-sample" data-ui="regex-sample" placeholder="Paste sample text…" />
+        <button type="button" class="btn shrink-0" onclick="previewRegexScript(this)">
           Test
         </button>
       </div>
-      <div class="regex-preview-out" data-ui="regex-preview-out"></div>
+      <div class="well p-2 preview-out" data-ui="regex-preview-out"></div>
     </div>
   </div>
 </div>

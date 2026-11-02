@@ -1,67 +1,69 @@
 {% from "modal-shell.html" import modal_shell %} {% from "macros.html" import search_toolbar, modal_footer, toggle %} {# ── EXPORT
 MODAL ─────────────────────────────────────────────── #} {% call modal_shell('modal-export', 'Export
 Data', max_width='440px', width='90vw', z_index='100') %}
-<div class="flex flex-col gap-4 mt-1">
-  {% for etype in ['characters', 'personas', 'presets'] %} {% set label = etype[:-1] if
-  etype.endswith('s') else etype %}
-  <div class="flex items-center justify-between">
-    <span class="text-sm font-semibold">{{ label|capitalize }}</span>
-    <div class="flex gap-1 text-xs">
-      <button
-        type="button"
-        data-export-btn="{{ etype }}"
-        data-export-val="all"
-        class="btn-tag"
-        data-action="actionSetExportType" data-etype="{{ etype }}" data-export-val="all"
-      >
-        All
-      </button>
-      <button
-        type="button"
-        data-export-btn="{{ etype }}"
-        data-export-val="none"
-        class="btn-tag"
-        data-action="actionSetExportType" data-etype="{{ etype }}" data-export-val="none"
-      >
-        None
-      </button>
-      <button
-        type="button"
-        data-export-btn="{{ etype }}"
-        data-export-val="some"
-        class="btn-tag"
-        data-action="actionSetExportType" data-etype="{{ etype }}" data-export-val="some"
-      >
-        Select
-      </button>
+<div class="flex flex-col gap-4">
+  <div class="flex flex-col">
+    {% for etype in ['characters', 'personas', 'presets'] %} {% set label = etype[:-1] if
+    etype.endswith('s') else etype %}
+    <div class="row flat">
+      <span class="row-title">{{ label|capitalize }}</span>
+      <span class="row-actions">
+        <button
+          type="button"
+          data-export-btn="{{ etype }}"
+          data-export-val="all"
+          class="chip"
+          data-action="actionSetExportType" data-etype="{{ etype }}" data-export-val="all"
+        >
+          All
+        </button>
+        <button
+          type="button"
+          data-export-btn="{{ etype }}"
+          data-export-val="none"
+          class="chip"
+          data-action="actionSetExportType" data-etype="{{ etype }}" data-export-val="none"
+        >
+          None
+        </button>
+        <button
+          type="button"
+          data-export-btn="{{ etype }}"
+          data-export-val="some"
+          class="chip"
+          data-action="actionSetExportType" data-etype="{{ etype }}" data-export-val="some"
+        >
+          Select
+        </button>
+      </span>
     </div>
-  </div>
-  {% endfor %}
-
-  <div class="h-px bg-[var(--border)]"></div>
-
-  <div class="flex flex-col gap-2">
-    <div class="flex items-center justify-between">
-      <span class="text-sm">Include Chats</span>
-      {{ toggle('id="export-toggle-chats" data-action="actionToggleExportFlag" data-export-flag="chats"') }}
-    </div>
-    <div class="flex items-center justify-between">
-      <span class="text-sm">Include Providers</span>
-      {{ toggle('id="export-toggle-providers" data-action="actionToggleExportFlag" data-export-flag="providers"') }}
-    </div>
-    <div class="flex items-center justify-between">
-      <span class="text-sm">Include Secrets</span>
-      {{ toggle('id="export-toggle-secrets" data-action="actionToggleExportFlag" data-export-flag="secrets"') }}
-    </div>
+    {% endfor %}
   </div>
 
-  {% call modal_footer(wrapper_classes='flex justify-end gap-2 mt-1', buttons_classes='', hint='') %}
-    <button type="button" class="btn btn-secondary" data-action="actionCloseExportModal">
+  <div class="divider"></div>
+
+  <div class="flex flex-col">
+    <div class="row flat">
+      <span class="row-title">Include chats</span>
+      <span class="row-actions">{{ toggle('id="export-toggle-chats" data-action="actionToggleExportFlag" data-export-flag="chats"') }}</span>
+    </div>
+    <div class="row flat">
+      <span class="row-title">Include providers</span>
+      <span class="row-actions">{{ toggle('id="export-toggle-providers" data-action="actionToggleExportFlag" data-export-flag="providers"') }}</span>
+    </div>
+    <div class="row flat">
+      <span class="row-title">Include secrets</span>
+      <span class="row-actions">{{ toggle('id="export-toggle-secrets" data-action="actionToggleExportFlag" data-export-flag="secrets"') }}</span>
+    </div>
+  </div>
+
+  {% call modal_footer(hint='') %}
+    <button type="button" class="btn" data-action="actionCloseExportModal">
       Cancel
     </button>
     <button
       type="button"
-      class="btn btn-primary"
+      class="btn primary"
       id="export-download-btn"
       data-action="BackupManager.doExport"
     >
@@ -71,16 +73,15 @@ Data', max_width='440px', width='90vw', z_index='100') %}
 </div>
 {% endcall %} {# ── ENTITY SELECT MODAL (reusable) ───────────────────────────── #} {% call
 modal_shell('modal-entity-select', 'Select', max_width='420px', width='90vw', z_index='200') %}
-<div class="flex flex-col gap-3 mt-1">
-  {{ search_toolbar('Filter...', input_attrs='data-action="actionFilterEntityList"',
-    wrapper_classes='', field_classes='relative', input_classes='search-input text-sm w-full') }}
-  <div id="entity-select-list" class="flex flex-col gap-1 max-h-[45vh] overflow-y-auto">
-    <div class="text-muted text-xs text-center py-4">Loading...</div>
+<div class="flex flex-col gap-3">
+  {{ search_toolbar('Filter...', input_attrs='data-action="actionFilterEntityList"') }}
+  <div id="entity-select-list" class="flex flex-col max-h-[45vh] overflow-y-auto">
+    <div class="empty">Loading...</div>
   </div>
-  <div class="flex justify-end">
-    <button type="button" class="btn btn-primary" data-action="actionCloseEntitySelect">
+  {% call modal_footer(hint='') %}
+    <button type="button" class="btn primary" data-action="actionCloseEntitySelect">
       Done
     </button>
-  </div>
+  {% endcall %}
 </div>
 {% endcall %}

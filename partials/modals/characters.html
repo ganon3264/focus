@@ -1,11 +1,11 @@
 <div class="flex flex-col h-full">
   {% from "macros.html" import icon_trash, icon_plus, icon_upload,
   icon_close, sort_dropdown, filter_dropdown, search_toolbar, empty_state %}
-  <div class="flex flex-col gap-3 pb-4">
+  <div class="flex flex-col gap-2">
     <div class="flex gap-2">
       <form onsubmit="importCharModal(event)">
         <label
-          class="btn btn-secondary btn-sm flex items-center justify-center cursor-pointer m-0 gap-1.5"
+          class="btn sm flex items-center justify-center cursor-pointer m-0 gap-1.5"
         >
           {{ icon_upload(size=14) }} Import
           <input
@@ -20,19 +20,19 @@
       </form>
       <button
         onclick="openNewCharPopup()"
-        class="btn btn-create btn-sm flex items-center justify-center gap-1.5 cursor-pointer m-0"
+        class="btn create sm flex items-center justify-center gap-1.5 cursor-pointer m-0"
       >
         {{ icon_plus(size=14) }} New
       </button>
     </div>
     {% call search_toolbar('Search characters...', input_attrs='oninput="filterCharacters(this.value)"',
-      wrapper_classes='flex gap-2 items-center h-8', field_classes='flex-1 relative min-w-0') %}
+      wrapper_classes='flex gap-2 items-center') %}
       {{ filter_dropdown('setCharFilter', 'getCharFilterGroups') }}
       {{ sort_dropdown('focus_char_sort', 'sortCharacters') }}
     {% endcall %}
   </div>
 
-  <div class="flex-1 overflow-y-auto min-h-0 py-3 scroll-fade" data-ui="scroll-fade">
+  <div class="flex-1 min-h-0 overflow-y-auto">
     {% if not characters %}
     {{ empty_state('No characters found. Create or import one to get started!') }}
     {% endif %}
@@ -44,8 +44,8 @@
     </div>
   </div>
 
-  <div class="flex justify-end pt-3">
-    <button class="btn btn-secondary btn-sm flex items-center gap-2" onclick="openTrashModal()">
+  <div class="flex justify-end">
+    <button class="btn sm flex items-center gap-2" onclick="openTrashModal()">
       <span>{{ icon_trash() }}</span> Trash Bin
     </button>
   </div>

@@ -1,6 +1,6 @@
 {% from "macros.html" import icon_edit, icon_trash, icon_star, icon_star_filled, avatar %}
 <div
-  class="entity-row{% if current_persona_id == p.id %} active{% endif %}"
+  class="row entity-row{% if current_persona_id == p.id %} active{% endif %}"
   data-ui="entity-row"
   id="persona-card-{{ p.id }}"
   data-persona-name="{{ p.name }}"
@@ -12,26 +12,22 @@
   onclick="selectPersonaModal(this)"
   data-persona-id="{{ p.id }}"
 >
-  {{ avatar('entity-thumb', p.avatar_path, p.name ~ ' avatar', p.name[:1], img_attrs='loading="lazy"') }}
-  <div class="entity-main">
-    <div class="entity-name">{{ p.name }}</div>
-    <div class="entity-meta">
-      {% if p.get('group_name') %}{{ p.get('group_name') }}{% else %}{{ p.description or 'No description' }}{% endif %}
-    </div>
-  </div>
-  <button
-    class="fav-star fav-star-inline{% if p.get('is_favorite') %} favorite-active{% endif %}"
-    data-ui="fav-star"
-    onclick="event.stopPropagation(); togglePersonaFavorite(this)"
-    aria-label="Toggle favorite"
-    title="Favorite"
-  >
-    <span class="fav-star-outline">{{ icon_star(14) }}</span>
-    <span class="fav-star-filled">{{ icon_star_filled(14) }}</span>
-  </button>
-  <div class="entity-actions" onclick="event.stopPropagation()">
+  {{ avatar('avatar', p.avatar_path, p.name ~ ' avatar', p.name[:1], img_attrs='loading="lazy"') }}
+  <span class="row-title" title="{{ p.description or '' }}">{{ p.name }}</span>
+  <span class="row-meta">{{ p.get('group_name') or '—' }}</span>
+  <span class="row-actions" onclick="event.stopPropagation()">
     <button
-      class="btn btn-edit btn-sm"
+      class="key sm fav-star{% if p.get('is_favorite') %} favorite-active{% endif %}"
+      data-ui="fav-star"
+      onclick="event.stopPropagation(); togglePersonaFavorite(this)"
+      aria-label="Toggle favorite"
+      title="Favorite"
+    >
+      <span class="fav-star-outline">{{ icon_star(14) }}</span>
+      <span class="fav-star-filled">{{ icon_star_filled(14) }}</span>
+    </button>
+    <button
+      class="key sm"
       data-persona-id="{{ p.id }}"
       data-persona-name="{{ p.name }}"
       data-persona-desc="{{ p.description or '' }}"
@@ -45,7 +41,7 @@
     </button>
     {% if p.name != 'User' %}
     <button
-      class="btn btn-danger btn-sm"
+      class="key sm danger entity-delete"
       data-persona-id="{{ p.id }}"
       data-persona-name="{{ p.name }}"
       onclick="event.stopPropagation(); promptDeletePersona(this)"
@@ -54,5 +50,5 @@
       {{ icon_trash() }}
     </button>
     {% endif %}
-  </div>
+  </span>
 </div>

@@ -3,9 +3,9 @@
 (Tertiary)', '--surface-3'), ('Borders', '--border'), ('Accent Color', '--accent'), ('Text (Main)', '--text'), ('Text
 (Muted)', '--text-muted'), ('User Role', '--role-user'), ('Assistant Role', '--role-assistant') ] %} {% call
 modal_shell('modal-themes', 'Theme Customizer', max_width='920px', width='94vw',
-content_style='display:flex;flex-direction:column;max-height:82vh;', z_index='100') %}
+content_style='max-height:82vh;', z_index='100') %}
 <div
-  class="theme-modal flex flex-col flex-1 min-h-0 gap-4 mt-2"
+  class="theme-modal flex flex-col flex-1 min-h-0"
   x-data="themeModalState()"
   @theme-state-changed.window="refresh()"
 >
@@ -14,43 +14,34 @@ content_style='display:flex;flex-direction:column;max-height:82vh;', z_index='10
       <div class="theme-list">
         <template x-for="t in themes" :key="t.id">
           <div
-            class="theme-row"
-            :class="t.id === selectedId ? 'is-selected' : ''"
+            class="row"
+            :class="t.id === selectedId ? 'active' : ''"
             @click="switchTo(t.id)"
           >
-            <span class="theme-swatches">
-              <span
-                class="theme-swatch"
-                :style="{ background: (t.colors || {})['--bg'] || '#000' }"
-              ></span>
-              <span
-                class="theme-swatch"
-                :style="{ background: (t.colors || {})['--surface'] || '#000' }"
-              ></span>
-              <span
-                class="theme-swatch"
-                :style="{ background: (t.colors || {})['--accent'] || '#000' }"
-              ></span>
+            <span class="row-meta theme-swatches">
+              <span class="well theme-swatch" :style="{ background: (t.colors || {})['--bg'] || '#000' }"></span>
+              <span class="well theme-swatch" :style="{ background: (t.colors || {})['--surface'] || '#000' }"></span>
+              <span class="well theme-swatch" :style="{ background: (t.colors || {})['--accent'] || '#000' }"></span>
             </span>
-            <span class="theme-name" x-text="t.name"></span>
+            <span class="row-title" x-text="t.name"></span>
             <button
-              class="slot-btn"
-              :class="t.id === darkId ? 'slot-active' : ''"
+              class="chip"
+              :class="t.id === darkId ? 'active' : ''"
               @click.stop="setSlot('dark', t.id)"
               title="Use as dark theme"
             >
               Dark
             </button>
             <button
-              class="slot-btn"
-              :class="t.id === lightId ? 'slot-active' : ''"
+              class="chip"
+              :class="t.id === lightId ? 'active' : ''"
               @click.stop="setSlot('light', t.id)"
               title="Use as light theme"
             >
               Light
             </button>
             <button
-              class="action-icon danger"
+              class="key sm danger"
               x-show="!t.is_system"
               @click.stop="remove(t.id, t.name)"
               title="Delete theme"
@@ -58,20 +49,15 @@ content_style='display:flex;flex-direction:column;max-height:82vh;', z_index='10
             >
               {{ icon_trash(size=14) }}
             </button>
-            <span x-show="t.is_system" class="theme-del-spacer"></span>
+            <span x-show="t.is_system" class="theme-slot-spacer"></span>
           </div>
         </template>
-        <div
-          x-show="themes.length === 0"
-          class="text-muted text-center text-sm py-4 border border-dashed border-(--border) rounded-lg"
-        >
-          No themes yet.
-        </div>
+        <div x-show="themes.length === 0" class="empty">No themes yet.</div>
       </div>
 
-      <div class="text-xs text-muted" x-show="charThemeId">
+      <p class="note" x-show="charThemeId">
         <strong x-text="charName"></strong> has its own theme — it's applied to chats with this character.
-      </div>
+      </p>
     </aside>
 
     <section class="theme-modal-editor">
@@ -80,10 +66,10 @@ content_style='display:flex;flex-direction:column;max-height:82vh;', z_index='10
           type="text"
           x-model="editName"
           placeholder="Theme name"
-          class="form-control flex-1"
+          class="field flex-1"
           @input="markDirty()"
         />
-        <button class="btn btn-create shrink-0" @click="create()" title="Create a new theme from the current colors">
+        <button class="btn create shrink-0" @click="create()" title="Create a new theme from the current colors">
           New
         </button>
       </div>
@@ -95,7 +81,7 @@ content_style='display:flex;flex-direction:column;max-height:82vh;', z_index='10
           <input
             type="color"
             data-var="{{ var }}"
-            class="theme-color-input"
+            class="field color"
             onchange="previewThemeColor(this)"
             oninput="previewThemeColor(this)"
             @input="markDirty()"
@@ -106,10 +92,10 @@ content_style='display:flex;flex-direction:column;max-height:82vh;', z_index='10
     </section>
   </div>
 
-  {% call modal_footer(wrapper_classes='flex items-center gap-2 pt-2', buttons_classes='flex justify-end gap-2 ml-auto', hint='alpine') %}
-    <button class="btn btn-danger" x-show="selectedId && selectedIsSystem" @click="reset()">Reset</button>
+  {% call modal_footer(hint='alpine') %}
+    <button class="btn danger" x-show="selectedId && selectedIsSystem" @click="reset()">Reset</button>
     <button
-      class="btn btn-secondary"
+      class="btn"
       @click="
         closeModal('modal-themes');
         resetThemePreview();
@@ -117,7 +103,7 @@ content_style='display:flex;flex-direction:column;max-height:82vh;', z_index='10
     >
       Cancel
     </button>
-    <button class="btn btn-primary" @click="save()" :disabled="!dirty" :class="dirty ? '' : 'opacity-50'">Save</button>
+    <button class="btn primary" @click="save()" :disabled="!dirty" :class="dirty ? '' : 'opacity-50'">Save</button>
   {% endcall %}
 </div>
 {% endcall %}

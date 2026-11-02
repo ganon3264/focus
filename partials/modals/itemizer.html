@@ -1,14 +1,13 @@
 {% from "macros.html" import icon_chevron_right, icon_refresh, hint_tooltip %}
-<div x-data="itemizerModal()" @itemizer-open.window="load()" class="flex flex-col h-full">
+<div x-data="itemizerModal()" @itemizer-open.window="load()" class="flex flex-col h-full min-h-0">
   <div class="itemizer-bar">
-    <div class="itemizer-hint">Visualize and estimate tokens for the outbound prompt.</div>
-    <div class="itemizer-bar-actions">
-      <span class="itemizer-readout">
-        tokens <span class="itemizer-readout-value" x-text="totalTokens">…</span>
-      </span>
+    <span class="note">Visualize and estimate tokens for the outbound prompt.</span>
+    <span class="flex items-center gap-1">
+      <span class="row-label">tokens</span>
+      <span class="row-value itemizer-readout" x-text="totalTokens">…</span>
       {{ hint_tooltip('Estimate only. Computed with cl100k_base, so the real provider tokenizer may differ.') }}
       <button
-        class="btn btn-secondary btn-sm btn-icon"
+        class="key sm"
         @click="load()"
         :disabled="loading"
         title="Refresh"
@@ -16,48 +15,36 @@
       >
         <span class="inline-flex" :class="loading ? 'animate-spin' : ''">{{ icon_refresh(14) }}</span>
       </button>
-    </div>
+    </span>
   </div>
 
-  <div class="flex-1 overflow-y-auto pb-2 flex flex-col scroll-fade" data-ui="scroll-fade">
-    <template x-if="loading && messages.length === 0">
-      <div class="text-center text-muted text-sm py-4">Generating estimate...</div>
-    </template>
+  <div class="itemizer-list flex-1 min-h-0">
+    <div x-show="loading && messages.length === 0" class="empty">Generating estimate...</div>
 
     <template x-for="(msg, i) in messages" :key="i">
-      <div
-        x-data="{ expanded: false }"
-        class="itemizer-item"
-        :class="'itemizer-role-' + msg.role"
-      >
-        <div class="itemizer-header" @click="expanded = !expanded">
-          <div class="itemizer-header-left">
-            <span class="itemizer-chevron" :class="expanded ? 'rotate-90' : ''"
-              >{{ icon_chevron_right(12) }}</span
-            >
-            <span x-text="msg.role"></span>
-          </div>
-          <span class="itemizer-tokens" x-text="msg.tokens + ' tk'"></span>
+      <div x-data="{ expanded: false }" class="itemizer-item">
+        <div class="row" :class="'role-' + msg.role" @click="expanded = !expanded">
+          <span class="caret-mark" :class="expanded ? 'caret-open' : ''"></span>
+          <span class="row-title" x-text="msg.role"></span>
+          <span class="row-meta" x-text="msg.tokens + ' tk'"></span>
         </div>
 
         <div x-show="expanded" x-collapse>
-          <div class="itemizer-body">
+          <div class="itemizer-body well">
             <template x-for="(part, j) in msg.parts" :key="j">
               <div
                 x-show="part.type !== 'reasoning'"
-                :class="part.type !== 'text' ? 'itemizer-part' : 'itemizer-text'"
+                :class="part.type !== 'text' ? 'tag itemizer-part' : 'itemizer-text'"
                 x-text="part.type !== 'text' ? part.text + ' (' + part.tokens + ' tk)' : part.text"
               ></div>
             </template>
             <template x-for="(part, j) in msg.parts" :key="'r'+j">
-              <div x-show="part.type === 'reasoning'" x-data="{ rOpen: false }"
-                class="itemizer-reasoning">
-                <div class="itemizer-reasoning-header" @click="rOpen = !rOpen">
+              <div x-show="part.type === 'reasoning'" x-data="{ rOpen: false }" class="itemizer-reasoning">
+                <div class="link" @click="rOpen = !rOpen">
+                  <span class="caret-mark" :class="rOpen ? 'caret-open' : ''"></span>
                   <span x-text="'reasoning (' + part.tokens + ' tk)'"></span>
-                  <span x-text="rOpen ? '▲' : '▼'"></span>
                 </div>
-                <div x-show="rOpen" x-collapse class="itemizer-reasoning-text"
-                  x-text="part.text"></div>
+                <div x-show="rOpen" x-collapse class="note itemizer-text" x-text="part.text"></div>
               </div>
             </template>
           </div>

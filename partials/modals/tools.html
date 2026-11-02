@@ -2,46 +2,42 @@
 <div x-data="toolsModal()" id="tools-modal-data" class="flex flex-col gap-4 flex-1 min-h-0" @multimodal-changed.window="enableMultimodal = $event.detail.value" @provider-changed.window="providerType = $event.detail.type || 'openai_compat'">
 
   <!-- Enable Tool Calls toggle -->
-  <div class="form-group mb-0 flex items-center justify-between shrink-0">
-    <div class="flex items-center gap-1">
-      <label
-        class="text-xs mb-0 cursor-pointer"
-        @click="toggleEnabled()"
-      >Enable Tool Calls</label>
-      {{ hint_tooltip('Allow the assistant to call filesystem tools. Tools execute locally without sandboxing. <span class="hint-danger">This might be potentially dangerous!</span>') }}
-    </div>
-    {{ toggle(':class="{ \'active\': enabled }" @click="toggleEnabled()"') }}
+  <div class="row flat shrink-0" @click="toggleEnabled()">
+    <span class="row-title inline-flex items-center gap-1">
+      Enable tool calls
+      {{ hint_tooltip('Allow the assistant to call filesystem tools. Tools execute locally without sandboxing. <span class="note danger">This might be potentially dangerous!</span>') }}
+    </span>
+    <span class="row-actions">{{ toggle(':class="{ \'active\': enabled }" @click="toggleEnabled()"') }}</span>
   </div>
 
   <!-- Read-only Mode toggle (shown when enabled) -->
   <div
     x-show="enabled"
     x-transition.opacity.duration.200ms
-    class="form-group mb-0 flex items-center justify-between shrink-0"
+    class="row flat shrink-0"
+    @click="toggleReadOnly()"
   >
-    <div class="flex items-center gap-1">
-      <label
-        class="text-xs mb-0 cursor-pointer"
-        @click="toggleReadOnly()"
-      >Read-Only Mode</label>
+    <span class="row-title inline-flex items-center gap-1">
+      Read-only mode
       {{ hint_tooltip('When enabled, write marked tools are hidden from the model entirely regardless of whether they are individually enabled or not.') }}
-    </div>
-    {{ toggle(':class="{ \'active\': readOnly }" @click="toggleReadOnly()"') }}
+    </span>
+    <span class="row-actions">{{ toggle(':class="{ \'active\': readOnly }" @click="toggleReadOnly()"') }}</span>
   </div>
 
   <!-- Max Tool Iterations (shown when enabled) -->
   {{ slider_row('Max Tool Iterations', 'maxIterations', '0', '100', '1', 0,
     change='saveMaxIterations()', blur='', wrapper_classes='shrink-0',
     wrapper_attrs='x-show="enabled" x-transition.opacity.duration.200ms',
-    hint='How many assistant/tool rounds the model may chain in a single turn before generation stops. Raise it for long multi-step tasks. Set to <span class="hint-warning">0 for unlimited</span>.') }}
+    hint='How many assistant/tool rounds the model may chain in a single turn before generation stops. Raise it for long multi-step tasks. Set to <span class="note warning">0 for unlimited</span>.') }}
 
   <!-- Provider notice for non-supporting providers -->
   <div
     x-show="enabled && !providerSupportsTools"
-    class="text-xs p-2 rounded shrink-0"
-    style="background:var(--danger-dim);border:1px solid var(--danger);color:var(--danger)"
+    class="well danger shrink-0 p-2"
   >
-    Tool calls are not supported by the current provider type (<span x-text="providerType"></span>). They will be automatically disabled during generation.
+    <span class="note danger">
+      Tool calls are not supported by the current provider type (<span x-text="providerType"></span>). They will be automatically disabled during generation.
+    </span>
   </div>
 
   <!-- Available Tools List -->
@@ -49,48 +45,33 @@
     {% call search_toolbar('Search tools...', input_attrs='x-model="searchQuery"') %}
       {{ sort_dropdown('focus_tools_sort', 'sortTools') }}
       <button
-        class="btn btn-secondary btn-sm flex items-center justify-center shrink-0 h-full"
+        class="btn sm flex items-center justify-center shrink-0 h-full"
         @click="reloadTools()"
         x-text="reloading ? 'Reloading...' : 'Reload'"
       ></button>
     {% endcall %}
-    <div class="flex-1 overflow-y-auto min-h-[360px] scroll-fade" data-ui="scroll-fade">
+    <div class="flex-1 overflow-y-auto min-h-[360px]">
     <template x-for="(groupTools, category) in filteredTools" :key="category">
       <div class="mb-3">
-        <div class="flex items-center gap-1 mb-1.5 cursor-pointer select-none" @click="toggleCategory(category)">
-          <span
-            class="text-xs font-bold text-muted uppercase tracking-wider"
-            x-text="category"
-          ></span>
-          <span
-            class="text-xs text-muted"
-            :class="openCategories[category] !== false ? 'rotate-180' : ''"
-            style="transition:transform 0.2s;display:inline-flex"
-          >{{ icon_chevron_down(12) }}</span>
+        <div class="rail cursor-pointer select-none" @click="toggleCategory(category)">
+          <span x-text="category"></span>
+          <span class="rail-actions flush">
+            <span class="caret-mark" :class="openCategories[category] !== false ? 'caret-open' : ''"></span>
+          </span>
         </div>
-        <div class="grid grid-cols-3 gap-2 auto-rows-max" x-show="openCategories[category] !== false">
+        <div class="card-grid" x-show="openCategories[category] !== false">
         <template x-for="tool in groupTools" :key="tool.name">
           <div
-            class="tile-card p-2 rounded-md"
-            :class="(tool.multimodal && !enableMultimodal) || (tool.writes && readOnly) || toolStates[tool.name] !== true ? 'opacity-40' : ''"
+            class="card"
+            :class="(tool.multimodal && !enableMultimodal) || (tool.writes && readOnly) || toolStates[tool.name] !== true ? 'disabled' : ''"
           >
             <div class="flex items-center justify-between gap-1">
               <div class="text-xs font-bold truncate" x-text="tool.name"></div>
               {{ toggle(':class="{ \'active\': toolStates[tool.name] === true }" @click="toggleTool(tool.name)"', extra_classes='shrink-0') }}
             </div>
             <div class="flex items-center gap-1 mt-0.5">
-              <span
-                class="text-xs px-1 py-0.5 rounded leading-tight"
-                :style="tool.writes
-                  ? 'background:var(--danger-dim);color:var(--danger)'
-                  : 'background:var(--accent-faint);color:var(--accent)'"
-                x-text="tool.writes ? 'writes' : 'read-only'"
-              ></span>
-              <span
-                x-show="tool.multimodal"
-                class="text-xs px-1 py-0.5 rounded leading-tight"
-                style="background:var(--accent-dim);color:var(--accent)"
-              >multimodal</span>
+              <span class="tag" :class="tool.writes ? 'danger' : ''" x-text="tool.writes ? 'writes' : 'read-only'"></span>
+              <span x-show="tool.multimodal" class="tag">multimodal</span>
             </div>
             <div class="text-xs text-muted mt-1 leading-snug" x-text="tool.description"></div>
           </div>

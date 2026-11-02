@@ -67,48 +67,39 @@
     const list = document.getElementById('backups-list');
     if (!list) return;
     M.refreshPurgePreview();
-    list.innerHTML =
-      '<div class="flex justify-center py-6">' + '<div class="message-spinner"></div>' + '</div>';
+    list.innerHTML = '<div class="empty"><span class="spinner"></span></div>';
     try {
       const resp = await fetch(window.api.backups);
       const backups = await resp.json();
       if (!backups.length) {
-        list.innerHTML =
-          '<div class="flex flex-col items-center gap-2 py-8 text-muted">' +
-          '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.4">' +
-          '<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>' +
-          '<path d="M12 10v6"/><path d="M9 13h6"/>' +
-          '</svg>' +
-          '<span class="text-sm">No backups yet. Create one to safeguard your data.</span>' +
-          '</div>';
+        list.innerHTML = '<div class="empty">No backups yet. Create one to safeguard your data.</div>';
         return;
       }
       let html = '';
       backups.forEach(function (b) {
         html +=
-          '<div class="backup-row">' +
-          '<div class="backup-row-main">' +
-          '<span class="backup-row-date">' +
+          '<div class="row backup-row">' +
+          '<span class="row-title">' +
           formatTimestamp(b.id) +
           '</span>' +
-          '<span class="backup-row-size">' +
+          '<span class="row-meta">' +
           formatBytes(b.size_bytes) +
           '</span>' +
-          '</div>' +
-          '<div class="backup-row-actions">' +
-          '<button class="btn btn-secondary btn-sm" onclick="BackupManager.restore(\'' +
+          '<span class="row-actions">' +
+          '<button class="btn sm" onclick="BackupManager.restore(\'' +
           b.id +
           '\')">Restore</button>' +
-          '<button class="btn btn-danger btn-sm" onclick="BackupManager.delete(\'' +
+          '<button class="key sm danger" onclick="BackupManager.delete(\'' +
           b.id +
-          '\')">Delete</button>' +
-          '</div>' +
+          '\')" aria-label="Delete backup">' +
+          window.getSvgSprite('trash', 16) +
+          '</button>' +
+          '</span>' +
           '</div>';
       });
       list.innerHTML = html;
     } catch (_) {
-      list.innerHTML =
-        '<div class="text-sm text-center py-4" style="color:var(--danger)">Failed to load backups.</div>';
+      list.innerHTML = '<div class="note danger">Failed to load backups.</div>';
     }
   };
 

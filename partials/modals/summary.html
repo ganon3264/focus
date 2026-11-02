@@ -1,23 +1,23 @@
 {% from "modal-shell.html" import modal_shell %}
 {% from "macros.html" import modal_footer %}
-{% call modal_shell('modal-summary', 'Summary', max_width='640px', content_style='display:flex;flex-direction:column;height:70vh;') %}
+{% call modal_shell('modal-summary', 'Summary', max_width='640px', content_style='height:70vh;') %}
 <div x-data="summaryModal()" @summary-open.window="load()" class="flex flex-col h-full min-h-0 gap-3">
-  <div class="text-xs text-muted shrink-0">
+  <p class="note shrink-0">
     This summary is sent as leading context to the chat. Edits apply here and to every descendant chat.
-  </div>
+  </p>
 
-  <div class="flex-1 overflow-y-auto flex flex-col gap-3 min-h-0 pr-1">
+  <div class="flex-1 overflow-y-auto flex flex-col gap-3 min-h-0">
     <template x-if="!chunks.length">
-      <div class="text-muted text-sm py-4 text-center">No summary is attached to this chat.</div>
+      <div class="empty">No summary is attached to this chat.</div>
     </template>
     <template x-for="(chunk, i) in chunks" :key="chunk.id">
       <div class="flex flex-col gap-1">
-        <div class="flex items-center justify-between text-xs text-muted">
+        <div class="row-label flex items-center justify-between">
           <span x-text="'Chunk ' + (i + 1)"></span>
           <span x-text="chunk.model_name || ''"></span>
         </div>
         <textarea
-          class="form-control"
+          class="field"
           rows="6"
           style="resize: vertical"
           x-model="chunk.content"
@@ -27,11 +27,11 @@
     </template>
   </div>
 
-  {% call modal_footer(wrapper_classes='flex justify-end gap-2 shrink-0', buttons_classes='', hint='') %}
-    <button type="button" class="btn btn-secondary" data-action="actionCloseModal" data-modal-id="modal-summary">Close</button>
+  {% call modal_footer(hint='') %}
+    <button type="button" class="btn" data-action="actionCloseModal" data-modal-id="modal-summary">Close</button>
     <button
       type="button"
-      class="btn btn-primary"
+      class="btn primary"
       @click="save()"
       :disabled="saving || !dirty"
       :class="(saving || !dirty) ? 'opacity-50' : ''"

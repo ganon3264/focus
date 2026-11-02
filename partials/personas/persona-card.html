@@ -9,12 +9,12 @@
     </div>
   </div>
   <div class="flex gap-2">
-    <label class="btn btn-secondary btn-sm" style="cursor:pointer">
+    <label class="btn sm" style="cursor:pointer">
       Avatar
       <input type="file" accept="image/*" class="hidden" data-persona-id="{{ p.id }}" onchange="handleAvatarUpload(this, '/api/personas/' + this.dataset.personaId + '/avatar')">
     </label>
     {% if p.name != 'User' %}
-    <button class="btn btn-danger btn-sm" data-persona-id="{{ p.id }}" onclick="promptDeletePersona(this)">Delete</button>
+    <button class="btn danger sm" data-persona-id="{{ p.id }}" onclick="promptDeletePersona(this)">Delete</button>
     {% endif %}
   </div>
 </div>

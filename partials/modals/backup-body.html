@@ -7,27 +7,27 @@
   {"value": "custom", "label": "Custom…"}
 ] %}
 {# Body of the Backups tab in the Advanced modal. #}
-<div class="flex flex-col gap-4 mt-1">
+<div class="flex flex-col gap-4">
   {# ── Actions ── #}
   <div class="flex gap-2">
     <button
       type="button"
       id="btn-create-backup"
-      class="btn btn-create flex-1 text-sm flex items-center justify-center gap-1.5"
+      class="btn create flex-1 text-sm flex items-center justify-center gap-1.5"
       data-action="BackupManager.create"
     >
       {{ icon_plus(size=14) }} Create Backup
     </button>
     <button
       type="button"
-      class="btn btn-secondary flex-1 text-sm flex items-center justify-center gap-1.5"
+      class="btn flex-1 text-sm flex items-center justify-center gap-1.5"
       data-action="BackupManager.openExportModal"
     >
       {{ icon_database(size=14) }} Export
     </button>
     <button
       type="button"
-      class="btn btn-secondary flex-1 text-sm flex items-center justify-center gap-1.5"
+      class="btn flex-1 text-sm flex items-center justify-center gap-1.5"
       data-action="actionTriggerFileUpload" data-target="import-file"
     >
       {{ icon_upload(size=14) }} Import
@@ -42,12 +42,12 @@
     data-action="actionImportBackupFile"
   />
 
-  <span id="backup-status" class="text-xs"></span>
+  <span id="backup-status" class="note"></span>
 
   {# ── Maintenance ── #}
   <div class="flex flex-col gap-2">
-    <h3 class="rail">Maintenance</h3>
-    <div class="flex gap-2 items-stretch">
+    <div class="rail">Maintenance</div>
+    <div class="field-row">
       <div class="flex-1">
         {{ custom_select(
              name="purge-days",
@@ -55,13 +55,13 @@
              options=purge_options,
              selected="90",
              on_change="BackupManager.setPurgeRange($el)",
-             extra_classes="form-control text-sm"
+             extra_classes=""
            ) }}
       </div>
       <button
         type="button"
         id="btn-purge-old-chats"
-        class="btn btn-danger text-sm flex items-center justify-center gap-1.5 shrink-0"
+        class="btn danger text-sm flex items-center justify-center gap-1.5 shrink-0"
         data-action="BackupManager.purgeOldChats"
       >
         Move to Trash
@@ -75,13 +75,13 @@
       max="36500"
       value="90"
       placeholder="Days"
-      class="hidden text-sm form-control w-full"
+      class="hidden text-sm field w-full"
       data-action="BackupManager.setPurgeCustom"
     />
-    <span id="purge-old-chats-status" class="text-xs"></span>
+    <span id="purge-old-chats-status" class="note"></span>
     <button
       type="button"
-      class="btn btn-danger w-full text-sm flex items-center justify-center gap-1.5"
+      class="btn danger w-full text-sm flex items-center justify-center gap-1.5"
       data-action="BackupManager.cleanDatabase"
     >
       Clean DB
@@ -90,7 +90,7 @@
 
   {# ── Backups list ── #}
   <div class="flex flex-col gap-2">
-    <h3 class="rail">Previous Backups</h3>
-    <div id="backups-list" class="flex flex-col max-h-96 overflow-y-auto scroll-fade" data-ui="scroll-fade"></div>
+    <div class="rail">Previous Backups</div>
+    <div id="backups-list" class="flex flex-col max-h-96 overflow-y-auto"></div>
   </div>
 </div>

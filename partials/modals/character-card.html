@@ -1,6 +1,6 @@
 {% from "macros.html" import icon_edit, icon_trash, icon_star, icon_star_filled, avatar %}
 <div
-  class="entity-row{% if current_character_id == char.id %} active{% endif %}"
+  class="row entity-row{% if current_character_id == char.id %} active{% endif %}"
   data-ui="entity-row"
   id="char-card-{{ char.id }}"
   data-char-name="{{ char.name }}"
@@ -12,26 +12,22 @@
   onclick="selectCharModal(this)"
   data-char-id="{{ char.id }}"
 >
-  {{ avatar('entity-thumb', char.image_path, char.name ~ ' avatar', char.name[:1], img_attrs='loading="lazy"') }}
-  <div class="entity-main">
-    <div class="entity-name">{{ char.name }}</div>
-    <div class="entity-meta">
-      {% if char.get('group_name') %}{{ char.get('group_name') }}{% else %}{{ char.card.get('description','')[:48] or 'No details' }}{% endif %}
-    </div>
-  </div>
-  <button
-    class="fav-star fav-star-inline{% if char.get('is_favorite') %} favorite-active{% endif %}"
-    data-ui="fav-star"
-    onclick="event.stopPropagation(); toggleCharFavorite(this)"
-    aria-label="Toggle favorite"
-    title="Favorite"
-  >
-    <span class="fav-star-outline">{{ icon_star(14) }}</span>
-    <span class="fav-star-filled">{{ icon_star_filled(14) }}</span>
-  </button>
-  <div class="entity-actions" onclick="event.stopPropagation()">
+  {{ avatar('avatar', char.image_path, char.name ~ ' avatar', char.name[:1], img_attrs='loading="lazy"') }}
+  <span class="row-title" title="{{ char.card.get('description','') }}">{{ char.name }}</span>
+  <span class="row-meta">{{ char.get('group_name') or '—' }}</span>
+  <span class="row-actions" onclick="event.stopPropagation()">
     <button
-      class="btn btn-edit btn-sm"
+      class="key sm fav-star{% if char.get('is_favorite') %} favorite-active{% endif %}"
+      data-ui="fav-star"
+      onclick="event.stopPropagation(); toggleCharFavorite(this)"
+      aria-label="Toggle favorite"
+      title="Favorite"
+    >
+      <span class="fav-star-outline">{{ icon_star(14) }}</span>
+      <span class="fav-star-filled">{{ icon_star_filled(14) }}</span>
+    </button>
+    <button
+      class="key sm"
       data-char-id="{{ char.id }}"
       data-char-name="{{ char.name }}"
       data-char-desc="{{ char.card.get('description','') }}"
@@ -45,7 +41,7 @@
       {{ icon_edit() }}
     </button>
     <button
-      class="btn btn-danger btn-sm"
+      class="key sm danger entity-delete"
       data-char-id="{{ char.id }}"
       data-char-name="{{ char.name }}"
       onclick="event.stopPropagation(); promptDeleteChar(this)"
@@ -53,5 +49,5 @@
     >
       {{ icon_trash() }}
     </button>
-  </div>
+  </span>
 </div>

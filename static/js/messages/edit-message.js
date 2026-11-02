@@ -114,7 +114,7 @@
           container.appendChild(tcSection);
         } else {
           var sep = document.createElement('div');
-          sep.style.cssText = 'height:0;border-bottom:1px solid var(--hair);margin:0.25rem 0';
+          sep.className = 'divider';
           container.appendChild(sep);
         }
       }
@@ -150,8 +150,7 @@
 
     container.innerHTML = '';
     if (window.currentEditAttachments.length === 0) {
-      container.innerHTML =
-        '<div class="edit-msg-drop-empty">No attachments</div>';
+      container.innerHTML = '<div class="empty">No attachments</div>';
       return;
     }
 
@@ -166,12 +165,11 @@
       });
 
       var wrapper = document.createElement('div');
-      wrapper.className = 'relative group shrink-0';
+      wrapper.className = 'relative shrink-0';
 
       var deleteBtn = thumbnail.querySelector('button');
       if (deleteBtn) {
-        deleteBtn.className =
-          'absolute -top-2 -right-2 bg-danger text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] hidden group-hover:flex z-10';
+        deleteBtn.className = 'key sm danger media-thumb-close z-10';
         deleteBtn.innerHTML = window.getSvgSprite('close', 16);
       }
 

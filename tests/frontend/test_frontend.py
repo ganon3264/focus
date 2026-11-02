@@ -172,7 +172,7 @@ def test_tailwind_bundle_contains_custom_css():
     """The css/ modules are imported by tailwind-input.css; a dropped import
     must fail here instead of silently losing styles at runtime."""
     css_text = (STATIC_DIR / "tailwind.css").read_text()
-    for marker in (".arranger-item", ".chat-center", ".slot-btn"):
+    for marker in (".arranger-item", ".chat-center", ".modal-panel"):
         assert marker in css_text, f"tailwind.css is missing bundled rule: {marker}"
     assert "--radius-md:4px" in css_text.replace(" ", ""), (
         "tailwind.css missing rebranded --radius-md token"

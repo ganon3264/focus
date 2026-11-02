@@ -5,15 +5,15 @@
 {% set focus = focus|default(false) %}
 {% set entity_name = entity_name|default('Character') %}
 <div
-  class="form-group mb-0 entity-greeting"
+  class="form-group entity-greeting"
   id="edit-{{ prefix }}-greeting-section"
 >
-  <div class="flex items-center justify-between mb-1">
-    <label class="font-semibold text-muted block" style="margin-bottom:0">Greeting</label>
-    <div class="flex items-center gap-1">
+  <div class="field-inline">
+    <span class="field-label">Greeting</span>
+    <span class="flex items-center gap-1">
       <button
         type="button"
-        class="btn btn-secondary btn-sm btn-compact"
+        class="key sm"
         id="edit-{{ prefix }}-greeting-prev"
         hx-post="/partials/character-greeting/{{ char_id }}"
         hx-target="#edit-{{ prefix }}-greeting-section"
@@ -27,10 +27,10 @@
       >
         {{ icon_chevron_left(14) }}
       </button>
-      <span id="edit-{{ prefix }}-greeting-count" class="text-xs text-muted font-semibold w-9 text-center">{{ (greeting_idx + 1) if greetings else 0 }}/{{ greetings|length }}</span>
+      <span id="edit-{{ prefix }}-greeting-count" class="row-meta w-9 text-center">{{ (greeting_idx + 1) if greetings else 0 }}/{{ greetings|length }}</span>
       <button
         type="button"
-        class="btn btn-secondary btn-sm btn-compact"
+        class="key sm"
         id="edit-{{ prefix }}-greeting-next"
         hx-post="/partials/character-greeting/{{ char_id }}"
         hx-target="#edit-{{ prefix }}-greeting-section"
@@ -46,7 +46,7 @@
       </button>
       <button
         type="button"
-        class="btn btn-secondary btn-edit btn-sm btn-compact is-create"
+        class="key sm create"
         hx-post="/partials/character-greeting/{{ char_id }}"
         hx-target="#edit-{{ prefix }}-greeting-section"
         hx-swap="outerHTML"
@@ -60,7 +60,7 @@
       </button>
       <button
         type="button"
-        class="btn btn-danger btn-sm btn-compact"
+        class="key sm danger"
         id="edit-{{ prefix }}-greeting-delete"
         hx-post="/partials/character-greeting/{{ char_id }}"
         hx-target="#edit-{{ prefix }}-greeting-section"
@@ -75,25 +75,25 @@
       >
         {{ icon_trash(14) }}
       </button>
-    </div>
+    </span>
   </div>
   <div class="textarea-wrapper">
     <textarea
       name="greeting"
       id="edit-{{ prefix }}-greeting"
       rows="4"
-      class="form-control w-full"
+      class="field"
       style="resize: none"
       data-action="actionGreetingInput"
       {% if focus %}autofocus{% endif %}
     >{{ greetings[greeting_idx] if greetings else '' }}</textarea>
     <button
       type="button"
-      class="expand-btn"
+      class="key sm field-expand"
       aria-label="Expand text area"
       data-action="actionOpenTextExpander" data-target-id="edit-{{ prefix }}-greeting" data-expander-title="Edit {{ entity_name }} Greeting"
     >
-      {{ icon_expand(18) }}
+      {{ icon_expand(16) }}
     </button>
   </div>
   <input type="hidden" name="greetings_json" value='{{ greetings | tojson }}' />

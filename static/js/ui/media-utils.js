@@ -5,7 +5,7 @@
 
   window.createMediaThumbnail = function (opts) {
     var div = document.createElement('div');
-    div.className = 'media-thumb relative group';
+    div.className = 'media-thumb well relative';
     var size = opts.size || 48;
     div.style.setProperty('--thumb-size', size + 'px');
     if (opts.id) div.id = opts.id;
@@ -32,8 +32,7 @@
 
     if (opts.onDelete) {
       var btn = document.createElement('button');
-      btn.className =
-        'media-thumb-close absolute top-0 right-0 w-4 h-4 bg-danger text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10';
+      btn.className = 'key sm danger media-thumb-close z-10';
       btn.type = 'button';
       btn.innerHTML = window.getSvgSprite('close', 12);
       btn.addEventListener('click', function (e) {
