@@ -214,6 +214,13 @@ hardcoded IDs; registry bypasses (87 raw `fetch` vs 31 `hx*`) untouched.
 - **`:has()` is not a substitute for an explicit flag** in a swapped body: the
   providers/arranger bodies contain nested modals, so `:has(.modal-foot)`
   matches. `modal_shell(..., foot=true)` is explicit.
+- **An inline-flex control in a plain block wrapper sits on a line box**: a
+  `.btn`/`.key` inside `<div class="relative">` is baseline-aligned, so it lands
+  2px lower than its neighbours and adds a descender. The wrapper must be `flex`
+  (that was the "sort button is out of alignment" bug).
+- **The help mark is one shape.** A question mark on a square plate; never a
+  circle glyph inside a square, and never a plate inside a key (use
+  `.hint-glyph` there — the key is already the plate).
 - **The pre-answer reasoning block has no head.** Its toggle lives on the rail
   (`message_meta(..., show_reasoning)`); the index-0 block is a headless
   `.disclosure` hidden with `display: none` while its content is `.hidden`.

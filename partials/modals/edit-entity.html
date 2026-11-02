@@ -1,4 +1,4 @@
-{% from "macros.html" import icon_expand, icon_plus, icon_trash, icon_chevron_left, icon_chevron_right, icon_help, hint_tooltip, avatar, modal_footer %} {% from "modal-shell.html" import modal_shell
+{% from "macros.html" import icon_expand, icon_plus, icon_trash, icon_chevron_left, icon_chevron_right, hint_tooltip, avatar, modal_footer %} {% from "modal-shell.html" import modal_shell
 %} {% call modal_shell(modal_id, 'Edit ' ~ entity_name, max_width='1040px', foot=true,
 content_style='height:min(88vh, 780px);', z_index='100',
 dirty_fields='#edit-' ~ prefix ~ '-name,#edit-' ~ prefix ~ '-desc,#edit-' ~ prefix ~ '-group' ~ (',#edit-' ~ prefix ~ '-theme-id' if show_theme|default(false) else ''),
@@ -123,7 +123,7 @@ dirty_label='#edit-' ~ prefix ~ '-name') %}
         title="Macro reference"
         aria-label="Macro reference"
       >
-        {{ icon_help(16) }}
+        <span class="hint-glyph">?</span>
       </button>
       <button
         class="btn"

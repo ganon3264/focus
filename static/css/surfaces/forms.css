@@ -124,7 +124,8 @@
   box-shadow: inset var(--hair-w) 0 0 var(--hair-dark);
 }
 
-/* The help mark: a hairline square with a question glyph. */
+/* The help mark: one square plate with a question mark on it. No second shape
+   inside — a circle in a square is two marks for one affordance. */
 .hint-wrapper {
   display: inline-flex;
   align-items: center;
@@ -140,11 +141,22 @@
   height: calc(var(--u) * 4);
   border-radius: var(--radius-control);
   box-shadow: inset 0 0 0 var(--hair-w) var(--hair-strong);
+  font-family: var(--font-mono-ui);
+  font-size: 10px;
+  line-height: 1;
   color: var(--text-faint);
   cursor: help;
   transition:
     color var(--transition),
     box-shadow var(--transition);
+}
+
+/* The same mark inside a key: the key is already a plate, so the glyph drops
+   its own ring. Two squares for one affordance is one too many. */
+.hint-glyph {
+  font-family: var(--font-mono-ui);
+  font-size: 11px;
+  line-height: 1;
 }
 
 .hint-icon:hover {

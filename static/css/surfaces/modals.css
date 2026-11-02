@@ -72,11 +72,11 @@
   padding-bottom: 0;
 }
 
-/* An inner scroll lane inside a modal must not add the app-wide bar gap: the
-   body already owns the inset, and a one-sided gap breaks the four margins. */
+/* An inner scroll lane inside a modal keeps the stable gutter (so the bar never
+   sits on the content) but not the app-wide breathing gap on top of it: the body
+   already owns the inset. */
 .modal-body :where(.overflow-y-auto, .overflow-auto, .scroll-fade) {
   padding-right: 0;
-  scrollbar-gutter: auto;
 }
 
 /* Verbs stay reachable: the foot is sticky against the body's bottom edge, so a
@@ -159,8 +159,9 @@
 /* Grids of data cards: available tools, installed extensions. */
 .card-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--gutter);
+  align-items: start;
 }
 
 .card-grid > .card {

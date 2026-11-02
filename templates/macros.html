@@ -91,7 +91,7 @@
 {% endmacro %}
 
 {% macro sort_dropdown(storage_key, sort_fn) %}
-<div class="relative shrink-0 h-full"
+<div class="relative flex shrink-0"
      x-data="{
        open: false,
        active: localStorage.getItem('{{ storage_key }}') || 'newest',
@@ -105,7 +105,7 @@
        }
      }">
   <button type="button" @click="open = !open"
-           class="btn sm flex items-center justify-between gap-1 h-full">
+           class="btn sm flex items-center justify-between gap-1">
     <span class="inline-flex items-center gap-1">
       <template x-if="active === 'az' || active === 'za'">
         <span class="inline-flex items-center gap-1">
@@ -141,7 +141,7 @@
 {% endmacro %}
 
 {% macro filter_dropdown(filter_fn, get_groups_fn) %}
-<div class="relative shrink-0 h-full"
+<div class="relative flex shrink-0"
      x-data="{
        open: false,
        mode: 'all',
@@ -169,7 +169,7 @@
      }"
      x-init="refreshGroups()">
   <button type="button" @click="open = !open; if (open) refreshGroups()"
-           class="btn sm flex items-center justify-between gap-1 h-full">
+           class="btn sm flex items-center justify-between gap-1">
     <span x-text="label" class="truncate max-w-[120px] inline-block"></span>
     <span class="row-meta inline-flex transition-transform duration-200" :class="open ? 'rotate-180' : ''"
           >{{ icon_chevron_down(12) }}</span>
@@ -455,13 +455,9 @@
 </div>
 {% endmacro %}
 
-{% macro icon_help(size=14, extra_attrs='') %}
-<svg {{ _icon_svg_base(size, extra_attrs) | safe }}><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
-{% endmacro %}
-
 {% macro hint_tooltip(text) %}
 <span class="hint-wrapper" data-hint="{{ text }}" onmouseenter="showHint(this)" onmouseleave="hideHint()">
-  <span class="hint-icon" data-ui="hint-icon">{{ icon_help(14) }}</span>
+  <span class="hint-icon" data-ui="hint-icon" aria-hidden="true">?</span>
 </span>
 {% endmacro %}
 

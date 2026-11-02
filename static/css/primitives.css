@@ -537,46 +537,75 @@ textarea.field {
   display: inline-flex;
   align-items: center;
   flex: none;
-  width: calc(var(--u) * 8);
-  height: calc(var(--u) * 4);
+  width: calc(var(--u) * 9);
+  height: calc(var(--u) * 5);
   margin: 0;
-  padding: calc(var(--u) / 2);
+  padding: calc(var(--u) * 0.75);
   border: none;
   border-radius: var(--radius-control);
   background-color: var(--mat-well);
-  box-shadow: var(--mat-inset);
+  box-shadow:
+    inset 0 var(--hair-w) calc(var(--u) * 0.75) color-mix(in srgb, black 45%, transparent),
+    inset 0 calc(-1 * var(--hair-w)) 0 var(--mat-hi),
+    inset 0 0 0 var(--hair-w) color-mix(in srgb, var(--text) 18%, transparent);
   cursor: pointer;
-  transition: background-color var(--transition);
+  transition:
+    background-color var(--transition),
+    box-shadow var(--transition);
 }
 
+/* The knob is the raised part: a lit top edge, a shaded bottom edge and a real
+   drop onto the recessed track. The track stays put; the knob travels. */
 .switch::after {
   content: '';
-  width: calc(var(--u) * 3);
-  height: calc(var(--u) * 3);
+  width: calc(var(--u) * 3.5);
+  height: calc(var(--u) * 3.5);
   border-radius: var(--radius-control);
-  background-color: var(--text-faint);
-  box-shadow: 0 calc(-1 * var(--hair-w)) 0 color-mix(in srgb, black 30%, transparent);
+  background-color: var(--mat-hi);
+  background-image: linear-gradient(var(--mat-hi-strong), var(--mat-hi));
+  box-shadow:
+    0 var(--hair-w) calc(var(--u) * 0.5) color-mix(in srgb, black 45%, transparent),
+    inset 0 var(--hair-w) 0 color-mix(in srgb, white 32%, transparent),
+    inset 0 calc(-1 * var(--hair-w)) 0 color-mix(in srgb, black 26%, transparent),
+    inset 0 0 0 var(--hair-w) var(--hair-strong);
   transition:
     transform var(--transition),
     background-color var(--transition);
 }
 
+.switch:hover::after {
+  background-image: linear-gradient(
+    color-mix(in srgb, var(--mat-hi-strong), white 8%),
+    var(--mat-hi)
+  );
+}
+
 .switch.active {
   background-color: var(--tint-3);
   box-shadow:
-    var(--mat-inset),
+    inset 0 var(--hair-w) calc(var(--u) * 0.75) color-mix(in srgb, black 40%, transparent),
+    inset 0 calc(-1 * var(--hair-w)) 0 color-mix(in srgb, white 14%, transparent),
     inset 0 0 0 var(--hair-w) var(--edge);
 }
 
 .switch.active::after {
   transform: translateX(calc(var(--u) * 4));
   background-color: var(--accent);
+  background-image: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--accent), white 26%, transparent),
+    color-mix(in srgb, var(--accent), black 18%, transparent)
+  );
+  box-shadow:
+    0 var(--hair-w) calc(var(--u) * 0.5) color-mix(in srgb, black 45%, transparent),
+    inset 0 var(--hair-w) 0 color-mix(in srgb, white 34%, transparent),
+    inset 0 calc(-1 * var(--hair-w)) 0 color-mix(in srgb, black 26%, transparent);
 }
 
 .switch:focus-visible {
   outline: none;
   box-shadow:
-    var(--mat-inset),
+    inset 0 var(--hair-w) calc(var(--u) * 0.75) color-mix(in srgb, black 45%, transparent),
     0 0 0 var(--hair-w) var(--accent);
 }
 
@@ -862,7 +891,7 @@ textarea.field {
 }
 
 .card.disabled {
-  opacity: 0.45;
+  opacity: 0.72;
   cursor: default;
   background: none;
 }
