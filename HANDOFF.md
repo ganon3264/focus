@@ -252,15 +252,31 @@ geometry, `custom_select`'s wrapper).
 
 ## 7. Remaining work
 
-What is left is the debt the pass deliberately did not take on:
+Everything below the first item is polish or debt; there is one known bug.
 
-- **Form read/write** has ~15 implementations and 102 hardcoded IDs.
-- **Registry bypasses**: ~75 raw `fetch` vs 31 `hx*` calls.
-- `grid-audit.js` measures panes, messages, the modal chassis, field/control
-  centre lines and the band rhythm of every list modal — toasts, the hint
-  tooltip and the lightbox are still eyeballed only.
-- `CharacterStore` still has no callers (the card-block editor did not need it;
-  it is a server-rendered list like the arranger).
+1. **Persona trash is a dead end (bug).** The delete dialog offers *"Move Persona
+   to Trash — Restorable"* (`shared-entity-modal.js`), but no persona trash UI
+   exists: `openPersonaTrashModal` was never defined (the personas partial calls
+   `hasRestoreDialog: false`), so a soft-deleted persona is unreachable without
+   the API. The backend is already there: `GET /api/personas/trash`,
+   `POST /api/personas/{id}/restore`, `DELETE …?hard=true`. Fix = give the
+   personas modal the same Trash Bin entry the characters modal has (the trash
+   modal is generic: `partials/modals/trash.html` + `shared-entity-modal.js`'s
+   `openTrash`), or make persona delete hard-only and remove the soft option.
+2. **Registry bypasses** — 76 raw `fetch` vs 37 `hx*`. Only the ones that trigger
+   a partial reload matter (they can swap/commit out of order, the bug that bit
+   the block writes); the work is a curated sweep plus a guard test, never a
+   blanket replace.
+3. **Overlay ruler gap** — `grid-audit.js` measures panes, messages, the modal
+   chassis, field/control centres and the band rhythm, but toasts, the hint
+   tooltip and the lightbox are still eyeballed only.
+4. **Form read/write** — ~15 implementations, 102 hardcoded IDs. Biggest churn,
+   no visible payoff; leave it unless a feature needs it.
+5. **Dead code** — the compact-view machinery (`applyCompactFn`,
+   `toggleCompactFn`, `dataset.view === 'compact'`, the `compact_view=` param in
+   the card/entity partials) is never configured by any modal; `CharacterStore`
+   has no callers (the card-block editor is a server-rendered list like the
+   arranger).
 
 ---
 
