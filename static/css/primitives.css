@@ -386,6 +386,10 @@ textarea.field {
   text-overflow: ellipsis;
 }
 
+.field.select > .caret-mark {
+  transform: rotate(135deg);
+}
+
 /* Non-form editable: a name you can retype in place, a colour you can pick.
    Neither may read as a box, so the well is gone; the caret marks the target. */
 .field.ghost {

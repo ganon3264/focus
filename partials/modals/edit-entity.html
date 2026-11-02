@@ -1,5 +1,5 @@
 {% from "macros.html" import icon_expand, icon_plus, icon_trash, icon_chevron_left, icon_chevron_right, icon_help, hint_tooltip, avatar, modal_footer %} {% from "modal-shell.html" import modal_shell
-%} {% call modal_shell(modal_id, 'Edit ' ~ entity_name, max_width='1040px',
+%} {% call modal_shell(modal_id, 'Edit ' ~ entity_name, max_width='1040px', foot=true,
 content_style='height:min(88vh, 780px);', z_index='100',
 dirty_fields='#edit-' ~ prefix ~ '-name,#edit-' ~ prefix ~ '-desc,#edit-' ~ prefix ~ '-group' ~ (',#edit-' ~ prefix ~ '-theme-id' if show_theme|default(false) else ''),
 dirty_label='#edit-' ~ prefix ~ '-name') %}
@@ -54,6 +54,7 @@ dirty_label='#edit-' ~ prefix ~ '-name') %}
           onclick="openCharThemePicker()"
         >
           <span id="edit-char-theme-label">Inherit (global)</span>
+          <span class="caret-mark"></span>
         </button>
         <input type="hidden" name="theme_id" id="edit-char-theme-id" value="" />
       </div>

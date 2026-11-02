@@ -1,13 +1,13 @@
 # Handoff — UI overhaul
 
-Branch `refactor/consolidate-ui`, off `master` (d7b89ad). Last commit `4239045`.
-1416 backend tests + 269 frontend tests green; grid audit 91/91 on the current
-(short) chat, 141/141 when the full sidebar/message surface is present.
+Branch `refactor/consolidate-ui`, off `master` (d7b89ad). Last commit `70263f1`.
+1416 backend tests + 269 frontend tests green; grid audit **163/163** (panes,
+messages, and the modal chassis).
 
 Read this, then `static/css/primitives.css` (the closed vocabulary), then
 `PRIMITIVE-MAP.md` (the class audit that produced it). The CSS import order in
 `static/tailwind-input.css` is the load-bearing part of the architecture:
-legacy → surfaces → primitives, so primitives win every collision.
+base → surfaces → primitives, so primitives win every collision.
 
 ---
 
@@ -24,23 +24,20 @@ API. Resolved in:
 | `3e44407` | message markup has one source: macros → `partials/chat/message-templates.html` → `message-builder.js` clones. Fixture kept in sync by `test_message_template.py` |
 | `76c5d3f`, `e2c0502` | every overlay opens/closes through `ModalController` |
 
-**B. New skin — rebuilt primitive-first.** The first skin pass (shell, messages,
-sidebars) was abandoned because it produced *overrides* instead of replacements:
-1642 new lines against 153 deleted, 37 two-owner selectors, and `:not()` ladders
-that made one class mean two things. `PRIMITIVE-MAP.md` maps all 243 legacy
-classes onto one closed vocabulary (57 layout-only, 12 decisions, 25 protected
-JS hooks).
+**B. New skin — rebuilt primitive-first.** The first skin pass was abandoned
+because it produced *overrides* instead of replacements. `PRIMITIVE-MAP.md` maps
+all 243 legacy classes onto one closed vocabulary.
 
 | step | state | what |
 |---|---|---|
 | 0 | done | `PRIMITIVE-MAP.md` audit |
-| — | done | `primitives.css` written, tokens repaired, `:not()` ladders + `.btn*` legacy family deleted (`2796b9d`) |
-| 1 | done | shell + both sidebars (`70221c5`), `surfaces/shell.css` added |
+| — | done | `primitives.css`, tokens repaired, `:not()` ladders + `.btn*` legacy family deleted (`2796b9d`) |
+| 1 | done | shell + both sidebars (`70221c5`), `surfaces/shell.css` |
 | 2 | done | messages + composer (`2b1feb5`), `chat.css` `input.css` `design.css` deleted |
-| — | done | polish rounds: grip LED, well rows, disclosure plates, reasoning block, prose metrics, composer (`c201e7b` … `4239045`) |
-| 3 | **next** | modals + forms |
-| 4 | todo | overlays (toasts, tooltips, lightbox, option picker) |
-| 5 | todo | delete the last legacy files + add the ownership guard test |
+| — | done | polish rounds: grip LED, well rows, disclosure plates, reasoning, prose metrics, composer |
+| 3 | done | modals + forms (`70263f1`), `surfaces/modals.css` `surfaces/forms.css`, `instrument.css` `components.css` `layout.css` deleted |
+| 4 | **next** | overlays: toasts, `#hint-tooltip`, lightbox |
+| 5 | todo | ownership guard test |
 
 ---
 
@@ -55,23 +52,27 @@ structure  .rail .row .well .frame .panel .card .divider .disclosure .grip
 feedback   .toast .tooltip .spinner .empty .note .tag .avatar
 ```
 
-- Intents: `.primary .create .danger .warning .success`. Sizes: `.sm .lg .xl`,
-  plus `.raised` on `.key` (a key that needs a plate of its own inside a well).
+- Intents: `.primary .create .danger .warning .success`. Sizes: `.sm .lg .xl`
+  (`.key.xl` = 48, the media add tile), plus `.raised` on `.key` (a key that
+  needs a plate of its own inside a well).
 - State is class-driven exactly as JS toggles it: `.active .disabled .expanded
-  .hidden .drag-over .copied .favorite-active .on`.
+  .hidden .drag-over .copied .favorite-active .on .caret-open`.
+- `.row` slots: `.row-title .row-meta .row-value .row-label .row-actions`;
+  modifiers `.sm .inset .flat` (no horizontal padding, for settings rows inside a
+  form column) and role edges `.role-user .role-assistant .role-system`.
+- `.field` modifiers: `.sm .num` (intrinsic numeric readout) `.ghost` (in-place
+  edit, underline only) `.select` (picker-shaped button, with a caret) `.swatch`
+  (chip) `.color` (palette well) `.danger` (failed parse).
+- `.panel` is the floating layer: flat `--surface-2` fill, hairline ring, deep
+  shadow. No gradient — a floating plate reads by its edge and its shadow.
 - **Intent is ink + edge, or a tinted plate** (`.create`/`.toast-success`), never
-  a wash over a raised control. `.key.primary` is a solid accent key with a
-  lit-from-above gradient; `.key.primary.danger` swaps the hue for stop.
-- **Fill is the state in exactly one place**: `.grip` (the preset-variable drag
-  handle) — grey = no choice set, accent = set. The user chose the solid bar over
-  engraved lines; do not "fix" it back.
+  a wash over a raised control.
+- **Fill is the state in exactly one place**: `.grip`. Do not "fix" it back.
 - **A surface may set layout on its own container; it may not restyle a
-  primitive.** If a surface needs a different look, the primitive is wrong. Named
-  slots exist for exactly this: `.disclosure-title` / `.disclosure-meta`,
-  `.row-title` / `.row-meta` / `.row-label` / `.row-value` / `.row-actions`.
-  Never select on child position inside a primitive.
+  primitive.** Named slots exist for this: `.disclosure-title`/`-meta`,
+  `.row-*`, `.rail-actions`. Never select on child position inside a primitive.
 - Hairlines are `inset box-shadow`, never `border`. Geometry is multiples of
-  `--u` (4px). No `:not()` ladders, no surface-scoped overrides of a primitive.
+  `--u` (4px).
 
 ### Tokens (`variables.css`)
 
@@ -86,11 +87,8 @@ Material: `--mat-raise`, `--mat-raise-fill`, `--mat-inset`, `--mat-well`,
 Ink/tint: `--ink-1/2`, `--hair`, `--hair-strong`, `--engrave`, `--tint-1/2/3`,
 `--edge`, `--danger-*`, `--success-*`.
 
-Font metrics: `--prose-ink-lead: 7px`, `--prose-ink-trail: 4px` — distance
-between a prose line box's edge and its ink at Ronzino 14/24. They are
-subtracted from `.message-body > .message-content`'s block margins so prose reads
-at the same rhythm as a plate beside it. **Re-measure if the body face or rhythm
-changes.**
+Font metrics: `--prose-ink-lead: 7px`, `--prose-ink-trail: 4px`. Re-measure if the
+body face or rhythm changes.
 
 ---
 
@@ -99,21 +97,53 @@ changes.**
 ```
 variables.css   grid + material + ink/tint + font metrics   (single source)
 tokens.css      Tailwind @theme (fonts/radius/shadows)
-base.css        reset + the one scrollbar rule
+base.css        reset, scroll rule, media slot, machine type, sortable ghost
+animations.css  keyframes + toasts + hint tooltip   (step 4 target)
+surfaces/shell.css      chassis, pane widths, collapsed grips
+surfaces/sidebar.css    sections, preset selector/menu, variables, tools, status, chat rows, footer
+surfaces/messages.css   chat column, message frame/rail/screen, prose scope, composer
+surfaces/forms.css      .form-group, field rows, textarea host, branches, help mark
+surfaces/modals.css     modal chassis + every modal's geometry
 primitives.css  THE vocabulary — the only file that styles a control
-surfaces/shell.css     chassis, pane widths, collapsed grips
-surfaces/sidebar.css   sections, preset selector/menu, variables, tools, status, chat rows, footer
-surfaces/messages.css  chat column, message frame/rail/screen, prose scope, composer
 ```
 
-Import order: `tailwindcss → variables → tokens → base → layout → components →
-animations → instrument → surfaces/shell → surfaces/sidebar → surfaces/messages →
-primitives`. Surfaces are unlayered and come after legacy; primitives come last.
+Import order: `tailwindcss → variables → tokens → base → animations →
+surfaces/* → primitives`. Surfaces are unlayered and come after the keyframes;
+primitives come last.
 
-**Still legacy** (target of steps 3–5): `instrument.css` (1248 — modals + forms
-only), `components.css` (645 — form/control leftovers, modal extras),
-`animations.css` (193 — toasts + keyframes), `layout.css` (50 — element-level
-form defaults; the only file left in `@layer components`).
+**Step 3 deleted the last legacy files.** `instrument.css`, `components.css` and
+`layout.css` are gone; the tokens they still owned live in `variables.css` /
+`base.css`, and the form defaults they carried are `.field` and `.base`.
+
+### Modal chassis (`surfaces/modals.css`)
+
+- `.modal-overlay` = scrim + centring grid, 24px padding.
+- `.modal-panel` = `.panel` + a `--modal-pad: 24px` local token + column layout.
+- `.modal-head` = engraved title (11px mono, 12em tracking) + `.key.sm` close,
+  `padding: 24 24 16`, closed by a full-bleed groove. **It is its own element;
+  never put `.rail` on it** (`.rail`'s 24px height beats any head height and the
+  title ends up jammed against the top edge — that was a real bug).
+- `.modal-body` = the single scroll lane, `padding: 24`, no scrollbar gutter (a
+  reserved lane on one side is what makes the right margin stop matching the
+  left). Inner scroll lanes get `padding-right: 0` + `scrollbar-gutter: auto`.
+- `.modal-foot` (the `modal_footer` macro) = full-bleed plate, `padding: 16 24
+  24`, `margin: auto -24 0`, `position: sticky; bottom: 0`. It owns the bottom
+  inset — which is why a modal that has a foot passes **`foot=true`** to
+  `modal_shell` (the body then drops its `padding-bottom`). The flag is explicit
+  on purpose: `:has(.modal-foot)` is wrong because the swapped modal bodies
+  (providers, arranger) contain their own nested modals with feet.
+- `grid-audit.js` now measures it: title on 24/24, body pad 24, content clears
+  the floor by 24, foot buttons 24/24, entity rows 32 with a 24 avatar, tab
+  strip full-bleed.
+
+### Entity rows
+
+Characters, personas and providers share `.row.entity-row` in two column-major
+lanes. Anatomy follows the right-pane chat row: avatar (24) → `.row-title` →
+readout → verbs in flow. The delete key is in flow but `opacity: 0` until
+`:hover`/`:focus-within`, so nothing shifts and the grid is not a wall of red.
+Characters/personas use a fixed 80px `.row-meta` (group); providers use a
+flexible `.row-meta` (type · model) plus a `.row-value` balance.
 
 ---
 
@@ -130,17 +160,9 @@ uv run pytest tests/ -q
 uv run pytest tests/frontend -q --no-cov -p no:cacheprovider
 ```
 
-`grid-audit.js` measures the live app in Chrome: multiples of 4, sibling rows on
-one top/height, pane insets, left/right rail baselines, tiles, status rows, var
-groups/options, chat rows (against their scroll lane), pager, message frames on
-the 800px column, screen inset 8, composer on the message column. **Add
-selectors for every new surface** — a check that is not in the file does not
-exist. It now *skips* checks whose surface is absent (empty chat, no preset
-variables) instead of crashing; keep that property.
-
-Screenshot both schemes after any visual change. Playwright is installed
-(`chromium.launch({ channel: 'chrome' })`); apply the CSS build first, then
-hard-reload — the bundle is served with an ETag.
+Screenshot both schemes after any visual change (`colorScheme` in Playwright).
+**Zoom in** — `locator.screenshot()` / a clip on the panel, not full-page shots;
+the 1–2px errors are invisible at 1600×1000.
 
 ---
 
@@ -159,24 +181,17 @@ hard-reload — the bundle is served with an ETag.
 
 ## 6. Remaining work
 
-3. **Modals + forms.** Re-class `partials/modal-shell.html`, `partials/chat/modals.html`,
-   `partials/modals/*` to `.panel`/`.rail`/`.row`/`.field`/`.check`/`.switch`/`.btn`;
-   write `surfaces/modals.css` + `surfaces/forms.css`; delete the matching blocks
-   from `instrument.css` and `components.css`. Known leftovers to fix here: the
-   edit-message modal's textarea still carries legacy `.edit-block-ta` styling on
-   top of `.field`; `.btn-edit`, `.btn-icon`, `.btn-hero`, `.slot-btn`, `.btn-tag`,
-   `.tab-btn`, `.tree-child`, `.key-row`, `.secret-item` are all still legacy.
-   Resolves map §2 #7, #8, #9 — form modals are where the consistency payoff lands.
-4. **Overlays.** `.toast` (intent = tinted plate + ink, already in primitives),
-   `#hint-tooltip` → `.tooltip`, `#lightbox` → `.panel`, the option picker,
-   confirm. Delete `animations.css`'s component blocks, keep the keyframes.
-5. **Delete + guard.** `rm` `instrument.css`, `components.css`, `animations.css`,
-   `layout.css` (move the element-level form defaults into `base.css` or drop
-   them). Then add `tests/frontend/test_css_ownership.py`: fail if any file
+4. **Overlays.** `animations.css` still owns `.toast*`, `.toast-container`,
+   `#hint-tooltip`, `.hint-*` and the keyframes. Move the toast stack onto the
+   `.toast` primitive (intent = tinted plate, already written), `#hint-tooltip`
+   onto `.tooltip`, `#lightbox` onto `.modal-overlay` + `.panel`, delete the
+   component blocks and keep only the keyframes. The option picker and confirm
+   already route through `modal_shell`.
+5. **Guard.** Add `tests/frontend/test_css_ownership.py`: fail if any file
    outside `primitives.css` sets a look property (`background*`, `box-shadow`,
    `color`, `border*`, `font*`, `text-transform`, `letter-spacing`) on a selector
-   whose subject is a primitive class, or contains `:not(`. That test is the gate
-   that stops the old two-owner pattern from returning.
+   whose subject is a primitive class, or contains `:not(`. That is the gate that
+   stops the two-owner pattern from returning.
 
 Deferred debt, deliberately: form read/write has ~15 implementations and 102
 hardcoded IDs; registry bypasses (87 raw `fetch` vs 31 `hx*`) untouched.
@@ -185,43 +200,37 @@ hardcoded IDs; registry bypasses (87 raw `fetch` vs 31 `hx*`) untouched.
 
 ## 7. Traps learned the hard way
 
-- **`.message` must carry `.frame`.** The look comes from the primitive; drop the
-  class and messages render as bare prose. This happened once and cost a round.
+- **`.message` must carry `.frame`.** The look comes from the primitive.
+- **`.rail` on `.modal-head` is a bug**: `.rail`'s 24px height wins, the head
+  collapses, the title touches the panel top while the sides keep their padding.
+  Same class of bug as `.divider` on a header (it sets `height: 1px`).
+- **`.field` sets `display: block; width: 100%`**: a Tailwind `flex`/`w-auto` on
+  it loses (utilities are layered). Use `.field.select` for a picker-shaped
+  button and `.field.num` for an intrinsic-width readout; give it a `flex` basis
+  if it must share a row (`.arranger-select`).
+- **A modal's inner scroll lane must not keep the app's `padding-right` gap** or
+  the right margin stops matching the left. `surfaces/modals.css` resets both the
+  padding and the gutter inside `.modal-body`.
+- **`:has()` is not a substitute for an explicit flag** in a swapped body: the
+  providers/arranger bodies contain nested modals, so `:has(.modal-foot)`
+  matches. `modal_shell(..., foot=true)` is explicit.
 - **The pre-answer reasoning block has no head.** Its toggle lives on the rail
   (`message_meta(..., show_reasoning)`); the index-0 block is a headless
-  `.disclosure` hidden with `display: none` while its content is `.hidden`, so it
-  leaves no strip and no gap. `toggleReasoning` unhides the content; every
-  `<details>` block carries its own `summary`. `ensureReasoningToggleButton`
-  inserts into `message-meta`, never into the block.
-- **Its "follow" is `#reasoning-sticky-host`**, not `position: sticky` on the
-  block: a zero-height sticky host at the top of the scrollport holds a `.chip`
-  pill that collapses the block. It aligns to the reasoning plate's left edge
-  (`calc(gutter + inset)` = 20) — the paddings are inlined because the host is
-  outside `.message` and cannot see `--msg-frame-pad`/`--msg-screen-pad`; an
-  undefined `var()` in `padding` computes to 0 without warning. The JS only shows
-  it while a `.reasoning-open` message's block straddles the scrollport top.
+  `.disclosure` hidden with `display: none` while its content is `.hidden`.
+  Its "follow" is `#reasoning-sticky-host`, not `position: sticky`.
 - **Disclosures need a ring.** A fill alone disappears on themes where
-  `--surface` and `--mat-well` are the same value; `.disclosure` carries
-  `inset 0 0 0 1px var(--hair)` and that is what makes the body read as enclosed.
+  `--surface` and `--mat-well` are the same value.
 - **Only the rail's own caret turns.** `.message.reasoning-open .message-meta
   .reasoning-chevron` — an unscoped rule flipped every disclosure in the message.
-- **`textarea` needs `rows="1"`.** Without it, `height: auto` falls back to the
-  UA's two-row intrinsic height and `resizeTextarea` makes the composer jump on
-  the first keystroke. Height is driven by `scrollHeight` vs the CSS
-  `max-height`; never reintroduce a constant like the old `44px`.
-- **Chat rows are measured against their scroll lane**, not the pane: the
-  scrollbar gutter makes `pane width - 2*inset` impossible.
-- **The composer floats**: `.input-bar` has 10u (40px) bottom padding, putting the
-  composer's centre at 936 vs the status readout's midline 920. The status panel
-  grows by 12px per extra row (cache/key rows), so that alignment drifts.
-- **Tailwind utilities lose** to unlayered surface/primitives rules. Adding `p-0`
-  or `rounded-md` to fight them does nothing; write the rule in the owning file —
-  and for look properties, in `primitives.css` behind a modifier.
-- **Message markup is single-sourced.** Editing the message macros means
-  regenerating `tests/frontend/fixtures/message-templates.html` (render
-  `chat/message-templates.html` with a plain Jinja env; the test compares text).
-- **The pruner stores `offsetHeight`**; message heights may change, the DOM shape
-  JS queries may not.
+- **`textarea` needs `rows="1"`.** Height is driven by `scrollHeight` vs the CSS
+  `max-height`.
+- **Chat rows are measured against their scroll lane**, not the pane.
+- **The composer floats**: 10u bottom padding; the status panel grows by 12px per
+  extra row.
+- **Tailwind utilities lose** to unlayered surface/primitives rules.
+- **Message markup is single-sourced**; regenerate
+  `tests/frontend/fixtures/message-templates.html` when the macros change.
+- **The pruner stores `offsetHeight`**; the DOM shape JS queries may not change.
 - Don't rename `id`, `data-ui`, `data-action`, `hx-*`, or the state classes JS
   toggles (`hidden active disabled expanded details drag-over processed ready
   copied favorite-active reasoning-open message-placeholder toast*`).
@@ -230,21 +239,25 @@ hardcoded IDs; registry bypasses (87 raw `fetch` vs 31 `hx*`) untouched.
 
 ## 8. User's explicit preferences (learned the hard way)
 
+- **One inset, everywhere.** A modal title that has 24px at the sides and 4px on
+  top is the kind of thing that gets the whole pass rejected. Head, body and foot
+  share `--modal-pad`; the ruler checks it.
+- Entity lists follow the right-pane chat row, not a table: title + readout +
+  hover-revealed verbs. No wall of red delete keys.
 - Compact chat list: one line per row, fixed 80px readout column (date over
   persona); persona must stay visible.
 - No red washes on destructive controls in general — but **intent plates**
   (create, toast success/error, primary key) carry their hue across the whole
-  surface, because a 1px edge does not read as "this failed" from across the
-  screen.
+  surface.
 - No corner/bracket motifs, no rounded cards. Controls get `--radius-control` (2),
   panels stay square.
 - Everything aligned; if something is 1–2px off it *will* be noticed. Gaps next to
   prose are compensated by font metrics, not eyeballed.
 - Separators are grooves (dark line + lit line under it), never a lone dark line.
 - Row content gets interior padding; an indent belongs in `padding`, not in the
-  row's box. Rows inside a `.well` paint no groove at all — the well is the frame.
-- Carets and separator dots are drawn (`.caret-mark`, a 2px square), never glyphs.
-- Message frames: heavier rather than lighter. The reasoning toggle stays next to
-  the model name. Disclosures are plates, not loose ruled prose.
-- Composer: 14px body, floating clear of the floor, and it must not change size
-  on the first keystroke.
+  row's box (except `.row.flat`, where aligning with the form column wins).
+  Rows inside a `.well` paint no groove.
+- Carets and separator dots are drawn (`.caret-mark`), never glyphs.
+- Message frames: heavier rather than lighter. Disclosures are plates.
+- Composer: 14px body, floating clear of the floor, must not resize on the first
+  keystroke.

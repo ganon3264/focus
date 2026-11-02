@@ -1,4 +1,4 @@
-{% from "macros.html" import custom_select, icon_trash, icon_search, hint_tooltip, modal_footer, toggle %} {% from "modal-shell.html" import modal_shell %} {% call modal_shell('modal-provider-create', 'Add Provider', max_width='500px', z_index='100',
+{% from "macros.html" import custom_select, icon_trash, icon_search, hint_tooltip, modal_footer, toggle %} {% from "modal-shell.html" import modal_shell %} {% call modal_shell('modal-provider-create', 'Add Provider', max_width='500px', foot=true, z_index='100',
 dirty_fields='#provider-form input,#provider-form select,#provider-form textarea',
 dirty_label='#prov-form-name') %}
 <form id="provider-form" data-action="actionSubmitProviderForm" class="flex flex-col gap-3 flex-1">
@@ -83,7 +83,7 @@ dirty_label='#prov-form-name') %}
     <input type="hidden" name="retry_enabled" id="prov-form-retry-enabled" value="true" />
   </div>
 
-  {% call modal_shell('modal-provider-retry', 'Auto-retry settings', max_width='440px', width='95vw', z_index='200') %}
+  {% call modal_shell('modal-provider-retry', 'Auto-retry settings', max_width='440px', width='95vw', foot=true, z_index='200') %}
   <div class="flex flex-col gap-3" onkeydown="if (event.key === 'Enter' && event.target.tagName !== 'BUTTON') event.preventDefault()">
     <div class="flex gap-2">
       <div class="form-group mb-0 flex-1">

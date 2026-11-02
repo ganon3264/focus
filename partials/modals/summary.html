@@ -1,6 +1,6 @@
 {% from "modal-shell.html" import modal_shell %}
 {% from "macros.html" import modal_footer %}
-{% call modal_shell('modal-summary', 'Summary', max_width='640px', content_style='height:70vh;') %}
+{% call modal_shell('modal-summary', 'Summary', max_width='640px', foot=true, content_style='height:70vh;') %}
 <div x-data="summaryModal()" @summary-open.window="load()" class="flex flex-col h-full min-h-0 gap-3">
   <p class="note shrink-0">
     This summary is sent as leading context to the chat. Edits apply here and to every descendant chat.

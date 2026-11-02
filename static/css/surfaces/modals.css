@@ -63,12 +63,13 @@
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
-  padding: var(--modal-pad) var(--modal-pad) 0;
+  padding: var(--modal-pad);
 }
 
-/* With no foot, the body supplies the bottom margin itself. */
-.modal-body:not(:has(.modal-foot)) {
-  padding-bottom: var(--modal-pad);
+/* When a foot is present it owns the bottom inset (its own padding), so the
+   body must not add a second one. */
+.modal-body.has-foot {
+  padding-bottom: 0;
 }
 
 /* An inner scroll lane inside a modal must not add the app-wide bar gap: the
@@ -567,13 +568,26 @@
 }
 
 /* ── Providers ────────────────────────────────────────────────────────────
-   One provider is one row: name over type · model, balance at the edge. */
-.provider-row .row-title {
-  flex: 0 1 auto;
+   One provider is one row: the name keeps its width, type · model takes what is
+   left and ellipsises from its own tail, the balance closes the row. */
+.provider-row > .row-title {
+  flex: 0 0 auto;
+  max-width: 50%;
 }
 
-.provider-balance {
+.provider-row > .row-meta {
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.provider-row > .row-value {
   flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 /* Saved keys: a row that opens on a key, a trailing Select verb. */

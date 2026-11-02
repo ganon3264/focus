@@ -1,5 +1,5 @@
 {% from "macros.html" import icon_close %} {% macro modal_shell(id, title, max_width='600px',
-width='95vw', content_style='', z_index='', role='dialog',
+width='95vw', content_style='', z_index='', role='dialog', foot=false,
 overlay_close=true, overlay_class='', dirty_fields='', dirty_label='',
 header_class='', title_class='', title_attrs='', close_aria='Close', overlay_attrs='') %}
 <div
@@ -49,7 +49,7 @@ header_class='', title_class='', title_attrs='', close_aria='Close', overlay_att
         {{ icon_close(14) }}
       </button>
     </div>
-    <div class="modal-body">{{ caller() }}</div>
+    <div class="modal-body{{ ' has-foot' if foot }}">{{ caller() }}</div>
   </div>
 </div>
 {% endmacro %}

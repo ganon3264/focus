@@ -1,5 +1,5 @@
 {% from "modal-shell.html" import modal_shell %} {% from "macros.html" import modal_footer %} {% call modal_shell('global-confirm-modal',
-'Confirm Action', max_width='400px', z_index='10010', role='alertdialog',
+'Confirm Action', max_width='400px', foot=true, z_index='10010', role='alertdialog',
 overlay_close=false) %}
 <div id="global-confirm-message" class="confirm-text mb-4">Are you sure?</div>
 {% call modal_footer(hint='') %}

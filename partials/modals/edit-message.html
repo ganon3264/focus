@@ -1,5 +1,5 @@
 {% from "macros.html" import icon_expand, icon_plus, modal_footer %} {% from "modal-shell.html" import modal_shell %} {% call
-modal_shell('modal-edit-message', 'Edit Message', max_width='800px',
+modal_shell('modal-edit-message', 'Edit Message', max_width='800px', foot=true,
 content_style='max-height:90vh;', z_index='100',
 dirty_fields='[data-ui="edit-block-ta"]', dirty_label='this message') %}
 <div class="flex-1 flex flex-col gap-4 min-h-0">

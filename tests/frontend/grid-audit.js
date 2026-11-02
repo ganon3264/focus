@@ -126,6 +126,37 @@ async function measure(page) {
   });
 }
 
+// The modal chassis shares one inset across head, body and foot; the entity list
+// inherits the row language. Measured with the tool modal open, because it is
+// the widest surface and the one with a toolbar, a list and a footer at once.
+async function measureModal(page) {
+  return page.evaluate(() => {
+    const rect = (el) => {
+      const b = el.getBoundingClientRect();
+      return { x: Math.round(b.x), y: Math.round(b.y), width: Math.round(b.width), height: Math.round(b.height), right: Math.round(b.right), bottom: Math.round(b.bottom) };
+    };
+    const ov = [...document.querySelectorAll('.modal-overlay')].reverse().find((e) => !e.classList.contains('hidden') && e.getBoundingClientRect().width);
+    if (!ov) return null;
+    const panel = ov.querySelector('.modal-panel');
+    const head = panel.querySelector('.modal-head');
+    const body = panel.querySelector('.modal-body');
+    const foot = panel.querySelector('.modal-foot');
+    return {
+      panel: rect(panel),
+      head: rect(head),
+      title: rect(panel.querySelector('.modal-title')),
+      body: rect(body),
+      bodyPad: getComputedStyle(body).paddingTop,
+      firstKid: body.firstElementChild ? rect(body.firstElementChild) : null,
+      entityRows: [...panel.querySelectorAll('.entity-row')].map(rect),
+      entityAvatars: [...panel.querySelectorAll('.entity-row > .avatar')].map(rect),
+      tabBar: panel.querySelector('.tab-bar') ? rect(panel.querySelector('.tab-bar')) : null,
+      foot: foot ? rect(foot) : null,
+      footButtons: foot ? [...foot.querySelectorAll('.btn, .key')].map(rect) : [],
+    };
+  });
+}
+
 (async () => {
   const browser = await chromium.launch({ channel: 'chrome' });
   const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
@@ -138,6 +169,14 @@ async function measure(page) {
     await page.waitForTimeout(300);
   }
   const m = await measure(page);
+  await page.locator('.left-sidebar .nav', { hasText: 'Characters' }).first().click();
+  await page.waitForTimeout(800);
+  const mmEntity = await measureModal(page);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(300);
+  await page.locator('.left-sidebar .nav', { hasText: 'Themes' }).first().click();
+  await page.waitForTimeout(800);
+  const mmFoot = await measureModal(page);
   await browser.close();
 
   const inset = 12;
@@ -262,6 +301,66 @@ async function measure(page) {
     m.composer.x === m.messageList.x && m.composer.width === m.messageList.width,
     `composer x=${m.composer.x} w=${m.composer.width} column x=${m.messageList.x} w=${m.messageList.width}`,
   );
+
+  // ── Modal chassis: one inset across head, body and panel edges ──
+  const modalPad = 24;
+  if (mmEntity) {
+    const p = mmEntity.panel;
+    checkGrid('modal panel', p);
+    checkHeight('modal head', mmEntity.head, [56]);
+    check(
+      'modal title sits on the panel inset (top and left)',
+      mmEntity.title.x - p.x === modalPad && mmEntity.title.y - p.y === modalPad,
+      `dx=${mmEntity.title.x - p.x} dy=${mmEntity.title.y - p.y}`,
+    );
+    check(
+      'modal body pads by the same inset',
+      mmEntity.bodyPad === modalPad + 'px' &&
+        mmEntity.firstKid.x - p.x === modalPad &&
+        mmEntity.firstKid.right === p.right - modalPad,
+      `pad=${mmEntity.bodyPad} left=${mmEntity.firstKid.x - p.x} right=${p.right - mmEntity.firstKid.right}`,
+    );
+    check(
+      'modal content clears the panel floor by the inset',
+      p.bottom - mmEntity.firstKid.bottom === modalPad,
+      `gap=${p.bottom - mmEntity.firstKid.bottom}`,
+    );
+    const rows = mmEntity.entityRows;
+    if (rows.length) {
+      const heights = new Set(rows.map((r) => r.height));
+      check('entity rows share one height of 32', heights.size === 1 && [...heights][0] === 32, `heights {${[...heights]}}`);
+      // Rows flow column-major, so a column is compared with itself.
+      const columns = [...new Set(rows.map((r) => r.x))];
+      columns.forEach((x) => {
+        const col = rows.filter((r) => r.x === x);
+        const pitches = new Set(col.slice(1).map((r, i) => r.y - col[i].y));
+        check('entity rows sit on a constant pitch at x=' + x, pitches.size <= 1, `pitches {${[...pitches]}}`);
+      });
+      check('entity list uses two columns', columns.length === 2, `columns {${columns}}`);
+      check('entity columns are equal width', new Set(rows.map((r) => r.width)).size === 1);
+    }
+    mmEntity.entityAvatars.forEach((r, i) => {
+      check(`entity avatar ${i} is a 24px square`, r.width === 24 && r.height === 24, `${r.width}x${r.height}`);
+    });
+    if (rows.length && mmEntity.entityAvatars.length) {
+      check('entity avatar rides the row centre', mmEntity.entityAvatars[0].y - rows[0].y === 4, `dy=${mmEntity.entityAvatars[0].y - rows[0].y}`);
+    }
+  }
+  if (mmFoot) {
+    const p = mmFoot.panel;
+    if (mmFoot.tabBar) {
+      check('modal tab strip bleeds to the panel edges', mmFoot.tabBar.x === p.x && mmFoot.tabBar.width === p.width);
+    }
+    if (mmFoot.foot && mmFoot.footButtons.length) {
+      const last = mmFoot.footButtons[mmFoot.footButtons.length - 1];
+      check(
+        'modal foot closes on the panel inset',
+        p.right - last.right === modalPad && p.bottom - last.bottom === modalPad,
+        `right=${p.right - last.right} bottom=${p.bottom - last.bottom}`,
+      );
+      checkHeight('modal foot button', last, [28]);
+    }
+  }
 
   console.log(`\n${checks - failures}/${checks} checks passed, ${failures} failed`);
   process.exit(failures ? 1 : 0);

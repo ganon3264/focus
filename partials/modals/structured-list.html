@@ -1,15 +1,17 @@
 {% from "macros.html" import icon_plus %}
 <div data-preset-id="{{ preset_id or '' }}">
   <div class="structured-group">
-    <div class="structured-group-header">
-      <span class="structured-group-title">Global</span>
-      <button
-        type="button"
-        class="btn create sm"
-        onclick="createStructuredResponse('global', null)"
-      >
-        {{ icon_plus(12) }} Add
-      </button>
+    <div class="rail">
+      <span>Global</span>
+      <span class="rail-actions flush">
+        <button
+          type="button"
+          class="btn create sm"
+          onclick="createStructuredResponse('global', null)"
+        >
+          {{ icon_plus(12) }} Add
+        </button>
+      </span>
     </div>
     <div class="structured-sortable" data-ui="structured-sortable" data-scope="global">
       {% for response in global_responses %}{% include "modals/structured-item.html" %}{% endfor %}

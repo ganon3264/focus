@@ -1,15 +1,17 @@
 {% from "macros.html" import icon_plus %}
 <div data-preset-id="{{ preset_id or '' }}">
   <div class="regex-group">
-    <div class="regex-group-header">
-      <span class="regex-group-title">Global</span>
-      <button
-        type="button"
-        class="btn create sm"
-        onclick="createRegexScript('global', null)"
-      >
-        {{ icon_plus(12) }} Add
-      </button>
+    <div class="rail">
+      <span>Global</span>
+      <span class="rail-actions flush">
+        <button
+          type="button"
+          class="btn create sm"
+          onclick="createRegexScript('global', null)"
+        >
+          {{ icon_plus(12) }} Add
+        </button>
+      </span>
     </div>
     <div class="regex-sortable" data-ui="regex-sortable" data-scope="global">
       {% for script in global_scripts %}{% include "modals/regex-item.html" %}{% endfor %}
