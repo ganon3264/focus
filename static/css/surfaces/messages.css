@@ -563,7 +563,7 @@
   display: flex;
   justify-content: center;
   z-index: 20;
-  padding-bottom: calc(var(--u) * 14);
+  padding-bottom: calc(var(--u) * 10);
   pointer-events: none;
 }
 
@@ -626,7 +626,7 @@
   background: transparent;
   box-shadow: none;
   font-family: var(--font-sans);
-  font-size: 13px;
+  font-size: 14px;
   line-height: 24px;
   color: var(--text);
   outline: none;

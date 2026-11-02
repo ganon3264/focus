@@ -138,6 +138,20 @@
   height: var(--control-h-sm);
 }
 
+/* A key that sits on a plate of its own: for keys that live inside a well, where
+   a bare glyph has nothing to sit on (composer, trays). */
+.key.raised {
+  background-color: var(--surface);
+  background-image: var(--mat-raise-fill);
+  box-shadow: var(--mat-raise);
+  color: var(--text-muted);
+}
+
+.key.raised:hover {
+  background-image: linear-gradient(var(--mat-hi), var(--mat-shade));
+  color: var(--text);
+}
+
 .key.lg {
   width: var(--control-h-lg);
   height: var(--control-h-lg);
@@ -147,7 +161,11 @@
    and swaps the hue — the fill is the control, never a state. */
 .key.primary {
   background-color: var(--accent);
-  background-image: none;
+  background-image: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--accent), white 14%),
+    color-mix(in srgb, var(--accent), black 10%)
+  );
   box-shadow:
     inset 0 var(--hair-w) 0 color-mix(in srgb, white 26%, transparent),
     inset 0 calc(-1 * var(--hair-w)) 0 color-mix(in srgb, black 30%, transparent),
@@ -156,7 +174,6 @@
 }
 
 .key.primary:hover {
-  background-image: none;
   filter: brightness(1.08);
   color: var(--text-on-accent);
 }

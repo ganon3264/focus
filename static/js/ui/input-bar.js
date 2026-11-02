@@ -2,17 +2,15 @@
   var sendBtn = document.getElementById('send-btn');
   var input = document.getElementById('chat-input');
 
+  // Height is driven by the content, never by a constant: `auto` lets the
+  // browser report the box the CSS already defines (one line + padding), so the
+  // first keystroke cannot make the composer jump a size.
   function resizeTextarea(el) {
-    el.style.height = '44px';
-    if (el.value === '') {
-      el.style.overflowY = 'hidden';
-      return;
-    }
-    var scrollHeight = el.scrollHeight;
-    if (scrollHeight > 44) {
-      el.style.height = Math.min(250, scrollHeight) + 'px';
-    }
-    el.style.overflowY = scrollHeight > 250 ? 'auto' : 'hidden';
+    var maxH = parseFloat(getComputedStyle(el).maxHeight) || 248;
+    el.style.height = 'auto';
+    var needed = el.scrollHeight;
+    el.style.height = Math.min(maxH, needed) + 'px';
+    el.style.overflowY = needed > maxH ? 'auto' : 'hidden';
   }
 
   function updateSendButtonState() {

@@ -20,10 +20,10 @@
     <!-- Standard Input -->
     <div id="standard-input-container" class="well input-wrapper relative w-full">
       <input type="file" id="file-upload" class="hidden" multiple accept="image/*,audio/*">
-       <button id="attach-btn" class="key lg attach-btn" data-action="actionTriggerFileUpload" data-target="file-upload" title="Attach files" aria-label="Attach files">
+       <button id="attach-btn" class="key lg raised attach-btn" data-action="actionTriggerFileUpload" data-target="file-upload" title="Attach files" aria-label="Attach files">
         {{ icon_paperclip(20) }}
       </button>
-      <textarea id="chat-input" placeholder="Type a message…"></textarea>
+      <textarea id="chat-input" rows="1" placeholder="Type a message…"></textarea>
        <button id="send-btn" class="key lg primary send-btn" aria-label="Send message">
         {{ icon_send() }}
       </button>
