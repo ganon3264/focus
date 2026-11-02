@@ -55,6 +55,8 @@
 </div>
 {% endcall %}
 
+{% include "modals/char-blocks.html" %}
+
 {% set prefix = 'persona' %}{% set modal_id = 'modal-edit-persona' %}{% set entity_name = 'Persona' %}{% set upload_fn = 'actionUploadPersonaMedia' %}{% set avatar_fn = 'actionUploadPersonaAvatar' %}{% set submit_fn = 'actionSubmitEditPersona' %}{% set show_theme = false %}{% set show_greetings = false %}
 {% include "modals/edit-entity.html" %}
 

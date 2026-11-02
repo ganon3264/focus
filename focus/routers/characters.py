@@ -8,7 +8,13 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 import focus.crud as crud
 import focus.db as db
 from focus.core.database import get_db
-from focus.core.models import CharacterCreate, CharacterUpdate, CharBlockCreate, CharBlockUpdate
+from focus.core.models import (
+    CharacterCreate,
+    CharacterUpdate,
+    CharBlockCreate,
+    CharBlockReorder,
+    CharBlockUpdate,
+)
 from focus.core.paths import BLOCKS_DIR, CHARACTERS_DIR
 from focus.core.utils import clean_greetings_list, merge_greeting_into_list, parse_greetings_json, read_upload
 
@@ -236,6 +242,17 @@ async def update_char_block(
     if not updates:
         return {"ok": True}
     await db.update_char_block(_db, char_id, block_id, updates)
+    await _db.commit()
+    return {"ok": True}
+
+
+@router.post("/{char_id}/blocks/reorder")
+async def reorder_char_blocks(
+    char_id: str,
+    body: CharBlockReorder,
+    _db=Depends(get_db),
+):
+    await db.reorder_char_blocks(_db, char_id, body.ids)
     await _db.commit()
     return {"ok": True}
 

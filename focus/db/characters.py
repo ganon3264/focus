@@ -172,3 +172,14 @@ async def update_char_block(
 
 async def delete_char_block(db: aiosqlite.Connection, character_id: str, block_id: str) -> None:
     await db.execute("DELETE FROM char_blocks WHERE id = ? AND character_id = ?", (block_id, character_id))
+
+
+async def reorder_char_blocks(
+    db: aiosqlite.Connection, character_id: str, ids: list[str]
+) -> None:
+    """Assign positions by index; the caller sends ids in display order."""
+    for index, block_id in enumerate(ids):
+        await db.execute(
+            "UPDATE char_blocks SET position = ? WHERE id = ? AND character_id = ?",
+            (index, block_id, character_id),
+        )

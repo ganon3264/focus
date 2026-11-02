@@ -85,6 +85,16 @@ The pruner's `_pruned` map is keyed by bare id (`MessageIdentity.bare`); `_forge
 - Overlays inside htmx-swapped bodies (providers modal) re-register automatically on open.
 - **Advanced modal** (`modal-advanced` in `partials/chat/modals.html`) is a `.tab-btn` tab container (sampler pattern) holding Tools, Extensions, Regex, Structured and Backups. The three old per-feature modals no longer exist; body partials are `modals/tools.html`, `modals/extensions.html`, `modals/regex.html`, `modals/structured.html`, `modals/backup-body.html`. Tabs are pure Alpine `x-show` over statically-included bodies, so the Tools/Extensions components still initialise once at page load; the list tabs (regex, structured, backups) reload once per modal open via `ModalController.onOpen('modal-advanced')` — not on tab click.
 
+### Character editor + custom blocks
+
+- `partials/modals/edit-entity.html` renders both the character and the persona editor (`prefix`, `show_theme`, `show_greetings`). The side column is one field column: identity plate (avatar + the reference-media pool beside it) → Name → Group → Theme → `Card fields` disclosure → `Custom blocks` door pinned to the floor. Every control shares the column's left edge; media sits beside the avatar because it is a strip, not a field.
+- Card fields (personality / scenario / mes_example) are a `<details class="disclosure">` **inside the form**, so they submit with everything else (`PATCH /api/characters/{id}` merges them into `card_json`). They are dirty-tracked like the visible fields.
+- Custom blocks are their own modal (`partials/modals/char-blocks.html` → `char-blocks-list.html` → `char-block-item.html`), opened from the door on top of the editor (`z_index='200'`). The list follows the arranger anatomy (`.arranger-item` / `.arranger-header` / `.grip` / `.arranger-title-group` / `.arranger-body` / `.arranger-media`); every edit saves immediately — there is no Save verb.
+- `static/js/modals/char-blocks.js` owns it: list is server-rendered (`GET /partials/char-blocks/{char_id}`), a single row re-renders from `GET /partials/char-block/{char_id}/{block_id}`, ordering posts `{ids}` to `POST /api/characters/{char_id}/blocks/reorder`. Every write goes through `hxFetch` — raw `fetch` lets two field edits commit out of order.
+- Wire the sortable and the count from `htmx:afterSwap` on `#char-blocks-container`; the `hxGet` promise resolves **before** the swap, so initialising there attaches Sortable to a node about to be replaced.
+- The count on the door comes from `data-char-blocks` on the card's edit button; the modal re-syncs it after every load (`syncCount`).
+- Blocks are prompt-side only (the preset's `char_blocks` sentinel splices them in), so editing one does not invalidate the message list.
+
 ### Toast system (`static/js/ui/notifications.js`)
 
 - One stack: `#toast-container` in `base.html` (fixed top-center, `z-index: var(--z-max)`, above all modals).

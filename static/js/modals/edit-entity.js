@@ -146,6 +146,20 @@
       eid('-desc').value = btn.dataset[P + 'Desc'] || '';
       var groupInput = eid('-group');
       if (groupInput) groupInput.value = btn.dataset[P + 'Group'] || '';
+      var cardFields = {
+        '-personality': 'Personality',
+        '-scenario': 'Scenario',
+        '-mes-example': 'MesExample',
+      };
+      Object.keys(cardFields).forEach(function (suffix) {
+        var field = eid(suffix);
+        if (field) field.value = btn.dataset[P + cardFields[suffix]] || '';
+      });
+      var modalEl = document.getElementById(mid);
+      var blockCount = modalEl && modalEl.querySelector('[data-ui="char-block-count"]');
+      if (blockCount && btn.dataset[P + 'Blocks'] !== undefined) {
+        blockCount.textContent = btn.dataset[P + 'Blocks'] || '0';
+      }
       var themeIdInput = eid('-theme-id');
       var themeLabel = eid('-theme-label');
       if (themeIdInput && themeLabel) {

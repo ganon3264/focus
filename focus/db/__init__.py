@@ -7,6 +7,7 @@ from focus.db.characters import (
     delete_character,
     hard_delete_character,
     import_character,
+    reorder_char_blocks,
     restore_character,
     update_char_block,
     update_character,

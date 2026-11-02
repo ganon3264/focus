@@ -194,6 +194,9 @@ assert(typeof window.createEditModalHandlers === 'function', 'createEditModalHan
   makeEl('input', 'edit-g2-id', { value: 'c1' });
   makeEl('input', 'edit-g2-name', { value: 'N' });
   makeEl('textarea', 'edit-g2-desc', { value: '' });
+  makeEl('textarea', 'edit-g2-personality', { value: '' });
+  makeEl('textarea', 'edit-g2-scenario', { value: '' });
+  makeEl('textarea', 'edit-g2-mes-example', { value: '' });
   makeEl('img', 'edit-g2-image-preview');
   makeEl('span', 'edit-g2-image-placeholder');
   makeEl('div', 'media-section-g2');
@@ -215,7 +218,20 @@ assert(typeof window.createEditModalHandlers === 'function', 'createEditModalHan
   var btn = makeElement('button');
   btn.dataset.charId = 'c1';
   btn.dataset.charMedia = '[]';
+  btn.dataset.charPersonality = 'Clever';
+  btn.dataset.charScenario = 'A rainy night';
+  btn.dataset.charMesExample = 'Hi there';
+  btn.dataset.charBlocks = '3';
+  var countEl = makeElement('span');
+  countEl.dataset.ui = 'char-block-count';
+  doc.querySelector('#modal-edit-g2').appendChild(countEl);
   window.openEditG2(btn);
+
+  var $ = function (id) { return doc.getElementById(id); };
+  assertEqual($('edit-g2-personality').value, 'Clever', 'open fills personality');
+  assertEqual($('edit-g2-scenario').value, 'A rainy night', 'open fills scenario');
+  assertEqual($('edit-g2-mes-example').value, 'Hi there', 'open fills mes example');
+  assertEqual(countEl.textContent, '3', 'open shows the block count from the card dataset');
 
   assert(!!lastPost, 'open fetches greeting section via hxPost');
   assertEqual(lastPost.url, '/partials/character-greeting/c1', 'open fetches greeting section for char id');

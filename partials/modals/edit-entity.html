@@ -1,7 +1,7 @@
 {% from "macros.html" import icon_expand, icon_plus, icon_trash, icon_chevron_left, icon_chevron_right, hint_tooltip, avatar, modal_footer %} {% from "modal-shell.html" import modal_shell
-%} {% call modal_shell(modal_id, 'Edit ' ~ entity_name, max_width='1040px', foot=true,
+%} {% set is_char = prefix == 'char' %} {% call modal_shell(modal_id, 'Edit ' ~ entity_name, max_width='1040px', foot=true,
 content_style='height:min(88vh, 780px);', z_index='100',
-dirty_fields='#edit-' ~ prefix ~ '-name,#edit-' ~ prefix ~ '-desc,#edit-' ~ prefix ~ '-group' ~ (',#edit-' ~ prefix ~ '-theme-id' if show_theme|default(false) else ''),
+dirty_fields='#edit-' ~ prefix ~ '-name,#edit-' ~ prefix ~ '-desc,#edit-' ~ prefix ~ '-group' ~ (',#edit-' ~ prefix ~ '-theme-id' if show_theme|default(false) else '') ~ (',#edit-' ~ prefix ~ '-personality,#edit-' ~ prefix ~ '-scenario,#edit-' ~ prefix ~ '-mes-example' if is_char else ''),
 dirty_label='#edit-' ~ prefix ~ '-name') %}
 <form
   id="edit-{{ prefix }}-form"
@@ -20,29 +20,53 @@ dirty_label='#edit-' ~ prefix ~ '-name') %}
           <input type="file" accept="image/*" class="hidden" data-action="{{ avatar_fn }}" />
         {% endcall %}
 
-        <div class="edit-identity-fields">
-          <div class="form-group">
-            <label>Name</label>
-            <input
-              type="text"
-              name="name"
-              id="edit-{{ prefix }}-name"
-              required
-              class="field"
-            />
+        <div class="edit-identity-media">
+          <div class="flex items-center gap-1">
+            <span class="field-label">Reference media</span>
+            {{ hint_tooltip('{{media:x}} inserts the attachment in position x, counting left to right as shown above. Unpositioned media is appended after the block in the same order.') }}
           </div>
-
-          <div class="form-group">
-            <label>Group</label>
-            <input
-              type="text"
-              name="group_name"
-              id="edit-{{ prefix }}-group"
-              class="field"
-              placeholder="Optional group"
-            />
+          <div
+            class="char-block-media-section media-row"
+            id="edit-{{ prefix }}-media-section"
+          >
+            <label
+              class="key xl create block-media-btn"
+              data-ui="block-media-btn"
+              title="Add image or audio"
+            >
+              {{ icon_plus(20) }}
+              <input
+                type="file"
+                accept="image/*,audio/*"
+                class="hidden block-media-input"
+                data-action="{{ upload_fn }}"
+              />
+            </label>
+            <span class="note block-media-placeholder" data-ui="block-media-placeholder">Add reference image or audio</span>
           </div>
         </div>
+      </div>
+
+      <div class="form-group">
+        <label>Name</label>
+        <input
+          type="text"
+          name="name"
+          id="edit-{{ prefix }}-name"
+          required
+          class="field"
+        />
+      </div>
+
+      <div class="form-group">
+        <label>Group</label>
+        <input
+          type="text"
+          name="group_name"
+          id="edit-{{ prefix }}-group"
+          class="field"
+          placeholder="Optional group"
+        />
       </div>
 
       {% if show_theme|default(false) %}
@@ -60,31 +84,56 @@ dirty_label='#edit-' ~ prefix ~ '-name') %}
       </div>
       {% endif %}
 
-      <div class="form-group">
-        <div class="flex items-center gap-1">
-          <span class="field-label">Reference media</span>
-          {{ hint_tooltip('{{media:x}} inserts the attachment in position x, counting left to right as shown above. Unpositioned media is appended after the block in the same order.') }}
+      {% if is_char %}
+      <details class="disclosure edit-card-fields">
+        <summary>
+          <span class="caret-mark"></span>
+          <span class="disclosure-title">Card fields</span>
+        </summary>
+        <div class="disclosure-body">
+          <div class="form-group">
+            <label>Personality</label>
+            <textarea
+              name="personality"
+              id="edit-char-personality"
+              rows="3"
+              class="field"
+              style="resize: none"
+            ></textarea>
+          </div>
+          <div class="form-group">
+            <label>Scenario</label>
+            <textarea
+              name="scenario"
+              id="edit-char-scenario"
+              rows="3"
+              class="field"
+              style="resize: none"
+            ></textarea>
+          </div>
+          <div class="form-group">
+            <label>Mes example</label>
+            <textarea
+              name="mes_example"
+              id="edit-char-mes-example"
+              rows="4"
+              class="field"
+              style="resize: none"
+            ></textarea>
+          </div>
         </div>
-        <div
-          class="char-block-media-section media-row"
-          id="edit-{{ prefix }}-media-section"
-        >
-          <label
-            class="key xl create block-media-btn"
-            data-ui="block-media-btn"
-            title="Add image or audio"
-          >
-            {{ icon_plus(20) }}
-            <input
-              type="file"
-              accept="image/*,audio/*"
-              class="hidden block-media-input"
-              data-action="{{ upload_fn }}"
-            />
-          </label>
-          <span class="note block-media-placeholder" data-ui="block-media-placeholder">Add reference image or audio</span>
-        </div>
-      </div>
+      </details>
+
+      <button
+        type="button"
+        class="row edit-side-nav"
+        data-action="actionOpenCharBlocks"
+      >
+        <span class="row-title">Custom blocks</span>
+        <span class="row-meta" data-ui="char-block-count">0</span>
+        <span class="caret-mark"></span>
+      </button>
+      {% endif %}
     </aside>
 
     <div class="edit-entity-main">

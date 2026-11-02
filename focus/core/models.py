@@ -58,6 +58,10 @@ class CharBlockUpdate(BaseModel):
     position: float | None = None
 
 
+class CharBlockReorder(BaseModel):
+    ids: list[str]
+
+
 class CharacterCreate(BaseModel):
     name: str
     description: str = ""

@@ -1,9 +1,9 @@
 # Handoff — UI overhaul
 
-Branch `refactor/consolidate-ui`, off `master` (d7b89ad). Last commit on the
-skin pass: overlays + ownership guard. 1428 backend tests + 281 frontend tests
-green; grid audit **164/164** (panes, messages, the modal chassis, and
-field/control centre lines).
+Branch `refactor/consolidate-ui`, off `master` (d7b89ad). The skin pass is
+closed (steps 0–5 below) and the character editor has since regained its card
+blocks and card fields. 1449 backend tests + 292 frontend tests green; grid audit
+**164/164** (panes, messages, the modal chassis, and field/control centre lines).
 
 Read this, then `static/css/primitives.css` (the closed vocabulary), then
 `PRIMITIVE-MAP.md` (the class audit that produced it). The CSS import order in
@@ -39,6 +39,8 @@ all 243 legacy classes onto one closed vocabulary.
 | 3 | done | modals + forms (`70263f1`, `275750f`, `b4d74a7`, `72bb243`), `surfaces/modals.css` `surfaces/forms.css`, `instrument.css` `components.css` `layout.css` deleted |
 | 4 | done | overlays (`fe30ea1`): toast stack is the `.toast` primitive (`.key.sm` verbs), `#hint-tooltip` is a `.tooltip` toggled by `.hidden`, lightbox is `modal-overlay` + `panel` + `modal-head`; `animations.css` keeps only keyframes |
 | 5 | done | `tests/frontend/test_css_ownership.py` — no surface authors a primitive's look, no `:not()` in any stylesheet. Two real violations it flushed out: `.preset-menu .row { font-size }` (now `.row.sm`) and the reasoning block's `:not(:has(summary))` (now `.reasoning-block.headless`) |
+
+| 6 | done | character editor rebuilt + card blocks ported back (see §6) |
 
 ---
 
@@ -180,21 +182,61 @@ the 1–2px errors are invisible at 1600×1000.
 
 ---
 
-## 6. Remaining work
+## 6. Character editor + card blocks (step 6)
 
-The migration is closed. What is left is the debt the pass deliberately did not
-take on:
+Dropping the `/characters` page left two holes in the modal: the custom block
+editor and `personality`/`scenario`/`mes_example` (the API always accepted them;
+the prompt's `char_personality` sentinel had no way to be filled). Both are back,
+rebuilt on the primitives:
 
-- **Form read/write** has ~15 implementations and 102 hardcoded IDs.
-- **Registry bypasses**: 87 raw `fetch` vs 31 `hx*` calls.
-- The character card-block editor still needs a port into the character modal
-  (`CharacterStore` has no callers since `/characters` went away).
-- `grid-audit.js` measures panes, messages, the modal chassis and field/control
-  centre lines — toasts, the hint tooltip and the lightbox are eyeballed only.
+- **One field column.** Identity plate (avatar + reference-media strip beside it)
+  → Name → Group → Theme → `Card fields` disclosure → `Custom blocks` door on the
+  floor of the column. The old layout put Theme at the column edge while Name and
+  Group were indented by the avatar; now every control is on one left edge and
+  the media strip uses the space next to the avatar instead of the column's
+  bottom third. `padding-bottom: var(--inset)` on `.edit-entity-body` restores the
+  gap above the foot plate (the body drops its own padding when `foot=true`).
+- **Card fields** are a `<details class="disclosure">` inside the form, so they
+  submit and dirty-track with everything else.
+- **Custom blocks** are a separate 720px modal on `z_index: 200`, opened from the
+  door (which shows the count from `data-char-blocks` on the card's edit button).
+  The list reuses the arranger anatomy and the arranger's row CSS; the body is a
+  role select + a content textarea with an expand key, plus the block's own media
+  row. Everything PATCHes on change — no Save verb, matching the arranger.
+- Backend additions: `POST /api/characters/{id}/blocks/reorder` (`{ids}`),
+  `GET /partials/char-blocks/{id}`, `GET /partials/char-block/{id}/{block}`.
+  Tests: `TestCharacterBlocks` (api), `test-char-blocks.js` (29), plus
+  `test-edit-entity.js` coverage for the card fields + count.
+
+Traps this step produced:
+
+- **The `hxGet` promise resolves before htmx swaps.** Initialising the Sortable
+  (or reading the freshly rendered rows) inside `.then` attaches to a node that
+  is about to be replaced. Use `htmx:afterSwap` keyed on the target id.
+- **Writes must be serialised.** Two `PATCH`es fired back to back (e.g. role then
+  enable) can commit out of order on the server. `hxFetch` puts block writes on
+  the same queue as the reloads.
+- **`custom_select`'s `extra_classes` land on the trigger button**, not its
+  `w-full` wrapper — a `flex` basis passed there never sizes the wrapper. Wrap the
+  macro in a `<div class="arranger-select">` (this was also quietly squeezing the
+  arranger's own preview).
 
 ---
 
-## 7. Traps learned the hard way
+## 7. Remaining work
+
+What is left is the debt the pass deliberately did not take on:
+
+- **Form read/write** has ~15 implementations and 102 hardcoded IDs.
+- **Registry bypasses**: ~75 raw `fetch` vs 31 `hx*` calls.
+- `grid-audit.js` measures panes, messages, the modal chassis and field/control
+  centre lines — toasts, the hint tooltip and the lightbox are eyeballed only.
+- `CharacterStore` still has no callers (the card-block editor did not need it;
+  it is a server-rendered list like the arranger).
+
+---
+
+## 8. Traps learned the hard way
 
 - **`.message` must carry `.frame`.** The look comes from the primitive.
 - **A surface override of a primitive's geometry loses silently.** `.row.sm`
@@ -254,7 +296,7 @@ take on:
 
 ---
 
-## 8. User's explicit preferences (learned the hard way)
+## 9. User's explicit preferences (learned the hard way)
 
 - **One inset, everywhere.** A modal title that has 24px at the sides and 4px on
   top is the kind of thing that gets the whole pass rejected. Head, body and foot

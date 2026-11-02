@@ -771,6 +771,42 @@ async def character_greeting_partial(
     )
 
 
+@router.get("/partials/char-blocks/{char_id}", response_class=HTMLResponse)
+async def char_blocks_partial(
+    request: Request, char_id: str, db: aiosqlite.Connection = Depends(get_db)
+):
+    blocks = await crud.load_entity_blocks(db, "char_blocks", "character_id", char_id)
+    return templates.TemplateResponse(
+        request,
+        "modals/char-blocks-list.html",
+        {"char_id": char_id, "blocks": blocks},
+    )
+
+
+@router.get("/partials/char-block/{char_id}/{block_id}", response_class=HTMLResponse)
+async def char_block_partial(
+    request: Request,
+    char_id: str,
+    block_id: str,
+    db: aiosqlite.Connection = Depends(get_db),
+):
+    from fastapi import HTTPException
+
+    async with db.execute(
+        "SELECT * FROM char_blocks WHERE id = ? AND character_id = ?", (block_id, char_id)
+    ) as cur:
+        row = await cur.fetchone()
+    if not row:
+        raise HTTPException(404, "Block not found")
+    block = dict(row)
+    await crud.attach_images([block], db)
+    return templates.TemplateResponse(
+        request,
+        "modals/char-block-item.html",
+        {"char_id": char_id, "block": block},
+    )
+
+
 @router.get("/partials/persona-modal-card/{persona_id}", response_class=HTMLResponse)
 async def persona_modal_card_partial(
     request: Request,

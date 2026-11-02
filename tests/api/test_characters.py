@@ -419,3 +419,114 @@ class TestCharacterImport:
         assert len(data["imported"]) == 1
         assert "warnings" in data["imported"][0]
         assert any("newer" in w for w in data["imported"][0]["warnings"])
+
+
+class TestCharacterBlocks:
+    async def test_create_and_list(self, client):
+        c = await create_character(client, "Blocker")
+        resp = await client.post(
+            f"/api/characters/{c['id']}/blocks",
+            json={"name": "Speech", "content": "Clipped.", "role": "system"},
+        )
+        assert resp.status_code == 201
+        block_id = resp.json()["id"]
+
+        listed = await client.get(f"/api/characters/{c['id']}/blocks")
+        assert listed.status_code == 200
+        blocks = listed.json()
+        assert [b["id"] for b in blocks] == [block_id]
+        assert blocks[0]["name"] == "Speech"
+        assert blocks[0]["images"] == []
+
+    async def test_get_character_carries_blocks(self, client):
+        c = await create_character(client, "Carrier")
+        await client.post(f"/api/characters/{c['id']}/blocks", json={"name": "One"})
+        await client.post(f"/api/characters/{c['id']}/blocks", json={"name": "Two"})
+        data = (await client.get(f"/api/characters/{c['id']}")).json()
+        assert [b["name"] for b in data["blocks"]] == ["One", "Two"]
+
+    async def test_update_fields(self, client):
+        c = await create_character(client, "Updater")
+        block_id = (
+            await client.post(f"/api/characters/{c['id']}/blocks", json={"name": "Old"})
+        ).json()["id"]
+        resp = await client.patch(
+            f"/api/characters/{c['id']}/blocks/{block_id}",
+            json={"name": "New", "content": "Body", "role": "assistant", "enabled": False},
+        )
+        assert resp.status_code == 200
+        block = (await client.get(f"/api/characters/{c['id']}/blocks")).json()[0]
+        assert block["name"] == "New"
+        assert block["content"] == "Body"
+        assert block["role"] == "assistant"
+        assert block["enabled"] == 0
+
+    async def test_delete(self, client):
+        c = await create_character(client, "Deleter")
+        block_id = (
+            await client.post(f"/api/characters/{c['id']}/blocks", json={"name": "Gone"})
+        ).json()["id"]
+        resp = await client.delete(f"/api/characters/{c['id']}/blocks/{block_id}")
+        assert resp.status_code == 204
+        assert (await client.get(f"/api/characters/{c['id']}/blocks")).json() == []
+
+    async def test_reorder_sets_positions(self, client):
+        c = await create_character(client, "Sorter")
+        ids = []
+        for name in ("A", "B", "C"):
+            ids.append(
+                (await client.post(f"/api/characters/{c['id']}/blocks", json={"name": name})).json()["id"]
+            )
+        order = [ids[2], ids[0], ids[1]]
+        resp = await client.post(
+            f"/api/characters/{c['id']}/blocks/reorder", json={"ids": order}
+        )
+        assert resp.status_code == 200
+        listed = (await client.get(f"/api/characters/{c['id']}/blocks")).json()
+        assert [b["id"] for b in listed] == order
+
+    async def test_reorder_ignores_other_characters(self, client):
+        owner = await create_character(client, "Owner")
+        other = await create_character(client, "Other")
+        foreign = (
+            await client.post(f"/api/characters/{other['id']}/blocks", json={"name": "Foreign"})
+        ).json()["id"]
+        await client.post(
+            f"/api/characters/{owner['id']}/blocks/reorder", json={"ids": [foreign]}
+        )
+        block = (await client.get(f"/api/characters/{other['id']}/blocks")).json()[0]
+        assert block["position"] == 0.0
+
+    async def test_blocks_partial_renders_rows(self, client):
+        c = await create_character(client, "Renderer")
+        await client.post(
+            f"/api/characters/{c['id']}/blocks",
+            json={"name": "Mood", "content": "Tired.", "role": "assistant"},
+        )
+        resp = await client.get(f"/partials/char-blocks/{c['id']}")
+        assert resp.status_code == 200
+        html = resp.text
+        assert 'data-ui="char-block"' in html
+        assert 'class="row arranger-header role-assistant"' in html
+        assert 'value="Mood"' in html
+        assert "Tired." in html
+
+    async def test_blocks_partial_empty(self, client):
+        c = await create_character(client, "Empty Renderer")
+        resp = await client.get(f"/partials/char-blocks/{c['id']}")
+        assert resp.status_code == 200
+        assert 'data-ui="char-blocks-empty"' in resp.text
+
+    async def test_block_partial_single_row(self, client):
+        c = await create_character(client, "Single")
+        block_id = (
+            await client.post(f"/api/characters/{c['id']}/blocks", json={"name": "Solo"})
+        ).json()["id"]
+        resp = await client.get(f"/partials/char-block/{c['id']}/{block_id}")
+        assert resp.status_code == 200
+        assert 'data-block-id="' + block_id + '"' in resp.text
+
+    async def test_block_partial_not_found(self, client):
+        c = await create_character(client, "Missing")
+        resp = await client.get(f"/partials/char-block/{c['id']}/nope")
+        assert resp.status_code == 404

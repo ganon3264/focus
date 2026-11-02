@@ -51,10 +51,10 @@ media_thumbnail, hint_tooltip, icon_sliders, in_chat_controls, toggle %}
   <div x-show="expanded" x-transition.opacity.duration.200ms style="display: none">
     {% if block.block_type == 'text' %}
     <div class="arranger-body">
-      {{ custom_select( name="role", id="role-" + block.id, options=[ {"value": "system", "label":
-      "system"}, {"value": "user", "label": "user"}, {"value": "assistant", "label": "assistant"}
-      ], selected=block.role, on_change="handleArrangerBlockUpdate($el.closest('[data-ui=arranger-item]'), {role:$event.target.value})",
-      extra_classes="arranger-select" ) }}
+      <div class="arranger-select">{{ custom_select( name="role", id="role-" + block.id, options=[ {"value": "system", "label":
+        "system"}, {"value": "user", "label": "user"}, {"value": "assistant", "label": "assistant"}
+        ], selected=block.role, on_change="handleArrangerBlockUpdate($el.closest('[data-ui=arranger-item]'), {role:$event.target.value})",
+        ) }}</div>
       <div class="arranger-preview flex flex-col gap-1">
         <div
           class="well p-2 preview-out"
@@ -96,10 +96,10 @@ media_thumbnail, hint_tooltip, icon_sliders, in_chat_controls, toggle %}
 
     {% elif block.block_type == 'summary' %}
     <div class="arranger-body">
-      {{ custom_select( name="role", id="role-" + block.id, options=[ {"value": "system", "label":
-      "system"}, {"value": "user", "label": "user"}, {"value": "assistant", "label": "assistant"}
-      ], selected=block.role, on_change="handleArrangerBlockUpdate($el.closest('[data-ui=arranger-item]'), {role:$event.target.value})",
-      extra_classes="arranger-select" ) }}
+      <div class="arranger-select">{{ custom_select( name="role", id="role-" + block.id, options=[ {"value": "system", "label":
+        "system"}, {"value": "user", "label": "user"}, {"value": "assistant", "label": "assistant"}
+        ], selected=block.role, on_change="handleArrangerBlockUpdate($el.closest('[data-ui=arranger-item]'), {role:$event.target.value})",
+        ) }}</div>
       <div class="arranger-note arranger-preview flex flex-col gap-1">
         <span class="note">Injected only in chats that have been summarized. Edit to place
         <code>{{ '{{summary}}' }}</code>, <code>{{ '{{summary_messages}}' }}</code> and
@@ -126,10 +126,10 @@ media_thumbnail, hint_tooltip, icon_sliders, in_chat_controls, toggle %}
     {% else %}
     <div class="arranger-body">
       {% if block.block_type != 'chat_history' %}
-      {{ custom_select( name="role", id="role-" + block.id, options=[ {"value": "system", "label":
-      "system"}, {"value": "user", "label": "user"}, {"value": "assistant", "label": "assistant"}
-      ], selected=block.role, on_change="handleArrangerBlockUpdate($el.closest('[data-ui=arranger-item]'), {role:$event.target.value})",
-      extra_classes="arranger-select" ) }}
+      <div class="arranger-select">{{ custom_select( name="role", id="role-" + block.id, options=[ {"value": "system", "label":
+        "system"}, {"value": "user", "label": "user"}, {"value": "assistant", "label": "assistant"}
+        ], selected=block.role, on_change="handleArrangerBlockUpdate($el.closest('[data-ui=arranger-item]'), {role:$event.target.value})",
+        ) }}</div>
       {% endif %}
       <div class="arranger-note flex flex-col gap-1">
         {% if block.block_type == 'char_description' %}

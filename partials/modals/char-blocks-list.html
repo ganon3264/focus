@@ -1,0 +1,25 @@
+{% from "macros.html" import icon_plus, hint_tooltip %}
+<div id="char-blocks" class="flex flex-col flex-1 min-h-0" data-char-id="{{ char_id }}">
+  <div class="rail">
+    <span>Blocks</span>
+    {{ hint_tooltip('Extra prompt blocks injected alongside the character card, wherever the preset places the "Character Blocks" block. Reference a block\'s media with <code>{{media:1}}</code>, <code>{{media:2}}</code>, … counting from the left.') }}
+    <div class="rail-actions">
+      <span class="row-meta" data-ui="char-block-count">{{ blocks|length }}</span>
+    </div>
+  </div>
+
+  <div class="arranger-list" data-ui="char-blocks-sortable">
+    {% for block in blocks %}
+    {% include "modals/char-block-item.html" %}
+    {% endfor %}
+    {% if not blocks %}
+    <p class="empty" data-ui="char-blocks-empty">No custom blocks yet. Add one to inject extra context next to the card.</p>
+    {% endif %}
+  </div>
+
+  <div class="field-row char-blocks-add">
+    <button type="button" class="btn create w-full" data-action="actionAddCharBlock">
+      {{ icon_plus(14) }} Add Block
+    </button>
+  </div>
+</div>

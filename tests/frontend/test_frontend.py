@@ -282,7 +282,10 @@ def test_edit_entity_dirty_attrs_render_evaluated():
     }
 
     char_html = tmpl.render({**base, "prefix": "char", "show_theme": True})
-    assert 'data-dirty-fields="#edit-char-name,#edit-char-desc,#edit-char-group,#edit-char-theme-id"' in char_html
+    assert (
+        'data-dirty-fields="#edit-char-name,#edit-char-desc,#edit-char-group,'
+        '#edit-char-theme-id,#edit-char-personality,#edit-char-scenario,#edit-char-mes-example"'
+    ) in char_html
     assert 'data-dirty-label="#edit-char-name"' in char_html
     assert "{%" not in char_html.split("data-dirty-fields")[1][:200]
 

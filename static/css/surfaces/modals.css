@@ -185,6 +185,9 @@
   gap: var(--inset);
   flex: 1;
   min-height: 0;
+  /* The columns stretch to the floor, so the gap above the foot plate is this
+     inset rather than the (dropped) body padding. */
+  padding-bottom: var(--inset);
 }
 
 .edit-entity-side {
@@ -214,22 +217,41 @@
   flex: 1 1 0;
 }
 
+/* The identity plate: the avatar and the media pool it feeds sit on one line,
+   and every control under them shares the column's own left edge. */
 .edit-identity {
-  display: flex;
+  display: grid;
+  grid-template-columns: calc(var(--u) * 24) minmax(0, 1fr);
   gap: var(--gutter);
-  align-items: stretch;
+  align-items: start;
 }
 
-.edit-identity-fields {
+.edit-identity-media {
   display: flex;
   flex-direction: column;
-  gap: var(--gutter);
-  flex: 1 1 auto;
+  gap: var(--u);
   min-width: 0;
 }
 
-.edit-identity-fields > .form-group {
-  flex: 1 1 0;
+/* Card fields open under the form column, so the fields keep the column's
+   inset instead of the disclosure's own padding. */
+.edit-card-fields .disclosure-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gutter);
+}
+
+/* Custom blocks is a door, not a field: it sits on the floor of the column so
+   the space between the last field and the foot has one occupant. */
+.edit-side-nav {
+  margin-top: auto;
+}
+
+/* The list takes the modal's free height; the one create verb sits on the
+   floor of the plate. */
+.char-blocks-add {
+  margin-top: auto;
+  padding-top: var(--gutter);
 }
 
 /* The avatar is a label: the file input hides inside it and the caption only

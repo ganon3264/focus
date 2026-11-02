@@ -55,6 +55,15 @@ window.api = {
   charBlockImage: function (charId, blockId, imageId) {
     return '/api/characters/' + charId + '/blocks/' + blockId + '/images/' + imageId;
   },
+  charBlocksReorder: function (charId) {
+    return '/api/characters/' + charId + '/blocks/reorder';
+  },
+  charBlocksPartial: function (charId) {
+    return '/partials/char-blocks/' + charId;
+  },
+  charBlockPartial: function (charId, blockId) {
+    return '/partials/char-block/' + charId + '/' + blockId;
+  },
 
   personas: function (id) {
     return '/api/personas/' + id;

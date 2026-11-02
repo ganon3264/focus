@@ -1,0 +1,102 @@
+{# Custom character blocks: prompt fragments injected wherever the preset's
+   "Character Blocks" sentinel sits. The list follows the prompt arranger's
+   anatomy (grip drags, title group expands, trailing keys toggle/delete), and
+   every edit saves immediately — this modal has no Save verb by design. #}
+{% from "macros.html" import custom_select, icon_plus, icon_close, icon_expand, media_thumbnail, hint_tooltip, toggle %}
+<div
+  class="arranger-item{% if not block.enabled %} disabled{% endif %}"
+  data-ui="char-block"
+  data-block-id="{{ block.id }}"
+  data-char-id="{{ char_id }}"
+  x-data="{ expanded: expandGet('charBlocks', $el.dataset.blockId) }"
+>
+  <div class="row arranger-header role-{{ block.role }}">
+    <div class="grip char-block-handle" title="Drag to reorder"></div>
+    <div
+      class="arranger-title-group"
+      data-ui="char-block-title"
+      role="button"
+      tabindex="0"
+      aria-expanded="false"
+      @click="expanded = expandToggle('charBlocks', $el.closest('[data-ui=char-block]').dataset.blockId)"
+    >
+      <span class="caret-mark" :class="expanded ? 'caret-open' : ''"></span>
+      <input
+        type="text"
+        class="field ghost arranger-input"
+        data-ui="char-block-name"
+        value="{{ block.name }}"
+        placeholder="Block name"
+        @click.stop
+        onchange="actionRenameCharBlock(this)"
+      />
+    </div>
+    <div class="arranger-actions">
+      {{ toggle('title="Toggle block" data-ui="char-block-enabled" onclick="actionToggleCharBlock(this)"', active=block.enabled) }}
+      <button
+        type="button"
+        class="key sm danger"
+        title="Delete block"
+        aria-label="Delete block"
+        data-action="actionDeleteCharBlock"
+      >
+        {{ icon_close(14) }}
+      </button>
+    </div>
+  </div>
+
+  <div x-show="expanded" x-transition.opacity.duration.200ms style="display: none">
+    <div class="arranger-body">
+      <div class="arranger-select">
+        {{ custom_select(
+          name="role",
+          id="char-block-role-" ~ block.id,
+          options=[{"value": "system", "label": "system"}, {"value": "user", "label": "user"}, {"value": "assistant", "label": "assistant"}],
+          selected=block.role,
+          on_change="actionSetCharBlockRole(this)"
+        ) }}
+      </div>
+      <div class="textarea-wrapper arranger-preview">
+        <textarea
+          name="content"
+          id="char-block-content-{{ block.id }}"
+          class="field"
+          rows="4"
+          style="resize: none"
+          data-ui="char-block-content"
+          placeholder="Block content — injected as a {{ block.role }} turn"
+          onchange="actionSetCharBlockContent(this)"
+        >{{ block.content }}</textarea>
+        <button
+          type="button"
+          class="key sm field-expand"
+          aria-label="Expand text area"
+          data-action="actionOpenTextExpander"
+          data-target-id="char-block-content-{{ block.id }}"
+          data-expander-title="Edit Block"
+        >
+          {{ icon_expand(16) }}
+        </button>
+      </div>
+    </div>
+
+    <div class="arranger-media">
+      {% for img in block.images %}
+      {{ media_thumbnail(img, 'actionDeleteCharBlockMedia') }}
+      {% endfor %}
+      <label class="key xl create" title="Add image or audio" data-ui="char-block-media-btn">
+        {{ icon_plus(20) }}
+        <input
+          type="file"
+          accept="image/*,audio/*"
+          class="hidden"
+          data-ui="char-block-media-input"
+          data-action="actionUploadCharBlockMedia"
+        />
+      </label>
+      {% if not block.images %}
+      <span class="note block-media-placeholder" data-ui="char-block-media-placeholder">Add reference image or audio</span>
+      {% endif %}
+    </div>
+  </div>
+</div>
