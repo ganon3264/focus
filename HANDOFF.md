@@ -206,10 +206,13 @@ deleting the old owner is how the last attempt went wrong.
    `variables.css`, the three `:not()` ladders and the `.btn*` legacy family
    deleted, `--font-mono-ui`/`font-synthesis-weight` moved out of
    `instrument.css`. Grid audit 140/140, both schemes checked.
-1. **Shell + sidebars** — re-class markup to `.rail/.row/.nav/.key/.btn/.well`,
-   fold `design.css` left-sidebar rules into `surfaces/sidebar.css` against
-   primitives, delete the sidebar blocks from `instrument.css` and
-   `layout.css`. Resolves map §2 #1, #2, #3, #4, #6, #12.
+1. **Shell + both sidebars — done.** Markup re-clased to primitives, legacy
+   sidebar skin deleted from `instrument.css`/`layout.css`/`components.css`,
+   `surfaces/shell.css` added, `surfaces/sidebar.css` rewritten,
+   `design.css` reduced to the composer. Ruler 141/141. Resolved map §2 #1, #2,
+   #3, #4, #6, #12. Known leftover: `.btn-danger`/`.btn-create`/`.btn-hero` in
+   the composer and the modals are now unstyled variants until their surface
+   lands (they fall back to the neutral plate).
 2. **Messages + composer** — `.frame`/`.well`/`.disclosure`/`.key`, delete
    `chat.css`, `input.css`, `surfaces/messages.css`'s legacy overlaps.
    Resolves #5, #10, #11.
