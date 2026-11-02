@@ -1,9 +1,11 @@
 # Handoff — UI overhaul
 
 Branch `refactor/consolidate-ui`, off `master` (d7b89ad). The skin pass is
-closed (steps 0–5 below) and the character editor has since regained its card
-blocks and card fields. 1449 backend tests + 292 frontend tests green; grid audit
-**164/164** (panes, messages, the modal chassis, and field/control centre lines).
+closed (steps 0–5), the character editor has its card blocks and card fields
+back (step 6), every list modal runs on the banded chassis (steps 7–9), and the
+arranger/provider polish is in (`17230c8`…`ffa00bc`). 1449 backend +
+292 frontend tests green; grid audit **186/186** (panes, messages, the modal
+chassis, field/control centre lines, and the band rhythm of every list modal).
 
 Read this, then `static/css/primitives.css` (the closed vocabulary), then
 `PRIMITIVE-MAP.md` (the class audit that produced it). The CSS import order in
@@ -39,11 +41,11 @@ all 243 legacy classes onto one closed vocabulary.
 | 3 | done | modals + forms (`70263f1`, `275750f`, `b4d74a7`, `72bb243`), `surfaces/modals.css` `surfaces/forms.css`, `instrument.css` `components.css` `layout.css` deleted |
 | 4 | done | overlays (`fe30ea1`): toast stack is the `.toast` primitive (`.key.sm` verbs), `#hint-tooltip` is a `.tooltip` toggled by `.hidden`, lightbox is `modal-overlay` + `panel` + `modal-head`; `animations.css` keeps only keyframes |
 | 5 | done | `tests/frontend/test_css_ownership.py` — no surface authors a primitive's look, no `:not()` in any stylesheet. Two real violations it flushed out: `.preset-menu .row { font-size }` (now `.row.sm`) and the reasoning block's `:not(:has(summary))` (now `.reasoning-block.headless`) |
-
-| 6 | done | character editor rebuilt + card blocks ported back (see §6) |
-| 7 | done | entity list modals (characters / personas) rebuilt as a banded chassis: rail + toolbar + list plane + foot, hover-revealed verbs, group tags |
-| 8 | done | the banded chassis is a vocabulary (`modal-bands*`) and the rest of the list modals adopted it: providers, trash bin, custom blocks, prompt arranger |
-| 9 | done | band rhythm is a rule the ruler enforces (rail → next band = 12), the itemizer joins the vocabulary, and `grid-audit.js` measures every banded modal |
+| 6 | done | character editor rebuilt + card blocks ported back (`1bbfe59`, see §6) |
+| 7 | done | entity list modals (characters / personas) rebuilt as a banded chassis: rail + toolbar + list plane + foot, hover-revealed verbs, group tags (`9165f8d`, `9b92cf3`) |
+| 8 | done | the banded chassis is a vocabulary (`modal-bands*`) and the rest of the list modals adopted it: providers, trash bin, custom blocks, prompt arranger (`6e74a8e`) |
+| 9 | done | band rhythm is a rule the ruler enforces (rail → next band = 12), the itemizer joins the vocabulary, and `grid-audit.js` measures every banded modal (`96a212a`) |
+| 10 | done | arranger + provider polish: role on the grip, two-line provider rows, one-column expanded block body, previews as control-height readouts, verb slots (`17230c8`, `ad4a4bf`, `bcd3ce7`, `ffa00bc`) |
 
 ---
 
@@ -59,8 +61,9 @@ feedback   .toast .tooltip .spinner .empty .note .tag .avatar
 ```
 
 - Intents: `.primary .create .danger .warning .success`. Sizes: `.sm .lg .xl`
-  (`.key.xl` = 48, the media add tile), plus `.raised` on `.key` (a key that
-  needs a plate of its own inside a well).
+  (`.key.xl` = 48 — the character editor's reference-media tile and message
+  media; a block body's media tray is `.key.lg` = 32), plus `.raised` on `.key`
+  (a key that needs a plate of its own inside a well).
 - State is class-driven exactly as JS toggles it: `.active .disabled .expanded
   .hidden .drag-over .copied .favorite-active .on .caret-open`.
 - `.row` slots: `.row-title .row-meta .row-value .row-label .row-actions`;
@@ -111,7 +114,7 @@ surfaces/shell.css      chassis, pane widths, collapsed grips
 surfaces/sidebar.css    sections, preset selector/menu, variables, tools, status, chat rows, footer
 surfaces/messages.css   chat column, message frame/rail/screen, prose scope, composer
 surfaces/forms.css      .form-group, field rows, textarea host, branches, help mark
-surfaces/modals.css     modal chassis + every modal's geometry
+surfaces/modals.css     modal chassis, the banded-list vocabulary + rhythm, every modal's geometry
 primitives.css  THE vocabulary — the only file that styles a control
 ```
 
@@ -144,14 +147,43 @@ primitives come last.
   the floor by 24, foot buttons 24/24, entity rows 32 with a 24 avatar, tab
   strip full-bleed, and every field/control pair sharing one centre line.
 
+### Banded list modals (`modal-bands*`)
+
+A modal whose body is a list is a chassis of bands, not one scroll island:
+
+```
+.modal-bands-shell  (modal_shell overlay_class) → tints .modal-head into the chrome
+.modal-bands        the flex column inside .modal-body
+  .modal-band-head      readout rail: count + the collection's verbs
+  .modal-band-toolbar   optional search / filter / sort row
+  .modal-band-lane      the one scrolling plane (--surface), opens with a groove
+  .modal-band-foot      optional closing verb row (Trash Bin, Add Block)
+```
+
+- Bands pull out to the panel's inner edges (`margin-inline: -var(--band-pad)`)
+  and pad back in, so grooves and plane edges run full width while the content
+  keeps the modal's one inset. **The first and last bands absorb the body's own
+  padding** — a tinted strip that is not a band is discoloration.
+- Chrome is one tint (`.modal-head` + head/toolbar/foot bands); the lane is the
+  only other value. A lane that is the last child closes on the panel floor.
+- **Vertical rhythm:** head band `24` above its rail and **`12` below it** (the
+  air every following band inherits); toolbar `0` top / `12` bottom; lane `8`
+  above its first row; foot `12` above its verbs and `24` to the floor. The
+  ruler asserts `rail → next band = 12` on characters, providers, itemizer and
+  arranger — that check catches the "no margin at the top" regression.
+- Users: characters, personas, providers, trash bin, custom blocks, prompt
+  itemizer, prompt arranger. Deliberately *not* banded: the Advanced modal (tab
+  container), the theme customizer (master-detail), the export form.
+
 ### Entity rows
 
-Characters, personas and providers share `.row.entity-row` in two column-major
-lanes. Anatomy follows the right-pane chat row: avatar (24) → `.row-title` →
-readout → verbs in flow. The delete key is in flow but `opacity: 0` until
-`:hover`/`:focus-within`, so nothing shifts and the grid is not a wall of red.
-Characters/personas use a fixed 80px `.row-meta` (group); providers use a
-flexible `.row-meta` (type · model) plus a `.row-value` balance.
+Characters and personas share `.row.entity-row` in two column-major lanes
+(`.entity-list` + `column-rule`). Anatomy follows the right-pane chat row:
+avatar (24) → `.row-title` → `.row-meta` (the group as a `.tag`) → verbs in
+flow. Verbs are hover-revealed (`reveal-verbs`); a favourite's star stays lit
+because it is state. Providers are **one column, two lines**: name over
+`type · model`, then the balance readout and the verbs, at 48px
+(`.entity-row.provider-row` — a lone `.provider-row` loses the cascade).
 
 ---
 
@@ -163,7 +195,7 @@ fuser -k 8010/tcp; uv run python main.py --host 127.0.0.1 --port 8010
 # after any CSS change — tailwind.css is a generated, gitignored artifact
 ./bin/tailwindcss-linux-x64 -i static/tailwind-input.css -o static/tailwind.css
 
-node tests/frontend/grid-audit.js http://127.0.0.1:8010   # the ruler
+node tests/frontend/grid-audit.js http://127.0.0.1:8010   # the ruler (186 checks)
 uv run pytest tests/ -q
 uv run pytest tests/frontend -q --no-cov -p no:cacheprovider
 ```
@@ -213,34 +245,8 @@ rebuilt on the primitives:
   Tests: `TestCharacterBlocks` (api), `test-char-blocks.js` (29), plus
   `test-edit-entity.js` coverage for the card fields + count.
 
-Traps this step produced:
-
-- **The `hxGet` promise resolves before htmx swaps.** Initialising the Sortable
-  (or reading the freshly rendered rows) inside `.then` attaches to a node that
-  is about to be replaced. Use `htmx:afterSwap` keyed on the target id.
-- **Writes must be serialised.** Two `PATCH`es fired back to back (e.g. role then
-  enable) can commit out of order on the server. `hxFetch` puts block writes on
-  the same queue as the reloads.
-- **Full-bleed bands inside `.modal-body` come from negative margins, not from
-  zeroing the body padding.** The ruler measures the body's first child against
-  the 24px inset; `padding: 0` on the body fails it (and is the one-inset rule
-  the user checks first). The first and last bands must also absorb the body's
-  vertical padding, or a tinted strip that is not a band shows up as a colour
-  step above the rail and below the foot.
-- **Band padding is not per-modal.** The head band owns 12px of air under its
-  rail; a toolbar has no top padding. When providers/arranger/itemizer had their
-  rail butting straight against the lane, each one needed its own patch — the
-  fix was the rule plus an audit check (`rail gets air before the next band`).
-- **A rail action that is a labelled `.btn` needs `flush`.** `.rail-actions`
-  pulls itself out 6px to align a 24px key's glyph; applied to a button with
-  text, the button overhangs the modal inset by 6px.
-- **A count rendered outside the swap target goes stale.** `hxGet`'s promise
-  resolves before htmx swaps, so the count must be re-read from `htmx:afterSwap`
-  keyed on the target (arranger rail, block door).
-- **`custom_select`'s `extra_classes` land on the trigger button**, not its
-  `w-full` wrapper — a `flex` basis passed there never sizes the wrapper. Wrap the
-  macro in a `<div class="arranger-select">` (this was also quietly squeezing the
-  arranger's own preview).
+The traps this step produced are in §8 (swap timing, write ordering, band
+geometry, `custom_select`'s wrapper).
 
 ---
 
@@ -250,8 +256,9 @@ What is left is the debt the pass deliberately did not take on:
 
 - **Form read/write** has ~15 implementations and 102 hardcoded IDs.
 - **Registry bypasses**: ~75 raw `fetch` vs 31 `hx*` calls.
-- `grid-audit.js` measures panes, messages, the modal chassis and field/control
-  centre lines — toasts, the hint tooltip and the lightbox are eyeballed only.
+- `grid-audit.js` measures panes, messages, the modal chassis, field/control
+  centre lines and the band rhythm of every list modal — toasts, the hint
+  tooltip and the lightbox are still eyeballed only.
 - `CharacterStore` still has no callers (the card-block editor did not need it;
   it is a server-rendered list like the arranger).
 
@@ -260,6 +267,28 @@ What is left is the debt the pass deliberately did not take on:
 ## 8. Traps learned the hard way
 
 - **`.message` must carry `.frame`.** The look comes from the primitive.
+- **A banded modal's chrome is one field.** Tinting the head/toolbar/foot bands
+  but not the body leaves a 24px strip of panel fill above the rail and below
+  the foot — the discoloration the user marked. Tint `.modal-head` **and**
+  `.modal-body`; the lane paints its own plane on top.
+- **The `hxGet` promise resolves before htmx swaps.** Wiring a Sortable, or
+  reading a fresh count, inside `.then` acts on the node that is about to be
+  replaced. Use `htmx:afterSwap` keyed on the target id (char blocks, arranger
+  rail).
+- **Writes must be serialised.** Two `PATCH`es fired back to back (role then
+  enable) can commit out of order on the server. `hxFetch` puts block writes on
+  the same queue as the reloads.
+- **A partial gets exactly one `<script>`.** A duplicated block is valid HTML,
+  so nothing complains — the browser parses half of it and the page renders with
+  its wiring gone. `test_partial_has_one_inline_script` guards it (that bug
+  shipped once and the list silently lost sorting/filtering).
+- **`custom_select`'s `extra_classes` land on the trigger button**, not its
+  `w-full` wrapper — a `flex` basis passed there never sizes the wrapper. Wrap the
+  macro in a `<div class="arranger-select">`.
+- **A readout that sits beside a control takes the control's height.** The
+  preview wells were 32 (line + padding) next to a 28 picker; and a `pre-wrap`
+  preview turned the template's own newlines into blank lines. One line, `nowrap`,
+  explicit `--control-h`.
 - **An expanded block body is one column, not four stacked blocks with their own
   margins.** It used to be `.arranger-body` (padding 8 0 0 20) → a `.row` with
   `margin-top: 4` → a `.field-row` with none → `.arranger-media` with
@@ -335,7 +364,16 @@ What is left is the debt the pass deliberately did not take on:
 
 - **One inset, everywhere.** A modal title that has 24px at the sides and 4px on
   top is the kind of thing that gets the whole pass rejected. Head, body and foot
-  share `--modal-pad`; the ruler checks it.
+  share `--modal-pad`; the ruler checks it. The same applies inside a body: one
+  wrapper owns the inset and the gap (`.arranger-expand`, the band rhythm), never
+  four children with their own margins.
+- **A list modal must feel composed, not like a wall of rows**: distinct bands,
+  a lane on its own plane, no scroll fade over it, verbs that keep one column.
+- **Two lines beat four things on one baseline.** Providers carry name over
+  type · model; a row that needs a readout *and* verbs gets the height for it.
+- **The grip carries the role** in block lists; the row's left edge does not.
+- **A preview is a readout**: one line, control height, opens the editor. It is
+  never a small input that grows with its content.
 - Entity lists follow the right-pane chat row, not a table: title + readout +
   hover-revealed verbs. No wall of red delete keys.
 - Compact chat list: one line per row, fixed 80px readout column (date over
