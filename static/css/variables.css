@@ -87,8 +87,11 @@
   --mat-well: color-mix(in srgb, var(--surface), black 8%);
   --mat-shade: color-mix(in srgb, var(--surface), black 7%);
   --mat-glow: color-mix(in srgb, var(--surface), white 5%);
-  --mat-raise: inset 0 1px 0 var(--mat-hi), inset 0 -1px 0 var(--mat-lo),
-    0 1px 0 var(--mat-edge);
+  /* A plate's own edges. The cast shadow is a separate token because a control
+     that shares a baseline with a field must not paint outside its box: a 1px
+     drop under the button is exactly the 1px the field does not have. */
+  --mat-raise: inset 0 1px 0 var(--mat-hi), inset 0 -1px 0 var(--mat-lo);
+  --mat-lift: var(--mat-raise), 0 1px 0 var(--mat-edge);
   --mat-raise-fill: linear-gradient(var(--mat-glow), var(--mat-shade));
   /* Row separators inside a flat readout are grooves, not cuts: a dark line on
      the row's bottom edge and a lit line on the next row's top edge, so a run

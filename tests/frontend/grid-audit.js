@@ -140,7 +140,9 @@ async function measureModal(page) {
     const panel = ov.querySelector('.modal-panel');
     const head = panel.querySelector('.modal-head');
     const body = panel.querySelector('.modal-body');
-    const foot = panel.querySelector('.modal-foot');
+    // A nested modal (retry, block edit) ships its own foot; only the one that
+    // belongs to this panel counts.
+    const foot = [...panel.querySelectorAll('.modal-foot')].find((f) => f.closest('.modal-panel') === panel);
     return {
       panel: rect(panel),
       head: rect(head),
@@ -151,6 +153,14 @@ async function measureModal(page) {
       entityRows: [...panel.querySelectorAll('.entity-row')].map(rect),
       entityAvatars: [...panel.querySelectorAll('.entity-row > .avatar')].map(rect),
       tabBar: panel.querySelector('.tab-bar') ? rect(panel.querySelector('.tab-bar')) : null,
+      // A field and the control beside it must share one centre line: the
+      // plates may differ in height, never in where they sit.
+      fieldPairs: [...panel.querySelectorAll('.field-row, .field-inline, .field-range')].map((row) => {
+        const f = row.querySelector('.field');
+        const c = row.querySelector('.btn, .key, .chip');
+        if (!f || !c) return null;
+        return { field: rect(f), ctrl: rect(c) };
+      }).filter(Boolean),
       foot: foot ? rect(foot) : null,
       footButtons: foot ? [...foot.querySelectorAll('.btn, .key')].map(rect) : [],
     };
@@ -174,7 +184,9 @@ async function measureModal(page) {
   const mmEntity = await measureModal(page);
   await page.keyboard.press('Escape');
   await page.waitForTimeout(300);
-  await page.locator('.left-sidebar .nav', { hasText: 'Themes' }).first().click();
+  await page.locator('.left-sidebar .nav', { hasText: 'Providers' }).first().click();
+  await page.waitForTimeout(800);
+  await page.locator('[data-action="actionOpenProviderCreateModal"]').click();
   await page.waitForTimeout(800);
   const mmFoot = await measureModal(page);
   await browser.close();
@@ -351,6 +363,15 @@ async function measureModal(page) {
     if (mmFoot.tabBar) {
       check('modal tab strip bleeds to the panel edges', mmFoot.tabBar.x === p.x && mmFoot.tabBar.width === p.width);
     }
+    (mmFoot.fieldPairs || []).forEach((pair, i) => {
+      const fc = pair.field.y + pair.field.height / 2;
+      const cc = pair.ctrl.y + pair.ctrl.height / 2;
+      check(
+        `field/control pair ${i} shares one centre line`,
+        Math.abs(fc - cc) < 0.75,
+        `field ${pair.field.height}@${pair.field.y} vs control ${pair.ctrl.height}@${pair.ctrl.y}`,
+      );
+    });
     if (mmFoot.foot && mmFoot.footButtons.length) {
       const last = mmFoot.footButtons[mmFoot.footButtons.length - 1];
       check(

@@ -850,14 +850,15 @@ textarea.field {
     inset 0 0 0 var(--hair-w) var(--accent);
 }
 
-/* ── .frame — raised panel ───────────────────────────────────────────────── */
+/* ── .frame — raised panel ─────────────────────────────────────────────────
+   The one plate that casts: it sits on the page, not on a control's baseline. */
 .frame {
   box-sizing: border-box;
   border: none;
   border-radius: var(--radius-panel);
   background-color: var(--surface);
   background-image: var(--mat-raise-fill);
-  box-shadow: var(--mat-raise);
+  box-shadow: var(--mat-lift);
 }
 
 /* ── .panel — the floating layer ─────────────────────────────────────────── */

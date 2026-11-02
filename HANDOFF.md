@@ -1,8 +1,8 @@
 # Handoff — UI overhaul
 
 Branch `refactor/consolidate-ui`, off `master` (d7b89ad). Last commit `70263f1`.
-1416 backend tests + 269 frontend tests green; grid audit **163/163** (panes,
-messages, and the modal chassis).
+1416 backend tests + 269 frontend tests green; grid audit **164/164** (panes,
+messages, the modal chassis, and field/control centre lines).
 
 Read this, then `static/css/primitives.css` (the closed vocabulary), then
 `PRIMITIVE-MAP.md` (the class audit that produced it). The CSS import order in
@@ -80,7 +80,7 @@ Grid: `--u` 4, `--inset` 12, `--gutter` 8, `--rail-h` 24, `--row-h` 28,
 `--control-h{,-sm,-lg}` 28/24/32, `--hair-w` 1, `--radius-panel` 0,
 `--radius-control` 2.
 
-Material: `--mat-raise`, `--mat-raise-fill`, `--mat-inset`, `--mat-well`,
+Material: `--mat-raise` (a plate's own lit/shaded edges), `--mat-lift` (`--mat-raise` + the 1px cast shadow, **floating layers only**), `--mat-raise-fill`, `--mat-inset`, `--mat-well`,
 `--mat-brush`, `--mat-hi/shade/lo/edge/glow`, `--hair-dark`/`--hair-lit`,
 `--hair-groove`.
 
@@ -134,7 +134,7 @@ primitives come last.
   (providers, arranger) contain their own nested modals with feet.
 - `grid-audit.js` now measures it: title on 24/24, body pad 24, content clears
   the floor by 24, foot buttons 24/24, entity rows 32 with a 24 avatar, tab
-  strip full-bleed.
+  strip full-bleed, and every field/control pair sharing one centre line.
 
 ### Entity rows
 
@@ -214,6 +214,11 @@ hardcoded IDs; registry bypasses (87 raw `fetch` vs 31 `hx*`) untouched.
 - **`:has()` is not a substitute for an explicit flag** in a swapped body: the
   providers/arranger bodies contain nested modals, so `:has(.modal-foot)`
   matches. `modal_shell(..., foot=true)` is explicit.
+- **A control must not paint outside its box.** `--mat-raise` used to end with
+  `0 1px 0 var(--mat-edge)`, so every button sitting beside a field was 1px
+  lower than it (its cast shadow). The drop is now `--mat-lift`, used only by
+  `.frame` — things that float on the page, never a control on a baseline. The
+  ruler asserts field/control centres.
 - **An inline-flex control in a plain block wrapper sits on a line box**: a
   `.btn`/`.key` inside `<div class="relative">` is baseline-aligned, so it lands
   2px lower than its neighbours and adds a descender. The wrapper must be `flex`
