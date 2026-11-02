@@ -160,20 +160,23 @@
   background-color: var(--ink-1);
 }
 
+/* The head band owns the air under its rail: whatever follows (a toolbar or the
+   lane itself) starts 12px lower, so a rail never butts against a plane edge. */
 .modal-band-head {
   margin-top: calc(-1 * var(--band-pad));
-  padding-top: var(--band-pad);
+  padding-block: var(--band-pad) var(--inset);
 }
 
 .modal-band-head > .rail {
   margin: 0;
 }
 
+/* Its top gap is the head band's; only the space under the controls is its own. */
 .modal-band-toolbar {
   display: flex;
   align-items: center;
   gap: var(--gutter);
-  padding-block: var(--inset);
+  padding-block: 0 var(--inset);
 }
 
 /* The search field takes every pixel the pickers do not need. */
@@ -582,20 +585,8 @@
 }
 
 /* ── Itemizer ─────────────────────────────────────────────────────────────
-   One toolbar readout over a list of input messages; each message expands to
-   its parts. */
-.itemizer-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--gutter);
-  flex: none;
-  height: var(--control-h-lg);
-  padding: 0 var(--gutter);
-  margin-bottom: var(--gutter);
-  box-shadow: inset 0 calc(-1 * var(--hair-w)) 0 var(--hair-dark);
-}
-
+   A token readout over the outbound prompt. The readout is a band rail, the
+   messages are the lane; each message expands to its parts. */
 .itemizer-readout {
   color: var(--accent);
 }
@@ -603,8 +594,6 @@
 .itemizer-list {
   display: flex;
   flex-direction: column;
-  min-height: 0;
-  overflow-y: auto;
 }
 
 .itemizer-item {

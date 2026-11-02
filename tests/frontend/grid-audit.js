@@ -167,6 +167,49 @@ async function measureModal(page) {
   });
 }
 
+// The banded modal chassis: a rail, an optional toolbar, the list lane, an
+// optional foot. The vertical rhythm is the thing that keeps regressing — a
+// rail flush against the lane edge reads as "no margin at the top".
+async function measureBands(page) {
+  return page.evaluate(() => {
+    const rect = (el) => {
+      const b = el.getBoundingClientRect();
+      return { x: b.x, y: b.y, width: b.width, height: b.height, right: b.right, bottom: b.bottom };
+    };
+    const ov = [...document.querySelectorAll('.modal-overlay')].reverse().find((e) => !e.classList.contains('hidden') && e.getBoundingClientRect().width);
+    if (!ov) return null;
+    const panel = ov.querySelector('.modal-panel');
+    const head = panel.querySelector('.modal-head');
+    const body = panel.querySelector('.modal-body');
+    const container = body.querySelector('.modal-bands');
+    const bands = container ? [...container.children] : [];
+    const rail = body.querySelector('.modal-band-head .rail');
+    const lane = body.querySelector('.modal-band-lane');
+    const foot = body.querySelector('.modal-band-foot');
+    const headBand = body.querySelector('.modal-band-head');
+    const next = headBand ? headBand.nextElementSibling : null;
+    const row = lane && lane.querySelector('[data-ui="entity-row"], [data-ui="arranger-item"], [data-ui="char-block"], .itemizer-item, .row');
+    const last = bands[bands.length - 1];
+    // A foot may carry a hidden popover (the arranger's add-block menu); only
+    // laid-out verbs count.
+    const footButtons = foot
+      ? [...foot.querySelectorAll('.btn, .key')].filter((e) => e.getBoundingClientRect().width > 0)
+      : [];
+    return {
+      panel: rect(panel),
+      head: rect(head),
+      body: rect(body),
+      rail: rail ? rect(rail) : null,
+      lane: lane ? rect(lane) : null,
+      row: row ? rect(row) : null,
+      next: next ? rect(next) : null,
+      last: last ? rect(last) : null,
+      footButtons: footButtons.map(rect),
+      bandCount: bands.length,
+    };
+  });
+}
+
 (async () => {
   const browser = await chromium.launch({ channel: 'chrome' });
   const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
@@ -182,13 +225,27 @@ async function measureModal(page) {
   await page.locator('.left-sidebar .nav', { hasText: 'Characters' }).first().click();
   await page.waitForTimeout(800);
   const mmEntity = await measureModal(page);
+  const mmEntityBands = await measureBands(page);
   await page.keyboard.press('Escape');
   await page.waitForTimeout(300);
   await page.locator('.left-sidebar .nav', { hasText: 'Providers' }).first().click();
   await page.waitForTimeout(800);
+  const mmProviders = await measureBands(page);
   await page.locator('[data-action="actionOpenProviderCreateModal"]').click();
   await page.waitForTimeout(800);
   const mmFoot = await measureModal(page);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(300);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(300);
+  await page.locator('.left-sidebar .nav', { hasText: 'Itemizer' }).first().click();
+  await page.waitForTimeout(900);
+  const mmItemizer = await measureBands(page);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(300);
+  await page.locator('.left-sidebar .nav', { hasText: 'Arranger' }).first().click();
+  await page.waitForTimeout(900);
+  const mmArranger = await measureBands(page);
   await browser.close();
 
   const inset = 12;
@@ -358,6 +415,56 @@ async function measureModal(page) {
       check('entity avatar rides the row centre', mmEntity.entityAvatars[0].y - rows[0].y === 4, `dy=${mmEntity.entityAvatars[0].y - rows[0].y}`);
     }
   }
+  // ── Banded modal chassis: one vertical rhythm across every list modal ──
+  [
+    ['characters', mmEntityBands],
+    ['providers', mmProviders],
+    ['itemizer', mmItemizer],
+    ['arranger', mmArranger],
+  ].forEach(([name, b]) => {
+    if (!b) return;
+    const p = b.panel;
+    if (!b.rail) {
+      check(name + ': banded modal has a rail', false, 'no .rail in .modal-band-head');
+      return;
+    }
+    check(
+      name + ': rail sits on the modal inset',
+      Math.abs(b.rail.x - p.x - modalPad) < 1 && Math.abs(p.right - b.rail.right - modalPad) < 1,
+      `left=${(b.rail.x - p.x).toFixed(1)} right=${(p.right - b.rail.right).toFixed(1)}`,
+    );
+    check(
+      name + ': rail clears the title groove by the modal inset',
+      Math.abs(b.rail.y - b.head.bottom - modalPad) < 1,
+      `gap=${(b.rail.y - b.head.bottom).toFixed(1)}`,
+    );
+    check(
+      name + ': rail gets air before the next band',
+      b.next && Math.abs(b.next.y - b.rail.bottom - inset) < 1,
+      b.next ? `gap=${(b.next.y - b.rail.bottom).toFixed(1)}` : 'no band after the head',
+    );
+    if (b.lane && b.row) {
+      check(
+        name + ': first row starts inside the lane',
+        Math.abs(b.row.y - b.lane.y - 8) < 1,
+        `dy=${(b.row.y - b.lane.y).toFixed(1)}`,
+      );
+    }
+    check(
+      name + ': last band closes on the panel floor',
+      b.last && Math.abs(p.bottom - b.last.bottom) < 1,
+      b.last ? `gap=${(p.bottom - b.last.bottom).toFixed(1)}` : 'no bands',
+    );
+    if (b.footButtons.length) {
+      const lastBtn = b.footButtons[b.footButtons.length - 1];
+      check(
+        name + ': foot verb clears the panel inset',
+        Math.abs(p.right - lastBtn.right - modalPad) < 1 && Math.abs(p.bottom - lastBtn.bottom - modalPad) < 1,
+        `right=${(p.right - lastBtn.right).toFixed(1)} bottom=${(p.bottom - lastBtn.bottom).toFixed(1)}`,
+      );
+    }
+  });
+
   if (mmFoot) {
     const p = mmFoot.panel;
     if (mmFoot.tabBar) {

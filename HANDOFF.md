@@ -43,6 +43,7 @@ all 243 legacy classes onto one closed vocabulary.
 | 6 | done | character editor rebuilt + card blocks ported back (see §6) |
 | 7 | done | entity list modals (characters / personas) rebuilt as a banded chassis: rail + toolbar + list plane + foot, hover-revealed verbs, group tags |
 | 8 | done | the banded chassis is a vocabulary (`modal-bands*`) and the rest of the list modals adopted it: providers, trash bin, custom blocks, prompt arranger |
+| 9 | done | band rhythm is a rule the ruler enforces (rail → next band = 12), the itemizer joins the vocabulary, and `grid-audit.js` measures every banded modal |
 
 ---
 
@@ -224,6 +225,10 @@ Traps this step produced:
   the user checks first). The first and last bands must also absorb the body's
   vertical padding, or a tinted strip that is not a band shows up as a colour
   step above the rail and below the foot.
+- **Band padding is not per-modal.** The head band owns 12px of air under its
+  rail; a toolbar has no top padding. When providers/arranger/itemizer had their
+  rail butting straight against the lane, each one needed its own patch — the
+  fix was the rule plus an audit check (`rail gets air before the next band`).
 - **A rail action that is a labelled `.btn` needs `flush`.** `.rail-actions`
   pulls itself out 6px to align a 24px key's glyph; applied to a button with
   text, the button overhangs the modal inset by 6px.

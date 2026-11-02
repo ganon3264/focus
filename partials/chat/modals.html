@@ -32,10 +32,8 @@
 </div>
 {% endcall %}
 
-{% call modal_shell('modal-itemizer', 'Prompt Itemizer', max_width='700px', content_style='height:80vh;') %}
-<div class="flex-1 min-h-0 flex flex-col">
-  {% include "modals/itemizer.html" %}
-</div>
+{% call modal_shell('modal-itemizer', 'Prompt Itemizer', max_width='700px', content_style='height:80vh;', overlay_class='modal-bands-shell') %}
+{% include "modals/itemizer.html" %}
 {% endcall %}
 
 {% include "modals/summary.html" %}

@@ -1,24 +1,27 @@
 {% from "macros.html" import icon_chevron_right, icon_refresh, hint_tooltip %}
-<div x-data="itemizerModal()" @itemizer-open.window="load()" class="flex flex-col h-full min-h-0">
-  <div class="itemizer-bar">
-    <span class="note">Visualize and estimate tokens for the outbound prompt.</span>
-    <span class="flex items-center gap-1">
-      <span class="row-label">tokens</span>
-      <span class="row-value itemizer-readout" x-text="totalTokens">…</span>
-      {{ hint_tooltip('Estimate only. Computed with cl100k_base, so the real provider tokenizer may differ.') }}
-      <button
-        class="key sm"
-        @click="load()"
-        :disabled="loading"
-        title="Refresh"
-        aria-label="Refresh"
-      >
-        <span class="inline-flex" :class="loading ? 'animate-spin' : ''">{{ icon_refresh(14) }}</span>
-      </button>
-    </span>
+<div x-data="itemizerModal()" @itemizer-open.window="load()" class="modal-bands">
+  <div class="modal-band-head">
+    <div class="rail">
+      <span>Prompt</span>
+      {{ hint_tooltip('Estimated tokens for the outbound prompt. Computed with cl100k_base, so the real provider tokenizer may differ.') }}
+      <div class="rail-actions flush">
+        <span class="row-label">tokens</span>
+        <span class="row-value itemizer-readout" x-text="totalTokens">…</span>
+        <button
+          type="button"
+          class="key sm"
+          @click="load()"
+          :disabled="loading"
+          title="Refresh"
+          aria-label="Refresh"
+        >
+          <span class="inline-flex" :class="loading ? 'animate-spin' : ''">{{ icon_refresh(14) }}</span>
+        </button>
+      </div>
+    </div>
   </div>
 
-  <div class="itemizer-list flex-1 min-h-0">
+  <div class="modal-band-lane itemizer-list">
     <div x-show="loading && messages.length === 0" class="empty">Generating estimate...</div>
 
     <template x-for="(msg, i) in messages" :key="i">
