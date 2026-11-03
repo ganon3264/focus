@@ -4,6 +4,18 @@ set -euo pipefail
 export FOCUS_DEBUG=1  # set this env var to enable debug logging
 
 command -v python >/dev/null 2>&1 || { echo >&2 "Error: python is not installed or not on PATH."; exit 1; }
+
+if [ -t 0 ] && [ -d .git ]; then
+  reply=""
+  read -r -t 3 -p "Update from git? [y/N] " reply || echo
+  case "$reply" in
+    [yY]*)
+      git checkout --quiet master && git pull --ff-only \
+        || echo "Update skipped — local changes or no upstream."
+      ;;
+  esac
+fi
+
 ./vendor-sync.py --check || ./vendor-sync.py
 
 ./"$(./vendor-sync.py --print-tailwind-path)" -i static/tailwind-input.css -o static/tailwind.css --minify
