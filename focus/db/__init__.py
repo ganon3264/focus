@@ -7,11 +7,13 @@ from focus.db.characters import (
     delete_character,
     hard_delete_character,
     import_character,
-    reorder_char_blocks,
     restore_character,
     update_char_block,
     update_character,
     update_character_avatar,
+)
+from focus.db.characters import (
+    reorder_char_blocks as reorder_char_blocks,
 )
 from focus.db.chats import (
     bind_attachments_to_message,

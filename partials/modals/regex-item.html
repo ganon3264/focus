@@ -1,4 +1,4 @@
-{% from "macros.html" import icon_chevron_right, icon_close, hint_tooltip, toggle %}
+{% from "macros.html" import icon_chevron_right, icon_close, hint_tooltip, row_label, toggle %}
 <div
   class="arranger-item regex-item {% if not script.enabled %}disabled{% endif %} {% if open|default(false) %}expanded{% endif %}"
   data-ui="regex-item"
@@ -41,8 +41,8 @@
   </div>
 
   <div class="regex-body" data-ui="regex-body" style="display: {{ 'flex' if open|default(false) else 'none' }}">
-    <div class="form-group">
-      <label>Find</label>
+    <div class="row flat setting labeled tight fit">
+      {{ row_label('Find') }}
       <input
         type="text"
         class="field regex-pattern"
@@ -53,8 +53,8 @@
       />
     </div>
 
-    <div class="form-group">
-      <label>Replace</label>
+    <div class="row flat setting labeled tight fit">
+      {{ row_label('Replace') }}
       <input
         type="text"
         class="field regex-replacement"
@@ -65,101 +65,90 @@
       />
     </div>
 
-    <div class="regex-flags">
-      <div class="form-group">
-        <label>Flags</label>
-        <div class="field-row flex-wrap">
-          {% for flag, label, title in [('i', 'i · Ignore case', 'Python re.IGNORECASE. Case-insensitive matching. Inline form: (?i)'), ('s', 's · dot matches newline', 'Python re.DOTALL. Makes the dot (.) match newlines so the pattern can span lines. Inline form: (?s). Only changes anything if the pattern contains a dot.'), ('m', 'm · ^/$ per line', 'Python re.MULTILINE. Makes ^ and $ match at the start/end of each line. Inline form: (?m). Only changes anything if the pattern contains ^ or $. Has nothing to do with matching newlines.')] %}
-          <button
-            type="button"
-            class="chip regex-flag {% if flag in script.flags %} active{% endif %}"
-            data-ui="regex-flag"
-            data-flag="{{ flag }}"
-            title="{{ title }}"
-            onclick="toggleRegexFlag(this)"
-          >{{ label }}</button>
-          {% endfor %}
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label>Apply to</label>
-        <div class="field-row flex-wrap">
-          {% for place, label in [('user', 'User'), ('ai', 'AI'), ('reasoning', 'Reasoning')] %}
-          <button
-            type="button"
-            class="chip regex-placement {% if place in script.placement %} active{% endif %}"
-            data-ui="regex-placement"
-            data-place="{{ place }}"
-            onclick="toggleRegexPlacement(this)"
-          >{{ label }}</button>
-          {% endfor %}
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label>Output</label>
-        <div class="field-row flex-wrap">
-          <button
-            type="button"
-            class="chip regex-prompt {% if script.apply_prompt %} active{% endif %}"
-            title="Run this script against the prompt sent to the model"
-            onclick="toggleRegexPrompt(this)"
-          >Prompt</button>
-          <button
-            type="button"
-            class="chip regex-display {% if script.apply_display %} active{% endif %}"
-            title="Run this script against the rendered chat"
-            onclick="toggleRegexDisplay(this)"
-            {% if script.as_block %}disabled{% endif %}
-          >Display</button>
-          <button
-            type="button"
-            class="chip regex-block {% if script.as_block %} active{% endif %}"
-            data-ui="regex-block"
-            title="Render the display match as a collapsible block"
-            onclick="toggleRegexBlock(this)"
-          >Block</button>
-        </div>
-      </div>
-
-      <div class="form-group">
-        <div class="field-inline">
-          <label>Depth</label>
-          {{ hint_tooltip('Distance from the newest message. 0 = newest. Leave max empty for no limit.') }}
-        </div>
-        <div class="field-row">
-          <input
-            type="number"
-            min="0"
-            class="field regex-min"
-            style="width: 4.5rem"
-            value="{{ script.min_depth }}"
-            onchange="handleRegexUpdate(this, {min_depth: parseInt(this.value) || 0})"
-          />
-          <span class="note">–</span>
-          <input
-            type="number"
-            min="0"
-            class="field regex-max"
-            style="width: 4.5rem"
-            placeholder="∞"
-            value="{{ script.max_depth if script.max_depth >= 0 else '' }}"
-            onchange="handleRegexUpdate(this, {max_depth: this.value === '' ? -1 : parseInt(this.value)})"
-          />
-        </div>
-      </div>
+    <div class="row flat setting labeled tight">
+      {{ row_label('Flags') }}
+      <span class="row-actions flex-wrap">
+        {% for flag, label, title in [('i', 'i · Ignore case', 'Python re.IGNORECASE. Case-insensitive matching. Inline form: (?i)'), ('s', 's · dot matches newline', 'Python re.DOTALL. Makes the dot (.) match newlines so the pattern can span lines. Inline form: (?s). Only changes anything if the pattern contains a dot.'), ('m', 'm · ^/$ per line', 'Python re.MULTILINE. Makes ^ and $ match at the start/end of each line. Inline form: (?m). Only changes anything if the pattern contains ^ or $. Has nothing to do with matching newlines.')] %}
+        <button
+          type="button"
+          class="chip regex-flag {% if flag in script.flags %} active{% endif %}"
+          data-ui="regex-flag"
+          data-flag="{{ flag }}"
+          title="{{ title }}"
+          onclick="toggleRegexFlag(this)"
+        >{{ label }}</button>
+        {% endfor %}
+      </span>
     </div>
 
-    <div class="form-group regex-preview">
-      <label>Test</label>
-      <div class="field-row">
-        <input type="text" class="field regex-sample" data-ui="regex-sample" placeholder="Paste sample text…" />
-        <button type="button" class="btn shrink-0" onclick="previewRegexScript(this)">
-          Test
-        </button>
-      </div>
-      <div class="well p-2 preview-out" data-ui="regex-preview-out"></div>
+    <div class="row flat setting labeled tight">
+      {{ row_label('Apply to') }}
+      <span class="row-actions flex-wrap">
+        {% for place, label in [('user', 'User'), ('ai', 'AI'), ('reasoning', 'Reasoning')] %}
+        <button
+          type="button"
+          class="chip regex-placement {% if place in script.placement %} active{% endif %}"
+          data-ui="regex-placement"
+          data-place="{{ place }}"
+          onclick="toggleRegexPlacement(this)"
+        >{{ label }}</button>
+        {% endfor %}
+      </span>
     </div>
+
+    <div class="row flat setting labeled tight">
+      {{ row_label('Output') }}
+      <span class="row-actions flex-wrap">
+        <button
+          type="button"
+          class="chip regex-prompt {% if script.apply_prompt %} active{% endif %}"
+          title="Run this script against the prompt sent to the model"
+          onclick="toggleRegexPrompt(this)"
+        >Prompt</button>
+        <button
+          type="button"
+          class="chip regex-display {% if script.apply_display %} active{% endif %}"
+          title="Run this script against the rendered chat"
+          onclick="toggleRegexDisplay(this)"
+          {% if script.as_block %}disabled{% endif %}
+        >Display</button>
+        <button
+          type="button"
+          class="chip regex-block {% if script.as_block %} active{% endif %}"
+          data-ui="regex-block"
+          title="Render the display match as a collapsible block"
+          onclick="toggleRegexBlock(this)"
+        >Block</button>
+      </span>
+    </div>
+
+    <div class="row flat setting labeled tight">
+      {{ row_label('Depth', hint='Distance from the newest message. 0 = newest. Leave max empty for no limit.') }}
+      <span class="row-actions">
+        <input
+          type="number"
+          min="0"
+          class="field sm num regex-min"
+          value="{{ script.min_depth }}"
+          onchange="handleRegexUpdate(this, {min_depth: parseInt(this.value) || 0})"
+        />
+        <span class="note">–</span>
+        <input
+          type="number"
+          min="0"
+          class="field sm num regex-max"
+          placeholder="∞"
+          value="{{ script.max_depth if script.max_depth >= 0 else '' }}"
+          onchange="handleRegexUpdate(this, {max_depth: this.value === '' ? -1 : parseInt(this.value)})"
+        />
+      </span>
+    </div>
+
+    <div class="row flat setting labeled tight fit regex-preview">
+      {{ row_label('Test') }}
+      <input type="text" class="field regex-sample" data-ui="regex-sample" placeholder="Paste sample text…" />
+      <button type="button" class="btn sm shrink-0" onclick="previewRegexScript(this)">Test</button>
+    </div>
+    <div class="well preview-out" data-ui="regex-preview-out"></div>
   </div>
 </div>

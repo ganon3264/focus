@@ -375,7 +375,7 @@ def test_character_card_has_no_greetings_data():
         "card": {"first_mes": "Hi", "alternate_greetings": ["A", "B"]},
         "images": [],
     }
-    rendered = tmpl.render(char=char, current_character_id="", compact_view=False)
+    rendered = tmpl.render(char=char, current_character_id="")
     assert "data-char-greetings" not in rendered
 
 

@@ -51,7 +51,7 @@
         const chatId = window.location.pathname.split('/').pop();
         if (!chatId || chatId === 'chat') { this.chunks = []; return; }
         try {
-          const res = await fetch(window.api.chatSummary(chatId));
+          const res = await hxFetch(window.api.chatSummary(chatId));
           if (!res.ok) throw new Error('Failed to load summary');
           const data = await res.json();
           this.chunks = (data.chunks || []).map((c) => ({ ...c }));
@@ -67,12 +67,8 @@
         if (!chatId || chatId === 'chat') return;
         this.saving = true;
         try {
-          const res = await fetch(window.api.chatSummary(chatId), {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              chunks: this.chunks.map((c) => ({ id: c.id, content: c.content })),
-            }),
+          const res = await hxJson(window.api.chatSummary(chatId), 'PUT', {
+            chunks: this.chunks.map((c) => ({ id: c.id, content: c.content })),
           });
           if (!res.ok) {
             let msg = 'Save failed';

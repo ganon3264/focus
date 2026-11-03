@@ -46,7 +46,7 @@
   function deleteChat(btn) {
     const chatId = btn.dataset.chatId;
     window.customConfirm('Delete this chat?', function () {
-      fetch('/api/chats/' + chatId, { method: 'DELETE' })
+      hxJson(api.chat(chatId), 'DELETE')
         .then(function (r) {
           if (!r.ok) throw new Error('Failed to delete chat');
           const row = btn.closest('[data-ui="sidebar-item"]');
@@ -68,7 +68,7 @@
   }
 
   function openChatTrashModal() {
-    fetch('/api/chats/trash')
+    hxFetch(api.chatTrash)
       .then((r) => r.json())
       .then((chats) => {
         let html = `<div class="flex flex-col gap-2 max-h-[60vh] overflow-y-auto pr-1">`;
@@ -109,7 +109,7 @@
   }
 
   window.restoreChat = function (chatId) {
-    fetch('/api/chats/' + chatId + '/restore', { method: 'POST' }).then((r) => {
+    hxJson(api.chatRestore(chatId), 'POST').then((r) => {
       if (r.ok) {
         closeModal('modal-trash', { discard: true });
         window.showSuccessToast('Chat restored');
@@ -122,7 +122,7 @@
 
   window.hardDeleteChat = function (chatId) {
     window.customConfirm('Permanently delete this chat? This cannot be undone.', function () {
-      fetch('/api/chats/' + chatId + '?hard=true', { method: 'DELETE' }).then((r) => {
+      hxJson(api.chat(chatId) + '?hard=true', 'DELETE').then((r) => {
         if (r.ok) {
           closeModal('modal-trash', { discard: true });
           window.showSuccessToast('Chat permanently deleted');

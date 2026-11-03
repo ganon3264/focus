@@ -29,6 +29,10 @@ var hxFetch = createHxMock({
 var hxGet = createHxMock();
 global.hxFetch = hxFetch;
 global.hxGet = hxGet;
+global.jsonOpts = h.jsonOpts;
+global.hxJson = function (url, method, body) {
+  return hxFetch(url, h.jsonOpts(method, body));
+};
 
 global.Sortable = function (el, opts) {
   this.el = el;

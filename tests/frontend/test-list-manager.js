@@ -20,7 +20,9 @@ global.htmx = { ajax: function () {} };
 global.customConfirm = function (html, cb) { cb(true); };
 global.setTimeout = function (fn) { fn(); };
 
-// Load module
+// Load request primitives + module
+eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'core', 'api-paths.js'), 'utf8'));
+h.installRequestPrimitives(global);
 eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'ui', 'list-manager.js'), 'utf8'));
 
 assert(!!window.ListManager, 'ListManager loaded');
@@ -36,14 +38,6 @@ function addCard(name, created) {
   card.dataset.ui = 'entity-row';
   card.setAttribute('data-name', name);
   card.setAttribute('data-created', created);
-  var full = makeElement('div');
-  full.style = {};
-  full.dataset.ui = 'card-full';
-  var compact = makeElement('div');
-  compact.style = {};
-  compact.dataset.ui = 'card-compact';
-  card.appendChild(full);
-  card.appendChild(compact);
   grid.appendChild(card);
   return card;
 }
@@ -80,16 +74,11 @@ var cfg = {
   dataCreatedAttr: 'data-created',
   filterFn: 'filterTest',
   sortFn: 'sortTest',
-  applyCompactFn: 'applyCompactTest',
-  toggleCompactFn: 'toggleCompactTest',
   newItemFn: 'newItemTest',
   newItemLabel: 'New Item',
   newItemInputId: 'new-item-input',
   sortStorageKey: 'sort_test',
-  viewStorageKey: 'view_test',
   sortSelectId: 'sort-select',
-  viewFullUi: 'card-full',
-  viewCompactUi: 'card-compact',
   apiEndpoint: '/api/test-items',
 };
 
@@ -144,32 +133,6 @@ window.ListManager.setup(cfg);
   var names = [];
   for (var i = 0; i < cards.length; i++) names.push(cards[i].getAttribute('data-name'));
   assertEqual(names[0], 'Beta', 'sort oldest: first is Beta');
-})();
-
-// ── applyCompactFn toggles view ──
-(function () {
-  window.applyCompactTest(true);
-  assertEqual(grid.dataset.view, 'compact', 'compact view set');
-  assert(
-    grid.querySelectorAll('[data-ui="card-full"]')[0].style.display === 'none',
-    'compact hides [data-ui="card-full"]',
-  );
-  assert(
-    grid.querySelectorAll('[data-ui="card-compact"]')[0].style.display === 'block',
-    'compact shows [data-ui="card-compact"]',
-  );
-
-  window.applyCompactTest(false);
-  assertEqual(grid.dataset.view, 'full', 'full view set');
-})();
-
-// ── toggleCompactFn toggles compact ──
-(function () {
-  grid.dataset.view = 'full';
-  window.toggleCompactTest();
-  assertEqual(grid.dataset.view, 'compact', 'toggleCompact switches to compact');
-  window.toggleCompactTest();
-  assertEqual(grid.dataset.view, 'full', 'toggleCompact switches back to full');
 })();
 
 // ── Result ──

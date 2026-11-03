@@ -178,11 +178,7 @@ window.actionToggleMessagePin = function (el) {
   var chatId = msg.dataset.chatId;
   var messageId = msg.dataset.messageId;
   var pinned = el.dataset.pinned !== '1';
-  fetch(window.api.messagePin(chatId, messageId), {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ pinned: pinned }),
-  })
+  hxJson(window.api.messagePin(chatId, messageId), 'PUT', { pinned: pinned })
     .then(function (r) {
       if (!r.ok) throw new Error('Pin failed');
       return window.refreshSingleMessage(chatId, messageId);
@@ -197,7 +193,7 @@ window.actionBranchMessage = function (el) {
   var msg = el.closest('[data-ui="message"]');
   var messageId = msg.dataset.messageId;
   var chatId = msg.dataset.chatId;
-  fetch(window.api.chatBranch(chatId, messageId), { method: 'POST' })
+  hxJson(window.api.chatBranch(chatId, messageId), 'POST')
     .then(function (r) {
       if (!r.ok) throw new Error('Branch failed');
       return r.json();

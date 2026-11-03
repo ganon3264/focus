@@ -91,7 +91,8 @@ function flush() {
   return new Promise(function (resolve) { setTimeout(resolve, 0); });
 }
 
-// Load modules (identity first — delete-mode uses MessageIdentity.bare)
+// Load queue + modules (identity first — delete-mode uses MessageIdentity.bare)
+h.installRequestPrimitives(global);
 eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'messages', 'message-identity.js'), 'utf8'));
 eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'messages', 'delete-mode.js'), 'utf8'));
 

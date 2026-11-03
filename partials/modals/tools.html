@@ -1,4 +1,4 @@
-{% from "macros.html" import hint_tooltip, icon_refresh, sort_dropdown, search_toolbar, slider_row, toggle %}
+{% from "macros.html" import hint_tooltip, reload_key, sort_dropdown, search_toolbar, slider_row, toggle, toggle_row %}
 <div x-data="toolsModal()" id="tools-modal-data" class="modal-bands" @multimodal-changed.window="enableMultimodal = $event.detail.value" @provider-changed.window="providerType = $event.detail.type || 'openai_compat'">
 
   <div class="modal-band-head">
@@ -8,16 +8,7 @@
       <div class="rail-actions flush">
         <span class="row-label">enabled</span>
         <span class="row-value" x-text="enabledCount + ' / ' + tools.length"></span>
-        <button
-          type="button"
-          class="key sm"
-          @click="reloadTools()"
-          :disabled="reloading"
-          title="Reload tools"
-          aria-label="Reload tools"
-        >
-          <span class="inline-flex" :class="reloading ? 'animate-spin' : ''">{{ icon_refresh(14) }}</span>
-        </button>
+        {{ reload_key('reloadTools()', 'reloading', 'Reload tools') }}
       </div>
     </div>
   </div>
@@ -31,20 +22,8 @@
   <div class="modal-band-lane tool-pane">
     <div class="rail">Settings</div>
     <div class="tool-settings">
-      <div class="row setting">
-        <span class="row-title inline-flex items-center gap-1">
-          Enable tool calls
-          {{ hint_tooltip('Allow the assistant to call filesystem tools. Tools execute locally without sandboxing. <span class="note danger">This might be potentially dangerous!</span>') }}
-        </span>
-        <span class="row-actions">{{ toggle(':class="{ \'active\': enabled }" @click="toggleEnabled()"') }}</span>
-      </div>
-      <div class="row setting" x-show="enabled" x-cloak>
-        <span class="row-title inline-flex items-center gap-1">
-          Read-only mode
-          {{ hint_tooltip('When enabled, write marked tools are hidden from the model entirely regardless of whether they are individually enabled or not.') }}
-        </span>
-        <span class="row-actions">{{ toggle(':class="{ \'active\': readOnly }" @click="toggleReadOnly()"') }}</span>
-      </div>
+      {{ toggle_row('Enable tool calls', ':class="{ \'active\': enabled }" @click="toggleEnabled()"', hint='Allow the assistant to call filesystem tools. Tools execute locally without sandboxing. <span class="note danger">This might be potentially dangerous!</span>') }}
+      {{ toggle_row('Read-only mode', ':class="{ \'active\': readOnly }" @click="toggleReadOnly()"', hint='When enabled, write marked tools are hidden from the model entirely regardless of whether they are individually enabled or not.', row_attrs='x-show="enabled" x-cloak') }}
       <div x-show="enabled" x-cloak>
         {{ slider_row('Max Tool Iterations', 'maxIterations', '0', '100', '1', 0,
           change='saveMaxIterations()', blur='', wrapper_classes='',
@@ -152,7 +131,7 @@ document.addEventListener('alpine:init', function () {
 
       _loadTools: function () {
         var self = this;
-        return fetch('/api/tools')
+        return hxFetch(api.tools)
           .then(function (r) { return r.json(); })
           .then(function (data) { self.tools = data; });
       },
@@ -164,7 +143,7 @@ document.addEventListener('alpine:init', function () {
           self._expose();
           return Promise.resolve();
         }
-        return fetch('/api/chats/' + chatId)
+        return hxFetch(api.chat(chatId))
           .then(function (r) { return r.json(); })
           .then(function (chat) {
             self.enabled = chat.tool_calls_enabled === 1 || chat.tool_calls_enabled === true;
@@ -203,11 +182,7 @@ document.addEventListener('alpine:init', function () {
         this.toolStates[name] = newState;
         var chatId = StateManager.get('chat_id');
         if (chatId) {
-          fetch('/api/chats/' + chatId + '/tool-states', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ [name]: newState }),
-          });
+          hxJson(api.chatToolStates(chatId), 'PUT', { [name]: newState });
         }
       },
 
@@ -218,8 +193,8 @@ document.addEventListener('alpine:init', function () {
       reloadTools: function () {
         var self = this;
         var loadingTimer = setTimeout(function () { self.reloading = true; }, 200);
-        fetch('/api/tools/reload', { method: 'POST' })
-          .then(function () { return fetch('/api/tools'); })
+        hxJson(api.toolsReload, 'POST')
+          .then(function () { return hxFetch(api.tools); })
           .then(function (r) { return r.json(); })
           .then(function (data) {
             clearTimeout(loadingTimer);
@@ -235,14 +210,10 @@ document.addEventListener('alpine:init', function () {
       _save: function () {
         var chatId = StateManager.get('chat_id');
         if (chatId) {
-          fetch('/api/chats/' + chatId, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              tool_calls_enabled: this.enabled,
-              tool_read_only: this.readOnly,
-              max_tool_iterations: this.maxIterations,
-            }),
+          hxJson(api.chat(chatId), 'PATCH', {
+            tool_calls_enabled: this.enabled,
+            tool_read_only: this.readOnly,
+            max_tool_iterations: this.maxIterations,
           });
         }
         this._expose();

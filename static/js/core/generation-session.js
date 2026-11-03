@@ -144,7 +144,7 @@
           body.continue_reasoning = opts.continueReasoning;
         }
 
-        var res = await fetch(window.api.stream, {
+        var res = await fetch(window.api.stream, { // raw: SSE reader owns the abort
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
@@ -237,7 +237,7 @@
       // own timeout and fall back to a hard abort.
       var postCtl = new AbortController();
       var postTimer = setTimeout(function () { postCtl.abort(); }, STOP_POST_TIMEOUT_MS);
-      fetch('/api/stop-generation/' + encodeURIComponent(msgId), {
+      fetch(api.stopGeneration(encodeURIComponent(msgId)), { // raw: own 4s timeout, must not queue behind the stream
         method: 'POST',
         signal: postCtl.signal,
       }).then(function (res) {
@@ -262,7 +262,7 @@
       if (_state) _state.stopRequested = true;
       var msgId = streamingId();
       if (msgId) {
-        fetch('/api/stop-generation/' + encodeURIComponent(msgId), { method: 'POST' })
+        fetch(api.stopGeneration(encodeURIComponent(msgId)), { method: 'POST' }) // raw: silent cancel, own timeout
           .catch(function () {});
       }
       clearPendingStop();

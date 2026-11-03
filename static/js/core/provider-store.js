@@ -73,7 +73,7 @@
     // Re-pull the authoritative list. Provider create/update responses are not
     // the full record, so this is how the store catches up after a mutation.
     refresh: function () {
-      return fetch(window.api.providers)
+      return hxFetch(window.api.providers)
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (list) {
           if (Array.isArray(list)) {

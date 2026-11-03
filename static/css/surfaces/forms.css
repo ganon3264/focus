@@ -62,13 +62,6 @@
   min-width: 0;
 }
 
-/* Two numeric fields and the dash between them. */
-.field-range {
-  display: flex;
-  align-items: center;
-  gap: var(--gutter);
-}
-
 /* Search field with a leading mark. The mark is type, not a control: it never
    raises under the pointer. */
 .search-field {
@@ -152,11 +145,4 @@
 .hint-icon:hover {
   color: var(--accent);
   box-shadow: inset 0 0 0 var(--hair-w) var(--edge);
-}
-
-/* Description takes two thirds of the height, Greeting one, a single field all
-   of it: the editors share the column and never scroll on their own. */
-.field-fill {
-  flex: 1 1 auto;
-  min-height: 0;
 }

@@ -147,7 +147,7 @@
     var formData = new FormData();
     filesToUpload.forEach(function (f) { formData.append('files', f); });
     try {
-      var res = await fetch(window.api.chatAttachments(chatId), { method: 'POST', body: formData });
+      var res = await hxFetch(window.api.chatAttachments(chatId), { method: 'POST', body: formData });
       if (res.ok) {
         var data = await res.json();
         if (window.clearUploadedFiles) window.clearUploadedFiles(filesToUpload);

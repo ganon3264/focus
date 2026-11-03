@@ -106,24 +106,16 @@ window.setSlot = function (slot, themeId) {
   if (slot === 'dark') THEME_STATE.dark_theme_id = themeId;
   else THEME_STATE.light_theme_id = themeId;
   _applyEffective();
-  fetch('/api/settings/theme', {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ slot: slot, theme_id: themeId }),
-  });
+  hxJson(api.settingsTheme, 'PUT', { slot: slot, theme_id: themeId });
   window.showToast((slot === 'dark' ? 'Dark theme: ' : 'Light theme: ') + theme.name);
 };
 
 // ── CRUD ─────────────────────────────────────────────────────────────────────
 
 window.saveTheme = function (name, colors, id, done) {
-  var url = '/api/themes' + (id ? '/' + id : '');
+  var url = id ? api.theme(id) : api.themes;
   var method = id ? 'PATCH' : 'POST';
-  fetch(url, {
-    method: method,
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: name, colors: colors }),
-  })
+  hxJson(url, method, { name: name, colors: colors })
     .then(function (r) {
       return r.json().then(function (data) {
         if (done) done(r.ok, r.ok && data.id ? data.id : null);
@@ -135,7 +127,7 @@ window.saveTheme = function (name, colors, id, done) {
 };
 
 window.resetTheme = function (id, done) {
-  fetch('/api/themes/' + id + '/reset', { method: 'POST' })
+  hxJson(api.themeReset(id), 'POST')
     .then(function (r) {
       if (done) done(r.ok);
     })
@@ -145,7 +137,7 @@ window.resetTheme = function (id, done) {
 };
 
 window.deleteTheme = function (id, done) {
-  fetch('/api/themes/' + id, { method: 'DELETE' })
+  hxJson(api.theme(id), 'DELETE')
     .then(function (r) {
       if (done) done(r.ok);
     })
@@ -155,7 +147,7 @@ window.deleteTheme = function (id, done) {
 };
 
 window.refreshThemes = function (cb) {
-  fetch('/api/themes')
+  hxFetch(api.themes)
     .then(function (r) {
       return r.json();
     })
@@ -396,7 +388,7 @@ window.openCharThemePicker = function () {
         window.reapplyTheme();
         return;
       }
-      fetch('/api/characters/' + id)
+      hxFetch(api.characters(id))
         .then(function (r) {
           return r.json();
         })
@@ -411,7 +403,7 @@ window.openCharThemePicker = function () {
     document.addEventListener('character-edited', function (e) {
       var id = e.detail && e.detail.id;
       if (!id || id !== StateManager.get('character_id')) return;
-      fetch('/api/characters/' + id)
+      hxFetch(api.characters(id))
         .then(function (r) {
           return r.json();
         })

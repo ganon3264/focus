@@ -324,12 +324,6 @@ class TestModalPartials:
         resp = await client.get("/partials/export-entities?type=bogus&filter=")
         assert resp.status_code == 200
 
-    async def test_persona_card_partial(self, client):
-        p = await create_persona(client, "Carded")
-        resp = await client.get(f"/partials/persona-card/{p['id']}")
-        assert resp.status_code == 200
-        assert (await client.get("/partials/persona-card/nope")).status_code == 404
-
     async def test_character_card_partial(self, client):
         char = await create_character(client, "CardedChar")
         resp = await client.get(f"/partials/character-card/{char['id']}")

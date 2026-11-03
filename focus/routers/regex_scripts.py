@@ -150,7 +150,7 @@ async def preview_regex_script(body: RegexPreview):
             ),
             timeout=REGEX_TIMEOUT,
         )
-    except asyncio.TimeoutError:
+    except TimeoutError:
         raise HTTPException(400, "Pattern too slow on that sample")
     except (ValueError, re.error) as e:
         raise HTTPException(400, f"Invalid replacement: {e}")

@@ -16,11 +16,7 @@
         });
       });
 
-    fetch(`/api/presets/${presetId}/blocks`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ blocks: updates }),
-    });
+    hxJson(api.presetBlocks(presetId), 'PUT', { blocks: updates });
   };
 
   window.initVarSortables = function (presetId) {
@@ -79,11 +75,7 @@
     const presetId = el.closest('[data-preset-id]').dataset.presetId;
     const blockId = el.dataset.varId;
     const payload = { enabled: el.classList.contains('active') ? 0 : 1 };
-    fetch(`/api/presets/${presetId}/blocks/${blockId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    }).then(function () {
+    hxJson(api.presetBlock(presetId, blockId), 'PATCH', payload).then(function () {
       var idsEl = document.querySelector('[data-ui="var-group-ids"][data-ids*="' + blockId + '"]');
       if (idsEl) {
         var container = idsEl.closest('[data-ui="var-group-container"]');
@@ -102,9 +94,7 @@
   window.handleVarDelete = function (el) {
     const presetId = el.closest('[data-preset-id]').dataset.presetId;
     const blockId = el.dataset.varId;
-    fetch(`/api/presets/${presetId}/blocks/${blockId}`, {
-      method: 'DELETE',
-    }).then(function () {
+    hxJson(api.presetBlock(presetId, blockId), 'DELETE').then(function () {
       var idsEl = document.querySelector('[data-ui="var-group-ids"][data-ids*="' + blockId + '"]');
       if (idsEl) {
         var container = idsEl.closest('[data-ui="var-group-container"]');
@@ -136,7 +126,7 @@
     document.getElementById('var-modal-label').value = optionLabel || '';
     document.getElementById('var-modal-content').value = '';
     if (blockId) {
-      fetch('/api/presets/' + presetId + '/blocks/' + blockId)
+      hxFetch(api.presetBlock(presetId, blockId))
         .then(function (r) {
           return r.json();
         })
@@ -159,24 +149,17 @@
     const varBlockId = _currentVarBlockId;
 
     if (varBlockId) {
-      fetch('/api/presets/' + presetId + '/blocks/' + varBlockId, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: combinedName, content: content }),
-      }).then(function () {
+      hxJson(api.presetBlock(presetId, varBlockId), 'PATCH', { name: combinedName, content: content })
+      .then(function () {
         window.closeModal('var-edit-modal', { discard: true });
         window.refreshSingleVarGroup(presetId, group);
       });
     } else {
-      fetch('/api/presets/' + presetId + '/blocks', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: combinedName,
-          block_type: 'variable',
-          content: content,
-          role: 'system',
-        }),
+      hxJson(api.presetBlocks(presetId), 'POST', {
+        name: combinedName,
+        block_type: 'variable',
+        content: content,
+        role: 'system',
       }).then(function () {
         window.closeModal('var-edit-modal', { discard: true });
         window.reloadPresetVariables(presetId);

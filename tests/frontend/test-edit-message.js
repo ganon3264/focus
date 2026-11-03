@@ -92,8 +92,10 @@ global.ModalController = { setDirty: function () {} };
 global.extractThoughtsSafely = function (text) {
   return { processed: text || '', thoughts: [] };
 };
+global.openLightbox = function (src) { global._lightboxSrc = src; };
 global.createMediaThumbnail = function (opts) {
   var div = doc.createElement('div');
+  div._opts = opts;
   if (opts && opts.onDelete) {
     var btn = doc.createElement('button');
     btn.addEventListener('click', function (e) { opts.onDelete(e); });
@@ -145,6 +147,25 @@ assert(typeof window.editMessage === 'function', 'editMessage loaded');
   window.renderEditModalAttachments();
   assert(attachmentsContainer.children.length >= 1, 'attachments rendered');
   assert(attachmentsEmpty.classList.contains('hidden'), 'empty note is hidden with attachments');
+  window.currentEditAttachments = [];
+})();
+
+// ── a thumb opens the lightbox, like the character editor's media grid ──
+(function () {
+  global._lightboxSrc = null;
+  window.currentEditAttachments = [
+    { id: 'att1', file_path: 'assets/attachments/x.png', mime_type: 'image/png' },
+  ];
+  window.renderEditModalAttachments();
+  attachmentsContainer.children[0].children[0]._opts.onClick();
+  assertEqual(global._lightboxSrc, '/assets/attachments/x.png', 'thumb click opens the lightbox');
+
+  window.currentEditAttachments = [
+    { id: 'att2', file_path: 'blob:preview', mime_type: 'image/png' },
+  ];
+  window.renderEditModalAttachments();
+  attachmentsContainer.children[0].children[0]._opts.onClick();
+  assertEqual(global._lightboxSrc, 'blob:preview', 'external src is not prefixed');
   window.currentEditAttachments = [];
 })();
 

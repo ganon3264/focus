@@ -204,15 +204,12 @@
   pointer-events: auto;
 }
 
-.toolbar-sep {
-  width: var(--hair-w);
-  height: calc(var(--u) * 4);
-  margin: 0 var(--u);
+.swipe-counter {
+  margin: 0;
 }
 
-.swipe-counter {
-  margin: 0 var(--u);
-}
+/* A variant pager reads as its own cluster through the counter it carries, not
+   through a separator: the toolbar is one rhythm of 4px gaps. */
 
 /* ── Screen ───────────────────────────────────────────────────────────────
    One well under the rail, inset by a gutter on the three sides the frame
@@ -364,6 +361,12 @@
 .markdown-content pre:hover .copy-btn,
 .markdown-content .copy-btn:focus-visible {
   opacity: 1;
+}
+
+/* Emphasis takes the accent ink at full strength. No second, softer shade: the
+   palette has one accent, and italics are a second use of it, not a new tone. */
+.markdown-content em {
+  color: var(--accent);
 }
 
 /* ── Sub-panels: reasoning and tool calls ─────────────────────────────────
@@ -562,19 +565,25 @@
   margin-left: auto;
 }
 
-/* The ticker runs for the whole generation; its lit hue names the phase: accent
-   while nothing has arrived, green while reasoning, the assistant's own colour
-   once real output is on the wire. */
+/* The ticker runs for the whole generation; the phase names itself twice — in
+   the lit hue and in the rate. Slow while nothing has arrived (the request is
+   in flight, there is nothing to report), quicker while reasoning, quickest
+   once real output is on the wire. The rate is a playback rate against the
+   track's fixed 1s cycle; JS applies it because changing a duration in CSS
+   restarts the animation from the first cell. */
 .message.is-waiting {
   --tick-color: var(--accent);
+  --tick-rate: 0.63;
 }
 
 .message.is-reasoning {
   --tick-color: var(--success);
+  --tick-rate: 0.91;
 }
 
 .message.is-content {
   --tick-color: var(--role-assistant);
+  --tick-rate: 1.33;
 }
 
 .message:is(.is-waiting, .is-reasoning, .is-content) .message-pending {

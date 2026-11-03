@@ -119,7 +119,10 @@ global.window.refreshChatMessages = function (chatId) {
 // ── load modules under test ──
 var fs = require('fs');
 var path = require('path');
+eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'core', 'api-paths.js'), 'utf8'));
+eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'core', 'hx-queue.js'), 'utf8'));
 eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'core', 'state-manager.js'), 'utf8'));
+eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'core', 'hx-queue.js'), 'utf8'));
 eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'core', 'hx-queue.js'), 'utf8'));
 eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'core', 'refresh.js'), 'utf8'));
 eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'core', 'selection.js'), 'utf8'));

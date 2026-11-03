@@ -161,7 +161,6 @@
   min-height: 0;
 }
 
-.modal-band,
 .modal-band-head,
 .modal-band-toolbar,
 .modal-band-lane,
@@ -379,8 +378,17 @@
 
 /* The attachments tray is a well so the drop target can show the drag-over
    edge without a bespoke rule. */
-.msg-attachments-tray {
-  padding: var(--gutter);
+/* The message editor's tray is the gallery itself — one grid, the empty note
+   spans it, and it hugs its rows instead of holding the entity media gallery's
+   fixed three-row height. */
+.media-row.msg-attachments-tray {
+  height: auto;
+  min-height: calc(var(--u) * 18);
+  max-height: calc(var(--u) * 44);
+}
+
+.media-row.msg-attachments-tray > .note {
+  grid-column: 1 / -1;
 }
 
 /* ── Entity editor (character / persona) ──────────────────────────────────
@@ -913,6 +921,7 @@
   text-overflow: ellipsis;
   height: var(--control-h);
   padding-block: calc((var(--control-h) - (var(--u) * 4)) / 2);
+  padding-inline: var(--gutter);
 }
 
 .preview-out:empty {
@@ -923,6 +932,13 @@
   color: var(--danger);
 }
 
+/* An extension parameter's description is prose: the control sits on the
+   caption's first line instead of the middle of the block. */
+.ext-config-row {
+  align-items: flex-start;
+  padding-block: var(--u);
+}
+
 /* ── Backups ──────────────────────────────────────────────────────────────
    Data rows, not cards: the date carries the ink, the size is the readout, the
    keys sit at the far edge. */
@@ -931,13 +947,6 @@
   align-items: center;
   gap: var(--gutter);
   flex: none;
-}
-
-.backup-row-main {
-  display: flex;
-  flex-direction: column;
-  flex: 1 1 auto;
-  min-width: 0;
 }
 
 /* ── Providers ────────────────────────────────────────────────────────────

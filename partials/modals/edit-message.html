@@ -20,11 +20,9 @@ dirty_fields='[data-ui="edit-block-ta"]', dirty_label='this message') %}
         </button>
       </div>
     </div>
-    <div id="edit-msg-media" class="well msg-attachments-tray">
-      <div class="media-row">
-        <div id="edit-msg-attachments" class="media-row"></div>
-        <span class="note" id="edit-msg-att-empty">No attachments</span>
-      </div>
+    <div id="edit-msg-media" class="well media-row msg-attachments-tray">
+      <div id="edit-msg-attachments" class="contents"></div>
+      <span class="note" id="edit-msg-att-empty">No attachments</span>
     </div>
     <input type="file" id="edit-msg-attach-input" class="hidden" multiple accept="image/*,audio/*" onchange="uploadMessageAttachment(this)" />
   </div>

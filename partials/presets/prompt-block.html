@@ -1,4 +1,4 @@
-{% from "macros.html" import custom_select, icon_plus, icon_close, icon_chevron_right,
+{% from "macros.html" import role_select, custom_select, icon_plus, icon_close, icon_chevron_right,
 media_thumbnail, hint_tooltip, icon_sliders, in_chat_controls, toggle, verb_slot %}
 <div
   class="arranger-item{% if not block.enabled %} disabled{% endif %}"
@@ -53,20 +53,17 @@ media_thumbnail, hint_tooltip, icon_sliders, in_chat_controls, toggle, verb_slot
   <div x-show="expanded" x-transition.opacity.duration.200ms class="arranger-expand" style="display: none">
     {% if block.block_type == 'text' %}
     <div class="arranger-body">
-      <div class="arranger-select">{{ custom_select( name="role", id="role-" + block.id, options=[ {"value": "system", "label":
-        "system"}, {"value": "user", "label": "user"}, {"value": "assistant", "label": "assistant"}
-        ], selected=block.role, on_change="handleArrangerBlockUpdate($el.closest('[data-ui=arranger-item]'), {role:$event.target.value})",
-        ) }}</div>
+      <div class="arranger-select">{{ role_select(block, 'role-' ~ block.id, "handleArrangerBlockUpdate($el.closest('[data-ui=arranger-item]'), {role:$event.target.value})") }}</div>
       <div class="arranger-preview flex flex-col gap-1">
         <div
-          class="well p-2 preview-out"
+          class="well preview-out"
           role="button"
           tabindex="0"
           onclick="openBlockModal(this, 'content')"
         >{{ block.content[:80] }}{% if block.content | length > 80 %}…{% endif %}{% if not block.content %}<span class="note">Empty — click to edit</span>{% endif %}</div>
         {% if block.role == 'assistant' %}
         <div
-          class="well p-2 preview-out reasoning-preview"
+          class="well preview-out reasoning-preview"
           role="button"
           tabindex="0"
           onclick="openBlockModal(this, 'reasoning')"
@@ -92,16 +89,13 @@ media_thumbnail, hint_tooltip, icon_sliders, in_chat_controls, toggle, verb_slot
 
     {% elif block.block_type == 'summary' %}
     <div class="arranger-body">
-      <div class="arranger-select">{{ custom_select( name="role", id="role-" + block.id, options=[ {"value": "system", "label":
-        "system"}, {"value": "user", "label": "user"}, {"value": "assistant", "label": "assistant"}
-        ], selected=block.role, on_change="handleArrangerBlockUpdate($el.closest('[data-ui=arranger-item]'), {role:$event.target.value})",
-        ) }}</div>
+      <div class="arranger-select">{{ role_select(block, 'role-' ~ block.id, "handleArrangerBlockUpdate($el.closest('[data-ui=arranger-item]'), {role:$event.target.value})") }}</div>
       <div class="arranger-note arranger-preview flex flex-col gap-1">
         <span class="note">Injected only in chats that have been summarized. Edit to place
         <code>{{ '{{summary}}' }}</code>, <code>{{ '{{summary_messages}}' }}</code> and
         <code>{{ '{{summary_media}}' }}</code>.</span>
         <div
-          class="well p-2 preview-out"
+          class="well preview-out"
           role="button"
           tabindex="0"
           onclick="openBlockModal(this, 'content')"
@@ -119,10 +113,7 @@ media_thumbnail, hint_tooltip, icon_sliders, in_chat_controls, toggle, verb_slot
     {% else %}
     <div class="arranger-body">
       {% if block.block_type != 'chat_history' %}
-      <div class="arranger-select">{{ custom_select( name="role", id="role-" + block.id, options=[ {"value": "system", "label":
-        "system"}, {"value": "user", "label": "user"}, {"value": "assistant", "label": "assistant"}
-        ], selected=block.role, on_change="handleArrangerBlockUpdate($el.closest('[data-ui=arranger-item]'), {role:$event.target.value})",
-        ) }}</div>
+      <div class="arranger-select">{{ role_select(block, 'role-' ~ block.id, "handleArrangerBlockUpdate($el.closest('[data-ui=arranger-item]'), {role:$event.target.value})") }}</div>
       {% endif %}
       <div class="arranger-note flex flex-col gap-1">
         {% if block.block_type == 'char_description' %}

@@ -152,6 +152,24 @@
   color: var(--text);
 }
 
+/* A key on imagery: a scrim instead of a plate. It reads on any picture and
+   lets the photo show through, and unlike .raised it never turns opaque under
+   the pointer — the scrim just deepens. */
+.key.scrim,
+.key.scrim:hover {
+  background-image: none;
+}
+
+.key.scrim {
+  background-color: color-mix(in srgb, var(--bg) 72%, transparent);
+  box-shadow: inset 0 0 0 var(--hair-w) var(--hair-strong);
+}
+
+.key.scrim:hover {
+  background-color: color-mix(in srgb, var(--bg) 86%, transparent);
+  box-shadow: inset 0 0 0 var(--hair-w) var(--hair-strong);
+}
+
 .key.lg {
   width: var(--control-h-lg);
   height: var(--control-h-lg);
@@ -878,6 +896,15 @@ textarea.field.sized {
 
 /* An icon inside a row title rides the text's centre line instead of opening a
    taller line box — that is how a row stays 32px tall with or without one. */
+/* A caption that is prose (an extension parameter's description) wraps instead
+   of clipping; the row grows to fit it. */
+.row-title.wrap {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+}
+
 .row-title > svg {
   display: inline-block;
   flex: none;
@@ -1385,6 +1412,9 @@ textarea.field.sized {
 /* A four-slot ticker: one lit cell runs the track, the rest stay recessed
    sockets. Chunky enough to read at a glance beside a 10px readout. */
 .spinner.scan {
+  /* The track runs one fixed cycle here. The phase tempo is a playback rate
+     (see messages.css) applied by JS, because changing an animation's duration
+     would restart it from the first cell. */
   display: inline-flex;
   align-items: center;
   gap: 2px;
@@ -1602,18 +1632,4 @@ textarea.field.sized {
 .copied {
   color: var(--accent);
   box-shadow: inset 0 0 0 var(--hair-w) var(--edge);
-}
-
-/* ── Ruler overlay (dev): 4px lattice + 24px majors ──────────────────────── */
-body.show-grid::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: var(--z-max);
-  pointer-events: none;
-  background-image:
-    repeating-linear-gradient(90deg, color-mix(in srgb, var(--accent) 10%, transparent) 0 1px, transparent 1px var(--u)),
-    repeating-linear-gradient(0deg, color-mix(in srgb, var(--accent) 10%, transparent) 0 1px, transparent 1px var(--u)),
-    repeating-linear-gradient(90deg, color-mix(in srgb, var(--accent) 22%, transparent) 0 1px, transparent 1px calc(var(--u) * 6)),
-    repeating-linear-gradient(0deg, color-mix(in srgb, var(--accent) 22%, transparent) 0 1px, transparent 1px calc(var(--u) * 6));
 }

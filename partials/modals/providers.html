@@ -1,4 +1,4 @@
-{% from "macros.html" import icon_key, icon_edit, icon_refresh, icon_search, icon_database, icon_plus, icon_close, sort_dropdown, empty_state %}
+{% from "macros.html" import icon_key, icon_edit, icon_refresh, search_toolbar, icon_database, icon_plus, icon_close, sort_dropdown, empty_state %}
 {% from "modal-shell.html" import modal_shell %}
 <div class="modal-bands">
   <div class="modal-band-head">
@@ -48,13 +48,9 @@
      content_style='height:80vh;',
      overlay_class='sub',
      overlay_attrs='aria-label="Fetch models" x-data="{ search: \'\', models: [], loading: false, error: \'\' }" @models-loaded.window="models = $event.detail; loading = false; error = \'\'" @models-loading.window="loading = true; error = \'\'" @models-error.window="error = $event.detail; loading = false"') %}
-  <div class="field-row shrink-0">
-    <div class="search-field flex-1">
-      <span class="search-mark">{{ icon_search(14) }}</span>
-      <input type="text" x-model="search" placeholder="Search models by name or ID..." class="field" autocomplete="off" autofocus>
-    </div>
-    <button type="button" class="key" data-action="forceFetchModels" aria-label="Refresh model list" title="Refresh models" :disabled="loading">{{ icon_refresh(16) }}</button>
-  </div>
+  {% call search_toolbar('Search models by name or ID...', input_attrs='x-model="search" autocomplete="off" autofocus', wrapper_classes='field-row shrink-0', field_classes='search-field flex-1', input_classes='field') %}
+  <button type="button" class="key" data-action="forceFetchModels" aria-label="Refresh model list" title="Refresh models" :disabled="loading">{{ icon_refresh(16) }}</button>
+  {% endcall %}
 
   <div class="flex-1 min-h-0 overflow-y-auto">
     <div x-show="loading" class="empty">Fetching models from provider...</div>

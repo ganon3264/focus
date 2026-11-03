@@ -1,10 +1,6 @@
 function _saveListPref(key, value) {
   localStorage.setItem(key, value);
-  fetch('/api/settings', {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ key: key, value: value }),
-  });
+  hxJson(api.settings, 'PATCH', { key: key, value: value });
 }
 
 function _loadListPref(key, fallback) {
@@ -65,11 +61,7 @@ window.ListManager = {
       if (!card) return;
       var id = cfg.cardPrefix ? card.id.replace(cfg.cardPrefix, '') : '';
       var next = (card.getAttribute(cfg.dataFavoriteAttr) || '0') !== '1';
-      fetch(cfg.apiEndpoint + '/' + id, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ is_favorite: next }),
-      }).then(function (r) {
+      hxJson(cfg.apiEndpoint + '/' + id, 'PATCH', { is_favorite: next }).then(function (r) {
         if (!r.ok) return;
         card.setAttribute(cfg.dataFavoriteAttr, next ? '1' : '0');
         card.querySelectorAll('[data-ui="fav-star"]').forEach(function (s) {
@@ -105,40 +97,6 @@ window.ListManager = {
       if (sel) sel.value = mode;
     };
 
-    if (cfg.applyCompactFn) {
-      window[cfg.applyCompactFn] = function (compact) {
-        var grid = document.getElementById(cfg.gridId);
-        if (!grid) return;
-        var view = compact ? 'compact' : 'full';
-        grid.dataset.view = view;
-        grid.style.gridTemplateColumns = compact
-          ? 'repeat(3, minmax(200px, 1fr))'
-          : 'repeat(auto-fill, minmax(160px, 1fr))';
-        grid.querySelectorAll('[data-ui="entity-row"]').forEach(function (card) {
-          var fullEl = card.querySelector('[data-ui="' + cfg.viewFullUi + '"]');
-          var compactEl = card.querySelector('[data-ui="' + cfg.viewCompactUi + '"]');
-          if (!fullEl || !compactEl) return;
-          if (compact) {
-            fullEl.style.display = 'none';
-            compactEl.style.display = 'block';
-          } else {
-            fullEl.style.display = 'flex';
-            compactEl.style.display = 'none';
-          }
-        });
-        _saveListPref(cfg.viewStorageKey, view);
-      };
-    }
-
-    if (cfg.toggleCompactFn) {
-      window[cfg.toggleCompactFn] = function () {
-        var grid = document.getElementById(cfg.gridId);
-        if (!grid) return;
-        var compact = grid.dataset.view !== 'compact';
-        window[cfg.applyCompactFn](compact);
-      };
-    }
-
     window[cfg.newItemFn] = function () {
       var html =
         '<div class="form-group">' +
@@ -152,21 +110,14 @@ window.ListManager = {
       window.customConfirm(html, function () {
         var name = document.getElementById(cfg.newItemInputId).value.trim();
         if (!name) return;
-        fetch(cfg.apiEndpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: name }),
-        }).then(function (r) {
+        hxJson(cfg.apiEndpoint, 'POST', { name: name }).then(function (r) {
           if (r.ok) {
             r.json().then(function (data) {
               var id = data.id;
               if (!id) return;
               var currentId = StateManager.get(cfg.stateKey) || '';
-              var gridEl = document.getElementById(cfg.gridId);
-              var compactView = gridEl && gridEl.dataset.view === 'compact';
               var url = cfg.cardEndpoint + id
-                + '?current_' + cfg.stateKey + '=' + encodeURIComponent(currentId)
-                + '&compact_view=' + (compactView ? 'true' : 'false');
+                + '?current_' + cfg.stateKey + '=' + encodeURIComponent(currentId);
               hxGet(url, { target: '#' + cfg.gridId, swap: 'beforeend' })
                 .then(function () {
                   var val = localStorage.getItem(cfg.sortStorageKey);
@@ -205,10 +156,6 @@ window.ListManager = {
     document.addEventListener('htmx:afterSwap', afterSwapHandler);
 
     (function () {
-      var view = cfg.viewStorageKey ? _loadListPref(cfg.viewStorageKey) : null;
-      if (view === 'compact' && cfg.applyCompactFn) {
-        window[cfg.applyCompactFn](true);
-      }
       var sortVal = _loadListPref(cfg.sortStorageKey);
       if (sortVal) {
         window[cfg.sortFn](sortVal);

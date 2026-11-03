@@ -1,4 +1,4 @@
-{% from "macros.html" import icon_expand, icon_plus, icon_trash, icon_chevron_left, icon_chevron_right, hint_tooltip, avatar, modal_footer, toggle %} {% from "modal-shell.html" import modal_shell
+{% from "macros.html" import icon_expand, icon_plus, icon_trash, icon_chevron_left, icon_chevron_right, hint_tooltip, avatar, modal_footer, row_label, toggle %} {% from "modal-shell.html" import modal_shell
 %} {% set is_char = prefix == 'char' %} {% call modal_shell(modal_id, 'Edit ' ~ entity_name, max_width='1040px', foot=true,
 content_style='height:min(88vh, 780px);', z_index='100',
 dirty_fields='#edit-' ~ prefix ~ '-name,#edit-' ~ prefix ~ '-desc,#edit-' ~ prefix ~ '-group' ~ (',#edit-' ~ prefix ~ '-theme-id' if show_theme|default(false) else '') ~ (',#edit-' ~ prefix ~ '-personality,#edit-' ~ prefix ~ '-scenario,#edit-' ~ prefix ~ '-mes-example' if is_char else ''),
@@ -51,10 +51,7 @@ dirty_label='#edit-' ~ prefix ~ '-name') %}
       </div>
 
       <div class="row setting labeled tight edit-media">
-        <span class="row-title inline-flex items-center gap-1">
-          Media
-          {{ hint_tooltip('{{media:x}} inserts the attachment in position x, counting left to right as shown here. Unpositioned media is appended after the block in the same order.') }}
-        </span>
+        {{ row_label('Media', hint='{{media:x}} inserts the attachment in position x, counting left to right as shown here. Unpositioned media is appended after the block in the same order.') }}
         <div class="row-cell">
           <div class="well media-row" id="edit-{{ prefix }}-media-section">
             <label class="key xl create block-media-btn" data-ui="block-media-btn" title="Add image or audio">

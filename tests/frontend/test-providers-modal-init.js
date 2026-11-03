@@ -42,6 +42,7 @@ global.api = {
   providerBalance: function (id) { return '/api/providers/' + id + '/balance'; },
 };
 
+eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'core', 'hx-queue.js'), 'utf8'));
 // Load module
 var src = fs.readFileSync(
   path.join(__dirname, '..', '..', 'static', 'js', 'modals', 'providers.js'),

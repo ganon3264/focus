@@ -104,17 +104,30 @@
   color: var(--text-muted);
 }
 
+/* The delete verb over imagery: a scrim key, so the glyph reads on any photo
+   without turning into a solid plate. At rest it is neither visible nor
+   clickable — an invisible hot corner is how a tap deleted the wrong image.
+   Touch has no hover, so there it stays on. */
 .media-thumb-close {
   position: absolute;
-  top: 0;
-  right: 0;
+  top: 2px;
+  right: 2px;
   opacity: 0;
+  pointer-events: none;
   transition: opacity var(--transition);
 }
 
 .media-thumb:hover .media-thumb-close,
 .media-thumb-close:focus-visible {
   opacity: 1;
+  pointer-events: auto;
+}
+
+@media (hover: none) {
+  .media-thumb-close {
+    opacity: 1;
+    pointer-events: auto;
+  }
 }
 
 /* An icon slot that must fill its box: extension icons arrive as raw SVG. */
@@ -141,10 +154,4 @@
 /* A sortable list's drag placeholder: the item keeps its slot, dimmed. */
 .sortable-ghost {
   opacity: 0.4;
-}
-
-/* Reasoning text inside the message block editor reads as the body of its
-   disclosure, not as a second primary block. */
-.edit-block-ta--reasoning {
-  color: var(--text-muted);
 }

@@ -1,4 +1,4 @@
-{% from "macros.html" import icon_plus, custom_select, hint_tooltip, modal_footer, toggle %}
+{% from "macros.html" import icon_plus, custom_select, hint_tooltip, modal_footer, row_label, toggle %}
 <div class="arranger-list" id="arranger-list-{{ preset_id }}">
   {% for block in blocks %} {% include "presets/prompt-block.html" %} {% endfor %}
 </div>
@@ -49,10 +49,7 @@ dirty_fields='#summary-settings-enabled,#summary-settings-instruction,#summary-s
 dirty_label='summary settings') %}
 <div class="flex flex-col gap-3">
   <div class="row flat">
-    <span class="row-title inline-flex items-center gap-1">
-      Enabled
-      {{ hint_tooltip('When off, this preset neither generates nor injects summaries.') }}
-    </span>
+    {{ row_label('Enabled', hint='When off, this preset neither generates nor injects summaries.') }}
     <span class="row-actions">
       <input type="hidden" id="summary-settings-enabled" value="{{ 1 if summary_settings.active else 0 }}" />
       {{ toggle('title="Toggle Summary" onclick="toggleSummarySetting(this)"', active=summary_settings.active) }}
@@ -140,11 +137,7 @@ dirty_label='summary settings') %}
         const body = ids.map(function (id, idx) {
           return { id: id, position: idx };
         });
-        fetch('/api/presets/' + presetId + '/blocks', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ blocks: body }),
-        }).then(function () {
+        hxJson(api.presetBlocks(presetId), 'PUT', { blocks: body }).then(function () {
           reloadPromptArranger(presetId);
         });
       },
@@ -173,15 +166,11 @@ dirty_label='summary settings') %}
       if (!pid) return;
       type = type || 'text';
       let name = nameOverride || type;
-      fetch('/api/presets/' + pid + '/blocks', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: name,
-          block_type: type,
-          content: contentOverride,
-          role: 'system',
-        }),
+      hxJson(api.presetBlocks(pid), 'POST', {
+        name: name,
+        block_type: type,
+        content: contentOverride,
+        role: 'system',
       }).then(function () {
         reloadPromptArranger(pid);
       });
@@ -255,11 +244,7 @@ dirty_label='summary settings') %}
           provider_id: document.getElementById('summary-settings-provider').value,
         },
       };
-      fetch('/api/presets/' + presetId + '/settings', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
+      hxJson(api.presetSettings(presetId), 'PUT', payload)
         .then(function (r) {
           if (!r.ok) throw new Error('HTTP ' + r.status);
           return r.json();
@@ -284,11 +269,7 @@ dirty_label='summary settings') %}
       } else {
         payload.content = document.getElementById('block-modal-textarea').value;
       }
-      fetch('/api/presets/' + presetId + '/blocks/' + blockId, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      }).then(function () {
+      hxJson(api.presetBlock(presetId, blockId), 'PATCH', payload).then(function () {
         window.closeModal('block-edit-modal', { discard: true });
         refreshSingleBlock(presetId, blockId);
       });
@@ -301,7 +282,7 @@ dirty_label='summary settings') %}
       if (!presetId || !blockId || !input.files || !input.files[0]) return;
       const formData = new FormData();
       formData.append('file', input.files[0]);
-      fetch('/api/presets/' + presetId + '/blocks/' + blockId + '/images', {
+      hxFetch(api.presetBlockImages(presetId, blockId), {
         method: 'POST',
         body: formData,
       }).then(function () {
@@ -316,9 +297,7 @@ dirty_label='summary settings') %}
       const presetId = item ? item.dataset.presetId : '';
       const blockId = item ? item.dataset.blockId : '';
       if (!presetId || !blockId || !imageId) return;
-      fetch('/api/presets/' + presetId + '/blocks/' + blockId + '/images/' + imageId, {
-        method: 'DELETE',
-      }).then(function () {
+      hxJson(api.presetBlockImage(presetId, blockId, imageId), 'DELETE').then(function () {
         refreshSingleBlock(presetId, blockId);
       });
     };
@@ -328,11 +307,8 @@ dirty_label='summary settings') %}
       const presetId = item ? item.dataset.presetId : '';
       const blockId = item ? item.dataset.blockId : '';
       if (!presetId || !blockId) return;
-      fetch(`/api/presets/${presetId}/blocks/${blockId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      }).then(() => refreshSingleBlock(presetId, blockId));
+      hxJson(api.presetBlock(presetId, blockId), 'PATCH', payload)
+        .then(() => refreshSingleBlock(presetId, blockId));
     };
 
     window.handleArrangerBlockDelete = function (el) {
@@ -341,9 +317,7 @@ dirty_label='summary settings') %}
       const blockId = item ? item.dataset.blockId : '';
       if (!presetId || !blockId) return;
       window.customConfirm('Delete block?', function () {
-        fetch(`/api/presets/${presetId}/blocks/${blockId}`, {
-          method: 'DELETE',
-        }).then((r) => {
+        hxJson(api.presetBlock(presetId, blockId), 'DELETE').then((r) => {
           if (r.ok) reloadPromptArranger(presetId);
         });
       });

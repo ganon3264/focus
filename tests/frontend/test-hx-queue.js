@@ -156,6 +156,15 @@ async function main() {
   resolvers.shift()();
   await stringTarget;
 
+  // ── An idle queue starts the call immediately ──
+  await flush();
+  calls.length = 0;
+  resolvers.length = 0;
+  var idle = hxGet('/idle', {});
+  assertEqual(calls.length, 1, 'an idle queue issues the request synchronously');
+  resolvers.shift()();
+  await idle;
+
   h.printSummary();
 }
 

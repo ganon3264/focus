@@ -4,10 +4,6 @@ function openLightbox(src) {
   window.ModalController.open('lightbox');
 }
 
-function closeLightbox() {
-  window.ModalController.close('lightbox', { discard: true });
-}
-
 const Cropper = window.Cropper.default;
 
 let cropper = null;
@@ -106,30 +102,4 @@ if (_cropSaveBtn) {
       }, 'image/' + fmt, fmt === 'webp' ? 0.9 : undefined);
     });
   });
-}
-
-function handleAvatarUpload(fileInput, endpoint, successCallback) {
-  if (!fileInput.files || !fileInput.files[0]) return;
-
-  const file = fileInput.files[0];
-
-  openCropModal(file, (croppedBlob) => {
-    const formData = new FormData();
-    formData.append('file', croppedBlob, 'avatar.webp');
-
-    fetch(endpoint, {
-      method: 'POST',
-      body: formData,
-    })
-      .then((r) => r.json())
-      .then((data) => {
-        if (successCallback) {
-          successCallback(data);
-        } else {
-          window.location.reload();
-        }
-      });
-  });
-
-  fileInput.value = '';
 }

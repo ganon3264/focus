@@ -1,12 +1,10 @@
-# Handoff — UI layer
+# UI layer — reference
 
 Everything here is about how Focus *looks and lays out*. Behaviour (state flow,
 streaming, providers, tools, compaction) is documented in `AGENTS.md`; this file
 owns the CSS architecture, the geometry numbers and the traps that keep biting.
-
-`AGENTS.md`'s UI paragraphs predate the banded chassis and the settings-row
-grammar — where the two disagree, this file is right. Its behaviour sections
-(Refresh, hxQueue, SSE, providers) are still accurate.
+It is the detailed companion to `AGENTS.md`: the UI paragraphs there are the
+short version, and where the two disagree, this file is right.
 
 ---
 
@@ -19,8 +17,8 @@ fuser -k 8010/tcp; uv run python main.py --host 127.0.0.1 --port 8010
 ./bin/tailwindcss-linux-x64 -i static/tailwind-input.css -o static/tailwind.css
 
 node tests/frontend/grid-audit.js http://127.0.0.1:8010   # the ruler (check count scales with the seeded data)
-uv run pytest tests/ -q                                    # 1450 backend
-uv run pytest tests/frontend -q --no-cov -p no:cacheprovider   # 292 frontend
+uv run pytest tests/ -q                                    # backend + all frontend
+uv run pytest tests/frontend -q --no-cov -p no:cacheprovider   # skip coverage
 ```
 
 The ruler is the design gate: panes, chat rows, messages, the modal chassis,
@@ -66,8 +64,10 @@ structure  .rail .row .well .frame .panel .card .divider .disclosure .grip
 feedback   .toast .tooltip .spinner .empty .note .tag .avatar
 ```
 
-Intents `.primary .create .danger`; sizes `.sm .lg .xl`; state classes as JS
-toggles them (`.active .hidden .expanded .drag-over .favorite-active …`).
+Intents `.primary .create .danger`; sizes `.sm .lg .xl`; plates `.raised`
+(a key in a well) and `.scrim` (a key over imagery — a translucent backing, never
+opaque); state classes as JS toggles them (`.active .hidden .expanded .drag-over
+.favorite-active …`).
 
 **Type discipline:** engraved type (mono, caps, tracked) belongs to section
 headers and modal titles only. Buttons, fields and row values are quiet sans;
@@ -148,6 +148,9 @@ two-line block.
 **A caption has one voice.** `.setting > .row-title` owns the caption type
 (13px/500/82%) for both row kinds; a `.field-row` has no type of its own, so a
 slider caption and a toggle caption drift apart the moment that rule is missing.
+Use the macros (`row_label`, `toggle_row`, `slider_row`) instead of authoring the
+caption's inline flex by hand. A caption that is prose (an extension parameter's
+description) carries `.row-title.wrap` and the row top-aligns its control.
 
 **Dependent settings live in a plate** — `.well` + `gap: 12` + `padding: 4px 8px`
 (`.sampler-children`, `.provider-plate`), directly under the row that enables
@@ -165,8 +168,13 @@ that is a Tailwind utility and utilities beat this file.
 (length) and its verb (expand) — nothing floats over the text, and the textarea
 is auto-sized (`rows`), so it needs no grip. A collapsed block (reasoning) keeps
 its rail and hides only its textarea (`.msg-block.collapsed`), so the name and
-length stay readable. Attachments are a rail + a `.well` tray: the well is the
-drop target, so `.well.drag-over` gives the edge for free. The text expander is
+length stay readable. Attachments are a rail + a `.well` tray: the well **is**
+the media gallery (`.well.media-row.msg-attachments-tray`), the thumb layer
+dissolves into it (`display: contents`) so the thumbs are the tray's own grid
+items, and the tray hugs its rows — one row minimum, 176 cap, scrolls past that.
+The entity editor keeps the shared gallery's fixed three-row height because
+there the tray sits beside a column whose height it must not decide. The well is
+the drop target, so `.well.drag-over` gives the edge for free. The text expander is
 the same shape reduced to one field and one foot — the note is the footer's
 `hint='note'` variant, the length is a `.row-value` readout, and `Done` (indigo)
 is the closing verb.
@@ -237,7 +245,13 @@ Deliberately not banded: the stacked forms above (a form is not a collection).
   serializer AND issue from a dedicated `#hx-source` element carrying
   `hx-sync="this:queue all"`. htmx queues per source element with a "last wins"
   policy, so concurrent programmatic requests used to be *silently dropped*; the
-  dedicated source turns a drop into a queue.
+  dedicated source turns a drop into a queue. `hxJson(url, method, body)` is the
+  JSON write shape (`jsonOpts` when the options are composed with
+  `Refresh.mutate`), so no call site re-authors the header + stringify. Raw
+  `fetch` is reserved for transports the queue cannot carry (SSE readers, stop
+  requests with their own timeout, binary downloads, one slow external command)
+  and each carries a `// raw: <reason>` marker that
+  `tests/frontend/test_fetch_guard.py` enforces.
 - **Never short-circuit an htmx request you do not have to.** `ui/confirm.js`
   only intercepts `htmx:confirm` when there is a question. Intercepting
   unconditionally resolves `htmx.ajax`'s promise without sending anything, which
@@ -310,22 +324,16 @@ Deliberately not banded: the stacked forms above (a form is not a collection).
 
 ## 8. Known debt
 
-1. **Registry bypasses** — 77 raw `fetch(` vs 33 `hx*`. Only the ones that
-   trigger a partial reload matter (they can commit or swap out of order). Needs
-   a curated sweep plus a guard test, never a blanket replace.
-2. **Overlay ruler gap** — `grid-audit.js` measures panes, chat rows, messages,
+1. **Overlay ruler gap** — `grid-audit.js` measures panes, chat rows, messages,
    the modal chassis, band rhythm, foot symmetry and the theme split; toasts,
    the hint tooltip and the lightbox are still eyeballed.
-3. **Form read/write** — ~15 implementations, ~100 hardcoded ids. Biggest churn,
+2. **Form read/write** — ~15 implementations, ~100 hardcoded ids. Biggest churn,
    no visible payoff; leave it unless a feature needs it.
-4. **Dead code** — `CharacterStore` (`core/character-store.js`) has no callers;
-   the compact-view machinery (`dataset.view === 'compact'`, `compact_view`
-   params) is still referenced by `edit-entity.js` / `shared-entity-modal.js` but
-   no surface configures it.
-5. **Surfaces still on the stacked-label idiom that arguably should be rows** —
-   the extension config panel (label + control with a Tailwind `w-40` label
-   instead of the shared caption column) and the regex/structured item editors.
-   Convert them to `row.setting` when touching those files.
-6. **`.link` users still to eyeball after the underline removal** — summary
-   boundary button, itemizer reasoning toggle, extensions "Configure". The
-   message rail's reasoning toggle is settled (`.link.meta`).
+3. **The retry modal's booleans are `.check`, every other setting is a
+   `.switch`** — they are `<input type=checkbox>` read by id from
+   `providers.js`, so switching them means teaching `refreshRetryHint` /
+   `populateRetryForm` the `.switch` shape.
+4. **`.link` users still to eyeball after the underline removal** — summary
+   boundary button, itemizer reasoning toggle, extensions "Configure", the
+   arranger's "Restore default". The message rail's reasoning toggle is settled
+   (`.link.meta`).

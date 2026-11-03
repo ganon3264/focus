@@ -45,7 +45,7 @@
   // `result`; rejects on an error event or a stream that ends without one.
   window.streamProgress = function (url, opts, onEvent) {
     opts = opts || {};
-    return fetch(url, {
+    return fetch(url, { // raw: streaming reader
       method: opts.method || 'POST',
       headers: opts.headers || {},
       body: opts.body,

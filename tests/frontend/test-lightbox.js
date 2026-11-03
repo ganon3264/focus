@@ -102,7 +102,7 @@ eval(MODAL_JS);
 
 // Load module — append export assignment since bare function declarations aren't hoisted to global
 var src = fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'ui', 'lightbox.js'), 'utf8');
-eval(src + '\nwindow.openLightbox=openLightbox;window.closeLightbox=closeLightbox;window.openCropModal=openCropModal;window.closeCropModal=closeCropModal;window.handleAvatarUpload=handleAvatarUpload;');
+eval(src + '\nwindow.openLightbox=openLightbox;window.openCropModal=openCropModal;window.closeCropModal=closeCropModal;');
 
 // ── openLightbox shows overlay and sets src ──
 (function () {
@@ -111,14 +111,6 @@ eval(src + '\nwindow.openLightbox=openLightbox;window.closeLightbox=closeLightbo
   assert(!lightboxEl.classList.contains('hidden'), 'lightbox visible after openLightbox');
   assertEqual(window.ModalController.isOpen('lightbox'), true, 'openLightbox pushes lightbox on the stack');
   assertEqual(lightboxImg.getAttribute('src'), '/path/to/img.jpg', 'lightbox img src set');
-})();
-
-// ── closeLightbox hides overlay ──
-(function () {
-  window.closeLightbox({});
-  assert(lightboxEl.classList.contains('hidden'), 'lightbox hidden after close');
-  assertEqual(window.ModalController.isOpen('lightbox'), false, 'closeLightbox pops the stack');
-  assert(!lightboxImg.hasAttribute('src'), 'lightbox img src cleared (no fetch)');
 })();
 
 // ── openCropModal creates Cropper instance ──
@@ -156,35 +148,6 @@ eval(src + '\nwindow.openLightbox=openLightbox;window.closeLightbox=closeLightbo
   assert(!!cropperInstance, 'cropper instance for save test');
   cropSaveBtn.click();
   assert(callbackInvoked, 'crop save callback invoked via button');
-})();
-
-// ── handleAvatarUpload + crop save triggers fetch ──
-(function () {
-  var uploadCalled = false;
-  var oldFetch = global.fetch;
-  global.fetch = function () { uploadCalled = true; return Promise.resolve({ json: function () { return {}; } }); };
-
-  var fileInput = { files: [new Blob()], value: 'dummy' };
-  window.handleAvatarUpload(fileInput, '/api/test/avatar', function () {});
-  // User clicks save — triggers the crop callback which calls fetch
-  cropSaveBtn.click();
-  assert(uploadCalled, 'fetch called when crop completes');
-  global.fetch = oldFetch;
-})();
-
-// ── handleAvatarUpload with empty input is no-op ──
-(function () {
-  var called = false;
-  var oldFetch = global.fetch;
-  global.fetch = function () { called = true; return Promise.resolve({ json: function () { return {}; } }); };
-
-  window.handleAvatarUpload({ files: [] }, '/api/test/avatar', function () {});
-  assert(!called, 'no fetch when files empty');
-
-  window.handleAvatarUpload({}, '/api/test/avatar', function () {});
-  assert(!called, 'no fetch when files missing');
-
-  global.fetch = oldFetch;
 })();
 
 // ── Result ──

@@ -121,13 +121,17 @@ content_style='height:85vh;', overlay_class='modal-bands-shell') %}
       >
         <div class="rail">Block type</div>
         <div class="arranger-add-buttons">
-          <button type="button" class="btn sm justify-start" @click="open = false; addBlock($el.closest('[data-preset-id]').dataset.presetId, 'text', $el)">Text (Custom Prompt)</button>
-          <button type="button" class="btn sm justify-start" @click="open = false; addBlock($el.closest('[data-preset-id]').dataset.presetId, 'char_description', $el)">Character Description</button>
-          <button type="button" class="btn sm justify-start" @click="open = false; addBlock($el.closest('[data-preset-id]').dataset.presetId, 'char_personality', $el)">Character Personality</button>
-          <button type="button" class="btn sm justify-start" @click="open = false; addBlock($el.closest('[data-preset-id]').dataset.presetId, 'char_blocks', $el)">Character Blocks</button>
-          <button type="button" class="btn sm justify-start" @click="open = false; addBlock($el.closest('[data-preset-id]').dataset.presetId, 'user_persona', $el)">User Persona</button>
-          <button type="button" class="btn sm justify-start" @click="open = false; addBlock($el.closest('[data-preset-id]').dataset.presetId, 'chat_history', $el)">Chat History</button>
-          <button type="button" class="btn sm justify-start" @click="open = false; addBlock($el.closest('[data-preset-id]').dataset.presetId, 'summary', $el, 'Summary', window.SUMMARY_DEFAULT_TEMPLATE)">Summary</button>
+          {% for type, label, suffix in [
+            ('text', 'Text (Custom Prompt)', ''),
+            ('char_description', 'Character Description', ''),
+            ('char_personality', 'Character Personality', ''),
+            ('char_blocks', 'Character Blocks', ''),
+            ('user_persona', 'User Persona', ''),
+            ('chat_history', 'Chat History', ''),
+            ('summary', 'Summary', ", 'Summary', window.SUMMARY_DEFAULT_TEMPLATE"),
+          ] %}
+          <button type="button" class="btn sm justify-start" @click="open = false; addBlock($el.closest('[data-preset-id]').dataset.presetId, '{{ type }}', $el{{ suffix }})">{{ label }}</button>
+          {% endfor %}
         </div>
       </div>
     </div>

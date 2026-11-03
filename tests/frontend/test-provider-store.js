@@ -8,6 +8,7 @@ var fs = require('fs');
 var env = h.setupBrowserGlobals(global);
 global.api = { providers: '/api/providers' };
 
+h.installRequestPrimitives(global);
 eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'core', 'provider-store.js'), 'utf8'));
 
 function eventsOf(type) {

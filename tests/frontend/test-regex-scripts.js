@@ -17,6 +17,8 @@ var fetchMock = h.createMockFetch({
 global.fetch = fetchMock;
 global.Sortable = function () {};
 
+eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'core', 'api-paths.js'), 'utf8'));
+h.installRequestPrimitives(global);
 eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'features', 'regex-scripts.js'), 'utf8'));
 
 function buildItem(id) {

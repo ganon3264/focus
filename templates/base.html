@@ -83,7 +83,7 @@
   </head>
   <body class="bg-dark text-light">
     {% from "macros.html" import icon_close, icon_music, icon_send, icon_regen, icon_crop,
-    icon_copy, icon_check, icon_chevron_right, icon_trash, icon_expand %}
+    icon_copy, icon_check, icon_chevron_right, icon_trash, icon_expand, modal_footer %}
     <div style="display: none" aria-hidden="true" id="svg-sprite">
       <svg data-svg-icon="close">{{ icon_close(16) }}</svg>
       <svg data-svg-icon="music">{{ icon_music(24) }}</svg>
@@ -248,12 +248,10 @@
         class="well p-2"
         style="height: 60vh"
       ></div>
-      <div class="modal-foot">
-        <div class="modal-foot-actions">
-          <button class="btn" onclick="closeCropModal()">Cancel</button>
-          <button class="btn primary" id="crop-save-btn">Save Crop</button>
-        </div>
-      </div>
+      {% call modal_footer(hint='') %}
+      <button class="btn" onclick="closeCropModal()">Cancel</button>
+      <button class="btn primary" id="crop-save-btn">Save Crop</button>
+      {% endcall %}
     {% endcall %}
 
     <!-- ── Shared app scripts ───────────────────────────────────────────
@@ -264,7 +262,6 @@
     <script src="/static/js/core/hx-queue.js"></script>
     <script src="/static/js/core/refresh.js"></script>
     <script src="/static/js/core/provider-store.js"></script>
-    <script src="/static/js/core/character-store.js"></script>
     <script src="/static/js/ui/media-utils.js"></script>
     <script src="/static/js/modals/edit-entity.js"></script>
     <script src="/static/js/core/selection.js"></script>
@@ -279,7 +276,6 @@
     <script src="/static/js/utils/claude-cache.js"></script>
     <script src="/static/js/utils/timestamp-formatter.js"></script>
     <script src="/static/js/ui/modal.js"></script>
-    <script src="/static/js/ui/grid.js"></script>
     <script src="/static/js/ui/confirm.js"></script>
     <script src="/static/js/ui/input-bar.js"></script>
     <script src="/static/js/messages/generation-ui.js"></script>

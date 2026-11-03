@@ -1,14 +1,11 @@
 <!-- Option Selection Modal (shared picker: OpenRouter route/quant, theme picker, ...) -->
 {% from "modal-shell.html" import modal_shell %}
-{% from "macros.html" import icon_search %}
+{% from "macros.html" import search_toolbar %}
 {% call modal_shell('modal-select-option', '', max_width='400px', width='95vw',
      content_style='height:60vh;',
      overlay_class='sub', title_attrs='x-text="title"',
      overlay_attrs='aria-label="Select option" x-data="{ search: \'\', options: [], title: \'Select\', select(value, label) { $dispatch(\'option-selected\', { value: value, label: label }); } }"') %}
-  <div class="search-field shrink-0">
-    <span class="search-mark">{{ icon_search(14) }}</span>
-    <input type="text" x-model="search" placeholder="Search..." class="field" autocomplete="off" autofocus>
-  </div>
+  {{ search_toolbar('Search...', input_attrs='x-model="search" autocomplete="off" autofocus', wrapper_classes='', field_classes='search-field shrink-0', input_classes='field') }}
   <div class="option-list flex-1 min-h-0">
     <template x-for="opt in options.filter(o => o.label.toLowerCase().includes(search.toLowerCase()))" :key="opt.value">
       <div class="row" @click="select(opt.value, opt.label); closeModal('modal-select-option')">

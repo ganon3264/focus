@@ -108,7 +108,6 @@ assert(typeof window.pruneMessages === 'function', 'pruneMessages loaded');
   var ph = ml.querySelector('[data-ui="message-placeholder"][data-msg-id="msg-far"]');
   assert(!!ph, 'far message pruned to placeholder');
   assert(ph.style.height === '60px', 'placeholder height matches');
-  assert(window._isMessagePruned('msg-far'), '_isMessagePruned returns true');
 })();
 
 // ── _unpruneMessage restores a pruned message ──
@@ -118,7 +117,6 @@ assert(typeof window.pruneMessages === 'function', 'pruneMessages loaded');
   var restored = window._unpruneMessage('msg-far');
   assert(!!restored, '_unpruneMessage returns restored element');
   assertEqual(restored.id, 'msg-far', 'restored element has correct id');
-  assert(!window._isMessagePruned('msg-far'), '_unpruneMessage removes from pruned set');
 })();
 
 // ── streaming message excluded from pruning ──

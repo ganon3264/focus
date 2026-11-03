@@ -71,19 +71,11 @@
 
     _persist: function (changes) {
       if (!STATE.chat_id) return null;
-      return fetch('/api/chats/' + STATE.chat_id, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(changes),
-      });
+      return hxJson(api.chat(STATE.chat_id), 'PATCH', changes);
     },
 
     _persistProvider: function (id, type) {
-      fetch('/api/settings/active-provider', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ provider_id: id, provider_type: type }),
-      });
+      hxJson(api.settingsActiveProvider, 'PUT', { provider_id: id, provider_type: type });
       if (id) localStorage.setItem('focus-provider-id', id);
       else localStorage.removeItem('focus-provider-id');
       if (type) localStorage.setItem('focus-provider-type', type);

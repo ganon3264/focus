@@ -64,7 +64,7 @@
         } else {
           url = cfg.apiBase + '/' + id;
         }
-        fetch(url, { method: 'DELETE' }).then(function (r) {
+        hxJson(url, 'DELETE').then(function (r) {
           if (r.ok) {
             var isActive = StateManager.get(cfg.stateKey) === id;
             if (isHard) {
@@ -96,7 +96,7 @@
 
     // ----- openTrashModal -----
     window[fnOpenTrash] = function () {
-      fetch(cfg.apiBase + '/trash')
+      hxFetch(cfg.apiBase + '/trash')
         .then(function (r) { return r.json(); })
         .then(function (items) {
           var bodyHtml = '';
@@ -141,7 +141,7 @@
         if (restoreChats !== undefined) {
           url += '?restore_chats=' + restoreChats;
         }
-        fetch(url, { method: 'POST' }).then(function (r) {
+        hxJson(url, 'POST').then(function (r) {
           if (!r.ok) return;
           closeModal('modal-trash', { discard: true });
           window.showSuccessToast(cfg.entity + ' restored');
@@ -152,10 +152,9 @@
           var g = document.getElementById(cfg.gridId);
           if (g) {
             var cid = StateManager.get(cfg.stateKey) || '';
-            var cv = g.dataset.view === 'compact';
             hxGet(cfg.cardEndpoint + id +
-              '?current_' + cfg.stateKey + '=' + encodeURIComponent(cid) +
-              '&compact_view=' + cv, { target: '#' + cfg.gridId, swap: 'beforeend' })
+              '?current_' + cfg.stateKey + '=' + encodeURIComponent(cid),
+              { target: '#' + cfg.gridId, swap: 'beforeend' })
               .then(function () {
                 var val = localStorage.getItem(cfg.sortStorageKey);
                 if (val && window[cfg.sortFn]) window[cfg.sortFn](val);
@@ -194,7 +193,7 @@
       window.customConfirm(
         'Permanently delete <strong>' + window.escapeHtml(name) + '</strong>? This cannot be undone.',
         function () {
-          fetch(cfg.apiBase + '/' + id + '?hard=true', { method: 'DELETE' }).then(function (r) {
+          hxJson(cfg.apiBase + '/' + id + '?hard=true', 'DELETE').then(function (r) {
             if (r.ok) {
               clearActiveSelection(id);
               closeModal('modal-trash', { discard: true });
@@ -229,7 +228,7 @@
       window[fnImport] = function (e) {
         e.preventDefault();
         var formData = new FormData(e.target);
-        fetch(cfg.apiBase + '/import', {
+        hxFetch(cfg.apiBase + '/import', {
           method: 'POST',
           body: formData,
         }).then(async function (r) {
@@ -238,13 +237,12 @@
             window.showImportToast(data, cfg.entityLower + 's');
             var g = document.getElementById(cfg.gridId);
             var cid = StateManager.get(cfg.stateKey) || '';
-            var cv = g ? g.dataset.view === 'compact' : false;
             if (g) {
               var fetches = [];
               (data.imported || []).forEach(function (entry) {
                 fetches.push(hxGet(cfg.cardEndpoint + entry.id +
-                  '?current_' + cfg.stateKey + '=' + encodeURIComponent(cid) +
-                  '&compact_view=' + cv, { target: '#' + cfg.gridId, swap: 'beforeend' }));
+                  '?current_' + cfg.stateKey + '=' + encodeURIComponent(cid),
+                  { target: '#' + cfg.gridId, swap: 'beforeend' }));
               });
               Promise.all(fetches).then(function () {
                 var val = localStorage.getItem(cfg.sortStorageKey);

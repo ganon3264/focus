@@ -102,9 +102,7 @@
       opts.body = body;
     } else {
       url = mode === 'rename' ? api.preset(presetId) : api.presetDuplicate(presetId);
-      opts.method = mode === 'rename' ? 'PATCH' : 'POST';
-      opts.headers = { 'Content-Type': 'application/json' };
-      opts.body = JSON.stringify({ name: name });
+      opts = jsonOpts(mode === 'rename' ? 'PATCH' : 'POST', { name: name });
     }
 
     hxFetch(url, opts)

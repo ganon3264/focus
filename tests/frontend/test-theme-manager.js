@@ -78,6 +78,8 @@ global.document.querySelectorAll = function (sel) {
 global.openConfirmModal = function () {};
 global.closeModal = function () {};
 
+eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'core', 'api-paths.js'), 'utf8'));
+h.installRequestPrimitives(global);
 // Load module — exports bare functions
 var src = fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'ui', 'theme-manager.js'), 'utf8');
 eval(src + '\nwindow.hexToRgb=hexToRgb;window.lightenHex=lightenHex;window.computeAccentDerivatives=computeAccentDerivatives;window.resolvePalette=resolvePalette;');

@@ -210,3 +210,12 @@
   width: 100%;
   height: var(--control-h-lg);
 }
+
+/* Status readouts clip at a fixed width so a long name never pushes the row's
+   label column around. */
+.status-value {
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

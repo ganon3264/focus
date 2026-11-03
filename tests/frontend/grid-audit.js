@@ -228,6 +228,21 @@ async function measureTextModals(page) {
         foot: foot ? rect(foot) : null,
         footButtons: foot ? [...foot.querySelectorAll('.btn')].map(rect) : [],
         count: q('.msg-block [data-ui="block-count"]') ? rect(q('.msg-block [data-ui="block-count"]')) : null,
+        // The attachment tray is one gallery grid whose thumb layer dissolves
+        // into it (display: contents) and hugs its rows.
+        mediaTray: (() => {
+          const tray = q('#edit-msg-media');
+          if (!tray) return null;
+          const kid = tray.querySelector('#edit-msg-attachments > *');
+          const note = q('#edit-msg-att-empty');
+          const layer = q('#edit-msg-attachments');
+          return {
+            tray: rect(tray),
+            note: note && note.getBoundingClientRect().width > 0 ? rect(note) : null,
+            first: kid ? rect(kid) : null,
+            layer: layer ? getComputedStyle(layer).display : null,
+          };
+        })(),
       };
     };
     return { editMessage: read('#modal-edit-message'), expander: read('#modal-text-expander') };
@@ -807,6 +822,22 @@ async function measureBands(page) {
         `right=${(p.right - modalPad - a.right).toFixed(1)}`,
       ),
     );
+    if (m.mediaTray) {
+      const t = m.mediaTray;
+      check('message editor: attachment tray hugs one row when empty', t.first || t.tray.height === 72, `h=${t.tray.height}`);
+      check('message editor: attachment tray holds the gallery height', t.tray.height <= 176, `h=${t.tray.height}`);
+      check('message editor: thumbs are grid items of the tray', t.layer === 'contents', t.layer);
+      check(
+        'message editor: thumbs sit on the tray inset',
+        !t.first || (t.first.x - t.tray.x === 8 && t.first.width === 48),
+        t.first ? `x=${t.first.x - t.tray.x} w=${t.first.width}` : 'no thumbs',
+      );
+      check(
+        'message editor: the empty note spans the tray',
+        !t.note || (t.note.x - t.tray.x === 8 && t.note.width > 48),
+        t.note ? `x=${t.note.x - t.tray.x} w=${t.note.width}` : 'no note',
+      );
+    }
     const lastBtn = m.footButtons[m.footButtons.length - 1];
     check(
       `${name}: foot closes on the panel inset`,

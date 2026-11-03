@@ -1,6 +1,13 @@
 window.api = {
   chats: '/api/chats',
+  chat: function (chatId) {
+    return '/api/chats/' + chatId;
+  },
   chatsStale: '/api/chats/stale',
+  chatTrash: '/api/chats/trash',
+  chatRestore: function (chatId) {
+    return '/api/chats/' + chatId + '/restore';
+  },
   chatAttachments: function (chatId) {
     return '/api/chats/' + chatId + '/attachments';
   },
@@ -22,17 +29,18 @@ window.api = {
   chatSummary: function (chatId) {
     return '/api/chats/' + chatId + '/summary';
   },
+  chatToolStates: function (chatId) {
+    return '/api/chats/' + chatId + '/tool-states';
+  },
+  chatExtensions: function (chatId) {
+    return '/api/chats/' + chatId + '/extensions';
+  },
   messagePin: function (chatId, msgId) {
     return '/api/chats/' + chatId + '/messages/' + msgId + '/pin';
   },
 
-  charactersList: '/api/characters',
   characters: function (id) {
     return '/api/characters/' + id;
-  },
-  charImport: '/api/characters/import',
-  charDelete: function (charId, deleteChats) {
-    return '/api/characters/' + charId + '?delete_chats=' + deleteChats;
   },
   charImages: function (charId) {
     return '/api/characters/' + charId + '/images';
@@ -96,6 +104,21 @@ window.api = {
   preset: function (id) {
     return '/api/presets/' + id;
   },
+  presetBlocks: function (id) {
+    return '/api/presets/' + id + '/blocks';
+  },
+  presetBlock: function (id, blockId) {
+    return '/api/presets/' + id + '/blocks/' + blockId;
+  },
+  presetBlockImage: function (id, blockId, imageId) {
+    return '/api/presets/' + id + '/blocks/' + blockId + '/images/' + imageId;
+  },
+  presetBlockImages: function (id, blockId) {
+    return '/api/presets/' + id + '/blocks/' + blockId + '/images';
+  },
+  presetSettings: function (id) {
+    return '/api/presets/' + id + '/settings';
+  },
   presetDuplicate: function (id) {
     return '/api/presets/' + id + '/duplicate';
   },
@@ -107,6 +130,55 @@ window.api = {
   },
 
   stream: '/api/stream',
+  stopGeneration: function (messageId) {
+    return '/api/stop-generation/' + messageId;
+  },
+
+  settings: '/api/settings',
+  settingsTheme: '/api/settings/theme',
+  settingsActiveProvider: '/api/settings/active-provider',
+
+  themes: '/api/themes',
+  theme: function (id) {
+    return '/api/themes/' + id;
+  },
+  themeReset: function (id) {
+    return '/api/themes/' + id + '/reset';
+  },
+
+  regexScripts: '/api/regex-scripts',
+  regexScript: function (id) {
+    return '/api/regex-scripts/' + id;
+  },
+  regexReorder: '/api/regex-scripts/reorder',
+  regexPreview: '/api/regex-scripts/preview',
+
+  structuredResponses: '/api/structured-responses',
+  structuredResponse: function (id) {
+    return '/api/structured-responses/' + id;
+  },
+  structuredReorder: '/api/structured-responses/reorder',
+  structuredPreview: '/api/structured-responses/preview',
+
+  tools: '/api/tools',
+  toolsReload: '/api/tools/reload',
+  itemize: '/api/itemize',
+
+  extensions: '/api/extensions',
+  extensionsReload: '/api/extensions/reload',
+  extensionsConfig: '/api/extensions/config',
+  extension: function (name) {
+    return '/api/extensions/' + encodeURIComponent(name);
+  },
+  extensionRun: function (name) {
+    return '/api/extensions/' + encodeURIComponent(name) + '/run';
+  },
+  extensionConfig: function (name) {
+    return '/api/extensions/' + encodeURIComponent(name) + '/config';
+  },
+  extensionTest: function (name) {
+    return '/api/extensions/' + encodeURIComponent(name) + '/test';
+  },
 
   cleanDb: '/api/db/clean',
   backups: '/api/backups',
@@ -131,6 +203,14 @@ window.api = {
     personasModal: '/partials/personas-modal',
     providersModal: '/partials/providers-modal',
     presetsModal: '/partials/presets-modal',
+    presetArranger: function (presetId) {
+      return '/partials/prompt-arranger/' + presetId;
+    },
+    presetBlock: function (presetId, blockId) {
+      return '/partials/prompt-arranger/' + presetId + '/block/' + blockId;
+    },
+    regexScripts: '/partials/regex-scripts',
+    structuredResponses: '/partials/structured-responses',
     exportEntities: '/partials/export-entities',
     chatList: '/partials/chat-list',
   },

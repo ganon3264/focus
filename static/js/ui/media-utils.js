@@ -32,8 +32,10 @@
 
     if (opts.onDelete) {
       var btn = document.createElement('button');
-      btn.className = 'key sm danger media-thumb-close z-10';
+      btn.className = 'key sm danger scrim media-thumb-close z-10';
       btn.type = 'button';
+      btn.title = 'Remove';
+      btn.setAttribute('aria-label', 'Remove attachment');
       btn.innerHTML = window.getSvgSprite('close', 12);
       btn.addEventListener('click', function (e) {
         e.preventDefault();

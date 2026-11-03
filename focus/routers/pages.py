@@ -626,19 +626,12 @@ async def characters_modal_partial(
     request: Request, current_character_id: str = "", db: aiosqlite.Connection = Depends(get_db)
 ):
     characters = await crud.get_characters(db)
-    compact_view = request.cookies.get("focus_view_char")
-    if compact_view is None:
-        async with db.execute("SELECT value FROM settings WHERE key = 'focus_char_view'") as cur:
-            row = await cur.fetchone()
-        compact_view = row["value"] if row else None
-    compact_view = compact_view == "compact"
     return templates.TemplateResponse(
         request,
         "modals/characters.html",
         {
             "request": request,
             "characters": characters,
-            "compact_view": compact_view,
             "current_character_id": current_character_id,
         },
     )
@@ -649,19 +642,12 @@ async def personas_modal_partial(
     request: Request, current_persona_id: str = "", db: aiosqlite.Connection = Depends(get_db)
 ):
     personas = await crud.get_personas(db)
-    compact_view = request.cookies.get("focus_view_persona")
-    if compact_view is None:
-        async with db.execute("SELECT value FROM settings WHERE key = 'focus_persona_view'") as cur:
-            row = await cur.fetchone()
-        compact_view = row["value"] if row else None
-    compact_view = compact_view == "compact"
     return templates.TemplateResponse(
         request,
         "modals/personas.html",
         {
             "request": request,
             "personas": personas,
-            "compact_view": compact_view,
             "current_persona_id": current_persona_id,
         },
     )
@@ -698,24 +684,11 @@ async def export_entities_partial(
     )
 
 
-@router.get("/partials/persona-card/{persona_id}", response_class=HTMLResponse)
-async def persona_card_partial(
-    request: Request, persona_id: str, db: aiosqlite.Connection = Depends(get_db)
-):
-    from focus.crud import get_persona
-    p = await get_persona(db, persona_id)
-    if not p:
-        from fastapi import HTTPException
-        raise HTTPException(404)
-    return templates.TemplateResponse(request, "personas/persona-card.html", {"p": p})
-
-
 @router.get("/partials/character-card/{char_id}", response_class=HTMLResponse)
 async def character_card_partial(
     request: Request,
     char_id: str,
     current_character_id: str = "",
-    compact_view: bool = False,
     db: aiosqlite.Connection = Depends(get_db),
 ):
     from fastapi import HTTPException
@@ -730,7 +703,6 @@ async def character_card_partial(
         {
             "char": char,
             "current_character_id": current_character_id,
-            "compact_view": compact_view,
             "request": request,
         },
     )
@@ -830,7 +802,6 @@ async def persona_modal_card_partial(
     request: Request,
     persona_id: str,
     current_persona_id: str = "",
-    compact_view: bool = False,
     db: aiosqlite.Connection = Depends(get_db),
 ):
     from fastapi import HTTPException
@@ -845,7 +816,6 @@ async def persona_modal_card_partial(
         {
             "p": p,
             "current_persona_id": current_persona_id,
-            "compact_view": compact_view,
             "request": request,
         },
     )

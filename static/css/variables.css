@@ -5,7 +5,6 @@
   --surface-2: #1c1f26;
   --surface-3: #2b303b;
   --border: #232730;
-  --border-hover: #343a46;
   --text: #f1f3f5;
   --text-muted: #8b949e;
   /* Themes may own this; otherwise it is derived so a custom palette never
@@ -21,20 +20,13 @@
   /* Danger */
   --danger: #e11d48;
   --danger-hover: #f43f5e;
-  --danger-dim: rgba(225, 29, 72, 0.15);
 
   /* Success */
   --success: #16a34a;
   --success-hover: #22c55e;
-  --success-dim: rgba(22, 163, 74, 0.15);
-
-  /* Info */
-  --info: #3b82f6;
-  --info-dim: rgba(59, 130, 246, 0.2);
 
   /* Warning */
   --warning: #f59e0b;
-  --warning-dim: rgba(245, 158, 11, 0.2);
 
   /* Z-index scale — lowest to highest */
   --z-modal: 50;
@@ -43,15 +35,7 @@
   --z-max: 10010;
 
   /* Modal backdrops */
-  --modal-backdrop: rgba(0, 0, 0, 0.6);
   --modal-backdrop-heavy: rgba(0, 0, 0, 0.85);
-
-  --shadow-glow: 0 0 1px 2px var(--accent-dim), 0 0 1px 1px var(--accent);
-
-  /* Active/selected highlight — single source of truth */
-  --active-bg: color-mix(in srgb, var(--accent) 15%, transparent);
-  --active-border: color-mix(in srgb, var(--accent) 40%, transparent);
-  --active-text: var(--accent-hover);
 
   --transition: 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 
@@ -60,12 +44,6 @@
   --text-on-accent: white;
   --text-on-scrim: #ffffff;
 
-  /* Control sizing scale — single source of truth */
-  --control-slim: 18px; /* icon buttons in toggle rows — matches the 32x18 pill height */
-  --control-icon: 24px; /* dense icon buttons: sidebar headers */
-  --control-icon-lg: 28px; /* standalone icon buttons: toolbar, textarea expander */
-  --control-btn: 36px; /* icon-only .btn variant for modal footers */
-
   /* ── Grid ──────────────────────────────────────────────────────────────
      One unit. Every size in the shell is a multiple of it: panel insets,
      row and control heights, gaps. Nothing is allowed to be off-grid. */
@@ -73,7 +51,6 @@
   --inset: 12px;
   --gutter: 8px;
   --rail-h: 24px;
-  --row-h: 28px;
   --control-h: 28px;
   --control-h-sm: 24px;
   --control-h-lg: 32px;
@@ -125,7 +102,6 @@
   --hair-strong: color-mix(in srgb, var(--text) 18%, transparent);
   --engrave: color-mix(in srgb, var(--text-muted) 80%, transparent);
 
-  --tint-1: color-mix(in srgb, var(--accent) 6%, transparent);
   --tint-2: color-mix(in srgb, var(--accent) 10%, transparent);
   --tint-3: color-mix(in srgb, var(--accent) 16%, transparent);
   --edge: color-mix(in srgb, var(--accent) 45%, transparent);

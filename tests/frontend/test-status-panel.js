@@ -86,6 +86,7 @@ ProviderStore.init([
   { id: 'prov1', name: 'My Provider', type: 'openai_compat', model: 'gpt-4' },
 ]);
 
+h.installRequestPrimitives(global);
 // Load module — export bare functions
 var src = fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'ui', 'status-panel.js'), 'utf8');
 eval(src + '\nwindow.updateStatusPanel=updateStatusPanel;window.updateCacheTimer=updateCacheTimer;window.newChat=newChat;window.updateKeySwitcher=updateKeySwitcher;window._providerKeys=_providerKeys;');

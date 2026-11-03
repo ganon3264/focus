@@ -72,11 +72,7 @@ async function forceFetchModels() {
     let body = { type, base_url: baseUrl, api_key: apiKey, params: {}, config };
     if (providerId) body.provider_id = providerId;
 
-    const res = await fetch(api.providerFetchModels, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
+    const res = await hxJson(api.providerFetchModels, 'POST', body);
 
     if (!res.ok) {
       const errData = await res.json();
@@ -126,7 +122,7 @@ function _orServiceTierLabel(value) {
 
 function fetchOROptions(modelId) {
   if (!modelId) { _orRouteOptions = [{ value: '', label: 'Auto (Any)' }]; _orQuantOptions = [{ value: '', label: 'Any' }]; return; }
-  fetch('/api/providers/openrouter/endpoints/' + encodeURIComponent(modelId))
+  hxFetch('/api/providers/openrouter/endpoints/' + encodeURIComponent(modelId))
     .then(function (r) { return r.json(); })
     .then(function (data) {
       var endpoints = (data.data && data.data.endpoints) || [];
@@ -360,11 +356,7 @@ function submitProviderForm(el, e) {
   const isEdit = !!editId;
   const url = isEdit ? api.provider(editId) : api.providers;
   const method = isEdit ? 'PATCH' : 'POST';
-  fetch(url, {
-    method: method,
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  }).then(async function (r) {
+  hxJson(url, method, data).then(async function (r) {
     if (r.ok) {
       closeModal('modal-provider-create', { discard: true });
       // Refresh the store before the new card is clickable, so selecting it can
@@ -390,7 +382,7 @@ function submitProviderForm(el, e) {
 window.openProviderEditModal = async function (id) {
   resetProviderForm();
   try {
-    const res = await fetch(api.provider(id));
+    const res = await hxFetch(api.provider(id));
     if (!res.ok) return;
     const data = await res.json();
     populateProviderForm(data);
@@ -606,7 +598,7 @@ async function fetchProviderBalances() {
   document.querySelectorAll('[id^="balance-"]').forEach(async el => {
     const providerId = el.id.replace('balance-', '');
     try {
-      const res = await fetch(api.providerBalance(providerId));
+      const res = await hxFetch(api.providerBalance(providerId));
       if (!res.ok) {
         el.textContent = 'error';
         return;
@@ -659,7 +651,7 @@ function openSecretsManager() {
 
 async function fetchSecrets() {
   try {
-    const res = await fetch(api.providerSecrets);
+    const res = await hxFetch(api.providerSecrets);
     const data = await res.json();
     window.dispatchEvent(new CustomEvent('secrets-loaded', { detail: data.data }));
   } catch (err) {
@@ -669,17 +661,13 @@ async function fetchSecrets() {
 
 async function saveNewSecret(name, value) {
   if (!name || !value) return;
-  await fetch(api.providerSecrets, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, value }),
-  });
+  await hxJson(api.providerSecrets, 'POST', { name, value });
   fetchSecrets();
 }
 
 async function deleteSecret(name) {
   if (!confirm('Delete this saved key?')) return;
-  await fetch(api.providerSecret(name), { method: 'DELETE' });
+  await hxJson(api.providerSecret(name), 'DELETE');
   fetchSecrets();
 }
 

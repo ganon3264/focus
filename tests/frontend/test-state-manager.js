@@ -25,6 +25,8 @@ global.window.dispatchEvent = function (ev) { global._dispatchedEvents.push(ev);
 
 // Load StateManager
 var fs = require('fs'), path = require('path');
+eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'core', 'api-paths.js'), 'utf8'));
+h.installRequestPrimitives(global);
 eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'core', 'state-manager.js'), 'utf8'));
 
 function reset() {

@@ -543,8 +543,41 @@ function createMockAbortController() {
 // ── Test harness ──
 
 function printSummary() {
-  console.log('\n' + tests + ' tests, ' + failures + ' failures');
-  process.exit(failures > 0 ? 1 : 0);
+  // Defer past the pending microtasks so assertions inside promise chains are
+  // counted, and let already-scheduled timers run before the exit.
+  setTimeout(function () {
+    console.log('\n' + tests + ' tests, ' + failures + ' failures');
+    process.exit(failures > 0 ? 1 : 0);
+  }, 0);
+}
+
+// Module tests assert the request a call site builds (URL, method, body)
+// synchronously. `hxJson`/`hxFetch` in hx-queue.js defer through the serializer,
+// which is covered by test-hx-queue.js on its own, so these wrappers call fetch
+// directly and keep the module tests deterministic.
+function jsonOpts(method, body) {
+  var opts = { method: method || 'POST', headers: {} };
+  if (body !== undefined) {
+    opts.headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(body);
+  }
+  return opts;
+}
+
+function installRequestPrimitives(globalObj) {
+  globalObj.jsonOpts = jsonOpts;
+  globalObj.hxJson = function (url, method, body) {
+    return globalObj.fetch(url, jsonOpts(method, body));
+  };
+  globalObj.hxFetch = function (url, opts) {
+    return globalObj.fetch(url, opts);
+  };
+  globalObj.hxGet = function (url, opts) {
+    return globalObj.htmx.ajax('GET', url, opts);
+  };
+  globalObj.hxPost = function (url, opts) {
+    return globalObj.htmx.ajax('POST', url, opts);
+  };
 }
 
 function resetGlobals(globalObj) {
@@ -609,6 +642,8 @@ module.exports = {
   installTemplates: installTemplates,
   setupBrowserGlobals: setupBrowserGlobals,
   resetGlobals: resetGlobals,
+  installRequestPrimitives: installRequestPrimitives,
+  jsonOpts: jsonOpts,
   printSummary: printSummary,
   failures: failures,
   tests: tests,

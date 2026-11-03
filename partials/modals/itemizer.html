@@ -1,4 +1,4 @@
-{% from "macros.html" import icon_chevron_right, icon_refresh, hint_tooltip %}
+{% from "macros.html" import icon_chevron_right, hint_tooltip, reload_key %}
 <div x-data="itemizerModal()" @itemizer-open.window="load()" class="modal-bands">
   <div class="modal-band-head">
     <div class="rail">
@@ -7,16 +7,7 @@
       <div class="rail-actions flush">
         <span class="row-label">tokens</span>
         <span class="row-value itemizer-readout" x-text="totalTokens">…</span>
-        <button
-          type="button"
-          class="key sm"
-          @click="load()"
-          :disabled="loading"
-          title="Refresh"
-          aria-label="Refresh"
-        >
-          <span class="inline-flex" :class="loading ? 'animate-spin' : ''">{{ icon_refresh(14) }}</span>
-        </button>
+        {{ reload_key('load()', 'loading', 'Refresh') }}
       </div>
     </div>
   </div>
@@ -79,7 +70,7 @@
             regenerate: false, // default estimate
           };
 
-          const res = await fetch('/api/itemize', {
+          const res = await fetch('/api/itemize', { // raw: slow token estimate
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),

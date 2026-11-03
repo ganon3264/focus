@@ -21,9 +21,9 @@ focus/                   # Backend package
   tools/                 # Builtin + external tool system, executor, provider adapter
   crud.py, exchange.py, prompt_chain.py, backup.py
 templates/               # Full-page Jinja2 templates
-partials/                # HTMX fragments (chat/, modals/, personas/, presets/)
+partials/                # HTMX fragments (chat/, modals/, presets/)
 static/
-  css/                   # Custom CSS modules
+  css/                   # variables, tokens, base, animations, surfaces/*, primitives
   js/
     core/                # state-manager, actions, generation-session, chat-controls, api-paths
     messages/            # Streaming, rendering, editing, pruning
@@ -83,7 +83,7 @@ The pruner's `_pruned` map is keyed by bare id (`MessageIdentity.bare`); `_forge
 - Closing a dirty modal prompts via confirm; **save handlers must call `closeModal(id, {discard: true})`** (never `captureDirty`-style resets). Use `ModalController.setDirty(id, true)` for non-field changes (e.g. attachment add/delete).
 - ESC closes: confirm modal (as Cancel) → topmost modal → lightbox. `option-selected` / `custom-select:set` trigger recompute of open modals.
 - Overlays inside htmx-swapped bodies (providers modal) re-register automatically on open.
-- **Advanced modal** (`modal-advanced` in `partials/chat/modals.html`) is a `.tab-btn` tab container (sampler pattern) holding Tools, Extensions, Regex, Structured and Backups. The three old per-feature modals no longer exist; body partials are `modals/tools.html`, `modals/extensions.html`, `modals/regex.html`, `modals/structured.html`, `modals/backup-body.html`. Tabs are pure Alpine `x-show` over statically-included bodies, so the Tools/Extensions components still initialise once at page load; the list tabs (regex, structured, backups) reload once per modal open via `ModalController.onOpen('modal-advanced')` — not on tab click.
+- **Advanced modal** (`modal-advanced` in `partials/chat/modals.html`) is a tab container (`.modal-tabs` + the `tab_bar()` macro) holding Tools, Extensions, Regex, Structured and Backups; each tab body is its own banded chassis. The three old per-feature modals no longer exist; body partials are `modals/tools.html`, `modals/extensions.html`, `modals/regex.html`, `modals/structured.html`, `modals/backup-body.html`. Tabs are pure Alpine `x-show` over statically-included bodies, so the Tools/Extensions components still initialise once at page load; the list tabs (regex, structured, backups) reload once per modal open via `ModalController.onOpen('modal-advanced')` — not on tab click.
 
 ### Character editor + custom blocks
 
@@ -99,7 +99,7 @@ The pruner's `_pruned` map is keyed by bare id (`MessageIdentity.bare`); `_forge
 ### Message editor + text expander
 
 - `modal-edit-message` (`partials/modals/edit-message.html` + `static/js/messages/edit-message.js`) renders one `.msg-block` per segment: a `.rail` head (name + length readout + expand key) over an auto-sized textarea. Reasoning starts `.collapsed` (rail stays, textarea hides) — the toggle is a caret key in the rail, `actionToggleEditBlock`, not a `<details>`, so the expand key inside the rail cannot toggle the block as a side effect. Tool boundaries render their cards under a "Tool calls" rail.
-- Attachments are a rail + a `.well` tray; `#edit-msg-media` is the drop zone and `#edit-msg-attachments` holds the thumbs, with `#edit-msg-att-empty` as the static empty note (JS only toggles `.hidden`).
+- Attachments are a rail + a `.well` tray; `#edit-msg-media` is the drop zone **and** the media gallery (`.well.media-row.msg-attachments-tray`), `#edit-msg-attachments` is `display: contents` so its thumbs are the tray's grid items, and `#edit-msg-att-empty` is the static empty note that spans the tray (JS only toggles `.hidden`). A thumb opens the lightbox, like the entity editor's media grid. Unlike the entity editor's fixed three-row gallery, this one hugs its rows (one row minimum, 176 cap).
 - `modal-text-expander` is the generic expanded editor: one pane-filling `.field.sized.edit-text`, a foot with the live length readout and an indigo **Done**. It writes into the host field on every keystroke (dispatching `input`), so its own host's dirty tracking still fires.
 
 ### Banded modals — every list modal
@@ -115,12 +115,12 @@ The pruner's `_pruned` map is keyed by bare id (`MessageIdentity.bare`); `_forge
   | `.modal-band-lane` | the one scrolling plane — paints `--surface`, opens with a groove |
   | `.modal-band-foot` | optional closing verb row (Trash Bin, Add Block) |
 
-- Bands pull out to the panel's inner edges with `margin-inline: calc(-1 * var(--band-pad))` and pad back in, so grooves and plane edges run full width while the content keeps the modal's one inset. **The first and last bands absorb the body's own padding** (`margin-top`/`margin-bottom: -pad` + padding back) — a tinted strip that is not a band reads as discoloration.
-- **Vertical rhythm is one rule, not per-modal padding.** The head band pads 24 above its rail and **12 below it** — that 12 is the air between the rail and whatever follows, whether that is a toolbar or the lane itself. A toolbar has **no top padding** (it inherits that 12) and 12 under its controls; the lane pads 8 above its first row and, when it is the last band, 24 to the floor; the foot pads 12 above its verbs and 24 to the floor. A rail flush against a plane edge is the "no margin at the top" bug, which is why the rhythm lives here and not in each modal.
+- Bands pull out to the panel's inner edges with `margin-inline: calc(-1 * var(--modal-pad))` and pad back in, so grooves and plane edges run full width while the content keeps the modal's one inset. The shell zeroes the body's `padding-block` and the bands carry the edges, so the head band sits one `--band-pad` under the title groove and the last band one above the floor.
+- **Vertical rhythm is one rule: `--band-pad` (16) above and below every band, no gaps between bands.** Nothing else authors vertical spacing. `grid-audit.js` enforces the number.
 - Chrome (title bar + head/toolbar/foot bands) is one tint (`--ink-1`); the lane is the only thing painting a different value. A lane that is the last child closes on the panel floor (`:last-child` rule).
 - No scroll fade on the lane: the plane boundary is the edge. `scrollbar-gutter: auto` so the bar rides the lane's padding instead of pushing the rows off the inset.
-- Users of the vocabulary: characters, personas, providers, trash bin, custom character blocks, prompt itemizer, prompt arranger. The Advanced modal (tab container), the theme customizer and the export form are deliberately not banded.
-- `grid-audit.js` measures the rhythm on characters, providers, itemizer and arranger: rail on the modal inset, rail 24 below the title groove, 12px of air before the next band, first row 8 into the lane, last band on the panel floor, foot verb on the inset.
+- Users of the vocabulary: characters, personas, providers, presets, trash bin, custom character blocks, prompt itemizer, prompt arranger, sampler, theme customizer, and each Advanced tab (Tools · Extensions · Regex · Structured · Backups). The stacked forms (provider create/edit, edit entity, edit message, summary, export, regex/structured items, text expander) are deliberately not banded — a form is not a collection.
+- `grid-audit.js` measures the rhythm on characters, providers, itemizer and arranger: rail on the modal inset, rail one band pad under the title groove, one band pad before the next band, first row one band pad into the lane, last band on the panel floor, foot verb on the inset.
 - A rail's last action must be `flush` (`.rail-actions.flush`) when it is a labelled `.btn` — the default optical pull would push it past the modal inset.
 - **Counts live in the rail, outside the swap target.** Update them from `htmx:afterSwap` keyed on the lane/target id, never from the `hxGet` promise (it resolves before the swap) — `arranger-count` and the block door's count work this way.
 - Block rows (arranger, custom blocks): the role is the **grip's** fill (`.grip.role-*`), not a coloured left edge on the row — the handle is the thing you grab, so the cue belongs on it. Sentinel rows (chat history, character blocks) keep a neutral grip.
@@ -131,7 +131,7 @@ The pruner's `_pruned` map is keyed by bare id (`MessageIdentity.bare`); `_forge
 - Rows: avatar → `.row-title` → `.row-meta` (the group as a `.tag`, blank when ungrouped) → `.row-actions`. A favourite's star stays lit at rest because it is state, not a verb.
 - **Providers are one column, two lines**: `.provider-row` (48px) holds an `.entity-identity` stack (name over `type · model`) then the balance readout and the verbs. Presets share the stack (`.preset-row`). Four items on one baseline was unreadable at 2-up width. The 48px height takes `.entity-row.provider-row` because `.row` is 32 and arrives last.
 
-### Toast system### Toast system (`static/js/ui/notifications.js`)
+### Toast system (`static/js/ui/notifications.js`)
 
 - One stack: `#toast-container` in `base.html` (fixed top-center, `z-index: var(--z-max)`, above all modals).
 - API: `showToast(msg, {type, duration|id, maxChars})`, aliases `showInfoToast` (accent, 3s), `showSuccessToast` (green, 3s), `showErrorToast` (danger, persists with Copy/Close), `showImportToast(data, pluralLabel)` (shared import report: error list or success count), `hideErrorToast()`, `hideInfoToast()`, `hideToast(id)`, `hideAllToasts()`.
@@ -177,7 +177,7 @@ table lookup (`HANDLERS[json.type]`); unknown types log a warning, never vanish 
   The builder only clones and fills; it never authors markup. The JS tests clone
   from `tests/frontend/fixtures/message-templates.html`, kept in sync by
   `test_message_template.py::test_message_templates_fixture_is_current`.
-- `generation-ui.js`: toggles send/stop buttons and `clearStaleContent()`. The pre-first-token pending state is markup-side (`message-builder.js`: `showMessagePending`/`hideMessagePending`) — the rail carries a spinner + readout while the empty body stays out of the layout.
+- `generation-ui.js`: toggles send/stop buttons and `clearStaleContent()`. The pre-first-token pending state is markup-side (`message-builder.js`: `showMessagePending`/`hideMessagePending`) — the rail carries a spinner + readout while the empty body stays out of the layout. The ticker's phase (`is-waiting` → `is-reasoning` → `is-content`) changes both its hue (`--tick-color`) and its tempo (`--tick-rate`, applied as `playbackRate` by `applyTickRate` — a CSS duration change would restart the track instead of continuing it).
 - `message-refresh.js` owns the message-list DOM: `refreshMessageList(chatId, changedIds)` fetches the server partial and reconciles it in place (reorder / reuse / insert / drop), preserving scroll, open reasoning, and pruned stubs. `refreshMessagesAfterStream` and `refreshChatMessages` delegate to it; `refreshSingleMessage` is the cheap one-node path (swipe/edit) with a full-reconcile fallback. All partial fetches go through `hxFetch` so they share one serializer with `hxGet`/`hxPost`.
 - `post-process.js`: `processMessageList(container)` is the single post-render pass (markdown, reasoning, timestamps, delete-mode visibility, toolbar state, sentinel). The renderer calls it once; it is not tied to htmx events.
 - Messages split into `text | reasoning | tool_boundary` segments (`segments_json` column). Use `preserveOpenStates()` not `innerHTML` for **in-place re-renders** (e.g. streaming segment updates) to keep reasoning toggles open; fresh nodes swapped in from the server start collapsed by design — do not preserve state across server swaps.
@@ -220,7 +220,7 @@ table lookup (`HANDLERS[json.type]`); unknown types log a warning, never vanish 
 - **Request pipeline**: `focus/providers/quirks.py` owns the ordered `QUIRKS` table (predicate + transform) run by `apply_request_quirks()` before each call. Adding a quirk = one function + one entry; never an `if type ==` ladder in the generation flow. Wire-format assembly stays in the adapter. `stream_utils.prepare_generation_messages` is a thin delegator. Pure transforms live in `focus/core/request_transforms.py` (provider-agnostic, no cycles).
 - **Capabilities & registry**: each adapter declares `type` + `profile` (`focus/providers/profile.py`); `BaseProvider.__init_subclass__` self-registers in `registry.py` and copies `supports_tools`/`supports_prefill`/`echoes_prefill` from `profile.caps`. `create_provider` is a registry lookup + `from_row()` — no type ladder.
 - **Frontend schema**: `focus/providers/schema.py::provider_schema()` (defaults, effort options, forward/visible fields, capabilities, form config, labels, ordered type options) is embedded as `window.PROVIDER_SCHEMA` and consumed by `static/js/core/provider-schema.js` (`ProviderSchema.*`). The sampler-modal getters, `sampler-defaults.js`, `providers.js` form visibility, provider-type `<option>` lists, continue-button visibility, and the Claude-cache predicate all read from it. Add per-type UI facts there instead of new JS conditionals.
-- **Client records**: `static/js/core/provider-store.js` (`ProviderStore`) is the client SSOT for provider records — seeded once in `chat.html`, refreshed after every provider CRUD (`providers.js` save; the modal delete `hx-on`). The status panel, sampler and the Claude-cache check read the active provider from it; never reintroduce a page-load `APP_PROVIDERS` snapshot (a provider created after load must be visible without a reload). `core/character-store.js` (`CharacterStore`) is the same shape for characters; its only consumer was the standalone `/characters` page, which was removed (its card-block editor is pending a port into the character modal), so the store currently has no callers — wire it up rather than reintroducing a page-load `window.ALL_CHARS` snapshot. Selection ids stay in `StateManager`; the stores own only the data.
+- **Client records**: `static/js/core/provider-store.js` (`ProviderStore`) is the client SSOT for provider records — seeded once in `chat.html`, refreshed after every provider CRUD (`providers.js` save; the modal delete `hx-on`). The status panel, sampler and the Claude-cache check read the active provider from it; never reintroduce a page-load `APP_PROVIDERS` snapshot (a provider created after load must be visible without a reload). Selection ids stay in `StateManager`; the store owns only the data.
 - Cross-provider shared payloads live in a shared module (e.g. `google_safety.py`) and are delivered through the relevant adapter — so a provider's wire format can be reused by another route (Gemini safety settings through OpenRouter) without importing the other SDK.
 
 ### Theme system
@@ -228,17 +228,18 @@ table lookup (`HANDLERS[json.type]`); unknown types log a warning, never vanish 
 - Themes live in the `themes` table (built-ins seeded as `is_system` rows with fixed ids `builtin-*`; custom themes CRUD via `/api/themes`). Built-ins are editable in place; `POST /api/themes/{id}/reset` restores their canonical seed values; only custom themes can be deleted. A palette change ships through `migrate_builtin_themes`, which repaints a row only while it still matches the old canonical seed (edited built-ins are left alone) and drops retired built-in ids with their slot/character references. `--text-faint` is themeable (seeded; falls back to a `text-muted`/`surface` mix) and `--text-on-accent` is derived from accent luminance in both `theme-manager.js` and `base.html`'s pre-paint; `--text-on-scrim` stays fixed white over dark scrims.
 - **Pair model**: two global slots — `dark_theme_id` + `light_theme_id` in settings, written via `PUT /api/settings/theme {slot: 'dark'|'light', theme_id}`. The app always follows `prefers-color-scheme`; effective = `characters.theme_id ?? (dark ? dark slot : light slot)`. Want "always dark"? Set both slots to the same theme.
 - `chat_page` embeds `window.THEMES` + `window.THEME_STATE` server-side; `theme-manager.js` applies, caches both slot palettes to `focus-theme-state` (flash-free pre-paint in `base.html`), re-resolves on `matchMedia` change, `character-changed`, and `character-edited` events. Action feedback via the toast system (`showToast` in `notifications.js`, container `#toast-container` in `base.html`).
-- Theme modal (`partials/modals/theme.html`): clicking a row selects it for editing; per-row Dark/Light buttons assign the slots (mutually exclusive, `.slot-btn.slot-active`); "New" creates the theme immediately from the typed name + current picker colors (toast, stays open, new theme selected). Live picker preview is NOT saved: `dirty` state (name/pickers vs stored values) enables Save, shows an "Unsaved changes" hint, and prompts before switching themes (`switchTo` + `openConfirmModal`).
+- Theme modal (`partials/modals/theme.html`): clicking a row selects it for editing; per-row Dark/Light `.chip`s assign the slots (mutually exclusive, `.chip.active`); "New" creates the theme immediately from the typed name + current picker colors (toast, stays open, new theme selected). Live picker preview is NOT saved: `dirty` state (name/pickers vs stored values) enables Save, shows an "Unsaved changes" hint, and prompts before switching themes (`switchTo` + `openConfirmModal`).
 
-### Structural layer (Instrument) — `static/css/instrument.css`
+### CSS layer — `static/css/`
 
-- The app's geometry and typography layer, imported last in `tailwind-input.css` so it wins the cascade. Colour is never authored here: values derive from theme tokens via `color-mix`/`var()`, and raw colours are allowed only in `box-shadow`/`text-shadow` scrims (theme-independent by design).
+- Import order in `static/tailwind-input.css` is load-bearing: `tailwindcss → variables (tokens, material, ink/tint) → tokens (@theme) → base → animations → surfaces/* (shell · sidebar · messages · forms · modals) → primitives`. Primitives come last so they win every collision. Surfaces may set **layout** on their own containers; they may not restyle a primitive — `tests/frontend/test_css_ownership.py` enforces it (no look property on a primitive's selector outside `primitives.css`, no `:not(` anywhere).
+- `primitives.css` is the closed vocabulary: controls `.btn .key .nav .link .chip .tab .pager`, inputs `.field .check .switch`, structure `.rail .row .well .frame .panel .card .divider .disclosure .grip`, feedback `.toast .tooltip .spinner .empty .note .tag .avatar`. Intents `.primary .create .danger`; sizes `.sm .lg .xl`; state classes as JS toggles them.
 - **Type rules** (quiet-ification pass): engraved type (mono, caps, tracked) is rationed to section headers and modal titles only — buttons, fields, and row values stay quiet sans (UI labels) or lowercase mono (data). Fills mark touchable things (`--ink-1` tiles/controls); sections and rows stay flat with hairline dividers *between* rows, never frames *around* them.
-- **New UI checklist:** compose existing primitives (`.btn`, `.card`, `.form-control`, `.sidebar-section`, …) and the layer cascades for free; a genuinely new structural class needs one block in `instrument.css`.
+- **New UI checklist:** compose the primitives (`.btn`, `.card`, `.field`, `.sidebar-section`, …) and the layer cascades for free; a genuinely new structural class needs one block in `primitives.css`, plus its geometry in the owning surface. Composed shapes already have macros — `row_label`, `toggle_row`, `slider_row`, `reload_key`, `search_toolbar`, `modal_footer`, `tab_bar`, `role_select` — so a settings line or a picker is never hand-authored. Full geometry, chassis anatomy and the layout traps live in `UI.md`.
 
 ### Fonts
 
-- Both families are self-hosted woff2 under `static/fonts/`, declared in `static/fonts.css` (linked from `base.html`), not downloaded by `vendor-sync.py`. `--font-sans` = **Ronzino** (static; 400/500/700 + obliques — **no 600, so `font-semibold` renders as 700**), `--font-mono-ui` = **Necto Mono** (single 400 weight). Both SIL OFL 1.1, © Collletttivo; license texts live next to the fonts and are listed in `NOTICE`. Replacing a face means adding an `@font-face` here and updating `--font-sans`/`--font-mono-ui` in `tokens.css` / `instrument.css`.
+- Both families are self-hosted woff2 under `static/fonts/`, declared in `static/fonts.css` (linked from `base.html`), not downloaded by `vendor-sync.py`. `--font-sans` = **Ronzino** (static; 400/500/700 + obliques — **no 600, so `font-semibold` renders as 700**), `--font-mono-ui` = **Necto Mono** (single 400 weight). Both SIL OFL 1.1, © Collletttivo; license texts live next to the fonts and are listed in `NOTICE`. Replacing a face means adding an `@font-face` here and updating `--font-sans`/`--font-mono-ui` in `tokens.css` / `variables.css`.
 
 ### Macros (`focus/core/macros.py`)
 
@@ -273,17 +274,17 @@ Colour follows the **verb on the label**, not the feature. One green create per 
 
 | Verb | Class | Examples |
 |---|---|---|
-| **Create** — a new entity comes into existence | `.btn-create` (green) | New, Add, Create, Duplicate, Start Chat |
-| **Commit** — persist/confirm changes to something that already exists | `.btn-primary` (indigo) | Save, Apply, Done, Confirm, Rename, Select, Export |
-| Navigate / dismiss | `.btn-secondary` / `.btn-link` | Back, Close, Cancel, Editor |
-| **Destroy** | `.btn-danger` (red) | Delete, Remove |
+| **Create** — a new entity comes into existence | `.btn.create` (green) | New, Add, Create, Duplicate, Start Chat |
+| **Commit** — persist/confirm changes to something that already exists | `.btn.primary` (indigo) | Save, Apply, Done, Confirm, Rename, Select, Export |
+| Navigate / dismiss | `.btn` / `.link` | Back, Close, Cancel, Editor |
+| **Destroy** | `.btn.danger` (red) | Delete, Remove |
 | **Flag** (user metadata) | `.fav-star.favorite-active` (amber) | Favorite, pinned message |
 
 - **Litmus test:** after the click, is there one more row/entity than before? → green. Otherwise → indigo. A form submit that creates a resource takes the create colour ("Add Provider"); one that persists edits takes indigo ("Save").
 - **Save is never green.** "Save"/"Save Changes" mutate the thing you're editing — commit, so indigo. If a button really only adds a row, its label should say so ("Add") and *then* it can be green; never leave a green "Save".
-- `.btn-create` is tinted at rest and deepens on hover — never a solid block. The structural layer mirrors it with `--success-tint*` / `--success-edge`.
-- Non-`.btn` adders (`.action-icon`, `.radio-add-row`, `.btn-edit`, `.btn-link`, `.btn-media-add`) opt into the same cue with `.is-create`. Add it whenever a control brings something new into being.
-- Any component colour rule must be checked in `instrument.css` too — a rule authored in `components.css` alone is often overridden there (e.g. `.card.active` is set by both).
+- `.create` is tinted at rest and deepens on hover — never a solid block (`--success-tint*` / `--success-edge`).
+- The intents compose with every shape: `.btn .key .nav .chip .link .tab .row .well .note` all take `.primary` / `.create` / `.danger`. Use the modifier, never a bespoke class.
+- Colour lives in `primitives.css` only; a surface that repaints a control gets overridden (see the ownership test above).
 - `--success` is otherwise used only by toasts, so the green channel is free. `--role-user` is a near-green — don't place a create button directly against a user-role chip.
 - **Import is neutral, not create** — it's a file ingest; a second green next to Create dilutes the cue.
 - **Opening a picker is navigation, not create** — e.g. "Add Character" in the right pane opens the character modal, so it stays indigo. The label says Add; the behaviour selects.
@@ -294,4 +295,4 @@ Colour follows the **verb on the label**, not the feature. One green create per 
 
 - **`x-show` needs `x-cloak`** — Alpine loads `defer`, so overlays using `x-show` without `x-cloak` flash visible during HTML parsing.
 - **`:last-of-type` isn't "last with this class"** — the scroll sentinel shares the same tag. Use `querySelectorAll('.message')` and take the last NodeList element.
-- **Never htmx-swap `#message-list`** — the list is rendered by `refreshMessageList()`, which reconciles in place and calls `pruneMessages()` itself. `message-pruner.js` replaces off-screen messages with placeholders; check `window._isMessagePruned(id)` before DOM ops. The streaming message is excluded. Culling stays on in delete mode: selection is an id set (`delete-mode.js` `selectedIds`), and `applyDeleteModeToNode(msg)` re-applies checkbox visibility/checked state when a row scrolls back in.
+- **Never htmx-swap `#message-list`** — the list is rendered by `refreshMessageList()`, which reconciles in place and calls `pruneMessages()` itself. `message-pruner.js` replaces off-screen messages with placeholders; check `window._isMessagePruned(id)` (or resolve through `MessageIdentity.placeholder`) before DOM ops. The streaming message is excluded. Culling stays on in delete mode: selection is an id set (`delete-mode.js` `selectedIds`), and `applyDeleteModeToNode(msg)` re-applies checkbox visibility/checked state when a row scrolls back in.

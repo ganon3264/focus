@@ -1,6 +1,6 @@
-from tests.helpers import create_character, create_chat, create_persona, create_preset
-
 import aiosqlite
+
+from tests.helpers import create_character, create_chat, create_persona, create_preset
 
 
 class TestChats:

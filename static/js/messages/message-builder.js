@@ -15,6 +15,7 @@
       avatar.removeAttribute('data-slot');
       var img = avatar.querySelector('img');
       if (img && imagePath) {
+        img.removeAttribute('data-slot');
         img.src = '/' + imagePath;
         img.alt = name + ' avatar';
       } else if (img) {
@@ -55,10 +56,29 @@
     asstDiv.classList.remove('is-waiting', 'is-reasoning', 'is-content');
   };
 
+  // The phase tempo is declared in CSS as --tick-rate; it has to be applied
+  // here, because a duration change in CSS would restart the animation from the
+  // first cell instead of continuing where the previous phase left it. Applied
+  // only when the phase (or the ticker node) changes — a token must not force a
+  // style flush.
+  var tickPhase = new WeakMap();
+
+  function applyTickRate(host) {
+    if (!host.querySelectorAll || !window.getComputedStyle) return;
+    var rate = parseFloat(window.getComputedStyle(host).getPropertyValue('--tick-rate'));
+    if (!rate) rate = 1;
+    var cells = host.querySelectorAll('.spinner.scan > i');
+    for (var i = 0; i < cells.length; i++) {
+      if (!cells[i].getAnimations) continue;
+      var anims = cells[i].getAnimations();
+      for (var j = 0; j < anims.length; j++) anims[j].playbackRate = rate;
+    }
+  }
+
   // "Has a child" and "has output" are two different questions. A segment that
   // has arrived proves the model answered, even while its reasoning is folded
   // (the screen stays out of the layout, but the phase is no longer waiting).
-  // The ticker stays up for the whole run; the phase only changes its hue.
+  // The ticker stays up for the whole run; the phase changes its hue and rate.
   window.syncStreamingView = function (asstDiv) {
     if (!asstDiv) return;
     // Only a node that is on the wire carries a phase class. A finished message
@@ -91,11 +111,16 @@
       visible = true;
     }
     var phase = kids.length === 0 ? 'is-waiting' : (hasOutput ? 'is-content' : 'is-reasoning');
+    var hadTicker = !!asstDiv.querySelector('[data-ui="message-pending"]');
     body.classList.toggle('is-empty', !visible);
     asstDiv.classList.toggle('is-waiting', phase === 'is-waiting');
     asstDiv.classList.toggle('is-reasoning', phase === 'is-reasoning');
     asstDiv.classList.toggle('is-content', phase === 'is-content');
     window.showMessagePending(asstDiv);
+    if (!hadTicker || tickPhase.get(asstDiv) !== phase) {
+      tickPhase.set(asstDiv, phase);
+      applyTickRate(asstDiv);
+    }
   };
 
   window.buildToolCallsSection = function () {

@@ -26,22 +26,9 @@ content_style='height:82vh;', overlay_class='modal-bands-shell', z_index='100') 
           @click="switchTo(t.id)"
         >
           <span class="theme-thumb">
-            <span
-              class="theme-swatch"
-              :style="{ background: (t.colors || {})['--bg'] || '#000' }"
-            ></span>
-            <span
-              class="theme-swatch"
-              :style="{ background: (t.colors || {})['--surface'] || '#000' }"
-            ></span>
-            <span
-              class="theme-swatch"
-              :style="{ background: (t.colors || {})['--accent'] || '#000' }"
-            ></span>
-            <span
-              class="theme-swatch"
-              :style="{ background: (t.colors || {})['--text'] || '#fff' }"
-            ></span>
+            {% for key, fallback in [('--bg', '#000'), ('--surface', '#000'), ('--accent', '#000'), ('--text', '#fff')] %}
+            <span class="theme-swatch" :style="{ background: (t.colors || {})['{{ key }}'] || '{{ fallback }}' }"></span>
+            {% endfor %}
           </span>
           <span class="row-title" x-text="t.name"></span>
           <span class="tag" x-show="t.is_system">Built-in</span>

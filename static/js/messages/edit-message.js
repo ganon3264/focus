@@ -175,7 +175,7 @@
 
   window.editMessage = async function (messageId, chatId) {
     try {
-      var res = await fetch(window.api.chatMessage(chatId, messageId));
+      var res = await hxFetch(window.api.chatMessage(chatId, messageId));
       if (!res.ok) throw new Error('Failed to load message');
       var data = await res.json();
 
@@ -210,6 +210,11 @@
         src: att.file_path || '',
         mimeType: att.mime_type,
         size: 48,
+        onClick: function () {
+          var src = att.file_path || '';
+          var external = /^(blob:|data:|https?:)/.test(src);
+          window.openLightbox(external ? src : '/' + src);
+        },
         onDelete: function () {
           window.deleteModalAttachment(idx);
         },
@@ -217,12 +222,6 @@
 
       var wrapper = document.createElement('div');
       wrapper.className = 'relative shrink-0';
-
-      var deleteBtn = thumbnail.querySelector('button');
-      if (deleteBtn) {
-        deleteBtn.className = 'key sm danger media-thumb-close z-10';
-        deleteBtn.innerHTML = window.getSvgSprite('close', 16);
-      }
 
       wrapper.appendChild(thumbnail);
       container.appendChild(wrapper);
@@ -266,15 +265,11 @@
     var reasoning = reasoningParts.length > 0 ? reasoningParts.join('\n') : null;
 
     try {
-      await fetch(window.api.chatMessage(chatId, messageId), {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          content: content,
-          reasoning: reasoning,
-          attachment_ids: window.currentEditAttachments.map(function (a) { return a.id; }),
-          segments: segments,
-        }),
+      await hxJson(window.api.chatMessage(chatId, messageId), 'PATCH', {
+        content: content,
+        reasoning: reasoning,
+        attachment_ids: window.currentEditAttachments.map(function (a) { return a.id; }),
+        segments: segments,
       });
 
       window.closeModal('modal-edit-message', { discard: true });
@@ -304,7 +299,7 @@
     files.forEach(function (f) { formData.append('files', f); });
 
     try {
-      var res = await fetch(window.api.chatAttachments(chatId), {
+      var res = await hxFetch(window.api.chatAttachments(chatId), {
         method: 'POST',
         body: formData,
       });

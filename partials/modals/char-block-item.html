@@ -2,7 +2,7 @@
    "Character Blocks" sentinel sits. The list follows the prompt arranger's
    anatomy (grip drags, title group expands, trailing keys toggle/delete), and
    every edit saves immediately — this modal has no Save verb by design. #}
-{% from "macros.html" import custom_select, icon_plus, icon_close, icon_expand, media_thumbnail, hint_tooltip, toggle %}
+{% from "macros.html" import role_select, custom_select, icon_plus, icon_close, icon_expand, media_thumbnail, hint_tooltip, toggle %}
 <div
   class="arranger-item{% if not block.enabled %} disabled{% endif %}"
   data-ui="char-block"
@@ -48,13 +48,7 @@
   <div x-show="expanded" x-transition.opacity.duration.200ms class="arranger-expand" style="display: none">
     <div class="arranger-body">
       <div class="arranger-select">
-        {{ custom_select(
-          name="role",
-          id="char-block-role-" ~ block.id,
-          options=[{"value": "system", "label": "system"}, {"value": "user", "label": "user"}, {"value": "assistant", "label": "assistant"}],
-          selected=block.role,
-          on_change="actionSetCharBlockRole(this)"
-        ) }}
+        {{ role_select(block, 'char-block-role-' ~ block.id, 'actionSetCharBlockRole(this)') }}
       </div>
       <div class="textarea-wrapper arranger-preview">
         <textarea

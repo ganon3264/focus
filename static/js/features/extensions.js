@@ -41,11 +41,7 @@
     el.classList.add('disabled', 'opacity-50');
     window.showInfoToast('Running ' + name + '…');
 
-    fetch('/api/extensions/' + encodeURIComponent(name) + '/run', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, message_id: messageId }),
-    })
+    hxJson(api.extensionRun(name), 'POST', { chat_id: chatId, message_id: messageId })
       .then(function (r) {
         if (!r.ok) {
           return r.json().then(function (d) {

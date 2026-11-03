@@ -41,11 +41,7 @@ window.actionShiftProviderKey = async function (el) {
   const target = (keys.active + dir + n) % n;
   const ref = keys.refs[target];
   try {
-    const res = await fetch(api.providerActiveKey(provider.id), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key: ref }),
-    });
+    const res = await hxJson(api.providerActiveKey(provider.id), 'POST', { key: ref });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     let config = {};
     try { config = JSON.parse(provider.config_json || '{}'); } catch (e) {}
@@ -134,11 +130,7 @@ updateCacheTimer();
 setInterval(updateCacheTimer, 1000);
 
 function newChat() {
-  fetch(window.api.chats, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(StateManager.getAll()),
-  })
+  hxJson(window.api.chats, 'POST', StateManager.getAll())
     .then((r) => {
       if (!r.ok) throw new Error('Failed to create chat');
       return r.json();
@@ -166,7 +158,7 @@ window.stopSummary = function () {
 
   var postCtl = new AbortController();
   var postTimer = setTimeout(function () { postCtl.abort(); }, 4000);
-  fetch(window.api.chatStopSummary(run.chatId), { method: 'POST', signal: postCtl.signal })
+  fetch(window.api.chatStopSummary(run.chatId), { method: 'POST', signal: postCtl.signal }) // raw: own abort, must not queue
     .then(function (r) {
       // 404: the run already finished; resolve locally instead of draining.
       if (r.status === 404) run.cancel();
@@ -247,7 +239,7 @@ function startSummary(chatId, messageId, btn) {
   window.setGeneratingUI(true);
   window.showInfoToast('Summarizing\u2026', { id: 'summarize', duration: 0 });
 
-  fetch(window.api.chatSummarize(chatId), {
+  fetch(window.api.chatSummarize(chatId), { // raw: SSE reader
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

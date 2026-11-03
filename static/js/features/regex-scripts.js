@@ -21,11 +21,7 @@
   }
 
   function patchScript(id, patch) {
-    return fetch('/api/regex-scripts/' + id, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(patch),
-    }).then(function (r) {
+    return hxJson(api.regexScript(id), 'PATCH', patch).then(function (r) {
       if (!r.ok) {
         return r.json().then(function (e) {
           if (window.showErrorToast) showErrorToast((e && e.detail) || 'Failed to save script');
@@ -108,14 +104,10 @@
       .forEach(function (item) {
         ids.push(item.dataset.id);
       });
-    var opts = {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids: ids }),
-    };
+    var opts = jsonOpts('POST', { ids: ids });
     var req = window.Refresh
-      ? Refresh.mutate('/api/regex-scripts/reorder', opts, { changed: ['regex_scripts'] })
-      : fetch('/api/regex-scripts/reorder', opts);
+      ? Refresh.mutate(api.regexReorder, opts, { changed: ['regex_scripts'] })
+      : hxFetch(api.regexReorder, opts);
     req
       .then(function (r) {
         if (!r.ok) throw new Error('reorder failed');
@@ -199,20 +191,16 @@
   };
 
   window.createRegexScript = function (scope, scopeId) {
-    fetch('/api/regex-scripts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        scope: scope,
-        scope_id: scopeId || null,
-        name: 'New script',
-        pattern: '',
-        replacement: '',
-        placement: 'ai',
-        apply_prompt: true,
-        apply_display: true,
-        as_block: false,
-      }),
+    hxJson(api.regexScripts, 'POST', {
+      scope: scope,
+      scope_id: scopeId || null,
+      name: 'New script',
+      pattern: '',
+      replacement: '',
+      placement: 'ai',
+      apply_prompt: true,
+      apply_display: true,
+      as_block: false,
     })
       .then(function (r) {
         if (!r.ok) {
@@ -250,7 +238,7 @@
     var item = el.closest('[data-ui="regex-item"]');
     if (!item) return;
     window.openConfirmModal('Delete this regex script?', function () {
-      fetch('/api/regex-scripts/' + item.dataset.id, { method: 'DELETE' })
+      hxJson(api.regexScript(item.dataset.id), 'DELETE')
         .then(function (r) {
           if (!r.ok) throw new Error('delete failed');
           window.reloadRegexScripts();
@@ -270,17 +258,13 @@
     item.querySelectorAll('[data-ui="regex-flag"]').forEach(function (chip) {
       if (chip.classList.contains('active')) flags.push(chip.dataset.flag);
     });
-    fetch('/api/regex-scripts/preview', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        pattern: item.querySelector('[data-ui="regex-pattern"]').value,
-        replacement: item.querySelector('[data-ui="regex-replacement"]').value,
-        flags: flags.join(''),
-        sample: item.querySelector('[data-ui="regex-sample"]').value,
-        as_block: item.querySelector('[data-ui="regex-block"]').classList.contains('active'),
-        name: (item.querySelector('[data-ui="arranger-input"]') || {}).value || 'Block',
-      }),
+    hxJson(api.regexPreview, 'POST', {
+      pattern: item.querySelector('[data-ui="regex-pattern"]').value,
+      replacement: item.querySelector('[data-ui="regex-replacement"]').value,
+      flags: flags.join(''),
+      sample: item.querySelector('[data-ui="regex-sample"]').value,
+      as_block: item.querySelector('[data-ui="regex-block"]').classList.contains('active'),
+      name: (item.querySelector('[data-ui="arranger-input"]') || {}).value || 'Block',
     })
       .then(function (r) {
         return r.json().then(function (data) {

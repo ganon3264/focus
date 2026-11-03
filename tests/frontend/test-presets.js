@@ -34,6 +34,7 @@ global.api = {
 global.StateManager = { get: function (key) { return key === 'preset_id' ? 'active-1' : 'chat-1'; } };
 
 var requests = [];
+global.jsonOpts = h.jsonOpts;
 global.hxFetch = function (url, opts) {
   requests.push({ url: url, opts: opts });
   return Promise.resolve({

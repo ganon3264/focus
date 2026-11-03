@@ -102,11 +102,7 @@
 
     window.customConfirm('Delete ' + selected.length + ' message(s)?', async function () {
       try {
-        var res = await fetch(window.api.chatBulkDelete(chatId), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message_ids: selected }),
-        });
+        var res = await hxJson(window.api.chatBulkDelete(chatId), 'POST', { message_ids: selected });
         if (res.ok) {
           if (window.refreshMessageList) {
             await window.refreshMessageList(chatId, null);

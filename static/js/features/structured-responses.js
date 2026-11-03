@@ -12,11 +12,7 @@
   }
 
   function patchResponse(id, patch) {
-    return fetch('/api/structured-responses/' + id, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(patch),
-    }).then(function (r) {
+    return hxJson(api.structuredResponse(id), 'PATCH', patch).then(function (r) {
       if (!r.ok) {
         return r.json().then(function (e) {
           if (window.showErrorToast) showErrorToast((e && e.detail) || 'Failed to save response');
@@ -83,11 +79,7 @@
       .forEach(function (item) {
         ids.push(item.dataset.id);
       });
-    fetch('/api/structured-responses/reorder', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids: ids }),
-    })
+    hxJson(api.structuredReorder, 'POST', { ids: ids })
       .then(function (r) {
         if (!r.ok) throw new Error('reorder failed');
       })
@@ -126,17 +118,13 @@
   };
 
   window.createStructuredResponse = function (scope, scopeId) {
-    fetch('/api/structured-responses', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        scope: scope,
-        scope_id: scopeId || null,
-        name: 'New response',
-        json_schema: DEFAULT_SCHEMA,
-        template: DEFAULT_TEMPLATE,
-        enabled: true,
-      }),
+    hxJson(api.structuredResponses, 'POST', {
+      scope: scope,
+      scope_id: scopeId || null,
+      name: 'New response',
+      json_schema: DEFAULT_SCHEMA,
+      template: DEFAULT_TEMPLATE,
+      enabled: true,
     })
       .then(function (r) {
         if (!r.ok) {
@@ -170,7 +158,7 @@
     var item = el.closest('[data-ui="structured-item"]');
     if (!item) return;
     window.openConfirmModal('Delete this response?', function () {
-      fetch('/api/structured-responses/' + item.dataset.id, { method: 'DELETE' })
+      hxJson(api.structuredResponse(item.dataset.id), 'DELETE')
         .then(function (r) {
           if (!r.ok) throw new Error('delete failed');
           window.reloadStructuredResponses();
@@ -186,13 +174,9 @@
     if (!item) return;
     var out = item.querySelector('[data-ui="structured-preview-out"]');
     var sample = item.querySelector('[data-ui="structured-sample"]').value || '{"text": "Hello world!"}';
-    fetch('/api/structured-responses/preview', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        template: item.querySelector('[data-ui="structured-template"]').value,
-        json_sample: sample,
-      }),
+    hxJson(api.structuredPreview, 'POST', {
+      template: item.querySelector('[data-ui="structured-template"]').value,
+      json_sample: sample,
     })
       .then(function (r) {
         return r.json().then(function (data) {

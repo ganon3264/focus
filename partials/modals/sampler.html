@@ -1,4 +1,4 @@
-{% from "macros.html" import icon_plus, icon_close, icon_expand, hint_tooltip, slider_row, tab_bar, toggle %}
+{% from "macros.html" import icon_plus, icon_close, icon_expand, hint_tooltip, row_label, slider_row, tab_bar, toggle, toggle_row %}
 {# Body of the Samplers modal: a readout rail naming the provider these samplers
    are stored against, the tab strip in the chrome, one lane per tab. #}
 <div
@@ -26,65 +26,44 @@
       {{ slider_row('Top K', 'samplers.top_k', '0', '100', '1', 0, wrapper_attrs='x-show="showTopK"') }}
       {{ slider_row('Min P', 'samplers.min_p', '0', '1', '0.01', 2, wrapper_attrs='x-show="showMinP"') }}
 
-      <div class="row setting">
-        <span class="row-title">Streaming</span>
-        <span class="row-actions">{{ toggle(':class="{ \'active\': samplers.stream_enabled }" @click="samplers.stream_enabled = !samplers.stream_enabled; saveStandard()"') }}</span>
-      </div>
+      {{ toggle_row('Streaming', ':class="{ \'active\': samplers.stream_enabled }" @click="samplers.stream_enabled = !samplers.stream_enabled; saveSamplers()"') }}
 
-      <div class="row setting">
-        <span class="row-title inline-flex items-center gap-1">
-          Enable Multimodal
-          {{ hint_tooltip('Allows sending images and audio to the model as prompt context. <span class="note warning">Disable if your provider does not support multimodal inputs.</span>') }}
-        </span>
-        <span class="row-actions">{{ toggle(':class="{ \'active\': samplers.enable_multimodal }" @click="samplers.enable_multimodal = !samplers.enable_multimodal; saveStandard()"') }}</span>
-      </div>
+      {{ toggle_row('Enable Multimodal', ':class="{ \'active\': samplers.enable_multimodal }" @click="samplers.enable_multimodal = !samplers.enable_multimodal; saveSamplers()"', hint='Allows sending images and audio to the model as prompt context. <span class="note warning">Disable if your provider does not support multimodal inputs.</span>') }}
 
       <div x-show="samplers.enable_multimodal" x-cloak class="well sampler-children">
         <div class="row setting">
-          <span class="row-title inline-flex items-center gap-1">
-            Image Format
-            {{ hint_tooltip('WebP offers the best compression and quality; default in most cases. <span class="note warning">PNG/JPEG provided for compatibility with llama.cpp and other providers that don\'t support WebP.</span>') }}
-          </span>
+          {{ row_label('Image Format', hint='WebP offers the best compression and quality; default in most cases. <span class="note warning">PNG/JPEG provided for compatibility with llama.cpp and other providers that don\'t support WebP.</span>') }}
           <span class="row-actions">
-            <button class="chip" :class="samplers.image_format === 'webp' ? 'active' : ''" @click.stop="samplers.image_format = 'webp'; saveStandard()">WebP</button>
-            <button class="chip" :class="samplers.image_format === 'png' ? 'active' : ''" @click.stop="samplers.image_format = 'png'; saveStandard()">PNG</button>
-            <button class="chip" :class="samplers.image_format === 'jpeg' ? 'active' : ''" @click.stop="samplers.image_format = 'jpeg'; saveStandard()">JPEG</button>
+            <button class="chip" :class="samplers.image_format === 'webp' ? 'active' : ''" @click.stop="samplers.image_format = 'webp'; saveSamplers()">WebP</button>
+            <button class="chip" :class="samplers.image_format === 'png' ? 'active' : ''" @click.stop="samplers.image_format = 'png'; saveSamplers()">PNG</button>
+            <button class="chip" :class="samplers.image_format === 'jpeg' ? 'active' : ''" @click.stop="samplers.image_format = 'jpeg'; saveSamplers()">JPEG</button>
           </span>
         </div>
       </div>
 
-      <div x-show="showReasoningToggle" class="row setting">
-        <span class="row-title">Enable Thinking / Reasoning</span>
-        <span class="row-actions">{{ toggle(':class="{ \'active\': samplers.include_reasoning }" @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()"') }}</span>
-      </div>
+      {{ toggle_row('Enable Thinking / Reasoning', ':class="{ \'active\': samplers.include_reasoning }" @click="samplers.include_reasoning = !samplers.include_reasoning; saveSamplers()"', row_attrs='x-show="showReasoningToggle"') }}
 
       <div x-show="samplers.include_reasoning" x-cloak class="well sampler-children">
         <div class="row setting" x-show="showReasoningEffort">
           <span class="row-title">Reasoning Effort</span>
           <span class="row-actions">
-            <button class="chip" :class="!samplers.reasoning_effort ? 'active' : ''" @click.stop="samplers.reasoning_effort = ''; saveStandard()">Default</button>
+            <button class="chip" :class="!samplers.reasoning_effort ? 'active' : ''" @click.stop="samplers.reasoning_effort = ''; saveSamplers()">Default</button>
             <template x-for="opt in effortOptions" :key="opt.value">
-              <button class="chip" :class="samplers.reasoning_effort === opt.value ? 'active' : ''" @click.stop="samplers.reasoning_effort = opt.value; saveStandard()" x-text="opt.label"></button>
+              <button class="chip" :class="samplers.reasoning_effort === opt.value ? 'active' : ''" @click.stop="samplers.reasoning_effort = opt.value; saveSamplers()" x-text="opt.label"></button>
             </template>
           </span>
         </div>
         <div class="row setting" x-show="showPreserveThinking">
           <span class="row-title">Preserve Thinking</span>
           <span class="row-actions">
-            <button class="chip" :class="samplers.preserve_thinking === 'off' ? 'active' : ''" @click.stop="samplers.preserve_thinking = 'off'; saveStandard()">Off</button>
-            <button class="chip" :class="samplers.preserve_thinking === 'tool_only' ? 'active' : ''" @click.stop="samplers.preserve_thinking = 'tool_only'; saveStandard()">Tool Calls</button>
-            <button class="chip" :class="samplers.preserve_thinking === 'all' ? 'active' : ''" @click.stop="samplers.preserve_thinking = 'all'; saveStandard()">All</button>
+            <button class="chip" :class="samplers.preserve_thinking === 'off' ? 'active' : ''" @click.stop="samplers.preserve_thinking = 'off'; saveSamplers()">Off</button>
+            <button class="chip" :class="samplers.preserve_thinking === 'tool_only' ? 'active' : ''" @click.stop="samplers.preserve_thinking = 'tool_only'; saveSamplers()">Tool Calls</button>
+            <button class="chip" :class="samplers.preserve_thinking === 'all' ? 'active' : ''" @click.stop="samplers.preserve_thinking = 'all'; saveSamplers()">All</button>
           </span>
         </div>
       </div>
 
-      <div x-show="showEchoUpstreamBody" class="row setting">
-        <span class="row-title inline-flex items-center gap-1">
-          Echo Upstream Body
-          {{ hint_tooltip('OpenRouter returns the transformed request body it sends upstream, logged to the browser console. <span class="note warning">Streaming only.</span>') }}
-        </span>
-        <span class="row-actions">{{ toggle(':class="{ \'active\': samplers.echo_upstream_body }" @click="samplers.echo_upstream_body = !samplers.echo_upstream_body; saveStandard()"') }}</span>
-      </div>
+      {{ toggle_row('Echo Upstream Body', ':class="{ \'active\': samplers.echo_upstream_body }" @click="samplers.echo_upstream_body = !samplers.echo_upstream_body; saveSamplers()"', hint='OpenRouter returns the transformed request body it sends upstream, logged to the browser console. <span class="note warning">Streaming only.</span>', row_attrs='x-show="showEchoUpstreamBody"') }}
     </div>
 
     <div x-show="tab === 'advanced'" x-cloak class="sampler-group">
@@ -103,40 +82,25 @@
       <div x-show="showVerbosity" class="row setting">
         <span class="row-title">Verbosity</span>
         <span class="row-actions">
-          <button class="chip" :class="!samplers.verbosity ? 'active' : ''" @click.stop="samplers.verbosity = ''; saveStandard()">Default</button>
-          <button class="chip" :class="samplers.verbosity === 'low' ? 'active' : ''" @click.stop="samplers.verbosity = 'low'; saveStandard()">Low</button>
-          <button class="chip" :class="samplers.verbosity === 'medium' ? 'active' : ''" @click.stop="samplers.verbosity = 'medium'; saveStandard()">Medium</button>
-          <button class="chip" :class="samplers.verbosity === 'high' ? 'active' : ''" @click.stop="samplers.verbosity = 'high'; saveStandard()">High</button>
-          <button class="chip" :class="samplers.verbosity === 'xhigh' ? 'active' : ''" @click.stop="samplers.verbosity = 'xhigh'; saveStandard()">X-High</button>
-          <button class="chip" :class="samplers.verbosity === 'max' ? 'active' : ''" @click.stop="samplers.verbosity = 'max'; saveStandard()">Max</button>
+          <button class="chip" :class="!samplers.verbosity ? 'active' : ''" @click.stop="samplers.verbosity = ''; saveSamplers()">Default</button>
+          <button class="chip" :class="samplers.verbosity === 'low' ? 'active' : ''" @click.stop="samplers.verbosity = 'low'; saveSamplers()">Low</button>
+          <button class="chip" :class="samplers.verbosity === 'medium' ? 'active' : ''" @click.stop="samplers.verbosity = 'medium'; saveSamplers()">Medium</button>
+          <button class="chip" :class="samplers.verbosity === 'high' ? 'active' : ''" @click.stop="samplers.verbosity = 'high'; saveSamplers()">High</button>
+          <button class="chip" :class="samplers.verbosity === 'xhigh' ? 'active' : ''" @click.stop="samplers.verbosity = 'xhigh'; saveSamplers()">X-High</button>
+          <button class="chip" :class="samplers.verbosity === 'max' ? 'active' : ''" @click.stop="samplers.verbosity = 'max'; saveSamplers()">Max</button>
         </span>
       </div>
 
-      <div x-show="showCacheConfig" x-cloak class="row setting">
-        <span class="row-title inline-flex items-center gap-1">
-          Prompt Caching
-          {{ hint_tooltip('Enables cache for Anthropic models. Recommended for costs reduction. <span class="note warning">Check if your prompt preset has any changing macros/variables at its beginning that might invalidate the cache.</span>') }}
-        </span>
-        <span class="row-actions">{{ toggle(':class="{ \'active\': samplers.cache_enabled }" @click="samplers.cache_enabled = !samplers.cache_enabled; saveStandard()"') }}</span>
-      </div>
+      {{ toggle_row('Prompt Caching', ':class="{ \'active\': samplers.cache_enabled }" @click="samplers.cache_enabled = !samplers.cache_enabled; saveSamplers()"', hint='Enables cache for Anthropic models. Recommended for costs reduction. <span class="note warning">Check if your prompt preset has any changing macros/variables at its beginning that might invalidate the cache.</span>', row_attrs='x-show="showCacheConfig" x-cloak') }}
 
       <div x-show="showCacheConfig && samplers.cache_enabled" x-cloak class="well sampler-children">
-        <div class="row setting">
-          <span class="row-title inline-flex items-center gap-1">
-            Extra TTL (1 hour)
-            {{ hint_tooltip('By default cache has an expiry time of 5 minutes. This extends it to 1 hour, but it also increases cost. <span class="note danger">Not recommended.</span>') }}
-          </span>
-          <span class="row-actions">{{ toggle(':class="{ \'active\': samplers.cache_ttl === \'1h\' }" @click="samplers.cache_ttl = samplers.cache_ttl === \'1h\' ? \'ephemeral\' : \'1h\'; saveStandard()"') }}</span>
-        </div>
+        {{ toggle_row('Extra TTL (1 hour)', ':class="{ \'active\': samplers.cache_ttl === \'1h\' }" @click="samplers.cache_ttl = samplers.cache_ttl === \'1h\' ? \'ephemeral\' : \'1h\'; saveSamplers()"', hint='By default cache has an expiry time of 5 minutes. This extends it to 1 hour, but it also increases cost. <span class="note danger">Not recommended.</span>') }}
         {{ slider_row('Cached Turns', 'samplers.cache_depth', '1', '10', '1', 0,
           blur='',
           hint='Number of <span class="note success">User</span> turns to skip from caching, where 0 would be the latest message sent by the <span class="note success">User.</span> <span class="note warning">Effectiveness of this setting depends on your preset. No In-Chart entries active → leave at 1. Using one → set this to at least its Depth value.</span>') }}
       </div>
 
-      <div x-show="showSendReasoningHistory" class="row setting">
-        <span class="row-title">Send Reasoning History</span>
-        <span class="row-actions">{{ toggle(':class="{ \'active\': samplers.send_reasoning_history }" @click="samplers.send_reasoning_history = !samplers.send_reasoning_history; saveStandard()"') }}</span>
-      </div>
+      {{ toggle_row('Send Reasoning History', ':class="{ \'active\': samplers.send_reasoning_history }" @click="samplers.send_reasoning_history = !samplers.send_reasoning_history; saveSamplers()"', row_attrs='x-show="showSendReasoningHistory"') }}
     </div>
 
     <div x-show="tab === 'custom'" x-cloak class="sampler-group">
@@ -204,37 +168,26 @@
         return p.name + (p.model ? ' · ' + p.model : '');
       },
 
-      async loadStandard() {
+      // One settings read for both halves; the two saves stay two PATCHes
+      // because the API upserts one key at a time.
+      async loadSamplers() {
         const base = { ...this.defaultSamplers() };
         const key = 'global_sampler_config_' + (this.providerId || '');
-        try {
-          const r = await fetch('/api/settings');
-          if (r.ok) {
-            const settings = await r.json();
-            const saved = settings[key];
-            if (saved) {
-              this.samplers = { ...base, ...JSON.parse(saved) };
-              return;
-            }
-          }
-        } catch (e) {}
-        this.samplers = base;
-      },
-
-      async loadCustom() {
         const ck = 'global_custom_sampler_config_' + (this.providerId || '');
+        let samplers = null;
+        let custom = null;
         try {
-          const r = await fetch('/api/settings');
+          const r = await hxFetch(api.settings);
           if (r.ok) {
             const settings = await r.json();
-            const saved = settings[ck];
-            if (saved) {
-              this.customFields = JSON.parse(saved).map(({ enabled, key, value }) => ({ enabled, key, value }));
-              return;
+            if (settings[key]) samplers = { ...base, ...JSON.parse(settings[key]) };
+            if (settings[ck]) {
+              custom = JSON.parse(settings[ck]).map(({ enabled, key, value }) => ({ enabled, key, value }));
             }
           }
         } catch (e) {}
-        this.customFields = [];
+        this.samplers = samplers || base;
+        this.customFields = custom || [];
       },
 
       isBrokenStructuredJson(v) {
@@ -278,7 +231,7 @@
           return;
         }
         try {
-          const res = await fetch(api.providerOpenRouterCapabilities(provider.model));
+          const res = await hxFetch(api.providerOpenRouterCapabilities(provider.model));
           if (!res.ok) throw new Error('HTTP ' + res.status);
           const data = await res.json();
           this.modelParams = Array.isArray(data.supported_parameters) ? data.supported_parameters : null;
@@ -310,8 +263,7 @@
           StateManager.setMultimodal(!!val);
         });
 
-        await this.loadStandard();
-        await this.loadCustom();
+        await this.loadSamplers();
         await this.refreshCapabilities();
 
         window.getActiveSamplers = () => {
@@ -345,44 +297,37 @@
 
       saveStandard() {
         const key = 'global_sampler_config_' + (this.providerId || '');
-        fetch('/api/settings', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ key: key, value: JSON.stringify(this.samplers) }),
-        });
+        hxJson(api.settings, 'PATCH', { key: key, value: JSON.stringify(this.samplers) });
       },
 
       saveCustom() {
-        const ck = 'global_custom_sampler_config_' + (this.providerId || '');
-        fetch('/api/settings', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ key: ck, value: JSON.stringify(this.customFields) }),
-        });
+        const key = 'global_custom_sampler_config_' + (this.providerId || '');
+        hxJson(api.settings, 'PATCH', { key: key, value: JSON.stringify(this.customFields) });
+      },
+
+      saveSamplers() {
+        this.saveStandard();
+        this.saveCustom();
       },
 
       async onProviderChanged(detail) {
         const newType = detail && typeof detail === 'object' ? detail.type : detail;
         const newId = detail && typeof detail === 'object' ? detail.id : null;
         if (newType === this.providerType && newId === this.providerId) return;
-        this.saveStandard();
-        this.saveCustom();
+        this.saveSamplers();
         this.providerType = newType;
         this.providerId = newId;
-        await this.loadStandard();
-        await this.loadCustom();
+        await this.loadSamplers();
         await this.refreshCapabilities();
       },
 
       onPresetChanged(e) {
         const newId = e && e.value !== undefined ? e.value : e;
         const oldPreset = this.presetId;
-        this.saveStandard();
-        this.saveCustom();
+        this.saveSamplers();
         this.presetId = newId;
         if (this.presetId !== oldPreset) {
-          this.loadStandard();
-          this.loadCustom();
+          this.loadSamplers();
         }
       },
 
@@ -395,7 +340,7 @@
         } else {
           this.samplers.seed = Math.round(v);
         }
-        this.saveStandard();
+        this.saveSamplers();
       },
 
       addCustom() {

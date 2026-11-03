@@ -306,7 +306,7 @@
         chain = chain.then(function () {
           var fd = new FormData();
           fd.append('file', m._file);
-          return fetch(cfg.apiImages(id), { method: 'POST', body: fd }).then(function (r) {
+          return hxFetch(cfg.apiImages(id), { method: 'POST', body: fd }).then(function (r) {
             if (!r.ok) throw new Error('upload');
             return r.json();
           });
@@ -317,7 +317,7 @@
         chain = chain.then(function () {
           var fd = new FormData();
           fd.append('file', pendingAvatar.blob, 'avatar.webp');
-          return fetch(cfg.apiAvatar(id), { method: 'POST', body: fd }).then(function (r) {
+          return hxFetch(cfg.apiAvatar(id), { method: 'POST', body: fd }).then(function (r) {
             if (!r.ok) throw new Error('avatar');
             return r.json();
           });
@@ -327,17 +327,13 @@
       chain = chain.then(function () {
         return Promise.all(
           removedIds.map(function (imgId) {
-            return fetch(cfg.apiImage(id, imgId), { method: 'DELETE' });
+            return hxJson(cfg.apiImage(id, imgId), 'DELETE');
           }),
         );
       });
 
       chain = chain.then(function () {
-        return fetch(cfg.apiGet(id), {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data),
-        });
+        return hxJson(cfg.apiGet(id), 'PATCH', data);
       });
 
       return chain
@@ -366,11 +362,8 @@
           }
           if (!viaRefresh && cfg.cardEndpoint && cfg.gridId) {
             var currentId = StateManager.get(cfg.stateKey) || '';
-            var gridEl = document.getElementById(cfg.gridId);
-            var compactView = gridEl && gridEl.dataset.view === 'compact';
             var url = cfg.cardEndpoint + id
-              + '?current_' + cfg.stateKey + '=' + encodeURIComponent(currentId)
-              + '&compact_view=' + (compactView ? 'true' : 'false');
+              + '?current_' + cfg.stateKey + '=' + encodeURIComponent(currentId);
             hxGet(url, {
               target: '#' + (cfg.stateKey === 'character_id' ? 'char' : 'persona') + '-card-' + id,
               swap: 'outerHTML',

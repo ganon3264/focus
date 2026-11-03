@@ -1,4 +1,4 @@
-{% from "macros.html" import hint_tooltip, icon_refresh, icon_chevron_down, search_toolbar, toggle %}
+{% from "macros.html" import hint_tooltip, icon_chevron_down, reload_key, search_toolbar, toggle %}
 <div x-data="extensionsModal()" id="extensions-modal-data" class="modal-bands">
 
   <div class="modal-band-head">
@@ -8,16 +8,7 @@
       <div class="rail-actions flush">
         <span class="row-label">installed</span>
         <span class="row-value" x-text="overallCount"></span>
-        <button
-          type="button"
-          class="key sm"
-          @click="reload()"
-          :disabled="reloading"
-          title="Reload extensions"
-          aria-label="Reload extensions"
-        >
-          <span class="inline-flex" :class="reloading ? 'animate-spin' : ''">{{ icon_refresh(14) }}</span>
-        </button>
+        {{ reload_key('reload()', 'reloading', 'Reload extensions') }}
       </div>
     </div>
   </div>
@@ -73,13 +64,15 @@
                 </button>
                 <div x-show="openConfigs[ext.name]" x-cloak class="mt-2 flex flex-col gap-2">
                   <template x-for="p in ext.params" :key="p.name">
-                    <div class="flex items-center gap-2">
-                      <label class="field-label w-40 shrink-0" x-html="renderDesc(p.description || p.name)"></label>
+                    <div class="row setting labeled fit ext-config-row">
+                      <span class="row-title wrap" x-html="renderDesc(p.description || p.name)"></span>
                       <template x-if="p.type === 'boolean'">
-                        {{ toggle(':class="{ \'active\': !!configs[ext.name][p.name] }" @click="configs[ext.name][p.name] = !configs[ext.name][p.name]"', extra_classes='shrink-0') }}
+                        <span class="row-actions">
+                          {{ toggle(':class="{ \'active\': !!configs[ext.name][p.name] }" @click="configs[ext.name][p.name] = !configs[ext.name][p.name]"', extra_classes='shrink-0') }}
+                        </span>
                       </template>
                       <template x-if="p.type === 'string' && p.enum && p.enum.length">
-                        <div class="relative flex-1" x-data="{ open: false }" @click.away="open = false">
+                        <div class="row-cell relative" x-data="{ open: false }" @click.away="open = false">
                           <button
                             type="button"
                             @click="open = !open"
@@ -108,7 +101,7 @@
                       </template>
                       <template x-if="p.type !== 'boolean' && !(p.type === 'string' && p.enum && p.enum.length)">
                         <input
-                          class="field flex-1"
+                          class="field"
                           :type="p.type === 'integer' || p.type === 'number' ? 'number' : (p.type === 'array' ? 'text' : 'text')"
                           x-model="configs[ext.name][p.name]"
                           :placeholder="p.default != null ? String(p.default) : ''"
@@ -206,7 +199,7 @@ document.addEventListener('alpine:init', function () {
 
       _loadExtensions: function () {
         var self = this;
-        return fetch('/api/extensions')
+        return hxFetch(api.extensions)
           .then(function (r) { return r.json(); })
           .then(function (data) {
             self.extensions = data;
@@ -225,7 +218,7 @@ document.addEventListener('alpine:init', function () {
           self.states = {};
           return Promise.resolve();
         }
-        return fetch('/api/chats/' + chatId + '/extensions')
+        return hxFetch(api.chatExtensions(chatId))
           .then(function (r) { return r.json(); })
           .then(function (data) { self.states = data.states || {}; })
           .catch(function () {});
@@ -242,7 +235,7 @@ document.addEventListener('alpine:init', function () {
 
       _loadConfigs: function () {
         var self = this;
-        return fetch('/api/extensions/config')
+        return hxFetch(api.extensionsConfig)
           .then(function (r) { return r.json(); })
           .then(function (cfg) {
             self.extensions.forEach(function (e) {
@@ -260,11 +253,7 @@ document.addEventListener('alpine:init', function () {
         if (!chatId) return;
         var body = {};
         body[name] = next;
-        fetch('/api/chats/' + chatId + '/extensions', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ states: body }),
-        }).then(function (r) {
+        hxJson(api.chatExtensions(chatId), 'PUT', { states: body }).then(function (r) {
           if (!r.ok) throw new Error('Failed to update extension state');
           if (window.Refresh) Refresh.changed('extensions');
           else if (window.refreshChatMessages) window.refreshChatMessages(chatId);
@@ -285,11 +274,7 @@ document.addEventListener('alpine:init', function () {
 
       saveConfig: function (name) {
         var self = this;
-        fetch('/api/extensions/' + encodeURIComponent(name) + '/config', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(this.configs[name] || {}),
-        }).then(function (r) {
+        hxJson(api.extensionConfig(name), 'PUT', this.configs[name] || {}).then(function (r) {
           if (!r.ok) throw new Error('Save failed');
           window.showSuccessToast('Saved ' + name + ' config');
         }).catch(function (e) {
@@ -336,7 +321,9 @@ document.addEventListener('alpine:init', function () {
           this.testAudio[name] = null;
         }
 
-        fetch('/api/extensions/' + encodeURIComponent(name) + '/test', {
+        // Raw: runs an external command and returns base64 audio; too slow to
+        // hold the shared request queue.
+        fetch(api.extensionTest(name), { // raw: external command + audio blob
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ config: this.configs[name] || {} }),
@@ -382,7 +369,7 @@ document.addEventListener('alpine:init', function () {
       reload: function () {
         var self = this;
         var timer = setTimeout(function () { self.reloading = true; }, 200);
-        return fetch('/api/extensions/reload', { method: 'POST' })
+        return hxJson(api.extensionsReload, 'POST')
           .then(function () { return window.reloadExtensionsState(); })
           .then(function () {
             // A newly dropped spec needs a toolbar button without a page reload.

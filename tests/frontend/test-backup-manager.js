@@ -8,8 +8,21 @@ var fs = require('fs');
 // Mock browser APIs
 global.window = global;
 global.document = h.createMockDocument();
+// Every element the export/purge paths look up, and a download anchor that can
+// be clicked: the DOM mock has no real document tree.
+global.document.getElementById = function () { return h.makeElement('button'); };
+var baseCreate = global.document.createElement;
+global.document.createElement = function (tag) {
+  var el = baseCreate(tag);
+  el.click = function () {};
+  return el;
+};
+global.document.body.removeChild = function (el) { el.remove(); };
 global.openModal = function () {};
 global.closeModal = function () {};
+global.showSuccessToast = function () {};
+global.showErrorToast = function () {};
+global.showInfoToast = function () {};
 global.streamProgress = function () {
   return Promise.resolve({ size_bytes: 1024 });
 };
@@ -37,7 +50,7 @@ global.URL = { createObjectURL: function () { return 'blob:url'; }, revokeObject
 global.Blob = function () {};
 
 // Load queue (backup-manager reloads go through hxGet)
-eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'core', 'hx-queue.js'), 'utf8'));
+h.installRequestPrimitives(global);
 
 // Load module
 eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'features', 'backup-manager.js'), 'utf8'));
@@ -104,7 +117,8 @@ assert(!!BM, 'BackupManager loaded');
 })();
 
 // ── doExport builds correct body for 'all' mode ──
-(function () {
+function testExportAll() {
+  
   BM.openExportModal();
   BM.setExportType('characters', 'all');
   BM.setExportType('personas', 'all');
@@ -115,7 +129,7 @@ assert(!!BM, 'BackupManager loaded');
   var lastBody = null;
   global._lastFetch = null;
   global.fetch = function (url, opts) {
-    if (url === '/api/chats/') return Promise.resolve({ json: function () { return []; }, ok: true });
+    if (url === '/api/chats') return Promise.resolve({ json: function () { return []; }, ok: true });
     global._lastFetch = { url: url, opts: opts };
     lastBody = JSON.parse(opts.body);
     return Promise.resolve({ blob: function () { return Promise.resolve(new Blob()); }, ok: true });
@@ -130,10 +144,12 @@ assert(!!BM, 'BackupManager loaded');
     assertEqual(lastBody.include_providers, true, 'doExport: include_providers = true');
     assertEqual(lastBody.include_secrets, true, 'doExport: include_secrets = true');
   });
-})();
+}
+
 
 // ── doExport builds correct body for 'some' mode ──
-(function () {
+function testExportSome() {
+  
   BM.openExportModal();
   BM.setExportType('characters', 'some');
   BM._exportState.selCharacters = { char1: true, char2: true };
@@ -143,7 +159,7 @@ assert(!!BM, 'BackupManager loaded');
 
   var lastBody = null;
   global.fetch = function (url, opts) {
-    if (url === '/api/chats/') return Promise.resolve({ json: function () { return []; }, ok: true });
+    if (url === '/api/chats') return Promise.resolve({ json: function () { return []; }, ok: true });
     lastBody = JSON.parse(opts.body);
     return Promise.resolve({ blob: function () { return Promise.resolve(new Blob()); }, ok: true });
   };
@@ -154,10 +170,12 @@ assert(!!BM, 'BackupManager loaded');
     assertDeepEqual(lastBody.presets, [], 'doExport some: presets = []');
     assertEqual(lastBody.include_providers, false, 'doExport some: include_providers = false');
   });
-})();
+}
+
 
 // ── doExport filters chats by selected characters ──
-(function () {
+function testExportChatFilter() {
+  
   BM.openExportModal();
   BM.setExportType('characters', 'some');
   BM._exportState.selChars = { char1: true };
@@ -165,7 +183,7 @@ assert(!!BM, 'BackupManager loaded');
 
   var lastBody = null;
   global.fetch = function (url, opts) {
-    if (url === '/api/chats/') {
+    if (url === '/api/chats') {
       return Promise.resolve({ json: function () { return [{ id: 'chat1', character_id: 'char1' }, { id: 'chat2', character_id: 'char2' }]; }, ok: true });
     }
     lastBody = JSON.parse(opts.body);
@@ -175,7 +193,8 @@ assert(!!BM, 'BackupManager loaded');
   return BM.doExport().then(function () {
     assertDeepEqual(lastBody.chats, ['chat1'], 'doExport chat filter: only char1 chats');
   });
-})();
+}
+
 
 // ── Stale-chat purge ──
 (function () {
@@ -207,4 +226,8 @@ assert(!!BM, 'BackupManager loaded');
 })();
 
 // ── Result ──
+testExportAll()
+  .then(testExportSome)
+  .then(testExportChatFilter);
+
 h.printSummary();

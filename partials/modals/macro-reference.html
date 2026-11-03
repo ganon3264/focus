@@ -1,18 +1,9 @@
-{% from "macros.html" import icon_search %}
+{% from "macros.html" import search_toolbar %}
 {% from "modal-shell.html" import modal_shell %}
 <!-- Macro Reference Modal -->
 {% call modal_shell('macro-help-modal', 'Macro Reference', max_width='600px', z_index='2000') %}
 <div x-data="macroHelp()" class="flex flex-col gap-2 flex-1 min-h-0">
-  <div class="search-field">
-    <span class="search-mark">{{ icon_search(14) }}</span>
-    <input
-      type="text"
-      x-model="query"
-      class="field"
-      placeholder="Search macros and tokens…"
-      autocomplete="off"
-    />
-  </div>
+  {{ search_toolbar('Search macros and tokens…', input_attrs='x-model="query" autocomplete="off"', wrapper_classes='', field_classes='search-field', input_classes='field') }}
   <div class="flex flex-col flex-1 min-h-0 overflow-y-auto">
     <template x-if="filteredMacros.length > 0">
       <div class="rail mt-1">

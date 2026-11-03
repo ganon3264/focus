@@ -9,7 +9,6 @@ eval(require('fs').readFileSync(path.join(__dirname, '..', '..', 'static', 'js',
 // ── String constants ──
 assertEqual(api.chats, '/api/chats', 'api.chats');
 assertEqual(api.chatsStale, '/api/chats/stale', 'api.chatsStale');
-assertEqual(api.charImport, '/api/characters/import', 'api.charImport');
 assertEqual(api.providers, '/api/providers', 'api.providers');
 assertEqual(api.stream, '/api/stream', 'api.stream');
 assertEqual(api.export, '/api/export', 'api.export');
@@ -24,10 +23,7 @@ assertEqual(api.chatBulkDelete('c1'), '/api/chats/c1/messages/bulk_delete', 'api
 assertEqual(api.chatBranch('c1', 'm1'), '/api/chats/c1/messages/m1/branch', 'api.chatBranch');
 
 // ── Character routes ──
-assertEqual(api.charactersList, '/api/characters', 'api.charactersList');
 assertEqual(api.characters('ch1'), '/api/characters/ch1', 'api.characters');
-assertEqual(api.charDelete('ch1', true), '/api/characters/ch1?delete_chats=true', 'api.charDelete with true');
-assertEqual(api.charDelete('ch1', false), '/api/characters/ch1?delete_chats=false', 'api.charDelete with false');
 assertEqual(api.charImages('ch1'), '/api/characters/ch1/images', 'api.charImages');
 assertEqual(api.charImage('ch1', 'img1'), '/api/characters/ch1/images/img1', 'api.charImage');
 assertEqual(api.charAvatar('ch1'), '/api/characters/ch1/avatar', 'api.charAvatar');

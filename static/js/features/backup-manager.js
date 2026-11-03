@@ -69,7 +69,7 @@
     M.refreshPurgePreview();
     list.innerHTML = '<div class="empty"><span class="spinner"></span></div>';
     try {
-      const resp = await fetch(window.api.backups);
+      const resp = await hxFetch(window.api.backups);
       const backups = await resp.json();
       // The count lives in the rail, outside the swap target.
       const count = document.querySelector('[data-ui="backup-count"]');
@@ -137,7 +137,7 @@
       '<div class="text-sm" style="color:var(--text);"><strong>Restore this backup?</strong></div>' +
         '<div class="text-sm mt-2" style="color:var(--text-muted);">All data from the backup will be imported. Existing data is preserved.</div>',
       function () {
-        fetch(window.api.backupRestore(backupId), { method: 'POST' })
+        hxJson(window.api.backupRestore(backupId), 'POST')
           .then((r) => r.json())
           .then((d) => {
             if (d.restored) {
@@ -162,7 +162,7 @@
       '<div class="text-sm" style="color:var(--text);"><strong>Delete this backup?</strong></div>' +
         '<div class="text-sm mt-2" style="color:var(--text-muted);">This cannot be undone.</div>',
       function () {
-        fetch(window.api.backupDelete(backupId), { method: 'DELETE' })
+        hxJson(window.api.backupDelete(backupId), 'DELETE')
           .then((r) => {
             if (r.ok) window.showSuccessToast('Backup deleted');
             return M.loadList();
@@ -183,7 +183,7 @@
     fd.append('file', file);
     const st = document.getElementById('backup-status');
     setStatus(st, 'Importing…');
-    fetch(window.api.import_, { method: 'POST', body: fd })
+    hxFetch(window.api.import_, { method: 'POST', body: fd })
       .then((r) => r.json())
       .then((d) => {
         window.showSuccessToast('Imported ' + (d.total_entities || 0) + ' entities.');
@@ -336,7 +336,7 @@
     body.chats = [];
     if (s.chats) {
       try {
-        const cr = await fetch('/api/chats/');
+        const cr = await hxFetch(window.api.chats);
         const allChats = await cr.json();
         let charIds = null;
         if (s.characters !== 'some') {
@@ -352,11 +352,9 @@
     body.include_providers = !!s.providers;
     body.include_secrets = !!s.secrets;
 
-    fetch(window.api.export, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    })
+    // Raw: the response is a binary download, and a multi-second export must
+    // not sit in the shared request queue.
+    fetch(window.api.export, jsonOpts('POST', body)) // raw: binary download
       .then((r) => r.blob())
       .then((blob) => {
         const u = URL.createObjectURL(blob);
@@ -413,7 +411,7 @@
     if (btn) btn.disabled = true;
     setStatus(status, 'Counting…');
 
-    fetch(window.api.chatsStale + '?days=' + days)
+    hxFetch(window.api.chatsStale + '?days=' + days)
       .then((r) => r.json())
       .then((d) => {
         if (reqId !== M._purge.reqId) return;
@@ -453,7 +451,7 @@
         ' go to the Trash Bin, where each one can be restored. Clean DB deletes them for good.</div>',
       function () {
         if (btn) btn.disabled = true;
-        fetch(window.api.chatsStale + '?days=' + days, { method: 'DELETE' })
+        hxJson(window.api.chatsStale + '?days=' + days, 'DELETE')
           .then((r) => (r.ok ? r.json() : Promise.reject(new Error('Purge failed'))))
           .then((d) => {
             window.showSuccessToast(

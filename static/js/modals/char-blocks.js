@@ -73,11 +73,7 @@
     list.querySelectorAll('[data-ui="char-block"]').forEach(function (block) {
       ids.push(block.dataset.blockId);
     });
-    hxFetch(api.charBlocksReorder(id), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids: ids }),
-    })
+    hxJson(api.charBlocksReorder(id), 'POST', { ids: ids })
       .then(function (r) {
         if (!r.ok) throw new Error('reorder failed');
       })
@@ -118,11 +114,7 @@
   function patchBlock(item, patch) {
     var id = charId();
     if (!id || !item) return Promise.reject(new Error('no block'));
-    return hxFetch(api.charBlock(id, item.dataset.blockId), {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(patch),
-    })
+    return hxJson(api.charBlock(id, item.dataset.blockId), 'PATCH', patch)
       .then(function (r) {
         if (!r.ok) throw new Error('save failed');
         return r.json();
@@ -145,11 +137,7 @@
     var id = charId();
     if (!id) return;
     var createdId = '';
-    hxFetch(api.charBlocks(id), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: 'New Block', content: '', role: 'system' }),
-    })
+    hxJson(api.charBlocks(id), 'POST', { name: 'New Block', content: '', role: 'system' })
       .then(function (r) {
         if (!r.ok) throw new Error('create failed');
         return r.json();

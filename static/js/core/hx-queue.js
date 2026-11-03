@@ -11,14 +11,30 @@
   // them ordered (writes must commit in order); hx-sync is the safety net for
   // the case where htmx resolves the ajax promise before it has really sent
   // anything (any early-out branch: a cancelled confirm, a validation halt).
-  var tail = Promise.resolve();
+  // An idle queue starts the call immediately; only an in-flight request
+  // defers the next one.
+  var tail = null;
 
   function enqueue(fn) {
-    var run = tail.then(fn, fn);
-    tail = run.then(
+    var prev = tail;
+    var run;
+    if (prev) {
+      run = prev.then(fn, fn);
+    } else {
+      try {
+        run = Promise.resolve(fn());
+      } catch (err) {
+        run = Promise.reject(err);
+      }
+    }
+    var done = run.then(
       function () {},
       function () {},
     );
+    tail = done;
+    done.then(function () {
+      if (tail === done) tail = null;
+    });
     return run;
   }
 
@@ -59,7 +75,21 @@
   };
   window.hxFetch = function (url, opts) {
     return enqueue(function () {
-      return fetch(url, opts);
+      return fetch(url, opts); // raw: the queue's own transport
     });
+  };
+
+  // JSON request options, so no call site re-authors the header + stringify.
+  window.jsonOpts = function (method, body) {
+    var opts = { method: method || 'POST', headers: {} };
+    if (body !== undefined) {
+      opts.headers['Content-Type'] = 'application/json';
+      opts.body = JSON.stringify(body);
+    }
+    return opts;
+  };
+
+  window.hxJson = function (url, method, body) {
+    return window.hxFetch(url, window.jsonOpts(method, body));
   };
 })();

@@ -90,6 +90,7 @@ function makeEnv() {
     StateManager: { get: function () { return 'prov-1'; } },
     api: {
       stream: '/api/stream',
+      stopGeneration: function (id) { return '/api/stop-generation/' + id; },
       partials: { messageList: function (id) { return '/partials/message-list/' + id; } },
     },
     hxGet: function (url) {

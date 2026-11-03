@@ -1,4 +1,4 @@
-{% from "macros.html" import custom_select, icon_trash, icon_search, icon_plus, icon_sliders, hint_tooltip, modal_footer, toggle %} {% from "modal-shell.html" import modal_shell %} {% call
+{% from "macros.html" import custom_select, icon_trash, icon_search, icon_plus, icon_sliders, hint_tooltip, modal_footer, row_label, toggle %} {% from "modal-shell.html" import modal_shell %} {% call
 modal_shell('modal-provider-create', 'New Provider', max_width='600px', width='94vw', foot=true, z_index='100',
 dirty_fields='#provider-form input,#provider-form select,#provider-form textarea',
 dirty_label='#prov-form-name') %}
@@ -175,10 +175,7 @@ dirty_label='#prov-form-name') %}
       <span class="row-actions"><input type="checkbox" class="check" name="retry_timeout" id="prov-form-retry-timeout" checked onchange="refreshRetryHint()" /></span>
     </div>
     <div class="row setting fit">
-      <span class="row-title inline-flex items-center gap-1">
-        Additional statuses
-        {{ hint_tooltip('Comma-separated, retried in addition to the classes above. Transport failures have no status code — use the Timeouts box for those.') }}
-      </span>
+      {{ row_label('Additional statuses', hint='Comma-separated, retried in addition to the classes above. Transport failures have no status code — use the Timeouts box for those.') }}
       <input type="text" name="retry_extra_statuses" id="prov-form-retry-extra" placeholder="e.g. 408, 425" class="field sm" onchange="refreshRetryHint()" />
     </div>
   </div>

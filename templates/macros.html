@@ -202,13 +202,42 @@
 <div class="switch{{ (' ' ~ extra_classes) if extra_classes else '' }}{{ ' active' if active else '' }}" role="switch" tabindex="0"{% if attrs %} {{ attrs | safe }}{% endif %}></div>
 {% endmacro %}
 
-{% macro slider_row(label, model, min, max, step, dec=0, change='saveStandard()', blur=None, hint='', wrapper_classes='', wrapper_attrs='', input_attrs='') %}
+{# A block's role picker. The option set is fixed by the prompt format. #}
+{% macro role_select(block, id, on_change) %}
+{{ custom_select(
+  name="role",
+  id=id,
+  options=[{"value": "system", "label": "system"}, {"value": "user", "label": "user"}, {"value": "assistant", "label": "assistant"}],
+  selected=block.role,
+  on_change=on_change,
+) }}
+{% endmacro %}
+
+{# A settings row's caption. The hint sits inside the caption's inline flex, so
+   callers never re-author the alignment classes. #}
+{% macro row_label(label, hint='') %}
+<span class="row-title{{ ' inline-flex items-center gap-1' if hint else '' }}">{{ label }}{% if hint %} {{ hint_tooltip(hint) }}{% endif %}</span>
+{% endmacro %}
+
+{# A boolean setting line: caption (+ hint) on the left, switch on the right. #}
+{% macro toggle_row(label, attrs, hint='', active=false, row_attrs='', row_classes='') %}
+<div class="row setting{{ (' ' ~ row_classes) if row_classes else '' }}"{% if row_attrs %} {{ row_attrs | safe }}{% endif %}>
+  {{ row_label(label, hint) }}
+  <span class="row-actions">{{ toggle(attrs, active=active) }}</span>
+</div>
+{% endmacro %}
+
+{# A collection's reload key: disabled while the loader runs, the glyph spins. #}
+{% macro reload_key(click, busy, label) %}
+<button type="button" class="key sm" @click="{{ click }}" :disabled="{{ busy }}" title="{{ label }}" aria-label="{{ label }}">
+  <span class="inline-flex" :class="{{ busy }} ? 'animate-spin' : ''">{{ icon_refresh(14) }}</span>
+</button>
+{% endmacro %}
+
+{% macro slider_row(label, model, min, max, step, dec=0, change='saveSamplers()', blur=None, hint='', wrapper_classes='', wrapper_attrs='', input_attrs='') %}
 {% if blur is none %}{% set blur = '$el.value = fmt(parseFloat($el.value) || 0, ' ~ (dec | int) ~ ')' %}{% endif %}
 <div class="field-row setting labeled slider{{ (' ' ~ wrapper_classes) if wrapper_classes else '' }}"{% if wrapper_attrs %} {{ wrapper_attrs | safe }}{% endif %}>
-  <span class="row-title inline-flex items-center gap-1">
-    {{ label }}
-    {% if hint %}{{ hint_tooltip(hint) }}{% endif %}
-  </span>
+  {{ row_label(label, hint) }}
   <input type="range" min="{{ min }}" max="{{ max }}" step="{{ step }}"
     x-model.number="{{ model }}" @change="{{ change }}"
     class="field slider-range" aria-label="{{ label }}" />
@@ -257,10 +286,7 @@
 
 {% macro in_chat_controls(block) %}
 <div class="row flat">
-  <span class="row-title inline-flex items-center gap-1">
-    In-Chat
-    {{ hint_tooltip('Injects this block into the conversation at a specific position instead of at the prompt start.') }}
-  </span>
+  {{ row_label('In-Chat', hint='Injects this block into the conversation at a specific position instead of at the prompt start.') }}
   <span class="row-actions">
     {{ toggle('title="Toggle In-Chat Mode" data-curr-depth="' ~ (block.injection_depth if block.injection_depth is not none else '') ~ '" onclick="handleArrangerBlockUpdate(this, {injection_depth: this.dataset.currDepth ? null : 0})"', active=block.injection_depth is not none) }}
     {{ verb_slot() }}
@@ -486,7 +512,14 @@
 {% endmacro %}
 
 {% macro message_avatar(image_path='', alt='', initial='', slots=False) %}
-{{ avatar('avatar message-avatar', image_path, alt, initial, attrs=('data-slot="avatar"' if slots else ''), img_class='cursor-pointer', img_attrs='onclick="openLightbox(this.src)"', initial_tag='') }}
+{% if slots %}
+{# The skeleton's avatar has no `src`: a placeholder URL would be a real fetch
+   the moment any clone reaches the document unfilled. `fillHeader` sets the
+   path (or removes the image) before the node is inserted. #}
+<div class="avatar message-avatar" data-slot="avatar"><img data-slot="img" alt="" class="cursor-pointer" onclick="openLightbox(this.src)"></div>
+{% else %}
+{{ avatar('avatar message-avatar', image_path, alt, initial, img_class='cursor-pointer', img_attrs='onclick="openLightbox(this.src)"', initial_tag='') }}
+{% endif %}
 {% endmacro %}
 
 {% macro message_author(author='', slots=False) %}
@@ -509,7 +542,7 @@
 {% macro message_shell(meta=True, slots=False) %}
 <div class="message frame relative msg" data-ui="message">
   <div class="message-rail" data-ui="message-rail">
-    {% call message_header('', ('@@avatar@@' if slots else ''), '', '', slots) %}{% if meta %}{{ message_meta() }}{% endif %}{% endcall %}
+    {% call message_header('', '', '', '', slots) %}{% if meta %}{{ message_meta() }}{% endif %}{% endcall %}
     <div class="message-rail-end"></div>
   </div>
   <div class="well message-body" data-ui="message-body"></div>
