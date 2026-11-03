@@ -204,7 +204,13 @@ unrelated. The key list is flat grooved rows (drag handle, label, delete) with
 the count in the rail and the create verb in the rail too; an empty list is a
 `.provider-keys-empty` note, not a `.row` under the rail's hairline (two
 parallel rules 20px apart read as a bug). The retry row carries a readout
-(`5× · 2s → 20s`) so the toggle is not opaque. `grid-audit.js` measures it:
+(`5× · 2s → 20s`) so the toggle is not opaque. The key library "Add Key" opens is
+its own banded modal at 600px: the count and the create verb share the head
+rail, and the rows are readouts (name, masked preview, delete) that become pick
+targets in pick mode. Adding one is a **separate stacked form** (`modal-secret-new`)
+rather than a band inside the list — a form opening inside a content-sized modal
+moves the whole panel, and a collection that changes height under the pointer is
+the kind of jump this file exists to prevent. `grid-audit.js` measures it:
 rails on the modal inset, one caption column, one control line, one pitch per
 group.
 
@@ -214,11 +220,11 @@ group.
 
 | shape | modals |
 |---|---|
-| banded list | characters, personas, providers, presets, trash, char-blocks, itemizer, prompt arranger |
+| banded list | characters, personas, providers, presets, trash, char-blocks, itemizer, prompt arranger, saved keys |
 | tab container, one banded chassis per tab | Advanced (Tools · Extensions · Regex · Structured · Backups) |
 | tab container, shared bands + strip inside | Samplers |
 | master-detail inside one lane (two independently scrolling columns) | Theme customizer |
-| stacked form + foot | provider create/edit, auto-retry, edit entity, edit message, summary, export, regex/structured items, the preset naming dialog, the text expander |
+| stacked form + foot | provider create/edit, auto-retry, new key, edit entity, edit message, summary, export, regex/structured items, the preset naming dialog, the text expander |
 
 Deliberately not banded: the stacked forms above (a form is not a collection).
 
@@ -289,6 +295,10 @@ Deliberately not banded: the stacked forms above (a form is not a collection).
   "does nothing", a primitive already decided it.
 - **No `:not(`** anywhere (`test_css_ownership.py`).
 - **A row missing its last verb reserves the slot** (`verb_slot()`).
+- **A collapsed pane's grip is a flex item, not an overlay.** An absolutely
+  positioned 40px strip sits exactly on the chat scroller's right edge and eats
+  its scrollbar (the bar rides the scroller's border box, so padding or a gutter
+  does not move it — only taking the width out of the row does).
 - **Rows inside a `.well` or `.card` paint no groove** (primitive rule).
 - **Don't rename** `id`, `data-ui`, `data-action`, `hx-*`, or the state classes
   JS toggles (`hidden active disabled expanded details drag-over processed ready

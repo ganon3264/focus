@@ -7,31 +7,35 @@ FastAPI (async) + aiosqlite | Jinja2 | HTMX 2 + Alpine 3 | Tailwind v4 | uv + ha
 ## Start / Test
 
 - Start: `./start.sh` — vendor sync → tailwind build → `uv run main.py`
-- Test: `./test.sh` — `uv run pytest`
+- Test: `./test.sh` — `uv sync --locked --group dev`, then `uv run pytest tests/ -v` with coverage (`--no-cov` skips it)
 
 ## Structure
 
 ```
 main.py                  # FastAPI app entry
 focus/                   # Backend package
-  core/                  # DB init, models, utils, macros, segments, media, tracked_fields, summary, retry
+  core/                  # DB init, models, utils, macros, segments, media, tracked_fields,
+                         # regex/structured, summary, retry, progress_stream, request_transforms
   db/                    # CRUD per domain (characters, chats, personas, presets, providers, etc.)
   providers/             # LLM providers (openai_compat, openrouter, deepseek, moonshot, xiaomi_mimo, google_*)
-  routers/               # Route handlers (pages, chats, stream, presets, providers, tools, backup, etc.)
+  routers/               # Route handlers (pages, chats, stream, stream_utils, presets, providers, tools, backup, …)
   tools/                 # Builtin + external tool system, executor, provider adapter
-  crud.py, exchange.py, prompt_chain.py, backup.py
+  extensions/            # Extension loader / runner / triggers
+  crud.py, exchange.py, exchange_remap.py, exchange_sanitize.py, prompt_chain.py, backup.py
 templates/               # Full-page Jinja2 templates
 partials/                # HTMX fragments (chat/, modals/, presets/)
 static/
   css/                   # variables, tokens, base, animations, surfaces/*, primitives
   js/
-    core/                # state-manager, actions, generation-session, chat-controls, api-paths
-    messages/            # Streaming, rendering, editing, pruning
-    modals/              # Config forms, editors
-    ui/                  # Theme, scroll, lightbox, notifications, etc.
-    features/            # backup-manager
-    utils/               # Small helpers
-    vendor/              # HTMX, Alpine, marked, purify, etc. (synced by vendor-sync.py)
+    core/                # state-manager, refresh, actions, hx-queue, generation-session,
+                         # selection, provider-schema/store, sse, api-paths
+    messages/            # Streaming, rendering, editing, pruning, identity
+    modals/              # Config forms, editors, char blocks
+    ui/                  # modal, confirm, notifications, theme, scroll, lightbox,
+                         # chat-controls, option-picker, input-bar, status-panel
+    features/            # backups, extensions, presets, preset-variables, regex, structured
+    utils/               # set-tracker, claude-cache, timestamp-formatter
+  vendor/                # HTMX, Alpine, marked, purify, sortable, cropper (synced by vendor-sync.py)
 assets/                  # User uploads (attachments, characters, personas, tool configs)
 data/                    # focus.db, backups/
 tools/                   # External tool JSON configs (samples/ shipped)
@@ -70,7 +74,7 @@ The pruner's `_pruned` map is keyed by bare id (`MessageIdentity.bare`); `_forge
 ### Action dispatch — `static/js/core/actions.js`
 
 `data-action="fnName"` on elements → delegated `document` listeners (click, submit, change, input).
-- **Form guard**: only `submit` events trigger actions on forms. Never put `data-action` on `<form>`.
+- **Form guard**: a `data-action` on a `<form>` fires only for `submit` — the click/change/input listeners skip form elements, so the form's action is its submit handler (provider form, new-key form).
 - Message toolbar buttons read context from `el.closest('.message')` data-* attributes (no inline JS).
 
 ### Modals (`static/js/ui/modal.js`)
@@ -78,7 +82,7 @@ The pruner's `_pruned` map is keyed by bare id (`MessageIdentity.bare`); `_forge
 - Single lifecycle controller: `ModalController.open(id)` / `close(id, opts)` / `closeTop()` / `isOpen(id)` / `isDirty(id)` / `setDirty(id, bool)` / `refresh(id)` / `onOpen(id, fn)`. Globals `openModal(id)` / `closeModal(id, opts)` are thin wrappers.
 - Template: `modal-shell.html` macro → `{% call modal_shell('id', 'Title') %}...{% endcall %}`
 - Show/hide: toggle `hidden` class (not `style.display`) — done by the controller, never manually.
-- z-index layers: base → sub → editors → overlays → confirm (scale by 10× from 50)
+- z-index layers: `--z-modal` 50 → `--z-modal-sub` 100 → `--z-overlay` 10000 → `--z-max` 10010. A shell that must stack over its opener carries an explicit `z_index` (100 editors, 200 nested forms, 1000 text expander, 2000 macro reference) — there is no ×10 ladder.
 - **Dirty tracking is opt-in via overlay attributes** (rendered by `modal_shell` params `dirty_fields`, `dirty_label`): snapshot is captured automatically on open (fields created before/at open are baselined; fields added later are lazily baselined). `[data-dirty-hint]` gets `.hidden`, `[data-dirty-save]` gets `.disabled` + `.opacity-50`. State changes dispatch `dirty-changed` on `window` (`{id, dirty}`) — used by the theme customizer's Alpine UI.
 - Closing a dirty modal prompts via confirm; **save handlers must call `closeModal(id, {discard: true})`** (never `captureDirty`-style resets). Use `ModalController.setDirty(id, true)` for non-field changes (e.g. attachment add/delete).
 - ESC closes: confirm modal (as Cancel) → topmost modal → lightbox. `option-selected` / `custom-select:set` trigger recompute of open modals.
@@ -119,8 +123,8 @@ The pruner's `_pruned` map is keyed by bare id (`MessageIdentity.bare`); `_forge
 - **Vertical rhythm is one rule: `--band-pad` (16) above and below every band, no gaps between bands.** Nothing else authors vertical spacing. `grid-audit.js` enforces the number.
 - Chrome (title bar + head/toolbar/foot bands) is one tint (`--ink-1`); the lane is the only thing painting a different value. A lane that is the last child closes on the panel floor (`:last-child` rule).
 - No scroll fade on the lane: the plane boundary is the edge. `scrollbar-gutter: auto` so the bar rides the lane's padding instead of pushing the rows off the inset.
-- Users of the vocabulary: characters, personas, providers, presets, trash bin, custom character blocks, prompt itemizer, prompt arranger, sampler, theme customizer, and each Advanced tab (Tools · Extensions · Regex · Structured · Backups). The stacked forms (provider create/edit, edit entity, edit message, summary, export, regex/structured items, text expander) are deliberately not banded — a form is not a collection.
-- `grid-audit.js` measures the rhythm on characters, providers, itemizer and arranger: rail on the modal inset, rail one band pad under the title groove, one band pad before the next band, first row one band pad into the lane, last band on the panel floor, foot verb on the inset.
+- Users of the vocabulary: characters, personas, providers, presets, saved keys, trash bin, custom character blocks, prompt itemizer, prompt arranger, sampler, theme customizer, and each Advanced tab (Tools · Extensions · Regex · Structured · Backups). The stacked forms (provider create/edit, edit entity, edit message, summary, export, regex/structured items, text expander) are deliberately not banded — a form is not a collection.
+- `grid-audit.js` measures the rhythm on characters, personas, providers, saved keys, presets, itemizer, arranger, samplers, Advanced and themes: rail on the modal inset, rail one band pad under the title groove, one band pad before the next band, first row one band pad into the lane, last band on the panel floor, foot verb on the inset.
 - A rail's last action must be `flush` (`.rail-actions.flush`) when it is a labelled `.btn` — the default optical pull would push it past the modal inset.
 - **Counts live in the rail, outside the swap target.** Update them from `htmx:afterSwap` keyed on the lane/target id, never from the `hxGet` promise (it resolves before the swap) — `arranger-count` and the block door's count work this way.
 - Block rows (arranger, custom blocks): the role is the **grip's** fill (`.grip.role-*`), not a coloured left edge on the row — the handle is the thing you grab, so the cue belongs on it. Sentinel rows (chat history, character blocks) keep a neutral grip.
@@ -136,7 +140,7 @@ The pruner's `_pruned` map is keyed by bare id (`MessageIdentity.bare`); `_forge
 - One stack: `#toast-container` in `base.html` (fixed top-center, `z-index: var(--z-max)`, above all modals).
 - API: `showToast(msg, {type, duration|id, maxChars})`, aliases `showInfoToast` (accent, 3s), `showSuccessToast` (green, 3s), `showErrorToast` (danger, persists with Copy/Close), `showImportToast(data, pluralLabel)` (shared import report: error list or success count), `hideErrorToast()`, `hideInfoToast()`, `hideToast(id)`, `hideAllToasts()`.
 - `maxChars` is opt-in visual truncation (appends `…`); the full text stays on the card so the error toast's Copy action is never truncated.
-- `notifications.js` is loaded in `base.html` above `{% block content %}`, so the API is always defined on every page — call it unguarded.
+- `notifications.js` loads in `base.html`'s shared script block (after the page content, before any page script), so the API is defined before every caller — call it unguarded.
 - All cards stack as a list; per-card timer with hover-pause; dedup by `id` when given, else by type+message (refreshes timer and updates the text in place); max 5 visible (oldest evicted); fade in/out via `toast-in`/`toast-out` in `animations.css`. Never block with `alert()` — use toasts.
 
 ### Long-running maintenance — progress stream
@@ -146,9 +150,12 @@ The pruner's `_pruned` map is keyed by bare id (`MessageIdentity.bare`); `_forge
 
 ### Streaming
 
-SSE payloads are uniform envelopes — always `{"type": "<event>", ...}` with events
-`start | token | meta | retry | tool_calls | tool_result | done | error`. Dispatch is a
-table lookup (`HANDLERS[json.type]`); unknown types log a warning, never vanish silently.
+SSE payloads are uniform envelopes — always `{"type": "<event>", ...}`. The wire carries
+`start | token | meta | retry | tool_calls | tool_result | extension | debug | done | error`
+(reasoning rides `meta` with `field: "reasoning"`). `usage` and `superseded` stay
+internal to `_run_generation`/`_handle_event` — usage becomes a DB row, a superseded
+run closes silently. Dispatch is a table lookup (`HANDLERS[json.type]`); unknown
+types log a warning, never vanish silently.
 
 **Ownership:** cross-module state goes through the module that owns it
 (`StateManager` for ids, `Generation` for the generation lifecycle) — never
@@ -179,7 +186,7 @@ table lookup (`HANDLERS[json.type]`); unknown types log a warning, never vanish 
   `test_message_template.py::test_message_templates_fixture_is_current`.
 - `generation-ui.js`: toggles send/stop buttons and `clearStaleContent()`. The pre-first-token pending state is markup-side (`message-builder.js`: `showMessagePending`/`hideMessagePending`) — the rail carries a spinner + readout while the empty body stays out of the layout. The ticker's phase (`is-waiting` → `is-reasoning` → `is-content`) changes both its hue (`--tick-color`) and its tempo (`--tick-rate`, applied as `playbackRate` by `applyTickRate` — a CSS duration change would restart the track instead of continuing it).
 - `message-refresh.js` owns the message-list DOM: `refreshMessageList(chatId, changedIds)` fetches the server partial and reconciles it in place (reorder / reuse / insert / drop), preserving scroll, open reasoning, and pruned stubs. `refreshMessagesAfterStream` and `refreshChatMessages` delegate to it; `refreshSingleMessage` is the cheap one-node path (swipe/edit) with a full-reconcile fallback. All partial fetches go through `hxFetch` so they share one serializer with `hxGet`/`hxPost`.
-- `post-process.js`: `processMessageList(container)` is the single post-render pass (markdown, reasoning, timestamps, delete-mode visibility, toolbar state, sentinel). The renderer calls it once; it is not tied to htmx events.
+- `post-process.js`: `processMessageList(container)` is the single post-render pass (markdown, reasoning, timestamps, delete-mode visibility, toolbar state, sentinel). The list reconciler calls it — `refreshMessageList` after every server swap and `refreshSingleMessage`'s node path — and the streaming path reaches it the same way, through the post-stream refresh. It is not an htmx event handler.
 - Messages split into `text | reasoning | tool_boundary` segments (`segments_json` column). Use `preserveOpenStates()` not `innerHTML` for **in-place re-renders** (e.g. streaming segment updates) to keep reasoning toggles open; fresh nodes swapped in from the server start collapsed by design — do not preserve state across server swaps.
 - **Continue invariant:** the stream always delivers the complete text —
   providers with `echoes_prefill=True` resend the partial themselves, others
@@ -190,19 +197,19 @@ table lookup (`HANDLERS[json.type]`); unknown types log a warning, never vanish 
 **Backend:**
 - `_active_generations` maps `message_id → _ActiveGeneration` (`chat_id`, `provider_id`, stop event, `superseded`). Stop via `POST /api/stop-generation/{message_id}`. Registering a generation supersedes any other in the same chat; editing/deleting a provider stops its active generations (`stop_generations_for_provider`). Both modes share `_run_generation()`. The sampler toggle `stream_enabled` is translated to the provider's `stream` kwarg by `stream()`; `false` (`_non_stream_generate`) makes the provider call non-streaming, keeps the same SSE transport, buffers server-side and replays the finished text as one `token` before `done` — so retry/error feedback still reaches the client while no partial content is ever shown (important for providers whose safety filtering differs when streaming).
 - Non-stream is NOT a separate JSON response: `/api/stream` always answers `text/event-stream`. The client only distinguishes buffered vs live by what the server emits.
-- Auto-retry (`focus/core/retry.py` + `_run_generation`): provider failures that occur before the first token are retried server-side with backoff, honoring `Retry-After`; once any token/meta has streamed the failure is surfaced instead (a replay would duplicate output). Config is per-provider in `params.retry` (toggle + advanced); each retry emits a `retry` SSE event (`attempt`, `max`, `delay`, `kind`, `status`, `reason`) that the frontend renders as one live multi-line info toast (header `Retrying (n/m) in Ns` → countdown ticking, then `HTTP <status> · <kind>` and the provider's clean `.message`; id `gen-retry`, `maxChars: 200`), then a brief `Recovered after N retries` success toast on completion. `_error_reason()` prefers the SDK's `.message` over `str()` for every generation error; `_format_error()` remains the full-detail fallback used in logs. A completely empty completion is surfaced as an error, never retried.
+- Auto-retry (`focus/core/retry.py` + `_run_generation`): provider failures that occur before the first token are retried server-side with backoff, honoring `Retry-After`; once any token/meta has streamed the failure is surfaced instead (a replay would duplicate output). Config is per-provider in `config_json["retry"]` (toggle + advanced; `params_json` holds sampler defaults only); each retry emits a `retry` SSE event (`attempt`, `max`, `delay`, `kind`, `status`, `reason`) that the frontend renders as one live multi-line info toast (header `Retrying (n/m) in Ns` → countdown ticking, then `HTTP <status> · <kind>` and the provider's clean `.message`; id `gen-retry`, `maxChars: 200`), then a brief `Recovered after N retries` success toast on completion. `_error_reason()` prefers the SDK's `.message` over `str()` for every generation error; `_format_error()` remains the full-detail fallback used in logs. A completely empty completion is surfaced as an error, never retried.
 - Meta events (reasoning, reasoning_details) handled via `TRACKED_FIELDS` in `tracked_fields.py`. Each field has a `merge` mode (`append`/`index`) and `stream_to_sse` flag; only `stream_to_sse` fields reach the wire as `meta` events.
 - Mid-stream partial saves are wall-clock driven: `_maybe_checkpoint()` writes at most once per `_CHECKPOINT_INTERVAL_SECS` (independent of provider speed and reply length), forced at tool boundaries and on done/error.
 - On continue: `prepare_generation_messages()` appends the prefill to API context; for non-echo providers `_run_generation_with_prefill()` synthesizes the existing content as SSE events before real tokens.
 - `echoes_prefill` is a per-provider-*type* default (openai_compat=True), not a per-server fact — known sharp edge for endpoints that behave differently than their type suggests.
 
-### Compaction (summaries) — `focus/core/summary.py`
+### Compaction (summaries) — `focus/core/summary.py` (config) + `focus/routers/chats.py` (endpoint)
 
 - `POST /api/chats/{id}/summarize` runs one ephemeral generation (never persisted) and forks a child chat: a `chat_summaries` row (`covered_to_position` = summarized depth) plus `chats.parent_chat_id` / `chats.summary_id` on the child. `db.chats.get_chat_summary_chain` walks the chain oldest-first through the summary owner chats. The endpoint streams SSE and reuses the buffered retry path (`SUMMARY_ATTEMPT_TIMEOUT` per attempt); one in-flight summary per chat (`_active_summaries`, a `chat_id → stop event` map). Cancel via `POST /api/chats/{id}/summarize/stop` — the buffered call is cancelled in flight and the stream ends `done`/`cancelled` (nothing persisted); the composer's stop button drives it (`stopSummary()` in status-panel.js) and launching asks for confirmation first.
 - Fork context: `_summary_sections()` (stream_utils) prebuilds four multipart sections — `{{summary}}` (accumulated chunks), `{{summary_pins}}` (user-pinned turns, verbatim), `{{summary_messages}}` (parent's last `keep` turns), `{{summary_media}}` (older media-bearing turns). Preset blocks place them by referencing the macros; a preset that doesn't gets `_default_summary_message` injected adjacent to chat history. `block_type: 'summary'` is an editable sentinel — rendered only for chats carrying a summary.
 - **Pins** (`messages.pinned`, manual only): toggled from the message toolbar (`PUT /api/chats/{id}/messages/{id}/pin`, `actionToggleMessagePin`). `{{summary_pins}}` carries pinned turns from the compacted region only (outside the live window, walked across the whole chain), so a pinned setup message survives unlimited compactions. History entries carry the flag as `_pinned`, stripped by the `strip_internal_markers` quirk before the wire (which also drops `_greeting` and the `internal` tool-plumbing flag).
 - `summary_config(preset_blocks, settings_json)` is the single resolver (`active`, `instruction`, `keep`, `max_tokens`, `provider_id`); settings live in `presets.settings_json["summary"]` (Summary Settings modal in the prompt arranger). `max_tokens` caps the summary response (0 = provider default; default 8192). Always resolve `active` **with** blocks — a disabled Summary block turns compaction off for the preset.
-- Section macros are multipart: `apply_macros` resolves them to `\x00section:<name>\x00` tokens and `prompt_chain._splice_sections` substitutes the prebuilt parts (missing/empty section → token dropped). Tokens must never reach the provider: history text splices them, plain-text fields strip them (`strip_section_tokens`).
+- Section macros are multipart: `stream_utils.get_prompt_context` pre-seeds each one in the macro dict as `section_token(name)` (`\x00section:<name>\x00`), so `apply_macros` just substitutes the token and `prompt_chain._splice_sections` then replaces it with the prebuilt parts (missing/empty section → token dropped). Tokens must never reach the provider: history text splices them, plain-text fields strip them (`strip_section_tokens`).
 - Backup/export carries the lineage: `chat_summaries` travels in the archive, export closes over `parent_chat_id` ancestry + summary chains (`exchange._chat_lineage_ids`), and `chats.summary_id`/`parent_chat_id` are remapped as FKs (`POLYMORPHIC_FK_COLUMNS`) — a restored fork keeps its chain and parent window.
 
 ### Tool system
@@ -216,6 +223,7 @@ table lookup (`HANDLERS[json.type]`); unknown types log a warning, never vanish 
 
 - Each LLM provider = a module in `providers/` implementing the base interface. `stream_complete(messages, stream=True, **kwargs)` always yields the same event stream; `stream` selects the *upstream API mode* — `provider.stream_complete(..., stream=False)` must make one complete call (`chat.completions.create(stream=False)` / `generate_content`) and replay it as `token`/`meta`/`tool_calls`/`usage`/`done`. `openai_compat` branches inline; `google_base` dispatches `_do_stream` vs `_do_generate`. `to_provider_tools()` converts ToolSpec → OpenAI-compatible format.
 - Frontend: single shared `provider-form` with `prov-form-*` id prefix. Flow: `resetProviderForm()` → `populateProviderForm(data)` → `extractData(form)` for PATCH/POST.
+- **Saved keys**: the `secrets` table is a reusable library. The provider form stores an ordered list of refs (`SECRET:<name>`) or raw values in `config.api_keys`, and `config.active_key` names the one in use (`db.providers.provider_key_refs` / `active_key_ref`, switched by `POST /api/providers/{id}/active-key`); the legacy `api_key` column is only a one-element fallback when `config.api_keys` is absent. The library is its own banded modal (`GET /partials/secrets?pick=1`, server-rendered in `partials/modals/secrets.html`, `secretsList` surface in `refresh.js`) — `pick` makes rows append a reference to the form's list. Adding a key is a separate stacked form (`modal-secret-new`): named it is saved to the library (and referenced in pick mode), unnamed in pick mode it is inlined as a one-off raw key. Values never leave the server: the list carries a masked preview only.
 - Option pickers (OpenRouter route/quant, character theme, ...): **one shared searchable picker** — `partials/modals/option-picker.html` (included last in `chat.html`; always in DOM, stacks above all modals) + `static/js/ui/option-picker.js` exposing `openOptionPicker(options, title, cb)`. Values land in hidden inputs + display spans.
 - **Request pipeline**: `focus/providers/quirks.py` owns the ordered `QUIRKS` table (predicate + transform) run by `apply_request_quirks()` before each call. Adding a quirk = one function + one entry; never an `if type ==` ladder in the generation flow. Wire-format assembly stays in the adapter. `stream_utils.prepare_generation_messages` is a thin delegator. Pure transforms live in `focus/core/request_transforms.py` (provider-agnostic, no cycles).
 - **Capabilities & registry**: each adapter declares `type` + `profile` (`focus/providers/profile.py`); `BaseProvider.__init_subclass__` self-registers in `registry.py` and copies `supports_tools`/`supports_prefill`/`echoes_prefill` from `profile.caps`. `create_provider` is a registry lookup + `from_row()` — no type ladder.
@@ -285,7 +293,7 @@ Colour follows the **verb on the label**, not the feature. One green create per 
 - `.create` is tinted at rest and deepens on hover — never a solid block (`--success-tint*` / `--success-edge`).
 - The intents compose with every shape: `.btn .key .nav .chip .link .tab .row .well .note` all take `.primary` / `.create` / `.danger`. Use the modifier, never a bespoke class.
 - Colour lives in `primitives.css` only; a surface that repaints a control gets overridden (see the ownership test above).
-- `--success` is otherwise used only by toasts, so the green channel is free. `--role-user` is a near-green — don't place a create button directly against a user-role chip.
+- `--success` is otherwise used only by toasts and the ticker's reasoning phase, so the green channel is free. `--role-user` is a near-green — don't place a create button directly against a user-role chip.
 - **Import is neutral, not create** — it's a file ingest; a second green next to Create dilutes the cue.
 - **Opening a picker is navigation, not create** — e.g. "Add Character" in the right pane opens the character modal, so it stays indigo. The label says Add; the behaviour selects.
 
