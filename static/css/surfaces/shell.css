@@ -61,15 +61,17 @@
 }
 
 /* ── Collapsed grips ──────────────────────────────────────────────────────
-   A strip of chassis, one hairline edge, an engraved label on its side. */
+   A strip of chassis, one hairline edge, an engraved label on its side. The
+   grip is a flex item, not an overlay: it takes its 40px out of the row, so the
+   chat scroller ends beside it instead of running under it — an absolute strip
+   ate the scrollbar, which sits on the scroller's own edge. */
 .left-tab,
 .right-tab {
-  position: absolute;
-  top: 0;
-  z-index: 20;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex: none;
+  z-index: 20;
   width: calc(var(--u) * 10);
   height: 100%;
   background-color: var(--surface);
@@ -79,12 +81,10 @@
 }
 
 .left-tab {
-  left: 0;
   box-shadow: inset calc(-1 * var(--hair-w)) 0 0 var(--mat-edge);
 }
 
 .right-tab {
-  right: 0;
   box-shadow: inset var(--hair-w) 0 0 var(--mat-edge);
 }
 
