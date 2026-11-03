@@ -1,75 +1,19 @@
 {% set current_preset_list = presets | selectattr('id', 'equalto', current_preset_id) | list %}
-{% from "macros.html" import icon_edit, icon_trash, icon_plus, icon_upload, icon_chevron_down, icon_copy, js_str %}
 {% set current_preset = current_preset_list[0] if current_preset_list else none %}
-{% set current_preset_name = current_preset.name if current_preset else '— Select Preset —' %}
+{% set current_preset_name = current_preset.name if current_preset else 'No preset selected' %}
 
-<div class="flex flex-col gap-2" id="preset-selector-wrapper"
-     x-data="{ 
-        open: false, 
-        selectedId: '{{ current_preset_id or '' }}', 
-        selectedName: '{{ js_str(current_preset_name) }}'
-     }">
-  
-  <input type="hidden" id="hidden-preset-id" :value="selectedId">
-  <input type="hidden" id="hidden-preset-name" :value="selectedName">
-  <input type="file" accept=".json" style="display:none;" id="preset-import-file" onchange="importPreset(this.files[0])">
-
-  <div class="relative">
-    <button type="button" @click="open = !open" class="field flex justify-between items-center text-left w-full cursor-pointer">
-       <span x-text="selectedName" class="truncate font-medium"></span>
-        <span class="text-xs text-muted inline-flex transition-transform duration-200" :class="open ? 'rotate-180' : ''">{{ icon_chevron_down(12) }}</span>
-    </button>
-    <div x-show="open" @click.away="open = false" x-transition.opacity.duration.200ms
-         class="panel preset-menu absolute top-full left-0 right-0 mt-1 z-50 flex flex-col max-h-60"
-         style="display: none;">
-
-      <!-- Engraved label + compact create/import actions, mirroring the sidebar
-           section-header vocabulary. -->
-      <div class="rail">
-        <span>Presets</span>
-        <div class="rail-actions">
-          <button type="button" class="key sm create" title="New preset" aria-label="New preset"
-            @click="open = false"
-            hx-post="/api/presets"
-            hx-vals='{"name":"New Preset"}'
-            hx-swap="none"
-            hx-on:htmx:after-request="handlePresetCreated(event)"
-          >{{ icon_plus(14) }}</button>
-          <button type="button" class="key sm" title="Import preset" aria-label="Import preset"
-            @click="
-              open = false;
-              document.getElementById('preset-import-file').click();
-            "
-          >{{ icon_upload(14) }}</button>
-        </div>
-      </div>
-
-      <div class="preset-menu-list">
-      {% for p in presets %}
-      <div class="row sm"
-           :class="{ 'active': selectedId === '{{ p.id }}' }"
-           data-preset-id="{{ p.id }}"
-           @click="
-             open = false;
-             applyPreset('{{ p.id }}');
-           "
-      >
-        <span class="row-title" data-ui="preset-item-name">{{ p.name }}</span>
-        <div class="row-actions">
-          <button type="button" class="key sm create" title="Duplicate"
-            onclick="event.stopPropagation(); window.openDuplicateModal(this)"
-          >{{ icon_copy(14) }}</button>
-          <button type="button" class="key sm" title="Rename"
-            onclick="event.stopPropagation(); window.openRenameModal(this)"
-          >{{ icon_edit(14) }}</button>
-          <button type="button" class="key sm danger" title="Delete"
-            onclick="event.stopPropagation(); window.deletePresetById(this.closest('[data-preset-id]').dataset.presetId)"
-          >{{ icon_trash(14) }}</button>
-        </div>
-      </div>
-      {% endfor %}
-      </div>
-
-    </div>
-  </div>
-</div>
+{# The selector is a readout, not a form control: it says which preset this chat
+   writes with, and opens the collection where presets are chosen and managed.
+   The dropdown it replaces was an input-shaped trigger with a cramped popover
+   under it. #}
+<button
+  type="button"
+  id="preset-selector-wrapper"
+  class="row grooved preset-trigger"
+  data-action="actionOpenPresetsModal"
+  data-preset-id="{{ current_preset_id or '' }}"
+  title="{{ current_preset_name }}"
+>
+  <span class="row-title" id="preset-current-name">{{ current_preset_name }}</span>
+  <span class="caret-mark" aria-hidden="true"></span>
+</button>

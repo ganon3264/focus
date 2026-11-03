@@ -47,8 +47,7 @@
 
     var asstDiv = state.asstDiv;
     if (asstDiv) {
-      var spinner = asstDiv.querySelector('[data-ui="message-spinner"]');
-      if (spinner) spinner.remove();
+      window.hideMessagePending(asstDiv);
       if (state.isRegen) {
         // This node is a real message: clearStaleContent wiped its content for
         // the retry. Put it back so a failed regenerate never erases a message

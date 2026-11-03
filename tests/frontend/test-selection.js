@@ -68,6 +68,24 @@ var els = {
 };
 
 global.document = {
+  body: {
+    appendChild: function (node) {
+      els[node.id] = node;
+    },
+  },
+  createElement: function () {
+    var node = {
+      id: '',
+      className: '',
+      setAttribute: function (k, v) {
+        node[k] = v;
+      },
+      getRootNode: function () {
+        return global.document;
+      },
+    };
+    return node;
+  },
   getElementById: function (id) {
     return els[id] || null;
   },

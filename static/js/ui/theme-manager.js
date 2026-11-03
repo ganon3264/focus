@@ -16,10 +16,12 @@ function lightenHex(hex, percent) {
 function computeAccentDerivatives(hex) {
   const rgb = hexToRgb(hex);
   if (!rgb) return {};
+  var luma = 0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b;
   return {
     '--accent-hover': lightenHex(hex, 15),
     '--accent-dim': 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',0.15)',
     '--accent-faint': 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',0.05)',
+    '--text-on-accent': luma > 145 ? '#16181c' : '#ffffff',
   };
 }
 
@@ -297,7 +299,9 @@ window.themeModalState = function () {
     },
 
     _readPickers: function () {
-      var out = {};
+      // Keep keys the customizer does not expose (e.g. --text-faint) so editing
+      // a built-in does not strip it back to the derived fallback.
+      var out = Object.assign({}, this.editColors);
       document.querySelectorAll('#theme-color-pickers input[type="color"]').forEach(function (input) {
         out[input.getAttribute('data-var')] = input.value;
       });

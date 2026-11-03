@@ -71,6 +71,9 @@
     try {
       const resp = await fetch(window.api.backups);
       const backups = await resp.json();
+      // The count lives in the rail, outside the swap target.
+      const count = document.querySelector('[data-ui="backup-count"]');
+      if (count) count.textContent = backups.length ? backups.length : '';
       if (!backups.length) {
         list.innerHTML = '<div class="empty">No backups yet. Create one to safeguard your data.</div>';
         return;

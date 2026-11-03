@@ -8,7 +8,9 @@
   --border-hover: #343a46;
   --text: #f1f3f5;
   --text-muted: #8b949e;
-  --text-faint: #59616d;
+  /* Themes may own this; otherwise it is derived so a custom palette never
+     inherits another theme's half-legible readout colour. */
+  --text-faint: color-mix(in srgb, var(--text-muted) 72%, var(--surface));
 
   /* Accent: Sleek Indigo */
   --accent: #6366f1;
@@ -53,8 +55,10 @@
 
   --transition: 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 
-  /* Text-on-accent for buttons — override in theme presets if needed */
+  /* Foreground on a filled accent / on a black scrim. The accent one is
+     derived from the theme's accent luminance; the scrim one is fixed. */
   --text-on-accent: white;
+  --text-on-scrim: #ffffff;
 
   /* Control sizing scale — single source of truth */
   --control-slim: 18px; /* icon buttons in toggle rows — matches the 32x18 pill height */

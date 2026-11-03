@@ -16,7 +16,11 @@
     }
 
     if (!hasFirstReasoning) {
-      if (btn) btn.classList.add('hidden');
+      if (btn) {
+        btn.classList.add('hidden');
+        const sep = btn.previousElementSibling;
+        if (sep && sep.classList.contains('meta-sep')) sep.classList.add('hidden');
+      }
       return;
     }
     if (!btn && window.ensureReasoningToggleButton) {
@@ -24,6 +28,8 @@
     }
     if (!btn) return;
     btn.classList.remove('hidden');
+    const sep = btn.previousElementSibling;
+    if (sep && sep.classList.contains('meta-sep')) sep.classList.remove('hidden');
   }
   window._updateReasoningButton = _updateReasoningButton;
 
@@ -68,6 +74,7 @@
     }
     if (content) content.classList.toggle('hidden', !isOpen);
     msg.classList.toggle('reasoning-open', isOpen);
+    if (window.syncStreamingView) window.syncStreamingView(msg);
     if (window.refreshStickyReasoning) window.refreshStickyReasoning();
   };
 

@@ -281,6 +281,10 @@
     window.reloadPersonaCards();
   });
 
+  ModalController.onOpen('modal-presets', function () {
+    window.reloadPresetsModal();
+  });
+
   ModalController.onOpen('modal-providers', function () {
     hxGet(window.api.partials.providersModal, { target: '#providers-modal-body-inner', swap: 'innerHTML' })
       .then(function () {

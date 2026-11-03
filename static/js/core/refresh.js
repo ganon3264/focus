@@ -154,6 +154,14 @@
         if (reload) return reload();
       },
     },
+    presetList: {
+      deps: ['presets', 'preset_blocks', 'preset_variables'],
+      when: function () { return modalOpen('modal-presets'); },
+      load: function () {
+        var reload = fn('reloadPresetsModal');
+        if (reload) return reload();
+      },
+    },
     personaCards: {
       deps: ['personas'],
       when: function () { return modalOpen('modal-personas'); },

@@ -2,33 +2,21 @@
 {% from "modal-shell.html" import modal_shell %}
 
 <!-- MAIN MODALS -->
-{% call modal_shell('modal-sampler', 'Generation Parameters', max_width='550px', content_style='min-height:400px;') %}
-<div class="flex-1 overflow-y-auto">
-  {% include "modals/sampler.html" %}
-</div>
+{% call modal_shell('modal-sampler', 'Generation Parameters', max_width='620px', width='92vw', content_style='height:min(80vh, 700px);', overlay_class='modal-bands-shell') %}
+{% include "modals/sampler.html" %}
 {% endcall %}
 
-{% call modal_shell('modal-advanced', 'Advanced', max_width='720px', width='92vw', content_style='height:80vh;') %}
-<div x-data="{ tab: 'tools' }" class="flex flex-col flex-1 min-h-0">
+{% call modal_shell('modal-advanced', 'Advanced', max_width='720px', width='92vw', content_style='height:80vh;', overlay_class='modal-bands-shell') %}
+{# One banded chassis per tab: a readout rail (the collection's verbs), the
+   optional search row, the one lane. Only the visible tab is in flow. #}
+<div x-data="{ tab: 'tools' }" class="modal-tabs">
   {{ tab_bar([('tools', 'Tools'), ('extensions', 'Extensions'), ('regex', 'Regex'), ('structured', 'Structured'), ('backups', 'Backups')],
     wrapper_classes='shrink-0', button_attrs='type="button"') }}
-  <div class="flex-1 min-h-0 flex flex-col">
-    <div x-show="tab === 'tools'" class="flex-1 min-h-0 flex flex-col">
-      {% include "modals/tools.html" %}
-    </div>
-    <div x-show="tab === 'extensions'" class="flex-1 min-h-0 flex flex-col">
-      {% include "modals/extensions.html" %}
-    </div>
-    <div x-show="tab === 'regex'" class="flex-1 min-h-0 flex flex-col">
-      {% include "modals/regex.html" %}
-    </div>
-    <div x-show="tab === 'structured'" class="flex-1 min-h-0 flex flex-col">
-      {% include "modals/structured.html" %}
-    </div>
-    <div x-show="tab === 'backups'" class="flex-1 min-h-0 overflow-y-auto">
-      {% include "modals/backup-body.html" %}
-    </div>
-  </div>
+  <div x-show="tab === 'tools'" class="modal-tab">{% include "modals/tools.html" %}</div>
+  <div x-show="tab === 'extensions'" x-cloak class="modal-tab">{% include "modals/extensions.html" %}</div>
+  <div x-show="tab === 'regex'" x-cloak class="modal-tab">{% include "modals/regex.html" %}</div>
+  <div x-show="tab === 'structured'" x-cloak class="modal-tab">{% include "modals/structured.html" %}</div>
+  <div x-show="tab === 'backups'" x-cloak class="modal-tab">{% include "modals/backup-body.html" %}</div>
 </div>
 {% endcall %}
 
@@ -58,6 +46,12 @@
 {% set prefix = 'persona' %}{% set modal_id = 'modal-edit-persona' %}{% set entity_name = 'Persona' %}{% set upload_fn = 'actionUploadPersonaMedia' %}{% set avatar_fn = 'actionUploadPersonaAvatar' %}{% set submit_fn = 'actionSubmitEditPersona' %}{% set show_theme = false %}{% set show_greetings = false %}
 {% include "modals/edit-entity.html" %}
 
+{% call modal_shell('modal-presets', 'Presets', max_width='760px', content_style='height:70vh;', overlay_class='modal-bands-shell') %}
+<div id="presets-modal-body" class="flex-1 min-h-0 flex flex-col">
+  <div id="presets-modal-body-inner" class="h-full">Loading…</div>
+</div>
+{% endcall %}
+
 {% call modal_shell('modal-providers', 'Providers', max_width='1000px', content_style='height:80vh;', overlay_class='modal-bands-shell') %}
 <div id="providers-modal-body" class="flex-1 min-h-0 flex flex-col">
   <div id="providers-modal-body-inner" class="h-full">Loading…</div>
@@ -72,37 +66,19 @@
 
 {% include "modals/text-expander.html" %}
 
-<!-- RENAME PRESET MODAL -->
-{% call modal_shell('modal-rename-preset', 'Rename Preset', max_width='420px', dirty_fields='#rename-preset-form input') %}
-<div id="rename-preset-form" x-data="{ renameValue: '', renameTargetId: '', dirty: false }" @dirty-changed.window="if ($event.detail.id === 'modal-rename-preset') dirty = $event.detail.dirty">
-  <div>
-    <label class="text-xs font-bold text-muted mb-1 block">Preset Name</label>
-    <input type="text" x-model="renameValue" class="field" @keydown.enter="confirmRename()">
+<!-- PRESET NAME MODAL — one dialog, three verbs: create, rename, duplicate.
+     The mode lives on the form; the title and the verb follow it. -->
+{% call modal_shell('modal-preset-name', 'New Preset', max_width='440px', foot=true) %}
+<form id="preset-name-form" class="stacked-form" data-action="actionSubmitPresetName" data-mode="new" data-preset-id="">
+  <div class="form-group">
+    <span class="field-label">Preset Name</span>
+    <input type="text" name="name" id="preset-name-input" class="field" required autocomplete="off" placeholder="e.g. General 1.2" />
   </div>
-  <div class="flex items-center gap-2 mt-2">
-    <span x-show="dirty" class="text-xs font-bold shrink-0" style="color: var(--accent);">
-      Unsaved changes — press Save to apply
-    </span>
-    <div class="flex justify-end gap-2 items-center ml-auto">
-      <button type="button" class="btn" @click="closeModal('modal-rename-preset')">Cancel</button>
-      <button type="button" class="btn primary" @click="confirmRename()" :disabled="!dirty || !renameValue.trim()" :class="dirty ? '' : 'opacity-50'">Save</button>
-    </div>
-  </div>
-</div>
-{% endcall %}
-
-<!-- DUPLICATE PRESET MODAL -->
-{% call modal_shell('modal-dup-preset', 'Duplicate Preset', max_width='420px') %}
-<div id="dup-preset-form" x-data="{ dupValue: '', dupSourceId: '' }">
-  <div>
-    <label class="text-xs font-bold text-muted mb-1 block">Preset Name</label>
-    <input type="text" x-model="dupValue" class="field" @keydown.enter="confirmDuplicate()">
-  </div>
-  <div class="flex justify-end gap-2 items-center mt-2">
-    <button type="button" class="btn" @click="closeModal('modal-dup-preset')">Cancel</button>
-    <button type="button" class="btn create" @click="confirmDuplicate()" :disabled="!dupValue.trim()" :class="dupValue.trim() ? '' : 'opacity-50'">Duplicate</button>
-  </div>
-</div>
+  {% call modal_footer(hint='') %}
+  <button type="button" class="btn" data-action="actionCloseModal" data-modal-id="modal-preset-name">Cancel</button>
+  <button type="submit" id="preset-name-submit" class="btn create">Create</button>
+  {% endcall %}
+</form>
 {% endcall %}
 
 <!-- PROMPT ARRANGER MODAL -->
@@ -131,8 +107,8 @@ content_style='height:85vh;', overlay_class='modal-bands-shell') %}
 
   {% if preset %}
   <div class="modal-band-foot">
-    <div x-data="{ open: false }" data-preset-id="{{ preset.id }}" class="relative flex-1">
-      <button type="button" class="btn create w-full" @click="open = !open">
+    <div x-data="{ open: false }" data-preset-id="{{ preset.id }}" class="relative">
+      <button type="button" class="btn create" @click="open = !open">
         {{ icon_plus(14) }} Add Block
       </button>
 
@@ -140,7 +116,7 @@ content_style='height:85vh;', overlay_class='modal-bands-shell') %}
         x-show="open"
         @click.away="open = false"
         x-transition.opacity.duration.200ms
-        class="panel absolute bottom-full left-0 right-0 mb-2 p-2 z-50"
+        class="panel absolute bottom-full right-0 mb-2 p-2 z-50 arranger-add-menu"
         style="display: none"
       >
         <div class="rail">Block type</div>

@@ -1,8 +1,8 @@
 {# Entity list modal — personas. Same chassis as the character list (see
-   modals/characters.html); personas have no import and no trash bin. #}
+   modals/characters.html); personas have no import. #}
 <div class="modal-bands">
-  {% from "macros.html" import icon_plus, sort_dropdown, filter_dropdown,
-  search_toolbar, empty_state %}
+  {% from "macros.html" import icon_trash, icon_plus, sort_dropdown,
+  filter_dropdown, search_toolbar, empty_state %}
   <div class="modal-band-head">
     <div class="rail">
       <span>{{ personas|length }} {{ 'persona' if personas|length == 1 else 'personas' }}</span>
@@ -35,6 +35,12 @@
       {% include "modals/persona-card.html" %}
       {% endfor %}
     </div>
+  </div>
+
+  <div class="modal-band-foot">
+    <button class="btn sm" onclick="openPersonaTrashModal()">
+      {{ icon_trash(14) }} Trash Bin
+    </button>
   </div>
 </div>
 <script>

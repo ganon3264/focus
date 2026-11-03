@@ -92,6 +92,15 @@ window.api = {
   providerOpenRouterCapabilities: function (model) {
     return '/api/providers/openrouter/capabilities?model=' + encodeURIComponent(model);
   },
+  presets: '/api/presets',
+  preset: function (id) {
+    return '/api/presets/' + id;
+  },
+  presetDuplicate: function (id) {
+    return '/api/presets/' + id + '/duplicate';
+  },
+  presetImport: '/api/presets/import',
+
   providerSecrets: '/api/providers/secrets',
   providerSecret: function (name) {
     return '/api/providers/secrets/' + encodeURIComponent(name);
@@ -121,6 +130,7 @@ window.api = {
     charactersModal: '/partials/characters-modal',
     personasModal: '/partials/personas-modal',
     providersModal: '/partials/providers-modal',
+    presetsModal: '/partials/presets-modal',
     exportEntities: '/partials/export-entities',
     chatList: '/partials/chat-list',
   },

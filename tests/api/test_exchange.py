@@ -262,7 +262,7 @@ class TestImport:
 
         themes = (await client.get("/api/themes/")).json()
         slate = next(t for t in themes if t["id"] == "builtin-slate")
-        assert slate["name"] == "Slate (Default)", "built-in duplicates are skipped, seed preserved"
+        assert slate["name"] == "Graphite", "built-in duplicates are skipped, seed preserved"
 
     async def test_v2_archive_with_themes_imports_via_legacy_path(self, client, tmp_test_dir):
         # Versions below 0.3.0 take the legacy remap path; themes and the

@@ -1,4 +1,4 @@
-{% from "macros.html" import icon_plus, icon_database, icon_upload, icon_search, custom_select %}
+{% from "macros.html" import icon_plus, icon_database, icon_upload, hint_tooltip, custom_select %}
 {% set purge_options = [
   {"value": "30", "label": "Older than 30 days"},
   {"value": "90", "label": "Older than 90 days"},
@@ -6,46 +6,50 @@
   {"value": "365", "label": "Older than 1 year"},
   {"value": "custom", "label": "Custom…"}
 ] %}
-{# Body of the Backups tab in the Advanced modal. #}
-<div class="flex flex-col gap-4">
-  {# ── Actions ── #}
-  <div class="flex gap-2">
-    <button
-      type="button"
-      id="btn-create-backup"
-      class="btn create flex-1 text-sm flex items-center justify-center gap-1.5"
-      data-action="BackupManager.create"
-    >
-      {{ icon_plus(size=14) }} Create Backup
-    </button>
-    <button
-      type="button"
-      class="btn flex-1 text-sm flex items-center justify-center gap-1.5"
-      data-action="BackupManager.openExportModal"
-    >
-      {{ icon_database(size=14) }} Export
-    </button>
-    <button
-      type="button"
-      class="btn flex-1 text-sm flex items-center justify-center gap-1.5"
-      data-action="actionTriggerFileUpload" data-target="import-file"
-    >
-      {{ icon_upload(size=14) }} Import
-    </button>
+{# Body of the Backups tab in the Advanced modal: the archive verbs sit in the
+   rail, maintenance and the archive list share the lane. #}
+<div class="modal-bands">
+  <div class="modal-band-head">
+    <div class="rail">
+      <span>Backups</span>
+      {{ hint_tooltip('A backup is one archive of everything — database, uploads, tool configs — restorable in one step. Export writes the same archive with a choice of entities.') }}
+      <div class="rail-actions flush">
+        <button
+          type="button"
+          id="btn-create-backup"
+          class="btn create sm"
+          data-action="BackupManager.create"
+        >
+          {{ icon_plus(size=12) }} Create
+        </button>
+        <button
+          type="button"
+          class="btn sm"
+          data-action="BackupManager.openExportModal"
+        >
+          {{ icon_database(size=12) }} Export
+        </button>
+        <button
+          type="button"
+          class="btn sm"
+          data-action="actionTriggerFileUpload"
+          data-target="import-file"
+        >
+          {{ icon_upload(size=12) }} Import
+        </button>
+      </div>
+    </div>
   </div>
 
-  <input
-    type="file"
-    id="import-file"
-    class="hidden"
-    accept=".focus"
-    data-action="actionImportBackupFile"
-  />
+  <div class="modal-band-lane backup-pane">
+    <input
+      type="file"
+      id="import-file"
+      class="hidden"
+      accept=".focus"
+      data-action="actionImportBackupFile"
+    />
 
-  <span id="backup-status" class="note"></span>
-
-  {# ── Maintenance ── #}
-  <div class="flex flex-col gap-2">
     <div class="rail">Maintenance</div>
     <div class="field-row">
       <div class="flex-1">
@@ -81,16 +85,19 @@
     <span id="purge-old-chats-status" class="note"></span>
     <button
       type="button"
-      class="btn danger w-full text-sm flex items-center justify-center gap-1.5"
+      class="btn danger text-sm self-start"
       data-action="BackupManager.cleanDatabase"
     >
       Clean DB
     </button>
-  </div>
 
-  {# ── Backups list ── #}
-  <div class="flex flex-col gap-2">
-    <div class="rail">Previous Backups</div>
-    <div id="backups-list" class="flex flex-col max-h-96 overflow-y-auto"></div>
+    <div class="rail">
+      <span>Previous Backups</span>
+      <div class="rail-actions flush">
+        <span class="row-value" data-ui="backup-count"></span>
+      </div>
+    </div>
+    <span id="backup-status" class="note"></span>
+    <div id="backups-list" class="backup-list"></div>
   </div>
 </div>

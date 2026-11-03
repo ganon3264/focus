@@ -1,3 +1,5 @@
+import json
+
 import aiosqlite
 import pytest
 
@@ -31,7 +33,6 @@ async def test_seed_builtin_themes_idempotent(db):
         db_themes.BUILTIN_SLATE_ID,
         db_themes.BUILTIN_MIDNIGHT_ID,
         db_themes.BUILTIN_LIGHT_ID,
-        db_themes.BUILTIN_INSTRUMENT_ID,
     }
     assert all(t["is_system"] for t in themes)
 
@@ -126,3 +127,40 @@ async def test_theme_state_dangling_slot_falls_back(db):
     state = await db_themes.get_theme_state(db)
     assert state["dark_theme_id"] == db_themes.BUILTIN_SLATE_ID
     assert state["light_theme_id"] == db_themes.BUILTIN_LIGHT_ID
+
+
+async def test_migration_repaints_only_pristine_builtins(db):
+    await db_themes.seed_builtin_themes(db)
+    legacy = db_themes.LEGACY_BUILTIN_COLORS[db_themes.BUILTIN_SLATE_ID]
+    await db.execute(
+        "UPDATE themes SET name = 'Slate (Default)', colors_json = ? WHERE id = ?",
+        (json.dumps(legacy), db_themes.BUILTIN_SLATE_ID),
+    )
+    await db_themes.update_theme(db, db_themes.BUILTIN_LIGHT_ID, colors={"--bg": "#ff0000"})
+    await db_themes.migrate_builtin_themes(db)
+    slate = await db_themes.get_theme(db, db_themes.BUILTIN_SLATE_ID)
+    light = await db_themes.get_theme(db, db_themes.BUILTIN_LIGHT_ID)
+    assert slate["name"] == "Graphite"
+    assert slate["colors"]["--text-faint"]
+    assert light["colors"] == {"--bg": "#ff0000"}, "edited built-ins keep their colours"
+    await db_themes.migrate_builtin_themes(db)
+    assert (await db_themes.get_theme(db, db_themes.BUILTIN_SLATE_ID))["name"] == "Graphite"
+
+
+async def test_migration_drops_retired_builtin_and_references(db):
+    await db_themes.seed_builtin_themes(db)
+    await db.execute(
+        "INSERT INTO themes (id, name, colors_json, is_system, created_at) VALUES (?, ?, ?, 1, ?)",
+        ("builtin-instrument", "Instrument (Amber)", "{}", "2026-01-01"),
+    )
+    await db.execute(
+        "INSERT INTO characters (id, name, card_json, theme_id, created_at) "
+        "VALUES ('c1', 'C', '{}', ?, '2026-01-01')",
+        ("builtin-instrument",),
+    )
+    await db_themes.set_setting(db, db_themes.DARK_SLOT_KEY, "builtin-instrument")
+    await db_themes.migrate_builtin_themes(db)
+    assert await db_themes.get_theme(db, "builtin-instrument") is None
+    async with db.execute("SELECT theme_id FROM characters WHERE id = 'c1'") as cur:
+        assert (await cur.fetchone())["theme_id"] is None
+    assert await db_themes.get_setting(db, db_themes.DARK_SLOT_KEY) is None

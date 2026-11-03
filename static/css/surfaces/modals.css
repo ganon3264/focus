@@ -22,6 +22,10 @@
 
 .modal-panel {
   --modal-pad: calc(var(--u) * 6);
+  /* The chassis' one vertical number: a band insets its content by it above and
+     below (see the banded-body block comment). Horizontal insets stay
+     --modal-pad, which is what the panel edges use. */
+  --band-pad: calc(var(--u) * 4);
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -38,7 +42,7 @@
   justify-content: space-between;
   gap: var(--inset);
   flex: none;
-  padding: var(--modal-pad) var(--modal-pad) calc(var(--u) * 4);
+  padding: var(--modal-pad);
   box-shadow: inset 0 calc(-1 * var(--hair-w)) 0 var(--hair);
 }
 
@@ -89,7 +93,7 @@
   align-items: center;
   gap: var(--gutter);
   margin: auto calc(-1 * var(--modal-pad)) 0;
-  padding: calc(var(--u) * 4) var(--modal-pad) var(--modal-pad);
+  padding: var(--band-pad) var(--modal-pad);
   background-color: var(--surface-2);
   box-shadow: inset 0 var(--hair-w) 0 var(--hair);
 }
@@ -125,19 +129,32 @@
    collection's verbs), an optional toolbar (search/filter/sort), the list lane,
    an optional foot. Only the lane scrolls.
 
-   Bands pull out to the panel's inner edges with the .modal-foot negative-margin
-   trick and pad back in, so a groove or a plane change runs the full width while
-   the content keeps the modal's one inset. The first and last bands absorb the
-   body's own padding — a tinted strip that is not a band is discoloration.
+   ONE vertical rhythm: every band insets its content by --band-pad above and
+   below, and there are no gaps between bands. So a band's content always has the
+   same air above it as below it, whatever it is next to — and the same number
+   separates it from the panel edges. Nothing else authors a vertical spacing.
 
-   Chrome is one field: the title bar and every chrome band share `.modal-band`'s
-   tint; the lane is the only thing that paints a different value. */
-.modal-bands-shell .modal-head {
+   Bands pull out to the panel's inner edges and pad back in, so a groove or a
+   plane change runs the full width while the content keeps the modal's one
+   inset.
+
+   Chrome is one field: the shell tints the head and the body once, and every
+   chrome band is transparent over that; the lane is the only thing that paints
+   a different value. --ink-1 is translucent, so a band that painted it too
+   would double the layer and step 5 RGB lighter exactly where it starts. */
+.modal-bands-shell > .modal-panel > .modal-head,
+.modal-bands-shell > .modal-panel > .modal-body {
   background-color: var(--ink-1);
 }
 
+/* The body's own inset belongs to the bands: the stack spans the panel, so the
+   head band can be one --band-pad under the title groove and the last band one
+   --band-pad above the floor. */
+.modal-bands-shell > .modal-panel > .modal-body {
+  padding-block: 0;
+}
+
 .modal-bands {
-  --band-pad: var(--modal-pad);
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -149,34 +166,74 @@
 .modal-band-toolbar,
 .modal-band-lane,
 .modal-band-foot {
-  margin-inline: calc(-1 * var(--band-pad));
-  padding-inline: var(--band-pad);
+  /* Horizontal is the panel inset; only the vertical rhythm is --band-pad. */
+  margin-inline: calc(-1 * var(--modal-pad));
+  padding-inline: var(--modal-pad);
 }
 
 .modal-band-head,
 .modal-band-toolbar,
 .modal-band-foot {
   flex: none;
-  background-color: var(--ink-1);
 }
 
-/* The head band owns the air under its rail: whatever follows (a toolbar or the
-   lane itself) starts 12px lower, so a rail never butts against a plane edge. */
-.modal-band-head {
-  margin-top: calc(-1 * var(--band-pad));
-  padding-block: var(--band-pad) var(--inset);
+/* Every band owns its own air, so the stack needs no gaps: a band's content is
+   one --band-pad from anything above it and anything below it. */
+.modal-band-head,
+.modal-band-toolbar,
+.modal-band-lane,
+.modal-band-foot {
+  padding-block: var(--band-pad);
+}
+
+/* A non-band child of the stack (the tab strip) carries the panel edge. */
+.modal-bands > :first-child {
+  padding-top: var(--band-pad);
+}
+
+.modal-bands > :last-child {
+  padding-bottom: var(--band-pad);
 }
 
 .modal-band-head > .rail {
   margin: 0;
 }
 
-/* Its top gap is the head band's; only the space under the controls is its own. */
+/* A tab strip keeps the modal's inset above it and hands the rest to the rail
+   band under it; it paints no rule (chrome is one field). */
+.modal-bands > .tab-bar,
+.modal-tabs > .tab-bar {
+  margin-bottom: 0;
+  padding-block: var(--band-pad) 0;
+  box-shadow: none;
+}
+
+/* A tab strip above the stack (one banded chassis per tab) is a sibling, so the
+   gap comes from the wrapper: every tab stays a full-band away from it. */
+.modal-tabs {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.modal-tab {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.modal-tab > .modal-bands {
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 0;
+}
+
 .modal-band-toolbar {
   display: flex;
   align-items: center;
   gap: var(--gutter);
-  padding-block: 0 var(--inset);
 }
 
 /* The search field takes every pixel the pickers do not need. */
@@ -184,33 +241,29 @@
   flex: 1 1 auto;
 }
 
-/* The lane is its own plane, opened by a groove. The bar rides in the lane's
-   padding (no reserved gutter), so the rows keep the same inset on both sides. */
+/* The lane is its own plane, opened by a groove, its content inset by the same
+   rhythm the gaps use. The bar rides in the lane's padding (no reserved gutter),
+   so the rows keep the same inset on both sides. */
 .modal-band-lane {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
   scrollbar-gutter: auto;
   background-color: var(--surface);
-  padding-block: var(--gutter);
+  padding-block: var(--band-pad);
   box-shadow:
     inset 0 var(--hair-w) 0 var(--hair-dark),
     inset 0 calc(var(--hair-w) * 2) 0 var(--hair-lit);
 }
 
-/* Nothing below the lane: it closes on the panel floor itself. */
-.modal-band-lane:last-child {
-  margin-bottom: calc(-1 * var(--band-pad));
-  padding-bottom: calc(var(--band-pad) + var(--gutter));
-}
-
+/* The closing band: a full-bleed plate over a groove, its verbs on the modal's
+   right inset. It carries the panel's bottom edge, so its bottom air is the
+   :last-child inset and its top air is the gap above it — the same number. */
 .modal-band-foot {
   display: flex;
   justify-content: flex-end;
   align-items: center;
   gap: var(--gutter);
-  margin-bottom: calc(-1 * var(--band-pad));
-  padding-block: var(--inset) var(--band-pad);
   box-shadow:
     inset 0 var(--hair-w) 0 var(--hair-dark),
     inset 0 calc(var(--hair-w) * 2) 0 var(--hair-lit);
@@ -300,39 +353,50 @@
   min-width: 0;
 }
 
-/* ── Entity editor (character / persona) ──────────────────────────────────
-   A card sidebar (avatar, identity, theme, media) beside the content column;
-   description and greeting split the remaining height. */
-.edit-entity-form {
+/* ── Message editor ───────────────────────────────────────────────────────
+   Each segment is one block named by a rail; a collapsed block (reasoning)
+   keeps its rail — name and length stay readable while the text is hidden. */
+.msg-blocks {
   display: flex;
   flex-direction: column;
-  flex: 1;
+  gap: calc(var(--u) * 4);
   min-height: 0;
 }
 
+.msg-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--inset);
+}
+
+.msg-block > .rail {
+  margin: 0;
+}
+
+.msg-block.collapsed > .msg-block-text {
+  display: none;
+}
+
+/* The attachments tray is a well so the drop target can show the drag-over
+   edge without a bespoke rule. */
+.msg-attachments-tray {
+  padding: var(--gutter);
+}
+
+/* ── Entity editor (character / persona) ──────────────────────────────────
+   Two panes: identity (portrait, media, name/group/theme, and the extra doors
+   on its floor) beside the content (description, greetings). Each pane names
+   its groups with a rail — there is no divider between the panes, so a short
+   identity column does not leave a cut line hanging next to a tall screen. */
 .edit-entity-body {
   display: grid;
-  grid-template-columns: calc(var(--u) * 80) minmax(0, 1fr);
-  grid-template-rows: minmax(0, 1fr);
-  gap: var(--inset);
+  grid-template-columns: calc(var(--u) * 84) minmax(0, 1fr);
+  gap: calc(var(--u) * 6);
   flex: 1;
   min-height: 0;
-  /* The columns stretch to the floor, so the gap above the foot plate is this
-     inset rather than the (dropped) body padding. */
-  padding-bottom: var(--inset);
 }
 
-.edit-entity-side {
-  display: flex;
-  flex-direction: column;
-  gap: var(--inset);
-  min-height: 0;
-  padding-right: var(--inset);
-  overflow-y: auto;
-  scrollbar-gutter: stable;
-  box-shadow: inset calc(-1 * var(--hair-w)) 0 0 var(--hair-dark);
-}
-
+.edit-entity-side,
 .edit-entity-main {
   display: flex;
   flex-direction: column;
@@ -340,45 +404,73 @@
   min-height: 0;
 }
 
-.edit-entity-main > .form-group {
-  flex: 2 1 0;
+/* The identity column ends where its content ends — an empty column beside a
+   tall description is fine, an empty column *under* a floor-anchored door is
+   not. It still scrolls when the legacy fields are opened. */
+.edit-entity-side {
+  align-self: start;
+  max-height: 100%;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+/* The column owns the air under a rail. */
+.edit-entity-side > .rail,
+.edit-entity-main > .rail,
+.edit-doc > .rail,
+.edit-greeting > .rail {
+  margin: 0;
+}
+
+/* Portrait and the media pool it feeds on one line; the strip's caption keeps
+   the column's own left edge instead of floating over the thumbs. */
+/* The portrait is a row of the identity column, not a free-floating square:
+   its caption anchors it and its control edge matches the fields below. */
+.edit-identity {
+  align-items: center;
+}
+
+/* A tall control: the caption rides the top of the gallery instead of the
+   vertical middle of a 120px tray. */
+.row.setting.edit-media {
+  align-items: flex-start;
+}
+
+.edit-fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--inset);
+}
+
+/* Doors out of the form follow its fields, sharing one groove: they are not
+   fields of it, and they do not float away from them either. */
+.edit-extras {
+  display: flex;
+  flex-direction: column;
+}
+
+/* A text screen: its rail carries the readout and the verbs, the field takes
+   whatever height is left. */
+.edit-doc {
+  display: flex;
+  flex-direction: column;
+  flex: 3 1 0;
+  gap: var(--inset);
   min-height: 0;
 }
 
-.edit-entity-main > .entity-greeting {
-  flex: 1 1 0;
-}
-
-/* The identity plate: the avatar and the media pool it feeds sit on one line,
-   and every control under them shares the column's own left edge. */
-.edit-identity {
-  display: grid;
-  grid-template-columns: calc(var(--u) * 24) minmax(0, 1fr);
-  gap: var(--gutter);
-  align-items: start;
-}
-
-.edit-identity-media {
+.edit-greeting {
   display: flex;
   flex-direction: column;
-  gap: var(--u);
-  min-width: 0;
+  flex: 2 1 0;
+  gap: var(--inset);
+  min-height: 0;
 }
 
-/* Card fields open under the form column, so the fields keep the column's
-   inset instead of the disclosure's own padding. */
-.edit-card-fields .disclosure-body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--gutter);
+.edit-text {
+  flex: 1 1 auto;
+  min-height: 0;
 }
-
-/* Custom blocks is a door, not a field: it sits on the floor of the column so
-   the space between the last field and the foot has one occupant. */
-.edit-side-nav {
-  margin-top: auto;
-}
-
 
 /* The avatar is a label: the file input hides inside it and the caption only
    appears under the pointer. */
@@ -408,7 +500,7 @@
   align-items: center;
   justify-content: center;
   background: color-mix(in srgb, black 55%, transparent);
-  color: var(--text-on-accent);
+  color: var(--text-on-scrim);
   font-family: var(--font-sans);
   font-size: 11px;
   opacity: 0;
@@ -419,84 +511,206 @@
   opacity: 1;
 }
 
-/* Media row under a field: thumbnails plus the one create tile. */
+/* Media tray under a field: the imprinted plate holds a grid of thumbnails and
+   the create tile, so the add verb is anchored instead of floating beside the
+   images. The instruction spans the tray while it is empty. */
 .media-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, var(--thumb-size, calc(var(--u) * 12)));
+  align-content: start;
   gap: var(--gutter);
+  padding: var(--gutter);
+  /* A gallery, not a pane-filler: it keeps the two-row height and scrolls the
+     rest, so an entity with many images cannot inflate the identity column. */
+  height: calc(var(--u) * 44);
+  overflow-y: auto;
+}
+
+.media-row > .block-media-placeholder {
+  grid-column: 1 / -1;
+}
+
+/* ── Columns inside a lane ───────────────────────────────────────────────
+   Samplers, the Advanced tabs and the regex/structured lists all stack groups
+   in one column. The column owns the gap; a rail inside it keeps its line but
+   not its own margin, so the air under a rail is the same number as the air
+   between any two blocks. */
+.sampler-group,
+.tool-pane,
+.backup-pane,
+.tool-category,
+.regex-group,
+.structured-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--inset);
+}
+
+.sampler-group > .rail,
+.tool-pane > .rail,
+.backup-pane > .rail,
+.tool-category > .rail,
+.regex-group > .rail,
+.structured-group > .rail {
+  margin-block: 0;
+}
+
+/* A setting that depends on the row above it lives in a recessed plate under it:
+   the plate is what says "this belongs to the row above", so nothing is
+   indented into no-man's land and the children stay on the row grid. */
+.sampler-children {
+  display: flex;
+  flex-direction: column;
+  gap: var(--inset);
+  padding: var(--u) var(--gutter);
+}
+
+/* ── Advanced tabs ────────────────────────────────────────────────────────
+   Each tab is its own banded chassis; the lane stacks the groups and each group
+   opens with its own rail. */
+.backup-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.tool-categories {
+  display: flex;
+  flex-direction: column;
+  gap: var(--inset);
+}
+
+/* A settings column has one vertical rhythm: every row — a slider, a toggle, a
+   dependent plate — is one --inset from the next. No ladders, no special
+   cases. */
+.tool-settings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--inset);
+}
+
+/* A create verb closing a form column takes its own width. */
+.sampler-group > .btn {
+  align-self: flex-start;
 }
 
 /* ── Theme customizer ─────────────────────────────────────────────────────
-   Theme list on the left, palette on the right. */
-.theme-modal-body {
+   Master-detail inside the banded chassis: the lane holds two columns, the
+   collection on the left and the palette on the right. Both scroll on their
+   own — the editor has to stay reachable while the list is scrolled — but they
+   share the lane's one plane, so there is no second background between them. */
+.theme-split {
   display: grid;
-  grid-template-columns: calc(var(--u) * 80) minmax(0, 1fr);
+  grid-template-columns: calc(var(--u) * 96) minmax(0, 1fr);
   gap: var(--inset);
-  flex: 1;
-  min-height: 0;
+  overflow: hidden;
 }
 
-.theme-modal-list-col {
-  display: flex;
-  flex-direction: column;
-  gap: var(--gutter);
+.theme-list {
   min-height: 0;
+  overflow-y: auto;
   padding-right: var(--inset);
   box-shadow: inset calc(-1 * var(--hair-w)) 0 0 var(--hair-dark);
 }
 
-.theme-list {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
-}
-
-.theme-swatches {
-  display: inline-flex;
-  gap: var(--u);
-  flex: none;
-}
-
-.theme-swatch {
-  width: calc(var(--u) * 3);
-  height: calc(var(--u) * 3);
-  flex: none;
-}
-
-.theme-modal-editor {
+.theme-editor {
   display: flex;
   flex-direction: column;
   gap: var(--inset);
   min-width: 0;
+  min-height: 0;
+  /* Block padding keeps the focus ring's 1px outer edge inside the scrollport:
+     the first row is flush with the top and its ring was sheared off. */
+  padding-block: var(--u);
   overflow-y: auto;
 }
 
-.theme-name-row {
-  display: flex;
-  align-items: center;
-  gap: var(--gutter);
+/* The row's readout before its title: the theme's own background, surface,
+   accent and text as a 2×2 palette, so a row identifies itself the way an
+   avatar does elsewhere. */
+.theme-thumb {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  flex: none;
+  width: calc(var(--u) * 6);
+  height: calc(var(--u) * 6);
+  overflow: hidden;
+  box-shadow: inset 0 0 0 var(--hair-w) var(--hair);
 }
 
-.theme-color-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.theme-swatch {
+  min-width: 0;
+  min-height: 0;
+}
+
+/* The theme editor's one row with a caption: the name field takes the middle,
+   the create verb lands where the colour swatches land on every row below. */
+.theme-name-row > .row-title {
+  flex: 0 0 auto;
+}
+
+.theme-name-row > .field,
+.theme-name-row > .btn {
+  height: var(--control-h);
+}
+
+/* The palette is a list of settings rows, like every other column of settings:
+   caption on the column inset, the well on its right edge. */
+.theme-colors,
+.retry-rows {
+  display: flex;
+  flex-direction: column;
   gap: var(--inset);
 }
 
-.theme-color-field {
+/* ── Stacked form ─────────────────────────────────────────────────────────
+   A form body that owns its own foot: the content scrolls, the foot closes on
+   the panel floor with one gap above it. The provider form is the big user; the
+   small naming dialogs are the same shape with one field. The settings column
+   inside is cut into named groups: an engraved rail names the group, the rows
+   under it keep one caption column, and only a dependent group gets a plate. */
+.stacked-form {
   display: flex;
   flex-direction: column;
-  gap: var(--u);
-  font-family: var(--font-sans);
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--text-muted);
+  flex: 1;
+  gap: calc(var(--u) * 4);
+  min-height: 0;
 }
 
-.theme-slot-spacer {
-  width: calc(var(--u) * 6);
-  flex: none;
+.provider-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--inset);
+}
+
+/* The rail's own bottom margin would double the section's gap. */
+.provider-section > .rail,
+.provider-plate > .rail {
+  margin: 0;
+}
+
+.provider-plate {
+  display: flex;
+  flex-direction: column;
+  gap: var(--inset);
+  padding: var(--u) var(--gutter) var(--gutter);
+}
+
+/* Keys are a list, so they share grooves instead of floating apart. */
+.provider-keys {
+  display: flex;
+  flex-direction: column;
+}
+
+/* An empty list is a note on the column, not a row: a grooved row under the
+   rail's own hairline draws two lines 20px apart for nothing. */
+.provider-keys-empty {
+  padding: var(--u) var(--gutter);
+}
+
+/* The cell a composite control (the shared select) fills inside a row. */
+.row-cell {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 /* ── Arranger rows ────────────────────────────────────────────────────────
@@ -585,6 +799,12 @@
   gap: var(--gutter);
 }
 
+/* The block-type menu hangs off the foot verb: it needs its own width, since
+   the verb is a normal button and no longer spans the foot. */
+.arranger-add-menu {
+  width: calc(var(--u) * 96);
+}
+
 /* A block's name is edited in place: the field is a line of text until it is
    focused. */
 .arranger-input {
@@ -652,13 +872,6 @@
 
 /* ── Regex scripts / structured responses ─────────────────────────────────
    Two scopes (global, preset), each a rail over a sortable list. */
-.regex-group,
-.structured-group {
-  display: flex;
-  flex-direction: column;
-  gap: var(--gutter);
-}
-
 .regex-group + .regex-group,
 .structured-group + .structured-group {
   margin-top: var(--inset);
@@ -737,12 +950,15 @@
 }
 
 /* Two lines need a taller row; `.row` is 32 and arrives last, so the pair of
-   classes carries the height (a lone `.provider-row` would lose the cascade). */
-.entity-row.provider-row {
+   classes carries the height (a lone `.provider-row` would lose the cascade).
+   A row whose second line is a readout (provider type · model, a preset's
+   weight) uses the same identity stack. */
+.entity-row.provider-row,
+.entity-row.preset-row {
   min-height: calc(var(--u) * 12);
 }
 
-.provider-row > .provider-identity {
+.entity-row > .entity-identity {
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -750,7 +966,7 @@
   min-width: 0;
 }
 
-.provider-row > .provider-identity > .row-meta {
+.entity-row > .entity-identity > .row-meta {
   display: block;
   flex: 0 0 auto;
   min-width: 0;
@@ -762,6 +978,15 @@
 .provider-row > .row-value {
   flex: 0 0 auto;
   white-space: nowrap;
+}
+
+/* ── Presets ──────────────────────────────────────────────────────────────
+   One preset is one row in one column, on two lines like a provider: name over
+   its weight, verbs on the right, the whole row selects. The list is the
+   collection — there is no second place where presets are managed. */
+.preset-list {
+  display: flex;
+  flex-direction: column;
 }
 
 /* Saved keys: a row that opens on a key, a trailing Select verb. */

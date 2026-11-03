@@ -53,6 +53,15 @@
   min-width: 0;
 }
 
+/* A slider is one row: its caption, the track taking the middle, the value on
+   the column's right edge. The caption takes a fixed column so every track
+   starts on the same line. */
+.field[type='range'].slider-range {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+}
+
 /* Two numeric fields and the dash between them. */
 .field-range {
   display: flex;
@@ -105,25 +114,6 @@
 }
 
 /* A check and its caption on one line. */
-.check-row {
-  display: flex;
-  align-items: center;
-  gap: var(--gutter);
-  font-family: var(--font-sans);
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--text-muted);
-  cursor: pointer;
-}
-
-/* A nested option group: the indent plus a groove, so depth reads without a
-   bullet. */
-.branch {
-  margin-left: var(--u);
-  padding-left: var(--inset);
-  box-shadow: inset var(--hair-w) 0 0 var(--hair-dark);
-}
-
 /* The help mark: one square plate with a question mark on it. No second shape
    inside — a circle in a square is two marks for one affordance. */
 .hint-wrapper {

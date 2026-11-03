@@ -28,7 +28,7 @@ function matches(el, sel) {
   if (sel === '[data-ui="message"]') return el.dataset && el.dataset.ui === 'message';
   if (sel === '[data-ui="message-content"]') return el.dataset && el.dataset.ui === 'message-content';
   if (sel === '[data-ui="reasoning-toggle-btn"]') return el.dataset && el.dataset.ui === 'reasoning-toggle-btn';
-  if (sel === '[data-ui="message-spinner"]') return el.dataset && el.dataset.ui === 'message-spinner';
+  if (sel === '[data-ui="message-pending"]') return el.dataset && el.dataset.ui === 'message-pending';
   return false;
 }
 
@@ -46,7 +46,7 @@ function makeAsstDiv() {
 
   var content = makeElement('div');
   content.dataset.ui = 'message-content';
-  content.innerHTML = '<div class="message-spinner" data-ui="message-spinner"></div>';
+  content.innerHTML = '<div class="message-pending" data-ui="message-pending"></div>';
   msg.appendChild(content);
 
   return msg;

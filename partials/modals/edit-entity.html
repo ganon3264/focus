@@ -1,161 +1,119 @@
-{% from "macros.html" import icon_expand, icon_plus, icon_trash, icon_chevron_left, icon_chevron_right, hint_tooltip, avatar, modal_footer %} {% from "modal-shell.html" import modal_shell
+{% from "macros.html" import icon_expand, icon_plus, icon_trash, icon_chevron_left, icon_chevron_right, hint_tooltip, avatar, modal_footer, toggle %} {% from "modal-shell.html" import modal_shell
 %} {% set is_char = prefix == 'char' %} {% call modal_shell(modal_id, 'Edit ' ~ entity_name, max_width='1040px', foot=true,
 content_style='height:min(88vh, 780px);', z_index='100',
 dirty_fields='#edit-' ~ prefix ~ '-name,#edit-' ~ prefix ~ '-desc,#edit-' ~ prefix ~ '-group' ~ (',#edit-' ~ prefix ~ '-theme-id' if show_theme|default(false) else '') ~ (',#edit-' ~ prefix ~ '-personality,#edit-' ~ prefix ~ '-scenario,#edit-' ~ prefix ~ '-mes-example' if is_char else ''),
 dirty_label='#edit-' ~ prefix ~ '-name') %}
-<form
-  id="edit-{{ prefix }}-form"
-  class="edit-entity-form"
-  data-action="{{ submit_fn }}"
->
+{# Two panes, each naming its own groups with a rail: identity (portrait,
+   name/group/theme, then the media gallery, then the extra doors) beside the
+   content (description, greetings). No divider between them — the gutter and
+   the rails are the structure, so a short pane does not leave a cut line
+   hanging. #}
+<form id="edit-{{ prefix }}-form" class="stacked-form edit-entity-form" data-action="{{ submit_fn }}">
   <input type="hidden" name="id" id="edit-{{ prefix }}-id" />
 
   <div class="edit-entity-body">
     <aside class="edit-entity-side">
-      <div class="edit-identity">
-        {% call avatar('avatar xl edit-avatar', tag='label', attrs='title="Change Avatar"', initial_tag='') %}
+      <div class="rail">Identity</div>
+
+      <div class="row setting labeled tight edit-identity">
+        <span class="row-title">Portrait</span>
+        {% call avatar('avatar xl edit-avatar', tag='label', attrs='title="Change avatar"', initial_tag='') %}
           <img id="edit-{{ prefix }}-image-preview" alt="" />
           <span id="edit-{{ prefix }}-image-placeholder" class="edit-avatar-empty"></span>
-          <div class="edit-avatar-overlay">Upload</div>
+          <span class="edit-avatar-overlay">Upload</span>
           <input type="file" accept="image/*" class="hidden" data-action="{{ avatar_fn }}" />
         {% endcall %}
+      </div>
 
-        <div class="edit-identity-media">
-          <div class="flex items-center gap-1">
-            <span class="field-label">Reference media</span>
-            {{ hint_tooltip('{{media:x}} inserts the attachment in position x, counting left to right as shown above. Unpositioned media is appended after the block in the same order.') }}
+      <div class="edit-fields">
+        <div class="row setting labeled tight fit">
+          <span class="row-title">Name</span>
+          <input type="text" name="name" id="edit-{{ prefix }}-name" required class="field" aria-label="Name" />
+        </div>
+
+        <div class="row setting labeled tight fit">
+          <span class="row-title">Group</span>
+          <input type="text" name="group_name" id="edit-{{ prefix }}-group" class="field" placeholder="Optional" aria-label="Group" />
+        </div>
+
+        {% if show_theme|default(false) %}
+        <div class="row setting labeled tight fit">
+          <span class="row-title">Theme</span>
+          <div class="row-cell">
+            <button type="button" class="field select" onclick="openCharThemePicker()">
+              <span id="edit-char-theme-label">Inherit (global)</span>
+              <span class="caret-mark"></span>
+            </button>
           </div>
-          <div
-            class="char-block-media-section media-row"
-            id="edit-{{ prefix }}-media-section"
-          >
-            <label
-              class="key xl create block-media-btn"
-              data-ui="block-media-btn"
-              title="Add image or audio"
-            >
+          <input type="hidden" name="theme_id" id="edit-char-theme-id" value="" />
+        </div>
+        {% endif %}
+      </div>
+
+      <div class="row setting labeled tight edit-media">
+        <span class="row-title inline-flex items-center gap-1">
+          Media
+          {{ hint_tooltip('{{media:x}} inserts the attachment in position x, counting left to right as shown here. Unpositioned media is appended after the block in the same order.') }}
+        </span>
+        <div class="row-cell">
+          <div class="well media-row" id="edit-{{ prefix }}-media-section">
+            <label class="key xl create block-media-btn" data-ui="block-media-btn" title="Add image or audio">
               {{ icon_plus(20) }}
-              <input
-                type="file"
-                accept="image/*,audio/*"
-                class="hidden block-media-input"
-                data-action="{{ upload_fn }}"
-              />
+              <input type="file" accept="image/*,audio/*" class="hidden block-media-input" data-action="{{ upload_fn }}" />
             </label>
-            <span class="note block-media-placeholder" data-ui="block-media-placeholder">Add reference image or audio</span>
+            <span class="note block-media-placeholder" data-ui="block-media-placeholder">Add image or audio</span>
           </div>
         </div>
       </div>
-
-      <div class="form-group">
-        <label>Name</label>
-        <input
-          type="text"
-          name="name"
-          id="edit-{{ prefix }}-name"
-          required
-          class="field"
-        />
-      </div>
-
-      <div class="form-group">
-        <label>Group</label>
-        <input
-          type="text"
-          name="group_name"
-          id="edit-{{ prefix }}-group"
-          class="field"
-          placeholder="Optional group"
-        />
-      </div>
-
-      {% if show_theme|default(false) %}
-      <div class="form-group">
-        <label>Theme</label>
-        <button
-          type="button"
-          class="field select"
-          onclick="openCharThemePicker()"
-        >
-          <span id="edit-char-theme-label">Inherit (global)</span>
-          <span class="caret-mark"></span>
-        </button>
-        <input type="hidden" name="theme_id" id="edit-char-theme-id" value="" />
-      </div>
-      {% endif %}
 
       {% if is_char %}
-      <details class="disclosure edit-card-fields">
-        <summary>
+      {# Extras follow the fields: a door out of this form, then the legacy
+         card-format fields, closed by default. #}
+      <div class="edit-extras">
+        <button type="button" class="row edit-side-nav" data-action="actionOpenCharBlocks">
+          <span class="row-title">Custom blocks</span>
+          <span class="row-meta" data-ui="char-block-count">0</span>
           <span class="caret-mark"></span>
-          <span class="disclosure-title">Card fields</span>
-        </summary>
-        <div class="disclosure-body">
-          <div class="form-group">
-            <label>Personality</label>
-            <textarea
-              name="personality"
-              id="edit-char-personality"
-              rows="3"
-              class="field"
-              style="resize: none"
-            ></textarea>
+        </button>
+        <details class="disclosure rowlike" id="edit-char-card-fields">
+          <summary>
+            <span class="caret-mark"></span>
+            <span class="disclosure-title">Card fields</span>
+            <span class="tag">legacy</span>
+            {{ hint_tooltip('Personality, scenario and example dialogue from the legacy character-card format. Most cards put everything in the description, which is what Focus sends; these are kept for cards that still use them.') }}
+          </summary>
+          <div class="disclosure-body">
+            <div class="form-group">
+              <label for="edit-char-personality">Personality</label>
+              <textarea name="personality" id="edit-char-personality" rows="3" class="field sized"></textarea>
+            </div>
+            <div class="form-group">
+              <label for="edit-char-scenario">Scenario</label>
+              <textarea name="scenario" id="edit-char-scenario" rows="3" class="field sized"></textarea>
+            </div>
+            <div class="form-group">
+              <label for="edit-char-mes-example">Example dialogue</label>
+              <textarea name="mes_example" id="edit-char-mes-example" rows="4" class="field sized"></textarea>
+            </div>
           </div>
-          <div class="form-group">
-            <label>Scenario</label>
-            <textarea
-              name="scenario"
-              id="edit-char-scenario"
-              rows="3"
-              class="field"
-              style="resize: none"
-            ></textarea>
-          </div>
-          <div class="form-group">
-            <label>Mes example</label>
-            <textarea
-              name="mes_example"
-              id="edit-char-mes-example"
-              rows="4"
-              class="field"
-              style="resize: none"
-            ></textarea>
-          </div>
-        </div>
-      </details>
-
-      <button
-        type="button"
-        class="row edit-side-nav"
-        data-action="actionOpenCharBlocks"
-      >
-        <span class="row-title">Custom blocks</span>
-        <span class="row-meta" data-ui="char-block-count">0</span>
-        <span class="caret-mark"></span>
-      </button>
+        </details>
+      </div>
       {% endif %}
     </aside>
 
     <div class="edit-entity-main">
-      <div class="form-group">
-        <label>Description</label>
-        <div class="textarea-wrapper">
-          <textarea
-            name="description"
-            id="edit-{{ prefix }}-desc"
-            rows="14"
-            class="field"
-            style="resize: none"
-          ></textarea>
-          <button
-            type="button"
-            class="key sm field-expand"
-            aria-label="Expand text area"
-            data-action="actionOpenTextExpander" data-target-id="edit-{{ prefix }}-desc" data-expander-title="Edit {{ entity_name }} Description"
-          >
-            {{ icon_expand(16) }}
-          </button>
+      <div class="edit-doc">
+        <div class="rail">
+          <span>Description</span>
+          <span class="row-value" id="edit-{{ prefix }}-desc-count"></span>
+          <div class="rail-actions flush">
+            <button type="button" class="key sm" aria-label="Expand description" title="Expand editor"
+              data-action="actionOpenTextExpander" data-target-id="edit-{{ prefix }}-desc" data-expander-title="Edit {{ entity_name }} Description">
+              {{ icon_expand(16) }}
+            </button>
+          </div>
         </div>
+        <textarea name="description" id="edit-{{ prefix }}-desc" class="field sized edit-text"></textarea>
       </div>
 
       {% if show_greetings|default(false) and prefix == 'char' %}
@@ -165,23 +123,11 @@ dirty_label='#edit-' ~ prefix ~ '-name') %}
   </div>
 
   {% call modal_footer() %}
-      <button
-        type="button"
-        class="key"
-        onclick="openMacroHelp()"
-        title="Macro reference"
-        aria-label="Macro reference"
-      >
-        <span class="hint-glyph">?</span>
-      </button>
-      <button
-        class="btn"
-        type="button"
-        data-action="actionCloseModal" data-modal-id="{{ modal_id }}"
-      >
-        Cancel
-      </button>
-      <button class="btn primary" type="submit" data-dirty-save>Save</button>
+  <button type="button" class="key" onclick="openMacroHelp()" title="Macro reference" aria-label="Macro reference">
+    <span class="hint-glyph">?</span>
+  </button>
+  <button type="button" class="btn" data-action="actionCloseModal" data-modal-id="{{ modal_id }}">Cancel</button>
+  <button type="submit" class="btn primary" data-dirty-save>Save</button>
   {% endcall %}
 </form>
 {% endcall %}

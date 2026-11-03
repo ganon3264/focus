@@ -6,6 +6,38 @@ var assertEqual = h.assertEqual;
 
 global.window = global;
 
+// Minimal DOM: hxGet/hxPost must issue from a dedicated source element that
+// lives in the document (htmx drops a request whose source is detached).
+var nodes = [];
+var srcEl = null;
+global.document = {
+  body: {
+    appendChild: function (el) {
+      el.parentNode = global.document.body;
+      nodes.push(el);
+    },
+  },
+  createElement: function () {
+    return {
+      id: '',
+      className: '',
+      attrs: {},
+      parentNode: null,
+      getRootNode: function () {
+        return this.parentNode ? global.document : this;
+      },
+      setAttribute: function (k, v) {
+        this.attrs[k] = v;
+      },
+    };
+  },
+  getElementById: function (id) {
+    if (srcEl && srcEl.id === id) return srcEl;
+    for (var i = 0; i < nodes.length; i++) if (nodes[i].id === id) return nodes[i];
+    return null;
+  },
+};
+
 var calls = [];
 var resolvers = [];
 var fetchCalls = [];
@@ -89,6 +121,40 @@ async function main() {
   assertEqual(calls.length, 1, 'hxGet runs once the fetch resolves');
   resolvers.shift()();
   await Promise.all([f3, g]);
+
+  // ── Programmatic requests carry their own htmx source ──
+  // htmx queues per source element and drops on conflict, so a shared
+  // document.body source silently swallowed reloads. Every hxGet/hxPost must
+  // issue from the dedicated `hx-source` element, which queues instead.
+  calls.length = 0;
+  resolvers.length = 0;
+  srcEl = null;
+  nodes.length = 0;
+  var s1 = hxGet('/s1', { target: '#s1', swap: 'innerHTML' });
+  await flush();
+  assert(calls[0].opts.source != null, 'hxGet passes an htmx source element');
+  assertEqual(calls[0].opts.source.attrs['hx-sync'], 'this:queue all', 'source queues instead of dropping');
+  assertEqual(calls[0].opts.source.parentNode, document.body, 'source lives in the document');
+  assertEqual(calls[0].opts.target, '#s1', 'caller target survives');
+  resolvers.shift()();
+  await s1;
+
+  var s2 = hxGet('/s2', {});
+  await flush();
+  assertEqual(
+    calls[calls.length - 1].opts.source,
+    calls[0].opts.source,
+    'all requests share the one queue source',
+  );
+  resolvers.shift()();
+  await s2;
+
+  var stringTarget = hxPost('/s3', '#s3');
+  await flush();
+  assertEqual(calls[calls.length - 1].opts.target, '#s3', 'a bare string opts is a target');
+  assert(calls[calls.length - 1].opts.source != null, 'bare string opts still gets a source');
+  resolvers.shift()();
+  await stringTarget;
 
   h.printSummary();
 }

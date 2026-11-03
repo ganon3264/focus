@@ -105,6 +105,11 @@ function makeEnv() {
     setGeneratingUI: function (on) { env.generatingUI.push(on); },
     clearStaleContent: function () {},
     uploadStagedAttachments: function () { return Promise.resolve([]); },
+    syncStreamingView: function () {},
+    hideMessagePending: function (div) {
+      var nodes = div.querySelectorAll('[data-ui="message-pending"]');
+      for (var i = 0; i < nodes.length; i++) nodes[i].remove();
+    },
     refreshMessagesAfterStream: function (chatId, userId, asstId) {
       env.refreshes.push(asstId);
       return Promise.resolve();
@@ -490,10 +495,10 @@ test('failed regenerate keeps the message node and its content', function () {
   env.sandbox.clearStaleContent = function (div) {
     var cs = div.querySelectorAll('[data-ui="message-content"]');
     for (var i = 0; i < cs.length; i++) cs[i].remove();
-    var spinner = h.makeElement('div');
-    spinner.className = 'message-spinner';
-    spinner.dataset.ui = 'message-spinner';
-    div.appendChild(spinner);
+    var pending = h.makeElement('div');
+    pending.className = 'message-pending';
+    pending.dataset.ui = 'message-pending';
+    div.appendChild(pending);
   };
   env.sandbox.fetch = function (url) {
     if (url === '/api/stream') {
@@ -506,28 +511,28 @@ test('failed regenerate keeps the message node and its content', function () {
   };
   return env.Generation.begin('chat-1', existing, { isRegen: true }).then(function () {
     assert(existing.parentNode !== null, 'regenerate failure keeps the message in the list');
-    assert(existing.querySelector('[data-ui="message-spinner"]') === null, 'spinner removed after failure');
+    assert(existing.querySelector('[data-ui="message-pending"]') === null, 'pending state removed after failure');
     assert(existing.querySelector('[data-ui="message-content"]') !== null,
       'previous content restored after failed regenerate');
     assert(env.refreshes.indexOf('list') >= 0, 'failed regenerate re-renders the list');
   });
 });
 
-test('completed stream removes its own spinner', function () {
+test('completed stream removes its pending state', function () {
   var env = makeEnv();
   env.sandbox.clearStaleContent = function (div) {
-    var spinner = h.makeElement('div');
-    spinner.className = 'message-spinner';
-    spinner.dataset.ui = 'message-spinner';
-    div.appendChild(spinner);
+    var pending = h.makeElement('div');
+    pending.className = 'message-pending';
+    pending.dataset.ui = 'message-pending';
+    div.appendChild(pending);
   };
   return drive(env, [
     { data: { type: 'start', message_id: 'm1', user_message_id: 'u1' } },
     { data: { type: 'token', text: 'hi' } },
     { data: { type: 'done', message_id: 'm1' } },
   ]).then(function (r) {
-    assert(r.asst.querySelector('[data-ui="message-spinner"]') === null,
-      'spinner is gone as soon as the stream is over');
+    assert(r.asst.querySelector('[data-ui="message-pending"]') === null,
+      'pending state is gone as soon as the stream is over');
   });
 });
 

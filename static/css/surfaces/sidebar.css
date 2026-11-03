@@ -20,60 +20,11 @@
 
 /* ── Left pane ────────────────────────────────────────────────────────────── */
 
-/* The preset selector is a readout you can drop open: full width, control
-   height, chevron at the end (layout only — the field supplies the rest). */
-#preset-selector-wrapper {
-  gap: var(--gutter);
-}
-
-#preset-selector .field {
-  height: var(--control-h-lg);
-  padding: 0 var(--gutter);
-  line-height: normal;
-  cursor: pointer;
-}
-
-/* ── Preset menu ─────────────────────────────────────────────────────────── */
-.preset-menu {
-  padding: var(--u);
-  overflow: hidden;
-}
-
-/* The menu list reserves a scrollbar lane; the rail reserves the same one, so
-   the header's keys and the rows' hover keys share one right edge. The rail's
-   default optical pull is dropped here — it would align the glyph with a text
-   column this dropdown does not have. */
-.preset-menu > .rail {
-  margin: 0;
-  padding: 0 calc(var(--u) + var(--scrollbar-gap)) 0 var(--u);
-}
-
-.preset-menu .rail-actions {
-  margin-right: 0;
-}
-
-.preset-menu-list {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  overflow-y: auto;
-  scrollbar-gutter: stable;
-}
-
-.preset-menu .row {
-  padding: 0 var(--u);
-}
-
-/* The row's actions appear with the pointer, so a resting menu is a list of
-   names and nothing else. */
-.preset-menu .row-actions {
-  opacity: 0;
-  transition: opacity var(--transition);
-}
-
-.preset-menu .row:hover .row-actions,
-.preset-menu .row:focus-within .row-actions {
-  opacity: 1;
+/* The preset readout: one row of the collection, collapsed. It is not a form
+   control, so it carries no plate — the row language already says "a line you
+   can click", and the caret says it opens something. */
+.preset-trigger {
+  width: 100%;
 }
 
 /* ── Preset variables ──────────────────────────────────────────────────────

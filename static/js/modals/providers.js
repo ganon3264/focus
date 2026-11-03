@@ -152,6 +152,7 @@ function openRouteSelectModal(prefix) {
       document.getElementById('or-route-display-' + prefix).textContent = label;
       document.getElementById('or-route-display-' + prefix).classList.toggle('text-muted', !value);
       document.getElementById(prefix + '-or-route').dispatchEvent(new Event('change', { bubbles: true }));
+      refreshNoFallbacksVisibility(prefix);
     },
   );
 }
@@ -380,6 +381,8 @@ function submitProviderForm(el, e) {
       var errBody;
       try { errBody = await r.json(); } catch (e) { errBody = await r.text(); }
       console.error('Provider save failed:', r.status, errBody);
+      var detail = errBody && (errBody.detail || errBody.message);
+      window.showErrorToast('Could not save provider — ' + (detail || 'HTTP ' + r.status));
     }
   });
 }
@@ -392,9 +395,11 @@ window.openProviderEditModal = async function (id) {
     const data = await res.json();
     populateProviderForm(data);
     document.getElementById('prov-form-edit-id').value = id;
-    document.getElementById('prov-form-submit-btn').textContent = 'Save Provider';
+    var submitBtn = document.getElementById('prov-form-submit-btn');
+    submitBtn.textContent = 'Save Provider';
+    submitBtn.className = 'btn primary ml-auto';
     var titleEl = document.querySelector('#modal-provider-create [data-ui="modal-title"]');
-    if (titleEl) titleEl.textContent = 'Edit Provider';
+    if (titleEl) titleEl.textContent = 'Edit ' + (data.name || 'Provider');
     openModal('modal-provider-create');
   } catch (err) {
     console.error(err);
@@ -404,9 +409,11 @@ window.openProviderEditModal = async function (id) {
 window.openProviderCreateModal = function () {
   resetProviderForm();
   document.getElementById('prov-form-edit-id').value = '';
-  document.getElementById('prov-form-submit-btn').textContent = 'Add Provider';
+  var submitBtn = document.getElementById('prov-form-submit-btn');
+  submitBtn.textContent = 'Add Provider';
+  submitBtn.className = 'btn create ml-auto';
   var titleEl = document.querySelector('#modal-provider-create [data-ui="modal-title"]');
-  if (titleEl) titleEl.textContent = 'Add Provider';
+  if (titleEl) titleEl.textContent = 'New Provider';
   openModal('modal-provider-create');
 };
 
@@ -454,6 +461,7 @@ function toggleRetryEnabled(prefix) {
 function refreshRetryHint() {
   var hint = document.getElementById('prov-form-retry-hint');
   var enabled = document.getElementById('prov-form-retry-enabled');
+  refreshRetrySummary();
   if (!hint || !enabled) return;
   var anyClass = ['prov-form-retry-rate', 'prov-form-retry-server', 'prov-form-retry-timeout'].some(function (id) {
     var el = document.getElementById(id);
@@ -463,6 +471,22 @@ function refreshRetryHint() {
   var hasCodes = extra ? parseStatusCodes(extra.value).values.length > 0 : false;
   var inactive = enabled.value === 'true' && !anyClass && !hasCodes;
   hint.classList.toggle('hidden', !inactive);
+}
+
+// The row is the whole story at a glance — an unexplained on/off toggle hides
+// whether it will retry twice or ten times, over two seconds or two minutes.
+function refreshRetrySummary() {
+  var el = document.getElementById('prov-form-retry-summary');
+  var enabled = document.getElementById('prov-form-retry-enabled');
+  if (!el) return;
+  if (!enabled || enabled.value !== 'true') {
+    el.textContent = 'off';
+    return;
+  }
+  var form = document.getElementById('provider-form');
+  if (!form) return;
+  var cfg = collectRetryConfig(form).config;
+  el.textContent = cfg.max_retries + '× · ' + cfg.base_delay + 's → ' + cfg.max_delay + 's';
 }
 
 function setRetryForm(retry) {
@@ -708,13 +732,18 @@ function _getProviderKeys(prefix) {
 }
 
 function _renderProviderKeys(prefix, refs) {
+  const count = document.getElementById(prefix + '-key-count');
+  if (count) count.textContent = refs.length === 1 ? '1 key' : refs.length + ' keys';
   const container = document.getElementById(prefix + '-key-list');
   if (!container) return;
   container.innerHTML = '';
   if (!refs.length) {
     const empty = document.createElement('div');
-    empty.className = 'empty';
-    empty.textContent = 'No keys yet — click "Add Key".';
+    empty.className = 'provider-keys-empty';
+    const note = document.createElement('span');
+    note.className = 'row-meta';
+    note.textContent = 'No keys — add one if the endpoint requires authentication.';
+    empty.appendChild(note);
     container.appendChild(empty);
     return;
   }

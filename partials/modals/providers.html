@@ -20,7 +20,7 @@
     <div class="provider-list" id="providers-grid">
       {% for prov in providers %}
       <div class="row entity-row provider-row{% if active_provider_id == prov.id %} active{% endif %}" id="prov-card-{{ prov.id }}" role="button" tabindex="0" data-action="actionSetActiveProvider" data-prov-id="{{ prov.id }}" data-prov-name="{{ prov.name }}" data-prov-type="{{ prov.type }}" data-prov-created="{{ prov.created_at }}" data-ui="entity-row">
-        <span class="provider-identity">
+        <span class="entity-identity">
           <span id="prov-display-{{ prov.id }}" class="row-title" title="{{ prov.name }}">{{ prov.name }}</span>
           <span class="row-meta" title="{{ prov.type }} · {{ prov.model }}">{{ prov.type }} · {{ prov.model }}</span>
         </span>

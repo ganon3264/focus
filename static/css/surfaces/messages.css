@@ -155,6 +155,12 @@
   pointer-events: none;
 }
 
+/* A streaming turn has no hover toolbar, so there is nothing to make room for. */
+.message:is(.is-waiting, .is-reasoning, .is-content):hover .meta-right {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 @media (max-width: 639px) {
   .meta-right {
     display: none !important;
@@ -535,27 +541,50 @@
 
 .summary-boundary-edit {
   margin-left: auto;
-  letter-spacing: 0;
-  text-transform: none;
   color: var(--text-muted);
 }
 
-/* ── Streaming skeleton ───────────────────────────────────────────────────
-   Same rail and screen as a finished message. The loader rides the avatar's
-   own box, so it stays inside the frame instead of hanging off the rail. */
-.message-spinner {
-  position: absolute;
-  top: 0;
-  left: var(--msg-frame-pad);
-  right: auto;
-  z-index: 2;
-  width: var(--msg-avatar-size);
-  height: var(--msg-avatar-size);
+/* ── Pending turn ─────────────────────────────────────────────────────────
+   Nothing has arrived yet, so the screen stays out of the layout entirely and
+   the rail carries the only running thing: the spinner primitive plus its
+   readout, in the slot the model name later occupies. */
+.message-body:empty,
+.message-body.is-empty {
+  display: none;
 }
 
-.message:has(.message-spinner) .avatar {
-  position: relative;
-  z-index: 0;
+/* Right-anchored in the header's spare width, outside the meta row: the model
+   name and the reasoning toggle can grow without moving the ticker. */
+.message .message-pending {
+  display: none;
+  align-items: center;
+  gap: var(--gutter);
+  margin-left: auto;
+}
+
+/* The ticker runs for the whole generation; its lit hue names the phase: accent
+   while nothing has arrived, green while reasoning, the assistant's own colour
+   once real output is on the wire. */
+.message.is-waiting {
+  --tick-color: var(--accent);
+}
+
+.message.is-reasoning {
+  --tick-color: var(--success);
+}
+
+.message.is-content {
+  --tick-color: var(--role-assistant);
+}
+
+.message:is(.is-waiting, .is-reasoning, .is-content) .message-pending {
+  display: inline-flex;
+}
+
+/* A turn still on the wire is not editable: its toolbar would let a reader
+   race the stream that owns the node. */
+.message:is(.is-waiting, .is-reasoning, .is-content) .toolbar {
+  display: none;
 }
 
 .gen-pulse {

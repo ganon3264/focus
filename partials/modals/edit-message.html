@@ -1,52 +1,37 @@
-{% from "macros.html" import icon_expand, icon_plus, modal_footer %} {% from "modal-shell.html" import modal_shell %} {% call
+{% from "macros.html" import icon_plus, modal_footer %} {% from "modal-shell.html" import modal_shell %} {% call
 modal_shell('modal-edit-message', 'Edit Message', max_width='800px', foot=true,
 content_style='max-height:90vh;', z_index='100',
 dirty_fields='[data-ui="edit-block-ta"]', dirty_label='this message') %}
-<div class="flex-1 flex flex-col gap-4 min-h-0">
+{# One block per segment, each named by a rail that also carries its readout
+   (length) and its verb (expand). Reasoning starts collapsed because it is the
+   secondary half of the message; the text block is the one being edited. #}
+<form class="stacked-form" onsubmit="event.preventDefault(); saveMessageEdit();">
   <input type="hidden" id="edit-msg-id" />
   <input type="hidden" id="edit-msg-chat-id" />
 
-  <div id="edit-msg-blocks" class="flex flex-col gap-4"></div>
-</div>
+  <div id="edit-msg-blocks" class="msg-blocks"></div>
 
-<div class="shrink-0">
-  <div class="rail">
-    <span>Attachments</span>
-    <span class="rail-actions">
-    <button
-      class="btn create sm"
-      onclick="document.getElementById('edit-msg-attach-input').click()"
-    >
-      {{ icon_plus(14) }} Add Media
-    </button>
-    <input
-      type="file"
-      id="edit-msg-attach-input"
-      class="hidden"
-      multiple
-      accept="image/*,audio/*"
-      onchange="uploadMessageAttachment(this)"
-    />
-    </span>
+  <div class="msg-attachments">
+    <div class="rail">
+      <span>Attachments</span>
+      <div class="rail-actions flush">
+        <button type="button" class="btn sm create" onclick="document.getElementById('edit-msg-attach-input').click()">
+          {{ icon_plus(14) }} Add media
+        </button>
+      </div>
+    </div>
+    <div id="edit-msg-media" class="well msg-attachments-tray">
+      <div class="media-row">
+        <div id="edit-msg-attachments" class="media-row"></div>
+        <span class="note" id="edit-msg-att-empty">No attachments</span>
+      </div>
+    </div>
+    <input type="file" id="edit-msg-attach-input" class="hidden" multiple accept="image/*,audio/*" onchange="uploadMessageAttachment(this)" />
   </div>
-  <div
-    id="edit-msg-attachments"
-    class="edit-msg-drop well drag-target media-row empty:hidden p-3"
-  ></div>
-</div>
-{% call modal_footer(hint='') %}
-  <button
-    class="btn"
-    type="button"
-    onclick="closeModal('modal-edit-message')"
-  >
-    Cancel
-  </button>
-  <button class="btn primary" data-dirty-save onclick="saveMessageEdit()">Save</button>
+
+  {% call modal_footer() %}
+  <button class="btn" type="button" data-action="actionCloseModal" data-modal-id="modal-edit-message">Cancel</button>
+  <button class="btn primary" type="submit" data-dirty-save>Save</button>
+  {% endcall %}
+</form>
 {% endcall %}
-{% endcall %}
-<template id="edit-msg-expand-btn">
-  <button type="button" class="key sm field-expand" aria-label="Expand text area" data-action="actionOpenTextExpander">
-    {{ icon_expand(18) }}
-  </button>
-</template>

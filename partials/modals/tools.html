@@ -1,58 +1,66 @@
-{% from "macros.html" import hint_tooltip, icon_chevron_down, sort_dropdown, search_toolbar, slider_row, toggle %}
-<div x-data="toolsModal()" id="tools-modal-data" class="flex flex-col gap-4 flex-1 min-h-0" @multimodal-changed.window="enableMultimodal = $event.detail.value" @provider-changed.window="providerType = $event.detail.type || 'openai_compat'">
+{% from "macros.html" import hint_tooltip, icon_refresh, sort_dropdown, search_toolbar, slider_row, toggle %}
+<div x-data="toolsModal()" id="tools-modal-data" class="modal-bands" @multimodal-changed.window="enableMultimodal = $event.detail.value" @provider-changed.window="providerType = $event.detail.type || 'openai_compat'">
 
-  <!-- Enable Tool Calls toggle -->
-  <div class="row flat shrink-0" @click="toggleEnabled()">
-    <span class="row-title inline-flex items-center gap-1">
-      Enable tool calls
-      {{ hint_tooltip('Allow the assistant to call filesystem tools. Tools execute locally without sandboxing. <span class="note danger">This might be potentially dangerous!</span>') }}
-    </span>
-    <span class="row-actions">{{ toggle(':class="{ \'active\': enabled }" @click="toggleEnabled()"') }}</span>
+  <div class="modal-band-head">
+    <div class="rail">
+      <span>Tools</span>
+      {{ hint_tooltip('Tools the assistant may call mid-generation. They run locally without sandboxing. <span class="note danger">Only enable what you trust.</span>') }}
+      <div class="rail-actions flush">
+        <span class="row-label">enabled</span>
+        <span class="row-value" x-text="enabledCount + ' / ' + tools.length"></span>
+        <button
+          type="button"
+          class="key sm"
+          @click="reloadTools()"
+          :disabled="reloading"
+          title="Reload tools"
+          aria-label="Reload tools"
+        >
+          <span class="inline-flex" :class="reloading ? 'animate-spin' : ''">{{ icon_refresh(14) }}</span>
+        </button>
+      </div>
+    </div>
   </div>
 
-  <!-- Read-only Mode toggle (shown when enabled) -->
-  <div
-    x-show="enabled"
-    x-transition.opacity.duration.200ms
-    class="row flat shrink-0"
-    @click="toggleReadOnly()"
-  >
-    <span class="row-title inline-flex items-center gap-1">
-      Read-only mode
-      {{ hint_tooltip('When enabled, write marked tools are hidden from the model entirely regardless of whether they are individually enabled or not.') }}
-    </span>
-    <span class="row-actions">{{ toggle(':class="{ \'active\': readOnly }" @click="toggleReadOnly()"') }}</span>
-  </div>
-
-  <!-- Max Tool Iterations (shown when enabled) -->
-  {{ slider_row('Max Tool Iterations', 'maxIterations', '0', '100', '1', 0,
-    change='saveMaxIterations()', blur='', wrapper_classes='shrink-0',
-    wrapper_attrs='x-show="enabled" x-transition.opacity.duration.200ms',
-    hint='How many assistant/tool rounds the model may chain in a single turn before generation stops. Raise it for long multi-step tasks. Set to <span class="note warning">0 for unlimited</span>.') }}
-
-  <!-- Provider notice for non-supporting providers -->
-  <div
-    x-show="enabled && !providerSupportsTools"
-    class="well danger shrink-0 p-2"
-  >
-    <span class="note danger">
-      Tool calls are not supported by the current provider type (<span x-text="providerType"></span>). They will be automatically disabled during generation.
-    </span>
-  </div>
-
-  <!-- Available Tools List -->
-  <div x-show="enabled && providerSupportsTools" class="flex flex-col flex-1 min-h-0">
-    {% call search_toolbar('Search tools...', input_attrs='x-model="searchQuery"') %}
+  <div class="modal-band-toolbar" x-show="enabled && providerSupportsTools">
+    {% call search_toolbar('Search tools...', input_attrs='x-model="searchQuery"', wrapper_classes='') %}
       {{ sort_dropdown('focus_tools_sort', 'sortTools') }}
-      <button
-        class="btn sm flex items-center justify-center shrink-0 h-full"
-        @click="reloadTools()"
-        x-text="reloading ? 'Reloading...' : 'Reload'"
-      ></button>
     {% endcall %}
-    <div class="flex-1 overflow-y-auto min-h-[360px]">
+  </div>
+
+  <div class="modal-band-lane tool-pane">
+    <div class="rail">Settings</div>
+    <div class="tool-settings">
+      <div class="row setting">
+        <span class="row-title inline-flex items-center gap-1">
+          Enable tool calls
+          {{ hint_tooltip('Allow the assistant to call filesystem tools. Tools execute locally without sandboxing. <span class="note danger">This might be potentially dangerous!</span>') }}
+        </span>
+        <span class="row-actions">{{ toggle(':class="{ \'active\': enabled }" @click="toggleEnabled()"') }}</span>
+      </div>
+      <div class="row setting" x-show="enabled" x-cloak>
+        <span class="row-title inline-flex items-center gap-1">
+          Read-only mode
+          {{ hint_tooltip('When enabled, write marked tools are hidden from the model entirely regardless of whether they are individually enabled or not.') }}
+        </span>
+        <span class="row-actions">{{ toggle(':class="{ \'active\': readOnly }" @click="toggleReadOnly()"') }}</span>
+      </div>
+      <div x-show="enabled" x-cloak>
+        {{ slider_row('Max Tool Iterations', 'maxIterations', '0', '100', '1', 0,
+          change='saveMaxIterations()', blur='', wrapper_classes='',
+          hint='How many assistant/tool rounds the model may chain in a single turn before generation stops. Raise it for long multi-step tasks. Set to <span class="note warning">0 for unlimited</span>.') }}
+      </div>
+    </div>
+
+    <div x-show="enabled && !providerSupportsTools" class="well danger p-2">
+      <span class="note danger">
+        Tool calls are not supported by the current provider type (<span x-text="providerType"></span>). They will be automatically disabled during generation.
+      </span>
+    </div>
+
+    <div x-show="enabled && providerSupportsTools" class="tool-categories">
     <template x-for="(groupTools, category) in filteredTools" :key="category">
-      <div class="mb-3">
+      <div class="tool-category">
         <div class="rail cursor-pointer select-none" @click="toggleCategory(category)">
           <span x-text="category"></span>
           <span class="rail-actions flush">
@@ -102,6 +110,11 @@ document.addEventListener('alpine:init', function () {
 
       get providerSupportsTools() {
         return this.providerType !== 'no_provider';
+      },
+
+      get enabledCount() {
+        var states = this.toolStates || {};
+        return Object.keys(states).filter(function (k) { return states[k] === true; }).length;
       },
 
       get filteredTools() {

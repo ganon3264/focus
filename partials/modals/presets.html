@@ -1,0 +1,56 @@
+{% from "macros.html" import icon_plus, icon_upload, icon_copy, icon_edit, icon_trash, empty_state %}
+{# The preset collection: every preset is one row on two lines (name over its
+   weight in blocks), selecting it is the row's own click, and the row's verbs
+   are always visible — the popover this replaces hid them behind a hover in a
+   250px panel, which is most of why it was unusable. #}
+<div class="modal-bands">
+  <div class="modal-band-head">
+    <div class="rail">
+      <span>{{ presets|length }} {{ 'preset' if presets|length == 1 else 'presets' }}</span>
+      <div class="rail-actions flush">
+        <form onsubmit="importPreset(event)">
+          <label class="key sm" title="Import a preset" aria-label="Import preset">
+            {{ icon_upload(14) }}
+            <input type="file" name="file" accept=".json" class="hidden" onchange="this.closest('form').requestSubmit()" />
+          </label>
+        </form>
+        <button type="button" class="btn sm create" data-action="actionOpenNewPreset">
+          {{ icon_plus(14) }} New
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-band-lane">
+    {% if not presets %}
+    {{ empty_state('No presets yet. Create one to start writing a prompt.') }}
+    {% endif %}
+
+    <div class="preset-list" id="presets-grid">
+      {% for p in presets %}
+      {% set regular = p['blocks'] | rejectattr('block_type', 'equalto', 'variable') | list %}
+      {% set variables = p['blocks'] | selectattr('block_type', 'equalto', 'variable') | list %}
+      <div
+        class="row entity-row preset-row{% if p.id == current_preset_id %} active{% endif %}"
+        id="preset-row-{{ p.id }}"
+        role="button"
+        tabindex="0"
+        data-ui="entity-row"
+        data-action="actionSelectPreset"
+        data-preset-id="{{ p.id }}"
+        data-preset-name="{{ p.name }}"
+      >
+        <span class="entity-identity">
+          <span class="row-title" title="{{ p.name }}">{{ p.name }}</span>
+          <span class="row-meta">{{ regular|length }} blocks{% if variables %} · {{ variables|length }} variables{% endif %}</span>
+        </span>
+        <span class="row-actions">
+          <button type="button" class="key sm create" data-action="actionDuplicatePreset" title="Duplicate preset" aria-label="Duplicate preset">{{ icon_copy(14) }}</button>
+          <button type="button" class="key sm" data-action="actionRenamePreset" title="Rename preset" aria-label="Rename preset">{{ icon_edit(14) }}</button>
+          <button type="button" class="key sm danger" data-action="actionDeletePreset" title="Delete preset" aria-label="Delete preset">{{ icon_trash(14) }}</button>
+        </span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>

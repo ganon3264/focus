@@ -1,201 +1,191 @@
-{% from "macros.html" import custom_select, icon_trash, icon_search, hint_tooltip, modal_footer, toggle %} {% from "modal-shell.html" import modal_shell %} {% call modal_shell('modal-provider-create', 'Add Provider', max_width='500px', foot=true, z_index='100',
+{% from "macros.html" import custom_select, icon_trash, icon_search, icon_plus, icon_sliders, hint_tooltip, modal_footer, toggle %} {% from "modal-shell.html" import modal_shell %} {% call
+modal_shell('modal-provider-create', 'New Provider', max_width='600px', width='94vw', foot=true, z_index='100',
 dirty_fields='#provider-form input,#provider-form select,#provider-form textarea',
 dirty_label='#prov-form-name') %}
-<form id="provider-form" data-action="actionSubmitProviderForm" class="flex flex-col gap-3 flex-1">
-  <input type="hidden" name="edit_id" id="prov-form-edit-id" value="">
+{# One column, three named groups. The type picker stays third because the two
+   rows above it are what identifying a provider means; everything the type
+   changes sits directly under it, in its own plate. #}
+<form id="provider-form" data-action="actionSubmitProviderForm" class="stacked-form">
+  <input type="hidden" name="edit_id" id="prov-form-edit-id" value="" />
 
-  <div class="form-group">
-    <label>Name</label>
-    <input
-      type="text"
-      name="name"
-      id="prov-form-name"
-      required
-      placeholder="e.g. Local LLM"
-      class="field"
-    />
-  </div>
+  <section class="provider-section">
+    <div class="rail">Connection</div>
 
-  <div class="form-group">
-    <label>Type</label>
-    {{ custom_select( name="type", id="prov-form-type", options=provider_type_options(), selected="openai_compat", on_change="toggleProviderFields('prov-form')", extra_classes="w-full" ) }}
-  </div>
-
-  <div class="form-group" id="prov-form-baseurl">
-    <label>Base URL</label>
-    <input
-      type="text"
-      name="base_url"
-      id="prov-form-base-url"
-      placeholder="https://api.example.com/v1"
-      class="field"
-    />
-  </div>
-
-  <div class="form-group">
-    <div class="field-inline">
-      <span class="field-label inline-flex items-center gap-1">API Keys {{ hint_tooltip('Add more keys to switch between them easily. With more than one, a <span class="note success">Keys</span> row appears in the status panel in the lower left corner so you can rotate the active key on the fly.') }}</span>
-      <button type="button" class="link create" onclick="openSecretsModal('prov-form', true)">Add Key +</button>
+    <div class="row setting labeled fit">
+      <span class="row-title">Name</span>
+      <input type="text" name="name" id="prov-form-name" required placeholder="e.g. Local LLM" class="field" aria-label="Name" />
     </div>
-    <div id="prov-form-key-list" class="flex flex-col gap-1"></div>
-    <input type="hidden" name="api_keys_json" id="prov-form-api-keys" value="[]" />
-    <input type="hidden" name="api_key" id="api-key-input-prov-form" value="" />
-  </div>
-  <template id="prov-form-key-row-template">
-    <div class="row" data-ui="key-row">
-      <div class="grip arranger-handle" title="Drag to reorder"></div>
-      <span class="row-title" data-ui="key-row-label"></span>
-      <button type="button" class="key sm danger" data-action="actionRemoveProviderKey" aria-label="Remove key">{{ icon_trash(14) }}</button>
-    </div>
-  </template>
 
-  <!-- Default Model Input -->
-  <div class="form-group" id="prov-form-model-input">
-    <label>Model</label>
-    <div class="field-row">
-      <input
-        type="text"
-        name="model"
-        id="model-text-prov-form"
-        required
-        placeholder="gpt-4"
-        class="field"
-      />
-      <button
-        type="button"
-        class="key"
-        onclick="openFetchModelModal('prov-form')"
-        aria-label="Fetch models"
-        title="Fetch models from provider"
-      >
+    <div class="row setting labeled fit">
+      <span class="row-title">Type</span>
+      <div class="row-cell">
+        {{ custom_select(name="type", id="prov-form-type", options=provider_type_options(), selected="openai_compat", on_change="toggleProviderFields('prov-form')") }}
+      </div>
+    </div>
+
+    <div class="row setting labeled fit" id="prov-form-baseurl">
+      <span class="row-title">Base URL</span>
+      <input type="text" name="base_url" id="prov-form-base-url" placeholder="https://api.example.com/v1" class="field" aria-label="Base URL" />
+    </div>
+
+    <div class="row setting labeled fit" id="prov-form-model-input">
+      <span class="row-title">Model</span>
+      <input type="text" name="model" id="model-text-prov-form" required placeholder="gpt-4" class="field" />
+      <button type="button" class="key" onclick="openFetchModelModal('prov-form')" aria-label="Fetch models" title="Fetch models from provider">
         {{ icon_search(16) }}
       </button>
     </div>
-  </div>
 
-  <!-- Auto-retry (applies to every provider type) -->
-  <div class="row flat" style="margin-top: var(--u)">
-    <label class="row-title" onclick="toggleRetryEnabled('prov-form')">Auto-retry failed requests</label>
-    <span class="row-actions">
-      <button type="button" class="link" onclick="openRetryModal()">More…</button>
-      {{ toggle('id="prov-form-retry-toggle" aria-label="Auto-retry failed requests" onclick="toggleRetryEnabled(\'prov-form\')"', active=true) }}
-    </span>
-    <input type="hidden" name="retry_enabled" id="prov-form-retry-enabled" value="true" />
-  </div>
-
-  {% call modal_shell('modal-provider-retry', 'Auto-retry settings', max_width='440px', width='95vw', foot=true, z_index='200') %}
-  <div class="flex flex-col gap-3" onkeydown="if (event.key === 'Enter' && event.target.tagName !== 'BUTTON') event.preventDefault()">
-    <div class="flex gap-2">
-      <div class="form-group mb-0 flex-1">
-        <label class="text-xs">Max retries</label>
-        <input type="number" name="retry_max_retries" id="prov-form-retry-max" step="1" value="5" class="field" onchange="refreshRetryHint()" />
+    {# Whatever the chosen type brings on top of the common fields, right under
+       the picker that made it appear. #}
+    <div id="prov-form-or-fields" class="well provider-plate hidden">
+      <div class="rail">OpenRouter Routing</div>
+      <div class="row setting labeled fit">
+        <span class="row-title">Provider Routing {{ hint_tooltip('Pin requests to one upstream endpoint. Fetch the model first — the list is the endpoints that actually serve it.') }}</span>
+        <input type="hidden" name="or_route" id="prov-form-or-route" value="" />
+        <button type="button" class="field select" onclick="openRouteSelectModal('prov-form')">
+          <span id="or-route-display-prov-form" class="truncate">Auto (Any)</span>
+          <span class="opacity-50">{{ icon_search() }}</span>
+        </button>
       </div>
-      <div class="form-group mb-0 flex-1">
-        <label class="text-xs">Base delay (s)</label>
-        <input type="number" name="retry_base_delay" id="prov-form-retry-base" step="0.5" value="2" class="field" />
+      <div id="prov-form-or-no-fallbacks-row" class="row setting hidden">
+        <span class="row-title">Lock to that provider {{ hint_tooltip('The request fails instead of falling back to another endpoint when the pinned one errors.') }}</span>
+        <span class="row-actions">{{ toggle('id="prov-form-or-no-fallbacks-toggle" onclick="toggleNoFallbacks(\'prov-form\')"', active=true) }}</span>
+        <input type="hidden" name="or_no_fallbacks" id="prov-form-or-no-fallbacks" value="true" />
       </div>
-      <div class="form-group mb-0 flex-1">
-        <label class="text-xs">Max delay (s)</label>
-        <input type="number" name="retry_max_delay" id="prov-form-retry-max-delay" step="0.5" value="20" class="field" />
+      <div class="row setting labeled fit">
+        <span class="row-title">Quantization {{ hint_tooltip('Only accept endpoints serving this weight format. Leave on Any unless you are chasing a specific quality or speed.') }}</span>
+        <input type="hidden" name="or_quant" id="prov-form-or-quant" value="" />
+        <button type="button" class="field select" onclick="openQuantSelectModal('prov-form')">
+          <span id="or-quant-display-prov-form" class="truncate">Any</span>
+          <span class="opacity-50">{{ icon_search() }}</span>
+        </button>
+      </div>
+      <div class="row setting labeled fit">
+        <span class="row-title">Service Tier {{ hint_tooltip('Some providers sell the same model at several grades of capacity. <b>Flex</b> is cheaper but slower and less available; <b>Priority</b> is faster and more reliable at a higher price; <b>Ultrafast</b> is OpenAIs lowest-latency tier, billed at several times the standard rate. Leave on Default to never request a non-standard tier.') }}</span>
+        <input type="hidden" name="or_service_tier" id="prov-form-or-service-tier" value="" />
+        <button type="button" class="field select" onclick="openServiceTierSelectModal('prov-form')">
+          <span id="or-service-tier-display-prov-form" class="truncate">Default (standard)</span>
+          <span class="opacity-50">{{ icon_search() }}</span>
+        </button>
       </div>
     </div>
-    <div class="flex flex-wrap items-center gap-3">
-      <label class="check-row">
-        <input type="checkbox" class="check" name="retry_rate_limit" id="prov-form-retry-rate" onchange="refreshRetryHint()" /> Rate limit (429)
-      </label>
-      <label class="check-row">
-        <input type="checkbox" class="check" name="retry_server_error" id="prov-form-retry-server" checked onchange="refreshRetryHint()" /> Server errors (5xx)
-      </label>
-      <label class="check-row">
-        <input type="checkbox" class="check" name="retry_timeout" id="prov-form-retry-timeout" checked onchange="refreshRetryHint()" /> Timeouts / connection errors
-      </label>
-    </div>
-    <div class="form-group">
-      <label class="text-xs">Additional HTTP status codes {{ hint_tooltip('Comma-separated, retried in addition to the classes above. Transport failures have no status code — use the Timeouts box for those.') }}</label>
-      <input type="text" name="retry_extra_statuses" id="prov-form-retry-extra" placeholder="e.g. 408, 425" class="field" onchange="refreshRetryHint()" />
-    </div>
-    <div id="prov-form-retry-hint" class="note hidden">No retry classes or status codes selected — auto-retry will do nothing.</div>
-    {% call modal_footer(hint='') %}
-      <button type="button" class="btn primary" onclick="closeModal('modal-provider-retry')">Done</button>
-    {% endcall %}
-  </div>
-  {% endcall %}
 
-  <!-- OpenRouter Dynamic Fields (route, no-fallbacks, quant, tier — model uses shared input above) -->
-  <div id="prov-form-or-fields" class="hidden flex-col gap-3">
-    <div class="form-group">
-      <label>Provider Routing</label>
-      <input type="hidden" name="or_route" id="prov-form-or-route" value="" />
-      <button type="button" class="field select" onclick="openRouteSelectModal('prov-form')">
-        <span id="or-route-display-prov-form" class="truncate">Auto (Any)</span>
-        <span class="opacity-50">{{ icon_search() }}</span>
-      </button>
+    <div id="prov-form-vertex-fields" class="well provider-plate hidden">
+      <div class="rail">Vertex AI</div>
+      <div class="row setting labeled fit">
+        <span class="row-title">Project ID</span>
+        <input type="text" name="vertex_project_id" id="prov-form-vertex-project-id" placeholder="Blank uses ADC" class="field" />
+      </div>
+      <div class="row setting labeled fit">
+        <span class="row-title">Region</span>
+        <div class="row-cell">
+          {{ custom_select(name="vertex_region", id="prov-form-vertex-region", options=[
+            {"value": "global", "label": "Global"},
+            {"value": "us-central1", "label": "us-central1 (Iowa)"},
+            {"value": "us-east4", "label": "us-east4 (N. Virginia)"},
+            {"value": "us-west1", "label": "us-west1 (Oregon)"},
+            {"value": "us-west4", "label": "us-west4 (Las Vegas)"},
+            {"value": "europe-west1", "label": "europe-west1 (Belgium)"},
+            {"value": "europe-west2", "label": "europe-west2 (London)"},
+            {"value": "europe-west3", "label": "europe-west3 (Frankfurt)"},
+            {"value": "europe-west4", "label": "europe-west4 (Netherlands)"},
+            {"value": "europe-west9", "label": "europe-west9 (Paris)"},
+            {"value": "asia-northeast1", "label": "asia-northeast1 (Tokyo)"},
+            {"value": "asia-northeast3", "label": "asia-northeast3 (Seoul)"},
+            {"value": "asia-southeast1", "label": "asia-southeast1 (Singapore)"}],
+            selected="global") }}
+        </div>
+      </div>
     </div>
-    <div id="prov-form-or-no-fallbacks-row" class="row flat hidden" onclick="toggleNoFallbacks('prov-form')">
-      <span class="row-title">Lock provider (no fallbacks)</span>
-      <span class="row-actions">{{ toggle('id="prov-form-or-no-fallbacks-toggle" onclick="toggleNoFallbacks(\'prov-form\')"', active=true) }}</span>
-      <input type="hidden" name="or_no_fallbacks" id="prov-form-or-no-fallbacks" value="true" />
-    </div>
-    <div class="form-group">
-      <label>Quantization</label>
-      <input type="hidden" name="or_quant" id="prov-form-or-quant" value="" />
-      <button type="button" class="field select" onclick="openQuantSelectModal('prov-form')">
-        <span id="or-quant-display-prov-form" class="truncate">Any</span>
-        <span class="opacity-50">{{ icon_search() }}</span>
-      </button>
-    </div>
-    <div class="form-group">
-      <label>Service Tier {{ hint_tooltip('Some providers sell the same model at several grades of capacity. <b>Flex</b> is cheaper but slower and less available; <b>Priority</b> is faster and more reliable at a higher price; <b>Ultrafast</b> is OpenAIs lowest-latency tier, billed at several times the standard rate. Leave on Default to never request a non-standard tier.') }}</label>
-      <input type="hidden" name="or_service_tier" id="prov-form-or-service-tier" value="" />
-      <button type="button" class="field select" onclick="openServiceTierSelectModal('prov-form')">
-        <span id="or-service-tier-display-prov-form" class="truncate">Default (standard)</span>
-        <span class="opacity-50">{{ icon_search() }}</span>
-      </button>
-    </div>
-  </div>
+  </section>
 
-  <!-- Vertex Dynamic Fields -->
-  <div id="prov-form-vertex-fields" class="hidden flex-col gap-3">
-    <div class="form-group">
-      <label>Project ID</label>
-      <input
-        type="text"
-        name="vertex_project_id"
-        id="prov-form-vertex-project-id"
-        placeholder="Optional (Uses ADC if blank)"
-        class="field"
-      />
+  <section class="provider-section">
+    <div class="rail">
+      <span>Credentials</span>
+      <span class="row-value" id="prov-form-key-count">0 keys</span>
+      {{ hint_tooltip('Keys are tried in order — drag to reorder. With more than one, a <span class="note success">Keys</span> row appears in the status panel so you can rotate the active key on the fly.') }}
+      <div class="rail-actions flush">
+        <button type="button" class="btn sm create" onclick="openSecretsModal('prov-form', true)">
+          {{ icon_plus(12) }} Add Key
+        </button>
+      </div>
     </div>
-    <div class="form-group">
-      <label>Region</label>
-      {{ custom_select( name="vertex_region", id="prov-form-vertex-region", options=[ {"value": "global", "label": "Global"}, {"value": "us-central1", "label": "us-central1 (Iowa)"}, {"value": "us-east4", "label": "us-east4 (N. Virginia)"}, {"value": "us-west1", "label": "us-west1 (Oregon)"}, {"value": "us-west4", "label": "us-west4 (Las Vegas)"}, {"value": "europe-west1", "label": "europe-west1 (Belgium)"}, {"value": "europe-west2", "label": "europe-west2 (London)"}, {"value": "europe-west3", "label": "europe-west3 (Frankfurt)"}, {"value": "europe-west4", "label": "europe-west4 (Netherlands)"}, {"value": "europe-west9", "label": "europe-west9 (Paris)"}, {"value": "asia-northeast1", "label": "asia-northeast1 (Tokyo)"}, {"value": "asia-northeast3", "label": "asia-northeast3 (Seoul)"}, {"value": "asia-southeast1", "label": "asia-southeast1 (Singapore)"} ], selected="global", extra_classes="w-full" ) }}
+    <div id="prov-form-key-list" class="provider-keys"></div>
+    <input type="hidden" name="api_keys_json" id="prov-form-api-keys" value="[]" />
+    <input type="hidden" name="api_key" id="api-key-input-prov-form" value="" />
+  </section>
+
+  <section class="provider-section">
+    <div class="rail">Advanced</div>
+    <div class="row setting">
+      <span class="row-title" onclick="toggleRetryEnabled('prov-form')">Auto-retry failed requests</span>
+      <span class="row-meta" id="prov-form-retry-summary">off</span>
+      <span class="row-actions">
+        <button type="button" class="key sm" onclick="openRetryModal()" title="Retry settings" aria-label="Retry settings">{{ icon_sliders(14) }}</button>
+        {{ toggle('id="prov-form-retry-toggle" aria-label="Auto-retry failed requests" onclick="toggleRetryEnabled(\'prov-form\')"', active=true) }}
+      </span>
+      <input type="hidden" name="retry_enabled" id="prov-form-retry-enabled" value="true" />
     </div>
+  </section>
+
+  <div class="hidden">
+    <input type="hidden" name="params" id="prov-form-params" value="{}" />
+    <input type="hidden" name="config" id="prov-form-config" value="{}" />
   </div>
 
-  <div class="form-group hidden">
-    <label>Params JSON</label>
-    <input
-      type="text"
-      name="params"
-      id="prov-form-params"
-      value="{}"
-      class="field"
-    />
-  </div>
-
-  <div class="form-group hidden">
-    <label>Config JSON</label>
-    <input
-      type="text"
-      name="config"
-      id="prov-form-config"
-      value="{}"
-      class="field"
-    />
-  </div>
-
-  {% call modal_footer(hint='') %}
-    <button type="submit" id="prov-form-submit-btn" class="btn create ml-auto" data-dirty-save>Add Provider</button>
+  {% call modal_footer(text='Unsaved changes') %}
+  <button type="submit" id="prov-form-submit-btn" class="btn create ml-auto" data-dirty-save>Add Provider</button>
   {% endcall %}
 </form>
+
+<template id="prov-form-key-row-template">
+  <div class="row" data-ui="key-row">
+    <div class="grip arranger-handle" title="Drag to reorder"></div>
+    <span class="row-title" data-ui="key-row-label"></span>
+    <button type="button" class="key sm danger" data-action="actionRemoveProviderKey" aria-label="Remove key">{{ icon_trash(14) }}</button>
+  </div>
+</template>
+
+{% call modal_shell('modal-provider-retry', 'Auto-retry settings', max_width='440px', width='95vw', foot=true, z_index='200') %}
+<div class="flex flex-col gap-3" onkeydown="if (event.key === 'Enter' && event.target.tagName !== 'BUTTON') event.preventDefault()">
+  <div class="retry-rows">
+    <div class="row setting">
+      <span class="row-title">Max retries</span>
+      <input type="number" name="retry_max_retries" id="prov-form-retry-max" step="1" value="5" class="field sm num" onchange="refreshRetryHint()" />
+    </div>
+    <div class="row setting">
+      <span class="row-title">Base delay (s)</span>
+      <input type="number" name="retry_base_delay" id="prov-form-retry-base" step="0.5" value="2" class="field sm num" onchange="refreshRetryHint()" />
+    </div>
+    <div class="row setting">
+      <span class="row-title">Max delay (s)</span>
+      <input type="number" name="retry_max_delay" id="prov-form-retry-max-delay" step="0.5" value="20" class="field sm num" onchange="refreshRetryHint()" />
+    </div>
+    <div class="row setting">
+      <span class="row-title">Rate limit (429)</span>
+      <span class="row-actions"><input type="checkbox" class="check" name="retry_rate_limit" id="prov-form-retry-rate" onchange="refreshRetryHint()" /></span>
+    </div>
+    <div class="row setting">
+      <span class="row-title">Server errors (5xx)</span>
+      <span class="row-actions"><input type="checkbox" class="check" name="retry_server_error" id="prov-form-retry-server" checked onchange="refreshRetryHint()" /></span>
+    </div>
+    <div class="row setting">
+      <span class="row-title">Timeouts / connection errors</span>
+      <span class="row-actions"><input type="checkbox" class="check" name="retry_timeout" id="prov-form-retry-timeout" checked onchange="refreshRetryHint()" /></span>
+    </div>
+    <div class="row setting fit">
+      <span class="row-title inline-flex items-center gap-1">
+        Additional statuses
+        {{ hint_tooltip('Comma-separated, retried in addition to the classes above. Transport failures have no status code — use the Timeouts box for those.') }}
+      </span>
+      <input type="text" name="retry_extra_statuses" id="prov-form-retry-extra" placeholder="e.g. 408, 425" class="field sm" onchange="refreshRetryHint()" />
+    </div>
+  </div>
+  <div id="prov-form-retry-hint" class="note hidden">No retry classes or status codes selected — auto-retry will do nothing.</div>
+  {% call modal_footer(hint='') %}
+  <button type="button" class="btn primary" onclick="closeModal('modal-provider-retry')">Done</button>
+  {% endcall %}
+</div>
+{% endcall %}
 {% endcall %}

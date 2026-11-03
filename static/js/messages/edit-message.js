@@ -57,29 +57,103 @@
     ta.rows = Math.max(3, Math.min(lines, 20));
   }
 
-  function createEditTextarea(idx, variant, content) {
+  function countText(ta) {
+    var n = (ta.value || '').length;
+    return n ? n.toLocaleString() + ' chars' : '';
+  }
+
+  // One editable segment is one block: a rail that names it and carries its
+  // readout, then the textarea. The rail owns the verbs, so nothing floats over
+  // the text and there is no native resize grip to fight the auto-height.
+  function createBlock(name, idx, content, collapsible) {
+    var section = document.createElement('section');
+    section.className = 'msg-block' + (collapsible ? ' collapsed' : '');
+
+    var rail = document.createElement('div');
+    rail.className = 'rail';
+
+    if (collapsible) {
+      var toggle = document.createElement('button');
+      toggle.type = 'button';
+      toggle.className = 'key sm';
+      toggle.title = 'Show or hide ' + name.toLowerCase();
+      toggle.setAttribute('aria-label', toggle.title);
+      toggle.dataset.action = 'actionToggleEditBlock';
+      toggle.innerHTML = '<span class="caret-mark"></span>';
+      rail.appendChild(toggle);
+    }
+
+    var label = document.createElement('span');
+    label.textContent = name;
+    rail.appendChild(label);
+
+    var count = document.createElement('span');
+    count.className = 'row-value';
+    count.dataset.ui = 'block-count';
+    rail.appendChild(count);
+
+    var actions = document.createElement('div');
+    actions.className = 'rail-actions flush';
+    var expand = document.createElement('button');
+    expand.type = 'button';
+    expand.className = 'key sm';
+    expand.title = 'Expand editor';
+    expand.setAttribute('aria-label', 'Expand editor');
+    expand.dataset.action = 'actionOpenTextExpander';
+    expand.dataset.targetId = 'edit-msg-ta-' + idx;
+    expand.dataset.expanderTitle = 'Edit ' + name;
+    expand.innerHTML = window.getSvgSprite('expand', 16);
+    actions.appendChild(expand);
+    rail.appendChild(actions);
+
     var ta = document.createElement('textarea');
-    ta.className = 'field edit-block-ta edit-block-ta--' + variant;
+    ta.className = 'field sized msg-block-text';
     ta.dataset.ui = 'edit-block-ta';
     ta.id = 'edit-msg-ta-' + idx;
     ta.setAttribute('data-block-idx', idx);
     ta.rows = 3;
     ta.value = content || '';
     autoResizeTextarea(ta);
+    ta.addEventListener('input', function () {
+      autoResizeTextarea(ta);
+      count.textContent = countText(ta);
+    });
+    count.textContent = countText(ta);
 
-    var wrapper = document.createElement('div');
-    wrapper.className = 'textarea-wrapper';
-    wrapper.appendChild(ta);
+    section.appendChild(rail);
+    section.appendChild(ta);
+    return section;
+  }
 
-    var tpl = document.getElementById('edit-msg-expand-btn');
-    if (tpl) {
-      var btn = tpl.content.cloneNode(true).firstElementChild;
-      btn.setAttribute('data-target-id', ta.id);
-      btn.setAttribute('data-expander-title', 'Edit Block');
-      wrapper.appendChild(btn);
+  // A collapsed block hides its textarea, not the rail: the name and the length
+  // stay readable while the text is out of the way.
+  window.actionToggleEditBlock = function (el) {
+    var section = el.closest('.msg-block');
+    if (!section) return;
+    var collapsed = section.classList.toggle('collapsed');
+    var caret = el.querySelector('.caret-mark');
+    if (caret) caret.classList.toggle('caret-open', !collapsed);
+  };
+
+  function renderToolBlock(calls) {
+    var section = document.createElement('section');
+    section.className = 'msg-block';
+    var rail = document.createElement('div');
+    rail.className = 'rail';
+    rail.innerHTML = '<span>Tool calls</span>';
+    section.appendChild(rail);
+    if (!calls || !calls.length) {
+      var sep = document.createElement('div');
+      sep.className = 'divider';
+      section.appendChild(sep);
+      return section;
     }
-
-    return wrapper;
+    var body = window.buildToolCallsSection();
+    for (var c = 0; c < calls.length; c++) {
+      body.appendChild(renderToolCallCard(calls[c]));
+    }
+    section.appendChild(body);
+    return section;
   }
 
   function renderEditBlocks(blocks) {
@@ -89,34 +163,12 @@
 
     for (var i = 0; i < blocks.length; i++) {
       var blk = blocks[i];
-
       if (blk.type === 'reasoning') {
-        var details = document.createElement('details');
-        details.className = 'disclosure reasoning-block';
-        details.dataset.ui = 'reasoning-block';
-        details.innerHTML =
-          '<summary>' +
-          '<span class="caret-mark reasoning-chevron" aria-hidden="true"></span>' +
-          '<span>Reasoning</span>' +
-          '</summary>' +
-          '<div style="margin-top:0.5rem"></div>';
-        container.appendChild(details);
-        var wrapper = details.querySelector('div');
-        wrapper.appendChild(createEditTextarea(i, 'reasoning', blk.content));
+        container.appendChild(createBlock('Reasoning', i, blk.content, true));
       } else if (blk.type === 'text') {
-        container.appendChild(createEditTextarea(i, 'text', blk.content));
+        container.appendChild(createBlock('Text', i, blk.content, false));
       } else if (blk.type === 'tool_boundary') {
-        if (blk.calls && blk.calls.length > 0) {
-          var tcSection = window.buildToolCallsSection();
-          for (var c = 0; c < blk.calls.length; c++) {
-            tcSection.appendChild(renderToolCallCard(blk.calls[c]));
-          }
-          container.appendChild(tcSection);
-        } else {
-          var sep = document.createElement('div');
-          sep.className = 'divider';
-          container.appendChild(sep);
-        }
+        container.appendChild(renderToolBlock(blk.calls));
       }
     }
   }
@@ -149,16 +201,15 @@
     if (!container) return;
 
     container.innerHTML = '';
-    if (window.currentEditAttachments.length === 0) {
-      container.innerHTML = '<div class="empty">No attachments</div>';
-      return;
-    }
+    var empty = document.getElementById('edit-msg-att-empty');
+    if (empty) empty.classList.toggle('hidden', window.currentEditAttachments.length > 0);
+    if (window.currentEditAttachments.length === 0) return;
 
     window.currentEditAttachments.forEach(function (att, idx) {
       var thumbnail = window.createMediaThumbnail({
         src: att.file_path || '',
         mimeType: att.mime_type,
-        size: 64,
+        size: 48,
         onDelete: function () {
           window.deleteModalAttachment(idx);
         },
@@ -277,7 +328,7 @@
   };
 
   if (typeof window.setupDropZone === 'function') {
-    window.setupDropZone('#edit-msg-attachments', window.uploadMessageAttachmentFiles);
+    window.setupDropZone('#edit-msg-media', window.uploadMessageAttachmentFiles);
   }
 
   window._buildEditBlocks = buildEditBlocks;

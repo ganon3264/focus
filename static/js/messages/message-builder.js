@@ -37,8 +37,65 @@
     return tpl('tpl-message-content');
   };
 
-  window.buildMessageSpinner = function () {
-    return tpl('tpl-message-spinner');
+  window.buildMessagePending = function () {
+    return tpl('tpl-message-pending');
+  };
+
+  window.showMessagePending = function (asstDiv) {
+    var lines = asstDiv && asstDiv.querySelector('.message-header-lines');
+    if (!lines || lines.querySelector('[data-ui="message-pending"]')) return;
+    var pending = window.buildMessagePending();
+    if (pending) lines.appendChild(pending);
+  };
+
+  window.hideMessagePending = function (asstDiv) {
+    if (!asstDiv) return;
+    var pending = asstDiv.querySelectorAll('[data-ui="message-pending"]');
+    for (var i = 0; i < pending.length; i++) pending[i].remove();
+    asstDiv.classList.remove('is-waiting', 'is-reasoning', 'is-content');
+  };
+
+  // "Has a child" and "has output" are two different questions. A segment that
+  // has arrived proves the model answered, even while its reasoning is folded
+  // (the screen stays out of the layout, but the phase is no longer waiting).
+  // The ticker stays up for the whole run; the phase only changes its hue.
+  window.syncStreamingView = function (asstDiv) {
+    if (!asstDiv) return;
+    // Only a node that is on the wire carries a phase class. A finished message
+    // calling in (opening its reasoning) must not sprout a ticker.
+    if (
+      !asstDiv.classList.contains('is-waiting') &&
+      !asstDiv.classList.contains('is-reasoning') &&
+      !asstDiv.classList.contains('is-content')
+    ) return;
+    var body = asstDiv.querySelector('[data-ui="message-body"]');
+    if (!body) return;
+    var visible = false;
+    var hasOutput = false;
+    var kids = body.children;
+    for (var i = 0; i < kids.length; i++) {
+      var el = kids[i];
+      if (el.matches('[data-ui~="message-content"]')) {
+        hasOutput = true;
+        if (el.textContent.trim()) visible = true;
+        continue;
+      }
+      if (el.matches('[data-ui="reasoning-block"]')) {
+        var content = el.querySelector('[data-ui~="reasoning-content"]');
+        if (content && !content.classList.contains('hidden') && (el.tagName !== 'DETAILS' || el.open)) {
+          visible = true;
+        }
+        continue;
+      }
+      hasOutput = true;
+      visible = true;
+    }
+    var phase = kids.length === 0 ? 'is-waiting' : (hasOutput ? 'is-content' : 'is-reasoning');
+    body.classList.toggle('is-empty', !visible);
+    asstDiv.classList.toggle('is-waiting', phase === 'is-waiting');
+    asstDiv.classList.toggle('is-reasoning', phase === 'is-reasoning');
+    asstDiv.classList.toggle('is-content', phase === 'is-content');
+    window.showMessagePending(asstDiv);
   };
 
   window.buildToolCallsSection = function () {
@@ -56,9 +113,10 @@
     var div = window.buildMessageShell('assistant');
     if (!div) return null;
     fillHeader(div, charName, charImagePath, (charName || 'A')[0]);
+    div.classList.add('is-waiting');
     var body = messageBody(div);
-    body.appendChild(window.buildMessageContent());
-    body.appendChild(window.buildMessageSpinner());
+    if (body) body.classList.add('is-empty');
+    window.showMessagePending(div);
     return div;
   };
 

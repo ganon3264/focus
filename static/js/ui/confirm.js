@@ -35,12 +35,13 @@
   }
 
   document.addEventListener('htmx:confirm', function (e) {
-    e.preventDefault();
     var message = e.detail.question;
-    if (!message) {
-      e.detail.issueRequest(true);
-      return;
-    }
+    // No question means htmx would issue the request on its own; preventing the
+    // default would resolve its promise without sending anything, and the
+    // re-entrant issueRequest then races htmx's per-source "last wins" queue
+    // (a queued reload is silently dropped).
+    if (!message) return;
+    e.preventDefault();
     window.openConfirmModal(message, function () {
       e.detail.issueRequest(true);
     });

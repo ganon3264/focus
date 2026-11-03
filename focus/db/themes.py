@@ -10,74 +10,104 @@ from focus.core.utils import now_iso
 BUILTIN_SLATE_ID = "builtin-slate"
 BUILTIN_MIDNIGHT_ID = "builtin-midnight"
 BUILTIN_LIGHT_ID = "builtin-light"
-BUILTIN_INSTRUMENT_ID = "builtin-instrument"
+
+RETIRED_BUILTIN_IDS = ("builtin-instrument",)
 
 BUILTIN_THEMES = [
     {
         "id": BUILTIN_SLATE_ID,
-        "name": "Slate (Default)",
+        "name": "Graphite",
         "colors": {
-            "--bg": "#1b1e23",
-            "--surface": "#2a2e34",
-            "--surface-2": "#32373e",
-            "--surface-3": "#3c424a",
-            "--border": "#444b54",
-            "--accent": "#6366f1",
-            "--text": "#eef0f3",
-            "--text-muted": "#9aa3ae",
-            "--role-user": "#10b981",
-            "--role-assistant": "#f59e0b",
-        },
-    },
-    {
-        "id": BUILTIN_MIDNIGHT_ID,
-        "name": "Midnight (OLED)",
-        "colors": {
-            "--bg": "#000000",
-            "--surface": "#090909",
-            "--surface-2": "#111111",
-            "--surface-3": "#1a1a1a",
-            "--border": "#222222",
+            "--bg": "#121213",
+            "--surface": "#1c1c1e",
+            "--surface-2": "#262628",
+            "--surface-3": "#323234",
+            "--border": "#3e3e42",
             "--accent": "#3b82f6",
-            "--text": "#ffffff",
-            "--text-muted": "#9ca3af",
+            "--text": "#ececee",
+            "--text-muted": "#a2a2a8",
+            "--text-faint": "#74757b",
             "--role-user": "#34d399",
             "--role-assistant": "#fbbf24",
         },
     },
     {
         "id": BUILTIN_LIGHT_ID,
-        "name": "Light",
+        "name": "Paper",
         "colors": {
-            "--bg": "#f8fafc",
+            "--bg": "#f5f6f8",
             "--surface": "#ffffff",
-            "--surface-2": "#f1f5f9",
-            "--surface-3": "#e2e8f0",
-            "--border": "#e2e8f0",
-            "--accent": "#4f46e5",
-            "--text": "#0f172a",
-            "--text-muted": "#64748b",
-            "--role-user": "#059669",
-            "--role-assistant": "#d97706",
+            "--surface-2": "#eef0f3",
+            "--surface-3": "#e1e4e9",
+            "--border": "#d3d7de",
+            "--accent": "#1d4ed8",
+            "--text": "#15181d",
+            "--text-muted": "#59606d",
+            "--text-faint": "#7d838e",
+            "--role-user": "#047857",
+            "--role-assistant": "#b45309",
         },
     },
     {
-        "id": BUILTIN_INSTRUMENT_ID,
-        "name": "Instrument (Amber)",
+        "id": BUILTIN_MIDNIGHT_ID,
+        "name": "Void (OLED)",
         "colors": {
-            "--bg": "#1c1f23",
-            "--surface": "#2b2f35",
-            "--surface-2": "#33383f",
-            "--surface-3": "#3d434b",
-            "--border": "#454b54",
-            "--accent": "#f0b429",
-            "--text": "#eceef1",
-            "--text-muted": "#a3abb5",
-            "--role-user": "#4ade80",
-            "--role-assistant": "#38bdf8",
+            "--bg": "#000000",
+            "--surface": "#08090a",
+            "--surface-2": "#101214",
+            "--surface-3": "#191c1f",
+            "--border": "#24282d",
+            "--accent": "#a3e635",
+            "--text": "#f3f4f6",
+            "--text-muted": "#9aa3ad",
+            "--text-faint": "#6b737d",
+            "--role-user": "#22d3ee",
+            "--role-assistant": "#c084fc",
         },
     },
 ]
+
+# The palettes the previous built-in seeds shipped. Used only by the migration:
+# a row still carrying these exact colours is untouched, so a user's in-place
+# edits are never overwritten. Edited rows are left alone (Reset repaints them).
+LEGACY_BUILTIN_COLORS = {
+    "builtin-slate": {
+        "--bg": "#1b1e23",
+        "--surface": "#2a2e34",
+        "--surface-2": "#32373e",
+        "--surface-3": "#3c424a",
+        "--border": "#444b54",
+        "--accent": "#6366f1",
+        "--text": "#eef0f3",
+        "--text-muted": "#9aa3ae",
+        "--role-user": "#10b981",
+        "--role-assistant": "#f59e0b",
+    },
+    "builtin-midnight": {
+        "--bg": "#000000",
+        "--surface": "#090909",
+        "--surface-2": "#111111",
+        "--surface-3": "#1a1a1a",
+        "--border": "#222222",
+        "--accent": "#3b82f6",
+        "--text": "#ffffff",
+        "--text-muted": "#9ca3af",
+        "--role-user": "#34d399",
+        "--role-assistant": "#fbbf24",
+    },
+    "builtin-light": {
+        "--bg": "#f8fafc",
+        "--surface": "#ffffff",
+        "--surface-2": "#f1f5f9",
+        "--surface-3": "#e2e8f0",
+        "--border": "#e2e8f0",
+        "--accent": "#4f46e5",
+        "--text": "#0f172a",
+        "--text-muted": "#64748b",
+        "--role-user": "#059669",
+        "--role-assistant": "#d97706",
+    },
+}
 
 DARK_SLOT_KEY = "dark_theme_id"
 LIGHT_SLOT_KEY = "light_theme_id"
@@ -100,6 +130,31 @@ async def seed_builtin_themes(db: aiosqlite.Connection) -> None:
             "INSERT INTO themes (id, name, colors_json, is_system, created_at) VALUES (?, ?, ?, 1, ?)",
             (theme["id"], theme["name"], json.dumps(theme["colors"]), now_iso()),
         )
+
+
+async def migrate_builtin_themes(db: aiosqlite.Connection) -> None:
+    """Repaint unedited built-ins and drop retired ids. Idempotent."""
+    for theme in BUILTIN_THEMES:
+        legacy = LEGACY_BUILTIN_COLORS.get(theme["id"])
+        if legacy is None:
+            continue
+        async with db.execute(
+            "SELECT colors_json FROM themes WHERE id = ? AND is_system = 1", (theme["id"],)
+        ) as cur:
+            row = await cur.fetchone()
+        if not row or json.loads(row["colors_json"] or "{}") != legacy:
+            continue
+        await db.execute(
+            "UPDATE themes SET name = ?, colors_json = ? WHERE id = ? AND is_system = 1",
+            (theme["name"], json.dumps(theme["colors"]), theme["id"]),
+        )
+    for retired in RETIRED_BUILTIN_IDS:
+        await db.execute("UPDATE characters SET theme_id = NULL WHERE theme_id = ?", (retired,))
+        await db.execute(
+            "DELETE FROM settings WHERE key IN (?, ?) AND value = ?",
+            (DARK_SLOT_KEY, LIGHT_SLOT_KEY, retired),
+        )
+        await db.execute("DELETE FROM themes WHERE id = ? AND is_system = 1", (retired,))
 
 
 async def delete_legacy_theme_setting(db: aiosqlite.Connection) -> None:

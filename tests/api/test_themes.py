@@ -24,7 +24,7 @@ async def test_list_seeded_builtins(client):
     assert len(themes) == len(BUILTIN_THEMES)
     assert all(t["is_system"] for t in themes)
     slate = next(t for t in themes if t["id"] == "builtin-slate")
-    assert slate["colors"]["--bg"] == "#1b1e23"
+    assert slate["colors"]["--bg"] == "#121213"
     assert "created_at" in slate
 
 
@@ -80,8 +80,8 @@ async def test_reset_builtin_theme(client):
     assert resp.status_code == 200
     themes = (await client.get("/api/themes/")).json()
     slate = next(t for t in themes if t["id"] == "builtin-slate")
-    assert slate["name"] == "Slate (Default)"
-    assert slate["colors"]["--bg"] == "#1b1e23"
+    assert slate["name"] == "Graphite"
+    assert slate["colors"]["--bg"] == "#121213"
 
 
 async def test_reset_custom_theme_conflict(client):

@@ -164,4 +164,38 @@ function dispatchKey(key) {
   assertEqual(window.ModalController.isOpen('global-confirm-modal'), false, 'ESC: confirm not re-opened');
 })();
 
+// ── htmx:confirm without a question leaves the request alone ──
+(function () {
+  var prevented = 0;
+  var issued = [];
+  var ev = {
+    type: 'htmx:confirm',
+    detail: { question: null, issueRequest: function (v) { issued.push(v); } },
+    preventDefault: function () { prevented++; },
+  };
+  (doc._handlers['htmx:confirm'] || []).forEach(function (fn) { fn(ev); });
+  assertEqual(prevented, 0, 'htmx:confirm: no question means no preventDefault');
+  assertEqual(issued.length, 0, 'htmx:confirm: no question means no re-issue');
+  assertEqual(window.ModalController.isOpen('global-confirm-modal'), false, 'htmx:confirm: no dialog for a plain request');
+})();
+
+// ── htmx:confirm with a question prompts, then issues on accept ──
+(function () {
+  var prevented = 0;
+  var issued = [];
+  var ev = {
+    type: 'htmx:confirm',
+    detail: { question: 'Delete it?', issueRequest: function (v) { issued.push(v); } },
+    preventDefault: function () { prevented++; },
+  };
+  (doc._handlers['htmx:confirm'] || []).forEach(function (fn) { fn(ev); });
+  assertEqual(prevented, 1, 'htmx:confirm: question holds the request');
+  assertEqual(issued.length, 0, 'htmx:confirm: nothing issued before the answer');
+  assertEqual(confirmMessage.textContent, 'Delete it?', 'htmx:confirm: question rendered');
+
+  confirmBtn.dispatchEvent({ type: 'click' });
+  assertEqual(issued.length, 1, 'htmx:confirm: accepted request re-issued');
+  assertEqual(issued[0], true, 'htmx:confirm: re-issued past the confirm hook');
+})();
+
 h.printSummary();

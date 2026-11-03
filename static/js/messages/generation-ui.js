@@ -30,16 +30,13 @@
     for (var k = 0; k < staleBlocks.length; k++) staleBlocks[k].remove();
 
     var reasoningBtn = asstDiv.querySelector('[data-ui="reasoning-toggle-btn"]');
-    if (reasoningBtn) reasoningBtn.classList.add('hidden');
-    asstDiv.classList.remove('reasoning-open');
-
-    // Spinner may be missing because swipe/continue reuse server HTML which has no spinner
-    var spinner = asstDiv.querySelector('[data-ui="message-spinner"]');
-    if (!spinner) {
-      spinner = window.buildMessageSpinner();
-      asstDiv.appendChild(spinner);
+    if (reasoningBtn) {
+      reasoningBtn.classList.add('hidden');
+      var reasoningSep = reasoningBtn.previousElementSibling;
+      if (reasoningSep && reasoningSep.classList.contains('meta-sep')) reasoningSep.classList.add('hidden');
     }
-    spinner.classList.remove('hidden');
+    asstDiv.classList.remove('reasoning-open');
+    asstDiv.classList.add('is-waiting');
 
     if (continueText || continueReasoning) {
       var contentDiv = asstDiv.querySelector('[data-ui~="message-content"]');
@@ -64,5 +61,8 @@
       var contentDivs = asstDiv.querySelectorAll('[data-ui~="message-content"]');
       for (var j = 0; j < contentDivs.length; j++) contentDivs[j].remove();
     }
+    // The rail carries the waiting state; the screen only appears once there is
+    // visible output, so a reasoning-only stretch does not leave an empty plate.
+    window.syncStreamingView(asstDiv);
   };
 })();

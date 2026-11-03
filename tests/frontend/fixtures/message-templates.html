@@ -47,11 +47,11 @@
 <template id="tpl-message-content">
 <div class="message-content markdown-content processed pl-stream" data-ui="message-content markdown-content"></div>
 </template>
-<template id="tpl-message-spinner"><div class="message-spinner" data-ui="message-spinner"></div></template>
+<template id="tpl-message-pending"><span class="row-meta message-pending" data-ui="message-pending"><span class="spinner scan" aria-hidden="true"><i></i><i></i><i></i><i></i></span></span></template>
 <template id="tpl-reasoning-toggle">
 <button
   data-action="actionToggleReasoning"
-  class="reasoning-toggle-btn link hidden"
+  class="reasoning-toggle-btn link meta hidden"
   data-ui="reasoning-toggle-btn"
   aria-label="Toggle reasoning"
 >

@@ -185,6 +185,16 @@
 
 .key.primary.danger {
   background-color: var(--danger);
+  background-image: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--danger), white 14%),
+    color-mix(in srgb, var(--danger), black 10%)
+  );
+  color: var(--text-on-accent);
+}
+
+.key.primary.danger:hover {
+  color: var(--text-on-accent);
 }
 
 /* ── .nav — icon + label tile ────────────────────────────────────────────── */
@@ -195,14 +205,38 @@
   justify-content: flex-start;
 }
 
-/* ── .link — text action ─────────────────────────────────────────────────── */
+/* ── .link — text action ───────────────────────────────────────────────────
+   A verb without a plate: it earns its affordance from ink and cursor, never
+   from a rule under the text — an underline turns every text action in the app
+   into a hyperlink in a document, which is not what these are. */
 .link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--u);
   height: var(--control-h);
   padding: 0 var(--u);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.link:hover {
+  color: var(--text);
+}
+
+/* A text action that sits inside a readout line (the message rail's reasoning
+   toggle) borrows that line's voice instead of introducing a second one. */
+.link.meta {
+  height: auto;
+  padding: 0;
   font-family: var(--font-mono-ui);
   font-size: 10px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--text-faint);
+}
+
+.link.meta:hover {
+  color: var(--text);
 }
 
 /* ── .chip — toggleable pill ─────────────────────────────────────────────── */
@@ -256,9 +290,6 @@
 :is(.btn, .nav, .chip).create {
   background-image:
     linear-gradient(var(--success-tint), var(--success-tint)), var(--mat-raise-fill);
-  box-shadow:
-    var(--mat-raise),
-    inset 0 0 0 var(--hair-w) var(--success-edge);
   color: var(--success);
 }
 
@@ -269,24 +300,39 @@
   color: var(--success-hover);
 }
 
+/* Destructive ink on the standard plate, no edge ring: under mat-raise only the
+   ring's verticals survive, which reads as a stray 1px on the button's sides. */
 :is(.btn, .nav, .chip).danger {
   color: var(--danger);
-  box-shadow:
-    var(--mat-raise),
-    inset 0 0 0 var(--hair-w) var(--danger-edge);
 }
 
 :is(.btn, .nav, .chip).danger:hover {
   color: var(--danger-hover);
 }
 
-:is(.key, .link, .tab).create {
+:is(.link, .tab).create {
   color: var(--success);
-  box-shadow: inset 0 0 0 var(--hair-w) var(--success-edge);
 }
 
-:is(.key, .link, .tab).create:hover {
+:is(.link, .tab).create:hover {
   background-image: linear-gradient(var(--success-tint), var(--success-tint));
+  color: var(--success-hover);
+}
+
+/* An icon create is the same tinted plate as a labelled one: the hue is the
+   whole cue, so there is no edge ring — its verticals were all that survived
+   under the plate's own 1px highlight and shade. */
+.key.create {
+  background-image:
+    linear-gradient(var(--success-tint), var(--success-tint)), var(--mat-raise-fill);
+  box-shadow: var(--mat-raise);
+  color: var(--success);
+}
+
+.key.create:hover {
+  background-image:
+    linear-gradient(var(--success-tint-strong), var(--success-tint-strong)),
+    linear-gradient(var(--mat-hi), var(--mat-shade));
   color: var(--success-hover);
 }
 
@@ -321,7 +367,11 @@
   border-radius: var(--radius-control);
   background-color: var(--mat-well);
   background-image: none;
-  box-shadow: var(--mat-inset);
+  /* The shadow alone vanishes on a near-black surface; the hairline is what
+     keeps the recess readable on OLED. */
+  box-shadow:
+    var(--mat-inset),
+    inset 0 0 0 var(--hair-w) var(--hair);
   font-family: var(--font-sans);
   font-size: 12px;
   line-height: var(--control-h);
@@ -355,9 +405,14 @@
 
 /* Numeric readouts are centred and intrinsic; a compact text field is not a
    number and keeps the field's own left inset. */
+/* Numeric inputs are readouts: accent ink and a faint bloom make the value
+   legible as a display rather than a hole in the plate. */
 .field.num {
   font-variant-numeric: tabular-nums;
   text-align: center;
+  color: var(--accent);
+  caret-color: var(--accent);
+  text-shadow: 0 0 6px color-mix(in srgb, var(--accent) 28%, transparent);
 }
 
 .field.sm.num {
@@ -371,6 +426,13 @@ textarea.field {
   font-size: 13px;
   line-height: calc(var(--u) * 6);
   resize: vertical;
+}
+
+/* A text field whose height is decided for it (by the pane or by its rows): the
+   native grip would fight that layout, so it is off. (Not `.fixed` — that is a
+   Tailwind utility, and utilities beat this file's own classes.) */
+textarea.field.sized {
+  resize: none;
 }
 
 /* A field that opens a picker instead of taking text: a select-shaped button. */
@@ -418,6 +480,8 @@ textarea.field {
 /* A colour well that fills its cell (a palette grid) rather than standing on its
    own as a chip. */
 .field.color {
+  flex: none;
+  width: calc(var(--u) * 16);
   height: var(--control-h-lg);
   min-height: 0;
   padding: 2px;
@@ -444,30 +508,48 @@ textarea.field {
   cursor: pointer;
 }
 
+/* The trough is deeper than a field well and wears a hairline, so the track
+   still reads on a near-black or a near-white surface. The thumb is the one
+   filled element in the row: accent is state, like a checked box. */
 .field[type='range']::-webkit-slider-runnable-track {
-  height: var(--u);
+  height: calc(var(--u) * 1.5);
   border-radius: var(--radius-control);
   background-color: var(--mat-well);
-  box-shadow: var(--mat-inset);
+  box-shadow:
+    var(--mat-inset),
+    inset 0 0 0 var(--hair-w) var(--hair-strong);
 }
 
 .field[type='range']::-webkit-slider-thumb {
   -webkit-appearance: none;
   width: calc(var(--u) * 3);
   height: calc(var(--u) * 5);
-  margin-top: calc((var(--u) - var(--u) * 5) / 2);
+  margin-top: calc((var(--u) * 1.5 - var(--u) * 5) / 2);
   border: none;
   border-radius: var(--radius-control);
-  background-color: var(--surface);
-  background-image: var(--mat-raise-fill);
-  box-shadow: var(--mat-raise);
+  background-color: var(--accent);
+  background-image: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--accent), white 18%),
+    color-mix(in srgb, var(--accent), black 12%)
+  );
+  box-shadow:
+    inset 0 var(--hair-w) 0 color-mix(in srgb, var(--accent), white 30%),
+    0 var(--hair-w) 0 var(--mat-edge);
+  cursor: grab;
+}
+
+.field[type='range']:active::-webkit-slider-thumb {
+  cursor: grabbing;
 }
 
 .field[type='range']::-moz-range-track {
-  height: var(--u);
+  height: calc(var(--u) * 1.5);
   border-radius: var(--radius-control);
   background-color: var(--mat-well);
-  box-shadow: var(--mat-inset);
+  box-shadow:
+    var(--mat-inset),
+    inset 0 0 0 var(--hair-w) var(--hair-strong);
 }
 
 .field[type='range']::-moz-range-thumb {
@@ -475,9 +557,16 @@ textarea.field {
   height: calc(var(--u) * 5);
   border: none;
   border-radius: var(--radius-control);
-  background-color: var(--surface);
-  background-image: var(--mat-raise-fill);
-  box-shadow: var(--mat-raise);
+  background-color: var(--accent);
+  background-image: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--accent), white 18%),
+    color-mix(in srgb, var(--accent), black 12%)
+  );
+  box-shadow:
+    inset 0 var(--hair-w) 0 color-mix(in srgb, var(--accent), white 30%),
+    0 var(--hair-w) 0 var(--mat-edge);
+  cursor: grab;
 }
 
 /* ── .check — tick box, and the radio's shape too ──────────────────────────
@@ -687,10 +776,29 @@ textarea.field {
   --row-edge: inset 0 var(--hair-w) 0 var(--hair-lit);
 }
 
+/* A lone row that is a control rather than the tail of a list still closes
+   underneath: the preset readout in the sidebar is one row, and without the
+   groove's dark line it reads as an open-ended line above the section groove.
+   Modifier, not a surface override — `:last-child` outranks a surface's class,
+   and primitives load last. */
+.row.grooved {
+  --row-edge: var(--hair-groove);
+}
+
 .row:hover {
   background-color: var(--ink-1);
   box-shadow: var(--row-edge);
   color: var(--text);
+}
+
+/* A settings line is not a list row: the control is the target, so the line
+   keeps no hover band and no pointer of its own. */
+.row.setting {
+  cursor: default;
+}
+
+.row.setting:hover {
+  background-color: transparent;
 }
 
 .row.active {
@@ -704,6 +812,49 @@ textarea.field {
 .row.sm {
   min-height: var(--control-h-sm);
   font-size: 12px;
+}
+
+/* One line of a settings column: as tall as the control it holds, its text
+   inset from the plate, and no groove — the column spaces its own lines, and a
+   hover band needs margins around the caption instead of running edge to edge.
+   Shared by every settings surface (samplers, provider form, retry, themes,
+   tools). */
+.row.setting,
+.field-row.setting {
+  --row-edge: none;
+  min-height: var(--control-h);
+  padding-inline: var(--gutter);
+}
+
+/* The caption is one voice whichever line it sits on — a slider's and a
+   toggle's caption must not drift apart in size or weight. */
+.row.setting > .row-title,
+.field-row.setting > .row-title {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: color-mix(in srgb, var(--text) 82%, transparent);
+}
+
+/* The caption column: fixed width, so every control in the column starts on the
+   same line however long the captions are. */
+.row.labeled > .row-title,
+.field-row.labeled > .row-title {
+  flex: 0 0 calc(var(--u) * 44);
+}
+
+/* A caption column sized for a side pane, where the full column would leave the
+   control too little room to be read (the entity editor's identity rows). */
+.row.labeled.tight > .row-title,
+.field-row.labeled.tight > .row-title {
+  flex: 0 0 calc(var(--u) * 22);
+}
+
+/* A field that fills the rest of its row instead of taking its own width. */
+.row.fit > .field {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
 }
 
 /* A settings row inside a form column: its label lines up with the fields above
@@ -762,6 +913,9 @@ textarea.field {
   font-size: 10px;
   font-weight: 400;
   letter-spacing: 0.02em;
+  /* A value is data, never an engraved label: it stays as typed even inside a
+     caps rail. */
+  text-transform: none;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -812,7 +966,9 @@ textarea.field {
 /* A row inside a well is a readout, not a table entry: the well is already the
    frame, so the row paints no groove of its own. */
 .well > .row,
-.well > .row:last-child {
+.well > .row:last-child,
+.card > .row,
+.card > .row:last-child {
   --row-edge: none;
 }
 
@@ -870,11 +1026,18 @@ textarea.field {
   box-sizing: border-box;
   border: none;
   border-radius: var(--radius-control);
-  background-color: var(--surface-2);
-  background-image: none;
+  background-color: var(--surface-3);
+  background-image: var(--mat-raise-fill);
   box-shadow:
     inset 0 0 0 var(--hair-w) var(--hair-strong),
-    0 calc(var(--u) * 4) calc(var(--u) * 10) color-mix(in srgb, black 45%, transparent);
+    var(--mat-raise),
+    0 calc(var(--u) * 5) calc(var(--u) * 10) color-mix(in srgb, black 45%, transparent);
+}
+
+/* A menu is a panel of rows: the inset keeps a hover band and the active rail
+   off the rounded corners instead of flush with them. */
+.panel.menu {
+  padding: var(--u);
 }
 
 /* ── .card — thumbnail + data ────────────────────────────────────────────── */
@@ -963,6 +1126,26 @@ textarea.field {
 
 .disclosure-body {
   padding: var(--gutter);
+}
+
+/* A disclosure that is a row in a column of rows, not a raised panel: the head
+   is the row, the body is the column under it. For groups that are optional
+   rather than primary — a plate there would read as a button in the stack. */
+.disclosure.rowlike {
+  border-radius: 0;
+  background-color: transparent;
+  background-image: none;
+  box-shadow: var(--hair-groove);
+}
+
+.disclosure.rowlike > summary {
+  height: var(--control-h-lg);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+  color: color-mix(in srgb, var(--text) 82%, transparent);
 }
 
 /* Slots inside the head. The head is a flex row of caret · title · meta, so the
@@ -1159,7 +1342,11 @@ textarea.field {
   border: none;
   border-radius: var(--radius-control);
   background-color: var(--surface-3);
+  background-image: var(--mat-raise-fill);
+  /* A floating layer, not a card: the hairline defines its edge (the drop
+     shadow has nothing to fall into on OLED), the highlight keeps it plated. */
   box-shadow:
+    inset 0 0 0 var(--hair-w) var(--hair-strong),
     var(--mat-raise),
     0 var(--u) calc(var(--u) * 4) color-mix(in srgb, black 30%, transparent);
   font-family: var(--font-sans);
@@ -1167,6 +1354,20 @@ textarea.field {
   line-height: calc(var(--u) * 4);
   color: var(--text);
   pointer-events: none;
+}
+
+/* The hint's own point: a rotated square whose upper halves carry the same
+   hairline, tying the plate to the icon above it. */
+.tooltip::before {
+  content: '';
+  position: absolute;
+  top: calc(-1 * var(--u) * 0.75);
+  left: 50%;
+  width: calc(var(--u) * 1.5);
+  height: calc(var(--u) * 1.5);
+  transform: translateX(-50%) rotate(45deg);
+  background-color: var(--surface-3);
+  box-shadow: inset var(--hair-w) var(--hair-w) 0 var(--hair-strong);
 }
 
 /* ── .spinner — four steps, not a smooth circle rotation ─────────────────── */
@@ -1179,6 +1380,41 @@ textarea.field {
   border-top-color: var(--accent);
   background: none;
   animation: primitive-step 1s steps(4, end) infinite;
+}
+
+/* A four-slot ticker: one lit cell runs the track, the rest stay recessed
+   sockets. Chunky enough to read at a glance beside a 10px readout. */
+.spinner.scan {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  width: auto;
+  height: auto;
+  border: none;
+  background: none;
+  animation: none;
+}
+
+.spinner.scan > i {
+  display: block;
+  width: calc(var(--u) * 2);
+  height: calc(var(--u) * 2);
+  border-radius: var(--radius-control);
+  background-color: var(--ink-2);
+  box-shadow: inset 0 0 0 var(--hair-w) var(--hair);
+  animation: pending-tick 1s linear infinite;
+}
+
+.spinner.scan > i:nth-child(2) {
+  animation-delay: 250ms;
+}
+
+.spinner.scan > i:nth-child(3) {
+  animation-delay: 500ms;
+}
+
+.spinner.scan > i:nth-child(4) {
+  animation-delay: 750ms;
 }
 
 .spinner.sm {
@@ -1204,6 +1440,13 @@ textarea.field {
 @media (prefers-reduced-motion: reduce) {
   .spinner {
     animation: none;
+  }
+
+  .spinner.scan > i {
+    animation: none;
+    background-color: var(--tick-color, var(--accent));
+    box-shadow: inset 0 0 0 var(--hair-w) var(--tick-color, var(--accent));
+    opacity: 0.55;
   }
 }
 
@@ -1240,6 +1483,8 @@ textarea.field {
   border-radius: var(--radius-control);
   background: none;
   box-shadow: inset 0 0 0 var(--hair-w) var(--hair);
+  flex: none;
+  white-space: nowrap;
   font-family: var(--font-mono-ui);
   font-size: 9px;
   letter-spacing: 0.06em;
@@ -1312,20 +1557,12 @@ textarea.field {
   height: var(--control-h);
 }
 
-.pager-num {
-  min-width: var(--control-h-lg);
-  height: var(--control-h);
+/* Page numbers are the same plated control as a chevron key, just wide enough
+   for digits: unselected sit raised, the current page takes the primary tint. */
+.pager > .btn {
+  min-width: var(--control-h);
   padding: 0 var(--u);
-  font-family: var(--font-mono-ui);
-  font-size: 11px;
   font-variant-numeric: tabular-nums;
-  text-align: center;
-  color: var(--text-muted);
-}
-
-.pager-num.active {
-  box-shadow: inset 0 0 0 var(--hair-w) var(--edge);
-  color: var(--accent);
 }
 
 /* ── .favorite-active — the one amber flag ────────────────────────────────

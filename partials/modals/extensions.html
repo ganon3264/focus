@@ -1,25 +1,37 @@
-{% from "macros.html" import hint_tooltip, icon_chevron_down, search_toolbar, toggle %}
-<div x-data="extensionsModal()" id="extensions-modal-data" class="flex flex-col gap-4 flex-1 min-h-0">
+{% from "macros.html" import hint_tooltip, icon_refresh, icon_chevron_down, search_toolbar, toggle %}
+<div x-data="extensionsModal()" id="extensions-modal-data" class="modal-bands">
 
-  {% call search_toolbar('Search extensions...', input_attrs='x-model="searchQuery"') %}
-    <button
-      class="btn sm flex items-center justify-center shrink-0 h-full"
-      @click="reload()"
-      x-text="reloading ? 'Reloading...' : 'Reload'"
-    ></button>
-  {% endcall %}
+  <div class="modal-band-head">
+    <div class="rail">
+      <span>Extensions</span>
+      {{ hint_tooltip('Extensions run as trusted scripts with no sandbox and are triggered from the message toolbar — unlike tools, which the model calls mid-generation. They can read your database and files with your privileges. <span class="note danger">Only install code you trust.</span>') }}
+      <div class="rail-actions flush">
+        <span class="row-label">installed</span>
+        <span class="row-value" x-text="overallCount"></span>
+        <button
+          type="button"
+          class="key sm"
+          @click="reload()"
+          :disabled="reloading"
+          title="Reload extensions"
+          aria-label="Reload extensions"
+        >
+          <span class="inline-flex" :class="reloading ? 'animate-spin' : ''">{{ icon_refresh(14) }}</span>
+        </button>
+      </div>
+    </div>
+  </div>
 
-  <p class="note shrink-0">
-    Extensions run as trusted scripts with no sandbox — verify the code before installing. They can read
-    your database and files with your privileges.
-    {{ hint_tooltip('Extensions are triggered from the message toolbar, unlike tools which the model calls mid-generation. <span class="note danger">Treat them like tools: only install code you trust.</span>') }}
-  </p>
+  <div class="modal-band-toolbar">
+    {{ search_toolbar('Search extensions...', input_attrs='x-model="searchQuery"', wrapper_classes='') }}
+  </div>
 
-  <div x-show="!loaded" class="empty">Loading…</div>
+  <div class="modal-band-lane">
+    <div x-show="!loaded" class="empty">Loading…</div>
 
-  <div class="flex-1 overflow-y-auto min-h-[360px]">
+    <div class="tool-categories">
     <template x-for="(groupExtensions, category) in grouped" :key="category">
-      <div class="mb-3">
+      <div class="tool-category">
         <div class="rail cursor-pointer select-none" @click="toggleCategory(category)">
           <span x-text="category"></span>
           <span class="rail-actions flush">
@@ -79,7 +91,7 @@
                           <div
                             x-show="open"
                             x-transition.opacity.duration.200ms
-                            class="panel absolute top-full left-0 right-0 mt-1 z-50 max-h-60 overflow-y-auto"
+                            class="panel menu absolute top-full left-0 right-0 mt-1 z-50 max-h-60 overflow-y-auto"
                             style="display: none;"
                           >
                             <template x-for="opt in p.enum" :key="opt">
@@ -143,6 +155,7 @@
     </template>
 
     <div x-show="loaded && overallCount === 0" class="text-muted text-sm">No extensions found. Drop a <code>.json</code> spec + script into <code>extensions/</code>.</div>
+    </div>
   </div>
 </div>
 

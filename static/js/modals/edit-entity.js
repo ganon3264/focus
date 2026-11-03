@@ -96,6 +96,19 @@
       if (pid) window.reloadPromptArranger(pid);
     }
 
+    // A description is the longest thing in the form; its size is the number
+    // people actually want to see while writing it.
+    var descEl = eid('-desc');
+    var descCountEl = eid('-desc-count');
+
+    function updateDescCount() {
+      if (!descEl || !descCountEl) return;
+      var n = (descEl.value || '').length;
+      descCountEl.textContent = n ? n.toLocaleString() + ' chars' : '';
+    }
+
+    if (descEl) descEl.addEventListener('input', updateDescCount);
+
     function greetingSection() {
       return document.getElementById(cfg.idPrefix + '-greeting-section');
     }
@@ -154,6 +167,7 @@
       var name = btn.dataset[P + 'Name'] || '';
       eid('-name').value = name;
       eid('-desc').value = btn.dataset[P + 'Desc'] || '';
+      updateDescCount();
       var groupInput = eid('-group');
       if (groupInput) groupInput.value = btn.dataset[P + 'Group'] || '';
       var cardFields = {

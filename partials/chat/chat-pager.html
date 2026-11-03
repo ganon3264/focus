@@ -13,7 +13,7 @@
   {% for n in pagination.page_numbers %}
   <button
     type="button"
-    class="pager-num{% if n == pagination.page %} active{% endif %}"
+    class="btn{% if n == pagination.page %} primary{% endif %}"
     onclick="goToChatPage({{ n }})"
     {% if n == pagination.page %}aria-current="page"{% endif %}
   >{{ n }}</button>

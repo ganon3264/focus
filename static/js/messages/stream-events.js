@@ -21,6 +21,7 @@
       if (bodyEl) bodyEl.appendChild(el);
     }
     state.segments.push({ type: type, el: el });
+    window.syncStreamingView(state.asstDiv);
   }
 
   function _findOrCreateSegment(state, type, createFn) {
@@ -86,6 +87,7 @@
       }
     }
     if (firstRendered && window._updateReasoningButton) window._updateReasoningButton(firstRendered);
+    window.syncStreamingView(state.asstDiv);
     if (firstRendered && window.autoScroll && window.scrollSentinel) {
       window.scrollSentinel.scrollIntoView({ block: 'end', behavior: 'instant' });
     }
@@ -307,10 +309,9 @@
       }
       window._updateReasoningButton(firstText || state.asstDiv);
     }
-    // Generation is over: the spinner must not depend on the post-stream refresh
-    // finding this node (it does not, if the row has nothing stored).
-    var spinner = state.asstDiv.querySelector('[data-ui="message-spinner"]');
-    if (spinner) spinner.remove();
+    // Generation is over: the pending rail state must not depend on the post-stream
+    // refresh finding this node (it does not, if the row has nothing stored).
+    window.hideMessagePending(state.asstDiv);
     window.bindAssistantIdentity(state);
   };
 })();

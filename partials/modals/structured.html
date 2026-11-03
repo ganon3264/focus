@@ -1,16 +1,14 @@
 {% from "macros.html" import hint_tooltip %}
-{# Body of the Structured Response tab in the Advanced modal. #}
-<div class="flex flex-col h-full min-h-0">
-  <div class="text-xs text-muted mb-2 shrink-0">
-    Send a JSON schema with the request and render the model's JSON reply through a
-    Handlebars template. Responses always generate buffered (no live streaming).
-    {{ hint_tooltip('Only one response is active per scope; a preset response overrides a global one. The schema is sent as response_format (json_schema). Macros like <code>{{char}}</code> or <code>{{getvar::name}}</code> resolve in both the schema and the template at generation time; triple braces insert raw, double braces escape.') }}
+{# Body of the Structured Response tab in the Advanced modal. The lane is the
+   swap target: the list partial re-renders its own scope rails. #}
+<div class="modal-bands">
+  <div class="modal-band-head">
+    <div class="rail">
+      <span>Structured</span>
+      {{ hint_tooltip('Send a JSON schema with the request and render the model\'s JSON reply through a Handlebars template. Responses always generate buffered (no live streaming). Only one response is active per scope; a preset response overrides a global one. The schema is sent as response_format (json_schema). Macros like <code>{{char}}</code> or <code>{{getvar::name}}</code> resolve in both the schema and the template at generation time; triple braces insert raw, double braces escape.') }}
+    </div>
   </div>
-  <div
-    id="structured-responses-container"
-    class="flex-1 min-h-0 overflow-y-auto scroll-fade pr-1"
-    data-ui="scroll-fade"
-  >
-    <div class="text-muted text-sm py-4 text-center">Loading…</div>
+  <div id="structured-responses-container" class="modal-band-lane">
+    <div class="empty">Loading…</div>
   </div>
 </div>

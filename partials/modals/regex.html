@@ -1,16 +1,14 @@
 {% from "macros.html" import hint_tooltip %}
-{# Body of the Regex tab in the Advanced modal. #}
-<div class="flex flex-col h-full min-h-0">
-  <div class="text-xs text-muted mb-2 shrink-0">
-    Server-side transforms.
-    <strong>Global</strong> scripts run first, then the current preset's.
-    {{ hint_tooltip('<b>Prompt</b> rewrites the text sent to the model. <b>Display</b> rewrites the rendered chat. <b>Block</b> turns the display match into a collapsible block (capture group 1, or the whole match if there is no group) titled by the script name. Stored messages are never changed. In Block mode the Replace box only affects the prompt side. Depth counts back from the newest message (0 = newest).') }}
+{# Body of the Regex tab in the Advanced modal. The lane is the swap target: the
+   list partial re-renders its own scope rails (Global, then the preset's). #}
+<div class="modal-bands">
+  <div class="modal-band-head">
+    <div class="rail">
+      <span>Regex</span>
+      {{ hint_tooltip('Server-side transforms. <b>Global</b> scripts run first, then the current preset\'s. <b>Prompt</b> rewrites the text sent to the model. <b>Display</b> rewrites the rendered chat. <b>Block</b> turns the display match into a collapsible block (capture group 1, or the whole match if there is no group) titled by the script name. Stored messages are never changed. In Block mode the Replace box only affects the prompt side. Depth counts back from the newest message (0 = newest).') }}
+    </div>
   </div>
-  <div
-    id="regex-scripts-container"
-    class="flex-1 min-h-0 overflow-y-auto scroll-fade pr-1"
-    data-ui="scroll-fade"
-  >
-    <div class="text-muted text-sm py-4 text-center">Loading…</div>
+  <div id="regex-scripts-container" class="modal-band-lane">
+    <div class="empty">Loading…</div>
   </div>
 </div>

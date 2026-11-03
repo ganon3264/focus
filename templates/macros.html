@@ -65,7 +65,7 @@
    <div x-show="open" @click.away="open = false" x-transition.opacity.duration.200ms
         :class="dropUp ? 'bottom-full mb-1' : 'top-full mt-1'"
         :style="{ maxHeight: panelMax + 'px' }"
-        class="panel absolute left-0 right-0 z-50 overflow-y-auto"
+        class="panel menu absolute left-0 right-0 z-50 overflow-y-auto"
         style="display: none;">
 
       {% for opt in options %}
@@ -122,7 +122,7 @@
           >{{ icon_chevron_down(12) }}</span>
   </button>
   <div x-show="open" @click.away="open = false" x-transition.opacity.duration.200ms
-       class="panel absolute top-full right-0 mt-1 z-50"
+       class="panel menu absolute top-full right-0 mt-1 z-50"
                style="display: none; min-width: 120px;">
     <div class="row"
          :class="{ 'active': active === 'newest' }"
@@ -175,7 +175,7 @@
           >{{ icon_chevron_down(12) }}</span>
   </button>
   <div x-show="open" @click.away="open = false" x-transition.opacity.duration.200ms
-       class="panel absolute top-full right-0 mt-1 z-50 max-h-60 overflow-y-auto"
+       class="panel menu absolute top-full right-0 mt-1 z-50 max-h-60 overflow-y-auto"
        style="display: none; min-width: 150px;">
     <div class="row"
          :class="{ 'active': mode === 'all' }"
@@ -204,21 +204,19 @@
 
 {% macro slider_row(label, model, min, max, step, dec=0, change='saveStandard()', blur=None, hint='', wrapper_classes='', wrapper_attrs='', input_attrs='') %}
 {% if blur is none %}{% set blur = '$el.value = fmt(parseFloat($el.value) || 0, ' ~ (dec | int) ~ ')' %}{% endif %}
-<div class="form-group{{ (' ' ~ wrapper_classes) if wrapper_classes else '' }}"{% if wrapper_attrs %} {{ wrapper_attrs | safe }}{% endif %}>
-  <div class="field-inline">
-    <span class="field-label inline-flex items-center gap-1">
-      {{ label }}
-      {% if hint %}{{ hint_tooltip(hint) }}{% endif %}
-    </span>
-    <input type="text" inputmode="{{ 'numeric' if (dec | int) == 0 else 'decimal' }}"
-      x-model.number="{{ model }}"
-      @change="{{ change }}"
-      {% if blur %}@blur="{{ blur }}"{% endif %}
-      class="field sm num" data-ui="sampler-input" data-dec="{{ dec | int }}"{% if input_attrs %} {{ input_attrs | safe }}{% endif %} />
-  </div>
+<div class="field-row setting labeled slider{{ (' ' ~ wrapper_classes) if wrapper_classes else '' }}"{% if wrapper_attrs %} {{ wrapper_attrs | safe }}{% endif %}>
+  <span class="row-title inline-flex items-center gap-1">
+    {{ label }}
+    {% if hint %}{{ hint_tooltip(hint) }}{% endif %}
+  </span>
   <input type="range" min="{{ min }}" max="{{ max }}" step="{{ step }}"
     x-model.number="{{ model }}" @change="{{ change }}"
-    class="field" />
+    class="field slider-range" aria-label="{{ label }}" />
+  <input type="text" inputmode="{{ 'numeric' if (dec | int) == 0 else 'decimal' }}"
+    x-model.number="{{ model }}"
+    @change="{{ change }}"
+    {% if blur %}@blur="{{ blur }}"{% endif %}
+    class="field sm num" data-ui="sampler-input" data-dec="{{ dec | int }}"{% if input_attrs %} {{ input_attrs | safe }}{% endif %} />
 </div>
 {% endmacro %}
 
@@ -236,10 +234,11 @@
 {% if wrapper_classes %}</div>{% endif %}
 {% endmacro %}
 
-{% macro modal_footer(hint='dirty') %}
+{% macro modal_footer(hint='dirty', text='Unsaved changes — press Save to apply') %}
 <div class="modal-foot">
-  {% if hint == 'dirty' %}<span class="modal-dirty hidden" data-dirty-hint>Unsaved changes — press Save to apply</span>
-  {% elif hint == 'alpine' %}<span class="modal-dirty" x-show="dirty">Unsaved changes — press Save to apply</span>{% endif %}
+  {% if hint == 'dirty' %}<span class="modal-dirty hidden" data-dirty-hint>{{ text }}</span>
+  {% elif hint == 'alpine' %}<span class="modal-dirty" x-show="dirty">{{ text }}</span>
+  {% elif hint == 'note' %}<span class="row-meta">{{ text }}</span>{% endif %}
   <div class="modal-foot-actions">{{ caller() }}</div>
 </div>
 {% endmacro %}
@@ -298,7 +297,7 @@
 {% macro _icon_svg_base(size, extra_attrs='') %}aria-hidden="true" viewBox="0 0 24 24" width="{{ size }}" height="{{ size }}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" {{ extra_attrs | safe }}{% endmacro %}
 
 {% macro icon_plus(size=16, extra_attrs='') %}
-<svg {{ _icon_svg_base(size, extra_attrs) | safe }}><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+<svg {{ _icon_svg_base(size, 'shape-rendering="crispEdges" ' ~ extra_attrs) | safe }}><path d="M5 12h14"/><path d="M12 5v14"/></svg>
 {% endmacro %}
 
 {% macro icon_upload(size=16, extra_attrs='') %}
@@ -426,7 +425,7 @@
 {% endmacro %}
 
 {% macro icon_sliders(size=16, extra_attrs='') %}
-<svg {{ _icon_svg_base(size, extra_attrs) | safe }}><path d="M10 5H3"/><path d="M12 19H3"/><path d="M14 3v4"/><path d="M16 17v4"/><path d="M21 12h-9"/><path d="M21 19h-5"/><path d="M21 5h-7"/><path d="M8 10v4"/><path d="M8 12H3"/></svg>
+<svg {{ _icon_svg_base(size, 'shape-rendering="crispEdges" ' ~ extra_attrs) | safe }}><path d="M10 5H3"/><path d="M12 19H3"/><path d="M14 3v4"/><path d="M16 17v4"/><path d="M21 12h-9"/><path d="M21 19h-5"/><path d="M21 5h-7"/><path d="M8 10v4"/><path d="M8 12H3"/></svg>
 {% endmacro %}
 
 {% macro icon_character(size=16, extra_attrs='') %}
@@ -477,7 +476,7 @@
 {% macro reasoning_toggle_btn(hidden=False) %}
 <button
   data-action="actionToggleReasoning"
-  class="reasoning-toggle-btn link{% if hidden %} hidden{% endif %}"
+  class="reasoning-toggle-btn link meta{% if hidden %} hidden{% endif %}"
   data-ui="reasoning-toggle-btn"
   aria-label="Toggle reasoning"
 >

@@ -1,271 +1,182 @@
 {% from "macros.html" import icon_plus, icon_close, icon_expand, hint_tooltip, slider_row, tab_bar, toggle %}
+{# Body of the Samplers modal: a readout rail naming the provider these samplers
+   are stored against, the tab strip in the chrome, one lane per tab. #}
 <div
   x-data="samplerModal()"
   @provider-changed.window="onProviderChanged($event.detail)"
   @preset-changed.window="onPresetChanged($event.detail)"
-  class="flex flex-col h-full"
+  class="modal-bands"
 >
-  <!-- Tabs -->
   {{ tab_bar([('standard', 'Standard'), ('advanced', 'Advanced'), ('custom', 'Custom Body')]) }}
 
-  <!-- Standard Tab -->
-  <div x-show="tab === 'standard'" class="flex flex-col gap-3 overflow-y-auto">
-    <!-- ── Universal sliders ── -->
-    {{ slider_row('Temperature', 'samplers.temperature', '0', '2', '0.01', 2) }}
-    {{ slider_row('Max Tokens', 'samplers.max_tokens', '256', '131072', '256', 0) }}
-    {{ slider_row('Top P', 'samplers.top_p', '0', '1', '0.01', 2) }}
-
-    <!-- ── Provider-specific sliders ── -->
-    {{ slider_row('Top K', 'samplers.top_k', '0', '100', '1', 0, wrapper_attrs='x-show="showTopK"') }}
-    {{ slider_row('Min P', 'samplers.min_p', '0', '1', '0.01', 2, wrapper_attrs='x-show="showMinP"') }}
-
-    <!-- ── Universal toggles ── -->
-    <div class="row flat" @click="samplers.stream_enabled = !samplers.stream_enabled; saveStandard()">
-      <span class="row-title">Streaming</span>
-      <span class="row-actions">{{ toggle(':class="{ \'active\': samplers.stream_enabled }" @click="samplers.stream_enabled = !samplers.stream_enabled; saveStandard()"') }}</span>
+  {# The readout names the provider the samplers are stored against: the tab
+     contents change with it, so it is the modal's subject, not a caption. #}
+  <div class="modal-band-head">
+    <div class="rail">
+      <span x-text="providerLabel"></span>
+      {{ hint_tooltip('Samplers are stored per provider — switching provider loads that provider\'s own set. Fields a provider does not support stay hidden.') }}
     </div>
-    <div class="row flat">
-      <span class="row-title inline-flex items-center gap-1" @click="samplers.enable_multimodal = !samplers.enable_multimodal; saveStandard()">Enable Multimodal {{ hint_tooltip('Allows sending images and audio to the model as prompt context. <span class="note warning">Disable if your provider does not support multimodal inputs.</span>') }}</span>
-      <span class="row-actions">{{ toggle(':class="{ \'active\': samplers.enable_multimodal }" @click="samplers.enable_multimodal = !samplers.enable_multimodal; saveStandard()"') }}</span>
-    </div>
+  </div>
 
-    <div
-      x-show="samplers.enable_multimodal"
-      x-transition.opacity.duration.200ms
-      class="flex flex-col gap-2"
-      style="display: none"
-    >
-      <div class="branch">
-        <div class="form-group">
-          <span class="field-label inline-flex items-center gap-1">
-            <span>Image Format</span>
+  <div class="modal-band-lane">
+    <div x-show="tab === 'standard'" class="sampler-group">
+      {{ slider_row('Temperature', 'samplers.temperature', '0', '2', '0.01', 2) }}
+      {{ slider_row('Max Tokens', 'samplers.max_tokens', '256', '131072', '256', 0) }}
+      {{ slider_row('Top P', 'samplers.top_p', '0', '1', '0.01', 2) }}
+      {{ slider_row('Top K', 'samplers.top_k', '0', '100', '1', 0, wrapper_attrs='x-show="showTopK"') }}
+      {{ slider_row('Min P', 'samplers.min_p', '0', '1', '0.01', 2, wrapper_attrs='x-show="showMinP"') }}
+
+      <div class="row setting">
+        <span class="row-title">Streaming</span>
+        <span class="row-actions">{{ toggle(':class="{ \'active\': samplers.stream_enabled }" @click="samplers.stream_enabled = !samplers.stream_enabled; saveStandard()"') }}</span>
+      </div>
+
+      <div class="row setting">
+        <span class="row-title inline-flex items-center gap-1">
+          Enable Multimodal
+          {{ hint_tooltip('Allows sending images and audio to the model as prompt context. <span class="note warning">Disable if your provider does not support multimodal inputs.</span>') }}
+        </span>
+        <span class="row-actions">{{ toggle(':class="{ \'active\': samplers.enable_multimodal }" @click="samplers.enable_multimodal = !samplers.enable_multimodal; saveStandard()"') }}</span>
+      </div>
+
+      <div x-show="samplers.enable_multimodal" x-cloak class="well sampler-children">
+        <div class="row setting">
+          <span class="row-title inline-flex items-center gap-1">
+            Image Format
             {{ hint_tooltip('WebP offers the best compression and quality; default in most cases. <span class="note warning">PNG/JPEG provided for compatibility with llama.cpp and other providers that don\'t support WebP.</span>') }}
-          </label>
-          <div class="flex gap-2 flex-wrap">
-            <button
-              class="chip"
-              :class="samplers.image_format === 'webp' ? 'active' : ''"
-              @click.stop="samplers.image_format = 'webp'; saveStandard()"
-            >WebP</button>
-            <button
-              class="chip"
-              :class="samplers.image_format === 'png' ? 'active' : ''"
-              @click.stop="samplers.image_format = 'png'; saveStandard()"
-            >PNG</button>
-            <button
-              class="chip"
-              :class="samplers.image_format === 'jpeg' ? 'active' : ''"
-              @click.stop="samplers.image_format = 'jpeg'; saveStandard()"
-            >JPEG</button>
-          </div>
+          </span>
+          <span class="row-actions">
+            <button class="chip" :class="samplers.image_format === 'webp' ? 'active' : ''" @click.stop="samplers.image_format = 'webp'; saveStandard()">WebP</button>
+            <button class="chip" :class="samplers.image_format === 'png' ? 'active' : ''" @click.stop="samplers.image_format = 'png'; saveStandard()">PNG</button>
+            <button class="chip" :class="samplers.image_format === 'jpeg' ? 'active' : ''" @click.stop="samplers.image_format = 'jpeg'; saveStandard()">JPEG</button>
+          </span>
         </div>
       </div>
-    </div>
 
-    <!-- ── Provider-specific toggles ── -->
-    <div x-show="showReasoningToggle" class="flex flex-col gap-3">
-      <div class="row flat" @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()">
+      <div x-show="showReasoningToggle" class="row setting">
         <span class="row-title">Enable Thinking / Reasoning</span>
         <span class="row-actions">{{ toggle(':class="{ \'active\': samplers.include_reasoning }" @click="samplers.include_reasoning = !samplers.include_reasoning; saveStandard()"') }}</span>
       </div>
-    </div>
-    <div x-show="showEchoUpstreamBody" class="row flat">
-      <span class="row-title inline-flex items-center gap-1" @click="samplers.echo_upstream_body = !samplers.echo_upstream_body; saveStandard()">Echo Upstream Body {{ hint_tooltip('OpenRouter returns the transformed request body it sends upstream, logged to the browser console. <span class="note warning">Streaming only.</span>') }}</span>
-      <span class="row-actions">{{ toggle(':class="{ \'active\': samplers.echo_upstream_body }" @click="samplers.echo_upstream_body = !samplers.echo_upstream_body; saveStandard()"') }}</span>
-    </div>
-    <div
-      x-show="showReasoningEffort"
-      x-transition.opacity.duration.200ms
-      style="display: none"
-    >
-      <div class="branch">
-        <div class="form-group">
-          <span class="field-label">Reasoning Effort</span>
-          <div class="flex gap-2 flex-wrap">
-            <button
-              class="chip"
-              :class="!samplers.reasoning_effort ? 'active' : ''"
-              @click.stop="samplers.reasoning_effort = ''; saveStandard()"
-            >
-              Default
-            </button>
+
+      <div x-show="samplers.include_reasoning" x-cloak class="well sampler-children">
+        <div class="row setting" x-show="showReasoningEffort">
+          <span class="row-title">Reasoning Effort</span>
+          <span class="row-actions">
+            <button class="chip" :class="!samplers.reasoning_effort ? 'active' : ''" @click.stop="samplers.reasoning_effort = ''; saveStandard()">Default</button>
             <template x-for="opt in effortOptions" :key="opt.value">
-              <button
-                class="chip"
-                :class="samplers.reasoning_effort === opt.value ? 'active' : ''"
-                @click.stop="samplers.reasoning_effort = opt.value; saveStandard()"
-                x-text="opt.label"
-              ></button>
+              <button class="chip" :class="samplers.reasoning_effort === opt.value ? 'active' : ''" @click.stop="samplers.reasoning_effort = opt.value; saveStandard()" x-text="opt.label"></button>
             </template>
-          </div>
+          </span>
+        </div>
+        <div class="row setting" x-show="showPreserveThinking">
+          <span class="row-title">Preserve Thinking</span>
+          <span class="row-actions">
+            <button class="chip" :class="samplers.preserve_thinking === 'off' ? 'active' : ''" @click.stop="samplers.preserve_thinking = 'off'; saveStandard()">Off</button>
+            <button class="chip" :class="samplers.preserve_thinking === 'tool_only' ? 'active' : ''" @click.stop="samplers.preserve_thinking = 'tool_only'; saveStandard()">Tool Calls</button>
+            <button class="chip" :class="samplers.preserve_thinking === 'all' ? 'active' : ''" @click.stop="samplers.preserve_thinking = 'all'; saveStandard()">All</button>
+          </span>
         </div>
       </div>
+
+      <div x-show="showEchoUpstreamBody" class="row setting">
+        <span class="row-title inline-flex items-center gap-1">
+          Echo Upstream Body
+          {{ hint_tooltip('OpenRouter returns the transformed request body it sends upstream, logged to the browser console. <span class="note warning">Streaming only.</span>') }}
+        </span>
+        <span class="row-actions">{{ toggle(':class="{ \'active\': samplers.echo_upstream_body }" @click="samplers.echo_upstream_body = !samplers.echo_upstream_body; saveStandard()"') }}</span>
+      </div>
     </div>
-    <div
-      x-show="showPreserveThinking"
-      x-transition.opacity.duration.200ms
-      style="display: none"
-    >
-      <div class="branch">
-        <div class="form-group">
-          <span class="field-label">Preserve Thinking (multi-turn)</span>
-          <div class="flex gap-2 flex-wrap">
-            <button
-              class="chip"
-              :class="samplers.preserve_thinking === 'off' ? 'active' : ''"
-              @click.stop="samplers.preserve_thinking = 'off'; saveStandard()"
-            >Off</button>
-            <button
-              class="chip"
-              :class="samplers.preserve_thinking === 'tool_only' ? 'active' : ''"
-              @click.stop="samplers.preserve_thinking = 'tool_only'; saveStandard()"
-            >Tool Calls</button>
-            <button
-              class="chip"
-              :class="samplers.preserve_thinking === 'all' ? 'active' : ''"
-              @click.stop="samplers.preserve_thinking = 'all'; saveStandard()"
-            >All</button>
-          </div>
+
+    <div x-show="tab === 'advanced'" x-cloak class="sampler-group">
+      {{ slider_row('Frequency Penalty', 'samplers.frequency_penalty', '-2', '2', '0.01', 2, wrapper_attrs='x-show="showFrequencyPenalty"') }}
+      {{ slider_row('Presence Penalty', 'samplers.presence_penalty', '-2', '2', '0.01', 2, wrapper_attrs='x-show="showFrequencyPenalty"') }}
+      {{ slider_row('Repetition Penalty', 'samplers.repetition_penalty', '0', '2', '0.01', 2, wrapper_attrs='x-show="showRepetitionPenalty"') }}
+      <div x-show="showThinkingBudget" x-cloak>
+        {{ slider_row('Thinking Budget', 'samplers.thinking_budget', '0', '128000', '1', 0,
+          blur="$el.value = parseFloat($el.value) ? fmt(parseFloat($el.value), 0) : 'auto'",
+          input_attrs='data-auto="1" placeholder="0 = auto"') }}
+      </div>
+      {{ slider_row('Seed', 'samplers.seed', '-1', '999999', '1', 0,
+        blur='handleSeedBlur($el)', wrapper_attrs='x-show="showSeed"',
+        input_attrs='data-seed-random') }}
+
+      <div x-show="showVerbosity" class="row setting">
+        <span class="row-title">Verbosity</span>
+        <span class="row-actions">
+          <button class="chip" :class="!samplers.verbosity ? 'active' : ''" @click.stop="samplers.verbosity = ''; saveStandard()">Default</button>
+          <button class="chip" :class="samplers.verbosity === 'low' ? 'active' : ''" @click.stop="samplers.verbosity = 'low'; saveStandard()">Low</button>
+          <button class="chip" :class="samplers.verbosity === 'medium' ? 'active' : ''" @click.stop="samplers.verbosity = 'medium'; saveStandard()">Medium</button>
+          <button class="chip" :class="samplers.verbosity === 'high' ? 'active' : ''" @click.stop="samplers.verbosity = 'high'; saveStandard()">High</button>
+          <button class="chip" :class="samplers.verbosity === 'xhigh' ? 'active' : ''" @click.stop="samplers.verbosity = 'xhigh'; saveStandard()">X-High</button>
+          <button class="chip" :class="samplers.verbosity === 'max' ? 'active' : ''" @click.stop="samplers.verbosity = 'max'; saveStandard()">Max</button>
+        </span>
+      </div>
+
+      <div x-show="showCacheConfig" x-cloak class="row setting">
+        <span class="row-title inline-flex items-center gap-1">
+          Prompt Caching
+          {{ hint_tooltip('Enables cache for Anthropic models. Recommended for costs reduction. <span class="note warning">Check if your prompt preset has any changing macros/variables at its beginning that might invalidate the cache.</span>') }}
+        </span>
+        <span class="row-actions">{{ toggle(':class="{ \'active\': samplers.cache_enabled }" @click="samplers.cache_enabled = !samplers.cache_enabled; saveStandard()"') }}</span>
+      </div>
+
+      <div x-show="showCacheConfig && samplers.cache_enabled" x-cloak class="well sampler-children">
+        <div class="row setting">
+          <span class="row-title inline-flex items-center gap-1">
+            Extra TTL (1 hour)
+            {{ hint_tooltip('By default cache has an expiry time of 5 minutes. This extends it to 1 hour, but it also increases cost. <span class="note danger">Not recommended.</span>') }}
+          </span>
+          <span class="row-actions">{{ toggle(':class="{ \'active\': samplers.cache_ttl === \'1h\' }" @click="samplers.cache_ttl = samplers.cache_ttl === \'1h\' ? \'ephemeral\' : \'1h\'; saveStandard()"') }}</span>
         </div>
+        {{ slider_row('Cached Turns', 'samplers.cache_depth', '1', '10', '1', 0,
+          blur='',
+          hint='Number of <span class="note success">User</span> turns to skip from caching, where 0 would be the latest message sent by the <span class="note success">User.</span> <span class="note warning">Effectiveness of this setting depends on your preset. No In-Chart entries active → leave at 1. Using one → set this to at least its Depth value.</span>') }}
       </div>
-    </div>
-  </div>
 
-  <!-- Advanced Tab -->
-  <div x-show="tab === 'advanced'" class="flex flex-col gap-3 overflow-y-auto">
-    <div x-show="showFrequencyPenalty" class="flex flex-col gap-3">
-      {{ slider_row('Frequency Penalty', 'samplers.frequency_penalty', '-2', '2', '0.01', 2) }}
-      {{ slider_row('Presence Penalty', 'samplers.presence_penalty', '-2', '2', '0.01', 2) }}
-    </div>
-    {{ slider_row('Repetition Penalty', 'samplers.repetition_penalty', '0', '2', '0.01', 2, wrapper_attrs='x-show="showRepetitionPenalty"') }}
-    <div
-      x-show="showThinkingBudget"
-      x-transition.opacity.duration.200ms
-      style="display: none"
-    >
-      {{ slider_row('Thinking Budget', 'samplers.thinking_budget', '0', '128000', '1', 0,
-        blur="$el.value = parseFloat($el.value) ? fmt(parseFloat($el.value), 0) : 'auto'",
-        input_attrs='data-auto="1" placeholder="0 = auto"') }}
-    </div>
-    {{ slider_row('Seed', 'samplers.seed', '-1', '999999', '1', 0,
-      blur='handleSeedBlur($el)', wrapper_attrs='x-show="showSeed"',
-      input_attrs='data-seed-random') }}
-    <div x-show="showVerbosity" class="form-group">
-      <span class="field-label">Verbosity</span>
-      <div class="flex gap-2 flex-wrap">
-        <button
-          class="chip"
-          :class="!samplers.verbosity ? 'active' : ''"
-          @click.stop="samplers.verbosity = ''; saveStandard()"
-        >Default</button>
-        <button
-          class="chip"
-          :class="samplers.verbosity === 'low' ? 'active' : ''"
-          @click.stop="samplers.verbosity = 'low'; saveStandard()"
-        >Low</button>
-        <button
-          class="chip"
-          :class="samplers.verbosity === 'medium' ? 'active' : ''"
-          @click.stop="samplers.verbosity = 'medium'; saveStandard()"
-        >Medium</button>
-        <button
-          class="chip"
-          :class="samplers.verbosity === 'high' ? 'active' : ''"
-          @click.stop="samplers.verbosity = 'high'; saveStandard()"
-        >High</button>
-        <button
-          class="chip"
-          :class="samplers.verbosity === 'xhigh' ? 'active' : ''"
-          @click.stop="samplers.verbosity = 'xhigh'; saveStandard()"
-        >X-High</button>
-        <button
-          class="chip"
-          :class="samplers.verbosity === 'max' ? 'active' : ''"
-          @click.stop="samplers.verbosity = 'max'; saveStandard()"
-        >Max</button>
+      <div x-show="showSendReasoningHistory" class="row setting">
+        <span class="row-title">Send Reasoning History</span>
+        <span class="row-actions">{{ toggle(':class="{ \'active\': samplers.send_reasoning_history }" @click="samplers.send_reasoning_history = !samplers.send_reasoning_history; saveStandard()"') }}</span>
       </div>
     </div>
-    <div x-show="showCacheConfig" class="flex flex-col gap-3">
-      <div class="row flat">
-      <span class="row-title inline-flex items-center gap-1" @click="samplers.cache_enabled = !samplers.cache_enabled; saveStandard()">Prompt Caching {{ hint_tooltip('Enables cache for Anthropic models. Recommended for costs reduction. <span class="note warning">Check if your prompt preset has any changing macros/variables at its beginning that might invalidate the cache.</span>') }}</span>
-      <span class="row-actions">{{ toggle(':class="{ \'active\': samplers.cache_enabled }" @click="samplers.cache_enabled = !samplers.cache_enabled; saveStandard()"') }}</span>
-    </div>
-      <div
-        x-show="samplers.cache_enabled"
-        x-transition.opacity.duration.200ms
-        class="flex flex-col gap-2"
-        style="display: none"
-      >
-        <div class="branch">
-            <div class="row flat">
-      <span class="row-title inline-flex items-center gap-1" @click="samplers.cache_ttl = samplers.cache_ttl === '1h' ? 'ephemeral' : '1h'; saveStandard()">Extra TTL (1 hour) {{ hint_tooltip('By default cache has an expiry time of 5 minutes. This extends it to 1 hour, but it also increases cost. <span class="note danger">Not recommended.</span>') }}</span>
-      <span class="row-actions">{{ toggle(':class="{ \'active\': samplers.cache_ttl === \'1h\' }" @click="samplers.cache_ttl = samplers.cache_ttl === \'1h\' ? \'ephemeral\' : \'1h\'; saveStandard()"') }}</span>
-    </div>
+
+    <div x-show="tab === 'custom'" x-cloak class="sampler-group">
+      <p class="note flex items-center gap-1">
+        Add custom fields sent directly to the provider. Values are sent as JSON when parseable, otherwise as plain text.
+        {{ hint_tooltip('Fields are merged into the provider request body. Disable reasoning in llama.cpp: key <span class="note success">chat_template_kwargs</span>, value <span class="note success">{"enable_thinking": false}</span>.') }}
+      </p>
+
+      <template x-for="(item, index) in customFields" :key="index">
+        <div class="field-row well p-2">
+          {{ toggle(':class="{ active: item.enabled }" @click="item.enabled = !item.enabled; saveCustom()" title="Enable/Disable"') }}
+          <input type="text" x-model="item.key" @change="saveCustom()" placeholder="Key" class="field flex-1" />
+          <input
+            type="text"
+            :id="'custom-value-' + index"
+            x-model="item.value"
+            @change="saveCustom()"
+            @input.debounce.750ms="saveCustom()"
+            placeholder="Value (text or JSON)"
+            class="field flex-1"
+            :class="isBrokenStructuredJson(item.value) ? 'danger' : ''"
+            :title="isBrokenStructuredJson(item.value) ? 'Looks like JSON but does not parse — will be sent as plain text' : ''"
+          />
+          <button
+            type="button"
+            class="key sm"
+            data-expander-title="Edit Value"
+            :data-target-id="'custom-value-' + index"
+            onclick="openTextExpander(document.getElementById(this.dataset.targetId), this.dataset.expanderTitle)"
+            aria-label="Expand value editor"
+            title="Expand"
+          >{{ icon_expand(16) }}</button>
+          <button class="key sm danger" @click="removeCustom(index)" aria-label="Remove custom sampler" title="Remove">
+            {{ icon_close(16) }}
+          </button>
         </div>
-        <div class="branch">
-            {{ slider_row('Depth of Turns', 'samplers.cache_depth', '1', '10', '1', 0,
-            blur='',
-            hint='Number of <span class="note success">User</span> turns to skip from caching, where 0 would be the latest message sent by the <span class="note success">User.</span> <span class="note warning">Effectiveness of this setting depends on your preset. No In-Chat entries active → leave at 1. Using one → set this to at least its Depth value.</span>') }}
-        </div>
-      </div>
+      </template>
+
+      <button class="btn create text-sm" @click="addCustom()">{{ icon_plus(14) }} Add Custom Field</button>
     </div>
-    <div x-show="showSendReasoningHistory" class="row flat" @click="samplers.send_reasoning_history = !samplers.send_reasoning_history; saveStandard()">
-      <span class="row-title">Send Reasoning History</span>
-      <span class="row-actions">{{ toggle(':class="{ \'active\': samplers.send_reasoning_history }" @click="samplers.send_reasoning_history = !samplers.send_reasoning_history; saveStandard()"') }}</span>
-    </div>
-  </div>
-
-  <!-- Custom Tab -->
-  <div x-show="tab === 'custom'" class="flex flex-col gap-3 overflow-y-auto flex-1 min-h-0">
-    <p class="note flex items-center gap-1">
-      Add custom fields sent directly to the provider. Values are sent as JSON when parseable, otherwise as plain text.
-      {{ hint_tooltip('Fields are merged into the provider request body. Disable reasoning in llama.cpp: key <span class="note success">chat_template_kwargs</span>, value <span class="note success">{"enable_thinking": false}</span>.') }}
-    </p>
-
-    <template x-for="(item, index) in customFields" :key="index">
-      <div class="field-row well p-2">
-        {{ toggle(':class="{ active: item.enabled }" @click="item.enabled = !item.enabled; saveCustom()" title="Enable/Disable"') }}
-        <input
-          type="text"
-          x-model="item.key"
-          @change="saveCustom()"
-          placeholder="Key"
-          class="field flex-1"
-        />
-        <input
-          type="text"
-          :id="'custom-value-' + index"
-          x-model="item.value"
-          @change="saveCustom()"
-          @input.debounce.750ms="saveCustom()"
-          placeholder="Value (text or JSON)"
-          class="field flex-1"
-          :class="isBrokenStructuredJson(item.value) ? 'danger' : ''"
-          :title="isBrokenStructuredJson(item.value) ? 'Looks like JSON but does not parse — will be sent as plain text' : ''"
-        />
-        <button
-          type="button"
-          class="key sm"
-          data-expander-title="Edit Value"
-          :data-target-id="'custom-value-' + index"
-          onclick="openTextExpander(document.getElementById(this.dataset.targetId), this.dataset.expanderTitle)"
-          aria-label="Expand value editor"
-          title="Expand"
-        >{{ icon_expand(16) }}</button>
-        <button
-          class="key sm danger"
-          @click="removeCustom(index)"
-          aria-label="Remove custom sampler"
-          title="Remove"
-        >
-          {{ icon_close(16) }}
-        </button>
-      </div>
-    </template>
-
-    <button class="btn create text-sm mt-2" @click="addCustom()">
-      {{ icon_plus(14) }} Add Custom Field
-    </button>
   </div>
 </div>
 
@@ -279,10 +190,18 @@
 
       samplers: {},
       customFields: [],
-      modelParams: null,  // model's supported_parameters; null = unknown/don't filter
+      modelParams: null,
 
       defaultSamplers() {
         return getSamplerDefaults(this.providerType);
+      },
+
+      // The rail's readout: samplers are stored per provider, so the provider is
+      // the modal's subject.
+      get providerLabel() {
+        const p = window.ProviderStore ? ProviderStore.get(this.providerId) : null;
+        if (!p) return 'No provider selected';
+        return p.name + (p.model ? ' · ' + p.model : '');
       },
 
       async loadStandard() {
@@ -310,7 +229,6 @@
             const settings = await r.json();
             const saved = settings[ck];
             if (saved) {
-              // Normalize away the removed per-item 'type' field
               this.customFields = JSON.parse(saved).map(({ enabled, key, value }) => ({ enabled, key, value }));
               return;
             }
@@ -330,7 +248,6 @@
         return getSamplerEffortOptions(this.providerType);
       },
 
-      // Type visibility + selected-model capability (hides unsupported samplers).
       shows(key, reasoningGate) {
         if (reasoningGate && !this.samplers.include_reasoning) return false;
         return ProviderSchema.fieldSupported(this.providerType, key, this.modelParams);
@@ -371,8 +288,6 @@
       },
 
       async init() {
-        // Format sampler inputs on model changes (slider sync, etc.).
-        // Registered before load*() so the initial population also formats.
         this.$watch('samplers', () => {
           this.$nextTick(() => {
             this.$el.querySelectorAll('[data-ui="sampler-input"]').forEach(el => {
@@ -399,7 +314,6 @@
         await this.loadCustom();
         await this.refreshCapabilities();
 
-        // Make global function to retrieve payload
         window.getActiveSamplers = () => {
           const payload = {
             temperature: this.samplers.temperature,
@@ -415,8 +329,6 @@
           }
           payload.image_format = this.samplers.image_format;
 
-          // Add enabled custom fields — values are sent as JSON when
-          // parseable, otherwise as plain text
           for (const item of this.customFields) {
             if (item.enabled && item.key) {
               let val = item.value;

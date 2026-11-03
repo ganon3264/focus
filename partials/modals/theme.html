@@ -1,29 +1,51 @@
-{% from "macros.html" import icon_trash, modal_footer %} {% from "modal-shell.html" import modal_shell %} {% set theme_colors =
-[ ('Background', '--bg'), ('Surface (Primary)', '--surface'), ('Surface (Secondary)', '--surface-2'), ('Surface
+{% from "macros.html" import icon_trash, hint_tooltip, modal_footer, verb_slot %} {%
+from "modal-shell.html" import modal_shell %} {% set theme_colors = [
+('Background', '--bg'), ('Surface (Primary)', '--surface'), ('Surface (Secondary)', '--surface-2'), ('Surface
 (Tertiary)', '--surface-3'), ('Borders', '--border'), ('Accent Color', '--accent'), ('Text (Main)', '--text'), ('Text
 (Muted)', '--text-muted'), ('User Role', '--role-user'), ('Assistant Role', '--role-assistant') ] %} {% call
 modal_shell('modal-themes', 'Theme Customizer', max_width='920px', width='94vw', foot=true,
-content_style='max-height:82vh;', z_index='100') %}
+content_style='height:82vh;', overlay_class='modal-bands-shell', z_index='100') %}
 <div
-  class="theme-modal flex flex-col flex-1 min-h-0"
+  class="modal-bands theme-modal"
   x-data="themeModalState()"
   @theme-state-changed.window="refresh()"
 >
-  <div class="theme-modal-body">
-    <aside class="theme-modal-list-col">
-      <div class="theme-list">
-        <template x-for="t in themes" :key="t.id">
-          <div
-            class="row"
-            :class="t.id === selectedId ? 'active' : ''"
-            @click="switchTo(t.id)"
-          >
-            <span class="row-meta theme-swatches">
-              <span class="well theme-swatch" :style="{ background: (t.colors || {})['--bg'] || '#000' }"></span>
-              <span class="well theme-swatch" :style="{ background: (t.colors || {})['--surface'] || '#000' }"></span>
-              <span class="well theme-swatch" :style="{ background: (t.colors || {})['--accent'] || '#000' }"></span>
-            </span>
-            <span class="row-title" x-text="t.name"></span>
+  <div class="modal-band-head">
+    <div class="rail">
+      <span x-text="themes.length === 1 ? '1 theme' : themes.length + ' themes'"></span>
+      {{ hint_tooltip('Built-in themes can be edited in place and reset; only custom themes can be deleted. <span class="note">Dark</span> and <span class="note">Light</span> are the two global slots — a character with its own theme overrides both.') }}
+    </div>
+  </div>
+
+  <div class="modal-band-lane theme-split">
+    <div class="theme-list">
+      <template x-for="t in themes" :key="t.id">
+        <div
+          class="row"
+          :class="t.id === selectedId ? 'active' : ''"
+          @click="switchTo(t.id)"
+        >
+          <span class="theme-thumb">
+            <span
+              class="theme-swatch"
+              :style="{ background: (t.colors || {})['--bg'] || '#000' }"
+            ></span>
+            <span
+              class="theme-swatch"
+              :style="{ background: (t.colors || {})['--surface'] || '#000' }"
+            ></span>
+            <span
+              class="theme-swatch"
+              :style="{ background: (t.colors || {})['--accent'] || '#000' }"
+            ></span>
+            <span
+              class="theme-swatch"
+              :style="{ background: (t.colors || {})['--text'] || '#fff' }"
+            ></span>
+          </span>
+          <span class="row-title" x-text="t.name"></span>
+          <span class="tag" x-show="t.is_system">Built-in</span>
+          <span class="row-actions">
             <button
               class="chip"
               :class="t.id === darkId ? 'active' : ''"
@@ -42,68 +64,73 @@ content_style='max-height:82vh;', z_index='100') %}
             </button>
             <button
               class="key sm danger"
-              x-show="!t.is_system"
+              :class="t.is_system ? 'slot-empty' : ''"
               @click.stop="remove(t.id, t.name)"
               title="Delete theme"
               aria-label="Delete theme"
             >
               {{ icon_trash(size=14) }}
             </button>
-            <span x-show="t.is_system" class="theme-slot-spacer"></span>
-          </div>
-        </template>
-        <div x-show="themes.length === 0" class="empty">No themes yet.</div>
+          </span>
+        </div>
+      </template>
+      <div x-show="themes.length === 0" class="empty">No themes yet.</div>
+    </div>
+
+    <div class="theme-editor">
+      <div class="field-row setting theme-name-row">
+        <span class="row-title">Name</span>
+        <input
+          type="text"
+          x-model="editName"
+          placeholder="Theme name"
+          class="field"
+          @input="markDirty()"
+        />
+        <button
+          class="btn create"
+          @click="create()"
+          title="Create a new theme from the current colors"
+        >
+          New
+        </button>
+      </div>
+
+      <div id="theme-color-pickers" class="theme-colors">
+        {% for label, var in theme_colors %}
+        <div class="row setting">
+          <span class="row-title">{{ label }}</span>
+          <input
+            type="color"
+            data-var="{{ var }}"
+            class="field color"
+            aria-label="{{ label }}"
+            onchange="previewThemeColor(this)"
+            oninput="previewThemeColor(this)"
+            @input="markDirty()"
+          />
+        </div>
+        {% endfor %}
       </div>
 
       <p class="note" x-show="charThemeId">
         <strong x-text="charName"></strong> has its own theme — it's applied to chats with this character.
       </p>
-    </aside>
-
-    <section class="theme-modal-editor">
-      <div class="theme-name-row">
-        <input
-          type="text"
-          x-model="editName"
-          placeholder="Theme name"
-          class="field flex-1"
-          @input="markDirty()"
-        />
-        <button class="btn create shrink-0" @click="create()" title="Create a new theme from the current colors">
-          New
-        </button>
-      </div>
-
-      <div class="theme-color-grid" id="theme-color-pickers">
-        {% for label, var in theme_colors %}
-        <label class="theme-color-field">
-          {{ label }}
-          <input
-            type="color"
-            data-var="{{ var }}"
-            class="field color"
-            onchange="previewThemeColor(this)"
-            oninput="previewThemeColor(this)"
-            @input="markDirty()"
-          />
-        </label>
-        {% endfor %}
-      </div>
-    </section>
+    </div>
   </div>
 
   {% call modal_footer(hint='alpine') %}
-    <button class="btn danger" x-show="selectedId && selectedIsSystem" @click="reset()">Reset</button>
-    <button
-      class="btn"
-      @click="
-        closeModal('modal-themes');
-        resetThemePreview();
-      "
-    >
-      Cancel
-    </button>
-    <button class="btn primary" @click="save()" :disabled="!dirty" :class="dirty ? '' : 'opacity-50'">Save</button>
+  <button class="btn danger" x-show="selectedId && selectedIsSystem" @click="reset()">Reset</button>
+  <button
+    class="btn"
+    @click="
+      closeModal('modal-themes');
+      resetThemePreview();
+    "
+  >
+    Cancel
+  </button>
+  <button class="btn primary" @click="save()" :disabled="!dirty" :class="dirty ? '' : 'opacity-50'">Save</button>
   {% endcall %}
 </div>
 {% endcall %}

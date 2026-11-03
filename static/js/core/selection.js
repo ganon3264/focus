@@ -22,28 +22,23 @@
     }
   }
 
-  function syncSelectorSelection(attempt) {
-    attempt = attempt || 0;
-    var wrapper = byId('preset-selector-wrapper');
-    if (!wrapper || !window.Alpine) return;
-    var state = Alpine.$data(wrapper);
-    if (!state) {
-      // htmx swaps the DOM before Alpine re-initializes the new x-data
-      // component. Retry until ready, then derive selection from StateManager
-      // (never from the server-rendered value).
-      if (attempt < 10) setTimeout(function () { syncSelectorSelection(attempt + 1); }, 0);
-      return;
-    }
-    var id = StateManager.get('preset_id');
-    if (id) {
-      var item = wrapper.querySelector('[data-preset-id="' + id + '"]');
-      state.selectedId = id;
-      state.selectedName = item
-        ? item.querySelector('[data-ui="preset-item-name"]').textContent
-        : state.selectedName;
-    } else {
-      state.selectedId = '';
-      state.selectedName = '— Select Preset —';
+  // The selector is a readout row: the sidebar names the preset this chat
+  // writes with, and the collection modal is where it is chosen. A rename is
+  // the only path where applyPreset is not involved, so the caller may pass the
+  // name it already knows; otherwise the server-rendered partial supplies it.
+  function syncSelectorSelection(id, name) {
+    var trigger = byId('preset-selector-wrapper');
+    var nameEl = byId('preset-current-name');
+    if (!trigger) return;
+    var pid = id === undefined ? StateManager.get('preset_id') : id;
+    trigger.dataset.presetId = pid || '';
+    if (!nameEl) return;
+    if (name) {
+      nameEl.textContent = name;
+      trigger.title = name;
+    } else if (!pid) {
+      nameEl.textContent = 'No preset selected';
+      trigger.title = 'No preset selected';
     }
   }
 
@@ -122,10 +117,10 @@
       });
   }
 
-  window.applyPreset = function (id) {
+  window.applyPreset = function (id, name) {
     var persist = StateManager.setPreset(id || null);
     updateAddVarBtn(StateManager.get('preset_id'));
-    syncSelectorSelection();
+    syncSelectorSelection(id || null, id ? name : null);
     afterPersist(persist, 'presets');
   };
 

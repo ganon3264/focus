@@ -31,6 +31,11 @@ attachmentsContainer.id = 'edit-msg-attachments';
 attachmentsContainer.style = {};
 attachmentsContainer.innerHTML = '';
 
+// The empty note is static markup in the template; JS only toggles it.
+var attachmentsEmpty = makeElement('span');
+attachmentsEmpty.id = 'edit-msg-att-empty';
+attachmentsEmpty.classList.add('hidden');
+
 var modal = makeElement('div');
 modal.id = 'modal-edit-message';
 modal.classList.add('hidden');
@@ -42,6 +47,7 @@ doc._body.appendChild(contentTextarea);
 doc._body.appendChild(thoughtContainer);
 doc._body.appendChild(thoughtInput);
 doc._body.appendChild(attachmentsContainer);
+doc._body.appendChild(attachmentsEmpty);
 doc._body.appendChild(modal);
 doc.getElementById = function (id) {
   if (id === 'edit-msg-id') return msgIdInput;
@@ -50,6 +56,7 @@ doc.getElementById = function (id) {
   if (id === 'edit-msg-thought-container') return thoughtContainer;
   if (id === 'edit-msg-thought') return thoughtInput;
   if (id === 'edit-msg-attachments') return attachmentsContainer;
+  if (id === 'edit-msg-att-empty') return attachmentsEmpty;
   if (id === 'modal-edit-message') return modal;
   return null;
 };
@@ -122,11 +129,12 @@ assert(typeof window.editMessage === 'function', 'editMessage loaded');
   window.currentEditAttachments = [];
 })();
 
-// ── renderEditModalAttachments shows placeholder when empty ──
+// ── renderEditModalAttachments clears the thumbs and shows the empty note ──
 (function () {
   window.currentEditAttachments = [];
   window.renderEditModalAttachments();
-  assert(attachmentsContainer.innerHTML.length > 0, 'empty attachments shows placeholder');
+  assertEqual(attachmentsContainer.children.length, 0, 'no thumbs when empty');
+  assert(!attachmentsEmpty.classList.contains('hidden'), 'empty note is shown');
 })();
 
 // ── renderEditModalAttachments renders attachments ──
@@ -136,6 +144,7 @@ assert(typeof window.editMessage === 'function', 'editMessage loaded');
   ];
   window.renderEditModalAttachments();
   assert(attachmentsContainer.children.length >= 1, 'attachments rendered');
+  assert(attachmentsEmpty.classList.contains('hidden'), 'empty note is hidden with attachments');
   window.currentEditAttachments = [];
 })();
 

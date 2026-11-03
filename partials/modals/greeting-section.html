@@ -4,13 +4,17 @@
 {% set greeting_idx = greeting_idx|default(0) %}
 {% set focus = focus|default(false) %}
 {% set entity_name = entity_name|default('Character') %}
+{# Greetings are a small collection, so the head is a rail: the count is a
+   readout and the variant verbs sit on the rail's right edge, where every other
+   collection in the app puts them. Swapped whole (outerHTML) by htmx. #}
 <div
-  class="form-group entity-greeting"
+  class="edit-greeting"
   id="edit-{{ prefix }}-greeting-section"
 >
-  <div class="field-inline">
-    <span class="field-label">Greeting</span>
-    <span class="flex items-center gap-1">
+  <div class="rail">
+    <span>Greeting</span>
+    <span class="row-value" id="edit-{{ prefix }}-greeting-count">{{ (greeting_idx + 1) if greetings else 0 }}/{{ greetings|length }}</span>
+    <div class="rail-actions flush">
       <button
         type="button"
         class="key sm"
@@ -27,7 +31,6 @@
       >
         {{ icon_chevron_left(14) }}
       </button>
-      <span id="edit-{{ prefix }}-greeting-count" class="row-meta w-9 text-center">{{ (greeting_idx + 1) if greetings else 0 }}/{{ greetings|length }}</span>
       <button
         type="button"
         class="key sm"
@@ -75,27 +78,24 @@
       >
         {{ icon_trash(14) }}
       </button>
-    </span>
+      <button
+        type="button"
+        class="key sm"
+        aria-label="Expand greeting"
+        title="Expand editor"
+        data-action="actionOpenTextExpander" data-target-id="edit-{{ prefix }}-greeting" data-expander-title="Edit {{ entity_name }} Greeting"
+      >
+        {{ icon_expand(16) }}
+      </button>
+    </div>
   </div>
-  <div class="textarea-wrapper">
-    <textarea
-      name="greeting"
-      id="edit-{{ prefix }}-greeting"
-      rows="4"
-      class="field"
-      style="resize: none"
-      data-action="actionGreetingInput"
-      {% if focus %}autofocus{% endif %}
-    >{{ greetings[greeting_idx] if greetings else '' }}</textarea>
-    <button
-      type="button"
-      class="key sm field-expand"
-      aria-label="Expand text area"
-      data-action="actionOpenTextExpander" data-target-id="edit-{{ prefix }}-greeting" data-expander-title="Edit {{ entity_name }} Greeting"
-    >
-      {{ icon_expand(16) }}
-    </button>
-  </div>
+  <textarea
+    name="greeting"
+    id="edit-{{ prefix }}-greeting"
+    class="field sized edit-text"
+    data-action="actionGreetingInput"
+    {% if focus %}autofocus{% endif %}
+  >{{ greetings[greeting_idx] if greetings else '' }}</textarea>
   <input type="hidden" name="greetings_json" value='{{ greetings | tojson }}' />
   <input type="hidden" name="greeting_idx" value="{{ greeting_idx }}" />
 </div>

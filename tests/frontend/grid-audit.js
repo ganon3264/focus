@@ -96,7 +96,7 @@ async function measure(page) {
       leftTitles: all('.left-sidebar .rail'),
       rightTitles: all('.right-sidebar .rail'),
       leftSections: all('.left-sidebar .sidebar-section'),
-      preset: one('#preset-selector .field'),
+      preset: one('#preset-selector .preset-trigger'),
       newChat: one('.right-sidebar .sidebar-section > .btn'),
       tiles: all('.left-sidebar .nav'),
       status: one('.left-sidebar .well'),
@@ -167,6 +167,131 @@ async function measureModal(page) {
   });
 }
 
+// The provider form is the app's densest settings column: three named groups,
+// one caption column, one control line. Its failure mode is drift — a caption
+// column that changes width per row, a control that stops sharing an edge with
+// the field above it.
+async function measureProviderForm(page) {
+  return page.evaluate(() => {
+    const rect = (el) => {
+      const b = el.getBoundingClientRect();
+      return { x: Math.round(b.x), y: Math.round(b.y), width: Math.round(b.width), height: Math.round(b.height), right: Math.round(b.right), bottom: Math.round(b.bottom) };
+    };
+    const panel = document.querySelector('#modal-provider-create > .modal-panel');
+    if (!panel) return null;
+    const rows = [...panel.querySelectorAll('#provider-form .row.setting')].filter((r) => r.getBoundingClientRect().height > 0);
+    // The type plates are hidden until a type brings them; their rows are not
+    // laid out and must not be measured.
+    const labeled = [...panel.querySelectorAll('#provider-form .row.setting.labeled')].filter((r) => r.getBoundingClientRect().height > 0);
+    return {
+      panel: rect(panel),
+      rails: [...panel.querySelectorAll('#provider-form .provider-section > .rail')].map(rect),
+      rows: rows.map(rect),
+      sections: [...new Set(rows.map((r) => r.closest('.provider-section')))].map(
+        (section) => rows.filter((r) => r.closest('.provider-section') === section).map(rect),
+      ),
+      captions: labeled.map((r) => rect(r.querySelector('.row-title'))),
+      fields: labeled
+        .flatMap((r) => [...r.querySelectorAll(':scope > .field, :scope > .row-cell')])
+        .map(rect),
+      emptyNote: (() => {
+        const el = panel.querySelector('#provider-form .provider-keys-empty > .row-meta');
+        return el ? rect(el) : null;
+      })(),
+    };
+  });
+}
+
+// The two text-editing modals: rails and fields on the modal inset, verbs on the
+// foot inset. The message editor stacks one block per segment; the expander is
+// one field and one foot.
+async function measureTextModals(page) {
+  return page.evaluate(() => {
+    const rect = (el) => {
+      const b = el.getBoundingClientRect();
+      return { x: Math.round(b.x), y: Math.round(b.y), width: Math.round(b.width), height: Math.round(b.height), right: Math.round(b.right), bottom: Math.round(b.bottom) };
+    };
+    const read = (sel) => {
+      const panel = document.querySelector(sel + ' > .modal-panel');
+      if (!panel) return null;
+      const q = (s) => panel.querySelector(s);
+      const foot = [...panel.querySelectorAll('.modal-foot')].find((f) => f.closest('.modal-panel') === panel);
+      return {
+        panel: rect(panel),
+        body: rect(q('.modal-body')),
+        // A collapsed block hides its textarea; a hidden field has no edges.
+        fields: [...panel.querySelectorAll('.msg-block-text, #text-expander-input')]
+          .filter((f) => f.getBoundingClientRect().width > 0)
+          .map(rect),
+        rails: [...panel.querySelectorAll('.msg-block > .rail, .msg-attachments > .rail')].map(rect),
+        railActions: [...panel.querySelectorAll('.rail-actions.flush > .key')].map(rect),
+        foot: foot ? rect(foot) : null,
+        footButtons: foot ? [...foot.querySelectorAll('.btn')].map(rect) : [],
+        count: q('.msg-block [data-ui="block-count"]') ? rect(q('.msg-block [data-ui="block-count"]')) : null,
+      };
+    };
+    return { editMessage: read('#modal-edit-message'), expander: read('#modal-text-expander') };
+  });
+}
+
+// The entity editor: two panes, each naming its groups with a rail. The pane
+// gutter, the rail insets and the identity rows are the geometry that regresses
+// when this modal is touched.
+async function measureEntityEditor(page) {
+  return page.evaluate(() => {
+    const rect = (el) => {
+      const b = el.getBoundingClientRect();
+      return { x: Math.round(b.x), y: Math.round(b.y), width: Math.round(b.width), height: Math.round(b.height), right: Math.round(b.right), bottom: Math.round(b.bottom) };
+    };
+    const panel = document.querySelector('#modal-edit-character > .modal-panel');
+    if (!panel) return null;
+    const q = (sel) => panel.querySelector(sel);
+    const rows = [...panel.querySelectorAll('.edit-fields > .row')].filter((r) => r.getBoundingClientRect().height > 0);
+    return {
+      panel: rect(panel),
+      side: rect(q('.edit-entity-side')),
+      main: rect(q('.edit-entity-main')),
+      identityRail: rect(q('.edit-entity-side > .rail')),
+      descRail: rect(q('.edit-doc > .rail')),
+      greetRail: rect(q('.edit-greeting > .rail')),
+      desc: rect(q('.edit-doc > .edit-text')),
+      greet: rect(q('.edit-greeting > .edit-text')),
+      avatar: rect(q('.edit-avatar')),
+      media: rect(q('#edit-char-media-section')),
+      captions: rows.map((r) => rect(r.querySelector('.row-title'))),
+      fields: rows.flatMap((r) => [...r.querySelectorAll(':scope > .field, :scope > .row-cell')]).map(rect),
+      door: rect(q('[data-action="actionOpenCharBlocks"]')),
+      legacy: rect(q('#edit-char-card-fields')),
+      greetKeys: [...panel.querySelectorAll('.edit-greeting .rail-actions > .key')].map(rect),
+      footBtn: rect(q('.modal-foot .btn.primary')),
+    };
+  });
+}
+
+// The presets collection: one column of two-line rows. The identity stack and
+// the verb cluster must both keep the lane's inset per row, or the list stops
+// reading as one column.
+async function measurePresetRows(page) {
+  return page.evaluate(() => {
+    const rect = (el) => {
+      const b = el.getBoundingClientRect();
+      return { x: Math.round(b.x), y: Math.round(b.y), width: Math.round(b.width), height: Math.round(b.height), right: Math.round(b.right), bottom: Math.round(b.bottom) };
+    };
+    const panel = document.querySelector('#modal-presets > .modal-panel');
+    if (!panel) return null;
+    const rows = [...panel.querySelectorAll('.preset-row')];
+    if (!rows.length) return null;
+    return {
+      panel: rect(panel),
+      lane: rect(panel.querySelector('.modal-band-lane')),
+      rows: rows.map(rect),
+      titles: rows.map((r) => rect(r.querySelector('.row-title'))),
+      metas: rows.map((r) => rect(r.querySelector('.row-meta'))),
+      verbs: rows.map((r) => rect(r.querySelector('.row-actions > .key:last-child'))),
+    };
+  });
+}
+
 // The banded modal chassis: a rail, an optional toolbar, the list lane, an
 // optional foot. The vertical rhythm is the thing that keeps regressing — a
 // rail flush against the lane edge reads as "no margin at the top".
@@ -187,7 +312,16 @@ async function measureBands(page) {
     const lane = body.querySelector('.modal-band-lane');
     const foot = body.querySelector('.modal-band-foot');
     const headBand = body.querySelector('.modal-band-head');
-    const next = headBand ? headBand.nextElementSibling : null;
+    // A hidden band is not a band: the tool tabs hide their search row while
+    // tools are off, and a `display:none` sibling measures 0×0.
+    const laidOut = (el) => el && el.getBoundingClientRect().height > 0;
+    const nextOf = (el) => {
+      let n = el ? el.nextElementSibling : null;
+      while (n && !laidOut(n)) n = n.nextElementSibling;
+      return n;
+    };
+    const next = nextOf(headBand);
+    const firstKid = lane ? [...lane.children].find(laidOut) : null;
     const row = lane && lane.querySelector('[data-ui="entity-row"], [data-ui="arranger-item"], [data-ui="char-block"], .itemizer-item, .row');
     const last = bands[bands.length - 1];
     // A foot may carry a hidden popover (the arranger's add-block menu); only
@@ -195,6 +329,9 @@ async function measureBands(page) {
     const footButtons = foot
       ? [...foot.querySelectorAll('.btn, .key')].filter((e) => e.getBoundingClientRect().width > 0)
       : [];
+    const modalFoot = panel.querySelector(':scope > .modal-foot');
+    const split = body.querySelector('.theme-split');
+    const cols = split ? [...split.children] : [];
     return {
       panel: rect(panel),
       head: rect(head),
@@ -203,8 +340,14 @@ async function measureBands(page) {
       lane: lane ? rect(lane) : null,
       row: row ? rect(row) : null,
       next: next ? rect(next) : null,
+      firstKid: firstKid ? rect(firstKid) : null,
+      tabs: panel.querySelector('.tab-bar') ? rect(panel.querySelector('.tab-bar')) : null,
+      foot: foot ? rect(foot) : null,
       last: last ? rect(last) : null,
       footButtons: footButtons.map(rect),
+      modalFoot: modalFoot ? rect(modalFoot) : null,
+      modalFootButtons: modalFoot ? [...modalFoot.querySelectorAll('.btn, .key')].map(rect) : [],
+      columns: cols.map(rect),
       bandCount: bands.length,
     };
   });
@@ -226,6 +369,34 @@ async function measureBands(page) {
   await page.waitForTimeout(800);
   const mmEntity = await measureModal(page);
   const mmEntityBands = await measureBands(page);
+  await page.locator('#char-modal-grid .entity-row [aria-label="Edit character"]').first().click();
+  await page.waitForTimeout(900);
+  const mmEditor = await measureEntityEditor(page);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(300);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(300);
+  await page.locator('[data-ui="message"]').nth(1).hover();
+  await page.waitForTimeout(300);
+  await page.locator('[data-ui="message"]').nth(1).locator('[data-action="actionEditMessage"]').click();
+  await page.waitForTimeout(1100);
+  const mmEditMessage = await measureTextModals(page);
+  await page.locator('#modal-edit-message .msg-block .rail-actions .key').first().click();
+  await page.waitForTimeout(700);
+  const mmExpander = await measureTextModals(page);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(300);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(400);
+  await page.locator('.left-sidebar .nav', { hasText: 'Personas' }).first().click();
+  await page.waitForTimeout(800);
+  const mmPersonaBands = await measureBands(page);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(300);
+  await page.locator('#preset-selector .preset-trigger').click();
+  await page.waitForTimeout(900);
+  const mmPresets = await measureBands(page);
+  const mmPresetRows = await measurePresetRows(page);
   await page.keyboard.press('Escape');
   await page.waitForTimeout(300);
   await page.locator('.left-sidebar .nav', { hasText: 'Providers' }).first().click();
@@ -234,6 +405,7 @@ async function measureBands(page) {
   await page.locator('[data-action="actionOpenProviderCreateModal"]').click();
   await page.waitForTimeout(800);
   const mmFoot = await measureModal(page);
+  const mmProviderForm = await measureProviderForm(page);
   await page.keyboard.press('Escape');
   await page.waitForTimeout(300);
   await page.keyboard.press('Escape');
@@ -246,6 +418,21 @@ async function measureBands(page) {
   await page.locator('.left-sidebar .nav', { hasText: 'Arranger' }).first().click();
   await page.waitForTimeout(900);
   const mmArranger = await measureBands(page);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(300);
+  await page.locator('.left-sidebar .nav', { hasText: 'Samplers' }).first().click();
+  await page.waitForTimeout(900);
+  const mmSampler = await measureBands(page);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(300);
+  await page.locator('.left-sidebar .nav', { hasText: 'Advanced' }).first().click();
+  await page.waitForTimeout(1200);
+  const mmAdvanced = await measureBands(page);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(300);
+  await page.locator('.left-sidebar .nav', { hasText: 'Themes' }).first().click();
+  await page.waitForTimeout(900);
+  const mmTheme = await measureBands(page);
   await browser.close();
 
   const inset = 12;
@@ -254,7 +441,7 @@ async function measureBands(page) {
   checkGrid('right pane', m.rightPane);
   [...m.leftTitles, ...m.rightTitles].forEach((r, i) => checkGrid('rail ' + i, r));
   [...m.leftSections].forEach((r, i) => checkGrid('left section ' + i, r));
-  checkGrid('preset well', m.preset);
+  checkGrid('preset selector', m.preset);
   checkGrid('new chat', m.newChat);
   m.tiles.forEach((r, i) => checkGrid('tool tile ' + i, r));
   checkGrid('status panel', m.status);
@@ -270,7 +457,7 @@ async function measureBands(page) {
 
   if (m.leftTitles.length) checkInset('left rail', m.leftTitles[0], m.leftPane, inset);
   if (m.rightTitles.length) checkInset('right rail', m.rightTitles[0], m.rightPane, inset);
-  if (m.preset) checkInset('preset well', m.preset, m.leftPane, inset);
+  if (m.preset) checkInset('preset selector', m.preset, m.leftPane, inset);
   if (m.newChat) checkInset('new chat', m.newChat, m.rightPane, inset);
 
   if (m.leftTitles.length && m.rightTitles.length) {
@@ -284,7 +471,7 @@ async function measureBands(page) {
       `new chat ${m.newChat.height}@${m.newChat.y} vs preset ${m.preset.height}@${m.preset.y}`,
     );
   }
-  checkHeight('preset well', m.preset, [28, 32]);
+  checkHeight('preset selector', m.preset, [28, 32]);
   checkHeight('new chat', m.newChat, [28, 32]);
   m.tiles.forEach((r, i) => checkHeight('tool tile ' + i, r, [28, 32]));
   m.statusRows.forEach((r, i) => checkHeight('status row ' + i, r, [20, 24, 28]));
@@ -376,23 +563,26 @@ async function measureBands(page) {
   if (mmEntity) {
     const p = mmEntity.panel;
     checkGrid('modal panel', p);
-    checkHeight('modal head', mmEntity.head, [56]);
+    checkHeight('modal head', mmEntity.head, [64]);
+    check(
+      'modal title is inset equally above and below',
+      mmEntity.title.y - p.y === modalPad && mmEntity.head.bottom - (mmEntity.title.y + mmEntity.title.height) === modalPad,
+      `above=${mmEntity.title.y - p.y} below=${mmEntity.head.bottom - (mmEntity.title.y + mmEntity.title.height)}`,
+    );
     check(
       'modal title sits on the panel inset (top and left)',
       mmEntity.title.x - p.x === modalPad && mmEntity.title.y - p.y === modalPad,
       `dx=${mmEntity.title.x - p.x} dy=${mmEntity.title.y - p.y}`,
     );
     check(
-      'modal body pads by the same inset',
-      mmEntity.bodyPad === modalPad + 'px' &&
-        mmEntity.firstKid.x - p.x === modalPad &&
-        mmEntity.firstKid.right === p.right - modalPad,
-      `pad=${mmEntity.bodyPad} left=${mmEntity.firstKid.x - p.x} right=${p.right - mmEntity.firstKid.right}`,
-    );
-    check(
-      'modal content clears the panel floor by the inset',
-      p.bottom - mmEntity.firstKid.bottom === modalPad,
-      `gap=${p.bottom - mmEntity.firstKid.bottom}`,
+      'modal bands bleed to the panel edges',
+      mmEntityBands &&
+        mmEntityBands.lane &&
+        mmEntityBands.lane.x === p.x &&
+        mmEntityBands.lane.right === p.right,
+      mmEntityBands && mmEntityBands.lane
+        ? `left=${mmEntityBands.lane.x - p.x} right=${p.right - mmEntityBands.lane.right}`
+        : 'no lane measured',
     );
     const rows = mmEntity.entityRows;
     if (rows.length) {
@@ -415,12 +605,229 @@ async function measureBands(page) {
       check('entity avatar rides the row centre', mmEntity.entityAvatars[0].y - rows[0].y === 4, `dy=${mmEntity.entityAvatars[0].y - rows[0].y}`);
     }
   }
+  // ── Provider form: the settings column's caption line and control line ──
+  if (mmProviderForm) {
+    const p = mmProviderForm.panel;
+    const rails = mmProviderForm.rails;
+    check('provider form: three named groups', rails.length === 3, `rails ${rails.length}`);
+    rails.forEach((r, i) =>
+      check(
+        `provider form: group rail ${i} sits on the modal inset`,
+        r.x === p.x + modalPad && p.right - r.right === modalPad,
+        `left=${r.x - p.x} right=${p.right - r.right}`,
+      ),
+    );
+    const rows = mmProviderForm.rows;
+    check(
+      'provider form: every settings line spans the column',
+      new Set(rows.map((r) => r.x)).size === 1 && new Set(rows.map((r) => r.right)).size === 1,
+      `x {${[...new Set(rows.map((r) => r.x))]}} right {${[...new Set(rows.map((r) => r.right))]}}`,
+    );
+    mmProviderForm.sections.forEach((section, i) => {
+      const pitches = new Set(section.slice(1).map((r, j) => r.y - section[j].y));
+      check(`provider form: group ${i} sits on one pitch`, pitches.size <= 1, `pitches {${[...pitches]}}`);
+    });
+    const caps = mmProviderForm.captions;
+    check(
+      'provider form: captions share one column',
+      new Set(caps.map((c) => c.x)).size === 1 && new Set(caps.map((c) => c.width)).size === 1,
+      `x {${[...new Set(caps.map((c) => c.x))]}} w {${[...new Set(caps.map((c) => c.width))]}}`,
+    );
+    const fields = mmProviderForm.fields;
+    check(
+      'provider form: controls start on the caption column',
+      new Set(fields.map((f) => f.x)).size === 1,
+      `x {${[...new Set(fields.map((f) => f.x))]}}`,
+    );
+    // The row's own 8px inset is the content edge; the model field stops short
+    // of it because the fetch key takes the corner.
+    const contentEdge = rows[0].right - 8;
+    check(
+      'provider form: controls close on the row content edge',
+      fields.every((f) => f.right <= contentEdge) && fields.some((f) => f.right === contentEdge),
+      `rights {${[...new Set(fields.map((f) => f.right))]}} edge=${contentEdge}`,
+    );
+    if (mmProviderForm.emptyNote) {
+      check(
+        'provider form: the empty key list keeps the caption line',
+        mmProviderForm.emptyNote.x === caps[0].x,
+        `note=${mmProviderForm.emptyNote.x} caption=${caps[0].x}`,
+      );
+    }
+  }
+
+  // ── Presets: one column of two-line rows ──
+  if (mmPresetRows) {
+    const p = mmPresetRows.panel;
+    const rows = mmPresetRows.rows;
+    checkHeight('preset row', rows[0], [48]);
+    const pitches = new Set(rows.slice(1).map((r, i) => r.y - rows[i].y));
+    check('preset rows sit on a constant pitch', pitches.size <= 1, `pitches {${[...pitches]}}`);
+    check(
+      'preset rows span the lane',
+      new Set(rows.map((r) => r.x)).size === 1 && new Set(rows.map((r) => r.right)).size === 1,
+      `x {${[...new Set(rows.map((r) => r.x))]}} right {${[...new Set(rows.map((r) => r.right))]}}`,
+    );
+    check(
+      'preset titles share one column',
+      new Set(mmPresetRows.titles.map((t) => t.x)).size === 1,
+      `x {${[...new Set(mmPresetRows.titles.map((t) => t.x))]}}`,
+    );
+    check(
+      'preset meta sits under its title',
+      new Set(mmPresetRows.metas.map((m) => m.x)).size === 1 &&
+        mmPresetRows.metas[0].x === mmPresetRows.titles[0].x,
+      `meta=${mmPresetRows.metas[0].x} title=${mmPresetRows.titles[0].x}`,
+    );
+    check(
+      'preset verbs share one right edge',
+      new Set(mmPresetRows.verbs.map((v) => v.right)).size === 1,
+      `rights {${[...new Set(mmPresetRows.verbs.map((v) => v.right))]}}`,
+    );
+    check(
+      'preset rows close on the panel inset',
+      Math.abs(p.right - rows[0].right - modalPad) < 1,
+      `right=${(p.right - rows[0].right).toFixed(1)}`,
+    );
+  }
+
+  // ── Entity editor: two panes, rails on the pane insets ──
+  if (mmEditor) {
+    const p = mmEditor.panel;
+    const gutter = 24;
+    check('editor identity pane is 336 wide', mmEditor.side.width === 336, `w=${mmEditor.side.width}`);
+    check(
+      'editor panes keep one gutter',
+      mmEditor.main.x - mmEditor.side.right === gutter,
+      `gutter=${mmEditor.main.x - mmEditor.side.right}`,
+    );
+    check(
+      'editor content pane closes on the modal inset',
+      Math.abs(p.right - mmEditor.main.right - modalPad) < 1,
+      `right=${(p.right - mmEditor.main.right).toFixed(1)}`,
+    );
+    check(
+      'editor identity rail sits on its pane edge',
+      mmEditor.identityRail.x === mmEditor.side.x && Math.abs(mmEditor.identityRail.right - mmEditor.side.right) < 12,
+      `rail=${mmEditor.identityRail.x}..${mmEditor.identityRail.right} pane=${mmEditor.side.x}..${mmEditor.side.right}`,
+    );
+    [mmEditor.descRail, mmEditor.greetRail].forEach((r, i) =>
+      check(
+        `editor content rail ${i} spans the content pane`,
+        r.x === mmEditor.main.x && Math.abs(r.right - mmEditor.main.right) < 1,
+        `rail=${r.x}..${r.right} pane=${mmEditor.main.x}..${mmEditor.main.right}`,
+      ),
+    );
+    [['description', mmEditor.desc, mmEditor.descRail], ['greeting', mmEditor.greet, mmEditor.greetRail]].forEach(([name, field, rail]) =>
+      check(
+        `editor ${name} field spans its rail`,
+        field.x === rail.x && Math.abs(field.right - rail.right) < 1,
+        `field=${field.x}..${field.right} rail=${rail.x}..${rail.right}`,
+      ),
+    );
+    check('editor portrait is a 96px square', mmEditor.avatar.width === 96 && mmEditor.avatar.height === 96, `${mmEditor.avatar.width}x${mmEditor.avatar.height}`);
+    check(
+      'editor media tray shares both edges with the identity controls',
+      mmEditor.media.x === mmEditor.fields[0].x &&
+        Math.abs(mmEditor.media.right - mmEditor.fields[0].right) < 1,
+      `tray=${mmEditor.media.x}..${mmEditor.media.right} control=${mmEditor.fields[0].x}..${mmEditor.fields[0].right}`,
+    );
+    check(
+      'editor portrait sits on the identity control column',
+      mmEditor.avatar.x === mmEditor.fields[0].x,
+      `avatar=${mmEditor.avatar.x} control=${mmEditor.fields[0].x}`,
+    );
+    check(
+      'editor media tray is the fixed three-row gallery',
+      mmEditor.media.height === 176,
+      `h=${mmEditor.media.height}`,
+    );
+    const caps = mmEditor.captions;
+    check(
+      'editor identity captions share one column',
+      new Set(caps.map((c) => c.x)).size === 1 && new Set(caps.map((c) => c.width)).size === 1,
+      `x {${[...new Set(caps.map((c) => c.x))]}} w {${[...new Set(caps.map((c) => c.width))]}}`,
+    );
+    const fields = mmEditor.fields;
+    check(
+      'editor identity controls share both edges',
+      new Set(fields.map((f) => f.x)).size === 1 && new Set(fields.map((f) => f.right)).size === 1,
+      `x {${[...new Set(fields.map((f) => f.x))]}} right {${[...new Set(fields.map((f) => f.right))]}}`,
+    );
+    // The extras are rows of the column, not controls of a caption row: they
+    // share the pane's content edges with each other.
+    check(
+      'editor extras share the column edges',
+      mmEditor.legacy.x === mmEditor.door.x && mmEditor.legacy.right === mmEditor.door.right &&
+        mmEditor.door.x === mmEditor.side.x,
+      `door=${mmEditor.door.x}..${mmEditor.door.right} legacy=${mmEditor.legacy.x}..${mmEditor.legacy.right} pane=${mmEditor.side.x}`,
+    );
+    const lastKey = mmEditor.greetKeys[mmEditor.greetKeys.length - 1];
+    check(
+      'editor greeting verbs close on the rail right edge',
+      lastKey && Math.abs(lastKey.right - mmEditor.greetRail.right) < 1,
+      `last=${lastKey && lastKey.right} rail=${mmEditor.greetRail.right}`,
+    );
+    check(
+      'editor foot verb closes on the panel inset',
+      Math.abs(p.right - mmEditor.footBtn.right - modalPad) < 1 &&
+        Math.abs(p.bottom - mmEditor.footBtn.bottom - 16) < 1,
+      `right=${(p.right - mmEditor.footBtn.right).toFixed(1)} bottom=${(p.bottom - mmEditor.footBtn.bottom).toFixed(1)}`,
+    );
+  }
+
+  // ── Text modals: rails, fields and foot verbs on the modal inset ──
+  [
+    ['message editor', mmEditMessage && mmEditMessage.editMessage],
+    ['text expander', mmExpander && mmExpander.expander],
+  ].forEach(([name, m]) => {
+    if (!m) {
+      check(name + ': measured', false, 'modal not open');
+      return;
+    }
+    const p = m.panel;
+    m.fields.forEach((f, i) =>
+      check(
+        `${name}: field ${i} spans the body`,
+        Math.abs(f.x - (p.x + modalPad)) < 1 && Math.abs(p.right - modalPad - f.right) < 1,
+        `field=${f.x}..${f.right} body=${p.x + modalPad}..${p.right - modalPad}`,
+      ),
+    );
+    m.rails.forEach((r, i) =>
+      check(
+        `${name}: rail ${i} sits on the modal inset`,
+        Math.abs(r.x - (p.x + modalPad)) < 1 && Math.abs(p.right - modalPad - r.right) < 1,
+        `rail=${r.x}..${r.right} inset=${p.x + modalPad}..${p.right - modalPad}`,
+      ),
+    );
+    m.railActions.forEach((a, i) =>
+      check(
+        `${name}: rail verb ${i} closes on the modal inset`,
+        Math.abs(p.right - modalPad - a.right) < 1,
+        `right=${(p.right - modalPad - a.right).toFixed(1)}`,
+      ),
+    );
+    const lastBtn = m.footButtons[m.footButtons.length - 1];
+    check(
+      `${name}: foot closes on the panel inset`,
+      lastBtn && Math.abs(p.right - lastBtn.right - modalPad) < 1 && Math.abs(p.bottom - lastBtn.bottom - 16) < 1,
+      lastBtn ? `right=${(p.right - lastBtn.right).toFixed(1)} bottom=${(p.bottom - lastBtn.bottom).toFixed(1)}` : 'no foot verbs',
+    );
+  });
+
   // ── Banded modal chassis: one vertical rhythm across every list modal ──
+  // One number separates a band's content from anything above or below it.
+  const bandPad = 16;
   [
     ['characters', mmEntityBands],
+    ['personas', mmPersonaBands],
     ['providers', mmProviders],
+    ['presets', mmPresets],
     ['itemizer', mmItemizer],
     ['arranger', mmArranger],
+    ['samplers', mmSampler],
+    ['advanced', mmAdvanced],
+    ['themes', mmTheme],
   ].forEach(([name, b]) => {
     if (!b) return;
     const p = b.panel;
@@ -433,37 +840,85 @@ async function measureBands(page) {
       Math.abs(b.rail.x - p.x - modalPad) < 1 && Math.abs(p.right - b.rail.right - modalPad) < 1,
       `left=${(b.rail.x - p.x).toFixed(1)} right=${(p.right - b.rail.right).toFixed(1)}`,
     );
+    // One rhythm for the whole chassis: the rail has the modal inset above it
+    // (from the head groove or the tab strip) and the same below it.
+    const above = b.tabs || b.head;
     check(
-      name + ': rail clears the title groove by the modal inset',
-      Math.abs(b.rail.y - b.head.bottom - modalPad) < 1,
-      `gap=${(b.rail.y - b.head.bottom).toFixed(1)}`,
+      name + ': rail sits one band pad under the band above it',
+      Math.abs(b.rail.y - above.bottom - bandPad) < 1,
+      `gap=${(b.rail.y - above.bottom).toFixed(1)}`,
     );
     check(
-      name + ': rail gets air before the next band',
-      b.next && Math.abs(b.next.y - b.rail.bottom - inset) < 1,
+      name + ': rail has the same air below it as above',
+      b.next && Math.abs(b.next.y - b.rail.bottom - bandPad) < 1,
       b.next ? `gap=${(b.next.y - b.rail.bottom).toFixed(1)}` : 'no band after the head',
     );
-    if (b.lane && b.row) {
+    if (b.lane && b.firstKid) {
       check(
-        name + ': first row starts inside the lane',
-        Math.abs(b.row.y - b.lane.y - 8) < 1,
-        `dy=${(b.row.y - b.lane.y).toFixed(1)}`,
+        name + ': lane insets its first child by the same rhythm',
+        Math.abs(b.firstKid.y - b.lane.y - bandPad) < 1,
+        `dy=${(b.firstKid.y - b.lane.y).toFixed(1)}`,
       );
     }
-    check(
-      name + ': last band closes on the panel floor',
-      b.last && Math.abs(p.bottom - b.last.bottom) < 1,
-      b.last ? `gap=${(p.bottom - b.last.bottom).toFixed(1)}` : 'no bands',
-    );
+    // A modal with a real foot closes on the foot, not on the panel floor.
+    if (b.modalFoot) {
+      const lastFootBtn = b.modalFootButtons[b.modalFootButtons.length - 1];
+      check(
+        name + ': foot closes on the panel edges',
+        lastFootBtn &&
+          Math.abs(p.right - lastFootBtn.right - modalPad) < 1 &&
+          Math.abs(p.bottom - lastFootBtn.bottom - bandPad) < 1,
+        lastFootBtn
+          ? `right=${(p.right - lastFootBtn.right).toFixed(1)} bottom=${(p.bottom - lastFootBtn.bottom).toFixed(1)}`
+          : 'no foot verbs',
+      );
+      check(
+        name + ': bands stop at the foot',
+        Math.abs(b.last.bottom - b.modalFoot.y) < 1,
+        `gap=${(b.modalFoot.y - b.last.bottom).toFixed(1)}`,
+      );
+    } else {
+      check(
+        name + ': last band closes on the panel floor',
+        b.last && Math.abs(p.bottom - b.last.bottom) < 1,
+        b.last ? `gap=${(p.bottom - b.last.bottom).toFixed(1)}` : 'no bands',
+      );
+    }
     if (b.footButtons.length) {
       const lastBtn = b.footButtons[b.footButtons.length - 1];
       check(
-        name + ': foot verb clears the panel inset',
-        Math.abs(p.right - lastBtn.right - modalPad) < 1 && Math.abs(p.bottom - lastBtn.bottom - modalPad) < 1,
+        name + ': foot verb clears the panel edges',
+        Math.abs(p.right - lastBtn.right - modalPad) < 1 && Math.abs(p.bottom - lastBtn.bottom - bandPad) < 1,
         `right=${(p.right - lastBtn.right).toFixed(1)} bottom=${(p.bottom - lastBtn.bottom).toFixed(1)}`,
+      );
+      check(
+        name + ': foot verb has the same air above it as below',
+        Math.abs(lastBtn.y - b.foot.y - bandPad) < 1 && Math.abs(b.foot.bottom - lastBtn.bottom - bandPad) < 1,
+        `above=${(lastBtn.y - b.foot.y).toFixed(1)} below=${(b.foot.bottom - lastBtn.bottom).toFixed(1)}`,
       );
     }
   });
+
+  // ── Theme customizer: master-detail inside one lane ──
+  if (mmTheme && mmTheme.columns.length === 2) {
+    const p = mmTheme.panel;
+    const [list, editor] = mmTheme.columns;
+    check(
+      'theme: list column rides the modal inset',
+      Math.abs(list.x - p.x - modalPad) < 1,
+      `left=${(list.x - p.x).toFixed(1)}`,
+    );
+    check(
+      'theme: editor column rides the modal inset',
+      Math.abs(p.right - editor.right - modalPad) < 1,
+      `right=${(p.right - editor.right).toFixed(1)}`,
+    );
+    check(
+      'theme: both columns share the lane top',
+      Math.abs(list.y - editor.y) < 1,
+      `list=${list.y} editor=${editor.y}`,
+    );
+  }
 
   if (mmFoot) {
     const p = mmFoot.panel;
@@ -482,9 +937,14 @@ async function measureBands(page) {
     if (mmFoot.foot && mmFoot.footButtons.length) {
       const last = mmFoot.footButtons[mmFoot.footButtons.length - 1];
       check(
-        'modal foot closes on the panel inset',
-        p.right - last.right === modalPad && p.bottom - last.bottom === modalPad,
+        'modal foot closes on the panel edges',
+        p.right - last.right === modalPad && p.bottom - last.bottom === bandPad,
         `right=${p.right - last.right} bottom=${p.bottom - last.bottom}`,
+      );
+      check(
+        'modal foot verb has the same air above it as below',
+        Math.abs(last.y - mmFoot.foot.y - bandPad) < 1 && Math.abs(mmFoot.foot.bottom - last.bottom - bandPad) < 1,
+        `above=${(last.y - mmFoot.foot.y).toFixed(1)} below=${(mmFoot.foot.bottom - last.bottom).toFixed(1)}`,
       );
       checkHeight('modal foot button', last, [28]);
     }

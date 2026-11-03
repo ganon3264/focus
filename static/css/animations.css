@@ -5,18 +5,24 @@
   from { opacity: 0; }
   to   { opacity: 1; }
 }
-/* Chat generation spinner: a light runs the ring around the avatar. */
-@keyframes loader-trace {
-  from {
-    offset-distance: 0%;
-  }
-  to {
-    offset-distance: 100%;
-  }
-}
 @keyframes gen-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.25; }
+}
+/* Pending ticker: a cell holds lit for a quarter turn, then drops back to its
+   recessed socket while the next one takes over. The lit hue is inherited from
+   the message's streaming phase. */
+@keyframes pending-tick {
+  0%, 24.99% {
+    background-color: var(--tick-color, var(--accent));
+    box-shadow:
+      inset 0 var(--hair-w) 0 color-mix(in srgb, var(--tick-color, var(--accent)), white 30%),
+      0 0 4px color-mix(in srgb, var(--tick-color, var(--accent)) 25%, transparent);
+  }
+  25%, 100% {
+    background-color: var(--ink-2);
+    box-shadow: inset 0 0 0 var(--hair-w) var(--hair);
+  }
 }
 @keyframes slide-up {
   from {

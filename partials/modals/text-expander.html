@@ -1,12 +1,15 @@
-{% from "modal-shell.html" import modal_shell %} {% call modal_shell('modal-text-expander', 'Edit
-Text', max_width='896px',
-content_style='height:85vh;', z_index='1000') %}
-<textarea
-  id="text-expander-input"
-  class="field mono w-full flex-1"
-  style="resize: none;"
-></textarea>
-<p class="note shrink-0 text-center">Changes apply to the field as you type.</p>
+{% from "macros.html" import modal_footer %} {% from "modal-shell.html" import modal_shell %} {% call
+modal_shell('modal-text-expander', 'Edit Text', max_width='896px', content_style='height:85vh;', z_index='1000', foot=true) %}
+{# The field fills the frame, the foot says what the typing does and how much of
+   it there is. Nothing else belongs on this screen — it is the same text, just
+   bigger, and edits land in the host field as you type. #}
+<div class="stacked-form">
+  <textarea id="text-expander-input" class="field sized edit-text"></textarea>
+  {% call modal_footer(hint='note', text='Changes apply to the field as you type') %}
+  <span class="row-value" id="text-expander-count"></span>
+  <button type="button" class="btn primary" data-action="actionCloseModal" data-modal-id="modal-text-expander">Done</button>
+  {% endcall %}
+</div>
 {% endcall %}
 
 <script>
@@ -14,15 +17,30 @@ content_style='height:85vh;', z_index='1000') %}
     window.__textExpanderLoaded = true;
     let _expanderTarget = null;
 
+    function updateExpanderCount() {
+      const ta = document.getElementById('text-expander-input');
+      const el = document.getElementById('text-expander-count');
+      if (!ta || !el) return;
+      const n = (ta.value || '').length;
+      el.textContent = n ? n.toLocaleString() + ' chars' : '';
+    }
+
     window.openTextExpander = function (targetEl, title) {
       _expanderTarget = targetEl;
       document.querySelector('#modal-text-expander [data-ui="modal-title"]').innerText = title || 'Edit Text';
-      document.getElementById('text-expander-input').value = targetEl.value;
+      const ta = document.getElementById('text-expander-input');
+      ta.value = targetEl.value;
+      updateExpanderCount();
       window.openModal('modal-text-expander');
-      document.getElementById('text-expander-input').focus();
+      // Setting a value leaves the caret at the end, and focusing scrolls the
+      // field to it — which opened this screen on the last paragraph.
+      ta.setSelectionRange(0, 0);
+      ta.focus();
+      ta.scrollTop = 0;
     };
 
     document.getElementById('text-expander-input').addEventListener('input', function () {
+      updateExpanderCount();
       if (_expanderTarget) {
         _expanderTarget.value = this.value;
         _expanderTarget.dispatchEvent(new Event('input', { bubbles: true }));

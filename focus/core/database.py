@@ -493,9 +493,14 @@ async def init_db():
                 "ALTER TABLE regex_scripts ADD COLUMN as_block INTEGER NOT NULL DEFAULT 0"
             )
 
-        from focus.db.themes import delete_legacy_theme_setting, seed_builtin_themes
+        from focus.db.themes import (
+            delete_legacy_theme_setting,
+            migrate_builtin_themes,
+            seed_builtin_themes,
+        )
 
         await seed_builtin_themes(db)
+        await migrate_builtin_themes(db)
         await delete_legacy_theme_setting(db)
 
         cols = await db.execute("PRAGMA table_info(chat_tool_states)")

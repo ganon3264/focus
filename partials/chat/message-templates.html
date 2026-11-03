@@ -12,7 +12,7 @@
 <template id="tpl-message-shell-assistant">{{ message_shell(meta=True, slots=True) }}</template>
 <template id="tpl-message-shell-user">{{ message_shell(meta=False, slots=True) }}</template>
 <template id="tpl-message-content">{{ message_content(processed=True) }}</template>
-<template id="tpl-message-spinner"><div class="message-spinner" data-ui="message-spinner"></div></template>
+<template id="tpl-message-pending"><span class="row-meta message-pending" data-ui="message-pending"><span class="spinner scan" aria-hidden="true"><i></i><i></i><i></i><i></i></span></span></template>
 <template id="tpl-reasoning-toggle">{{ reasoning_toggle_btn(hidden=True) }}</template>
 <template id="tpl-reasoning-block">{{ reasoning_block(1) }}</template>
 <template id="tpl-reasoning-first">{{ reasoning_block(0, collapsible=False) }}</template>

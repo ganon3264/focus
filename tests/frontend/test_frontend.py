@@ -218,6 +218,17 @@ TEMPLATES_THAT_RENDER = [
         },
     ),
     ("modals/provider-create.html", {}),
+    (
+        "modals/presets.html",
+        {
+            "presets": [
+                {"id": "p1", "name": "General", "blocks": [
+                    {"block_type": "text"}, {"block_type": "variable"},
+                ]},
+            ],
+            "current_preset_id": "p1",
+        },
+    ),
     ("modals/text-expander.html", {}),
     ("modals/theme.html", {}),
     ("modals/option-picker.html", {}),

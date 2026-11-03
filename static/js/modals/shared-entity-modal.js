@@ -11,6 +11,7 @@
     var fnHardDelete = 'hardDelete' + cfg.fnEntity;
     var fnSelect = resolve('selectFn', 'select' + cfg.fnEntity + 'Modal');
     var fnImport = resolve('importFn', 'import' + cfg.fnEntity + 'Modal');
+    var resource = cfg.stateKey === 'character_id' ? 'characters' : 'personas';
 
     // Hard delete drops the row for good, and chats.
     // character_id/persona_id are ON DELETE SET NULL, so the client selection
@@ -69,7 +70,7 @@
             if (isHard) {
               clearActiveSelection(id);
             } else if (window.Refresh && isActive) {
-              Refresh.changed(cfg.stateKey === 'character_id' ? 'characters' : 'personas');
+              Refresh.changed(resource);
             }
             // Active delete is routed through Refresh (the open grid re-renders
             // via characterCards/personaCards); a targeted inline removal would
@@ -141,29 +142,32 @@
           url += '?restore_chats=' + restoreChats;
         }
         fetch(url, { method: 'POST' }).then(function (r) {
-          if (r.ok) {
-            closeModal('modal-trash', { discard: true });
-            window.showSuccessToast(cfg.entity + ' restored');
-            var g = document.getElementById(cfg.gridId);
-            if (g) {
-              var cid = StateManager.get(cfg.stateKey) || '';
-              var cv = g.dataset.view === 'compact';
-              hxGet(cfg.cardEndpoint + id +
-                '?current_' + cfg.stateKey + '=' + encodeURIComponent(cid) +
-                '&compact_view=' + cv, { target: '#' + cfg.gridId, swap: 'beforeend' })
-                .then(function () {
-                  var val = localStorage.getItem(cfg.sortStorageKey);
-                  if (val && window[cfg.sortFn]) window[cfg.sortFn](val);
-                });
-            } else {
-              hxGet(cfg.modalEndpoint, {
-                target: '#' + cfg.modalBodyInnerId,
-                swap: 'innerHTML',
-              }).then(function () {
+          if (!r.ok) return;
+          closeModal('modal-trash', { discard: true });
+          window.showSuccessToast(cfg.entity + ' restored');
+          if (window.Refresh) {
+            Refresh.changed(resource);
+            return;
+          }
+          var g = document.getElementById(cfg.gridId);
+          if (g) {
+            var cid = StateManager.get(cfg.stateKey) || '';
+            var cv = g.dataset.view === 'compact';
+            hxGet(cfg.cardEndpoint + id +
+              '?current_' + cfg.stateKey + '=' + encodeURIComponent(cid) +
+              '&compact_view=' + cv, { target: '#' + cfg.gridId, swap: 'beforeend' })
+              .then(function () {
                 var val = localStorage.getItem(cfg.sortStorageKey);
                 if (val && window[cfg.sortFn]) window[cfg.sortFn](val);
               });
-            }
+          } else {
+            hxGet(cfg.modalEndpoint, {
+              target: '#' + cfg.modalBodyInnerId,
+              swap: 'innerHTML',
+            }).then(function () {
+              var val = localStorage.getItem(cfg.sortStorageKey);
+              if (val && window[cfg.sortFn]) window[cfg.sortFn](val);
+            });
           }
         });
       }

@@ -187,6 +187,9 @@ eval(src + '\nwindow.hexToRgb=hexToRgb;window.lightenHex=lightenHex;window.compu
   var palette = resolvePalette(window.getTheme('builtin-slate'));
   assertEqual(palette['--bg'], SLATE['--bg'], 'resolvePalette: colors copied');
   assert(palette['--accent-hover'], 'resolvePalette: accent-hover derived');
+  assertEqual(palette['--text-on-accent'], '#ffffff', 'resolvePalette: dark accent gets white text');
+  var bright = resolvePalette({ colors: { '--accent': '#a3e635' } });
+  assertEqual(bright['--text-on-accent'], '#16181c', 'resolvePalette: light accent gets dark text');
 })();
 
 // ── saveTheme: create (POST) vs update (PATCH), no light field ──
@@ -388,7 +391,10 @@ global.openConfirmModal = function (message, cb) {
   state.editName = 'Mint';
   colorInput.value = '#abcdef';
   state.create();
-  assertDeepEqual(created, { name: 'Mint', colors: { '--accent': '#abcdef' } }, 'modal create: POST payload');
+  assertDeepEqual(created, {
+    name: 'Mint',
+    colors: { '--bg': '#0b0d10', '--surface': '#13151a', '--accent': '#abcdef', '--text': '#f1f3f5' },
+  }, 'modal create: POST payload keeps unexposed keys');
   return new Promise(function (res) { setImmediate(res); }).then(function () {
     assertEqual(_toasts[0], 'Theme "Mint" created', 'modal create: toast text');
     assertEqual(state.selectedId, 'new-id', 'modal create: new theme selected for editing');
@@ -426,7 +432,10 @@ global.openConfirmModal = function (message, cb) {
   state.editName = 'Renamed';
   colorInput.value = '#111111';
   state.save();
-  assertDeepEqual(saved, { name: 'Renamed', colors: { '--accent': '#111111' } }, 'modal save update: payload');
+  assertDeepEqual(saved, {
+    name: 'Renamed',
+    colors: { '--bg': '#0b0d10', '--surface': '#13151a', '--accent': '#111111', '--text': '#f1f3f5' },
+  }, 'modal save update: payload keeps unexposed keys');
 })();
 
 // ── Result ──

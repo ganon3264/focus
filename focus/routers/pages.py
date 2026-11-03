@@ -484,6 +484,24 @@ async def preset_selector_partial(request: Request, chat_id: str, db: aiosqlite.
     )
 
 
+@router.get("/partials/presets-modal", response_class=HTMLResponse)
+async def presets_modal_partial(
+    request: Request, chat_id: str = "", db: aiosqlite.Connection = Depends(get_db)
+):
+    presets = await crud.get_presets(db)
+    current_preset_id = None
+    if chat_id:
+        async with db.execute("SELECT preset_id FROM chats WHERE id = ?", (chat_id,)) as cur:
+            row = await cur.fetchone()
+        if row:
+            current_preset_id = row["preset_id"]
+    return templates.TemplateResponse(
+        request,
+        "modals/presets.html",
+        {"presets": presets, "current_preset_id": current_preset_id},
+    )
+
+
 @router.get("/partials/preset-variables/{preset_id}", response_class=HTMLResponse)
 async def preset_variables_partial(request: Request, preset_id: str, db: aiosqlite.Connection = Depends(get_db)):
     blocks = await crud.get_preset_blocks(db, preset_id)

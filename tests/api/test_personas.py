@@ -67,6 +67,15 @@ class TestPersonaLifecycle:
 
 
 class TestPersonaModals:
+    async def test_modal_offers_the_trash_bin(self, client):
+        resp = await client.get("/partials/personas-modal")
+        assert resp.status_code == 200
+        html = resp.text
+        assert 'class="modal-band-foot"' in html
+        assert 'openPersonaTrashModal()' in html
+        assert 'Trash Bin' in html
+        assert 'openTrashFn' not in html
+
     async def test_modal_highlights_current(self, client):
         p1 = await create_persona(client, "PersonaOne")
         p2 = await create_persona(client, "PersonaTwo")
