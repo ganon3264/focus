@@ -186,9 +186,12 @@
     var card = tpl('tpl-tool-call');
     if (!card) return null;
 
-    card.querySelector('summary code').textContent = call.name;
+    var nameEl = card.querySelector('[data-ui="tool-name"]');
+    if (nameEl) nameEl.textContent = call.name;
 
-    var args = card.querySelector('summary span');
+    // The args node is its own hook: a plain `summary span` also matches the
+    // drawn caret, which then swallows the JSON and rotates it 45°.
+    var args = card.querySelector('[data-ui="tool-args"]');
     var argStr = typeof call.arguments === 'string' ? call.arguments : JSON.stringify(call.arguments || {});
     if (args) {
       if (argStr && argStr !== '{}') args.textContent = argStr;

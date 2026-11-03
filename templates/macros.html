@@ -594,9 +594,9 @@
 <details class="disclosure tool-call">
   <summary>
     <span class="caret-mark reasoning-chevron" aria-hidden="true"></span>
-    <code class="disclosure-title">{{ tc.function.name }}</code>
+    <code class="disclosure-title" data-ui="tool-name">{{ tc.function.name }}</code>
     {% if tc.function.arguments and tc.function.arguments != '{}' %}
-    <span class="disclosure-meta">{{ tc.function.arguments }}</span>
+    <span class="disclosure-meta" data-ui="tool-args">{{ tc.function.arguments }}</span>
     {% endif %}
   </summary>
   <div class="disclosure-body tool-result-body" data-ui="tool-result-body">
