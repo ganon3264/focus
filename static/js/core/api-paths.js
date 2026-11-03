@@ -202,6 +202,7 @@ window.api = {
     charactersModal: '/partials/characters-modal',
     personasModal: '/partials/personas-modal',
     providersModal: '/partials/providers-modal',
+    secrets: '/partials/secrets',
     presetsModal: '/partials/presets-modal',
     presetArranger: function (presetId) {
       return '/partials/prompt-arranger/' + presetId;

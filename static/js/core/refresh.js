@@ -23,6 +23,7 @@
     'chats', 'messages', 'characters', 'personas', 'presets', 'preset_blocks',
     'preset_variables', 'providers', 'themes', 'regex_scripts',
     'structured_responses', 'extensions', 'tools', 'settings', 'backups',
+    'secrets',
   ];
 
   function fn(name) {
@@ -175,6 +176,14 @@
       when: advancedOpen,
       load: function () {
         return window.BackupManager ? BackupManager.loadList() : undefined;
+      },
+    },
+    secretsList: {
+      deps: ['secrets'],
+      when: function () { return modalOpen('modal-secrets'); },
+      load: function () {
+        var reload = fn('loadSecrets');
+        if (reload) return reload();
       },
     },
     themes: {

@@ -283,6 +283,28 @@ async function measureEntityEditor(page) {
   });
 }
 
+// The saved-key library: one column of readout rows whose verbs keep the row's
+// own content edge. The add form is a separate modal, so the list must not
+// change height when it opens.
+async function measureSecrets(page) {
+  return page.evaluate(() => {
+    const rect = (el) => {
+      const b = el.getBoundingClientRect();
+      return { x: Math.round(b.x), y: Math.round(b.y), width: Math.round(b.width), height: Math.round(b.height), right: Math.round(b.right), bottom: Math.round(b.bottom) };
+    };
+    const panel = document.querySelector('#modal-secrets > .modal-panel');
+    if (!panel) return null;
+    const rows = [...panel.querySelectorAll('.secret-row')];
+    return {
+      panel: rect(panel),
+      lane: rect(panel.querySelector('.modal-band-lane')),
+      rows: rows.map(rect),
+      titles: rows.map((r) => rect(r.querySelector('.row-title'))),
+      verbs: rows.map((r) => rect(r.querySelector('.row-actions > .key:last-child'))),
+    };
+  });
+}
+
 // The presets collection: one column of two-line rows. The identity stack and
 // the verb cluster must both keep the lane's inset per row, or the list stops
 // reading as one column.
@@ -417,6 +439,12 @@ async function measureBands(page) {
   await page.locator('.left-sidebar .nav', { hasText: 'Providers' }).first().click();
   await page.waitForTimeout(800);
   const mmProviders = await measureBands(page);
+  await page.locator('button[onclick="openSecretsManager()"]').click();
+  await page.waitForTimeout(800);
+  const mmSecrets = await measureSecrets(page);
+  const mmSecretsBands = await measureBands(page);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(300);
   await page.locator('[data-action="actionOpenProviderCreateModal"]').click();
   await page.waitForTimeout(800);
   const mmFoot = await measureModal(page);
@@ -853,6 +881,7 @@ async function measureBands(page) {
     ['characters', mmEntityBands],
     ['personas', mmPersonaBands],
     ['providers', mmProviders],
+    ['secrets', mmSecretsBands],
     ['presets', mmPresets],
     ['itemizer', mmItemizer],
     ['arranger', mmArranger],
@@ -929,6 +958,34 @@ async function measureBands(page) {
       );
     }
   });
+
+  // ── Saved keys: one column of readouts ──
+  if (mmSecrets) {
+    const p = mmSecrets.panel;
+    const rows = mmSecrets.rows;
+    if (rows.length) {
+      checkHeight('secret row', rows[0], [32]);
+      const pitches = new Set(rows.slice(1).map((r, i) => r.y - rows[i].y));
+      check('secret rows sit on a constant pitch', pitches.size <= 1, `pitches {${[...pitches]}}`);
+      check(
+        'secret rows ride the modal inset',
+        new Set(rows.map((r) => r.x)).size === 1 &&
+          Math.abs(p.right - rows[0].right - modalPad) < 1,
+        `x {${[...new Set(rows.map((r) => r.x))]}} right=${(p.right - rows[0].right).toFixed(1)}`,
+      );
+      check(
+        'secret titles share one column',
+        new Set(mmSecrets.titles.map((t) => t.x)).size === 1,
+        `x {${[...new Set(mmSecrets.titles.map((t) => t.x))]}}`,
+      );
+      check(
+        'secret verbs share one right edge and keep the row content edge',
+        new Set(mmSecrets.verbs.map((v) => v.right)).size === 1 &&
+          rows[0].right - mmSecrets.verbs[0].right === 8,
+        `rights {${[...new Set(mmSecrets.verbs.map((v) => v.right))]}} row=${rows[0].right}`,
+      );
+    }
+  }
 
   // ── Theme customizer: master-detail inside one lane ──
   if (mmTheme && mmTheme.columns.length === 2) {

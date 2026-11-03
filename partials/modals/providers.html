@@ -1,4 +1,4 @@
-{% from "macros.html" import icon_key, icon_edit, icon_refresh, search_toolbar, icon_database, icon_plus, icon_close, sort_dropdown, empty_state %}
+{% from "macros.html" import icon_key, icon_edit, icon_refresh, search_toolbar, icon_database, icon_plus, icon_close, sort_dropdown, empty_state, modal_footer %}
 {% from "modal-shell.html" import modal_shell %}
 <div class="modal-bands">
   <div class="modal-band-head">
@@ -79,64 +79,58 @@
 {% endcall %}
 
 
-<!-- Secrets Selection Modal -->
-{% call modal_shell('modal-secrets', 'Select API Key', max_width='800px',
-     content_style='height:75vh;',
-     overlay_class='sub',
-     overlay_attrs='aria-label="Secrets" x-data="{ secrets: [], rawKey: \'\', newName: \'\', newValue: \'\' }" @secrets-loaded.window="secrets = $event.detail"') %}
-  <div class="form-group shrink-0">
-    <span class="field-label">Saved keys</span>
-    <div class="flex flex-col max-h-60 overflow-y-auto">
-      <template x-for="sec in secrets" :key="sec.name">
-        <div class="row secret-row" @click="selectSecret(sec.name)">
-          <span class="row-title" x-text="sec.name"></span>
-          <span class="row-meta" x-text="sec.preview"></span>
-          <span class="row-actions">
-            <button type="button" class="btn primary sm secret-select-btn" data-ui="secret-select-btn" @click.stop="selectSecret(sec.name)">Select</button>
-            <button type="button" class="key sm danger" @click.stop="deleteSecret(sec.name)" aria-label="Delete secret">{{ icon_close(14) }}</button>
-          </span>
-        </div>
-      </template>
-      <div x-show="secrets.length === 0" class="empty">No saved keys yet.</div>
-    </div>
-  </div>
+<!-- Saved-key library — banded list on its own route, in pick mode when a
+     provider's key list opened it. -->
+{% call modal_shell('modal-secrets', 'Manage API Keys', max_width='600px', width='94vw',
+     overlay_class='sub modal-bands-shell', overlay_attrs='aria-label="Saved API keys"') %}
+<div id="secrets-container" class="modal-bands" data-ui="secrets-container">
+  <p class="empty">Loading…</p>
+</div>
+{% endcall %}
 
-  <div class="form-group shrink-0">
-    <span class="field-label">Save a new key</span>
-    <div class="field-row">
-      <input type="text" x-model="newName" placeholder="Key name" class="field w-1/3">
-      <input type="password" x-model="newValue" placeholder="sk-... or JSON" class="field flex-1">
-      <button type="button" class="key" data-action="actionTriggerFileUpload" data-target="sa-file-upload" aria-label="Upload service account JSON" title="Upload JSON">{{ icon_database(16) }}</button>
-      <button type="button" class="btn primary" @click="saveNewSecret(newName, newValue); newName=''; newValue=''">Save</button>
-    </div>
-    <input type="file" id="sa-file-upload" accept=".json" class="hidden" @change="
-      const file = $event.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        newValue = e.target.result;
-        if (!newName) newName = file.name.replace('.json', '');
-      };
-      reader.readAsText(file);
-    ">
+<!-- Adding a key is a form, not a band: its own stacked modal, so the library
+     keeps one height and one position whatever mode it is in. -->
+{% call modal_shell('modal-secret-new', 'New Key', max_width='480px', width='92vw', foot=true, z_index='200') %}
+<form id="secret-form" class="stacked-form" data-action="actionSubmitSecretForm" autocomplete="off">
+  <div class="form-group">
+    <span class="field-label">Name</span>
+    <input type="text" name="name" id="secret-name" class="field" autocomplete="off" placeholder="e.g. openrouter-main" />
+    <span class="note" id="secret-name-note">Saved keys can be reused by any provider.</span>
   </div>
-
-  <div class="form-group shrink-0">
-    <span class="field-label">Or use a one-time raw key</span>
+  <div class="form-group">
+    <span class="field-label">Key</span>
     <div class="field-row">
-      <input type="password" x-model="rawKey" placeholder="sk-... or JSON" class="field flex-1">
-      <button type="button" class="key" data-action="actionTriggerFileUpload" data-target="sa-file-upload-raw" aria-label="Upload raw service account JSON" title="Upload JSON">{{ icon_database(16) }}</button>
-      <button type="button" class="btn" @click="selectRawKey(rawKey); rawKey=''">Use Raw Key</button>
-      <button type="button" class="btn danger" @click="clearKey()">Clear Key</button>
+      <input
+        type="password"
+        name="value"
+        id="secret-value"
+        class="field flex-1"
+        autocomplete="off"
+        placeholder="sk-… or a service account JSON"
+      />
+      <button
+        type="button"
+        class="key"
+        data-action="actionTriggerFileUpload"
+        data-target="secret-file"
+        title="Upload a service account JSON"
+        aria-label="Upload a service account JSON"
+      >
+        {{ icon_database(16) }}
+      </button>
     </div>
-    <input type="file" id="sa-file-upload-raw" accept=".json" class="hidden" @change="
-      const file = $event.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        rawKey = e.target.result;
-      };
-      reader.readAsText(file);
-    ">
+    <input
+      type="file"
+      id="secret-file"
+      accept=".json"
+      class="hidden"
+      data-action="actionLoadSecretFile"
+      data-target="secret-value"
+    />
   </div>
+  {% call modal_footer(hint='') %}
+  <button type="button" class="btn" data-action="actionCloseModal" data-modal-id="modal-secret-new">Cancel</button>
+  <button type="submit" class="btn create">Add Key</button>
+  {% endcall %}
+</form>
 {% endcall %}

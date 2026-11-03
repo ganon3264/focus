@@ -8,7 +8,7 @@ import focus.db as db
 from focus.core.database import get_db
 from focus.core.logger import get_logger
 from focus.core.models import ProviderCreate
-from focus.core.utils import TTLCache, resolve_secret_key
+from focus.core.utils import TTLCache, resolve_secret_key, secret_preview
 from focus.providers import create_provider as provider_factory
 
 router = APIRouter()
@@ -166,9 +166,7 @@ async def list_secrets(_db=Depends(get_db)):
     async with _db.execute("SELECT name, value FROM secrets ORDER BY name") as cur:
         out = []
         for r in await cur.fetchall():
-            val = r["value"]
-            preview = f"{val[:4]}...{val[-4:]}" if len(val) > 16 else "***"
-            out.append({"name": r["name"], "preview": preview})
+            out.append({"name": r["name"], "preview": secret_preview(r["value"])})
         return {"data": out}
 
 

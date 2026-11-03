@@ -283,6 +283,37 @@ class TestModalPartials:
         assert resp.status_code == 200
         assert "modal-secrets" in resp.text
 
+    async def test_secrets_partial_lists_keys_with_preview(self, client):
+        await client.post(
+            "/api/providers/secrets", json={"name": "sk_long", "value": "abcdefghijklmnopqrstuvwxyz"}
+        )
+        await client.post("/api/providers/secrets", json={"name": "sk_short", "value": "tiny"})
+
+        resp = await client.get("/partials/secrets")
+        assert resp.status_code == 200
+        assert "2 saved keys" in resp.text
+        assert "sk_long" in resp.text
+        assert "abcd...wxyz" in resp.text
+        # The value never reaches the page: only the masked preview does.
+        assert "abcdefghijklmnopqrstuvwxyz" not in resp.text
+        # Manage mode rows are readouts, not pick targets.
+        assert 'data-action="actionUseSecret"' not in resp.text
+
+    async def test_secrets_partial_pick_mode_makes_rows_selectable(self, client):
+        await client.post("/api/providers/secrets", json={"name": "sk_pick", "value": "v"})
+
+        resp = await client.get("/partials/secrets?pick=1")
+        assert resp.status_code == 200
+        assert 'data-action="actionUseSecret"' in resp.text
+        assert 'data-name="sk_pick"' in resp.text
+
+    async def test_secrets_partial_empty_library_has_no_rows(self, client):
+        resp = await client.get("/partials/secrets")
+        assert resp.status_code == 200
+        assert "0 saved keys" in resp.text
+        assert "No saved keys yet." in resp.text
+        assert "secret-row" not in resp.text
+
     async def test_providers_modal_marks_active_provider(self, client):
         first = (
             await client.post(

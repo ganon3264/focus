@@ -21,7 +21,13 @@ from focus.core.summary import (
     DEFAULT_SUMMARY_TEMPLATE,
     summary_config,
 )
-from focus.core.utils import greetings_from_card, merge_greeting_into_list, parse_greetings_json, variable_group_name
+from focus.core.utils import (
+    greetings_from_card,
+    merge_greeting_into_list,
+    parse_greetings_json,
+    secret_preview,
+    variable_group_name,
+)
 from focus.prompt_chain import partition_blocks, resolve_variable_blocks
 from focus.providers.schema import provider_schema, provider_type_options
 
@@ -618,6 +624,17 @@ async def providers_modal_partial(request: Request, db: aiosqlite.Connection = D
             "secrets": secrets_present,
             "active_provider_id": active_provider["provider_id"],
         },
+    )
+
+
+@router.get("/partials/secrets", response_class=HTMLResponse)
+async def secrets_partial(request: Request, pick: bool = False, db: aiosqlite.Connection = Depends(get_db)):
+    async with db.execute("SELECT name, value FROM secrets ORDER BY name") as cur:
+        secrets = [{"name": r["name"], "preview": secret_preview(r["value"])} for r in await cur.fetchall()]
+    return templates.TemplateResponse(
+        request,
+        "modals/secrets.html",
+        {"request": request, "secrets": secrets, "pick": pick},
     )
 
 

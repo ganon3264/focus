@@ -196,3 +196,7 @@ async def resolve_secret_key(db: aiosqlite.Connection, api_key: str) -> str:
 
 def variable_group_name(block_name: str) -> str:
     return block_name.split(":")[0] if ":" in block_name else block_name
+
+
+def secret_preview(value: str) -> str:
+    return f"{value[:4]}...{value[-4:]}" if len(value) > 16 else "***"

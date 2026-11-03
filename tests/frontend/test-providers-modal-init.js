@@ -12,7 +12,9 @@ var fs = require('fs');
 // ── DOM ──
 var doc = h.createMockDocument();
 var bodyListeners = {};
-doc.body.addEventListener = function (name, fn) { bodyListeners[name] = fn; };
+doc.body.addEventListener = function (name, fn) {
+  (bodyListeners[name] = bodyListeners[name] || []).push(fn);
+};
 
 var balanceEl = h.makeElement('div');
 balanceEl.id = 'balance-prov1';
@@ -50,13 +52,19 @@ var src = fs.readFileSync(
 );
 eval(src);
 
-// ── The afterSwap hook exists and is scoped to the modal body ──
-assert(typeof bodyListeners['htmx:afterSwap'] === 'function', 'providers.js registers an htmx:afterSwap hook');
+function fireSwap(id) {
+  (bodyListeners['htmx:afterSwap'] || []).forEach(function (fn) {
+    fn({ detail: { target: { id: id } } });
+  });
+}
 
-bodyListeners['htmx:afterSwap']({ detail: { target: { id: 'some-other-element' } } });
+// ── The afterSwap hook exists and is scoped to the modal body ──
+assert((bodyListeners['htmx:afterSwap'] || []).length > 0, 'providers.js registers an htmx:afterSwap hook');
+
+fireSwap('some-other-element');
 assertEqual(fetchCalls.length, 0, 'unrelated swaps do not fetch balances');
 
-bodyListeners['htmx:afterSwap']({ detail: { target: { id: 'providers-modal-body-inner' } } });
+fireSwap('providers-modal-body-inner');
 assertEqual(fetchCalls.length, 1, 'providers-modal-body-inner swap fetches balances');
 assertEqual(fetchCalls[0], '/api/providers/prov1/balance', 'balance URL is correct');
 

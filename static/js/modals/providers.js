@@ -634,76 +634,122 @@ document.body.addEventListener('htmx:afterSwap', function (evt) {
 
 window._currentSecretPrefix = null;
 
-function openSecretsModal(prefix, append) {
-  window._currentSecretPrefix = prefix;
-  window._secretAppend = !!append;
+// The key library is its own surface: a banded list rendered from
+// /partials/secrets, so the count and the rows come from one server render.
+// `pick` is set when a provider's key list opened it; the add form is the
+// separate modal-secret-new, so the list never changes height under the pointer.
+function openSecretsModal(prefix) {
+  window._currentSecretPrefix = prefix || null;
+  var title = document.querySelector('#modal-secrets [data-ui="modal-title"]');
+  if (title) title.textContent = prefix ? 'Select API Key' : 'Manage API Keys';
   openModal('modal-secrets');
-  document.querySelectorAll('#modal-secrets [data-ui="secret-select-btn"]').forEach(function (btn) {
-    btn.classList.toggle('hidden', !prefix);
-  });
-  document.querySelector('#modal-secrets [data-ui="modal-title"]').textContent = prefix ? 'Select API Key' : 'Manage API Keys';
-  fetchSecrets();
+  return Refresh.load('secretsList');
 }
 
 function openSecretsManager() {
-  openSecretsModal(null);
+  return openSecretsModal(null);
 }
 
-async function fetchSecrets() {
-  try {
-    const res = await hxFetch(api.providerSecrets);
-    const data = await res.json();
-    window.dispatchEvent(new CustomEvent('secrets-loaded', { detail: data.data }));
-  } catch (err) {
-    console.error(err);
+window.loadSecrets = function () {
+  var pick = window._currentSecretPrefix ? '1' : '0';
+  return hxGet(api.partials.secrets + '?pick=' + pick, {
+    target: '#secrets-container',
+    swap: 'innerHTML',
+  });
+};
+
+function _secretRef(name) {
+  return 'SECRET:' + name;
+}
+
+// Pick mode can inline a one-off key (no name) or save the named key and
+// reference it; manage mode only saves. The opener owns the mode, so it also
+// owns the copy that explains it.
+window.actionOpenNewSecret = function () {
+  var form = document.getElementById('secret-form');
+  if (form) form.reset();
+  var pick = !!window._currentSecretPrefix;
+  var nameInput = document.getElementById('secret-name');
+  var note = document.getElementById('secret-name-note');
+  if (nameInput) nameInput.placeholder = pick ? 'Optional' : 'e.g. openrouter-main';
+  if (note) {
+    note.textContent = pick
+      ? 'Leave the name blank to use the key once without saving it.'
+      : 'Saved keys can be reused by any provider.';
   }
-}
+  openModal('modal-secret-new');
+  if (nameInput) nameInput.focus();
+};
 
-async function saveNewSecret(name, value) {
-  if (!name || !value) return;
-  await hxJson(api.providerSecrets, 'POST', { name, value });
-  fetchSecrets();
-}
-
-async function deleteSecret(name) {
-  if (!confirm('Delete this saved key?')) return;
-  await hxJson(api.providerSecret(name), 'DELETE');
-  fetchSecrets();
-}
-
-function _setKeyInput(val, displayHtml) {
-  const prefix = window._currentSecretPrefix;
+window.actionUseSecret = function (el) {
+  var prefix = window._currentSecretPrefix;
   if (!prefix) return;
-  const input = document.getElementById('api-key-input-' + prefix);
-  const display = document.getElementById('api-key-display-' + prefix);
-  if (input) input.value = val;
-  if (display) {
-    display.innerHTML = displayHtml;
-    display.classList.remove('text-muted');
-  }
-  if (prefix === 'prov-form') window.ModalController.refresh('modal-provider-create');
+  addProviderKey(prefix, _secretRef(el.dataset.name));
   closeModal('modal-secrets');
-}
+};
 
-function _applySelectedKey(ref, label) {
-  const prefix = window._currentSecretPrefix;
-  if (!prefix) return;
-  if (window._secretAppend) {
-    addProviderKey(prefix, ref);
-    closeModal('modal-secrets');
+window.actionDeleteSecret = function (el) {
+  var name = el.dataset.name;
+  window.openConfirmModal('Delete the saved key <strong>' + window.escapeHtml(name) + '</strong>?', function () {
+    Refresh.mutate(api.providerSecret(name), { method: 'DELETE' }, { changed: ['secrets'] }).then(function (res) {
+      if (!res.ok) window.showErrorToast('Could not delete the key.');
+    });
+  });
+};
+
+window.actionSubmitSecretForm = function (form, e) {
+  e.preventDefault();
+  var nameInput = document.getElementById('secret-name');
+  var valueInput = document.getElementById('secret-value');
+  if (!nameInput || !valueInput) return;
+  var name = nameInput.value.trim();
+  var value = valueInput.value.trim();
+  var prefix = window._currentSecretPrefix;
+  if (!value) {
+    valueInput.focus();
+    window.showInfoToast('Paste a key or upload a service account JSON.');
     return;
   }
-  _setKeyInput(ref, label);
-}
+  if (!name) {
+    if (prefix) {
+      addProviderKey(prefix, value);
+      closeModal('modal-secret-new', { discard: true });
+      closeModal('modal-secrets');
+      return;
+    }
+    nameInput.focus();
+    window.showInfoToast('Give the key a name so you can find it again.');
+    return;
+  }
+  hxJson(api.providerSecrets, 'POST', { name: name, value: value }).then(function (res) {
+    if (!res.ok) {
+      window.showErrorToast('Could not save the key.');
+      return;
+    }
+    closeModal('modal-secret-new', { discard: true });
+    if (prefix) {
+      addProviderKey(prefix, _secretRef(name));
+      closeModal('modal-secrets');
+      return;
+    }
+    return Refresh.changed('secrets');
+  });
+};
 
-function selectSecret(name) {
-  _applySelectedKey('SECRET:' + name, 'Saved Key: ' + name);
-}
-
-function selectRawKey(val) {
-  if (!val) return;
-  _applySelectedKey(val, 'Raw Key (Hidden)');
-}
+window.actionLoadSecretFile = function (el) {
+  var file = el.files && el.files[0];
+  if (!file) return;
+  var targetId = el.dataset.target;
+  var nameInput = document.getElementById('secret-name');
+  var reader = new FileReader();
+  reader.onload = function (ev) {
+    var target = document.getElementById(targetId);
+    if (target) target.value = ev.target.result;
+    if (nameInput && !nameInput.value) nameInput.value = file.name.replace(/\.json$/i, '');
+  };
+  reader.readAsText(file);
+  el.value = '';
+};
 
 function _keyRowLabel(ref) {
   return ref.indexOf('SECRET:') === 0 ? 'Saved Key: ' + ref.slice(7) : 'Raw Key (hidden)';
@@ -796,19 +842,3 @@ window.actionRemoveProviderKey = function (el) {
   _setProviderKeys(prefix, refs, { markDirty: true });
 };
 
-function clearKey() {
-  const prefix = window._currentSecretPrefix;
-  if (!prefix) return;
-  if (window._secretAppend) {
-    _setProviderKeys(prefix, [], { markDirty: true });
-    closeModal('modal-secrets');
-    return;
-  }
-  const input = document.getElementById('api-key-input-' + prefix);
-  const display = document.getElementById('api-key-display-' + prefix);
-  if (input) input.value = '';
-  if (display) {
-    display.innerHTML = '<span class="text-muted">Select API Key...</span>';
-  }
-  closeModal('modal-secrets');
-}
