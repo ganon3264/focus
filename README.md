@@ -8,10 +8,10 @@ A roleplaying thingy, kinda like SillyTavern, but opinionated and personal (and 
 <details>
 <summary>More screenshots</summary>
 
-![Tool calls](screenshots/toolcalls.png)
-![Samplers (light)](screenshots/samplers-light.png)
-![Prompt arranger (light)](screenshots/prmpt-arr-light.png)
-![Providers (OLED)](screenshots/providers-oled.png)
+![Prompt arranger (light)](screenshots/prompt-arr.png)
+![Samplers (light)](screenshots/samplers.png)
+![Tool calls](screenshots/tools.png)
+![Providers (OLED)](screenshots/providers.png)
 
 </details>
 
@@ -40,12 +40,12 @@ start.bat           # Windows
 | Provider | Toolcalls | Reasoning effort | Preserve reasoning| Prefill reasoning | Other |
 |---|:---:|:---:|:---:|:---:|---|
 | Generic OAI-compatible | ✓ | ✓\* | ✓\*| ✓\* | *If the backend supports it |
-| OpenRouter             | ✓ | ✓| ✓\*| ✓\* | Quantization & provider routing, sticky routing by session ID, Claude caching, (*Model dependent) |
-| Deepseek               | ✓ | ✓ | ✓ |✓ | |
-| Moonshot               | ✓ | ✓ | ✓ | ✓ | `prompt_cache_key` support |
-| Xiaomi MiMo            | ✓ |   | ✓ | ✓ | OpenAI-compatible, `thinking` toggle, `max_completion_tokens` |
-| Google AI Studio         | ✓ | ✓ | ✓ | | |
-| Google Vertex AI         | ✓ | ✓ | ✓ | | |
+| OpenRouter             | ✓ | ✓| ✓\*| ✓\*    | Quantization & provider routing, sticky routing by session ID, Claude caching, (*Model dependent) |
+| Deepseek               | ✓ | ✓ | ✓ |✓ |     |
+| Moonshot               | ✓ | ✓ | ✓ | ✓      | `prompt_cache_key` support |
+| Xiaomi MiMo            | ✓ |   | ✓ |  |  |
+| Google AI Studio       | ✓ | ✓ | ✓ |  |  |
+| Google Vertex AI       | ✓ | ✓ | ✓ |  |  |
 
 ## Features
 
