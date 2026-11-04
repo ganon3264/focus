@@ -216,12 +216,26 @@ assert(typeof window.editMessage === 'function', 'editMessage loaded');
   ];
   var blocks = window._buildEditBlocks('ignored', segments, 'ignored');
   assertEqual(blocks.length, 4, 'segments path builds all blocks');
+  assert(!blocks.some(function (b) { return b.type === 'text' && b.content === ''; }), 'no extra empty text block when text exists');
   assertEqual(blocks[0].type, 'text', 'first text block');
   assertEqual(blocks[1].type, 'tool_boundary', 'tool boundary preserved');
   assert(blocks[1].calls && blocks[1].calls.length === 1, 'tool calls preserved');
   assertEqual(blocks[2].type, 'reasoning', 'reasoning block preserved');
   assertEqual(blocks[2].content, 'think & stuff', 'reasoning html unescaped');
   assertEqual(blocks[2].index, 1, 'reasoning index preserved');
+})();
+
+// ── buildEditBlocks always offers an editable text block ──
+(function () {
+  var reasoningOnly = window._buildEditBlocks('', [{ type: 'reasoning', html: 'thought', index: 0 }], 'thought');
+  assertEqual(reasoningOnly.length, 2, 'reasoning-only gets an empty text block too');
+  assertEqual(reasoningOnly[0].type, 'reasoning', 'reasoning stays first');
+  assertEqual(reasoningOnly[1].type, 'text', 'text block appended');
+  assertEqual(reasoningOnly[1].content, '', 'text block starts empty');
+
+  var none = window._buildEditBlocks('', null, null);
+  assertEqual(none.length, 1, 'empty message still gets a text block');
+  assertEqual(none[0].type, 'text', 'sole block is text');
 })();
 
 // ── buildEditBlocks legacy fallback has no marker logic ──

@@ -1,15 +1,27 @@
 (function () {
-  function unescapeHtml(s) {
-    return (s || '')
-      .replace(/&quot;/g, '"')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&amp;/g, '&');
+  // A reasoning segment is stored as escaped text, and the server escapes only
+  // `& < > "` (focus/core/message_render.py::escape_html). Decoding through the
+  // parser reads that form and also an older variant saved with `&#39;`, so a
+  // re-edit neither shows the entity nor re-escapes it into `&amp;#39;`.
+  function decodeReasoningHtml(html) {
+    var el = document.createElement('textarea');
+    el.innerHTML = html || '';
+    return el.value;
+  }
+
+  // Same character set as the server's escape_html — an apostrophe is text, not
+  // an entity, so it must survive a save untouched.
+  function escapeReasoningHtml(text) {
+    return String(text == null ? '' : text)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
   }
 
   function buildEditBlocks(content, segments, reasoning) {
+    var blocks = [];
     if (segments && segments.length > 0) {
-      var blocks = [];
       for (var i = 0; i < segments.length; i++) {
         var seg = segments[i];
         if (seg.type === 'text') {
@@ -19,7 +31,7 @@
         } else if (seg.type === 'reasoning') {
           blocks.push({
             type: 'reasoning',
-            content: unescapeHtml(seg.html || ''),
+            content: decodeReasoningHtml(seg.html || ''),
             index: seg.index || 0,
           });
         } else if (seg.type === 'tool_boundary') {
@@ -30,16 +42,21 @@
           }
         }
       }
-      return blocks;
+    } else {
+      if (reasoning) {
+        blocks.push({ type: 'reasoning', content: reasoning.trim(), index: 0 });
+      }
+      if (content && content.trim()) {
+        blocks.push({ type: 'text', content: content });
+      }
     }
 
-    var blocks = [];
-    if (reasoning) {
-      blocks.push({ type: 'reasoning', content: reasoning.trim(), index: 0 });
+    var hasText = false;
+    for (var i = 0; i < blocks.length; i++) {
+      if (blocks[i].type === 'text') { hasText = true; break; }
     }
-    if (content && content.trim()) {
-      blocks.push({ type: 'text', content: content });
-    }
+    if (!hasText) blocks.push({ type: 'text', content: '' });
+
     return blocks;
   }
 
@@ -52,10 +69,8 @@
     });
   }
 
-  function autoResizeTextarea(ta) {
-    var lines = (ta.value || '').split('\n').length;
-    ta.rows = Math.max(3, Math.min(lines, 20));
-  }
+  // The fields share the lane's height (flex, see modals.css) and scroll inside
+  // themselves, so the editor holds one window size whatever the message is.
 
   function countText(ta) {
     var n = (ta.value || '').length;
@@ -111,11 +126,8 @@
     ta.dataset.ui = 'edit-block-ta';
     ta.id = 'edit-msg-ta-' + idx;
     ta.setAttribute('data-block-idx', idx);
-    ta.rows = 3;
     ta.value = content || '';
-    autoResizeTextarea(ta);
     ta.addEventListener('input', function () {
-      autoResizeTextarea(ta);
       count.textContent = countText(ta);
     });
     count.textContent = countText(ta);
@@ -137,7 +149,7 @@
 
   function renderToolBlock(calls) {
     var section = document.createElement('section');
-    section.className = 'msg-block';
+    section.className = 'msg-block msg-block-tool';
     var rail = document.createElement('div');
     rail.className = 'rail';
     rail.innerHTML = '<span>Tool calls</span>';
@@ -243,7 +255,7 @@
         var text = ta ? ta.value.trim() : '';
         if (text) {
           reasoningParts.push(text);
-          segments.push({ type: 'reasoning', html: window.escapeHtml(text), index: blk.index || 0 });
+          segments.push({ type: 'reasoning', html: escapeReasoningHtml(text), index: blk.index || 0 });
         }
       } else if (blk.type === 'text') {
         var ta = document.querySelector('[data-ui="edit-block-ta"][data-block-idx="' + i + '"]');
