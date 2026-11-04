@@ -354,10 +354,40 @@
 
 /* ── Message editor ───────────────────────────────────────────────────────
    Each segment is one block named by a rail; a collapsed block (reasoning)
-   keeps its rail — name and length stay readable while the text is hidden. */
+   keeps its rail — name and length stay readable while the text is hidden.
+
+   The chassis is the banded one, reduced: the form fills the body and never
+   scrolls, the blocks share one lane, the foot is a static band under it. A
+   sticky foot cannot do this job — the foot is a descendant of the scrollport,
+   so it rides the content (a sticky box is clamped to its containing block, and
+   the form's box is the visible height), which is how a long message used to
+   scroll Cancel/Save away. */
+.msg-form {
+  gap: 0;
+}
+
+.msg-form-lane {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  gap: calc(var(--u) * 4);
+  padding-bottom: var(--band-pad);
+  overflow-y: auto;
+}
+
+/* The blocks take the lane's leftover height and split it; the attachments keep
+   their own. Each field then scrolls inside itself, so the panel is one fixed
+   size whatever the message holds — no dead space under the last block, no
+   window that grows with the text. */
+.msg-form-lane > .msg-attachments {
+  flex: none;
+}
+
 .msg-blocks {
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
   gap: calc(var(--u) * 4);
   min-height: 0;
 }
@@ -365,7 +395,16 @@
 .msg-block {
   display: flex;
   flex-direction: column;
+  flex: 1 1 0;
   gap: var(--inset);
+  min-height: 0;
+}
+
+/* Only the fields share the height: a collapsed block is its rail alone, and a
+   tool boundary is read-only cards. */
+.msg-block.collapsed,
+.msg-block-tool {
+  flex: none;
 }
 
 .msg-block > .rail {
@@ -374,6 +413,12 @@
 
 .msg-block.collapsed > .msg-block-text {
   display: none;
+}
+
+.msg-block > .msg-block-text {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 /* The attachments tray is a well so the drop target can show the drag-over
