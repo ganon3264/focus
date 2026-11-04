@@ -41,7 +41,7 @@ dirty_label='#prov-form-name') %}
     <div id="prov-form-or-fields" class="well provider-plate hidden">
       <div class="rail">OpenRouter Routing</div>
       <div class="row setting labeled fit">
-        <span class="row-title">Provider Routing {{ hint_tooltip('Pin requests to one upstream endpoint. Fetch the model first — the list is the endpoints that actually serve it.') }}</span>
+        <span class="row-title">Provider Routing {{ hint_tooltip('Pin requests to one upstream endpoint. Fetch the model first: the list is the endpoints that actually serve it.') }}</span>
         <input type="hidden" name="or_route" id="prov-form-or-route" value="" />
         <button type="button" class="field select" onclick="openRouteSelectModal('prov-form')">
           <span id="or-route-display-prov-form" class="truncate">Auto (Any)</span>
@@ -104,7 +104,7 @@ dirty_label='#prov-form-name') %}
     <div class="rail">
       <span>Credentials</span>
       <span class="row-value" id="prov-form-key-count">0 keys</span>
-      {{ hint_tooltip('Keys are tried in order — drag to reorder. With more than one, a <span class="note success">Keys</span> row appears in the status panel so you can rotate the active key on the fly.') }}
+      {{ hint_tooltip('Keys are tried in order; drag to reorder. With more than one, a <span class="note success">Keys</span> row appears in the status panel so you can rotate the active key on the fly.') }}
       <div class="rail-actions flush">
         <button type="button" class="btn sm create" onclick="openSecretsModal('prov-form')">
           {{ icon_plus(12) }} Add Key
@@ -175,7 +175,7 @@ dirty_label='#prov-form-name') %}
       <span class="row-actions"><input type="checkbox" class="check" name="retry_timeout" id="prov-form-retry-timeout" checked onchange="refreshRetryHint()" /></span>
     </div>
     <div class="row setting fit">
-      {{ row_label('Additional statuses', hint='Comma-separated, retried in addition to the classes above. Transport failures have no status code — use the Timeouts box for those.') }}
+      {{ row_label('Additional statuses', hint='Comma-separated, retried in addition to the classes above. Transport failures have no status code; use the Timeouts box for those.') }}
       <input type="text" name="retry_extra_statuses" id="prov-form-retry-extra" placeholder="e.g. 408, 425" class="field sm" onchange="refreshRetryHint()" />
     </div>
   </div>

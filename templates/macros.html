@@ -263,7 +263,7 @@
 {% if wrapper_classes %}</div>{% endif %}
 {% endmacro %}
 
-{% macro modal_footer(hint='dirty', text='Unsaved changes — press Save to apply') %}
+{% macro modal_footer(hint='dirty', text='Unsaved changes. Press Save to apply') %}
 <div class="modal-foot">
   {% if hint == 'dirty' %}<span class="modal-dirty hidden" data-dirty-hint>{{ text }}</span>
   {% elif hint == 'alpine' %}<span class="modal-dirty" x-show="dirty">{{ text }}</span>

@@ -72,11 +72,6 @@
   // The fields share the lane's height (flex, see modals.css) and scroll inside
   // themselves, so the editor holds one window size whatever the message is.
 
-  function countText(ta) {
-    var n = (ta.value || '').length;
-    return n ? n.toLocaleString() + ' chars' : '';
-  }
-
   // One editable segment is one block: a rail that names it and carries its
   // readout, then the textarea. The rail owns the verbs, so nothing floats over
   // the text and there is no native resize grip to fight the auto-height.
@@ -128,9 +123,9 @@
     ta.setAttribute('data-block-idx', idx);
     ta.value = content || '';
     ta.addEventListener('input', function () {
-      count.textContent = countText(ta);
+      count.textContent = window.wordCountLabel(ta.value);
     });
-    count.textContent = countText(ta);
+    count.textContent = window.wordCountLabel(ta.value);
 
     section.appendChild(rail);
     section.appendChild(ta);

@@ -1,4 +1,4 @@
-{% from "macros.html" import icon_plus, custom_select, hint_tooltip, modal_footer, row_label, toggle %}
+{% from "macros.html" import icon_plus, custom_select, hint_tooltip, modal_footer, row_label, toggle, icon_expand %}
 <div class="arranger-list" id="arranger-list-{{ preset_id }}">
   {% for block in blocks %} {% include "presets/prompt-block.html" %} {% endfor %}
 </div>
@@ -6,25 +6,57 @@
 
 <!-- Block Edit Modal -->
 {% from "modal-shell.html" import modal_shell %} {% call modal_shell('block-edit-modal', 'Edit Block
-Content', max_width='640px', width='90vw', foot=true, z_index='1000',
-overlay_close=true, dirty_fields='#block-modal-textarea,#block-modal-reasoning', dirty_label='this block') %}
-<div class="flex flex-col flex-1 min-h-0">
-<textarea
-  id="block-modal-textarea"
-  rows="12"
-  class="field flex-1 mono"
-  style="resize: vertical"
-  placeholder="Enter block content…"
-></textarea>
-<div id="block-modal-reasoning-section" style="display: none; margin-top: var(--gutter);">
-  <label class="field-label mb-1 block">Reasoning prefill (assistant only)</label>
+Content', max_width='896px', width='90vw', foot=true, content_style='height:85vh;',
+z_index='200', overlay_close=true, dirty_fields='#block-modal-textarea,#block-modal-reasoning',
+dirty_label='this block') %}
+<div class="stacked-form msg-form">
+<div class="msg-form-lane">
+<div class="msg-blocks">
+<section class="msg-block" id="block-modal-content-block">
+  <div class="rail">
+    <span>Text</span>
+    <span class="row-value" data-ui="block-count"></span>
+    <div class="rail-actions flush">
+      <button
+        type="button"
+        class="key sm"
+        title="Expand editor"
+        aria-label="Expand editor"
+        data-action="actionOpenTextExpander"
+        data-target-id="block-modal-textarea"
+        data-expander-title="Edit Block Content"
+      >{{ icon_expand(16) }}</button>
+    </div>
+  </div>
+  <textarea
+    id="block-modal-textarea"
+    class="field sized msg-block-text"
+    placeholder="Enter block content…"
+  ></textarea>
+</section>
+<section class="msg-block hidden" id="block-modal-reasoning-block">
+  <div class="rail">
+    <span>Reasoning</span>
+    <span class="row-value" data-ui="block-count"></span>
+    <div class="rail-actions flush">
+      <button
+        type="button"
+        class="key sm"
+        title="Expand editor"
+        aria-label="Expand editor"
+        data-action="actionOpenTextExpander"
+        data-target-id="block-modal-reasoning"
+        data-expander-title="Edit Reasoning"
+      >{{ icon_expand(16) }}</button>
+    </div>
+  </div>
   <textarea
     id="block-modal-reasoning"
-    rows="6"
-    class="field mono w-full"
-    style="resize: vertical"
+    class="field sized msg-block-text"
     placeholder="Enter reasoning content that will be prefilled before the model response…"
   ></textarea>
+</section>
+</div>
 </div>
 {% call modal_footer() %}
     <button type="button" class="key" onclick="openMacroHelp()" title="Macro reference" aria-label="Macro reference">
@@ -180,6 +212,11 @@ dirty_label='summary settings') %}
     var _currentPresetId = null;
     var _currentEditPart = 'content';
 
+    function blockCount(ta) {
+      var el = ta.parentElement.querySelector('[data-ui="block-count"]');
+      if (el) el.textContent = window.wordCountLabel(ta.value);
+    }
+
     window.openBlockModal = function (el, part) {
       part = part || 'content';
       const item = el.matches('[data-ui="arranger-item"]') ? el : el.closest('[data-ui="arranger-item"]');
@@ -191,19 +228,18 @@ dirty_label='summary settings') %}
 
       const reasoning = item ? item.dataset.blockReasoning || '' : '';
 
-      document.getElementById('block-modal-textarea').value = item ? item.dataset.blockContent || '' : '';
-      document.getElementById('block-modal-textarea').placeholder = 'Enter block content…';
+      var contentTa = document.getElementById('block-modal-textarea');
+      var reasoningTa = document.getElementById('block-modal-reasoning');
+      contentTa.value = item ? item.dataset.blockContent || '' : '';
+      reasoningTa.value = reasoning;
 
-      var reasoningSection = document.getElementById('block-modal-reasoning-section');
-      if (part === 'reasoning') {
-        reasoningSection.style.display = 'block';
-        document.getElementById('block-modal-reasoning').value = reasoning;
-        document.getElementById('block-modal-textarea').style.display = 'none';
-        document.getElementById('block-modal-reasoning').style.display = 'block';
-      } else {
-        reasoningSection.style.display = 'none';
-        document.getElementById('block-modal-textarea').style.display = '';
-      }
+      document.getElementById('block-modal-content-block').classList.toggle('hidden', part === 'reasoning');
+      document.getElementById('block-modal-reasoning-block').classList.toggle('hidden', part !== 'reasoning');
+
+      contentTa.oninput = function () { blockCount(contentTa); };
+      reasoningTa.oninput = function () { blockCount(reasoningTa); };
+      blockCount(contentTa);
+      blockCount(reasoningTa);
 
       window.openModal('block-edit-modal');
     };

@@ -21,8 +21,7 @@ modal_shell('modal-text-expander', 'Edit Text', max_width='896px', content_style
       const ta = document.getElementById('text-expander-input');
       const el = document.getElementById('text-expander-count');
       if (!ta || !el) return;
-      const n = (ta.value || '').length;
-      el.textContent = n ? n.toLocaleString() + ' chars' : '';
+      el.textContent = window.wordCountLabel(ta.value);
     }
 
     window.openTextExpander = function (targetEl, title) {

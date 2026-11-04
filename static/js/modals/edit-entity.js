@@ -103,8 +103,7 @@
 
     function updateDescCount() {
       if (!descEl || !descCountEl) return;
-      var n = (descEl.value || '').length;
-      descCountEl.textContent = n ? n.toLocaleString() + ' chars' : '';
+      descCountEl.textContent = window.wordCountLabel(descEl.value);
     }
 
     if (descEl) descEl.addEventListener('input', updateDescCount);
