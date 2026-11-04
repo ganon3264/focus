@@ -1230,14 +1230,18 @@ async def stop_generation(message_id: str):
     return {"ok": True}
 
 
-@router.post("/itemize")
-async def itemize_prompt(body: ItemizerRequest, db: aiosqlite.Connection = Depends(get_db)):
-    ctx = await get_prompt_context(
-        db, body.chat_id, body.regenerate, body.user_message, body.attachment_ids, persist=False
-    )
-    messages = ctx.messages
+_token_encoding: tiktoken.Encoding | None = None
 
-    enc = tiktoken.get_encoding("cl100k_base")
+
+def _token_encoding_get() -> tiktoken.Encoding:
+    global _token_encoding
+    if _token_encoding is None:
+        _token_encoding = tiktoken.get_encoding("o200k_base")
+    return _token_encoding
+
+
+def _itemize_sync(messages: list[dict[str, Any]]) -> dict[str, Any]:
+    enc = _token_encoding_get()
     total_tokens = 0
     clean_messages = []
 
@@ -1283,4 +1287,12 @@ async def itemize_prompt(body: ItemizerRequest, db: aiosqlite.Connection = Depen
             clean_messages.append({"role": role, "parts": clean_parts, "tokens": tokens})
         total_tokens += tokens
 
-    return JSONResponse({"total_tokens": total_tokens, "messages": clean_messages})
+    return {"total_tokens": total_tokens, "messages": clean_messages}
+
+
+@router.post("/itemize")
+async def itemize_prompt(body: ItemizerRequest, db: aiosqlite.Connection = Depends(get_db)):
+    ctx = await get_prompt_context(
+        db, body.chat_id, body.regenerate, body.user_message, body.attachment_ids, persist=False
+    )
+    return JSONResponse(await asyncio.to_thread(_itemize_sync, ctx.messages))
