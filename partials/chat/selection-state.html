@@ -1,4 +1,4 @@
-{% from "macros.html" import hint_tooltip %}
+{% from "macros.html" import hint_tooltip, empty_state %}
 <div id="preset-selector" hx-swap-oob="innerHTML">
   {% include "presets/preset-selector.html" %}
 </div>
@@ -24,7 +24,7 @@
         {% include "presets/prompt-arranger.html" %}
       {% endwith %}
     {% else %}
-      <div class="empty mt-4">Select a preset first.</div>
+      {{ empty_state('Select a preset first.', extra_classes='mt-4') }}
     {% endif %}
   </div>
 </div>

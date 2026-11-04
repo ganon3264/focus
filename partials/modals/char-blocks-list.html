@@ -1,4 +1,4 @@
-{% from "macros.html" import icon_plus, hint_tooltip %}
+{% from "macros.html" import icon_plus, hint_tooltip, empty_state %}
 <div class="modal-band-head">
   <div class="rail">
     <span>Blocks</span>
@@ -14,7 +14,7 @@
   {% include "modals/char-block-item.html" %}
   {% endfor %}
   {% if not blocks %}
-  <p class="empty" data-ui="char-blocks-empty">No custom blocks yet. Add one to inject extra context next to the card.</p>
+  {{ empty_state('No custom blocks yet. Add one to inject extra context next to the card.', attrs='data-ui="char-blocks-empty"') }}
   {% endif %}
 </div>
 

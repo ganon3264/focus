@@ -1,7 +1,7 @@
-{% from "macros.html" import avatar %}
+{% from "macros.html" import avatar, empty_state %}
 <div class="flex flex-col">
   {% if not entities %}
-  <div class="empty">No matches.</div>
+  {{ empty_state('No matches.') }}
   {% endif %} {% for e in entities %} {% set img_path = e.image_path or e.avatar_path or None %}
   <div class="row" data-export-id="{{ e.id }}" data-export-type="{{ etype }}" onclick="BackupManager.toggleExportEntity(this)">
     {{ avatar('avatar', img_path, '', e.name[:1].upper(), img_attrs='loading="lazy"') }}

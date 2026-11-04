@@ -1,4 +1,4 @@
-{% from "macros.html" import icon_expand, icon_plus, icon_trash, icon_chevron_left, icon_chevron_right %}
+{% from "macros.html" import expand_key, icon_plus, icon_trash, icon_chevron_left, icon_chevron_right %}
 {% set char_id = char_id|default('') %}
 {% set greetings = greetings|default([]) %}
 {% set greeting_idx = greeting_idx|default(0) %}
@@ -78,15 +78,7 @@
       >
         {{ icon_trash(14) }}
       </button>
-      <button
-        type="button"
-        class="key sm"
-        aria-label="Expand greeting"
-        title="Expand editor"
-        data-action="actionOpenTextExpander" data-target-id="edit-{{ prefix }}-greeting" data-expander-title="Edit {{ entity_name }} Greeting"
-      >
-        {{ icon_expand(16) }}
-      </button>
+      {{ expand_key('edit-' ~ prefix ~ '-greeting', 'Edit ' ~ entity_name ~ ' Greeting', aria_label='Expand greeting') }}
     </div>
   </div>
   <textarea

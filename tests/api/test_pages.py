@@ -380,3 +380,10 @@ class TestStaticCachePolicy:
             RevalidatedStaticFiles(directory="static", cache_assets=True)._cache_control
             == "public, max-age=31536000, immutable"
         )
+
+
+class TestHealth:
+    async def test_health_answers_without_touching_the_db(self, client):
+        resp = await client.get("/api/health")
+        assert resp.status_code == 200
+        assert resp.json() == {"ok": True}

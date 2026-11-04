@@ -1,4 +1,4 @@
-{% from "macros.html" import icon_plus %}
+{% from "macros.html" import icon_plus, empty_state %}
 <div data-preset-id="{{ preset_id or '' }}">
   <div class="structured-group">
     <div class="rail">
@@ -16,7 +16,7 @@
     <div class="structured-sortable" data-ui="structured-sortable" data-scope="global">
       {% for response in global_responses %}{% include "modals/structured-item.html" %}{% endfor %}
       {% if not global_responses %}
-      <div class="empty">No global responses.</div>
+      {{ empty_state('No global responses.') }}
       {% endif %}
     </div>
   </div>
@@ -38,13 +38,11 @@
     <div class="structured-sortable" data-ui="structured-sortable" data-scope="preset" data-scope-id="{{ preset_id }}">
       {% for response in preset_responses %}{% include "modals/structured-item.html" %}{% endfor %}
       {% if not preset_responses %}
-      <div class="empty">No responses for this preset.</div>
+      {{ empty_state('No responses for this preset.') }}
       {% endif %}
     </div>
   </div>
   {% else %}
-  <div class="empty">
-    Select a preset to manage preset-scoped responses.
-  </div>
+  {{ empty_state('Select a preset to manage preset-scoped responses.') }}
   {% endif %}
 </div>

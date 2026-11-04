@@ -53,11 +53,9 @@
   {% endcall %}
 
   <div class="flex-1 min-h-0 overflow-y-auto">
-    <div x-show="loading" class="empty">Fetching models from provider...</div>
-    <div x-show="error" class="empty" x-text="error"></div>
-    <div x-show="!loading && !error && models.length === 0" class="empty">
-      No models found or available. You may need to manually input the model ID.
-    </div>
+    {{ empty_state('Fetching models from provider...', attrs='x-show="loading"') }}
+    {{ empty_state('', attrs='x-show="error" x-text="error"') }}
+    {{ empty_state('No models found or available. You may need to manually input the model ID.', attrs='x-show="!loading && !error && models.length === 0"') }}
     <template x-for="model in models.filter(m => (m.name||'').toLowerCase().includes(search.toLowerCase()) || (m.id||'').toLowerCase().includes(search.toLowerCase()))" :key="model.id">
       <div class="row" @click="selectFetchedModel(model.id, model.name)">
         <span class="row-title" x-text="model.name || model.id"></span>
@@ -72,9 +70,7 @@
         </span>
       </div>
     </template>
-    <div x-show="!loading && !error && models.length > 0 && models.filter(m => (m.name||'').toLowerCase().includes(search.toLowerCase()) || (m.id||'').toLowerCase().includes(search.toLowerCase())).length === 0" class="empty">
-      No models match your search.
-    </div>
+    {{ empty_state('No models match your search.', attrs='x-show="!loading && !error && models.length > 0 && models.filter(m => (m.name||\'\').toLowerCase().includes(search.toLowerCase()) || (m.id||\'\').toLowerCase().includes(search.toLowerCase())).length === 0"') }}
   </div>
 {% endcall %}
 
@@ -84,7 +80,7 @@
 {% call modal_shell('modal-secrets', 'Manage API Keys', max_width='600px', width='94vw',
      overlay_class='sub modal-bands-shell', overlay_attrs='aria-label="Saved API keys"') %}
 <div id="secrets-container" class="modal-bands" data-ui="secrets-container">
-  <p class="empty">Loading…</p>
+  {{ empty_state('Loading…', attrs='data-ui="loading"') }}
 </div>
 {% endcall %}
 

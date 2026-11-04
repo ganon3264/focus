@@ -1,4 +1,4 @@
-{% from "modal-shell.html" import modal_shell %} {% from "macros.html" import search_toolbar, modal_footer, toggle %} {# ── EXPORT
+{% from "modal-shell.html" import modal_shell %} {% from "macros.html" import search_toolbar, modal_footer, toggle, empty_state %} {# ── EXPORT
 MODAL ─────────────────────────────────────────────── #} {% call modal_shell('modal-export', 'Export
 Data', max_width='440px', width='90vw', foot=true, z_index='100') %}
 <div class="flex flex-col gap-4">
@@ -76,7 +76,7 @@ modal_shell('modal-entity-select', 'Select', max_width='420px', width='90vw', z_
 <div class="flex flex-col gap-3">
   {{ search_toolbar('Filter...', input_attrs='data-action="actionFilterEntityList"') }}
   <div id="entity-select-list" class="flex flex-col max-h-[45vh] overflow-y-auto">
-    <div class="empty">Loading...</div>
+    {{ empty_state('Loading…', attrs='data-ui="loading"') }}
   </div>
   {% call modal_footer(hint='') %}
     <button type="button" class="btn primary" data-action="actionCloseEntitySelect">

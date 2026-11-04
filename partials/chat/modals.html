@@ -1,4 +1,4 @@
-{% from "macros.html" import hint_tooltip, modal_footer, tab_bar, icon_plus %}
+{% from "macros.html" import hint_tooltip, modal_footer, tab_bar, icon_plus, empty_state %}
 {% from "modal-shell.html" import modal_shell %}
 
 <!-- MAIN MODALS -->
@@ -28,7 +28,7 @@
 
 {% call modal_shell('modal-characters', 'Characters', max_width='800px', content_style='height:80vh;', overlay_class='modal-bands-shell') %}
 <div id="characters-modal-body" class="flex-1 min-h-0 flex flex-col">
-  <div id="characters-modal-body-inner" class="h-full">Loading…</div>
+  <div id="characters-modal-body-inner" class="h-full">{{ empty_state('Loading…', attrs='data-ui="loading"') }}</div>
 </div>
 {% endcall %}
 
@@ -37,7 +37,7 @@
 
 {% call modal_shell('modal-personas', 'Personas', max_width='800px', content_style='height:80vh;', overlay_class='modal-bands-shell') %}
 <div id="personas-modal-body" class="flex-1 min-h-0 flex flex-col">
-  <div id="personas-modal-body-inner" class="h-full">Loading…</div>
+  <div id="personas-modal-body-inner" class="h-full">{{ empty_state('Loading…', attrs='data-ui="loading"') }}</div>
 </div>
 {% endcall %}
 
@@ -48,13 +48,13 @@
 
 {% call modal_shell('modal-presets', 'Presets', max_width='760px', content_style='height:70vh;', overlay_class='modal-bands-shell') %}
 <div id="presets-modal-body" class="flex-1 min-h-0 flex flex-col">
-  <div id="presets-modal-body-inner" class="h-full">Loading…</div>
+  <div id="presets-modal-body-inner" class="h-full">{{ empty_state('Loading…', attrs='data-ui="loading"') }}</div>
 </div>
 {% endcall %}
 
 {% call modal_shell('modal-providers', 'Providers', max_width='1000px', content_style='height:80vh;', overlay_class='modal-bands-shell') %}
 <div id="providers-modal-body" class="flex-1 min-h-0 flex flex-col">
-  <div id="providers-modal-body-inner" class="h-full">Loading…</div>
+  <div id="providers-modal-body-inner" class="h-full">{{ empty_state('Loading…', attrs='data-ui="loading"') }}</div>
 </div>
 {% endcall %}
 
@@ -101,7 +101,7 @@ content_style='height:85vh;', overlay_class='modal-bands-shell') %}
         {% include "presets/prompt-arranger.html" %}
       {% endwith %}
     {% else %}
-      <p class="empty">Select a preset first.</p>
+      {{ empty_state('Select a preset first.') }}
     {% endif %}
   </div>
 

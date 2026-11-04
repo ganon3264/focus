@@ -106,3 +106,40 @@
   color: var(--text-muted);
   text-shadow: 0 1px 0 var(--mat-lo);
 }
+
+/* ── Backend lock screen ──────────────────────────────────────────────────
+   The server stopped answering: every action would fail, so the app blurs
+   under a scrim and stops taking input until the health probe returns. The
+   card is a .panel; this block owns only where it sits. */
+.backend-lock {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--gutter);
+  background: color-mix(in srgb, var(--bg) 55%, transparent);
+  backdrop-filter: blur(6px);
+}
+
+.backend-lock-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--u);
+  padding: var(--gutter);
+}
+
+.backend-lock-head {
+  display: flex;
+  align-items: center;
+  gap: var(--gutter);
+}
+
+.backend-lock-title {
+  font-family: var(--font-mono-ui);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}

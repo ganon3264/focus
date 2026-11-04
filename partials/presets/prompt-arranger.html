@@ -1,4 +1,4 @@
-{% from "macros.html" import icon_plus, custom_select, hint_tooltip, modal_footer, row_label, toggle, icon_expand %}
+{% from "macros.html" import icon_plus, custom_select, hint_tooltip, modal_footer, row_label, toggle, expand_key %}
 <div class="arranger-list" id="arranger-list-{{ preset_id }}">
   {% for block in blocks %} {% include "presets/prompt-block.html" %} {% endfor %}
 </div>
@@ -17,15 +17,7 @@ dirty_label='this block') %}
     <span>Text</span>
     <span class="row-value" data-ui="block-count"></span>
     <div class="rail-actions flush">
-      <button
-        type="button"
-        class="key sm"
-        title="Expand editor"
-        aria-label="Expand editor"
-        data-action="actionOpenTextExpander"
-        data-target-id="block-modal-textarea"
-        data-expander-title="Edit Block Content"
-      >{{ icon_expand(16) }}</button>
+      {{ expand_key('block-modal-textarea', 'Edit Block Content') }}
     </div>
   </div>
   <textarea
@@ -39,15 +31,7 @@ dirty_label='this block') %}
     <span>Reasoning</span>
     <span class="row-value" data-ui="block-count"></span>
     <div class="rail-actions flush">
-      <button
-        type="button"
-        class="key sm"
-        title="Expand editor"
-        aria-label="Expand editor"
-        data-action="actionOpenTextExpander"
-        data-target-id="block-modal-reasoning"
-        data-expander-title="Edit Reasoning"
-      >{{ icon_expand(16) }}</button>
+      {{ expand_key('block-modal-reasoning', 'Edit Reasoning') }}
     </div>
   </div>
   <textarea

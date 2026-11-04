@@ -201,6 +201,11 @@ async def root():
     return RedirectResponse(url="/chat")
 
 
+@app.get("/api/health", include_in_schema=False)
+async def health():
+    return {"ok": True}
+
+
 @app.get("/favicon.ico", include_in_schema=False)
 async def favicon():
     return FileResponse("static/favicon.svg")

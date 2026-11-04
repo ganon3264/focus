@@ -1,6 +1,6 @@
 <!-- Option Selection Modal (shared picker: OpenRouter route/quant, theme picker, ...) -->
 {% from "modal-shell.html" import modal_shell %}
-{% from "macros.html" import search_toolbar %}
+{% from "macros.html" import search_toolbar, empty_state %}
 {% call modal_shell('modal-select-option', '', max_width='400px', width='95vw',
      content_style='height:60vh;',
      overlay_class='sub', title_attrs='x-text="title"',
@@ -12,6 +12,6 @@
         <span class="row-title" x-text="opt.label"></span>
       </div>
     </template>
-    <div x-show="options.length === 0" class="empty">No options available.</div>
+    {{ empty_state('No options available.', attrs='x-show="options.length === 0"') }}
   </div>
 {% endcall %}

@@ -1,4 +1,4 @@
-{% from "macros.html" import icon_trash, hint_tooltip, modal_footer, verb_slot %} {%
+{% from "macros.html" import icon_trash, hint_tooltip, modal_footer, verb_slot, empty_state %} {%
 from "modal-shell.html" import modal_shell %} {% set theme_colors = [
 ('Background', '--bg'), ('Surface (Primary)', '--surface'), ('Surface (Secondary)', '--surface-2'), ('Surface
 (Tertiary)', '--surface-3'), ('Borders', '--border'), ('Accent Color', '--accent'), ('Text (Main)', '--text'), ('Text
@@ -61,7 +61,7 @@ content_style='height:82vh;', overlay_class='modal-bands-shell', z_index='100') 
           </span>
         </div>
       </template>
-      <div x-show="themes.length === 0" class="empty">No themes yet.</div>
+      {{ empty_state('No themes yet.', attrs='x-show="themes.length === 0"') }}
     </div>
 
     <div class="theme-editor">

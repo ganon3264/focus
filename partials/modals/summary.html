@@ -1,5 +1,5 @@
 {% from "modal-shell.html" import modal_shell %}
-{% from "macros.html" import modal_footer %}
+{% from "macros.html" import modal_footer, empty_state %}
 {% call modal_shell('modal-summary', 'Summary', max_width='640px', foot=true, content_style='height:70vh;') %}
 <div x-data="summaryModal()" @summary-open.window="load()" class="flex flex-col h-full min-h-0 gap-3">
   <p class="note shrink-0">
@@ -8,7 +8,7 @@
 
   <div class="flex-1 overflow-y-auto flex flex-col gap-3 min-h-0">
     <template x-if="!chunks.length">
-      <div class="empty">No summary is attached to this chat.</div>
+      {{ empty_state('No summary is attached to this chat.') }}
     </template>
     <template x-for="(chunk, i) in chunks" :key="chunk.id">
       <div class="flex flex-col gap-1">

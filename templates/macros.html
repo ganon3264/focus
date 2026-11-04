@@ -234,6 +234,11 @@
 </button>
 {% endmacro %}
 
+{# A field's expand key: opens the shared text expander on the field it names. #}
+{% macro expand_key(target_id, title, aria_label='Expand editor', classes='key sm', extra_attrs='') %}
+<button type="button" class="{{ classes }}" title="{{ aria_label }}" aria-label="{{ aria_label }}" data-action="actionOpenTextExpander" data-target-id="{{ target_id }}" data-expander-title="{{ title }}"{% if extra_attrs %} {{ extra_attrs | safe }}{% endif %}>{{ icon_expand(16) }}</button>
+{% endmacro %}
+
 {% macro slider_row(label, model, min, max, step, dec=0, change='saveSamplers()', blur=None, hint='', wrapper_classes='', wrapper_attrs='', input_attrs='') %}
 {% if blur is none %}{% set blur = '$el.value = fmt(parseFloat($el.value) || 0, ' ~ (dec | int) ~ ')' %}{% endif %}
 <div class="field-row setting labeled slider{{ (' ' ~ wrapper_classes) if wrapper_classes else '' }}"{% if wrapper_attrs %} {{ wrapper_attrs | safe }}{% endif %}>

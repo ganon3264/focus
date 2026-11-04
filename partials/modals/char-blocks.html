@@ -1,7 +1,8 @@
 {% from "modal-shell.html" import modal_shell %}
+{% from "macros.html" import empty_state %}
 {% call modal_shell('modal-char-blocks', 'Custom Blocks', max_width='720px',
 content_style='height:min(80vh, 680px);', z_index='200', overlay_class='modal-bands-shell') %}
 <div id="char-blocks-container" class="modal-bands" data-ui="char-blocks-container">
-  <p class="empty">Loading…</p>
+  {{ empty_state('Loading…', attrs='data-ui="loading"') }}
 </div>
 {% endcall %}

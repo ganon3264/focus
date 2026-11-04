@@ -1,4 +1,4 @@
-{% from "macros.html" import hint_tooltip, icon_chevron_down, reload_key, search_toolbar, toggle %}
+{% from "macros.html" import hint_tooltip, icon_chevron_down, reload_key, search_toolbar, toggle, empty_state %}
 <div x-data="extensionsModal()" id="extensions-modal-data" class="modal-bands">
 
   <div class="modal-band-head">
@@ -18,7 +18,7 @@
   </div>
 
   <div class="modal-band-lane">
-    <div x-show="!loaded" class="empty">Loading…</div>
+    {{ empty_state('Loading…', attrs='x-show="!loaded"') }}
 
     <div class="tool-categories">
     <template x-for="(groupExtensions, category) in grouped" :key="category">

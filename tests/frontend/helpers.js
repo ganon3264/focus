@@ -211,6 +211,7 @@ function makeElement(tag) {
     get: function () { return el._innerHTML || ''; },
     set: function (v) {
       el._innerHTML = v;
+      if (el.tagName === 'TEXTAREA') el._value = _decodeEntities(v);
       el.children = [];
       var re = /<(\w+)([^>]*)>/g;
       var m;
@@ -241,6 +242,11 @@ function makeElement(tag) {
       }
     },
   });
+  Object.defineProperty(el, 'value', {
+    configurable: true,
+    get: function () { return el._value !== undefined ? el._value : ''; },
+    set: function (v) { el._value = v; },
+  });
   Object.defineProperty(el, 'firstElementChild', {
     get: function () {
       for (var i = 0; i < el.children.length; i++) {
@@ -265,6 +271,16 @@ function makeElement(tag) {
     set: function (v) { el._textContent = v; el.children = []; },
   });
   return el;
+}
+
+function _decodeEntities(html) {
+  return String(html)
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, '&');
 }
 
 function _matchesSimple(el, sel) {

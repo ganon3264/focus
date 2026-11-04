@@ -1,4 +1,4 @@
-{% from "macros.html" import search_toolbar %}
+{% from "macros.html" import search_toolbar, empty_state %}
 {% from "modal-shell.html" import modal_shell %}
 <!-- Macro Reference Modal -->
 {% call modal_shell('macro-help-modal', 'Macro Reference', max_width='600px', z_index='2000') %}
@@ -42,7 +42,7 @@
       </button>
     </template>
     <template x-if="filteredMacros.length === 0 && filteredTokens.length === 0">
-      <div class="empty">No matches for “<span x-text="query"></span>”</div>
+      {{ empty_state('No matches for “<span x-text="query"></span>”') }}
     </template>
   </div>
 </div>

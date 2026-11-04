@@ -1,4 +1,4 @@
-{% from "macros.html" import icon_plus %}
+{% from "macros.html" import icon_plus, empty_state %}
 <div data-preset-id="{{ preset_id or '' }}">
   <div class="regex-group">
     <div class="rail">
@@ -16,7 +16,7 @@
     <div class="regex-sortable" data-ui="regex-sortable" data-scope="global">
       {% for script in global_scripts %}{% include "modals/regex-item.html" %}{% endfor %}
       {% if not global_scripts %}
-      <div class="empty">No global scripts.</div>
+      {{ empty_state('No global scripts.') }}
       {% endif %}
     </div>
   </div>
@@ -38,13 +38,11 @@
     <div class="regex-sortable" data-ui="regex-sortable" data-scope="preset" data-scope-id="{{ preset_id }}">
       {% for script in preset_scripts %}{% include "modals/regex-item.html" %}{% endfor %}
       {% if not preset_scripts %}
-      <div class="empty">No scripts for this preset.</div>
+      {{ empty_state('No scripts for this preset.') }}
       {% endif %}
     </div>
   </div>
   {% else %}
-  <div class="empty">
-    Select a preset to manage preset-scoped scripts.
-  </div>
+  {{ empty_state('Select a preset to manage preset-scoped scripts.') }}
   {% endif %}
 </div>

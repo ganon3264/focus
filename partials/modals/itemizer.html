@@ -1,4 +1,4 @@
-{% from "macros.html" import icon_chevron_right, hint_tooltip, reload_key %}
+{% from "macros.html" import icon_chevron_right, hint_tooltip, reload_key, empty_state %}
 <div x-data="itemizerModal()" @itemizer-open.window="load()" class="modal-bands">
   <div class="modal-band-head">
     <div class="rail">
@@ -13,7 +13,7 @@
   </div>
 
   <div class="modal-band-lane itemizer-list">
-    <div x-show="loading && messages.length === 0" class="empty">Generating estimate...</div>
+    {{ empty_state('Generating estimate...', attrs='x-show="loading && messages.length === 0"') }}
 
     <template x-for="(msg, i) in messages" :key="i">
       <div x-data="{ expanded: false }" class="itemizer-item">

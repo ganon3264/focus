@@ -1,4 +1,4 @@
-{% from "macros.html" import hint_tooltip %}
+{% from "macros.html" import hint_tooltip, empty_state %}
 {# Body of the Regex tab in the Advanced modal. The lane is the swap target: the
    list partial re-renders its own scope rails (Global, then the preset's). #}
 <div class="modal-bands">
@@ -9,6 +9,6 @@
     </div>
   </div>
   <div id="regex-scripts-container" class="modal-band-lane">
-    <div class="empty">Loading…</div>
+    {{ empty_state('Loading…', attrs='data-ui="loading"') }}
   </div>
 </div>
