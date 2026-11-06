@@ -26,10 +26,10 @@
         <div class="rail cursor-pointer select-none" @click="toggleCategory(category)">
           <span x-text="category"></span>
           <span class="rail-actions flush">
-            <span class="caret-mark" :class="openCategories[category] !== false ? 'caret-open' : ''"></span>
+            <span class="caret-mark" :class="openCategories[category] ? 'caret-open' : ''"></span>
           </span>
         </div>
-        <div class="flex flex-col" x-show="openCategories[category] !== false">
+        <div class="flex flex-col" x-show="openCategories[category]">
           <template x-for="ext in groupExtensions" :key="ext.name">
             <div
               class="card"
@@ -73,13 +73,9 @@
                       </template>
                       <template x-if="p.type === 'string' && p.enum && p.enum.length">
                         <div class="row-cell relative" x-data="{ open: false }" @click.away="open = false">
-                          <button
-                            type="button"
-                            @click="open = !open"
-                            class="field flex items-center justify-between gap-1 text-left cursor-pointer"
-                          >
-                            <span class="truncate" x-text="configs[ext.name][p.name]"></span>
-                            <span class="row-meta inline-flex shrink-0" :class="open ? 'caret-open' : ''">{{ icon_chevron_down(12) }}</span>
+                          <button type="button" @click="open = !open" class="field select">
+                            <span x-text="configs[ext.name][p.name]"></span>
+                            <span class="row-meta inline-flex transition-transform duration-200" :class="open ? 'rotate-180' : ''">{{ icon_chevron_down(12) }}</span>
                           </button>
                           <div
                             x-show="open"
@@ -224,12 +220,17 @@ document.addEventListener('alpine:init', function () {
           .catch(function () {});
       },
 
+      // Both disclosure maps are seeded to real booleans as soon as the list
+      // lands — categories open, config panels closed — so a toggle is always
+      // `!flag` and never a tri-state guessing game.
       _seedConfigs: function () {
         var self = this;
         this.extensions.forEach(function (e) {
           var defaults = {};
           (e.params || []).forEach(function (p) { defaults[p.name] = p.default; });
           self.configs[e.name] = Object.assign({}, defaults, self.configs[e.name] || {});
+          if (self.openConfigs[e.name] === undefined) self.openConfigs[e.name] = false;
+          if (self.openCategories[e.category] === undefined) self.openCategories[e.category] = true;
         });
       },
 
@@ -265,11 +266,11 @@ document.addEventListener('alpine:init', function () {
       },
 
       toggleCategory: function (category) {
-        this.openCategories[category] = this.openCategories[category] !== false ? false : true;
+        this.openCategories[category] = !this.openCategories[category];
       },
 
       toggleConfig: function (name) {
-        this.openConfigs[name] = this.openConfigs[name] !== false ? false : true;
+        this.openConfigs[name] = !this.openConfigs[name];
       },
 
       saveConfig: function (name) {

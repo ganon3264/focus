@@ -43,10 +43,10 @@
         <div class="rail cursor-pointer select-none" @click="toggleCategory(category)">
           <span x-text="category"></span>
           <span class="rail-actions flush">
-            <span class="caret-mark" :class="openCategories[category] !== false ? 'caret-open' : ''"></span>
+            <span class="caret-mark" :class="openCategories[category] ? 'caret-open' : ''"></span>
           </span>
         </div>
-        <div class="card-grid" x-show="openCategories[category] !== false">
+        <div class="card-grid" x-show="openCategories[category]">
         <template x-for="tool in groupTools" :key="tool.name">
           <div
             class="card"
@@ -133,7 +133,19 @@ document.addEventListener('alpine:init', function () {
         var self = this;
         return hxFetch(api.tools)
           .then(function (r) { return r.json(); })
-          .then(function (data) { self.tools = data; });
+          .then(function (data) {
+            self.tools = data;
+            self._seedCategories();
+          });
+      },
+
+      // Categories start open and stay as the user left them across reloads: the
+      // flag is always a real boolean, so the toggle is just `!flag`.
+      _seedCategories: function () {
+        var self = this;
+        self.tools.forEach(function (t) {
+          if (self.openCategories[t.category] === undefined) self.openCategories[t.category] = true;
+        });
       },
 
       _loadChatState: function () {
@@ -187,7 +199,7 @@ document.addEventListener('alpine:init', function () {
       },
 
       toggleCategory: function (category) {
-        this.openCategories[category] = this.openCategories[category] !== false ? false : true;
+        this.openCategories[category] = !this.openCategories[category];
       },
 
       reloadTools: function () {
