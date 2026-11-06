@@ -366,12 +366,18 @@
   gap: 0;
 }
 
+/* This lane is a scroll container, so it clips at its padding box. A focused
+   field paints its accent ring 1px outside itself, and the field is exactly the
+   lane's width — so the lane carries that 1px as padding and bleeds it back
+   through the margin, or the ring gets cut on both sides. */
 .msg-form-lane {
   display: flex;
   flex-direction: column;
   flex: 1;
   min-height: 0;
   gap: calc(var(--u) * 4);
+  margin-inline: calc(-1 * var(--hair-w));
+  padding-inline: var(--hair-w);
   padding-bottom: var(--band-pad);
   overflow-y: auto;
 }
