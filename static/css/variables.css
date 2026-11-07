@@ -131,6 +131,10 @@
   /* Shared content column width (message list, input bar, staging area) */
   --chat-content-width: min(100%, 800px);
 
+  /* Floor clearance of the composer; the sidebars' bottom edges land on the
+     same line. */
+  --bottom-clearance: calc(var(--u) * 8);
+
   /* Distance between a prose line box's edge and its ink, at the 14px/24px body
      rhythm. Font metrics, not design values: gaps next to prose subtract them so
      prose reads at the same rhythm as a plate beside it. */

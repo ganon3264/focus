@@ -97,7 +97,7 @@ async function measure(page) {
       rightTitles: all('.right-sidebar .rail'),
       leftSections: all('.left-sidebar .sidebar-section'),
       preset: one('#preset-selector .preset-trigger'),
-      newChat: one('.right-sidebar .sidebar-section > .btn'),
+      newChat: one('.right-sidebar .rail-actions > .key'),
       tiles: all('.left-sidebar .nav'),
       status: one('.left-sidebar .well'),
       statusRows: all('.left-sidebar .well > .row'),
@@ -485,7 +485,7 @@ async function measureBands(page) {
   [...m.leftTitles, ...m.rightTitles].forEach((r, i) => checkGrid('rail ' + i, r));
   [...m.leftSections].forEach((r, i) => checkGrid('left section ' + i, r));
   checkGrid('preset selector', m.preset);
-  checkGrid('new chat', m.newChat);
+  if (m.newChat) checkGrid('new chat key', m.newChat);
   m.tiles.forEach((r, i) => checkGrid('tool tile ' + i, r));
   checkGrid('status panel', m.status);
   m.statusRows.forEach((r, i) => checkGrid('status row ' + i, r));
@@ -501,21 +501,12 @@ async function measureBands(page) {
   if (m.leftTitles.length) checkInset('left rail', m.leftTitles[0], m.leftPane, inset);
   if (m.rightTitles.length) checkInset('right rail', m.rightTitles[0], m.rightPane, inset);
   if (m.preset) checkInset('preset selector', m.preset, m.leftPane, inset);
-  if (m.newChat) checkInset('new chat', m.newChat, m.rightPane, inset);
 
   if (m.leftTitles.length && m.rightTitles.length) {
     checkSameRow('pane rails', [m.leftTitles[0], m.rightTitles[0]]);
   }
-  if (m.preset && m.newChat) {
-    checkSameRow('first control row', [m.preset, m.newChat]);
-    check(
-      'New Chat and the preset well are the same box',
-      m.newChat.height === m.preset.height && m.newChat.y === m.preset.y,
-      `new chat ${m.newChat.height}@${m.newChat.y} vs preset ${m.preset.height}@${m.preset.y}`,
-    );
-  }
   checkHeight('preset selector', m.preset, [28, 32]);
-  checkHeight('new chat', m.newChat, [28, 32]);
+  checkHeight('new chat key', m.newChat, [24, 28, 32]);
   m.tiles.forEach((r, i) => checkHeight('tool tile ' + i, r, [28, 32]));
   m.statusRows.forEach((r, i) => checkHeight('status row ' + i, r, [20, 24, 28]));
   m.varGroupHeaders.forEach((r, i) => checkHeight('var group header ' + i, r, [28, 32]));

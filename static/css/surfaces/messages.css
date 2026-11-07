@@ -685,7 +685,7 @@
   display: flex;
   justify-content: center;
   z-index: 20;
-  padding-bottom: calc(var(--u) * 10);
+  padding-bottom: var(--bottom-clearance);
   pointer-events: none;
 }
 

@@ -65,6 +65,7 @@
 /* ── Status readout ─────────────────────────────────────────────────────── */
 .sidebar-section.mt-auto {
   margin-top: auto;
+  padding-bottom: var(--bottom-clearance);
 }
 
 .left-sidebar .well {
@@ -87,19 +88,6 @@
   flex: 1 1 auto;
   padding: var(--inset) var(--inset) 0;
   box-shadow: none;
-}
-
-.right-sidebar .sidebar-section > .btn {
-  flex: none;
-  justify-content: center;
-  width: 100%;
-  height: var(--control-h-lg);
-}
-
-/* The create action is separated from the list by a divider that lands on the
-   same y as the left pane's first section groove. */
-.right-sidebar .sidebar-section > .divider {
-  margin: calc(var(--inset) - var(--hair-w)) 0 0;
 }
 
 .sidebar-list {
@@ -195,7 +183,7 @@
   flex: none;
   flex-direction: column;
   gap: var(--gutter);
-  padding: var(--inset);
+  padding: var(--inset) var(--inset) var(--bottom-clearance);
   box-shadow: inset 0 var(--hair-w) 0 var(--hair-dark);
 }
 

@@ -8,15 +8,14 @@
     <div class="rail">
       <button class="key sm" onclick="toggleSidebar('right')" title="Collapse" aria-label="Toggle sidebar">{{ icon_chevron_right(14) }}</button>
       <span>Chats</span>
+      <div class="rail-actions flush">
+        {% if has_characters %}
+        <button class="key sm create" onclick="newChat()" title="New Chat" aria-label="New Chat">{{ icon_plus(14) }}</button>
+        {% else %}
+        <button class="key sm primary" onclick="openModal('modal-characters')" title="Add Character" aria-label="Add Character">{{ icon_plus(14) }}</button>
+        {% endif %}
+      </div>
     </div>
-    
-    {% if has_characters %}
-      <button class="btn create" onclick="newChat()">{{ icon_plus(14) }} New Chat</button>
-    {% else %}
-      <button class="btn primary" onclick="openModal('modal-characters')">{{ icon_plus(14) }} Add Character</button>
-    {% endif %}
-
-    <div class="divider"></div>
 
     <div id="chat-list" class="sidebar-list flex-1 flex flex-col min-h-0">
       {% include "chat/chat-list.html" %}
