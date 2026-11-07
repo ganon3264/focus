@@ -50,11 +50,29 @@
   --msg-frame-pad: var(--gutter);
   --msg-screen-pad: var(--inset);
   --msg-avatar-size: calc(var(--u) * 6);
-  --mat-glow: color-mix(in srgb, var(--surface), white 9%);
-  --mat-shade: color-mix(in srgb, var(--surface), black 10%);
-  --mat-well: color-mix(in srgb, color-mix(in srgb, var(--surface), var(--bg) 50%), black 6%);
+  --msg-tint: var(--surface);
+  --msg-surface: color-mix(in srgb, var(--surface) 92%, var(--msg-tint) 8%);
+  --mat-hi: color-mix(in srgb, var(--msg-surface), white 14%);
+  --mat-glow: color-mix(in srgb, var(--msg-surface), white 9%);
+  --mat-shade: color-mix(in srgb, var(--msg-surface), black 10%);
+  --mat-well: color-mix(in srgb, color-mix(in srgb, var(--msg-surface), var(--bg) 50%), black 6%);
 
   width: 100%;
+}
+
+/* A turn carries its speaker's hue as a slight tint over the plate. The role
+   colours are theme tokens, so this follows every palette. */
+.message[data-role='user'] {
+  --msg-tint: var(--role-user);
+}
+
+.message[data-role='assistant'] {
+  --msg-tint: var(--role-assistant);
+}
+
+.message[data-role] {
+  background-color: var(--msg-surface);
+  background-image: linear-gradient(var(--mat-glow), var(--mat-shade));
 }
 
 .message:hover {
@@ -259,9 +277,27 @@
 }
 
 .markdown-content :is(h1, h2, h3, h4, h5, h6) {
-  margin: var(--inset) 0 var(--gutter);
-  line-height: 1.3;
-  letter-spacing: 0;
+  margin: calc(var(--inset) * 2) 0 var(--gutter);
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+.markdown-content h1 {
+  font-size: 22px;
+}
+
+.markdown-content h2 {
+  font-size: 18px;
+}
+
+.markdown-content h3 {
+  font-size: 16px;
+}
+
+.markdown-content :is(h4, h5, h6) {
+  font-size: 14px;
+  color: var(--text-muted);
 }
 
 .markdown-content :is(ul, ol) {
@@ -269,8 +305,32 @@
   padding-left: calc(var(--inset) * 2);
 }
 
+.markdown-content ul {
+  list-style: disc;
+}
+
+.markdown-content ol {
+  list-style: decimal;
+}
+
+.markdown-content ul ul {
+  list-style: circle;
+}
+
+.markdown-content ul ul ul {
+  list-style: square;
+}
+
 .markdown-content li {
   margin-bottom: var(--u);
+}
+
+.markdown-content li::marker {
+  color: var(--text-muted);
+}
+
+.markdown-content li > p {
+  margin: 0;
 }
 
 .markdown-content pre {

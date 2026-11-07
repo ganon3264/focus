@@ -130,6 +130,7 @@
   window.buildMessageShell = function (role) {
     var div = tpl(role === 'user' ? 'tpl-message-shell-user' : 'tpl-message-shell-assistant');
     if (!div) return null;
+    div.dataset.role = role;
     div.id = role === 'user' ? 'temp-user-msg' : 'streaming-message';
     return div;
   };
