@@ -46,7 +46,7 @@
                 </div>
                 {{ toggle(':class="{ \'active\': enabled(ext.name) }" @click="toggle(ext.name)"', extra_classes='shrink-0') }}
               </div>
-              <div class="text-xs text-muted mt-1 leading-snug" x-text="ext.description"></div>
+              <div class="text-xs text-muted mt-1" x-text="ext.description"></div>
               <div class="flex flex-wrap gap-1 mt-1">
                 <template x-for="trig in ext.triggers" :key="trig">
                   <span class="tag" x-text="trig"></span>

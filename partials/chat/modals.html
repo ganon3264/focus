@@ -107,7 +107,7 @@ content_style='height:85vh;', overlay_class='modal-bands-shell') %}
 
   {% if preset %}
   <div class="modal-band-foot">
-    <div x-data="{ open: false }" data-preset-id="{{ preset.id }}" class="relative">
+    <div x-data="{ open: false }" data-preset-id="{{ preset.id }}" class="relative flex">
       <button type="button" class="btn create" @click="open = !open">
         {{ icon_plus(14) }} Add Block
       </button>

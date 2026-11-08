@@ -265,11 +265,14 @@
 }
 
 /* Prose carries its line leading inside its own box, so a 12px gap reads as 19
-   above the first glyph and 16 below the last. Both edges are pulled in by the
-   font's own lead/trail, so a prose box measures the same as a plate on either
-   side — one rule, whatever the neighbour is. */
-.message-body > .message-content {
+   above the first glyph and 16 below the last. The pull therefore hangs on the
+   prose block itself, not on the screen's column: a plate at either edge owns
+   its box and keeps the screen's inset. */
+.message-body > .message-content > :is(p, ul, ol, h1, h2, h3, h4, h5, h6):first-child {
   margin-top: calc(-1 * var(--prose-ink-lead));
+}
+
+.message-body > .message-content > :is(p, ul, ol, h1, h2, h3, h4, h5, h6):last-child {
   margin-bottom: calc(-1 * var(--prose-ink-trail));
 }
 
@@ -281,6 +284,12 @@
    needed: the final block never contributes a trailing gutter. */
 .markdown-content > :last-child {
   margin-bottom: 0;
+}
+
+/* A plate that opens the screen owns no leading gutter: there is no prose above
+   it to separate from, and its margin would double the screen inset. */
+.markdown-content > :is(pre, table, blockquote, hr):first-child {
+  margin-top: 0;
 }
 
 .markdown-content :is(h1, h2, h3, h4, h5, h6) {
@@ -417,12 +426,13 @@
   color: var(--accent);
 }
 
-/* Copy key on a fenced block: a raised key from the vocabulary, riding the
-   corner. */
+/* Copy key on a fenced block: a raised key from the vocabulary, hung on the
+   block's own inset so its plate lines up with the text's right edge and the
+   first line's top instead of floating in the corner. */
 .markdown-content .copy-btn {
   position: absolute;
-  top: var(--u);
-  right: var(--u);
+  top: var(--inset);
+  right: var(--inset);
   opacity: 0;
   transition: opacity var(--transition);
 }

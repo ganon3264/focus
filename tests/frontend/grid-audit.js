@@ -390,6 +390,30 @@ async function measureBands(page) {
   });
 }
 
+// Half-pixel heights are the tell of an inline-level control sitting in a line
+// box: the wrapper grows past the control by the font's own half-leading, and
+// every band below it inherits the .5. The primitives are integer-sized, so a
+// fractional box in a modal is always a wrapper that should be a flex box.
+async function measureOffbeat(page) {
+  return page.evaluate(() => {
+    const ov = [...document.querySelectorAll('.modal-overlay')].reverse().find((e) => !e.classList.contains('hidden') && e.getBoundingClientRect().width);
+    if (!ov) return [];
+    const out = [];
+    const sel = '.modal-head, .modal-body, .modal-foot, .modal-band-head, .modal-band-toolbar, .modal-band-lane, .modal-band-foot, .card, .row, .well, .field, .check, .switch, .tag, .rail';
+    for (const el of ov.querySelectorAll(sel)) {
+      // A textarea is sized from its content's scrollHeight, which is a font
+      // measurement, not a box on the grid.
+      if (el.tagName === 'TEXTAREA') continue;
+      const b = el.getBoundingClientRect();
+      if (b.width < 2 || b.height < 2) continue;
+      if (Math.abs(b.height - Math.round(b.height)) > 0.05) {
+        out.push({ el: el.tagName + '.' + String(el.className).split(' ').slice(0, 3).join('.'), height: +b.height.toFixed(2) });
+      }
+    }
+    return out;
+  });
+}
+
 (async () => {
   const browser = await chromium.launch({ channel: 'chrome' });
   const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
@@ -402,12 +426,18 @@ async function measureBands(page) {
     await page.waitForTimeout(300);
   }
   const m = await measure(page);
+  const offbeat = [];
+  const sweep = async (state) => {
+    for (const o of await measureOffbeat(page)) offbeat.push({ state, ...o });
+  };
   await page.locator('.left-sidebar .nav', { hasText: 'Characters' }).first().click();
   await page.waitForTimeout(800);
+  await sweep('characters');
   const mmEntity = await measureModal(page);
   const mmEntityBands = await measureBands(page);
   await page.locator('#char-modal-grid .entity-row [aria-label="Edit character"]').first().click();
   await page.waitForTimeout(900);
+  await sweep('character editor');
   const mmEditor = await measureEntityEditor(page);
   await page.keyboard.press('Escape');
   await page.waitForTimeout(300);
@@ -417,9 +447,11 @@ async function measureBands(page) {
   await page.waitForTimeout(300);
   await page.locator('[data-ui="message"]').nth(1).locator('[data-action="actionEditMessage"]').click();
   await page.waitForTimeout(1100);
+  await sweep('message editor');
   const mmEditMessage = await measureTextModals(page);
   await page.locator('#modal-edit-message .msg-block .rail-actions .key').first().click();
   await page.waitForTimeout(700);
+  await sweep('text expander');
   const mmExpander = await measureTextModals(page);
   await page.keyboard.press('Escape');
   await page.waitForTimeout(300);
@@ -427,26 +459,31 @@ async function measureBands(page) {
   await page.waitForTimeout(400);
   await page.locator('.left-sidebar .nav', { hasText: 'Personas' }).first().click();
   await page.waitForTimeout(800);
+  await sweep('personas');
   const mmPersonaBands = await measureBands(page);
   await page.keyboard.press('Escape');
   await page.waitForTimeout(300);
   await page.locator('#preset-selector .preset-trigger').click();
   await page.waitForTimeout(900);
+  await sweep('presets');
   const mmPresets = await measureBands(page);
   const mmPresetRows = await measurePresetRows(page);
   await page.keyboard.press('Escape');
   await page.waitForTimeout(300);
   await page.locator('.left-sidebar .nav', { hasText: 'Providers' }).first().click();
   await page.waitForTimeout(800);
+  await sweep('providers');
   const mmProviders = await measureBands(page);
   await page.locator('button[onclick="openSecretsManager()"]').click();
   await page.waitForTimeout(800);
+  await sweep('saved keys');
   const mmSecrets = await measureSecrets(page);
   const mmSecretsBands = await measureBands(page);
   await page.keyboard.press('Escape');
   await page.waitForTimeout(300);
   await page.locator('[data-action="actionOpenProviderCreateModal"]').click();
   await page.waitForTimeout(800);
+  await sweep('provider form');
   const mmFoot = await measureModal(page);
   const mmProviderForm = await measureProviderForm(page);
   await page.keyboard.press('Escape');
@@ -455,26 +492,31 @@ async function measureBands(page) {
   await page.waitForTimeout(300);
   await page.locator('.left-sidebar .nav', { hasText: 'Itemizer' }).first().click();
   await page.waitForTimeout(900);
+  await sweep('itemizer');
   const mmItemizer = await measureBands(page);
   await page.keyboard.press('Escape');
   await page.waitForTimeout(300);
   await page.locator('.left-sidebar .nav', { hasText: 'Arranger' }).first().click();
   await page.waitForTimeout(900);
+  await sweep('arranger');
   const mmArranger = await measureBands(page);
   await page.keyboard.press('Escape');
   await page.waitForTimeout(300);
   await page.locator('.left-sidebar .nav', { hasText: 'Samplers' }).first().click();
   await page.waitForTimeout(900);
+  await sweep('sampler');
   const mmSampler = await measureBands(page);
   await page.keyboard.press('Escape');
   await page.waitForTimeout(300);
   await page.locator('.left-sidebar .nav', { hasText: 'Advanced' }).first().click();
   await page.waitForTimeout(1200);
+  await sweep('advanced');
   const mmAdvanced = await measureBands(page);
   await page.keyboard.press('Escape');
   await page.waitForTimeout(300);
   await page.locator('.left-sidebar .nav', { hasText: 'Themes' }).first().click();
   await page.waitForTimeout(900);
+  await sweep('themes');
   const mmTheme = await measureBands(page);
   await browser.close();
 
@@ -1028,6 +1070,13 @@ async function measureBands(page) {
       checkHeight('modal foot button', last, [28]);
     }
   }
+
+  // ── Every modal: no box measures a fractional height ──
+  check(
+    'no modal box has a fractional height',
+    offbeat.length === 0,
+    offbeat.map((o) => `${o.state}:${o.el}=${o.height}`).join(' '),
+  );
 
   console.log(`\n${checks - failures}/${checks} checks passed, ${failures} failed`);
   process.exit(failures ? 1 : 0);
