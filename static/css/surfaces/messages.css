@@ -179,6 +179,13 @@
   pointer-events: auto;
 }
 
+/* Neither has delete mode: its toolbar is gone and the checkbox lives outside
+   the frame, so the date and ordinal stay put. */
+.message.is-deleting:hover .meta-right {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 @media (max-width: 639px) {
   .meta-right {
     display: none !important;

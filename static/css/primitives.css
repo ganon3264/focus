@@ -402,15 +402,15 @@
 
 .field.danger {
   box-shadow:
-    var(--mat-inset),
-    inset 0 0 0 var(--hair-w) var(--danger-edge);
+    inset 0 0 0 var(--hair-w) var(--danger-edge),
+    var(--mat-inset);
 }
 
 .field:is(:focus, :focus-visible) {
   outline: none;
   box-shadow:
-    var(--mat-inset),
-    0 0 0 var(--hair-w) var(--accent);
+    0 0 0 var(--hair-w) var(--accent),
+    var(--mat-inset);
 }
 
 .field.sm {
@@ -630,11 +630,21 @@ textarea.field.sized {
   color: var(--text-on-accent);
 }
 
-.check:is(:focus-visible, :focus) {
+.check:focus-visible {
   outline: none;
   box-shadow:
-    var(--mat-inset),
-    0 0 0 var(--hair-w) var(--accent);
+    0 0 0 var(--hair-w) var(--accent),
+    var(--mat-inset);
+}
+
+.check.danger:is(:checked, .active) {
+  background-color: var(--danger);
+}
+
+.check.danger:focus-visible {
+  box-shadow:
+    0 0 0 var(--hair-w) var(--danger),
+    var(--mat-inset);
 }
 
 .check:is(:disabled, .disabled) {
@@ -1027,8 +1037,8 @@ textarea.field.sized {
 
 .well.danger {
   box-shadow:
-    var(--mat-inset),
-    inset 0 0 0 var(--hair-w) var(--danger-edge);
+    inset 0 0 0 var(--hair-w) var(--danger-edge),
+    var(--mat-inset);
 }
 
 .well.drag-over {
@@ -1337,8 +1347,8 @@ textarea.field.sized {
 .toast-info {
   background-image: linear-gradient(var(--tint-2), var(--tint-2)), var(--mat-raise-fill);
   box-shadow:
-    var(--mat-raise),
-    inset 0 0 0 var(--hair-w) var(--edge);
+    inset 0 0 0 var(--hair-w) var(--edge),
+    var(--mat-raise);
   color: var(--accent);
 }
 
@@ -1346,8 +1356,8 @@ textarea.field.sized {
   background-image:
     linear-gradient(var(--success-tint), var(--success-tint)), var(--mat-raise-fill);
   box-shadow:
-    var(--mat-raise),
-    inset 0 0 0 var(--hair-w) var(--success-edge);
+    inset 0 0 0 var(--hair-w) var(--success-edge),
+    var(--mat-raise);
   color: var(--success-hover);
 }
 
@@ -1355,8 +1365,8 @@ textarea.field.sized {
   background-image:
     linear-gradient(var(--danger-tint), var(--danger-tint)), var(--mat-raise-fill);
   box-shadow:
-    var(--mat-raise),
-    inset 0 0 0 var(--hair-w) var(--danger-edge);
+    inset 0 0 0 var(--hair-w) var(--danger-edge),
+    var(--mat-raise);
   color: var(--danger);
 }
 
@@ -1430,7 +1440,9 @@ textarea.field.sized {
   width: calc(var(--u) * 2);
   height: calc(var(--u) * 2);
   border-radius: var(--radius-control);
-  background-color: var(--ink-2);
+  /* Opaque, so the socket does not composite the plate's role tint — an
+     unlit cell is the background showing through the frame. */
+  background-color: var(--bg);
   box-shadow: inset 0 0 0 var(--hair-w) var(--hair);
   animation: pending-tick 1s linear infinite;
 }

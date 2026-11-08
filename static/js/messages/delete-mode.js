@@ -36,6 +36,7 @@
     if (cb) cb.checked = !!(id && selectedIds.has(id));
     var actions = msg.querySelector('[data-ui="toolbar"]');
     if (actions) actions.classList.add('hidden');
+    msg.classList.add('is-deleting');
   };
 
   function applyToLiveMessages() {
@@ -86,6 +87,7 @@
     document.getElementById('standard-input-container').classList.remove('hidden');
 
     document.querySelectorAll('[data-ui="toolbar"]').forEach(function (el) { el.classList.remove('hidden'); });
+    document.querySelectorAll('[data-ui="message"]').forEach(function (el) { el.classList.remove('is-deleting'); });
     document.querySelectorAll('[data-ui="delete-mode-checkbox"]').forEach(function (el) { el.classList.add('hidden'); });
     document.querySelectorAll('[data-ui="msg-select-checkbox"]').forEach(function (cb) { cb.checked = false; });
 
