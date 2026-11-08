@@ -17,6 +17,9 @@ deleteToolbar.id = 'delete-toolbar';
 var deleteCount = makeElement('span');
 deleteCount.id = 'delete-selected-count';
 
+var deleteBtn = makeElement('button');
+deleteBtn.id = 'delete-selected-btn';
+
 var messageList = makeElement('div');
 messageList.id = 'message-list';
 
@@ -70,6 +73,7 @@ doc.getElementById = function (id) {
   if (id === 'standard-input-container') return standardInput;
   if (id === 'delete-toolbar') return deleteToolbar;
   if (id === 'delete-selected-count') return deleteCount;
+  if (id === 'delete-selected-btn') return deleteBtn;
   if (id === 'message-list') return messageList;
   return null;
 };
@@ -189,6 +193,23 @@ function noopOutsideScenario() {
     'no delete chrome outside delete mode');
 }
 
+// ── the delete verb is dead while nothing is selected ──
+function deleteButtonScenario() {
+  window.enterDeleteMode(null);
+  assert(deleteBtn.disabled, 'delete verb disabled with an empty selection');
+
+  var cb = cbFor('msg1');
+  cb.checked = true;
+  window.updateDeleteSelection(cb);
+  assert(!deleteBtn.disabled, 'delete verb enabled once a message is selected');
+
+  cb.checked = false;
+  window.updateDeleteSelection(cb);
+  assert(deleteBtn.disabled, 'delete verb disabled again when the selection empties');
+
+  window.exitDeleteMode();
+}
+
 // ── bulkDeleteSelected with empty selection exits (no fetch) ──
 function emptySelectionScenario() {
   window.enterDeleteMode(null);
@@ -248,6 +269,7 @@ async function main() {
   noUnpruneScenario();
   rangeSpansPlaceholdersScenario();
   noopOutsideScenario();
+  deleteButtonScenario();
   emptySelectionScenario();
   await bulkDeletePostsScenario();
   chromeTogglesScenario();

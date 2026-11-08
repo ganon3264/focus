@@ -124,7 +124,7 @@ window.renderMessage = function (text) {
     if (stashed.startsWith('<pre')) {
       return stashed.replace(
         '</pre>',
-        `<button class="copy-btn" data-ui="copy-btn" title="Copy code">${window.getSvgSprite('copy', 14)}</button></pre>`,
+        `<button class="copy-btn key sm raised" data-ui="copy-btn" title="Copy code">${window.getSvgSprite('copy', 14)}</button></pre>`,
       );
     }
     return stashed;

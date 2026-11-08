@@ -37,7 +37,7 @@
         <div class="row-label danger"><span id="delete-selected-count">0</span> Selected for deletion</div>
         <div class="flex gap-2">
           <button class="btn sm" onclick="exitDeleteMode()">Cancel</button>
-          <button class="btn sm danger" data-chat-id="{{ chat_id }}" onclick="bulkDeleteSelected(this.dataset.chatId || StateManager.get('chat_id'))">Delete Selected</button>
+          <button id="delete-selected-btn" class="btn sm danger" disabled data-chat-id="{{ chat_id }}" onclick="bulkDeleteSelected(this.dataset.chatId || StateManager.get('chat_id'))">Delete Selected</button>
         </div>
       </div>
     </div>

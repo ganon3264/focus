@@ -8,6 +8,8 @@
   function renderCount() {
     var countEl = document.getElementById('delete-selected-count');
     if (countEl) countEl.textContent = String(selectedIds.size);
+    var btn = document.getElementById('delete-selected-btn');
+    if (btn) btn.disabled = selectedIds.size === 0;
   }
 
   // Only the checkbox that changed, so ids that are currently culled are not

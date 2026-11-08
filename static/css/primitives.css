@@ -289,6 +289,14 @@
   color: var(--text);
 }
 
+/* Pressed: every control takes the same recess — the plate inverts to a well,
+   so the pointer sees the shape go in, not just travel. */
+:is(.key, .link, .tab):active {
+  background-image: linear-gradient(var(--mat-shade), var(--mat-glow));
+  box-shadow: var(--mat-inset);
+  transform: translateY(var(--hair-w));
+}
+
 /* ══ Intents ════════════════════════════════════════════════════════════════
    Ink and edge, never a wash over the plate: a translucent fill on top of the
    raise gradient reads as flat web hover and kills the material. */

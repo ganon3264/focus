@@ -344,6 +344,9 @@
   position: relative;
   margin: var(--inset) 0;
   padding: var(--inset);
+  /* The copy key rides the top-right corner; every line clears it so the first
+     one never runs under the plate. */
+  padding-right: calc(var(--inset) + var(--control-h-sm) + var(--gutter));
   border: none;
   border-radius: var(--radius-control);
   background: var(--ink-1);
@@ -414,13 +417,12 @@
   color: var(--accent);
 }
 
-/* Copy key on a fenced block. */
+/* Copy key on a fenced block: a raised key from the vocabulary, riding the
+   corner. */
 .markdown-content .copy-btn {
   position: absolute;
   top: var(--u);
   right: var(--u);
-  width: var(--control-h-sm);
-  height: var(--control-h-sm);
   opacity: 0;
   transition: opacity var(--transition);
 }
