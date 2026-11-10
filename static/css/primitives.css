@@ -1055,6 +1055,35 @@ textarea.field.sized {
     inset 0 0 0 var(--hair-w) var(--accent);
 }
 
+/* ── .staging-item — a file waiting to be sent ─────────────────────────────
+   A raised tile resting in the composer's recessed tray: thumb, name, and the
+   verb that removes it. */
+.staging-item {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 1.5);
+  flex: none;
+  height: var(--control-h-lg);
+  padding: var(--u);
+  border: none;
+  border-radius: var(--radius-control);
+  background-color: var(--surface);
+  background-image: var(--mat-raise-fill);
+  box-shadow: var(--mat-raise);
+}
+
+.staging-name {
+  max-width: calc(var(--u) * 32);
+  overflow: hidden;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  line-height: var(--control-h-sm);
+  color: var(--text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* ── .frame — raised panel ─────────────────────────────────────────────────
    The one plate that casts: it sits on the page, not on a control's baseline. */
 .frame {

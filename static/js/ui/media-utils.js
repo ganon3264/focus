@@ -15,7 +15,7 @@
     if (isAudio) {
       div.innerHTML =
         '<div class="media-thumb-audio" title="Audio Attachment">' +
-        window.getSvgSprite('music', 24) +
+        window.getSvgSprite('music', opts.iconSize || 24) +
         '</div>';
     } else {
       var imgSrc = opts.src ? (isExternalSrc(opts.src) ? opts.src : '/' + opts.src) : '';

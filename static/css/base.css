@@ -117,14 +117,28 @@
   transition: opacity var(--transition);
 }
 
+/* The crop verb sits over the image's centre: the whole tile is the target. */
+.media-thumb-crop {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition);
+}
+
 .media-thumb:hover .media-thumb-close,
-.media-thumb-close:focus-visible {
+.media-thumb:hover .media-thumb-crop,
+.media-thumb-close:focus-visible,
+.media-thumb-crop:focus-visible {
   opacity: 1;
   pointer-events: auto;
 }
 
 @media (hover: none) {
-  .media-thumb-close {
+  .media-thumb-close,
+  .media-thumb-crop {
     opacity: 1;
     pointer-events: auto;
   }

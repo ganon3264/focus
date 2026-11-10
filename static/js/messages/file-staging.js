@@ -10,53 +10,49 @@
     stagingArea.innerHTML = '';
     window.stagedFiles.forEach((f, idx) => {
       const el = document.createElement('div');
-      el.className =
-        'flex items-center gap-1 bg-(--surface-2) p-1 rounded-lg border border-border text-xs relative group';
+      el.className = 'staging-item';
 
-      const url = f.type.startsWith('image/') ? URL.createObjectURL(f) : '';
+      const isImage = f.type.startsWith('image/');
+      const url = isImage ? URL.createObjectURL(f) : '';
 
-      if (f.type.startsWith('image/')) {
-        const thumbnail = window.createMediaThumbnail({
-          src: url ? url.replace(/^\/+/, '') : '',
-          mimeType: f.type,
-          size: 32,
-          name: f.name,
-          showName: false,
-          onClick: null,
-        });
-        thumbnail.querySelector('img').src = url;
-        URL.revokeObjectURL(url);
+      const thumbnail = window.createMediaThumbnail({
+        src: isImage ? url : '',
+        mimeType: f.type,
+        size: 24,
+        iconSize: 16,
+        name: f.name,
+        showName: false,
+      });
+      if (isImage) {
+        const img = thumbnail.querySelector('img');
+        img.addEventListener('load', function () { URL.revokeObjectURL(url); }, { once: true });
 
-        var cropBtn = document.createElement('button');
-        cropBtn.className =
-          'absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black/70 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:bg-black/90';
-        cropBtn.innerHTML = window.getSvgSprite('crop', 12);
+        const cropBtn = document.createElement('button');
+        cropBtn.type = 'button';
+        cropBtn.className = 'key sm scrim media-thumb-crop';
         cropBtn.title = 'Crop';
+        cropBtn.setAttribute('aria-label', 'Crop attachment');
+        cropBtn.innerHTML = window.getSvgSprite('crop', 12);
         cropBtn.addEventListener('click', function (e) {
           e.stopPropagation();
           window.cropStagedImage(idx);
         });
-        thumbnail.querySelector('div') ? thumbnail.querySelector('div').appendChild(cropBtn) : thumbnail.appendChild(cropBtn);
-
-        el.appendChild(thumbnail);
-      } else {
-        el.innerHTML =
-          '<div class="h-8 w-8 bg-(--surface-3) flex items-center justify-center rounded shrink-0">' +
-          window.getSvgSprite('music', 24) +
-          '</div>';
+        thumbnail.appendChild(cropBtn);
       }
+      el.appendChild(thumbnail);
 
-      var nameSpan = document.createElement('span');
-      nameSpan.className = 'max-w-[100px] truncate';
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'staging-name';
       nameSpan.title = f.name;
       nameSpan.textContent = f.name;
       el.appendChild(nameSpan);
 
-      var removeBtn = document.createElement('button');
-      removeBtn.className =
-        'text-danger hover:text-white hover:bg-danger rounded-full w-5 h-5 flex items-center justify-center ml-1 transition-colors z-20';
-      removeBtn.innerHTML = window.getSvgSprite('close', 16);
+      const removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'key sm danger';
       removeBtn.title = 'Remove';
+      removeBtn.setAttribute('aria-label', 'Remove attachment');
+      removeBtn.innerHTML = window.getSvgSprite('close', 14);
       removeBtn.addEventListener('click', function () {
         window.removeStagedFile(idx);
       });

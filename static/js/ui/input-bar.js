@@ -7,8 +7,14 @@
   // first keystroke cannot make the composer jump a size.
   function resizeTextarea(el) {
     var maxH = parseFloat(getComputedStyle(el).maxHeight) || 248;
+    // Firefox folds the placeholder into scrollHeight, and the engraved
+    // placeholder line is a hair taller than a line of body text — measuring it
+    // shrinks the composer on the first keystroke. Measure the text alone.
+    var placeholder = el.placeholder;
+    el.placeholder = '';
     el.style.height = 'auto';
     var needed = el.scrollHeight;
+    el.placeholder = placeholder;
     el.style.height = Math.min(maxH, needed) + 'px';
     el.style.overflowY = needed > maxH ? 'auto' : 'hidden';
   }

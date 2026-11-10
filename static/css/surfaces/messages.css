@@ -720,24 +720,9 @@
   width: 100%;
   max-width: var(--chat-content-width);
   min-height: 0;
-  pointer-events: auto;
-}
-
-#staging-area > div {
-  flex: none;
-  height: calc(var(--control-h-lg) + var(--gutter));
   padding: var(--u);
-  gap: var(--u);
-}
-
-#staging-area > div > div {
-  width: var(--control-h-lg);
-  height: var(--control-h-lg);
-  border: none;
-  border-radius: var(--radius-control);
-  /* Outside the box, not inset: an inset ring on a media tile paints under the
-     image and disappears. */
-  box-shadow: 0 0 0 var(--hair-w) var(--mat-lo);
+  gap: calc(var(--u) * 1.5);
+  pointer-events: auto;
 }
 
 #standard-input-container {
