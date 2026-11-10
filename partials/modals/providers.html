@@ -46,17 +46,27 @@
 <!-- Universal Model Selection Modal -->
 {% call modal_shell('modal-fetch-models', 'Select Model', max_width='800px',
      content_style='height:80vh;',
-     overlay_class='sub',
-     overlay_attrs='aria-label="Fetch models" x-data="{ search: \'\', models: [], loading: false, error: \'\' }" @models-loaded.window="models = $event.detail; loading = false; error = \'\'" @models-loading.window="loading = true; error = \'\'" @models-error.window="error = $event.detail; loading = false"') %}
-  {% call search_toolbar('Search models by name or ID...', input_attrs='x-model="search" autocomplete="off" autofocus', wrapper_classes='field-row shrink-0', field_classes='search-field flex-1', input_classes='field') %}
-  <button type="button" class="key" data-action="forceFetchModels" aria-label="Refresh model list" title="Refresh models" :disabled="loading">{{ icon_refresh(16) }}</button>
-  {% endcall %}
+     overlay_class='sub modal-bands-shell',
+     overlay_attrs='aria-label="Fetch models" x-data="{ search: \'\', models: [], loading: false, error: \'\', get filtered() { const q = this.search.toLowerCase(); return this.models.filter(m => (m.name || \'\').toLowerCase().includes(q) || (m.id || \'\').toLowerCase().includes(q)); } }" @models-loaded.window="models = $event.detail; loading = false; error = \'\'" @models-loading.window="loading = true; error = \'\'" @models-error.window="error = $event.detail; loading = false"') %}
+<div class="modal-bands">
+  <div class="modal-band-head">
+    <div class="rail">
+      <span x-text="filtered.length + ' ' + (filtered.length === 1 ? 'model' : 'models')"></span>
+      <div class="rail-actions flush">
+        <button type="button" class="key sm" data-action="forceFetchModels" aria-label="Refresh model list" title="Refresh models" :disabled="loading">{{ icon_refresh(14) }}</button>
+      </div>
+    </div>
+  </div>
 
-  <div class="flex-1 min-h-0 overflow-y-auto">
+  <div class="modal-band-toolbar">
+    {{ search_toolbar('Search models by name or ID...', input_attrs='x-model="search" autocomplete="off" autofocus', wrapper_classes='') }}
+  </div>
+
+  <div class="modal-band-lane">
     {{ empty_state('Fetching models from provider...', attrs='x-show="loading"') }}
     {{ empty_state('', attrs='x-show="error" x-text="error"') }}
     {{ empty_state('No models found or available. You may need to manually input the model ID.', attrs='x-show="!loading && !error && models.length === 0"') }}
-    <template x-for="model in models.filter(m => (m.name||'').toLowerCase().includes(search.toLowerCase()) || (m.id||'').toLowerCase().includes(search.toLowerCase()))" :key="model.id">
+    <template x-for="model in filtered" :key="model.id">
       <div class="row" @click="selectFetchedModel(model.id, model.name)">
         <span class="row-title" x-text="model.name || model.id"></span>
         <span class="row-meta" x-text="model.id"></span>
@@ -65,15 +75,15 @@
           <span class="tag" x-show="model.architecture && model.architecture.input_modalities && model.architecture.input_modalities.includes('audio')">Aud</span>
           <span class="tag" x-show="model.architecture && model.architecture.input_modalities && model.architecture.input_modalities.includes('file')">File</span>
           <span class="row-value" x-show="model.context_length" x-text="Math.round(model.context_length/1024) + 'k ctx'"></span>
-          <span class="row-value" x-show="model.pricing" x-text="'$' + (parseFloat(model.pricing.prompt) * 1000000).toFixed(2) + ' / $' + (parseFloat(model.pricing.completion) * 1000000).toFixed(2)"></span>
+          <span class="row-value" x-show="model.pricing" x-text="model.pricing ? '$' + (parseFloat(model.pricing.prompt) * 1000000).toFixed(2) + ' / $' + (parseFloat(model.pricing.completion) * 1000000).toFixed(2) : ''"></span>
           <span class="row-value" x-show="model.pricing && parseFloat(model.pricing.prompt) < 0">Dynamic</span>
         </span>
       </div>
     </template>
-    {{ empty_state('No models match your search.', attrs='x-show="!loading && !error && models.length > 0 && models.filter(m => (m.name||\'\').toLowerCase().includes(search.toLowerCase()) || (m.id||\'\').toLowerCase().includes(search.toLowerCase())).length === 0"') }}
+    {{ empty_state('No models match your search.', attrs='x-show="!loading && !error && models.length > 0 && filtered.length === 0"') }}
   </div>
+</div>
 {% endcall %}
-
 
 <!-- Saved-key library — banded list on its own route, in pick mode when a
      provider's key list opened it. -->

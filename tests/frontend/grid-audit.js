@@ -481,6 +481,29 @@ async function measureOffbeat(page) {
   const mmSecretsBands = await measureBands(page);
   await page.keyboard.press('Escape');
   await page.waitForTimeout(300);
+  // The model picker needs a model list; its own fetch hits a provider, so the
+  // audit hands it a fixture and measures the chassis it renders.
+  await page.evaluate(() => {
+    window.openModal('modal-fetch-models');
+  });
+  await page.waitForTimeout(400);
+  await page.evaluate(() => {
+    const models = [];
+    for (let i = 0; i < 24; i += 1) {
+      models.push({
+        id: 'openai/gpt-4o-mini-' + i,
+        name: 'Model ' + i,
+        context_length: 128000,
+        pricing: { prompt: '0.00000015', completion: '0.0000006' },
+      });
+    }
+    window.dispatchEvent(new CustomEvent('models-loaded', { detail: models }));
+  });
+  await page.waitForTimeout(500);
+  await sweep('models');
+  const mmModelsBands = await measureBands(page);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(300);
   await page.locator('[data-action="actionOpenProviderCreateModal"]').click();
   await page.waitForTimeout(800);
   await sweep('provider form');
@@ -915,6 +938,7 @@ async function measureOffbeat(page) {
     ['personas', mmPersonaBands],
     ['providers', mmProviders],
     ['secrets', mmSecretsBands],
+    ['models', mmModelsBands],
     ['presets', mmPresets],
     ['itemizer', mmItemizer],
     ['arranger', mmArranger],
