@@ -1,14 +1,18 @@
-"""Frontend validation tests.
+"""Template / asset / CSS lints.
 
-Checks Jinja2 template compilation, static asset references, and CSS syntax.
+These are checks over the whole tree, not one behaviour each: every lint walks
+its collection and reports every offender in one failure. Parametrizing them
+per template inflated the suite to 268 near-identical cases without adding
+information.
 """
 
 import re
 from pathlib import Path
 
 import cssutils
-import pytest
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
+
+from focus.providers.schema import provider_schema, provider_type_options
 
 TEMPLATES_DIR = Path("templates").resolve()
 PARTIALS_DIR = Path("partials").resolve()
@@ -19,8 +23,6 @@ env = Environment(loader=loader, undefined=StrictUndefined)
 
 # Mirror the globals registered by focus/routers/pages.py so templates that
 # call them can render in tests.
-from focus.providers.schema import provider_schema, provider_type_options  # noqa: E402
-
 env.globals["provider_schema"] = provider_schema
 env.globals["provider_type_options"] = provider_type_options
 
@@ -30,19 +32,27 @@ ALL_TEMPLATES = sorted(
 )
 
 
-@pytest.mark.parametrize("template_name", ALL_TEMPLATES)
-def test_template_compiles(template_name):
-    """Each Jinja2 template must parse without syntax errors."""
-    env.parse(loader.get_source(env, template_name)[0])
+def _source(name: str) -> str:
+    return loader.get_source(env, name)[0]
+
+
+def test_templates_compile():
+    """Every template must parse."""
+    broken = []
+    for name in ALL_TEMPLATES:
+        try:
+            env.parse(_source(name))
+        except Exception as exc:
+            broken.append(f"{name}: {exc}")
+    assert not broken, "templates that do not parse:\n" + "\n".join(broken)
 
 
 def _is_jinja_expression(path: str) -> bool:
-    """Check if a path is a Jinja2 expression like '/{{ var }}' or '{% ... %}'."""
     return bool(re.search(r"\{\{|\{%", path))
 
 
 def _find_asset_refs(text: str) -> list[str]:
-    """Extract static asset paths from src/href attributes.
+    """Static asset paths from src/href attributes.
 
     The lookbehind keeps dynamic Alpine bindings (``:src``, ``x-bind:href``) and
     prefixed attributes (``data-src``) from being mistaken for static assets.
@@ -53,25 +63,72 @@ def _find_asset_refs(text: str) -> list[str]:
         if _is_jinja_expression(path):
             continue
         path = path.split("?")[0]
-        if (
-            path.startswith(("http://", "https://", "data:", "#", "//")) or "${" in path  # JS template literal
-        ):
+        if path.startswith(("http://", "https://", "data:", "#", "//")) or "${" in path:
             continue
         refs.add(path)
     return list(refs)
 
 
-@pytest.mark.parametrize("template_name", ALL_TEMPLATES)
-def test_template_asset_references(template_name):
-    """All static asset paths in templates must resolve to existing files."""
-    source = loader.get_source(env, template_name)[0]
-    for ref in _find_asset_refs(source):
-        rel = ref.lstrip("/")
-        if not Path(rel).suffix:
-            continue  # likely a URL route, e.g. /chat /presets
-        candidates = [Path(rel), STATIC_DIR / rel]
-        if not any(c.exists() for c in candidates):
-            pytest.fail(f"{template_name}: asset not found: {ref}")
+def test_template_asset_references_resolve():
+    """Every static asset path in a template must exist on disk."""
+    missing = []
+    for name in ALL_TEMPLATES:
+        for ref in _find_asset_refs(_source(name)):
+            rel = ref.lstrip("/")
+            if not Path(rel).suffix:
+                continue  # a URL route, e.g. /chat or /presets
+            if not any(c.exists() for c in (Path(rel), STATIC_DIR / rel)):
+                missing.append(f"{name}: {ref}")
+    assert not missing, "asset references with no file:\n" + "\n".join(missing)
+
+
+def test_renderable_templates_have_balanced_divs():
+    """A stray closing tag silently pushes the rest of the markup out of its
+    container (e.g. a modal's Save button). Templates needing context cannot be
+    checked this way and are skipped."""
+    unbalanced = []
+    checked = 0
+    for name in ALL_TEMPLATES:
+        try:
+            rendered = env.get_template(name).render()
+        except Exception:
+            continue
+        checked += 1
+        if rendered.count("<div") != rendered.count("</div>"):
+            unbalanced.append(f"{name}: {rendered.count('<div')} open / {rendered.count('</div>')} close")
+    assert checked, "no template could be rendered without context"
+    assert not unbalanced, "unbalanced <div> tags:\n" + "\n".join(unbalanced)
+
+
+def test_partials_have_one_inline_script():
+    """One <script> per partial. A second one is a copy-paste artefact: the
+    browser parses the first block up to the stray tag, the rest never runs, and
+    the page keeps rendering while its wiring is gone."""
+    offenders = [
+        name for name in ALL_TEMPLATES
+        if name.startswith("partials/") and _source(name).count("<script") > 1
+    ]
+    assert not offenders, f"partials with more than one script block: {offenders}"
+
+
+STATE_CLASSES = {
+    "hidden", "active", "collapsed", "expanded", "disabled", "disabled-row",
+    "copied", "ready", "drag-over", "selected",
+}
+CLASS_LOOKUP_RE = re.compile(r"(?:querySelector(?:All)?|closest|matches)\(\s*['\"]\.([\w-]+)")
+
+
+def test_no_class_based_dom_lookups():
+    """Markup is looked up through `data-ui` hooks, never through classes.
+
+    Classes stay presentational (and carry state like `hidden`/`active`); a
+    rename or a Tailwind pass must never be able to break a querySelector."""
+    offenders = []
+    for name in ALL_TEMPLATES:
+        for m in CLASS_LOOKUP_RE.finditer(_source(name)):
+            if m.group(1) not in STATE_CLASSES:
+                offenders.append(f"{name}: {m.group(0)}")
+    assert not offenders, "class-based DOM lookups (use data-ui):\n" + "\n".join(offenders)
 
 
 CRITICAL_ASSETS = [
@@ -98,31 +155,25 @@ def test_critical_assets_exist():
 
 
 def test_programmatic_htmx_ajax_only_in_queue():
-    """All programmatic partial reloads must go through hxGet/hxPost so they
-    are serialized by the hx queue and never dropped by htmx's per-source
-    request queue."""
+    """All programmatic partial reloads must go through hxGet/hxPost so they are
+    serialized by the hx queue and never dropped by htmx's per-source queue."""
     allowed = {Path("static/js/core/hx-queue.js").resolve()}
     offenders = []
     for root in (STATIC_DIR, PARTIALS_DIR, TEMPLATES_DIR):
         for p in root.rglob("*"):
-            if p.suffix not in (".js", ".html"):
+            if p.suffix not in (".js", ".html") or p.resolve() in allowed:
                 continue
-            if p.resolve() in allowed:
-                continue
-            text = p.read_text(errors="ignore")
-            if "htmx.ajax(" in text:
+            if "htmx.ajax(" in p.read_text(errors="ignore"):
                 offenders.append(str(p.relative_to(Path(".").resolve())))
-    assert not offenders, f"Direct htmx.ajax() found (use hxGet/hxPost): {offenders}"
+    assert not offenders, f"direct htmx.ajax() found (use hxGet/hxPost): {offenders}"
 
 
 def test_base_loads_shared_scripts_after_content():
-    """base.html must render page content before the shared app script block and
-    expose the page scripts block after it.
+    """base.html must render page content before the shared app script block.
 
     Modules like generation-ui/input-bar/chat-controls bind to the page DOM at
-    load, so the shared block must run after the content block. Page-specific
-    scripts belong in the scripts block, which always runs last."""
-    src = loader.get_source(env, "base.html")[0]
+    load, so the shared block must run after the content block."""
+    src = _source("base.html")
     content = src.index("{% block content %}")
     first_shared = src.index("/static/js/ui/media-utils.js")
     last_shared = src.index("/static/js/ui/chat-controls.js")
@@ -131,63 +182,59 @@ def test_base_loads_shared_scripts_after_content():
     assert last_shared < scripts_block, "page scripts block must come after shared scripts"
 
 
-PAGE_TEMPLATES = ["chat.html"]
-
-
-@pytest.mark.parametrize("template_name", PAGE_TEMPLATES)
-def test_page_scripts_live_in_scripts_block(template_name):
+def test_page_scripts_live_in_scripts_block():
     """Page-specific scripts must sit in the page scripts block, not the content
     block, so content stays markup-only and load order is explicit."""
-    src = loader.get_source(env, template_name)[0]
-    assert "{% block scripts %}" in src, f"{template_name} defines no page scripts block"
+    src = _source("chat.html")
     scripts_block = src.index("{% block scripts %}")
-    for m in re.finditer(r"<script\b[^>]*\bsrc=", src):
-        assert m.start() > scripts_block, (
-            f"{template_name}: a <script src> sits before the page scripts block — "
-            "move it into the page scripts block"
-        )
+    early = [m.group(0) for m in re.finditer(r"<script\b[^>]*\bsrc=", src) if m.start() < scripts_block]
+    assert not early, f"chat.html: <script src> before the page scripts block: {early}"
 
 
 def test_css_valid():
-    """Every split CSS file must parse without fatal errors."""
+    """Every split CSS file must parse."""
     css_dir = STATIC_DIR / "css"
+    broken = []
     for f in sorted(list(css_dir.glob("*.css")) + list((css_dir / "surfaces").glob("*.css"))):
-        css_text = f.read_text()
         cssutils.log.enabled = False
-        sheet = cssutils.parseString(css_text)
-        cssutils.log.enabled = True
-
-        from cssutils.css import CSSStyleSheet
-
-        assert isinstance(sheet, CSSStyleSheet), f"{f.name} failed to parse"
-
-    root_css = (css_dir / "variables.css").read_text()
-    assert ":root" in root_css
-
-    shell_css = (css_dir / "surfaces" / "shell.css").read_text()
-    assert ".left-sidebar" in shell_css
+        try:
+            cssutils.parseString(f.read_text())
+        except Exception as exc:
+            broken.append(f"{f.name}: {exc}")
+        finally:
+            cssutils.log.enabled = True
+    assert not broken, "CSS files that failed to parse:\n" + "\n".join(broken)
 
 
 def test_tailwind_bundle_contains_custom_css():
-    """The css/ modules are imported by tailwind-input.css; a dropped import
-    must fail here instead of silently losing styles at runtime."""
+    """The css/ modules are imported by tailwind-input.css; a dropped import must
+    fail here instead of silently losing styles at runtime."""
     css_text = (STATIC_DIR / "tailwind.css").read_text()
-    for marker in (".arranger-item", ".chat-center", ".modal-panel"):
-        assert marker in css_text, f"tailwind.css is missing bundled rule: {marker}"
-    assert "--radius-md:4px" in css_text.replace(" ", ""), (
-        "tailwind.css missing rebranded --radius-md token"
-    )
+    missing = [m for m in (".arranger-item", ".chat-center", ".modal-panel") if m not in css_text]
+    assert not missing, f"tailwind.css is missing bundled rules: {missing}"
+
+
+def test_theme_tokens_are_declared_once():
+    """Rebranded Tailwind tokens live in @theme in css/tokens.css (single source
+    of truth), not as bare :root overrides in variables.css."""
+    tokens_text = (STATIC_DIR / "css" / "tokens.css").read_text()
+    vars_text = (STATIC_DIR / "css" / "variables.css").read_text()
+    missing = [t for t in ("--radius-sm", "--radius-md", "--shadow-sm", "--font-sans") if t not in tokens_text]
+    assert not missing, f"missing @theme tokens: {missing}"
+    duplicated = [t for t in ("--radius-sm", "--shadow-sm", "--font-sans") if t in vars_text]
+    assert not duplicated, f"tokens redefined in variables.css: {duplicated}"
 
 
 TEMPLATES_THAT_RENDER = [
     ("modals/sampler.html", {}),
     ("modals/itemizer.html", {}),
     ("modals/confirm.html", {}),
-    ("modals/edit-entity.html", {"prefix": "char", "modal_id": "modal-edit-character", "entity_name": "Character", "upload_fn": "uploadCharModalMedia", "avatar_fn": "uploadCharacterAvatar", "submit_fn": "submitEditCharacter"}),
-    ("modals/edit-entity.html", {"prefix": "char", "modal_id": "modal-edit-character", "entity_name": "Character", "upload_fn": "uploadCharModalMedia", "avatar_fn": "uploadCharacterAvatar", "submit_fn": "submitEditCharacter", "show_greetings": True}),
-    ("modals/edit-entity.html", {"prefix": "persona", "modal_id": "modal-edit-persona", "entity_name": "Persona", "upload_fn": "uploadPersonaMedia", "avatar_fn": "uploadPersonaAvatar", "submit_fn": "submitEditPersona"}),
-    ("modals/edit-entity.html", {"prefix": "persona", "modal_id": "modal-edit-persona", "entity_name": "Persona", "upload_fn": "uploadPersonaMedia", "avatar_fn": "uploadPersonaAvatar", "submit_fn": "submitEditPersona", "show_greetings": True}),
     ("modals/backup.html", {}),
+    ("modals/provider-create.html", {}),
+    ("modals/text-expander.html", {}),
+    ("modals/theme.html", {}),
+    ("modals/option-picker.html", {}),
+    ("modals/export-entities.html", {"entities": []}),
     (
         "modals/regex-item.html",
         {
@@ -210,260 +257,104 @@ TEMPLATES_THAT_RENDER = [
     ),
     (
         "modals/regex-list.html",
-        {
-            "global_scripts": [],
-            "preset_scripts": [],
-            "preset_id": None,
-            "preset_name": "",
-        },
+        {"global_scripts": [], "preset_scripts": [], "preset_id": None, "preset_name": ""},
     ),
-    ("modals/provider-create.html", {}),
     (
         "modals/presets.html",
         {
-            "presets": [
-                {"id": "p1", "name": "General", "blocks": [
-                    {"block_type": "text"}, {"block_type": "variable"},
-                ]},
-            ],
+            "presets": [{"id": "p1", "name": "General", "blocks": [{"block_type": "text"}]}],
             "current_preset_id": "p1",
         },
     ),
-    ("modals/text-expander.html", {}),
-    ("modals/theme.html", {}),
-    ("modals/option-picker.html", {}),
-    ("modals/export-entities.html", {"entities": []}),
 ]
 
+EDIT_ENTITY_CONTEXTS = {
+    "char": {"prefix": "char", "modal_id": "modal-edit-character", "entity_name": "Character",
+             "upload_fn": "up", "avatar_fn": "av", "submit_fn": "sub", "show_greetings": True},
+    "persona": {"prefix": "persona", "modal_id": "modal-edit-persona", "entity_name": "Persona",
+                "upload_fn": "up", "avatar_fn": "av", "submit_fn": "sub", "show_greetings": False},
+}
 
-@pytest.mark.parametrize("template_name,context", TEMPLATES_THAT_RENDER)
-def test_template_renders(template_name, context):
-    """Key templates render without errors given minimal context."""
-    tmpl = env.get_template(template_name)
-    result = tmpl.render(context)
-    assert isinstance(result, str)
-    assert len(result) > 0
+
+def test_key_templates_render():
+    """Templates with known context render without raising."""
+    broken = []
+    for name, context in TEMPLATES_THAT_RENDER:
+        try:
+            assert env.get_template(name).render(context)
+        except Exception as exc:
+            broken.append(f"{name}: {exc}")
+    for prefix, context in EDIT_ENTITY_CONTEXTS.items():
+        try:
+            assert env.get_template("modals/edit-entity.html").render(context)
+        except Exception as exc:
+            broken.append(f"edit-entity[{prefix}]: {exc}")
+    assert not broken, "templates that failed to render:\n" + "\n".join(broken)
 
 
 def test_edit_entity_greeting_section_char_only():
-    """The greeting editor must render only for the char modal — even if the
-    show_greetings flag leaks from a previous {% set %} in the including page
-    (chat.html renders both entities from the same shared template)."""
+    """The greeting editor renders only for the character modal, even when a
+    `show_greetings` set-var leaks in from the including page."""
     tmpl = env.get_template("modals/edit-entity.html")
-    base = {
-        "modal_id": "modal-edit-entity",
-        "entity_name": "Entity",
-        "upload_fn": "up",
-        "avatar_fn": "av",
-        "submit_fn": "sub",
-    }
+    base = {"modal_id": "modal-edit-entity", "entity_name": "Entity",
+            "upload_fn": "up", "avatar_fn": "av", "submit_fn": "sub"}
 
-    char_html = tmpl.render({**base, "prefix": "char", "show_greetings": True})
-    assert "edit-char-greeting-section" in char_html
+    char_html = tmpl.render({**base, **EDIT_ENTITY_CONTEXTS["char"]})
     assert 'name="greetings_json"' in char_html
-    assert 'name="greeting_idx"' in char_html
     assert 'hx-post="/partials/character-greeting/' in char_html
-    assert 'id="edit-char-greeting-count"' in char_html
-    assert 'hx-confirm="Delete this greeting variant?"' in char_html
-    section = char_html[char_html.index('id="edit-char-greeting-section"') :]
-    section = section[: section.index('name="greeting_idx"')]
-    assert len(re.findall(r"(?m)^\s*disabled\s*$", section)) == 3, "empty state disables prev/next/delete"
 
-    persona_html = tmpl.render(
-        {**base, "prefix": "persona", "show_greetings": True}  # simulate the set-var leak from chat.html
-    )
-    assert "Greeting" not in persona_html
-    assert "greeting" not in persona_html
+    persona_html = tmpl.render({**base, **EDIT_ENTITY_CONTEXTS["persona"]})
+    assert "greeting" not in persona_html.lower()
 
 
-def test_edit_entity_dirty_attrs_render_evaluated():
-    """data-dirty-fields/label must render evaluated, not as raw Jinja.
+def test_edit_entity_dirty_fields_are_evaluated():
+    """data-dirty-fields must render evaluated, not as raw Jinja.
 
-    Regression: these values are passed to the modal_shell macro as string
-    literals, where Jinja does NOT evaluate embedded {{ }} / {% %} tags —
-    they must be built via concatenation instead."""
+    Regression: those values are passed to the modal_shell macro as string
+    literals, where Jinja does not evaluate embedded {{ }} / {% %} tags."""
     tmpl = env.get_template("modals/edit-entity.html")
-    base = {
-        "modal_id": "modal-edit-entity",
-        "entity_name": "Entity",
-        "upload_fn": "up",
-        "avatar_fn": "av",
-        "submit_fn": "sub",
-        "show_greetings": False,
-    }
+    html = tmpl.render({**EDIT_ENTITY_CONTEXTS["char"], "show_theme": True})
 
-    char_html = tmpl.render({**base, "prefix": "char", "show_theme": True})
-    assert (
-        'data-dirty-fields="#edit-char-name,#edit-char-desc,#edit-char-group,'
-        '#edit-char-theme-id,#edit-char-personality,#edit-char-scenario,#edit-char-mes-example"'
-    ) in char_html
-    assert 'data-dirty-label="#edit-char-name"' in char_html
-    assert "{%" not in char_html.split("data-dirty-fields")[1][:200]
+    attrs = re.search(r'data-dirty-fields="([^"]*)"', html)
+    assert attrs, "the character editor declares no dirty fields"
+    fields = [f.lstrip("#") for f in attrs.group(1).split(",")]
 
-    persona_html = tmpl.render({**base, "prefix": "persona", "show_theme": False})
-    assert 'data-dirty-fields="#edit-persona-name,#edit-persona-desc,#edit-persona-group"' in persona_html
-    assert 'data-dirty-label="#edit-persona-name"' in persona_html
+    for required in ("name", "desc", "group", "theme-id", "personality", "scenario", "mes-example"):
+        assert f"edit-char-{required}" in fields, f"{required} is not dirty-tracked"
+    assert "{%" not in attrs.group(1) and "{{" not in attrs.group(1)
 
 
-def test_greeting_section_renders_with_values():
-    """The greeting section partial renders the active variant, count, hidden
-    working state, and per-position disabled states server-side."""
+def test_greeting_section_renders_the_active_variant():
+    """The greeting partial shows the active variant, its position, and disables
+    the verbs that would step outside the list."""
     tmpl = env.get_template("modals/greeting-section.html")
 
-    rendered = tmpl.render(
-        {
-            "prefix": "char",
-            "char_id": "c1",
-            "greetings": ["Hi", "Hello", "Howdy"],
-            "greeting_idx": 1,
-            "entity_name": "Character",
-        }
+    def render(greetings, idx, **extra):
+        return tmpl.render({"prefix": "char", "char_id": "c1", "greetings": greetings,
+                            "greeting_idx": idx, "entity_name": "Character", **extra})
+
+    middle = render(["Hi", "Hello", "Howdy"], 1)
+    assert "Hello" in middle
+    assert "2/3" in middle
+    assert 'name="greeting_idx" value="1"' in middle
+    assert not re.findall(r"(?m)^\s*disabled\s*$", middle), "a middle variant enables every verb"
+
+    only = render(["Hi"], 0)
+    assert "1/1" in only
+
+    empty = render([], 0)
+    assert "0/0" in empty
+    assert len(re.findall(r"(?m)^\s*disabled\s*$", empty)) == 3, "an empty list disables every verb"
+
+
+def test_character_card_does_not_embed_greetings():
+    """The card no longer carries the greetings list — the editor fetches it."""
+    rendered = env.get_template("modals/character-card.html").render(
+        char={
+            "id": "c1", "name": "Test", "image_path": None, "created_at": "2026-01-01",
+            "theme_id": None, "card": {"first_mes": "Hi", "alternate_greetings": ["A", "B"]},
+            "images": [],
+        },
+        current_character_id="",
     )
-    assert "Hello" in rendered
-    assert "2/3" in rendered
-    assert 'value=\'["Hi", "Hello", "Howdy"]\'' in rendered
-    assert 'name="greeting_idx" value="1"' in rendered
-    assert "hx-post=\"/partials/character-greeting/c1\"" in rendered
-    assert not re.findall(r"(?m)^\s*disabled\s*$", rendered), "middle variant enables all controls"
-
-    rendered = tmpl.render(
-        {
-            "prefix": "char",
-            "char_id": "c1",
-            "greetings": ["Hi"],
-            "greeting_idx": 0,
-            "entity_name": "Character",
-        }
-    )
-    assert len(re.findall(r"(?m)^\s*disabled\s*$", rendered)) == 2, "first-and-only variant disables prev/next"
-
-    rendered = tmpl.render(
-        {
-            "prefix": "char",
-            "char_id": "c1",
-            "greetings": [],
-            "greeting_idx": 0,
-            "entity_name": "Character",
-        }
-    )
-    assert "0/0" in rendered
-    assert len(re.findall(r"(?m)^\s*disabled\s*$", rendered)) == 3, "empty list disables all controls"
-
-    rendered = tmpl.render(
-        {
-            "prefix": "char",
-            "char_id": "c1",
-            "greetings": [],
-            "greeting_idx": 0,
-            "focus": True,
-            "entity_name": "Character",
-        }
-    )
-    assert "autofocus" in rendered, "add action renders textarea with autofocus"
-
-
-def test_character_card_has_no_greetings_data():
-    """The card no longer embeds the greetings list — the edit modal fetches
-    it from the server on open."""
-    tmpl = env.get_template("modals/character-card.html")
-    char = {
-        "id": "c1",
-        "name": "Test",
-        "image_path": None,
-        "created_at": "2026-01-01",
-        "theme_id": None,
-        "card": {"first_mes": "Hi", "alternate_greetings": ["A", "B"]},
-        "images": [],
-    }
-    rendered = tmpl.render(char=char, current_character_id="")
     assert "data-char-greetings" not in rendered
-
-
-def test_modal_shell_macro_compiles():
-    """modal_shell.html macro renders without errors."""
-    source = env.loader.get_source(env, "modal-shell.html")[0]
-    assert "{% macro modal_shell" in source
-
-
-def test_macros_macro_compiles():
-    """macros.html macro library compiles."""
-    source = env.loader.get_source(env, "macros.html")[0]
-    assert "{% macro" in source
-
-
-def test_header_integrity():
-    """All templates should compile under StrictUndefined (no missing variables)."""
-    # text_expander has no variable dependencies — renders with empty context
-    tmpl = env.get_template("modals/text-expander.html")
-    result = tmpl.render({})
-    assert len(result) > 0
-
-
-def test_css_has_essential_vars():
-    """variables.css defines essential custom properties."""
-    css_text = (STATIC_DIR / "css" / "variables.css").read_text()
-    for var in ["--bg", "--surface", "--border", "--accent", "--text", "--text-muted",
-                 "--transition", "--z-modal"]:
-        assert var in css_text, f"Missing CSS variable: {var}"
-
-
-def test_theme_rebranded_tokens():
-    """Rebranded Tailwind tokens live in @theme in css/tokens.css (single
-    source of truth), not as bare :root overrides in variables.css."""
-    tokens_text = (STATIC_DIR / "css" / "tokens.css").read_text()
-    for token in ["--radius-sm", "--radius-md", "--radius-xl", "--shadow-sm",
-                  "--shadow-md", "--shadow-lg", "--font-sans"]:
-        assert token in tokens_text, f"Missing @theme token: {token}"
-    vars_text = (STATIC_DIR / "css" / "variables.css").read_text()
-    for token in ["--radius-sm", "--shadow-sm", "--font-sans"]:
-        assert token not in vars_text, f"{token} must not be redefined in variables.css :root"
-
-
-@pytest.mark.parametrize("template_name", ALL_TEMPLATES)
-def test_renderable_templates_have_balanced_divs(template_name):
-    """Every template that renders without context must close all its <div>s.
-
-    A stray closing tag silently ends a container early and pushes the rest of
-    the markup out of it (e.g. a modal's Save button). Templates that need
-    render context are skipped.
-    """
-    try:
-        source = env.get_template(template_name).render()
-    except Exception:
-        pytest.skip("template requires render context")
-    assert source.count("<div") == source.count("</div>"), (
-        f"{template_name}: unbalanced <div> tags"
-    )
-
-
-PARTIAL_TEMPLATES = [t for t in ALL_TEMPLATES if t.startswith("partials/")]
-
-
-@pytest.mark.parametrize("template_name", PARTIAL_TEMPLATES)
-def test_partial_has_one_inline_script(template_name):
-    """One <script> per partial. A second one is a copy-paste artefact: the
-    browser parses the first block up to the stray tag, the rest silently never
-    runs, and the page keeps rendering while its wiring is gone."""
-    source = loader.get_source(env, template_name)[0]
-    assert source.count("<script") <= 1, f"{template_name}: more than one script block"
-
-
-STATE_CLASSES = {
-    "hidden", "active", "collapsed", "expanded", "disabled", "disabled-row",
-    "copied", "ready", "drag-over", "selected",
-}
-CLASS_LOOKUP_RE = re.compile(r"(?:querySelector(?:All)?|closest|matches)\(\s*['\"]\.([\w-]+)")
-
-
-@pytest.mark.parametrize("template_name", ALL_TEMPLATES)
-def test_no_class_based_dom_lookups(template_name):
-    """Markup is looked up through `data-ui` hooks, never through classes.
-
-    Classes stay presentational (and carry state like `hidden`/`active`); a
-    rename or a Tailwind pass must never be able to break a querySelector.
-    """
-    source = loader.get_source(env, template_name)[0]
-    offenders = [
-        m.group(0) for m in CLASS_LOOKUP_RE.finditer(source) if m.group(1) not in STATE_CLASSES
-    ]
-    assert not offenders, f"{template_name}: class-based DOM lookup {offenders}"

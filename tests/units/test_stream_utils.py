@@ -263,6 +263,27 @@ class TestApplyClaudeCaching:
         # Old cache_control stripped, new one added on messages[0]
         assert "cache_control" in result[0]["content"][0]
 
+    def test_stale_breakpoints_are_dropped_from_non_breakpoint_messages(self):
+        """A previous assembly's breakpoints must not survive on turns that are
+        no longer breakpoints — five of them would exceed the API's limit."""
+        msgs = [
+            {"role": "system", "content": [
+                {"type": "text", "text": "sys", "cache_control": {"type": "ephemeral", "ttl": "1h"}},
+            ]},
+            {"role": "user", "content": [
+                {"type": "text", "text": "a", "cache_control": {"type": "ephemeral", "ttl": "1h"}},
+            ]},
+            {"role": "assistant", "content": [
+                {"type": "text", "text": "b", "cache_control": {"type": "ephemeral", "ttl": "1h"}},
+            ]},
+        ]
+        result = apply_claude_caching(msgs, cache_enabled=True, cache_depth=5)
+
+        assert result[0]["content"][0]["cache_control"] == {"type": "ephemeral"}
+        for msg in result[1:]:
+            for part in msg["content"]:
+                assert "cache_control" not in part, "a stale breakpoint survived"
+
 
 def _tc(tc_id, name="sd_image_gen", result="ok", extra=None):
     return {

@@ -51,8 +51,7 @@ class TestBackupFunctions:
             result = await create_backup(db, backups_path=backups_path)
 
         assert result["size_bytes"] > 0
-        assert "id" in result
-        assert os.path.join(backups_path, result["id"] + ".focus")
+        assert os.path.isfile(os.path.join(backups_path, result["id"] + ".focus"))
 
         backups = await list_backups(backups_path=backups_path)
         assert len(backups) == 1
@@ -152,6 +151,9 @@ class TestBackupAPI:
 
         del_resp = await client.delete(f"/api/backups/{backup['id']}")
         assert del_resp.status_code == 204
+
+        remaining = (await client.get("/api/backups")).json()
+        assert backup["id"] not in [b["id"] for b in remaining]
 
     async def test_restore_backup_endpoint(self, client):
         await _create_backup(client)

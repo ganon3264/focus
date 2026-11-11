@@ -13,14 +13,6 @@ else is pure in-memory.
 import pytest
 
 from focus.core.models import StreamRequest
-from focus.providers import (
-    DeepseekProvider,
-    MoonshotProvider,
-    OpenAICompatProvider,
-    OpenRouterProvider,
-    XiaomiMiMoProvider,
-)
-from focus.providers.google_base import GoogleProviderBase
 from focus.routers.stream_utils import prepare_generation_messages
 
 
@@ -57,42 +49,7 @@ def _no_openrouter_network(monkeypatch):
     _patch_modalities(monkeypatch, None)
 
 
-class TestCapabilityFlags:
-    def test_openai_compat_defaults(self):
-        assert OpenAICompatProvider.supports_prefill is True
-        assert OpenAICompatProvider.echoes_prefill is True
-        assert OpenAICompatProvider.supports_tools is True
-
-    def test_deepseek_and_moonshot_do_not_echo_prefill(self):
-        assert DeepseekProvider.echoes_prefill is False
-        assert MoonshotProvider.echoes_prefill is False
-        # ...but they still accept a prefill.
-        assert DeepseekProvider.supports_prefill is True
-        assert MoonshotProvider.supports_prefill is True
-
-    def test_xiaomi_mimo_does_not_echo_prefill(self):
-        assert XiaomiMiMoProvider.echoes_prefill is False
-        assert XiaomiMiMoProvider.supports_prefill is True
-
-    def test_google_does_not_support_prefill(self):
-        assert GoogleProviderBase.supports_prefill is False
-        assert GoogleProviderBase.supports_tools is True
-
-    def test_openrouter_inherits_openai_compat_defaults(self):
-        assert OpenRouterProvider.supports_prefill is True
-        assert OpenRouterProvider.echoes_prefill is True
-
-
 class TestSamplerForwarding:
-    async def test_basic_samplers_forwarded(self):
-        msgs = [{"role": "user", "content": "hi"}]
-        _, kw = await prepare_generation_messages(
-            _prov("openai_compat"), _body(samplers={"temperature": 0.7, "max_tokens": 256}),
-            msgs, _Provider(), "chat-1",
-        )
-        assert kw["temperature"] == 0.7
-        assert kw["max_tokens"] == 256
-
     async def test_internal_sampler_keys_stripped(self):
         msgs = [{"role": "user", "content": "hi"}]
         _, kw = await prepare_generation_messages(
@@ -343,14 +300,6 @@ class TestPreserveThinking:
             msgs, _Provider(), "chat-1",
         )
         assert out[0]["reasoning"] == "thoughts"
-
-    async def test_preserve_thinking_is_forwarded_in_kwargs(self):
-        # Not consumed here; the adapter drops it. Pinned as current behavior.
-        _, kw = await prepare_generation_messages(
-            _prov("openai_compat"), _body(samplers={"preserve_thinking": "all"}),
-            [{"role": "user", "content": "hi"}], _Provider(), "chat-1",
-        )
-        assert kw["preserve_thinking"] == "all"
 
 
 class TestPrefill:

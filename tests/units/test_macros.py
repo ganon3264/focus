@@ -346,12 +346,16 @@ class TestCbsPick:
         result_b = apply_macros("{{pick:Red,Green,Blue}}", macros)
         assert result_a == result_b
 
-    def test_different_chat_different_pick(self):
-        r1 = apply_macros("{{pick:Alpha,Beta,Gamma}}", {"_chat_id": "chat-a"})
-        r2 = apply_macros("{{pick:Alpha,Beta,Gamma}}", {"_chat_id": "chat-b"})
-        # Very unlikely to be equal, but not impossible — just verify both are valid
-        assert r1 in ("Alpha", "Beta", "Gamma")
-        assert r2 in ("Alpha", "Beta", "Gamma")
+    def test_the_pick_is_seeded_by_the_chat(self):
+        """Across many chats the choices must actually spread out — a constant
+        seed would make every conversation pick the same value."""
+        values = ("Alpha", "Beta", "Gamma", "Delta", "Epsilon")
+        picks = {
+            apply_macros("{{pick:Alpha,Beta,Gamma,Delta,Epsilon}}", {"_chat_id": f"chat-{i}"})
+            for i in range(12)
+        }
+        assert picks <= set(values)
+        assert len(picks) > 1, "the pick ignores its seed"
 
     def test_without_chat_id_falls_back_to_random(self):
         result = apply_macros("{{pick:X,Y,Z}}", {})

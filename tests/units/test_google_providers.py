@@ -12,6 +12,7 @@ import json
 
 import pytest
 
+from focus.core.utils import DEFAULT_MAX_TOKENS
 from focus.providers import GoogleAIStudioProvider, GoogleVertexProvider
 from focus.providers.config import ProviderConfig
 from focus.providers.google_base import GoogleProviderBase
@@ -401,7 +402,8 @@ class TestStreamComplete:
 
         monkeypatch.setattr(provider, "_build_config", fake_build_config)
         await _collect(provider, tools=[{"type": "function", "function": {"name": "f", "description": "d"}}])
-        assert captured["google_tools"] is not None
+        assert captured["google_tools"], "tools were dropped on the way to Gemini"
+        assert "f" in str(captured["google_tools"]), "the function name did not survive conversion"
 
 
 class TestAIStudioConfig:
@@ -508,7 +510,7 @@ class TestVertexConfig:
     def test_build_config_defaults_omit_optional(self):
         provider = _make_provider(GoogleVertexProvider)
         config = provider._build_config({}, None)
-        assert config.max_output_tokens is not None
+        assert config.max_output_tokens == DEFAULT_MAX_TOKENS
         assert config.system_instruction is None
 
     def test_build_config_thinking(self):

@@ -1,186 +1,200 @@
-"""Stability tests for the provider schema that feeds the frontend.
+"""The provider schema that feeds the sampler modal, the form and the quirks.
 
-These pin the per-type defaults, effort options, and forwarding whitelist so a
-provider/UI change can't silently alter what the sampler modal sends upstream.
+Every fact the UI depends on lives in ONE table (``TYPES``); a deliberate
+change edits one row instead of scattering through twenty assertions. What the
+schema cannot declare for itself — that capability filtering never swallows a
+pipeline control, that the adapter class agrees with its profile — is asserted
+as an invariant.
 """
 
-from focus.providers.registry import registered_types
+import pytest
+
+from focus.providers.profile import Capabilities
+from focus.providers.registry import get_provider_class, registered_types
 from focus.providers.schema import BASE_SAMPLER_DEFAULTS, provider_schema, provider_type_options
 
+GOOGLE = ("google_aistudio", "google_vertex")
 
-class TestSchemaShape:
-    def test_every_registered_type_has_an_entry(self):
-        schema = provider_schema()
-        for ptype in registered_types():
-            assert ptype in schema["types"], ptype
-
-    def test_capabilities_present_for_every_type(self):
-        schema = provider_schema()
-        for ptype, entry in schema["types"].items():
-            caps = entry["capabilities"]
-            assert "supports_tools" in caps, ptype
-            assert "supports_prefill" in caps, ptype
-
-    def test_openrouter_capabilities(self):
-        caps = provider_schema()["types"]["openrouter"]["capabilities"]
-        assert caps["supports_ephemeral_cache"] is True
-        assert caps["include_stream_options"] is False
-        assert caps["normalizes_reasoning"] is True
-
-    def test_nanogpt_capabilities(self):
-        caps = provider_schema()["types"]["nanogpt"]["capabilities"]
-        assert caps["supports_ephemeral_cache"] is True
-        assert caps["cache_breakpoints"] is True
-        assert caps["normalizes_reasoning"] is True
-
-    def test_google_capabilities(self):
-        for ptype in ("google_aistudio", "google_vertex"):
-            caps = provider_schema()["types"][ptype]["capabilities"]
-            assert caps["supports_prefill"] is False
-            assert caps["thought_signatures"] is True
-            assert caps["owns_reasoning"] is True
-            assert caps["reasoning_formats"] is None
-
-    def test_reasoning_message_key_is_declared(self):
-        types = provider_schema()["types"]
-        for ptype in ("deepseek", "moonshot", "xiaomi_mimo"):
-            assert types[ptype]["capabilities"]["reasoning_message_key"] == "reasoning_content"
-        assert provider_schema()["types"]["openai_compat"]["capabilities"]["reasoning_message_key"] is None
-
-    def test_xiaomi_mimo_capabilities(self):
-        caps = provider_schema()["types"]["xiaomi_mimo"]["capabilities"]
-        assert caps["echoes_prefill"] is False
-        assert caps["supports_prefill"] is True
-        assert caps["reasoning_formats"] == ()
-
-
-class TestDefaults:
-    def test_base_defaults(self):
-        assert provider_schema()["baseDefaults"] == BASE_SAMPLER_DEFAULTS
-        assert BASE_SAMPLER_DEFAULTS["image_format"] == "webp"
-        assert BASE_SAMPLER_DEFAULTS["seed"] == -1
-
-    def test_openai_compat_overrides_image_format_to_png(self):
-        assert provider_schema()["types"]["openai_compat"]["defaults"] == {
-            "preserve_thinking": "tool_only",
-            "image_format": "png",
-        }
-
-    def test_openrouter_defaults(self):
-        assert provider_schema()["types"]["openrouter"]["defaults"] == {
-            "top_k": 0, "min_p": 0, "repetition_penalty": 1.0, "preserve_thinking": "tool_only",
-        }
-
-    def test_nanogpt_defaults(self):
-        assert provider_schema()["types"]["nanogpt"]["defaults"] == {
-            "top_k": 0, "min_p": 0, "repetition_penalty": 1.0, "preserve_thinking": "tool_only",
-        }
-
-    def test_google_defaults_enable_reasoning(self):
-        for ptype in ("google_aistudio", "google_vertex"):
-            assert provider_schema()["types"][ptype]["defaults"] == {
-                "include_reasoning": True,
-                "reasoning_effort": "",
-            }
-
-
-class TestForwarding:
-    def test_forward_lists(self):
-        types = provider_schema()["types"]
-        assert types["openai_compat"]["forwardAlways"] == [
-            "frequency_penalty", "presence_penalty", "include_reasoning",
-        ]
-        assert types["openai_compat"]["forwardReasoning"] == ["reasoning_effort", "preserve_thinking"]
-        assert types["deepseek"]["forwardAlways"] == ["include_reasoning"]
-        assert types["deepseek"]["forwardReasoning"] == ["preserve_thinking"]
-        assert types["xiaomi_mimo"]["forwardAlways"] == ["frequency_penalty", "presence_penalty", "include_reasoning"]
-        assert types["xiaomi_mimo"]["forwardReasoning"] == ["preserve_thinking"]
-        assert types["openrouter"]["forwardAlways"] == [
+TYPES = {
+    "openai_compat": {
+        "caps": {"supports_prefill": True, "echoes_prefill": True, "supports_tools": True,
+                 "include_stream_options": True, "reasoning_message_key": None},
+        "defaults": {"preserve_thinking": "tool_only", "image_format": "png"},
+        "forward_always": ["frequency_penalty", "presence_penalty", "include_reasoning"],
+        "forward_reasoning": ["reasoning_effort", "preserve_thinking"],
+        "effort": ["low", "medium", "high"],
+        "visible": {"frequency_penalty", "include_reasoning", "reasoning_effort"},
+        "form": {"baseUrl": True, "orFields": False},
+    },
+    "openrouter": {
+        "caps": {"supports_ephemeral_cache": True, "include_stream_options": False,
+                 "normalizes_reasoning": True},
+        "defaults": {"top_k": 0, "min_p": 0, "repetition_penalty": 1.0,
+                     "preserve_thinking": "tool_only"},
+        "forward_always": [
             "top_k", "min_p", "repetition_penalty", "include_reasoning",
             "preserve_thinking", "seed", "verbosity",
             "cache_enabled", "cache_ttl", "cache_depth", "echo_upstream_body",
-        ]
-        assert types["openrouter"]["forwardReasoning"] == ["reasoning_effort", "thinking_budget"]
-        assert types["nanogpt"]["forwardAlways"] == [
+        ],
+        "forward_reasoning": ["reasoning_effort", "thinking_budget"],
+        "effort": ["minimal", "low", "medium", "high", "xhigh", "max"],
+        "visible": {"top_k", "reasoning_effort", "preserve_thinking", "cache_enabled",
+                    "include_reasoning"},
+        "form": {"orFields": True, "baseUrl": False},
+    },
+    "nanogpt": {
+        "caps": {"supports_ephemeral_cache": True, "cache_breakpoints": True,
+                 "normalizes_reasoning": True},
+        "defaults": {"top_k": 0, "min_p": 0, "repetition_penalty": 1.0,
+                     "preserve_thinking": "tool_only"},
+        "forward_always": [
             "top_k", "min_p", "repetition_penalty", "include_reasoning",
             "preserve_thinking", "seed", "cache_enabled", "cache_ttl", "cache_depth",
-        ]
-        assert types["nanogpt"]["forwardReasoning"] == ["reasoning_effort"]
-        assert types["google_vertex"]["forwardAlways"] == ["top_k", "send_reasoning_history", "include_reasoning"]
+        ],
+        "forward_reasoning": ["reasoning_effort"],
+        "effort": ["minimal", "low", "medium", "high", "xhigh", "max"],
+        "visible": set(),
+        "form": {"ngFields": True, "orFields": False, "baseUrl": False, "modelRequired": True},
+    },
+    "deepseek": {
+        "caps": {"reasoning_message_key": "reasoning_content", "echoes_prefill": False,
+                 "supports_prefill": True},
+        "defaults": {},
+        "forward_always": ["include_reasoning"],
+        "forward_reasoning": ["preserve_thinking"],
+        "effort": None,
+        "visible": set(),
+        "form": {},
+    },
+    "moonshot": {
+        "caps": {"reasoning_message_key": "reasoning_content", "echoes_prefill": False},
+        "defaults": {},
+        "forward_always": None,
+        "forward_reasoning": None,
+        "effort": None,
+        "visible": set(),
+        "form": {},
+    },
+    "xiaomi_mimo": {
+        "caps": {"reasoning_message_key": "reasoning_content", "echoes_prefill": False,
+                 "supports_prefill": True, "reasoning_formats": ()},
+        "defaults": {},
+        "forward_always": ["frequency_penalty", "presence_penalty", "include_reasoning"],
+        "forward_reasoning": ["preserve_thinking"],
+        "effort": None,
+        "visible": set(),
+        "form": {},
+    },
+    "google_aistudio": {
+        "caps": {"supports_prefill": False, "supports_tools": True, "thought_signatures": True,
+                 "owns_reasoning": True, "reasoning_formats": None},
+        "defaults": {"include_reasoning": True, "reasoning_effort": ""},
+        "forward_always": None,
+        "forward_reasoning": None,
+        "effort": ["MINIMAL", "LOW", "MEDIUM", "HIGH"],
+        "visible": {"top_k", "send_reasoning_history", "include_reasoning", "reasoning_effort"},
+        "form": {},
+    },
+    "google_vertex": {
+        "caps": {"supports_prefill": False, "thought_signatures": True, "owns_reasoning": True,
+                 "reasoning_formats": None},
+        "defaults": {"include_reasoning": True, "reasoning_effort": ""},
+        "forward_always": ["top_k", "send_reasoning_history", "include_reasoning"],
+        "forward_reasoning": None,
+        "effort": ["MINIMAL", "LOW", "MEDIUM", "HIGH"],
+        "visible": set(),
+        "form": {"vertexFields": True},
+    },
+}
 
-    def test_capability_filtered_excludes_pipeline_controls(self):
-        types = provider_schema()["types"]
-        assert set(types["openrouter"]["capabilityFiltered"]) == {
-            "top_k", "min_p", "repetition_penalty", "seed", "verbosity",
-        }
-        assert set(types["openai_compat"]["capabilityFiltered"]) == {
-            "frequency_penalty", "presence_penalty",
-        }
-        # Pipeline-controlled keys are never capability-filtered.
-        for control in ("include_reasoning", "preserve_thinking", "reasoning_effort",
-                        "thinking_budget", "send_reasoning_history", "echo_upstream_body"):
-            assert control not in types["openrouter"]["capabilityFiltered"]
-            assert control not in types["google_vertex"]["capabilityFiltered"]
+
+def _entry(ptype: str) -> dict:
+    return provider_schema()["types"][ptype]
 
 
-class TestVisibility:
-    def test_openrouter_visible_fields(self):
-        visible = set(provider_schema()["types"]["openrouter"]["visible"])
-        assert {"top_k", "reasoning_effort", "preserve_thinking", "cache_enabled", "include_reasoning"} <= visible
-
-    def test_openai_compat_visible_fields(self):
-        visible = set(provider_schema()["types"]["openai_compat"]["visible"])
-        assert {"frequency_penalty", "include_reasoning", "reasoning_effort"} <= visible
-        assert "top_k" not in visible
-
-    def test_google_visible_fields(self):
-        visible = set(provider_schema()["types"]["google_aistudio"]["visible"])
-        assert {"top_k", "send_reasoning_history", "include_reasoning", "reasoning_effort"} <= visible
+def test_every_registered_type_is_declared():
+    """The schema and the adapter registry must agree, in both directions."""
+    declared = set(provider_schema()["types"])
+    assert declared == set(registered_types())
+    assert declared == set(TYPES), "a provider type is missing from TYPES"
 
 
-class TestEffortOptions:
-    def test_openrouter_options(self):
-        values = [o["value"] for o in provider_schema()["types"]["openrouter"]["effortOptions"]]
-        assert values == ["minimal", "low", "medium", "high", "xhigh", "max"]
+@pytest.mark.parametrize("ptype", sorted(TYPES))
+def test_type_facts(ptype):
+    entry = _entry(ptype)
+    expected = TYPES[ptype]
 
-    def test_nanogpt_options_match_openrouter(self):
-        values = [o["value"] for o in provider_schema()["types"]["nanogpt"]["effortOptions"]]
-        assert values == ["minimal", "low", "medium", "high", "xhigh", "max"]
+    for key, value in expected["caps"].items():
+        assert entry["capabilities"][key] == value, f"{ptype}.{key}"
 
-    def test_google_options_are_uppercase(self):
-        for ptype in ("google_aistudio", "google_vertex"):
-            values = [o["value"] for o in provider_schema()["types"][ptype]["effortOptions"]]
-            assert values == ["MINIMAL", "LOW", "MEDIUM", "HIGH"]
+    if expected["defaults"]:
+        assert entry["defaults"] == expected["defaults"], f"{ptype} defaults"
 
-    def test_openai_compat_options(self):
-        values = [o["value"] for o in provider_schema()["types"]["openai_compat"]["effortOptions"]]
-        assert values == ["low", "medium", "high"]
+    if expected["forward_always"] is not None:
+        assert entry["forwardAlways"] == expected["forward_always"], f"{ptype} forwardAlways"
+    if expected["forward_reasoning"] is not None:
+        assert entry["forwardReasoning"] == expected["forward_reasoning"], f"{ptype} forwardReasoning"
+
+    if expected["effort"] is not None:
+        assert [o["value"] for o in entry["effortOptions"]] == expected["effort"]
+
+    if expected["visible"]:
+        assert expected["visible"] <= set(entry["visible"]), f"{ptype} visible fields"
+
+    for key, value in expected["form"].items():
+        assert entry["form"][key] == value, f"{ptype}.form.{key}"
 
 
-class TestFormAndTypeOptions:
-    def test_provider_type_options_are_ordered_and_labeled(self):
-        opts = provider_type_options()
-        values = [o["value"] for o in opts]
-        assert values[:3] == ["openai_compat", "openrouter", "nanogpt"]
-        assert opts[0]["label"] == "OpenAI Compatible"
-        assert len(values) == len(set(values))
+def test_openai_compat_visible_excludes_unsupported_samplers():
+    visible = set(_entry("openai_compat")["visible"])
+    assert "top_k" not in visible
 
-    def test_openrouter_form_hides_base_url_shows_or_fields(self):
-        form = provider_schema()["types"]["openrouter"]["form"]
-        assert form["orFields"] is True
-        assert form["baseUrl"] is False
 
-    def test_nanogpt_form_hides_base_url_shows_routing_fields(self):
-        form = provider_schema()["types"]["nanogpt"]["form"]
-        assert form["ngFields"] is True
-        assert form["orFields"] is False
-        assert form["baseUrl"] is False
-        assert form["modelRequired"] is True
+def test_capability_filtered_never_carries_pipeline_controls():
+    """Keys the request pipeline consumes are stripped centrally; filtering them
+    against a provider's advertised parameters too would silently drop them."""
+    pipeline_controls = {
+        "include_reasoning", "preserve_thinking", "reasoning_effort",
+        "thinking_budget", "send_reasoning_history", "echo_upstream_body",
+    }
+    for ptype in registered_types():
+        filtered = set(_entry(ptype)["capabilityFiltered"])
+        assert not (filtered & pipeline_controls), f"{ptype} filters a pipeline control"
 
-    def test_vertex_form_shows_vertex_fields(self):
-        assert provider_schema()["types"]["google_vertex"]["form"]["vertexFields"] is True
 
-    def test_openai_compat_uses_default_form(self):
-        form = provider_schema()["types"]["openai_compat"]["form"]
-        assert form["baseUrl"] is True
-        assert form["orFields"] is False
+def test_capability_filtered_is_what_openrouter_advertises():
+    assert set(_entry("openrouter")["capabilityFiltered"]) == {
+        "top_k", "min_p", "repetition_penalty", "seed", "verbosity",
+    }
+    assert set(_entry("openai_compat")["capabilityFiltered"]) == {
+        "frequency_penalty", "presence_penalty",
+    }
+
+
+def test_base_defaults_are_the_documented_sampler_defaults():
+    schema = provider_schema()
+    assert schema["baseDefaults"] == BASE_SAMPLER_DEFAULTS
+    assert BASE_SAMPLER_DEFAULTS["image_format"] == "webp"
+    assert BASE_SAMPLER_DEFAULTS["seed"] == -1
+
+
+def test_provider_type_options_are_ordered_and_unique():
+    opts = provider_type_options()
+    values = [o["value"] for o in opts]
+    assert values[:3] == ["openai_compat", "openrouter", "nanogpt"]
+    assert opts[0]["label"] == "OpenAI Compatible"
+    assert len(values) == len(set(values))
+
+
+@pytest.mark.parametrize("ptype", registered_types())
+def test_adapter_class_agrees_with_its_profile(ptype):
+    """The schema publishes the profile; the class copies it at registration.
+    A type whose class and profile disagree sends the wrong capabilities
+    downstream (tool calls, prefill echo, caching)."""
+    cls = get_provider_class(ptype)
+    caps = _entry(ptype)["capabilities"]
+    assert cls.type == ptype
+    assert isinstance(cls.profile.caps, Capabilities)
+    for attr in ("supports_tools", "supports_prefill", "echoes_prefill"):
+        assert getattr(cls, attr) == getattr(cls.profile.caps, attr), f"{ptype}.{attr}"
+        assert caps[attr] == getattr(cls.profile.caps, attr), f"schema {ptype}.{attr}"

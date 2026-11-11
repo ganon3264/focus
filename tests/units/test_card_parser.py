@@ -281,59 +281,50 @@ class TestValidateCardWarnings:
         assert any("extensions" in w for w in warnings)
 
 
-class TestNormaliseCardV2Preservation:
-    def test_preserves_extensions(self):
-        card = {
+class TestCardFieldsSurviveNormalisation:
+    """Every optional card field must survive normalisation.
+
+    One table: they are all the same claim, and a dropped field is silent data
+    loss on import."""
+
+    @pytest.mark.parametrize(
+        "field,value",
+        [
+            ("nickname", "Nick"),
+            ("creator", "Me"),
+            ("character_version", "1.0"),
+            ("system_prompt", "You are a helpful assistant."),
+            ("post_history_instructions", "Stay in character."),
+            ("creator_notes", "My notes"),
+            ("creator_notes_multilingual", {"en": "Hello", "ja": "こんにちは"}),
+            ("tags", ["fantasy", "elf"]),
+            ("character_book", {"name": "Lore", "entries": []}),
+            ("extensions", {"focus/custom": "value"}),
+            ("group_only_greetings", ["Hello group", "Hi group"]),
+            ("assets", [{"type": "icon", "uri": "embeded://icon.png", "name": "main", "ext": "png"}]),
+            ("source", ["https://example.com"]),
+            ("creation_date", 1234567890),
+            ("modification_date", 1234567899),
+        ],
+    )
+    def test_field_survives(self, field, value):
+        result = normalise_card({"data": {"name": "X", field: value}})
+        assert result[field] == value
+
+    def test_spec_declaration_is_kept(self):
+        result = normalise_card({
             "spec": "chara_card_v2",
             "spec_version": "2.0",
-            "data": {
-                "name": "Ex",
-                "extensions": {"focus/custom": "value"},
-            },
-        }
-        result = normalise_card(card)
-        assert result["extensions"] == {"focus/custom": "value"}
+            "data": {"name": "Ex", "extensions": {"focus/custom": "value"}},
+        })
         assert result["spec"] == "chara_card_v2"
         assert result["spec_version"] == "2.0"
 
-    def test_extensions_defaults_to_empty_dict(self):
-        card = {"data": {"name": "NoExt"}}
-        result = normalise_card(card)
+    def test_absent_optional_fields_get_their_own_defaults(self):
+        result = normalise_card({"data": {"name": "Bare"}})
         assert result["extensions"] == {}
-
-    def test_preserves_character_book(self):
-        book = {"name": "Lore", "entries": []}
-        card = {"spec": "chara_card_v2", "spec_version": "2.0", "data": {"name": "X", "character_book": book}}
-        result = normalise_card(card)
-        assert result["character_book"] == book
-
-    def test_preserves_tags(self):
-        card = {"data": {"name": "X", "tags": ["fantasy", "elf"]}}
-        result = normalise_card(card)
-        assert result["tags"] == ["fantasy", "elf"]
-
-    def test_preserves_system_prompt(self):
-        card = {"data": {"name": "X", "system_prompt": "You are a helpful assistant."}}
-        result = normalise_card(card)
-        assert result["system_prompt"] == "You are a helpful assistant."
-
-    def test_preserves_creator_notes(self):
-        card = {"data": {"name": "X", "creator_notes": "My notes"}}
-        result = normalise_card(card)
-        assert result["creator_notes"] == "My notes"
-
-    def test_preserves_creator_and_version(self):
-        card = {"data": {"name": "X", "creator": "Me", "character_version": "1.0"}}
-        result = normalise_card(card)
-        assert result["creator"] == "Me"
-        assert result["character_version"] == "1.0"
-
-    def test_name_empty_string_when_missing(self):
-        result = normalise_card({})
-        assert result["name"] == ""
-
-
-# ── V3 ──────────────────────────────────────────────────────────────────────
+        assert result["group_only_greetings"] == []
+        assert result["tags"] == []
 
 
 class TestExtractCardJsonV3:
@@ -411,41 +402,3 @@ class TestValidateCardWarningsV3:
         assert any("use_regex" in w for w in warnings)
 
 
-class TestNormaliseCardV3Fields:
-    def test_preserves_nickname(self):
-        card = {"data": {"name": "Full", "nickname": "Nick"}}
-        result = normalise_card(card)
-        assert result["nickname"] == "Nick"
-
-    def test_preserves_group_only_greetings(self):
-        card = {"data": {"name": "X", "group_only_greetings": ["Hello group", "Hi group"]}}
-        result = normalise_card(card)
-        assert result["group_only_greetings"] == ["Hello group", "Hi group"]
-
-    def test_group_only_greetings_defaults_to_empty(self):
-        card = {"data": {"name": "X"}}
-        result = normalise_card(card)
-        assert result["group_only_greetings"] == []
-
-    def test_preserves_assets(self):
-        assets = [{"type": "icon", "uri": "embeded://icon.png", "name": "main", "ext": "png"}]
-        card = {"data": {"name": "X", "assets": assets}}
-        result = normalise_card(card)
-        assert result["assets"] == assets
-
-    def test_preserves_creator_notes_multilingual(self):
-        ml = {"en": "Hello", "ja": "こんにちは"}
-        card = {"data": {"name": "X", "creator_notes_multilingual": ml}}
-        result = normalise_card(card)
-        assert result["creator_notes_multilingual"] == ml
-
-    def test_preserves_source(self):
-        card = {"data": {"name": "X", "source": ["https://example.com"]}}
-        result = normalise_card(card)
-        assert result["source"] == ["https://example.com"]
-
-    def test_preserves_dates(self):
-        card = {"data": {"name": "X", "creation_date": 1234567890, "modification_date": 1234567899}}
-        result = normalise_card(card)
-        assert result["creation_date"] == 1234567890
-        assert result["modification_date"] == 1234567899

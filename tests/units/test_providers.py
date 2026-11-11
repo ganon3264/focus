@@ -260,12 +260,22 @@ class TestOpenAICompatProvider:
         assert u["reasoning_tokens"] == 7
         assert u["cached_tokens"] == 0
 
-    async def test_no_api_key_passes_no_key(self):
+    async def test_empty_api_key_still_sends_a_well_formed_request(self):
+        """The SDK rejects an empty key, so a keyless provider (a local server)
+        sends a placeholder — the call itself must stay intact."""
         provider = OpenAICompatProvider("http://x", "", "m", {})
         client = FakeOpenAIClient([_chunk(content="ok")])
         provider._get_client = lambda: client  # type: ignore[method-assign]
         await _collect(provider)
         assert client.request["model"] == "m"
+        assert client.request["stream"] is True
+        assert client.request["messages"]
+
+    def test_from_row_defaults_a_missing_key_to_empty(self):
+        provider = OpenAICompatProvider.from_row(
+            {"base_url": "http://x", "api_key": None, "model": "m"}, {}, ProviderConfig()
+        )
+        assert provider.api_key == ""
 
     async def test_non_streaming_replays_complete_response(self):
         completion = _completion(
@@ -408,25 +418,15 @@ class TestNanoGPTProvider:
         return provider, client
 
     async def test_pinned_provider_goes_into_the_body(self):
-        provider, client = self._make(
-            config=ProviderConfig(ng_route="chutes", ng_no_fallbacks=True),
-        )
+        provider, client = self._make(config=ProviderConfig(ng_route="chutes"))
         await _collect(provider)
-        assert client.request["extra_body"]["provider"] == {
-            "only": ["chutes"], "allow_fallbacks": False,
-        }
+        # `only` is hard on NanoGPT; no fallback switch needed.
+        assert client.request["extra_body"]["provider"] == {"only": ["chutes"]}
 
     async def test_no_route_sends_no_provider_object(self):
         provider, client = self._make()
         await _collect(provider)
         assert "provider" not in client.request.get("extra_body", {})
-
-    async def test_fallbacks_stay_enabled_when_not_locked(self):
-        provider, client = self._make(
-            config=ProviderConfig(ng_route="novita", ng_no_fallbacks=False),
-        )
-        await _collect(provider)
-        assert client.request["extra_body"]["provider"] == {"only": ["novita"]}
 
     async def test_reasoning_toggle_and_effort(self):
         provider, client = self._make()
@@ -449,7 +449,7 @@ class TestNanoGPTProvider:
         )
         await _collect(provider)
         extra_body = client.request["extra_body"]
-        for leaked in ("ng_route", "ng_no_fallbacks", "api_keys", "active_key", "retry"):
+        for leaked in ("ng_route", "api_keys", "active_key", "retry"):
             assert leaked not in extra_body
 
     async def test_fetch_models_requests_detailed_catalogue(self, monkeypatch):
@@ -467,12 +467,11 @@ class TestNanoGPTProvider:
         assert captured["url"] == "https://api.nano-gpt.com/api/v1/models?detailed=true"
         assert captured["headers"].get("authorization") == "Bearer sk-1"
 
-    async def test_modalities_and_providers_come_from_the_catalogue(self, monkeypatch):
+    async def test_modalities_come_from_the_catalogue(self, monkeypatch):
         payload = {
             "data": [{
                 "id": "meta-llama/llama-3.3-70b-instruct",
                 "architecture": {"input_modalities": ["text", "image"]},
-                "providers": ["chutes", "together", "deepinfra"],
             }],
         }
         calls = []
@@ -484,13 +483,60 @@ class TestNanoGPTProvider:
         _patch_httpx(monkeypatch, handler)
         provider = NanoGPTProvider(api_key="k", model="meta-llama/llama-3.3-70b-instruct", params={})
         assert await provider.supported_modalities(provider.model) == ["text", "image"]
-        assert await provider.model_providers(provider.model) == ["chutes", "together", "deepinfra"]
+        assert await provider.supported_modalities(provider.model) == ["text", "image"]
         assert len(calls) == 1, "the catalogue is cached, not refetched per lookup"
+
+    async def test_providers_come_from_the_discovery_endpoint(self, monkeypatch):
+        captured = {}
+
+        def handler(request):
+            captured["url"] = str(request.url)
+            return httpx.Response(200, json={
+                "supportsProviderSelection": True,
+                "providers": [
+                    {"provider": "chutes", "available": True},
+                    {"provider": "tensorix", "available": False},
+                    {"provider": "novita", "available": True, "displayName": "Novita AI"},
+                ],
+            })
+
+        _patch_httpx(monkeypatch, handler)
+        model = "moonshotai/kimi-k2.6"
+        provider = NanoGPTProvider(api_key="k", model=model, params={})
+        assert await provider.model_providers(model) == [
+            {"id": "chutes", "label": "chutes"},
+            {"id": "novita", "label": "Novita AI"},
+        ], "unavailable hosts are not pinnable"
+        assert captured["url"] == (
+            "https://api.nano-gpt.com/api/models/moonshotai%2Fkimi-k2.6/providers"
+        )
+
+    async def test_single_route_models_use_provider_details(self, monkeypatch):
+        def handler(request):
+            return httpx.Response(200, json={
+                "supportsProviderSelection": False,
+                "providerDetails": [
+                    {"provider": "google", "available": True},
+                    {"provider": "googlenative", "available": True},
+                ],
+            })
+
+        _patch_httpx(monkeypatch, handler)
+        provider = NanoGPTProvider(api_key="k", model="google/gemini-4-carbon", params={})
+        assert await provider.model_providers(provider.model) == [
+            {"id": "google", "label": "google"},
+            {"id": "googlenative", "label": "googlenative"},
+        ]
 
     async def test_unknown_model_reports_nothing(self, monkeypatch):
         _patch_httpx(monkeypatch, lambda r: httpx.Response(200, json={"data": [{"id": "other"}]}))
         provider = NanoGPTProvider(api_key="k", model="missing/model", params={})
         assert await provider.supported_modalities(provider.model) is None
+
+        _patch_httpx(
+            monkeypatch,
+            lambda r: httpx.Response(200, json={"providerDetails": [], "providers": []}),
+        )
         assert await provider.model_providers(provider.model) == []
 
     def test_from_row_defaults_base_url(self):
