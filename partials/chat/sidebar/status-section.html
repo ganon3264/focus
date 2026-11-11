@@ -2,15 +2,17 @@
 {% set character_name = character.name if character else 'None' %}
 {% set persona_name = persona.name if persona else 'None' %}
 {% set head_rows = [('Character', 'status-character', character_name),
-                    ('Persona', 'status-persona', persona_name),
-                    ('Profile', 'status-preset', 'None')] %}
+                    ('Persona', 'status-persona', persona_name)] %}
 <div class="sidebar-section mt-auto">
   <div class="rail">Status</div>
   <div class="well flex flex-col gap-1">
     {% for label, id, value in head_rows %}
-    <div class="row sm"><span class="row-label">{{ label }}</span> <span class="row-value status-value" id="{{ id }}" title="{{ value }}">{{ value }}</span></div>
+    <div class="row sm readout"><span class="row-label">{{ label }}</span> <span class="row-value status-value" id="{{ id }}" title="{{ value }}">{{ value }}</span></div>
     {% endfor %}
-    <div class="row sm hidden" id="status-key-row">
+    {% for label, id in [('Provider', 'status-provider'), ('Model', 'status-model')] %}
+    <div class="row sm readout"><span class="row-label">{{ label }}</span> <span class="row-value status-value" id="{{ id }}" title="None">None</span></div>
+    {% endfor %}
+    <div class="row sm readout hidden" id="status-key-row">
       <span class="row-label">Keys</span>
       <span class="flex items-center gap-1 min-w-0">
         <button type="button" class="key sm" id="status-key-prev" data-action="actionShiftProviderKey" data-dir="-1" title="Previous key" aria-label="Previous API key">{{ icon_chevron_left(13) }}</button>
@@ -18,9 +20,6 @@
         <button type="button" class="key sm" id="status-key-next" data-action="actionShiftProviderKey" data-dir="1" title="Next key" aria-label="Next API key">{{ icon_chevron_right(13) }}</button>
       </span>
     </div>
-    {% for label, id in [('Provider', 'status-provider'), ('Model', 'status-model')] %}
-    <div class="row sm"><span class="row-label">{{ label }}</span> <span class="row-value status-value" id="{{ id }}" title="None">None</span></div>
-    {% endfor %}
-    <div class="row sm hidden" id="status-cache-row"><span class="row-label">Cache</span> <span class="row-value status-value" id="status-cache"></span></div>
+    <div class="row sm readout hidden" id="status-cache-row"><span class="row-label">Cache</span> <span class="row-value status-value" id="status-cache"></span></div>
   </div>
 </div>

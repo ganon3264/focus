@@ -15,7 +15,7 @@ function statusSpan(id) {
   return el;
 }
 var statusProvider = statusSpan('status-provider');
-var statusPreset = statusSpan('status-preset');
+
 var statusModel = statusSpan('status-model');
 var cacheRow = makeElement('div');
 cacheRow.id = 'status-cache-row';
@@ -34,7 +34,6 @@ keyNext.id = 'status-key-next';
 
 var doc = h.createMockDocument();
 doc._body.appendChild(statusProvider);
-doc._body.appendChild(statusPreset);
 doc._body.appendChild(statusModel);
 doc._body.appendChild(cacheRow);
 doc._body.appendChild(cacheEl);
@@ -45,7 +44,7 @@ doc._body.appendChild(keyNext);
 
 function mockGetElementById(id) {
   if (id === 'status-provider') return statusProvider;
-  if (id === 'status-preset') return statusPreset;
+
   if (id === 'status-model') return statusModel;
   if (id === 'status-cache-row') return cacheRow;
   if (id === 'status-cache') return cacheEl;
@@ -94,8 +93,8 @@ eval(src + '\nwindow.updateStatusPanel=updateStatusPanel;window.updateCacheTimer
 // ── updateStatusPanel shows provider info ──
 (function () {
   window.updateStatusPanel();
-  assertEqual(statusProvider.textContent, 'openai_compat', 'provider type displayed');
-  assertEqual(statusPreset.textContent, 'My Provider', 'provider name displayed');
+  assertEqual(statusProvider.textContent, 'My Provider', 'provider name displayed');
+  assertEqual(statusProvider.title, 'My Provider · openai_compat', 'provider title carries the type');
   assertEqual(statusModel.textContent, 'gpt-4', 'model displayed');
 })();
 

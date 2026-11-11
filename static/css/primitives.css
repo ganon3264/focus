@@ -837,6 +837,16 @@ textarea.field.sized {
   background-color: transparent;
 }
 
+/* A readout states a value; nothing happens when you click it. The hover band
+   is a control affordance, so a readout keeps none — otherwise the status
+   panel reads as a stack of buttons. */
+.row.readout,
+.row.readout:hover {
+  background-color: transparent;
+  box-shadow: none;
+  cursor: default;
+}
+
 .row.active {
   background-color: var(--ink-2);
   box-shadow:

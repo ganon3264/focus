@@ -58,30 +58,23 @@ window.actionShiftProviderKey = async function (el) {
 function updateStatusPanel() {
   const activeId = StateManager.get('provider_id');
   const providerEl = document.getElementById('status-provider');
-  const presetEl = document.getElementById('status-preset');
   const modelEl = document.getElementById('status-model');
   const provider = activeId ? ProviderStore.get(activeId) : null;
 
   if (!activeId) {
     providerEl.textContent = 'None';
-    presetEl.textContent = 'None';
     modelEl.textContent = 'None';
     providerEl.title = 'None';
-    presetEl.title = 'None';
     modelEl.title = 'None';
   } else if (provider) {
-    providerEl.textContent = provider.type;
-    presetEl.textContent = provider.name;
+    providerEl.textContent = provider.name;
     modelEl.textContent = provider.model || 'Unknown';
-    providerEl.title = provider.type;
-    presetEl.title = provider.name;
+    providerEl.title = provider.name + ' · ' + provider.type;
     modelEl.title = provider.model || 'Unknown';
   } else {
     providerEl.textContent = 'Unknown';
-    presetEl.textContent = 'Unknown';
     modelEl.textContent = 'Unknown';
     providerEl.title = 'Unknown';
-    presetEl.title = 'Unknown';
     modelEl.title = 'Unknown';
   }
   updateKeySwitcher(provider);
