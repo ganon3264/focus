@@ -297,8 +297,11 @@ class TestCapabilityDrivenQuirks:
         assert out[0].get("reasoning_details") is None
         assert "_src_model" not in out[0]
 
-    async def test_ephemeral_cache_is_capability_gated(self, monkeypatch):
-        self._install(monkeypatch, Capabilities(supports_ephemeral_cache=True))
+    async def test_ephemeral_cache_breakpoints_are_capability_gated(self, monkeypatch):
+        self._install(
+            monkeypatch,
+            Capabilities(supports_ephemeral_cache=True, cache_breakpoints=True),
+        )
         msgs = [{"role": "system", "content": "sys"}, {"role": "user", "content": "hi"}]
         out, _ = await _run(
             _prov("synthetic", model="anthropic/claude-x"),
@@ -307,6 +310,41 @@ class TestCapabilityDrivenQuirks:
         )
         assert isinstance(out[0]["content"], list)
         assert out[0]["content"][0]["cache_control"]["type"] == "ephemeral"
+
+    async def test_cache_without_breakpoints_leaves_messages_alone(self, monkeypatch):
+        self._install(monkeypatch, Capabilities(supports_ephemeral_cache=True))
+        msgs = [{"role": "system", "content": "sys"}, {"role": "user", "content": "hi"}]
+        out, _ = await _run(
+            _prov("synthetic", model="anthropic/claude-x"),
+            _body(samplers={"cache_enabled": True}),
+            msgs,
+        )
+        assert isinstance(out[0]["content"], str)
+
+
+class TestNanoGPTCaching:
+    async def test_claude_models_get_breakpoints(self):
+        msgs = [{"role": "system", "content": "sys"}, {"role": "user", "content": "hi"}]
+        out, kw = await _run(
+            _prov("nanogpt", model="anthropic/claude-opus-4.6"),
+            _body(samplers={"cache_enabled": True, "cache_ttl": "1h", "cache_depth": 1}),
+            msgs,
+        )
+        assert out[0]["content"][0]["cache_control"] == {"type": "ephemeral", "ttl": "1h"}
+        for key in ("cache_enabled", "cache_ttl", "cache_depth"):
+            assert key not in kw, "cache samplers are Focus-side, never forwarded"
+
+    async def test_off_or_non_claude_models_get_none(self):
+        msgs = [{"role": "system", "content": "sys"}]
+        out, _ = await _run(_prov("nanogpt", model="anthropic/claude-opus-4.6"), _body(), msgs)
+        assert isinstance(out[0]["content"], str)
+
+        out, _ = await _run(
+            _prov("nanogpt", model="openai/gpt-6"),
+            _body(samplers={"cache_enabled": True}),
+            msgs,
+        )
+        assert isinstance(out[0]["content"], str)
 
 
 class TestInternalMarkers:

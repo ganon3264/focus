@@ -23,6 +23,7 @@ class OpenRouterProvider(OpenAICompatProvider):
             OpenAICompatProvider.profile.caps,
             include_stream_options=False,
             supports_ephemeral_cache=True,
+            cache_breakpoints=True,
             reasoning_formats=None,
             normalizes_reasoning=True,
         ),

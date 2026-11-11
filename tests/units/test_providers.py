@@ -18,6 +18,7 @@ from focus.providers import (
     BaseProvider,
     DeepseekProvider,
     MoonshotProvider,
+    NanoGPTProvider,
     OpenAICompatProvider,
     OpenRouterProvider,
     XiaomiMiMoProvider,
@@ -394,6 +395,111 @@ class TestOpenRouterProvider:
         assert captured["url"] == "https://openrouter.ai/api/v1/models"
 
 
+class TestNanoGPTProvider:
+    @pytest.fixture(autouse=True)
+    def _fresh_catalogue(self, monkeypatch):
+        from focus.core.utils import TTLCache
+        monkeypatch.setattr("focus.providers.nanogpt._models_cache", TTLCache())
+
+    def _make(self, model="anthropic/claude-opus-4.6", config=None):
+        provider = NanoGPTProvider(api_key="sk-nano", model=model, params={}, config=config)
+        client = FakeOpenAIClient([_chunk(content="x")])
+        provider._get_client = lambda: client  # type: ignore[method-assign]
+        return provider, client
+
+    async def test_pinned_provider_goes_into_the_body(self):
+        provider, client = self._make(
+            config=ProviderConfig(ng_route="chutes", ng_no_fallbacks=True),
+        )
+        await _collect(provider)
+        assert client.request["extra_body"]["provider"] == {
+            "only": ["chutes"], "allow_fallbacks": False,
+        }
+
+    async def test_no_route_sends_no_provider_object(self):
+        provider, client = self._make()
+        await _collect(provider)
+        assert "provider" not in client.request.get("extra_body", {})
+
+    async def test_fallbacks_stay_enabled_when_not_locked(self):
+        provider, client = self._make(
+            config=ProviderConfig(ng_route="novita", ng_no_fallbacks=False),
+        )
+        await _collect(provider)
+        assert client.request["extra_body"]["provider"] == {"only": ["novita"]}
+
+    async def test_reasoning_toggle_and_effort(self):
+        provider, client = self._make()
+        await _collect(provider, include_reasoning=False)
+        assert client.request["extra_body"]["reasoning"] == {"exclude": True}
+
+        provider, client = self._make()
+        await _collect(provider, include_reasoning=True, reasoning_effort="high")
+        assert "reasoning" not in client.request.get("extra_body", {})
+        assert client.request["reasoning_effort"] == "high"
+
+    async def test_config_never_leaks_upstream(self):
+        provider, client = self._make(
+            config=ProviderConfig(
+                ng_route="chutes",
+                api_keys=["SECRET:nanogpt"],
+                active_key="SECRET:nanogpt",
+                retry={"enabled": True},
+            ),
+        )
+        await _collect(provider)
+        extra_body = client.request["extra_body"]
+        for leaked in ("ng_route", "ng_no_fallbacks", "api_keys", "active_key", "retry"):
+            assert leaked not in extra_body
+
+    async def test_fetch_models_requests_detailed_catalogue(self, monkeypatch):
+        captured = {}
+
+        def handler(request):
+            captured["url"] = str(request.url)
+            captured["headers"] = dict(request.headers)
+            return httpx.Response(200, json={"data": [{"id": "a"}, {"id": "b"}]})
+
+        _patch_httpx(monkeypatch, handler)
+        provider = NanoGPTProvider(api_key="sk-1", model="m", params={})
+        models = await provider.fetch_models()
+        assert [m["id"] for m in models] == ["a", "b"]
+        assert captured["url"] == "https://api.nano-gpt.com/api/v1/models?detailed=true"
+        assert captured["headers"].get("authorization") == "Bearer sk-1"
+
+    async def test_modalities_and_providers_come_from_the_catalogue(self, monkeypatch):
+        payload = {
+            "data": [{
+                "id": "meta-llama/llama-3.3-70b-instruct",
+                "architecture": {"input_modalities": ["text", "image"]},
+                "providers": ["chutes", "together", "deepinfra"],
+            }],
+        }
+        calls = []
+
+        def handler(request):
+            calls.append(str(request.url))
+            return httpx.Response(200, json=payload)
+
+        _patch_httpx(monkeypatch, handler)
+        provider = NanoGPTProvider(api_key="k", model="meta-llama/llama-3.3-70b-instruct", params={})
+        assert await provider.supported_modalities(provider.model) == ["text", "image"]
+        assert await provider.model_providers(provider.model) == ["chutes", "together", "deepinfra"]
+        assert len(calls) == 1, "the catalogue is cached, not refetched per lookup"
+
+    async def test_unknown_model_reports_nothing(self, monkeypatch):
+        _patch_httpx(monkeypatch, lambda r: httpx.Response(200, json={"data": [{"id": "other"}]}))
+        provider = NanoGPTProvider(api_key="k", model="missing/model", params={})
+        assert await provider.supported_modalities(provider.model) is None
+        assert await provider.model_providers(provider.model) == []
+
+    def test_from_row_defaults_base_url(self):
+        provider = NanoGPTProvider.from_row(
+            {"api_key": "sk-x", "model": "m", "base_url": ""}, {}, ProviderConfig(),
+        )
+        assert provider.base_url == "https://api.nano-gpt.com/api/v1"
+
+
 class TestDeepseekProvider:
     async def test_thinking_and_prefix_mapping(self):
         provider = DeepseekProvider(api_key="k", model="deepseek-chat", params={})
@@ -575,6 +681,7 @@ class TestCreateProvider:
         cases = [
             ("openai_compat", OpenAICompatProvider),
             ("openrouter", OpenRouterProvider),
+            ("nanogpt", NanoGPTProvider),
             ("deepseek", DeepseekProvider),
             ("moonshot", MoonshotProvider),
             ("xiaomi_mimo", XiaomiMiMoProvider),

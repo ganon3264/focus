@@ -100,6 +100,9 @@ window.api = {
   providerOpenRouterCapabilities: function (model) {
     return '/api/providers/openrouter/capabilities?model=' + encodeURIComponent(model);
   },
+  providerNanoGPTProviders: function (model) {
+    return '/api/providers/nanogpt/providers?model=' + encodeURIComponent(model);
+  },
   presets: '/api/presets',
   preset: function (id) {
     return '/api/presets/' + id;

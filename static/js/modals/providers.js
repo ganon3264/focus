@@ -1,6 +1,7 @@
 function toggleProviderFields(prefix) {
   var type = document.getElementById(prefix + '-type').value;
   var orFields = document.getElementById(prefix + '-or-fields');
+  var ngFields = document.getElementById(prefix + '-ng-fields');
   var modelInput = document.getElementById(prefix + '-model-input');
   var baseUrl = document.getElementById(prefix + '-baseurl');
   var vertexFields = document.getElementById(prefix + '-vertex-fields');
@@ -10,6 +11,10 @@ function toggleProviderFields(prefix) {
   if (orFields) {
     orFields.classList.toggle('hidden', !cfg.orFields);
     orFields.classList.toggle('flex', cfg.orFields);
+  }
+  if (ngFields) {
+    ngFields.classList.toggle('hidden', !cfg.ngFields);
+    ngFields.classList.toggle('flex', !!cfg.ngFields);
   }
   if (modelInput) {
     modelInput.classList.toggle('hidden', !cfg.modelInput);
@@ -99,6 +104,8 @@ function selectFetchedModel(id, name) {
   window.ModalController.refresh('modal-provider-create');
   if (type === 'openrouter') {
     fetchOROptions(id);
+  } else if (type === 'nanogpt') {
+    fetchNGRouteOptions(id);
   }
 
   closeModal('modal-fetch-models');
@@ -186,6 +193,53 @@ function toggleNoFallbacks(prefix) {
   toggle.classList.toggle('active');
   input.value = toggle.classList.contains('active') ? 'true' : 'false';
   window.ModalController.refresh('modal-provider-create');
+}
+
+// NanoGPT pins an upstream host with a body ``provider`` object; the option
+// list is the model's own ``providers`` array, so it only exists once a model
+// is chosen.
+var _ngRouteOptions = [{ value: '', label: 'Auto (Any)' }];
+
+function fetchNGRouteOptions(modelId) {
+  if (!modelId) { _ngRouteOptions = [{ value: '', label: 'Auto (Any)' }]; return; }
+  hxFetch(api.providerNanoGPTProviders(modelId))
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      var hosts = Array.isArray(data.data) ? data.data.slice().sort() : [];
+      _ngRouteOptions = [{ value: '', label: 'Auto (Any)' }];
+      hosts.forEach(function (p) { _ngRouteOptions.push({ value: p, label: p }); });
+    });
+}
+
+function openNgRouteSelectModal(prefix) {
+  window.openOptionPicker(
+    _ngRouteOptions,
+    'Select Provider Routing',
+    function (value, label) {
+      document.getElementById(prefix + '-ng-route').value = value;
+      var display = document.getElementById('ng-route-display-' + prefix);
+      display.textContent = label;
+      display.classList.toggle('text-muted', !value);
+      document.getElementById(prefix + '-ng-route').dispatchEvent(new Event('change', { bubbles: true }));
+      refreshNgNoFallbacksVisibility(prefix);
+    },
+  );
+}
+
+function toggleNgNoFallbacks(prefix) {
+  const toggle = document.getElementById(prefix + '-ng-no-fallbacks-toggle');
+  const input = document.getElementById(prefix + '-ng-no-fallbacks');
+  if (!toggle || !input) return;
+  toggle.classList.toggle('active');
+  input.value = toggle.classList.contains('active') ? 'true' : 'false';
+  window.ModalController.refresh('modal-provider-create');
+}
+
+function refreshNgNoFallbacksVisibility(prefix) {
+  const routeInput = document.getElementById(prefix + '-ng-route');
+  const row = document.getElementById(prefix + '-ng-no-fallbacks-row');
+  if (!routeInput || !row) return;
+  row.classList.toggle('hidden', !routeInput.value);
 }
 
 function refreshNoFallbacksVisibility(prefix) {
@@ -294,6 +348,18 @@ function extractData(form) {
 
     const orNoFallbacksInput = form.querySelector('[name="or_no_fallbacks"]');
     config.or_no_fallbacks = orNoFallbacksInput ? orNoFallbacksInput.value === 'true' : true;
+  } else if (type === 'nanogpt') {
+    if (!data.model) {
+      window.showErrorToast('Please select a NanoGPT model.', { duration: 4000 });
+      throw new Error('Model required');
+    }
+    data.base_url = 'https://api.nano-gpt.com/api/v1';
+
+    if (data.ng_route) config.ng_route = data.ng_route;
+    else delete config.ng_route;
+
+    const ngNoFallbacksInput = form.querySelector('[name="ng_no_fallbacks"]');
+    config.ng_no_fallbacks = ngNoFallbacksInput ? ngNoFallbacksInput.value === 'true' : true;
   } else if (type === 'google_vertex') {
     if (data.vertex_region) config.vertex_region = data.vertex_region;
     if (data.vertex_project_id) config.vertex_project_id = data.vertex_project_id;
@@ -328,6 +394,8 @@ function extractData(form) {
   delete data.or_quant;
   delete data.or_service_tier;
   delete data.or_no_fallbacks;
+  delete data.ng_route;
+  delete data.ng_no_fallbacks;
   delete data.vertex_region;
   delete data.vertex_project_id;
   delete data.retry_enabled;
@@ -522,6 +590,13 @@ function resetProviderForm() {
   var nfInput = document.getElementById('prov-form-or-no-fallbacks');
   if (nfToggle) nfToggle.classList.add('active');
   if (nfInput) nfInput.value = 'true';
+  var ngRouteDisplay = document.getElementById('ng-route-display-prov-form');
+  if (ngRouteDisplay) { ngRouteDisplay.textContent = 'Auto (Any)'; ngRouteDisplay.classList.add('text-muted'); }
+  setInputValue('prov-form-ng-route', '');
+  refreshNgNoFallbacksVisibility('prov-form');
+  var ngNfToggle = document.getElementById('prov-form-ng-no-fallbacks-toggle');
+  if (ngNfToggle) ngNfToggle.classList.add('active');
+  setInputValue('prov-form-ng-no-fallbacks', 'true');
   setRetryForm({});
   toggleProviderFields('prov-form');
 }
@@ -568,6 +643,21 @@ function populateProviderForm(data) {
       refreshNoFallbacksVisibility('prov-form');
       fetchOROptions(data.model);
     }
+  }
+  if (data.type === 'nanogpt') {
+    var savedNgRoute = config.ng_route || '';
+    var ngRouteDisplay = document.getElementById('ng-route-display-prov-form');
+    document.getElementById('prov-form-ng-route').value = savedNgRoute;
+    if (ngRouteDisplay) {
+      ngRouteDisplay.textContent = savedNgRoute || 'Auto (Any)';
+      ngRouteDisplay.classList.toggle('text-muted', !savedNgRoute);
+    }
+    var savedNgNoFallbacks = config.ng_no_fallbacks !== false;
+    var ngNfToggle = document.getElementById('prov-form-ng-no-fallbacks-toggle');
+    if (ngNfToggle) ngNfToggle.classList.toggle('active', savedNgNoFallbacks);
+    setInputValue('prov-form-ng-no-fallbacks', savedNgNoFallbacks ? 'true' : 'false');
+    refreshNgNoFallbacksVisibility('prov-form');
+    fetchNGRouteOptions(data.model);
   }
   if (data.type === 'google_vertex') {
     document.getElementById('prov-form-vertex-project-id').value = config.vertex_project_id || '';

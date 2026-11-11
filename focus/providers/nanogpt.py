@@ -1,0 +1,124 @@
+"""NanoGPT aggregator (OpenAI Chat Completions compatible).
+
+NanoGPT fronts a large set of upstream hosts behind one OpenAI-shaped API, so
+most of the wire format is the inherited one. Three things need mapping:
+
+* upstream pinning goes in the request body (``provider`` object), merged into
+  ``extra_body`` next to the samplers;
+* prompt caching rides the standard Anthropic ``cache_control`` breakpoints,
+  applied by the ``claude_cache`` quirk like every other transport;
+* the model catalogue is rich (context window, modalities, pricing, upstream
+  list) and is fetched with ``detailed=true``.
+"""
+
+from dataclasses import replace
+
+import httpx
+
+from ..core.logger import get_logger
+from ..core.utils import MODEL_FETCH_HTTP_TIMEOUT, TTLCache
+from .config import ProviderConfig
+from .openai_compat import OpenAICompatProvider
+from .profile import ProviderProfile
+
+logger = get_logger("providers.nanogpt")
+
+NANOGPT_BASE = "https://api.nano-gpt.com/api/v1"
+
+# The catalogue is public and identical for every key, so one cache serves all.
+_models_cache = TTLCache()
+
+
+class NanoGPTProvider(OpenAICompatProvider):
+    type = "nanogpt"
+    profile = ProviderProfile(
+        caps=replace(
+            OpenAICompatProvider.profile.caps,
+            supports_ephemeral_cache=True,
+            cache_breakpoints=True,
+            normalizes_reasoning=True,
+        ),
+    )
+
+    def __init__(
+        self,
+        api_key: str,
+        model: str,
+        params: dict,
+        config: ProviderConfig | None = None,
+        base_url: str = NANOGPT_BASE,
+    ):
+        super().__init__(base_url or NANOGPT_BASE, api_key, model, params, config=config)
+
+    @classmethod
+    def from_row(cls, row: dict, params: dict, config: ProviderConfig) -> "NanoGPTProvider":
+        return cls(
+            base_url=row["base_url"] or NANOGPT_BASE,
+            api_key=row["api_key"] or "",
+            model=row["model"],
+            params=params,
+            config=config,
+        )
+
+    async def fetch_models(self) -> list[dict]:
+        headers = self._build_headers()
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                f"{self.base_url}/models",
+                params={"detailed": "true"},
+                timeout=MODEL_FETCH_HTTP_TIMEOUT,
+                headers=headers,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+        if isinstance(data, dict) and isinstance(data.get("data"), list):
+            return data["data"]
+        if isinstance(data, list):
+            return data
+        return []
+
+    async def model_entry(self, model: str) -> dict | None:
+        """Catalogue entry for *model*, cached for the whole model list TTL."""
+        async def _fetch():
+            return await self.fetch_models()
+
+        models = await _models_cache.get_or_refresh("models", _fetch)
+        for m in models or []:
+            if isinstance(m, dict) and m.get("id") == model:
+                return m
+        return None
+
+    async def supported_modalities(self, model: str) -> list[str] | None:
+        entry = await self.model_entry(model)
+        arch = entry.get("architecture") if entry else None
+        modalities = arch.get("input_modalities") if isinstance(arch, dict) else None
+        return modalities if isinstance(modalities, list) else None
+
+    async def model_providers(self, model: str) -> list[str]:
+        """Upstream hosts that can serve *model* (empty when unpinned-only)."""
+        entry = await self.model_entry(model)
+        providers = entry.get("providers") if entry else None
+        return [p for p in providers if isinstance(p, str)] if isinstance(providers, list) else []
+
+    def _routing(self) -> dict:
+        route = self.config.ng_route
+        if not route:
+            return {}
+        provider: dict = {"only": [route]}
+        if self.config.ng_no_fallbacks:
+            provider["allow_fallbacks"] = False
+        return {"provider": provider}
+
+    async def stream_complete(self, messages: list[dict], **kwargs):
+        include_reasoning = kwargs.pop("include_reasoning", True)
+        kwargs.pop("preserve_thinking", None)
+
+        extra_body = kwargs.get("extra_body", {})
+        if not include_reasoning:
+            extra_body["reasoning"] = {"exclude": True}
+        extra_body.update(self._routing())
+        kwargs["extra_body"] = extra_body
+
+        logger.debug("NanoGPT extra_body=%s", extra_body)
+        async for chunk in super().stream_complete(messages, **kwargs):
+            yield chunk

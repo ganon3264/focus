@@ -191,7 +191,7 @@ QUIRKS: tuple[Quirk, ...] = (
         lambda c: callable(getattr(c.provider, "supported_parameters", None)),
         _filter_unsupported_params,
     ),
-    Quirk("claude_cache", lambda c: c.caps.supports_ephemeral_cache, _claude_cache),
+    Quirk("claude_cache", lambda c: c.caps.cache_breakpoints, _claude_cache),
     Quirk("google_safety_passthrough", _is_openrouter_google, _inject_google_safety),
     Quirk("strip_internal_markers", lambda c: True, _strip_internal_markers),
     Quirk("drop_foreign_reasoning", lambda c: True, _drop_foreign_reasoning),

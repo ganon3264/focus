@@ -25,7 +25,7 @@
           <span class="row-meta" title="{{ prov.type }} · {{ prov.model }}">{{ prov.type }} · {{ prov.model }}</span>
         </span>
         <span class="row-value provider-balance">
-          {% if prov.type in ('deepseek', 'openrouter', 'moonshot') %}
+          {% if prov.type in balance_types %}
           <span id="balance-{{ prov.id }}"><span class="balance-loading">—</span></span>
           {% else %}
           —

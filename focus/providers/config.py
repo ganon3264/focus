@@ -22,6 +22,8 @@ class ProviderConfig:
     or_quant: str | None = None
     or_service_tier: str | None = None
     or_no_fallbacks: bool = True
+    ng_route: str | None = None
+    ng_no_fallbacks: bool = True
     vertex_region: str = ""
     vertex_project_id: str = ""
 

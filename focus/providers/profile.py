@@ -46,6 +46,10 @@ class Capabilities:
     normalizes_reasoning: bool = False
     # Claude-style ephemeral prompt caching.
     supports_ephemeral_cache: bool = False
+    # ...implemented as ``cache_control`` breakpoints in the message array.
+    # Providers whose caching is a request-body flag set this off and map the
+    # cache samplers themselves.
+    cache_breakpoints: bool = False
 
 
 @dataclass(frozen=True)

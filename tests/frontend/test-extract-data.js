@@ -128,6 +128,44 @@ eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'modals', 
   assert(!data.config.or_route, 'openrouter: no or_route on invalid params');
 })();
 
+// ── nanogpt — full config ──
+(function () {
+  var form = createMockForm({
+    name: 'Nano',
+    type: 'nanogpt',
+    model: 'anthropic/claude-opus-4.6',
+    ng_route: 'chutes',
+    ng_no_fallbacks: 'false',
+    params: '{}',
+  }, { '[name="ng_no_fallbacks"]': 'false' });
+  var data = extractData(form);
+  assertEqual(data.base_url, 'https://api.nano-gpt.com/api/v1', 'nanogpt: base_url set');
+  assertEqual(data.config.ng_route, 'chutes', 'nanogpt: ng_route in config');
+  assertEqual(data.config.ng_no_fallbacks, false, 'nanogpt: ng_no_fallbacks in config');
+  assert(!data.ng_route, 'nanogpt: ng_route deleted');
+  assert(!data.ng_no_fallbacks, 'nanogpt: ng_no_fallbacks deleted');
+})();
+
+// ── nanogpt — no route ──
+(function () {
+  var form = createMockForm({ name: 'Nano', type: 'nanogpt', model: 'openai/gpt-6', ng_route: '', ng_no_fallbacks: 'true', params: '{}' });
+  var data = extractData(form);
+  assert(!data.config.ng_route, 'nanogpt simple: no ng_route in config');
+  assertEqual(data.config.ng_no_fallbacks, true, 'nanogpt simple: no-fallbacks defaults on');
+})();
+
+// ── nanogpt — no model shows error toast ──
+(function () {
+  var form = createMockForm({ name: 'Nano', type: 'nanogpt', model: '' });
+  var toasted = null;
+  global.showErrorToast = function (msg) { toasted = msg; };
+  var threw = false;
+  try { extractData(form); } catch (e) { threw = true; }
+  assert(toasted === 'Please select a NanoGPT model.', 'nanogpt: no model triggers error toast');
+  assert(threw, 'nanogpt: no model throws');
+  delete global.showErrorToast;
+})();
+
 // ── google_vertex ──
 (function () {
   var form = createMockForm({

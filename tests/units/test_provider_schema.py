@@ -27,6 +27,12 @@ class TestSchemaShape:
         assert caps["include_stream_options"] is False
         assert caps["normalizes_reasoning"] is True
 
+    def test_nanogpt_capabilities(self):
+        caps = provider_schema()["types"]["nanogpt"]["capabilities"]
+        assert caps["supports_ephemeral_cache"] is True
+        assert caps["cache_breakpoints"] is True
+        assert caps["normalizes_reasoning"] is True
+
     def test_google_capabilities(self):
         for ptype in ("google_aistudio", "google_vertex"):
             caps = provider_schema()["types"][ptype]["capabilities"]
@@ -65,6 +71,11 @@ class TestDefaults:
             "top_k": 0, "min_p": 0, "repetition_penalty": 1.0, "preserve_thinking": "tool_only",
         }
 
+    def test_nanogpt_defaults(self):
+        assert provider_schema()["types"]["nanogpt"]["defaults"] == {
+            "top_k": 0, "min_p": 0, "repetition_penalty": 1.0, "preserve_thinking": "tool_only",
+        }
+
     def test_google_defaults_enable_reasoning(self):
         for ptype in ("google_aistudio", "google_vertex"):
             assert provider_schema()["types"][ptype]["defaults"] == {
@@ -90,6 +101,11 @@ class TestForwarding:
             "cache_enabled", "cache_ttl", "cache_depth", "echo_upstream_body",
         ]
         assert types["openrouter"]["forwardReasoning"] == ["reasoning_effort", "thinking_budget"]
+        assert types["nanogpt"]["forwardAlways"] == [
+            "top_k", "min_p", "repetition_penalty", "include_reasoning",
+            "preserve_thinking", "seed", "cache_enabled", "cache_ttl", "cache_depth",
+        ]
+        assert types["nanogpt"]["forwardReasoning"] == ["reasoning_effort"]
         assert types["google_vertex"]["forwardAlways"] == ["top_k", "send_reasoning_history", "include_reasoning"]
 
     def test_capability_filtered_excludes_pipeline_controls(self):
@@ -127,6 +143,10 @@ class TestEffortOptions:
         values = [o["value"] for o in provider_schema()["types"]["openrouter"]["effortOptions"]]
         assert values == ["minimal", "low", "medium", "high", "xhigh", "max"]
 
+    def test_nanogpt_options_match_openrouter(self):
+        values = [o["value"] for o in provider_schema()["types"]["nanogpt"]["effortOptions"]]
+        assert values == ["minimal", "low", "medium", "high", "xhigh", "max"]
+
     def test_google_options_are_uppercase(self):
         for ptype in ("google_aistudio", "google_vertex"):
             values = [o["value"] for o in provider_schema()["types"][ptype]["effortOptions"]]
@@ -141,7 +161,7 @@ class TestFormAndTypeOptions:
     def test_provider_type_options_are_ordered_and_labeled(self):
         opts = provider_type_options()
         values = [o["value"] for o in opts]
-        assert values[:3] == ["openai_compat", "openrouter", "google_aistudio"]
+        assert values[:3] == ["openai_compat", "openrouter", "nanogpt"]
         assert opts[0]["label"] == "OpenAI Compatible"
         assert len(values) == len(set(values))
 
@@ -149,6 +169,13 @@ class TestFormAndTypeOptions:
         form = provider_schema()["types"]["openrouter"]["form"]
         assert form["orFields"] is True
         assert form["baseUrl"] is False
+
+    def test_nanogpt_form_hides_base_url_shows_routing_fields(self):
+        form = provider_schema()["types"]["nanogpt"]["form"]
+        assert form["ngFields"] is True
+        assert form["orFields"] is False
+        assert form["baseUrl"] is False
+        assert form["modelRequired"] is True
 
     def test_vertex_form_shows_vertex_fields(self):
         assert provider_schema()["types"]["google_vertex"]["form"]["vertexFields"] is True

@@ -16,6 +16,7 @@ class Role(StrEnum):
 class ProviderType(StrEnum):
     openai_compat = "openai_compat"
     openrouter = "openrouter"
+    nanogpt = "nanogpt"
     google_aistudio = "google_aistudio"
     google_vertex = "google_vertex"
     deepseek = "deepseek"

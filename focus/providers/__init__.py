@@ -7,6 +7,7 @@ from .deepseek import DeepseekProvider
 from .google_aistudio import GoogleAIStudioProvider
 from .google_vertex import GoogleVertexProvider
 from .moonshot import MoonshotProvider
+from .nanogpt import NanoGPTProvider
 from .openai_compat import OpenAICompatProvider
 from .openrouter import OpenRouterProvider
 from .registry import get_provider_class, registered_types
@@ -23,6 +24,7 @@ __all__ = [
     "GoogleVertexProvider",
     "DeepseekProvider",
     "MoonshotProvider",
+    "NanoGPTProvider",
     "XiaomiMiMoProvider",
     "create_provider",
     "registered_types",

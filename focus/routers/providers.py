@@ -154,6 +154,19 @@ async def get_openrouter_capabilities(model: str):
     }
 
 
+@router.get("/nanogpt/providers")
+async def get_nanogpt_providers(model: str):
+    """Upstream hosts serving *model*, for the provider-routing picker."""
+    from focus.providers import NanoGPTProvider
+
+    provider = NanoGPTProvider(api_key="", model=model, params={})
+    try:
+        return {"data": await provider.model_providers(model)}
+    except Exception as e:
+        logger.exception("Failed to fetch NanoGPT providers for model %s", model)
+        raise HTTPException(500, f"Failed to fetch providers: {str(e)}")
+
+
 @router.post("/secrets")
 async def update_secret(body: SecretUpdate, _db=Depends(get_db)):
     await db.upsert_secret(_db, body.name, body.value)
@@ -260,6 +273,17 @@ BALANCE_CONFIG = {
             }]
         },
     },
+    "nanogpt": {
+        "url": "https://api.nano-gpt.com/api/check-balance",
+        "method": "POST",
+        "headers": lambda key: {"x-api-key": key},
+        "parse": lambda data: {
+            "balances": [{
+                "amount": float(data.get("usd_spendable_balance") or data.get("usd_balance") or 0),
+                "currency": "USD",
+            }]
+        },
+    },
     "deepseek": {
         "url": "https://api.deepseek.com/user/balance",
         "parse": lambda data: {
@@ -299,10 +323,13 @@ async def get_provider_balance(provider_id: str, _db=Depends(get_db)):
     cache_key = f"{d['type']}_{hash(api_key)}"
 
     async def _fetch():
+        headers = cfg.get("headers")
+        headers = headers(api_key) if headers else {"Authorization": f"Bearer {api_key}"}
         async with httpx.AsyncClient() as client:
-            resp = await client.get(
+            resp = await client.request(
+                cfg.get("method", "GET"),
                 cfg["url"],
-                headers={"Authorization": f"Bearer {api_key}"},
+                headers=headers,
                 timeout=10,
             )
             if resp.status_code == 401:

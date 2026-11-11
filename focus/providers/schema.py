@@ -54,6 +54,10 @@ _FORWARD_ALWAYS: dict[str, tuple[str, ...]] = {
         "preserve_thinking", "seed", "verbosity",
         "cache_enabled", "cache_ttl", "cache_depth", "echo_upstream_body",
     ),
+    "nanogpt": (
+        "top_k", "min_p", "repetition_penalty", "include_reasoning",
+        "preserve_thinking", "seed", "cache_enabled", "cache_ttl", "cache_depth",
+    ),
     "google_vertex": ("top_k", "send_reasoning_history", "include_reasoning"),
     "google_aistudio": ("top_k", "send_reasoning_history", "include_reasoning"),
 }
@@ -65,6 +69,7 @@ _FORWARD_REASONING: dict[str, tuple[str, ...]] = {
     "moonshot": ("preserve_thinking", "reasoning_effort"),
     "xiaomi_mimo": ("preserve_thinking",),
     "openrouter": ("reasoning_effort", "thinking_budget"),
+    "nanogpt": ("reasoning_effort",),
     "google_vertex": ("reasoning_effort",),
     "google_aistudio": ("reasoning_effort",),
 }
@@ -89,12 +94,17 @@ _DEFAULT_OVERRIDES: dict[str, dict[str, Any]] = {
     "moonshot": {"preserve_thinking": "tool_only"},
     "xiaomi_mimo": {"preserve_thinking": "tool_only", "image_format": "png"},
     "openrouter": {"top_k": 0, "min_p": 0, "repetition_penalty": 1.0, "preserve_thinking": "tool_only"},
+    "nanogpt": {"top_k": 0, "min_p": 0, "repetition_penalty": 1.0, "preserve_thinking": "tool_only"},
     "google_vertex": {"include_reasoning": True, "reasoning_effort": ""},
     "google_aistudio": {"include_reasoning": True, "reasoning_effort": ""},
 }
 
 _EFFORT_OPTIONS: dict[str, tuple[tuple[str, str], ...]] = {
     "openrouter": (
+        ("minimal", "Minimal"), ("low", "Low"), ("medium", "Medium"),
+        ("high", "High"), ("xhigh", "X-High"), ("max", "Max"),
+    ),
+    "nanogpt": (
         ("minimal", "Minimal"), ("low", "Low"), ("medium", "Medium"),
         ("high", "High"), ("xhigh", "X-High"), ("max", "Max"),
     ),
@@ -112,6 +122,7 @@ _EFFORT_OPTIONS: dict[str, tuple[tuple[str, str], ...]] = {
 _TYPE_LABELS: dict[str, str] = {
     "openai_compat": "OpenAI Compatible",
     "openrouter": "OpenRouter",
+    "nanogpt": "NanoGPT",
     "google_aistudio": "Google AI Studio",
     "google_vertex": "Google Vertex AI",
     "deepseek": "Deepseek",
@@ -122,11 +133,12 @@ _TYPE_LABELS: dict[str, str] = {
 # Provider create/edit form field visibility. Types absent here fall back to
 # the default (base URL shown, no OR/Vertex fields).
 _FORM_DEFAULT: dict[str, bool] = {
-    "orFields": False, "modelInput": True, "baseUrl": True,
+    "orFields": False, "ngFields": False, "modelInput": True, "baseUrl": True,
     "vertexFields": False, "modelRequired": True,
 }
 _FORM: dict[str, dict[str, bool]] = {
     "openrouter": {"orFields": True, "modelInput": True, "baseUrl": False, "vertexFields": False, "modelRequired": True},
+    "nanogpt": {"orFields": False, "ngFields": True, "modelInput": True, "baseUrl": False, "vertexFields": False, "modelRequired": True},
     "google_vertex": {"orFields": False, "modelInput": True, "baseUrl": False, "vertexFields": True, "modelRequired": True},
     "google_aistudio": {"orFields": False, "modelInput": True, "baseUrl": False, "vertexFields": False, "modelRequired": True},
     "deepseek": {"orFields": False, "modelInput": True, "baseUrl": False, "vertexFields": False, "modelRequired": True},
@@ -136,7 +148,7 @@ _FORM: dict[str, dict[str, bool]] = {
 
 # Stable display order for provider-type pickers; unknown types sort last.
 _DISPLAY_ORDER: tuple[str, ...] = (
-    "openai_compat", "openrouter", "google_aistudio", "google_vertex", "deepseek", "moonshot", "xiaomi_mimo",
+    "openai_compat", "openrouter", "nanogpt", "google_aistudio", "google_vertex", "deepseek", "moonshot", "xiaomi_mimo",
 )
 
 
@@ -174,6 +186,6 @@ def provider_schema() -> dict:
                 {"value": v, "label": label}
                 for v, label in _EFFORT_OPTIONS.get(ptype, _EFFORT_OPTIONS["openai_compat"])
             ],
-            "form": dict(_FORM.get(ptype, _FORM_DEFAULT)),
+            "form": {**_FORM_DEFAULT, **_FORM.get(ptype, {})},
         }
     return {"baseDefaults": dict(BASE_SAMPLER_DEFAULTS), "types": types}

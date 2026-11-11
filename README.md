@@ -47,6 +47,7 @@ start.bat           # Windows
 |:---|:---:|:---:|:---:|:---:|:---|
 | Generic OAI-compatible | ✓ | ✓\* | ✓\* | ✓\* | \*If the backend supports it |
 | OpenRouter             | ✓ | ✓  | ✓\* | ✓\* | Quantization & provider routing, sticky routing by session ID, Claude caching, (\*Model dependent) |
+| NanoGPT                | ✓ | ✓  | ✓\* | ✓\* | Provider routing, Claude prompt caching, (\*Model dependent) |
 | Deepseek               | ✓ | ✓  | ✓   | ✓   | |
 | Moonshot               | ✓ | ✓  | ✓   | ✓   | `prompt_cache_key` support |
 | Xiaomi MiMo            | ✓ |    | ✓   |     | |
