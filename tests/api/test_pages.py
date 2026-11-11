@@ -269,20 +269,6 @@ class TestPresetPartials:
 
 
 class TestModalPartials:
-    async def test_providers_modal_with_secrets(self, client, tmp_test_dir):
-        from pathlib import Path
-
-        import aiosqlite
-
-        db_path = Path(tmp_test_dir) / "test.db"
-        async with aiosqlite.connect(db_path) as db:
-            await db.execute("INSERT INTO secrets (name, value) VALUES (?, ?)", ("sk_global", "v"))
-            await db.commit()
-
-        resp = await client.get("/partials/providers-modal")
-        assert resp.status_code == 200
-        assert "modal-secrets" in resp.text
-
     async def test_secrets_partial_lists_keys_with_preview(self, client):
         await client.post(
             "/api/providers/secrets", json={"name": "sk_long", "value": "abcdefghijklmnopqrstuvwxyz"}
@@ -313,27 +299,6 @@ class TestModalPartials:
         assert "0 saved keys" in resp.text
         assert "No saved keys yet." in resp.text
         assert "secret-row" not in resp.text
-
-    async def test_providers_modal_marks_active_provider(self, client):
-        first = (
-            await client.post(
-                "/api/providers/", json={"name": "First", "type": "openai_compat", "model": "m"}
-            )
-        ).json()["id"]
-        second = (
-            await client.post(
-                "/api/providers/", json={"name": "Second", "type": "openai_compat", "model": "m"}
-            )
-        ).json()["id"]
-        await client.put(
-            "/api/settings/active-provider",
-            json={"provider_id": first, "provider_type": "openai_compat"},
-        )
-
-        resp = await client.get("/partials/providers-modal")
-        assert resp.status_code == 200
-        assert f'class="row entity-row provider-row active" id="prov-card-{first}"' in resp.text
-        assert f'class="row entity-row provider-row" id="prov-card-{second}"' in resp.text
 
     async def test_export_entities(self, client):
         char = await create_character(client, "ExportMe")

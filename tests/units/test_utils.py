@@ -9,8 +9,10 @@ from focus.core.utils import (
     SUFFIX_MIME_MAP_IMAGES_ONLY,
     TTLCache,
     _image_dims_from_data_url,
+    clean_greetings_list,
     estimate_image_tokens,
     greetings_from_card,
+    merge_greeting_into_list,
     parse_greetings_json,
     read_upload,
     resolve_secret_key,
@@ -108,6 +110,25 @@ class TestParseGreetingsJson:
 
     def test_filters_non_strings(self):
         assert parse_greetings_json('[1, "a", null]') == ["a"]
+
+
+class TestMergeGreetingIntoList:
+    def test_typing_into_an_empty_list_seeds_it(self):
+        assert merge_greeting_into_list([], 0, "Hello") == ["Hello"]
+
+    def test_edited_value_lands_at_the_active_index(self):
+        assert merge_greeting_into_list(["a", "b", "c"], 1, "B") == ["a", "B", "c"]
+
+    def test_out_of_range_index_leaves_the_list_alone(self):
+        assert merge_greeting_into_list(["a"], 5, "x") == ["a"]
+
+
+class TestCleanGreetingsList:
+    def test_drops_blanks_and_non_strings_keeping_order(self):
+        assert clean_greetings_list(["", "a", "  ", None, 3, "b"]) == ["a", "b"]
+
+    def test_none_is_empty(self):
+        assert clean_greetings_list(None) == []
 
 
 class TestGreetingsFromCard:
