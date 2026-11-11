@@ -1,8 +1,6 @@
 import os
 import shutil
 import tempfile
-import uuid
-from pathlib import Path
 
 import aiosqlite
 import httpx
@@ -32,9 +30,14 @@ def _cleanup_assets():
 
 @pytest.fixture
 def tmp_test_dir():
-    path = Path("tests/tmp") / f"test_{uuid.uuid4().hex[:8]}"
-    path.mkdir(parents=True, exist_ok=True)
-    yield str(path)
+    """A scratch directory on the system temp volume.
+
+    Not inside the repo: building a fresh SQLite database costs ~45ms on the
+    project's filesystem and ~3ms on tmpfs, which is the whole per-test fixture
+    budget. Leftover databases also pollute the tree when a run is killed.
+    """
+    path = tempfile.mkdtemp(prefix="focus_test_")
+    yield path
     shutil.rmtree(path, ignore_errors=True)
 
 
