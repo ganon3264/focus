@@ -35,6 +35,7 @@ packages = ["focus"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = ["e2e: drives the real app in a real browser"]
 addopts = "--cov=focus --cov-report=term-missing --cov-report=html:tests/coverage_html"
 
 [tool.coverage.run]
@@ -70,6 +71,7 @@ dev = [
     "pytest-cov>=6.1.1",
     "cssutils>=2.15.0",
     "ruff>=0.15.20",
+    "playwright>=1.65.0",
 ]
 
 [tool.hatch.envs.default.scripts]
