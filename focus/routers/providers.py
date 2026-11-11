@@ -176,16 +176,24 @@ async def get_openrouter_capabilities(model: str):
 
 @router.get("/nanogpt/providers")
 async def get_nanogpt_providers(model: str):
-    """Pinnable upstream hosts for *model*, as ``{value,label}`` picker options."""
+    """Pinnable upstream hosts for *model*, as ``{value,label}`` picker options.
+
+    A model that routes automatically yields no options and a ``message`` saying
+    so, which is a fact the UI renders — not an error.
+    """
     from focus.providers import NanoGPTProvider
 
     provider = NanoGPTProvider(api_key="", model=model, params={})
     try:
-        options = await provider.model_providers(model)
+        routes = await provider.model_routes(model)
     except Exception as e:
         logger.exception("Failed to fetch NanoGPT providers for model %s", model)
         raise HTTPException(500, f"Failed to fetch providers: {str(e)}")
-    return {"data": [{"value": o["id"], "label": o["label"]} for o in options]}
+    return {
+        "data": [{"value": o["id"], "label": o["label"]} for o in routes["options"]],
+        "supports_selection": routes["supports_selection"],
+        "message": routes["message"],
+    }
 
 
 @router.post("/secrets")

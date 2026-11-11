@@ -104,7 +104,8 @@ class NanoGPTProvider(OpenAICompatProvider):
 
         The catalogue's ``providers`` array is not the provider-selection list
         (NanoGPT says so explicitly); this endpoint is, and it is the only one
-        that reports ``supportsProviderSelection``.
+        that reports ``supportsProviderSelection``. It is public, so an empty
+        key is enough — the catalogue is identical for every caller.
         """
         async def _fetch():
             url = f"{NANOGPT_API_ORIGIN}/api/models/{quote(model, safe='')}/providers"
@@ -117,12 +118,14 @@ class NanoGPTProvider(OpenAICompatProvider):
 
         return await _providers_cache.get_or_refresh(model, _fetch)
 
-    async def model_providers(self, model: str) -> list[dict]:
-        """Pinnable hosts for *model*, as ``{id, label}`` picker options.
+    async def model_routes(self, model: str) -> dict:
+        """Pinnable hosts for *model*, plus whether a pin means anything here.
 
         ``providers`` carries the selectable list on models that support
         provider selection; single-route models answer with ``providerDetails``
         instead, where a pin is still a hard constraint the route must satisfy.
+        A model that routes automatically answers with neither and says why, so
+        the picker can explain itself instead of rendering an empty list.
         """
         data = await self.provider_discovery(model)
         rows = data.get("providers") or data.get("providerDetails") or []
@@ -138,7 +141,13 @@ class NanoGPTProvider(OpenAICompatProvider):
                 "label": row.get("displayName") or provider_id,
             })
         options.sort(key=lambda o: o["label"].lower())
-        return options
+        return {
+            "options": options,
+            "supports_selection": bool(data.get("supportsProviderSelection")),
+            "message": None if options else (
+                data.get("message") or "No pinnable providers for this model."
+            ),
+        }
 
     def _routing(self) -> dict:
         """Hard-pin the chosen host.

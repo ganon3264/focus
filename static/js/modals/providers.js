@@ -97,18 +97,21 @@ function selectFetchedModel(id, name) {
   const prefix = window._currentFetchPrefix;
   if (!prefix) return;
 
-  const type = document.getElementById(prefix + '-type')?.value;
-
   const input = document.getElementById('model-text-' + prefix);
   if (input) input.value = id;
   window.ModalController.refresh('modal-provider-create');
-  if (type === 'openrouter') {
-    fetchOROptions(id);
-  } else if (type === 'nanogpt') {
-    fetchNGRouteOptions(id);
-  }
+  onProviderModelChanged(prefix);
 
   closeModal('modal-fetch-models');
+}
+
+// A model carries the routing list, whether it arrived from the picker or was
+// typed by hand.
+function onProviderModelChanged(prefix) {
+  const type = document.getElementById(prefix + '-type')?.value;
+  const model = (document.getElementById('model-text-' + prefix)?.value || '').trim();
+  if (type === 'nanogpt') fetchNGRouteOptions(model);
+  else if (type === 'openrouter') fetchOROptions(model);
 }
 
 var _orRouteOptions = [{ value: '', label: 'Auto (Any)' }];
@@ -196,26 +199,76 @@ function toggleNoFallbacks(prefix) {
 }
 
 // Routable hosts come from NanoGPT's per-model provider discovery, so the list
-// is empty until a model is chosen.
-var _ngRouteOptions = [{ value: '', label: 'Auto (Any)' }];
+// is empty until a model is chosen. The endpoint takes seconds to answer, so a
+// new model pick aborts the request in flight: only the answer about the model
+// currently in the field may land. (Raw fetch, not hxFetch — this is a leaf
+// read, and it must not hold up the ordered write queue behind it.)
+var _ngRoute = { model: '', options: [], loading: false, note: '', error: false, ctrl: null };
 
 function fetchNGRouteOptions(modelId) {
-  if (!modelId) { _ngRouteOptions = [{ value: '', label: 'Auto (Any)' }]; return; }
-  hxFetch(api.providerNanoGPTProviders(modelId))
-    .then(function (r) { return r.json(); })
-    .then(function (data) {
-      var hosts = Array.isArray(data.data) ? data.data : [];
-      _ngRouteOptions = [{ value: '', label: 'Auto (Any)' }].concat(hosts);
-    })
-    .catch(function (err) {
-      console.error(err);
-      _ngRouteOptions = [{ value: '', label: 'Auto (Any)' }];
-    });
+  modelId = modelId || '';
+  if (_ngRoute.ctrl) _ngRoute.ctrl.abort();
+  if (modelId && _ngRoute.model === modelId && _ngRoute.options.length) return;
+
+  var state = { model: modelId, options: [], loading: !!modelId, note: '', error: false, ctrl: null };
+  _ngRoute = state;
+
+  if (modelId) {
+    state.ctrl = new AbortController();
+    fetch(api.providerNanoGPTProviders(modelId), { signal: state.ctrl.signal }) // raw: leaf read the next pick aborts
+      .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function (data) {
+        if (_ngRoute !== state) return;
+        state.options = Array.isArray(data.data) ? data.data : [];
+        state.note = state.options.length ? '' : (data.message || 'No pinnable providers for this model.');
+        state.error = false;
+        state.loading = false;
+        dropUnknownNgRoute('prov-form');
+        renderNgRoute('prov-form');
+      })
+      .catch(function (err) {
+        if (_ngRoute !== state || err.name === 'AbortError') return;
+        state.loading = false;
+        state.note = 'Could not load providers: ' + err.message;
+        state.error = true;
+        renderNgRoute('prov-form');
+      });
+  }
+  renderNgRoute('prov-form');
+}
+
+// A stored pin that the current model doesn't offer would be sent as a hard
+// constraint its route can't satisfy, so it is dropped the moment we know the
+// offered set.
+function dropUnknownNgRoute(prefix) {
+  var hidden = document.getElementById(prefix + '-ng-route');
+  var display = document.getElementById('ng-route-display-' + prefix);
+  if (!hidden || !display || !hidden.value) return;
+  var known = _ngRoute.options.some(function (o) { return o.value === hidden.value; });
+  if (known) return;
+  hidden.value = '';
+  display.textContent = 'Auto (Any)';
+  display.classList.add('text-muted');
+}
+
+function renderNgRoute(prefix) {
+  var note = document.getElementById(prefix + '-ng-route-note');
+  var btn = document.getElementById(prefix + '-ng-route-btn');
+  if (!note) return;
+  var text = _ngRoute.loading ? 'Loading providers…' : _ngRoute.note;
+  note.textContent = text;
+  note.classList.toggle('hidden', !text);
+  note.classList.toggle('danger', _ngRoute.error);
+  if (btn) btn.classList.toggle('hidden', _ngRoute.loading || _ngRoute.options.length === 0);
 }
 
 function openNgRouteSelectModal(prefix) {
+  if (_ngRoute.loading || !_ngRoute.options.length) return;
   window.openOptionPicker(
-    _ngRouteOptions,
+    [{ value: '', label: 'Auto (Any)' }].concat(_ngRoute.options),
     'Select Provider Routing',
     function (value, label) {
       document.getElementById(prefix + '-ng-route').value = value;
@@ -574,6 +627,7 @@ function resetProviderForm() {
   var ngRouteDisplay = document.getElementById('ng-route-display-prov-form');
   if (ngRouteDisplay) { ngRouteDisplay.textContent = 'Auto (Any)'; ngRouteDisplay.classList.add('text-muted'); }
   setInputValue('prov-form-ng-route', '');
+  fetchNGRouteOptions('');
   setRetryForm({});
   toggleProviderFields('prov-form');
 }

@@ -30,7 +30,7 @@ dirty_label='#prov-form-name') %}
 
     <div class="row setting labeled fit" id="prov-form-model-input">
       <span class="row-title">Model</span>
-      <input type="text" name="model" id="model-text-prov-form" required placeholder="gpt-4" class="field" />
+      <input type="text" name="model" id="model-text-prov-form" required placeholder="gpt-4" class="field" onchange="onProviderModelChanged('prov-form')" />
       <button type="button" class="key" onclick="openFetchModelModal('prov-form')" aria-label="Fetch models" title="Fetch models from provider">
         {{ icon_search(16) }}
       </button>
@@ -76,11 +76,12 @@ dirty_label='#prov-form-name') %}
       <div class="row setting labeled fit">
         <span class="row-title">Provider Routing {{ hint_tooltip('Pin the model to a specific third-party provider.') }}</span>
         <input type="hidden" name="ng_route" id="prov-form-ng-route" value="" />
-        <button type="button" class="field select" onclick="openNgRouteSelectModal('prov-form')">
+        <button type="button" class="field select" id="prov-form-ng-route-btn" onclick="openNgRouteSelectModal('prov-form')">
           <span id="ng-route-display-prov-form" class="truncate">Auto (Any)</span>
           <span class="opacity-50">{{ icon_search() }}</span>
         </button>
       </div>
+      <div id="prov-form-ng-route-note" class="note hidden"></div>
     </div>
 
     <div id="prov-form-vertex-fields" class="well provider-plate hidden">

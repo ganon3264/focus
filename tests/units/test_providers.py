@@ -503,10 +503,13 @@ class TestNanoGPTProvider:
         _patch_httpx(monkeypatch, handler)
         model = "moonshotai/kimi-k2.6"
         provider = NanoGPTProvider(api_key="k", model=model, params={})
-        assert await provider.model_providers(model) == [
+        routes = await provider.model_routes(model)
+        assert routes["options"] == [
             {"id": "chutes", "label": "chutes"},
             {"id": "novita", "label": "Novita AI"},
         ], "unavailable hosts are not pinnable"
+        assert routes["supports_selection"] is True
+        assert routes["message"] is None
         assert captured["url"] == (
             "https://api.nano-gpt.com/api/models/moonshotai%2Fkimi-k2.6/providers"
         )
@@ -523,10 +526,27 @@ class TestNanoGPTProvider:
 
         _patch_httpx(monkeypatch, handler)
         provider = NanoGPTProvider(api_key="k", model="google/gemini-4-carbon", params={})
-        assert await provider.model_providers(provider.model) == [
+        routes = await provider.model_routes(provider.model)
+        assert routes["options"] == [
             {"id": "google", "label": "google"},
             {"id": "googlenative", "label": "googlenative"},
         ]
+        assert routes["supports_selection"] is False, "a single route is not a choice"
+
+    async def test_auto_routed_models_explain_the_empty_list(self, monkeypatch):
+        _patch_httpx(
+            monkeypatch,
+            lambda r: httpx.Response(200, json={
+                "supportsProviderSelection": False,
+                "providers": [],
+                "providerDetails": [],
+                "message": "This model does not support provider selection",
+            }),
+        )
+        provider = NanoGPTProvider(api_key="k", model="anthropic/claude-sonnet-5.5", params={})
+        routes = await provider.model_routes(provider.model)
+        assert routes["options"] == []
+        assert routes["message"] == "This model does not support provider selection"
 
     async def test_unknown_model_reports_nothing(self, monkeypatch):
         _patch_httpx(monkeypatch, lambda r: httpx.Response(200, json={"data": [{"id": "other"}]}))
@@ -537,7 +557,9 @@ class TestNanoGPTProvider:
             monkeypatch,
             lambda r: httpx.Response(200, json={"providerDetails": [], "providers": []}),
         )
-        assert await provider.model_providers(provider.model) == []
+        routes = await provider.model_routes(provider.model)
+        assert routes["options"] == []
+        assert routes["message"] == "No pinnable providers for this model."
 
     def test_from_row_defaults_base_url(self):
         provider = NanoGPTProvider.from_row(
