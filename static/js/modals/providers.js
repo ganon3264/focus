@@ -195,9 +195,8 @@ function toggleNoFallbacks(prefix) {
   window.ModalController.refresh('modal-provider-create');
 }
 
-// NanoGPT pins an upstream host with a body ``provider`` object; the option
-// list is the model's own ``providers`` array, so it only exists once a model
-// is chosen.
+// Routable hosts come from NanoGPT's per-model provider discovery, so the list
+// is empty until a model is chosen.
 var _ngRouteOptions = [{ value: '', label: 'Auto (Any)' }];
 
 function fetchNGRouteOptions(modelId) {
@@ -205,9 +204,12 @@ function fetchNGRouteOptions(modelId) {
   hxFetch(api.providerNanoGPTProviders(modelId))
     .then(function (r) { return r.json(); })
     .then(function (data) {
-      var hosts = Array.isArray(data.data) ? data.data.slice().sort() : [];
+      var hosts = Array.isArray(data.data) ? data.data : [];
+      _ngRouteOptions = [{ value: '', label: 'Auto (Any)' }].concat(hosts);
+    })
+    .catch(function (err) {
+      console.error(err);
       _ngRouteOptions = [{ value: '', label: 'Auto (Any)' }];
-      hosts.forEach(function (p) { _ngRouteOptions.push({ value: p, label: p }); });
     });
 }
 
@@ -221,25 +223,8 @@ function openNgRouteSelectModal(prefix) {
       display.textContent = label;
       display.classList.toggle('text-muted', !value);
       document.getElementById(prefix + '-ng-route').dispatchEvent(new Event('change', { bubbles: true }));
-      refreshNgNoFallbacksVisibility(prefix);
     },
   );
-}
-
-function toggleNgNoFallbacks(prefix) {
-  const toggle = document.getElementById(prefix + '-ng-no-fallbacks-toggle');
-  const input = document.getElementById(prefix + '-ng-no-fallbacks');
-  if (!toggle || !input) return;
-  toggle.classList.toggle('active');
-  input.value = toggle.classList.contains('active') ? 'true' : 'false';
-  window.ModalController.refresh('modal-provider-create');
-}
-
-function refreshNgNoFallbacksVisibility(prefix) {
-  const routeInput = document.getElementById(prefix + '-ng-route');
-  const row = document.getElementById(prefix + '-ng-no-fallbacks-row');
-  if (!routeInput || !row) return;
-  row.classList.toggle('hidden', !routeInput.value);
 }
 
 function refreshNoFallbacksVisibility(prefix) {
@@ -357,9 +342,6 @@ function extractData(form) {
 
     if (data.ng_route) config.ng_route = data.ng_route;
     else delete config.ng_route;
-
-    const ngNoFallbacksInput = form.querySelector('[name="ng_no_fallbacks"]');
-    config.ng_no_fallbacks = ngNoFallbacksInput ? ngNoFallbacksInput.value === 'true' : true;
   } else if (type === 'google_vertex') {
     if (data.vertex_region) config.vertex_region = data.vertex_region;
     if (data.vertex_project_id) config.vertex_project_id = data.vertex_project_id;
@@ -395,7 +377,6 @@ function extractData(form) {
   delete data.or_service_tier;
   delete data.or_no_fallbacks;
   delete data.ng_route;
-  delete data.ng_no_fallbacks;
   delete data.vertex_region;
   delete data.vertex_project_id;
   delete data.retry_enabled;
@@ -593,10 +574,6 @@ function resetProviderForm() {
   var ngRouteDisplay = document.getElementById('ng-route-display-prov-form');
   if (ngRouteDisplay) { ngRouteDisplay.textContent = 'Auto (Any)'; ngRouteDisplay.classList.add('text-muted'); }
   setInputValue('prov-form-ng-route', '');
-  refreshNgNoFallbacksVisibility('prov-form');
-  var ngNfToggle = document.getElementById('prov-form-ng-no-fallbacks-toggle');
-  if (ngNfToggle) ngNfToggle.classList.add('active');
-  setInputValue('prov-form-ng-no-fallbacks', 'true');
   setRetryForm({});
   toggleProviderFields('prov-form');
 }
@@ -652,11 +629,6 @@ function populateProviderForm(data) {
       ngRouteDisplay.textContent = savedNgRoute || 'Auto (Any)';
       ngRouteDisplay.classList.toggle('text-muted', !savedNgRoute);
     }
-    var savedNgNoFallbacks = config.ng_no_fallbacks !== false;
-    var ngNfToggle = document.getElementById('prov-form-ng-no-fallbacks-toggle');
-    if (ngNfToggle) ngNfToggle.classList.toggle('active', savedNgNoFallbacks);
-    setInputValue('prov-form-ng-no-fallbacks', savedNgNoFallbacks ? 'true' : 'false');
-    refreshNgNoFallbacksVisibility('prov-form');
     fetchNGRouteOptions(data.model);
   }
   if (data.type === 'google_vertex') {

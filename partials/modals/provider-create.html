@@ -74,17 +74,12 @@ dirty_label='#prov-form-name') %}
     <div id="prov-form-ng-fields" class="well provider-plate hidden">
       <div class="rail">NanoGPT Routing</div>
       <div class="row setting labeled fit">
-        <span class="row-title">Provider Routing {{ hint_tooltip('Pin requests to one upstream host. Fetch the model first: the list is the hosts NanoGPT reports for it. Pinned requests bill pay-as-you-go at that host\u2019s rate.') }}</span>
+        <span class="row-title">Provider Routing {{ hint_tooltip('Pin the model to a specific third-party provider.') }}</span>
         <input type="hidden" name="ng_route" id="prov-form-ng-route" value="" />
         <button type="button" class="field select" onclick="openNgRouteSelectModal('prov-form')">
           <span id="ng-route-display-prov-form" class="truncate">Auto (Any)</span>
           <span class="opacity-50">{{ icon_search() }}</span>
         </button>
-      </div>
-      <div id="prov-form-ng-no-fallbacks-row" class="row setting hidden">
-        <span class="row-title">Lock to that provider {{ hint_tooltip('The request fails instead of silently routing to another host when the pinned one is down.') }}</span>
-        <span class="row-actions">{{ toggle('id="prov-form-ng-no-fallbacks-toggle" onclick="toggleNgNoFallbacks(\'prov-form\')"', active=true) }}</span>
-        <input type="hidden" name="ng_no_fallbacks" id="prov-form-ng-no-fallbacks" value="true" />
       </div>
     </div>
 

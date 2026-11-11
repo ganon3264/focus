@@ -46,6 +46,26 @@ async def list_providers(_db=Depends(get_db)):
 _model_cache = TTLCache()
 _balance_cache = TTLCache(ttl=60)
 
+_PER_TOKEN_KEYS = ("prompt", "completion")
+
+
+def _pricing_per_token(pricing):
+    """Normalize a catalogue's pricing onto the per-token scale the picker uses.
+
+    OpenRouter quotes per token (``0.000002``), NanoGPT quotes per million
+    (``2``). The model list multiplies by 1e6, so everything has to arrive on
+    the per-token scale or the multiplier silently inflates it.
+    """
+    if not isinstance(pricing, dict) or pricing.get("unit") != "per_million_tokens":
+        return pricing
+    out = dict(pricing)
+    for key in _PER_TOKEN_KEYS:
+        try:
+            out[key] = float(pricing[key]) / 1_000_000
+        except (KeyError, TypeError, ValueError):
+            continue
+    return out
+
 
 class FetchModelsRequest(BaseModel):
     type: str
@@ -104,7 +124,7 @@ async def fetch_models(body: FetchModelsRequest, _db=Depends(get_db)):
                         "id": m["id"],
                         "name": m.get("name", m["id"]),
                         "context_length": m.get("context_length", None),
-                        "pricing": m.get("pricing", None),
+                        "pricing": _pricing_per_token(m.get("pricing")),
                         "architecture": m.get("architecture", None),
                     }
                 )
@@ -156,15 +176,16 @@ async def get_openrouter_capabilities(model: str):
 
 @router.get("/nanogpt/providers")
 async def get_nanogpt_providers(model: str):
-    """Upstream hosts serving *model*, for the provider-routing picker."""
+    """Pinnable upstream hosts for *model*, as ``{value,label}`` picker options."""
     from focus.providers import NanoGPTProvider
 
     provider = NanoGPTProvider(api_key="", model=model, params={})
     try:
-        return {"data": await provider.model_providers(model)}
+        options = await provider.model_providers(model)
     except Exception as e:
         logger.exception("Failed to fetch NanoGPT providers for model %s", model)
         raise HTTPException(500, f"Failed to fetch providers: {str(e)}")
+    return {"data": [{"value": o["id"], "label": o["label"]} for o in options]}
 
 
 @router.post("/secrets")
@@ -325,16 +346,22 @@ async def get_provider_balance(provider_id: str, _db=Depends(get_db)):
     async def _fetch():
         headers = cfg.get("headers")
         headers = headers(api_key) if headers else {"Authorization": f"Bearer {api_key}"}
-        async with httpx.AsyncClient() as client:
-            resp = await client.request(
-                cfg.get("method", "GET"),
-                cfg["url"],
-                headers=headers,
-                timeout=10,
-            )
-            if resp.status_code == 401:
-                return {"balances": []}
-            resp.raise_for_status()
-            return cfg["parse"](resp.json())
+        try:
+            async with httpx.AsyncClient() as client:
+                resp = await client.request(
+                    cfg.get("method", "GET"),
+                    cfg["url"],
+                    headers=headers,
+                    timeout=10,
+                )
+                if resp.status_code == 401:
+                    return {"balances": []}
+                resp.raise_for_status()
+                return cfg["parse"](resp.json())
+        except (httpx.HTTPError, KeyError, TypeError, ValueError) as e:
+            # A balance readout is decoration: an unreachable or reshaped
+            # upstream must render as "unavailable", never as a 500.
+            logger.warning("Balance fetch failed for %s: %s", d["type"], e)
+            return {"balances": []}
 
     return await _balance_cache.get_or_refresh(cache_key, _fetch)

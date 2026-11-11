@@ -3,8 +3,8 @@
 NanoGPT fronts a large set of upstream hosts behind one OpenAI-shaped API, so
 most of the wire format is the inherited one. Three things need mapping:
 
-* upstream pinning goes in the request body (``provider`` object), merged into
-  ``extra_body`` next to the samplers;
+* upstream pinning goes in the request body (``provider.only``), merged into
+  ``extra_body`` next to the samplers; NanoGPT's pin is hard by nature;
 * prompt caching rides the standard Anthropic ``cache_control`` breakpoints,
   applied by the ``claude_cache`` quirk like every other transport;
 * the model catalogue is rich (context window, modalities, pricing, upstream
@@ -12,6 +12,7 @@ most of the wire format is the inherited one. Three things need mapping:
 """
 
 from dataclasses import replace
+from urllib.parse import quote
 
 import httpx
 
@@ -24,9 +25,13 @@ from .profile import ProviderProfile
 logger = get_logger("providers.nanogpt")
 
 NANOGPT_BASE = "https://api.nano-gpt.com/api/v1"
+# Provider discovery sits on the origin, *not* under the /api/v1 base URL, and
+# takes the model id URL-encoded so its slash isn't a path separator.
+NANOGPT_API_ORIGIN = "https://api.nano-gpt.com"
 
-# The catalogue is public and identical for every key, so one cache serves all.
+# Both catalogues are public and identical for every key, so one cache serves all.
 _models_cache = TTLCache()
+_providers_cache = TTLCache()
 
 
 class NanoGPTProvider(OpenAICompatProvider):
@@ -94,20 +99,58 @@ class NanoGPTProvider(OpenAICompatProvider):
         modalities = arch.get("input_modalities") if isinstance(arch, dict) else None
         return modalities if isinstance(modalities, list) else None
 
-    async def model_providers(self, model: str) -> list[str]:
-        """Upstream hosts that can serve *model* (empty when unpinned-only)."""
-        entry = await self.model_entry(model)
-        providers = entry.get("providers") if entry else None
-        return [p for p in providers if isinstance(p, str)] if isinstance(providers, list) else []
+    async def provider_discovery(self, model: str) -> dict:
+        """Routing metadata for *model*, cached per model id.
+
+        The catalogue's ``providers`` array is not the provider-selection list
+        (NanoGPT says so explicitly); this endpoint is, and it is the only one
+        that reports ``supportsProviderSelection``.
+        """
+        async def _fetch():
+            url = f"{NANOGPT_API_ORIGIN}/api/models/{quote(model, safe='')}/providers"
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(
+                    url, timeout=MODEL_FETCH_HTTP_TIMEOUT, headers=self._build_headers()
+                )
+                resp.raise_for_status()
+                return resp.json()
+
+        return await _providers_cache.get_or_refresh(model, _fetch)
+
+    async def model_providers(self, model: str) -> list[dict]:
+        """Pinnable hosts for *model*, as ``{id, label}`` picker options.
+
+        ``providers`` carries the selectable list on models that support
+        provider selection; single-route models answer with ``providerDetails``
+        instead, where a pin is still a hard constraint the route must satisfy.
+        """
+        data = await self.provider_discovery(model)
+        rows = data.get("providers") or data.get("providerDetails") or []
+        options = []
+        for row in rows:
+            if not isinstance(row, dict) or not row.get("provider"):
+                continue
+            if row.get("available") is False:
+                continue
+            provider_id = row["provider"]
+            options.append({
+                "id": provider_id,
+                "label": row.get("displayName") or provider_id,
+            })
+        options.sort(key=lambda o: o["label"].lower())
+        return options
 
     def _routing(self) -> dict:
+        """Hard-pin the chosen host.
+
+        ``only`` is already a hard constraint on NanoGPT ("fails instead of
+        routing outside the list"), unlike OpenRouter's soft ``order``, so a
+        toggle would have nothing to switch.
+        """
         route = self.config.ng_route
         if not route:
             return {}
-        provider: dict = {"only": [route]}
-        if self.config.ng_no_fallbacks:
-            provider["allow_fallbacks"] = False
-        return {"provider": provider}
+        return {"provider": {"only": [route]}}
 
     async def stream_complete(self, messages: list[dict], **kwargs):
         include_reasoning = kwargs.pop("include_reasoning", True)

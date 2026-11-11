@@ -59,6 +59,35 @@ class TestFetchModels:
         assert data[0]["context_length"] == 8192
         assert data[0]["pricing"] == {"prompt": "0.1"}
 
+    async def test_per_million_pricing_is_normalized_to_per_token(self, client, monkeypatch):
+        def handler(request):
+            return httpx.Response(200, json={"data": [
+                {
+                    "id": "google/gemini-4",
+                    "name": "Gemini 4",
+                    "pricing": {
+                        "prompt": 2,
+                        "completion": 10,
+                        "currency": "USD",
+                        "unit": "per_million_tokens",
+                    },
+                },
+                {"id": "per-token-model", "pricing": {"prompt": "0.000002", "completion": "0.00001"}},
+            ]})
+
+        _patch_httpx(monkeypatch, handler)
+        resp = await client.post(
+            "/api/providers/fetch_models",
+            json={"type": "openai_compat", "base_url": "http://example.com", "api_key": "sk-nano"},
+        )
+        assert resp.status_code == 200
+        by_id = {m["id"]: m for m in resp.json()["data"]}
+        assert by_id["google/gemini-4"]["pricing"]["prompt"] == 0.000002
+        assert by_id["google/gemini-4"]["pricing"]["completion"] == 0.00001
+        assert by_id["google/gemini-4"]["pricing"]["unit"] == "per_million_tokens"
+        # Already per-token: untouched.
+        assert by_id["per-token-model"]["pricing"] == {"prompt": "0.000002", "completion": "0.00001"}
+
     async def test_cached_second_call(self, client, monkeypatch):
         calls = {"n": 0}
 
@@ -273,6 +302,23 @@ class TestBalance:
         _patch_httpx(monkeypatch, lambda r: httpx.Response(401))
         pid = await _make_provider(client, ptype="openrouter", api_key="k")
         resp = await client.get(f"/api/providers/{pid}/balance")
+        assert resp.json() == {"balances": []}
+
+    async def test_transport_failure_degrades_to_empty(self, client, monkeypatch):
+        def handler(request):
+            raise httpx.ConnectTimeout("no route")
+
+        _patch_httpx(monkeypatch, handler)
+        pid = await _make_provider(client, ptype="openrouter", api_key="k")
+        resp = await client.get(f"/api/providers/{pid}/balance")
+        assert resp.status_code == 200
+        assert resp.json() == {"balances": []}
+
+    async def test_reshaped_payload_degrades_to_empty(self, client, monkeypatch):
+        _patch_httpx(monkeypatch, lambda r: httpx.Response(200, json={"unexpected": True}))
+        pid = await _make_provider(client, ptype="openrouter", api_key="k")
+        resp = await client.get(f"/api/providers/{pid}/balance")
+        assert resp.status_code == 200
         assert resp.json() == {"balances": []}
 
     async def test_deepseek_balance_infos(self, client, monkeypatch):
