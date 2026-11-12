@@ -721,7 +721,7 @@ async function fetchProviderBalances() {
     Array.from(document.querySelectorAll('[id^="balance-"]')).map(async el => {
       const providerId = el.id.slice('balance-'.length);
       try {
-        const res = await fetch(api.providerBalance(providerId), {
+        const res = await fetch(api.providerBalance(providerId), { // raw: decoration must not hold the write queue
           signal: AbortSignal.timeout(BALANCE_TIMEOUT_MS),
         });
         if (!res.ok) {

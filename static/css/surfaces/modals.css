@@ -1054,19 +1054,12 @@
   flex: 0 1 auto;
 }
 
-/* ── Confirm / option picker ──────────────────────────────────────────────*/
+/* ── Confirm ───────────────────────────────────────────────────────────────*/
 .confirm-text {
   font-family: var(--font-sans);
   font-size: 13px;
   line-height: calc(var(--u) * 5);
   color: var(--text);
-}
-
-.option-list {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  overflow-y: auto;
 }
 
 /* ── Lightbox ─────────────────────────────────────────────────────────────
