@@ -276,7 +276,7 @@ async function measureEntityEditor(page) {
       captions: rows.map((r) => rect(r.querySelector('.row-title'))),
       fields: rows.flatMap((r) => [...r.querySelectorAll(':scope > .field, :scope > .row-cell')]).map(rect),
       door: rect(q('[data-action="actionOpenCharBlocks"]')),
-      legacy: rect(q('#edit-char-card-fields')),
+      cardFields: rect(q('[onclick*="modal-char-card-fields"]')),
       greetKeys: [...panel.querySelectorAll('.edit-greeting .rail-actions > .key')].map(rect),
       footBtn: rect(q('.modal-foot .btn.primary')),
     };
@@ -857,9 +857,9 @@ async function measureOffbeat(page) {
     // share the pane's content edges with each other.
     check(
       'editor extras share the column edges',
-      mmEditor.legacy.x === mmEditor.door.x && mmEditor.legacy.right === mmEditor.door.right &&
+      mmEditor.cardFields.x === mmEditor.door.x && mmEditor.cardFields.right === mmEditor.door.right &&
         mmEditor.door.x === mmEditor.side.x,
-      `door=${mmEditor.door.x}..${mmEditor.door.right} legacy=${mmEditor.legacy.x}..${mmEditor.legacy.right} pane=${mmEditor.side.x}`,
+      `door=${mmEditor.door.x}..${mmEditor.door.right} card-fields=${mmEditor.cardFields.x}..${mmEditor.cardFields.right} pane=${mmEditor.side.x}`,
     );
     const lastKey = mmEditor.greetKeys[mmEditor.greetKeys.length - 1];
     check(

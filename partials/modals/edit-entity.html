@@ -64,36 +64,19 @@ dirty_label='#edit-' ~ prefix ~ '-name') %}
       </div>
 
       {% if is_char %}
-      {# Extras follow the fields: a door out of this form, then the legacy
-         card-format fields, closed by default. #}
+      {# Extras follow the fields: two doors out of this form, neither of them a
+         field of it. #}
       <div class="edit-extras">
         <button type="button" class="row edit-side-nav" data-action="actionOpenCharBlocks">
           <span class="row-title">Custom blocks</span>
           <span class="row-meta" data-ui="char-block-count">0</span>
           <span class="caret-mark"></span>
         </button>
-        <details class="disclosure rowlike" id="edit-char-card-fields">
-          <summary>
-            <span class="caret-mark"></span>
-            <span class="disclosure-title">Card fields</span>
-            <span class="tag">legacy</span>
-            {{ hint_tooltip('Personality, scenario and example dialogue from the legacy character-card format. Most cards put everything in the description, which is what Focus sends; these are kept for cards that still use them.') }}
-          </summary>
-          <div class="disclosure-body">
-            <div class="form-group">
-              <label for="edit-char-personality">Personality</label>
-              <textarea name="personality" id="edit-char-personality" rows="3" class="field sized"></textarea>
-            </div>
-            <div class="form-group">
-              <label for="edit-char-scenario">Scenario</label>
-              <textarea name="scenario" id="edit-char-scenario" rows="3" class="field sized"></textarea>
-            </div>
-            <div class="form-group">
-              <label for="edit-char-mes-example">Example dialogue</label>
-              <textarea name="mes_example" id="edit-char-mes-example" rows="4" class="field sized"></textarea>
-            </div>
-          </div>
-        </details>
+        <button type="button" class="row edit-side-nav" onclick="openModal('modal-char-card-fields')">
+          <span class="row-title">Card fields</span>
+          <span class="row-meta">legacy</span>
+          <span class="caret-mark"></span>
+        </button>
       </div>
       {% endif %}
     </aside>
@@ -115,6 +98,33 @@ dirty_label='#edit-' ~ prefix ~ '-name') %}
       {% endif %}
     </div>
   </div>
+
+  {% if is_char %}
+  {# The legacy card fields would crush the identity pane, so they are their own
+     layer: a door in the column opens a stacked form at full width. They stay
+     inside this form — submitting and dirty-tracking with everything else —
+     which is why the overlay is nested here instead of beside it. #}
+  {% call modal_shell('modal-char-card-fields', 'Card Fields', max_width='720px', width='94vw', z_index='200', foot=true) %}
+  <div class="stacked-form">
+    <span class="note">Personality, scenario and example dialogue from the legacy character-card format. Most cards put everything in the description, which is what Focus sends; these are kept for cards that still use them.</span>
+    <div class="form-group">
+      <label for="edit-char-personality">Personality</label>
+      <textarea name="personality" id="edit-char-personality" rows="4" class="field sized"></textarea>
+    </div>
+    <div class="form-group">
+      <label for="edit-char-scenario">Scenario</label>
+      <textarea name="scenario" id="edit-char-scenario" rows="4" class="field sized"></textarea>
+    </div>
+    <div class="form-group">
+      <label for="edit-char-mes-example">Example dialogue</label>
+      <textarea name="mes_example" id="edit-char-mes-example" rows="6" class="field sized"></textarea>
+    </div>
+    {% call modal_footer(hint='note', text='Saved with the character') %}
+    <button type="button" class="btn primary" data-action="actionCloseModal" data-modal-id="modal-char-card-fields">Done</button>
+    {% endcall %}
+  </div>
+  {% endcall %}
+  {% endif %}
 
   {% call modal_footer() %}
   <button type="button" class="key" onclick="openMacroHelp()" title="Macro reference" aria-label="Macro reference">

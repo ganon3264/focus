@@ -1212,26 +1212,6 @@ textarea.field.sized {
   padding: var(--gutter);
 }
 
-/* A disclosure that is a row in a column of rows, not a raised panel: the head
-   is the row, the body is the column under it. For groups that are optional
-   rather than primary — a plate there would read as a button in the stack. */
-.disclosure.rowlike {
-  border-radius: 0;
-  background-color: transparent;
-  background-image: none;
-  box-shadow: var(--hair-groove);
-}
-
-.disclosure.rowlike > summary {
-  height: var(--control-h-lg);
-  font-family: var(--font-sans);
-  font-size: 13px;
-  font-weight: 500;
-  letter-spacing: normal;
-  text-transform: none;
-  color: color-mix(in srgb, var(--text) 82%, transparent);
-}
-
 /* Slots inside the head. The head is a flex row of caret · title · meta, so the
    primitive names the two text slots instead of letting every caller select on
    child position. */
