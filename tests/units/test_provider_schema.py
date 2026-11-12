@@ -43,7 +43,8 @@ TYPES = {
         "form": {"orFields": True, "baseUrl": False},
     },
     "nanogpt": {
-        "caps": {"supports_ephemeral_cache": True, "cache_breakpoints": True,
+        "caps": {"supports_ephemeral_cache": True,
+                 "cache_breakpoint_models": ("anthropic/claude", "google/gemini"),
                  "normalizes_reasoning": True},
         "defaults": {"top_k": 0, "min_p": 0, "repetition_penalty": 1.0,
                      "preserve_thinking": "tool_only"},
@@ -176,6 +177,15 @@ def test_base_defaults_are_the_documented_sampler_defaults():
     assert schema["baseDefaults"] == BASE_SAMPLER_DEFAULTS
     assert BASE_SAMPLER_DEFAULTS["image_format"] == "webp"
     assert BASE_SAMPLER_DEFAULTS["seed"] == -1
+
+
+def test_cache_breakpoint_transports_share_the_model_list():
+    """The sampler and the quirk read the same prefixes, and the fixed-TTL
+    families ride the schema so the UI can hide the extra-hour sampler."""
+    schema = provider_schema()
+    breakpoints = schema["types"]["openrouter"]["capabilities"]["cache_breakpoint_models"]
+    assert "anthropic/claude" in breakpoints and "google/gemini" in breakpoints
+    assert schema["fixedCacheTtlModels"] == ["google/"]
 
 
 def test_provider_type_options_are_ordered_and_unique():

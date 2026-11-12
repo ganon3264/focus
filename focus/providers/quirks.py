@@ -20,13 +20,13 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from ..core.request_transforms import (
-    apply_claude_caching,
+    apply_ephemeral_caching,
     drop_foreign_reasoning_details,
     filter_unsupported_modalities,
 )
 from ..core.tracked_fields import filter_reasoning_details, strip_thinking
 from .google_safety import PASSTHROUGH_HARM_CATEGORIES, safety_settings_json
-from .profile import INTERNAL_SAMPLER_KEYS, Capabilities, ProviderProfile
+from .profile import FIXED_CACHE_TTL_MODELS, INTERNAL_SAMPLER_KEYS, Capabilities, ProviderProfile
 from .registry import profile_for
 from .schema import provider_schema
 
@@ -101,14 +101,20 @@ async def _filter_unsupported_params(c: QuirkContext) -> None:
             c.samplers.pop(key)
 
 
-def _claude_cache(c: QuirkContext) -> None:
-    if c.samplers.get("cache_enabled", False) and c.model.startswith("anthropic/claude"):
-        c.messages = apply_claude_caching(
-            c.messages,
-            True,
-            c.samplers.get("cache_ttl", "ephemeral"),
-            c.samplers.get("cache_depth", 5),
-        )
+def _ephemeral_cache(c: QuirkContext) -> None:
+    if not c.samplers.get("cache_enabled", False):
+        return
+    if not c.model.startswith(c.caps.cache_breakpoint_models):
+        return
+    # Gemini honours only the last breakpoint and gives its caches a fixed
+    # 5-minute TTL; OpenRouter drops the `ttl` field toward it anyway.
+    ttl = "ephemeral" if c.model.startswith(FIXED_CACHE_TTL_MODELS) else c.samplers.get("cache_ttl", "ephemeral")
+    c.messages = apply_ephemeral_caching(
+        c.messages,
+        True,
+        ttl,
+        c.samplers.get("cache_depth", 5),
+    )
 
 
 def _inject_google_safety(c: QuirkContext) -> None:
@@ -191,7 +197,7 @@ QUIRKS: tuple[Quirk, ...] = (
         lambda c: callable(getattr(c.provider, "supported_parameters", None)),
         _filter_unsupported_params,
     ),
-    Quirk("claude_cache", lambda c: c.caps.cache_breakpoints, _claude_cache),
+    Quirk("ephemeral_cache", lambda c: bool(c.caps.cache_breakpoint_models), _ephemeral_cache),
     Quirk("google_safety_passthrough", _is_openrouter_google, _inject_google_safety),
     Quirk("strip_internal_markers", lambda c: True, _strip_internal_markers),
     Quirk("drop_foreign_reasoning", lambda c: True, _drop_foreign_reasoning),

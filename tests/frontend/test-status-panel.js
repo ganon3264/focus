@@ -107,29 +107,29 @@ eval(src + '\nwindow.updateStatusPanel=updateStatusPanel;window.updateCacheTimer
   global.StateManager.get = oldGet;
 })();
 
-// ── updateCacheTimer hides cache row for non-Claude providers ──
+// ── updateCacheTimer hides the cache row without ephemeral caching ──
 (function () {
   cacheRow.classList.remove('hidden');
   window.updateCacheTimer();
-  assert(cacheRow.classList.contains('hidden'), 'cache row hidden for non-Claude');
+  assert(cacheRow.classList.contains('hidden'), 'cache row hidden without ephemeral caching');
 })();
 
-// ── updateCacheTimer shows cache for Claude providers ──
+// ── updateCacheTimer shows the cache row for a breakpoint model ──
 (function () {
-  global.isClaudeProvider = function (p) { return p && p.id === 'prov2'; };
+  global.usesEphemeralCache = function (p) { return p && p.id === 'prov2'; };
   global.StateManager.get = function () { return 'prov2'; };
   ProviderStore.init([{ id: 'prov2', name: 'Claude', type: 'anthropic' }]);
-  global.getClaudeCacheTimer = function () { return 125000; };
+  global.getPromptCacheTimer = function () { return 125000; };
 
   cacheRow.classList.add('hidden');
   window.updateCacheTimer();
-  assert(!cacheRow.classList.contains('hidden'), 'cache row visible for Claude');
+  assert(!cacheRow.classList.contains('hidden'), 'cache row visible for a breakpoint model');
   assertEqual(cacheEl.textContent, '2m 05s', 'cache timer formatted as 2m 05s');
 })();
 
 // ── updateCacheTimer shows — when no timer ──
 (function () {
-  global.getClaudeCacheTimer = function () { return null; };
+  global.getPromptCacheTimer = function () { return null; };
   window.updateCacheTimer();
   assertEqual(cacheEl.textContent, '—', 'cache shows em-dash when no timer');
 })();

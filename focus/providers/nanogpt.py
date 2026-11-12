@@ -6,7 +6,7 @@ most of the wire format is the inherited one. Three things need mapping:
 * upstream pinning goes in the request body (``provider.only``), merged into
   ``extra_body`` next to the samplers; NanoGPT's pin is hard by nature;
 * prompt caching rides the standard Anthropic ``cache_control`` breakpoints,
-  applied by the ``claude_cache`` quirk like every other transport;
+  applied by the ``ephemeral_cache`` quirk like every other transport;
 * the model catalogue is rich (context window, modalities, pricing, upstream
   list) and is fetched with ``detailed=true``.
 """
@@ -20,7 +20,7 @@ from ..core.logger import get_logger
 from ..core.utils import MODEL_FETCH_HTTP_TIMEOUT, TTLCache
 from .config import ProviderConfig
 from .openai_compat import OpenAICompatProvider
-from .profile import ProviderProfile
+from .profile import CACHE_BREAKPOINT_MODELS, ProviderProfile
 
 logger = get_logger("providers.nanogpt")
 
@@ -40,7 +40,7 @@ class NanoGPTProvider(OpenAICompatProvider):
         caps=replace(
             OpenAICompatProvider.profile.caps,
             supports_ephemeral_cache=True,
-            cache_breakpoints=True,
+            cache_breakpoint_models=CACHE_BREAKPOINT_MODELS,
             normalizes_reasoning=True,
         ),
     )

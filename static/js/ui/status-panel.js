@@ -88,14 +88,14 @@ function updateCacheTimer() {
 
   const provider = ProviderStore.get(activeId);
 
-  if (!window.isClaudeProvider || !window.isClaudeProvider(provider)) {
+  if (!window.usesEphemeralCache || !window.usesEphemeralCache(provider)) {
     cacheRow.classList.add('hidden');
     return;
   }
 
   cacheRow.classList.remove('hidden');
 
-  const remaining = window.getClaudeCacheTimer ? window.getClaudeCacheTimer(activeId) : null;
+  const remaining = window.getPromptCacheTimer ? window.getPromptCacheTimer(activeId) : null;
 
   if (!remaining) {
     cacheEl.textContent = '—';

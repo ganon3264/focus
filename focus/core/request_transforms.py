@@ -53,7 +53,7 @@ def filter_unsupported_modalities(messages: list[dict], supported_modalities: li
     return filtered
 
 
-def apply_claude_caching(
+def apply_ephemeral_caching(
     messages: list[dict],
     cache_enabled: bool,
     cache_ttl: str = "5m",

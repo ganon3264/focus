@@ -6,7 +6,7 @@ from ..core.logger import get_logger
 from ..core.utils import MODEL_FETCH_HTTP_TIMEOUT, TTLCache
 from .config import ProviderConfig
 from .openai_compat import OpenAICompatProvider
-from .profile import ProviderProfile
+from .profile import CACHE_BREAKPOINT_MODELS, ProviderProfile
 
 logger = get_logger("providers.openrouter")
 
@@ -23,7 +23,7 @@ class OpenRouterProvider(OpenAICompatProvider):
             OpenAICompatProvider.profile.caps,
             include_stream_options=False,
             supports_ephemeral_cache=True,
-            cache_breakpoints=True,
+            cache_breakpoint_models=CACHE_BREAKPOINT_MODELS,
             reasoning_formats=None,
             normalizes_reasoning=True,
         ),

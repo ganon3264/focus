@@ -91,10 +91,10 @@
         </span>
       </div>
 
-      {{ toggle_row('Prompt Caching', ':class="{ \'active\': samplers.cache_enabled }" @click="samplers.cache_enabled = !samplers.cache_enabled; saveSamplers()"', hint='Enables cache for Anthropic models. Recommended for costs reduction. <span class="note warning">Check if your prompt preset has any changing macros/variables at its beginning that might invalidate the cache.</span>', row_attrs='x-show="showCacheConfig" x-cloak') }}
+      {{ toggle_row('Prompt Caching', ':class="{ \'active\': samplers.cache_enabled }" @click="samplers.cache_enabled = !samplers.cache_enabled; saveSamplers()"', hint='Enables prompt caching for Anthropic and Gemini models. Recommended for costs reduction. <span class="note warning">Check if your prompt preset has any changing macros/variables at its beginning that might invalidate the cache.</span>', row_attrs='x-show="showCacheConfig" x-cloak') }}
 
       <div x-show="showCacheConfig && samplers.cache_enabled" x-cloak class="well sampler-children">
-        {{ toggle_row('Extra TTL (1 hour)', ':class="{ \'active\': samplers.cache_ttl === \'1h\' }" @click="samplers.cache_ttl = samplers.cache_ttl === \'1h\' ? \'ephemeral\' : \'1h\'; saveSamplers()"', hint='By default cache has an expiry time of 5 minutes. This extends it to 1 hour, but it also increases cost. <span class="note danger">Not recommended.</span>') }}
+        {{ toggle_row('Extra TTL (1 hour)', ':class="{ \'active\': samplers.cache_ttl === \'1h\' }" @click="samplers.cache_ttl = samplers.cache_ttl === \'1h\' ? \'ephemeral\' : \'1h\'; saveSamplers()"', hint='By default cache has an expiry time of 5 minutes. This extends it to 1 hour, but it also increases cost. <span class="note danger">Not recommended.</span>', row_attrs='x-show="showCacheTtl"') }}
         {{ slider_row('Cached Turns', 'samplers.cache_depth', '1', '10', '1', 0,
           blur='',
           hint='Number of <span class="note success">User</span> turns to skip from caching, where 0 would be the latest message sent by the <span class="note success">User.</span> <span class="note warning">Effectiveness of this setting depends on your preset. No In-Chart entries active → leave at 1. Using one → set this to at least its Depth value.</span>') }}
@@ -214,7 +214,11 @@
       get showCacheConfig() {
         if (!this.shows('cache_enabled')) return false;
         const p = window.ProviderStore ? ProviderStore.get(this.providerId) : null;
-        return !!(p && p.model && p.model.startsWith('anthropic/claude'));
+        return !!(window.usesEphemeralCache && window.usesEphemeralCache(p));
+      },
+      get showCacheTtl() {
+        const p = window.ProviderStore ? ProviderStore.get(this.providerId) : null;
+        return !window.canExtendCacheTtl || window.canExtendCacheTtl(p);
       },
       get showReasoningToggle() { return this.shows('include_reasoning'); },
       get showEchoUpstreamBody() { return this.shows('echo_upstream_body'); },

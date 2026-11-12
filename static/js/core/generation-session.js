@@ -194,10 +194,10 @@
           console.error('[stream] post-stream refresh failed:', refreshErr);
         }
 
-        if (window.updateClaudeCache && window.ProviderStore) {
+        if (window.updatePromptCache && window.ProviderStore) {
           var doneProvider = ProviderStore.get(providerId);
-          if (window.isClaudeProvider(doneProvider)) {
-            window.updateClaudeCache(providerId, body.samplers);
+          if (window.usesEphemeralCache(doneProvider)) {
+            window.updatePromptCache(doneProvider, body.samplers);
           }
         }
       } catch (err) {

@@ -46,8 +46,8 @@ start.bat           # Windows
 | Provider | Toolcalls | Reasoning effort | Preserve reasoning | Prefill reasoning | Other |
 |:---|:---:|:---:|:---:|:---:|:---|
 | Generic OAI-compatible | ✓ | ✓\* | ✓\* | ✓\* | \*If the backend supports it |
-| OpenRouter             | ✓ | ✓  | ✓\* | ✓\* | Quantization & provider routing, sticky routing by session ID, Claude caching, (\*Model dependent) |
-| NanoGPT                | ✓ | ✓  | ✓\* | ✓\* | Provider routing, Claude prompt caching, (\*Model dependent) |
+| OpenRouter             | ✓ | ✓  | ✓\* | ✓\* | Quantization & provider routing, sticky routing by session ID, ephemeral prompt caching (Claude, Gemini), (\*Model dependent) |
+| NanoGPT                | ✓ | ✓  | ✓\* | ✓\* | Provider routing, ephemeral prompt caching (Claude, Gemini), (\*Model dependent) |
 | Deepseek               | ✓ | ✓  | ✓   | ✓   | |
 | Moonshot               | ✓ | ✓  | ✓   | ✓   | `prompt_cache_key` support |
 | Xiaomi MiMo            | ✓ |    | ✓   |     | |

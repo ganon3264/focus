@@ -1,7 +1,7 @@
 import json
 
 from focus.core.request_transforms import (
-    apply_claude_caching,
+    apply_ephemeral_caching,
     drop_foreign_reasoning_details,
     filter_unsupported_modalities,
 )
@@ -164,21 +164,21 @@ class TestFilterUnsupportedModalities:
         assert result == msgs
 
 
-class TestApplyClaudeCaching:
+class TestApplyEphemeralCaching:
     def test_disabled_returns_unchanged(self):
         msgs = [{"role": "user", "content": "hello"}]
-        result = apply_claude_caching(msgs, cache_enabled=False)
+        result = apply_ephemeral_caching(msgs, cache_enabled=False)
         assert result == msgs
 
     def test_empty_messages(self):
-        assert apply_claude_caching([], cache_enabled=True) == []
+        assert apply_ephemeral_caching([], cache_enabled=True) == []
 
     def test_always_caches_messages_0(self):
         msgs = [
             {"role": "assistant", "content": "greeting", "_greeting": True},
             {"role": "user", "content": "hi"},
         ]
-        result = apply_claude_caching(msgs, cache_enabled=True)
+        result = apply_ephemeral_caching(msgs, cache_enabled=True)
         assert "_greeting" not in result[0]
         assert "cache_control" in result[0]["content"][0]
         assert "cache_control" not in result[1].get("content", {})
@@ -189,7 +189,7 @@ class TestApplyClaudeCaching:
             {"role": "user", "content": "hi"},
             {"role": "assistant", "content": "hello"},
         ]
-        result = apply_claude_caching(msgs, cache_enabled=True, cache_depth=5)
+        result = apply_ephemeral_caching(msgs, cache_enabled=True, cache_depth=5)
         # messages[0] always gets static cache
         assert "cache_control" in result[0]["content"][0]
         # only 1 user, not enough for sliding at depth=5
@@ -200,7 +200,7 @@ class TestApplyClaudeCaching:
         msgs = [
             {"role": "assistant", "content": "hi", "_greeting": True},
         ]
-        result = apply_claude_caching(msgs, cache_enabled=True)
+        result = apply_ephemeral_caching(msgs, cache_enabled=True)
         assert "_greeting" not in result[0]
         assert "cache_control" in result[0]["content"][0]
 
@@ -214,7 +214,7 @@ class TestApplyClaudeCaching:
             {"role": "user", "content": "e"},  # 1st user from end (current)
             {"role": "assistant", "content": "f"},
         ]
-        result = apply_claude_caching(msgs, cache_enabled=True, cache_depth=2)
+        result = apply_ephemeral_caching(msgs, cache_enabled=True, cache_depth=2)
         # static on messages[0], sliding on user "a" (idx 1)
         assert "cache_control" in result[0]["content"][0]
         assert "cache_control" in result[1]["content"][0]
@@ -227,7 +227,7 @@ class TestApplyClaudeCaching:
             {"role": "user", "content": "second msg"},
             {"role": "assistant", "content": "done"},
         ]
-        result = apply_claude_caching(msgs, cache_enabled=True, cache_depth=5)
+        result = apply_ephemeral_caching(msgs, cache_enabled=True, cache_depth=5)
         # 2 users, not enough for cache_depth+1=6, but >1 so second-to-last user gets cache
         assert "cache_control" in result[0]["content"][0]
         assert "cache_control" in result[1]["content"][0]
@@ -238,7 +238,7 @@ class TestApplyClaudeCaching:
             {"role": "user", "content": "a"},
             {"role": "assistant", "content": "b"},
         ]
-        result = apply_claude_caching(msgs, cache_enabled=True, cache_depth=5)
+        result = apply_ephemeral_caching(msgs, cache_enabled=True, cache_depth=5)
         # only messages[0] gets static cache, no sliding
         assert "cache_control" in result[0]["content"][0]
         assert "cache_control" not in result[1].get("content", "")
@@ -259,7 +259,7 @@ class TestApplyClaudeCaching:
             {"role": "user", "content": "hi"},
             {"role": "assistant", "content": "ok"},
         ]
-        result = apply_claude_caching(msgs, cache_enabled=True)
+        result = apply_ephemeral_caching(msgs, cache_enabled=True)
         # Old cache_control stripped, new one added on messages[0]
         assert "cache_control" in result[0]["content"][0]
 
@@ -277,7 +277,7 @@ class TestApplyClaudeCaching:
                 {"type": "text", "text": "b", "cache_control": {"type": "ephemeral", "ttl": "1h"}},
             ]},
         ]
-        result = apply_claude_caching(msgs, cache_enabled=True, cache_depth=5)
+        result = apply_ephemeral_caching(msgs, cache_enabled=True, cache_depth=5)
 
         assert result[0]["content"][0]["cache_control"] == {"type": "ephemeral"}
         for msg in result[1:]:

@@ -134,8 +134,8 @@ class TestModalityFiltering:
         assert out[0]["content"] == "hi"
 
 
-class TestClaudeCaching:
-    async def test_cache_injected_for_claude_on_openrouter(self, monkeypatch):
+class TestEphemeralCaching:
+    async def test_cache_injected_for_anthropic_on_openrouter(self, monkeypatch):
         _patch_modalities(monkeypatch, None)
         msgs = [
             {"role": "system", "content": "sys", "_greeting": True},
@@ -153,7 +153,7 @@ class TestClaudeCaching:
         assert "cache_ttl" not in kw
         assert "cache_depth" not in kw
 
-    async def test_cache_skipped_for_non_claude_model(self, monkeypatch):
+    async def test_cache_skipped_for_uncached_model(self, monkeypatch):
         _patch_modalities(monkeypatch, None)
         msgs = [{"role": "system", "content": "sys"}, {"role": "user", "content": "hi"}]
         out, _ = await prepare_generation_messages(

@@ -21,6 +21,15 @@ INTERNAL_SAMPLER_KEYS: frozenset[str] = frozenset({
     "cache_depth",
 })
 
+# Model families that take Anthropic-style ``cache_control`` breakpoints. The
+# transports that forward breakpoints (OpenRouter, NanoGPT) all accept these
+# prefixes; whether a type forwards them at all is its profile's call.
+CACHE_BREAKPOINT_MODELS: tuple[str, ...] = ("anthropic/claude", "google/gemini")
+
+# Gemini's ephemeral cache has a fixed 5-minute TTL, so the 1-hour sampler is
+# meaningless there and the request drops it.
+FIXED_CACHE_TTL_MODELS: tuple[str, ...] = ("google/",)
+
 
 @dataclass(frozen=True)
 class Capabilities:
@@ -44,12 +53,13 @@ class Capabilities:
     # Transport normalizes reasoning across upstream backends and tracks the
     # source model, so foreign ``reasoning_details`` must be dropped.
     normalizes_reasoning: bool = False
-    # Claude-style ephemeral prompt caching.
+    # Anthropic-style ephemeral prompt caching.
     supports_ephemeral_cache: bool = False
-    # ...implemented as ``cache_control`` breakpoints in the message array.
-    # Providers whose caching is a request-body flag set this off and map the
-    # cache samplers themselves.
-    cache_breakpoints: bool = False
+    # ...implemented as ``cache_control`` breakpoints in the message array, for
+    # these model prefixes only. Empty = the transport forwards none; a provider
+    # whose caching is a request-body flag leaves both fields alone and maps the
+    # cache samplers itself.
+    cache_breakpoint_models: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

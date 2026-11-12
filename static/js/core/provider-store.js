@@ -3,7 +3,7 @@
   //
   // Seeded once from the server render, then kept authoritative by every
   // provider mutation (create/edit/delete call refresh()). The status panel,
-  // sampler and generation (Claude cache) read the active provider from here
+  // sampler and generation (prompt-cache timer) read the active provider from here
   // instead of a page-load snapshot, so a provider created after load is
   // visible immediately.
   //

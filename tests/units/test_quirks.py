@@ -61,7 +61,7 @@ class TestPipelineStructure:
 
     def test_modality_filtering_precedes_caching(self):
         names = [q.name for q in QUIRKS]
-        assert names.index("filter_provider_modalities") < names.index("claude_cache")
+        assert names.index("filter_provider_modalities") < names.index("ephemeral_cache")
 
 
 class TestSamplerHandling:
@@ -300,7 +300,10 @@ class TestCapabilityDrivenQuirks:
     async def test_ephemeral_cache_breakpoints_are_capability_gated(self, monkeypatch):
         self._install(
             monkeypatch,
-            Capabilities(supports_ephemeral_cache=True, cache_breakpoints=True),
+            Capabilities(
+                supports_ephemeral_cache=True,
+                cache_breakpoint_models=("anthropic/claude", "google/gemini"),
+            ),
         )
         msgs = [{"role": "system", "content": "sys"}, {"role": "user", "content": "hi"}]
         out, _ = await _run(
@@ -322,7 +325,7 @@ class TestCapabilityDrivenQuirks:
         assert isinstance(out[0]["content"], str)
 
 
-class TestNanoGPTCaching:
+class TestEphemeralCaching:
     async def test_claude_models_get_breakpoints(self):
         msgs = [{"role": "system", "content": "sys"}, {"role": "user", "content": "hi"}]
         out, kw = await _run(
@@ -334,17 +337,28 @@ class TestNanoGPTCaching:
         for key in ("cache_enabled", "cache_ttl", "cache_depth"):
             assert key not in kw, "cache samplers are Focus-side, never forwarded"
 
-    async def test_off_or_non_claude_models_get_none(self):
+    async def test_gemini_models_get_breakpoints_but_keep_the_fixed_ttl(self):
+        msgs = [{"role": "system", "content": "sys"}, {"role": "user", "content": "hi"}]
+        for ptype in ("openrouter", "nanogpt"):
+            out, _ = await _run(
+                _prov(ptype, model="google/gemini-4-carbon"),
+                _body(samplers={"cache_enabled": True, "cache_ttl": "1h", "cache_depth": 1}),
+                msgs,
+            )
+            assert out[0]["content"][0]["cache_control"] == {"type": "ephemeral"}, ptype
+
+    async def test_off_or_uncached_models_get_none(self):
         msgs = [{"role": "system", "content": "sys"}]
         out, _ = await _run(_prov("nanogpt", model="anthropic/claude-opus-4.6"), _body(), msgs)
         assert isinstance(out[0]["content"], str)
 
-        out, _ = await _run(
-            _prov("nanogpt", model="openai/gpt-6"),
-            _body(samplers={"cache_enabled": True}),
-            msgs,
-        )
-        assert isinstance(out[0]["content"], str)
+        for model in ("openai/gpt-6", "deepseek/deepseek-v4"):
+            out, _ = await _run(
+                _prov("nanogpt", model=model),
+                _body(samplers={"cache_enabled": True}),
+                msgs,
+            )
+            assert isinstance(out[0]["content"], str), model
 
 
 class TestInternalMarkers:

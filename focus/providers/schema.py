@@ -16,7 +16,7 @@ from dataclasses import asdict
 from functools import lru_cache
 from typing import Any
 
-from .profile import INTERNAL_SAMPLER_KEYS
+from .profile import FIXED_CACHE_TTL_MODELS, INTERNAL_SAMPLER_KEYS
 from .registry import profile_for, registered_types
 
 BASE_SAMPLER_DEFAULTS: dict[str, Any] = {
@@ -188,4 +188,8 @@ def provider_schema() -> dict:
             ],
             "form": {**_FORM_DEFAULT, **_FORM.get(ptype, {})},
         }
-    return {"baseDefaults": dict(BASE_SAMPLER_DEFAULTS), "types": types}
+    return {
+        "baseDefaults": dict(BASE_SAMPLER_DEFAULTS),
+        "fixedCacheTtlModels": list(FIXED_CACHE_TTL_MODELS),
+        "types": types,
+    }
