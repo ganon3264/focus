@@ -710,26 +710,33 @@ window.sortProviders = function (mode) {
   cards.forEach(function (card) { grid.appendChild(card); });
 };
 
+const BALANCE_TIMEOUT_MS = 8000;
+
+// Balance is decoration: it deliberately bypasses hxFetch/hxQueue. The shared
+// serializer keeps writes in order, so a stalled upstream (NanoGPT is fond of
+// timing out) would hold every other request behind it for the whole timeout.
+// Raw fetch fans out in parallel and each readout aborts on its own clock.
 async function fetchProviderBalances() {
-  document.querySelectorAll('[id^="balance-"]').forEach(async el => {
-    const providerId = el.id.replace('balance-', '');
-    try {
-      const res = await hxFetch(api.providerBalance(providerId));
-      if (!res.ok) {
-        el.textContent = 'error';
-        return;
-      }
-      const data = await res.json();
-      const balances = data.balances || [];
-      if (balances.length === 0) {
+  await Promise.allSettled(
+    Array.from(document.querySelectorAll('[id^="balance-"]')).map(async el => {
+      const providerId = el.id.slice('balance-'.length);
+      try {
+        const res = await fetch(api.providerBalance(providerId), {
+          signal: AbortSignal.timeout(BALANCE_TIMEOUT_MS),
+        });
+        if (!res.ok) {
+          el.textContent = 'error';
+          return;
+        }
+        const balances = (await res.json()).balances || [];
+        el.textContent = balances.length
+          ? balances.map(b => '$' + Number(b.amount).toFixed(2) + ' ' + b.currency).join(', ')
+          : 'unavailable';
+      } catch (e) {
         el.textContent = 'unavailable';
-        return;
       }
-      el.textContent = balances.map(b => '$' + Number(b.amount).toFixed(2) + ' ' + b.currency).join(', ');
-    } catch (e) {
-      el.textContent = 'unavailable';
-    }
-  });
+    })
+  );
 }
 
 // The modal body is swapped in by htmx on open (see modal.js), so this must run

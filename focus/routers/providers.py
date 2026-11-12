@@ -360,7 +360,7 @@ async def get_provider_balance(provider_id: str, _db=Depends(get_db)):
                     cfg.get("method", "GET"),
                     cfg["url"],
                     headers=headers,
-                    timeout=10,
+                    timeout=httpx.Timeout(6.0, connect=4.0),
                 )
                 if resp.status_code == 401:
                     return {"balances": []}

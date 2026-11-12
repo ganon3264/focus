@@ -32,8 +32,10 @@ global.document = doc;
 global.localStorage = h.createMockLocalStorage();
 
 var fetchCalls = [];
+var stallUrls = {};
 global.fetch = function (url) {
   fetchCalls.push(url);
+  if (stallUrls[url]) return new Promise(function () {});
   return Promise.resolve({ ok: true, json: function () { return Promise.resolve({ balances: [] }); } });
 };
 
@@ -67,5 +69,15 @@ assertEqual(fetchCalls.length, 0, 'unrelated swaps do not fetch balances');
 fireSwap('providers-modal-body-inner');
 assertEqual(fetchCalls.length, 1, 'providers-modal-body-inner swap fetches balances');
 assertEqual(fetchCalls[0], '/api/providers/prov1/balance', 'balance URL is correct');
+
+// ── Balance bypasses the shared write queue ──
+// The readout used to go through hxFetch, so a stalled upstream (NanoGPT timing
+// out) held every other request behind it for the whole timeout.
+stallUrls['/queued-slow'] = true;
+window.hxFetch('/queued-slow');
+fetchCalls.length = 0;
+fireSwap('providers-modal-body-inner');
+assertEqual(fetchCalls.length, 1, 'a stalled queued request does not hold the balance fetch');
+assertEqual(fetchCalls[0], '/api/providers/prov1/balance', 'balance fetch still issues');
 
 h.printSummary();
