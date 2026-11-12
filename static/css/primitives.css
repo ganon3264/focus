@@ -1591,6 +1591,10 @@ textarea.field.sized {
   box-sizing: border-box;
   display: grid;
   place-items: center;
+  /* The portrait is taken out of flow: a non-square image inside the grid row
+     makes the row content-sized, so a percentage height would resolve to auto
+     and the crop would hang off the top edge instead of centring. */
+  position: relative;
   flex: none;
   width: calc(var(--u) * 6);
   height: calc(var(--u) * 6);
@@ -1607,6 +1611,8 @@ textarea.field.sized {
 }
 
 .avatar > img {
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
   height: 100%;
