@@ -136,3 +136,64 @@ async def test_init_db_migrates_regex_destination(regex_legacy_db):
 
     # Second boot must not re-run the migration.
     await database.init_db()
+
+
+@pytest.fixture
+async def legacy_variants_db(tmp_path, monkeypatch):
+    """A database whose variants still carry the pre-variant_meta columns."""
+    db_path = tmp_path / "focus.db"
+    async with aiosqlite.connect(db_path) as db:
+        await db.executescript(database.SCHEMA)
+        await db.execute("ALTER TABLE message_variants ADD COLUMN reasoning TEXT")
+        await db.execute("ALTER TABLE message_variants ADD COLUMN reasoning_details TEXT")
+        await db.execute("ALTER TABLE message_variants DROP COLUMN variant_meta")
+        await db.execute("PRAGMA foreign_keys=OFF")
+        await db.execute(
+            "INSERT INTO message_variants"
+            " (id, message_id, variant_index, content, created_at, reasoning, reasoning_details)"
+            " VALUES ('v1', 'm1', 0, 'hi', 'x', 'thinking', '[{\"id\": \"d1\"}]')"
+        )
+        await db.commit()
+
+    monkeypatch.setattr(database, "DB_PATH", db_path)
+    yield db_path
+
+
+async def test_init_db_folds_legacy_reasoning_into_variant_meta(legacy_variants_db):
+    import json
+
+    await database.init_db()
+
+    async with aiosqlite.connect(str(legacy_variants_db)) as db:
+        db.row_factory = aiosqlite.Row
+        cols = await db.execute("PRAGMA table_info(message_variants)")
+        col_names = {row[1] for row in await cols.fetchall()}
+        assert "variant_meta" in col_names
+        assert "reasoning" not in col_names
+        assert "reasoning_details" not in col_names
+
+        async with db.execute("SELECT variant_meta FROM message_variants WHERE id = 'v1'") as cur:
+            meta = json.loads((await cur.fetchone())["variant_meta"])
+        assert meta["reasoning"] == "thinking"
+        assert meta["reasoning_details"] == [{"id": "d1"}]
+
+
+async def test_second_boot_rewrites_no_table(tmp_path, monkeypatch):
+    """A current database must boot without DDL — retiring a column rewrites
+    the whole table, and that must not happen on every start."""
+    db_path = tmp_path / "focus.db"
+    async with aiosqlite.connect(db_path) as db:
+        await db.executescript(database.SCHEMA)
+        await db.commit()
+
+    monkeypatch.setattr(database, "DB_PATH", db_path)
+    await database.init_db()
+
+    async def schema_version():
+        async with aiosqlite.connect(str(db_path)) as db:
+            async with db.execute("PRAGMA schema_version") as cur:
+                return (await cur.fetchone())[0]
+
+    before = await schema_version()
+    await database.init_db()
+    assert await schema_version() == before

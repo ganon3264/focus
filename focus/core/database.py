@@ -137,9 +137,7 @@ CREATE TABLE IF NOT EXISTS message_variants (
     content       TEXT NOT NULL,
     created_at    TEXT NOT NULL,
     model_name    TEXT,
-    reasoning     TEXT,
     segments_json TEXT,
-    reasoning_details TEXT,
     variant_meta  TEXT
 );
 
@@ -344,27 +342,31 @@ async def init_db():
         col_names = {row[1] for row in await cols.fetchall()}
         if "model_name" not in col_names:
             await db.execute("ALTER TABLE message_variants ADD COLUMN model_name TEXT")
-        if "reasoning" not in col_names:
-            await db.execute("ALTER TABLE message_variants ADD COLUMN reasoning TEXT")
         if "segments_json" not in col_names:
             await db.execute("ALTER TABLE message_variants ADD COLUMN segments_json TEXT")
-        if "reasoning_details" not in col_names:
-            await db.execute("ALTER TABLE message_variants ADD COLUMN reasoning_details TEXT")
         if "variant_meta" not in col_names:
+            # The reasoning columns are pre-variant_meta storage; folding them in
+            # is the only reason to touch them, so they are created here and
+            # never on a database that already has variant_meta.
+            if "reasoning" not in col_names:
+                await db.execute("ALTER TABLE message_variants ADD COLUMN reasoning TEXT")
+            if "reasoning_details" not in col_names:
+                await db.execute("ALTER TABLE message_variants ADD COLUMN reasoning_details TEXT")
             await db.execute("ALTER TABLE message_variants ADD COLUMN variant_meta TEXT")
             await db.execute("""UPDATE message_variants SET variant_meta = json_object(
                 'reasoning', reasoning,
                 'reasoning_details', CASE WHEN reasoning_details IS NOT NULL THEN json(reasoning_details) ELSE NULL END
             ) WHERE reasoning IS NOT NULL OR reasoning_details IS NOT NULL""")
-        # Drop deprecated columns — SQLite >=3.35.0
-        try:
-            await db.execute("ALTER TABLE message_variants DROP COLUMN reasoning")
-        except Exception:
-            pass
-        try:
-            await db.execute("ALTER TABLE message_variants DROP COLUMN reasoning_details")
-        except Exception:
-            pass
+            cols = await db.execute("PRAGMA table_info(message_variants)")
+            col_names = {row[1] for row in await cols.fetchall()}
+        # Retiring a column rewrites the entire table, so it only happens on a
+        # database that still carries one. SQLite >= 3.35.0 for DROP COLUMN.
+        for legacy in ("reasoning", "reasoning_details"):
+            if legacy in col_names:
+                try:
+                    await db.execute(f"ALTER TABLE message_variants DROP COLUMN {legacy}")
+                except Exception:
+                    pass
 
         cols = await db.execute("PRAGMA table_info(settings)")
         col_names = {row[1] for row in await cols.fetchall()}

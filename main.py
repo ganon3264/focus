@@ -82,8 +82,12 @@ logger = get_logger("main")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Initializing database...")
+    started = time.perf_counter()
     await init_db()
-    logger.info("Database initialized. Focus is ready.")
+    logger.info(
+        "Database initialized in %.0f ms. Focus is ready.",
+        (time.perf_counter() - started) * 1000,
+    )
     yield
     logger.info("Focus shutting down.")
 
