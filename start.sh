@@ -21,6 +21,9 @@ fi
 ./"$(./vendor-sync.py --print-tailwind-path)" -i static/tailwind-input.css -o static/tailwind.css --minify
 
 if command -v uv &>/dev/null; then
+  # A .venv carried over from another machine/user points at an interpreter
+  # this one cannot reach; uv errors out instead of rebuilding it.
+  if [ -e ".venv" ] && ! [ -x ".venv/bin/python" ]; then rm -rf .venv; fi
   exec uv run python main.py --host "${FOCUS_HOST:-127.0.0.1}" --port "${FOCUS_PORT:-8000}"
 else
   echo "UV not found, using regular python venv."

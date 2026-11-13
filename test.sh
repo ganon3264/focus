@@ -2,6 +2,9 @@
 # Run tests with coverage.  Pass extra args, e.g. -k "test_name".
 # Use --no-cov to skip coverage (just tests).
 if command -v uv &>/dev/null; then
+  # A .venv carried over from another machine/user points at an interpreter
+  # this one cannot reach; uv errors out instead of rebuilding it.
+  if [ -e ".venv" ] && ! [ -x ".venv/bin/python" ]; then rm -rf .venv; fi
   uv sync --locked --group dev
   RUNNER="uv run pytest"
 else
