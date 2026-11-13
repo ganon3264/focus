@@ -693,9 +693,9 @@ function populateProviderForm(data) {
 }
 
 window.sortProviders = function (mode) {
-  _saveListPref('focus_providers_sort', mode);
   var grid = document.getElementById('providers-grid');
   if (!grid) return;
+  grid.setAttribute('data-sort-mode', mode);
   var cards = Array.from(grid.querySelectorAll('[data-ui="entity-row"]'));
   cards.sort(function (a, b) {
     var aName = a.dataset.provName || '';
@@ -745,8 +745,7 @@ function initProvidersModal() {
   const activeId = StateManager.get('provider_id');
   if (activeId && window.syncProviderHighlight) window.syncProviderHighlight(activeId);
   fetchProviderBalances();
-  var sv = localStorage.getItem('focus_providers_sort');
-  if (sv && window.sortProviders) window.sortProviders(sv);
+  if (window.sortProviders) window.sortProviders(listSortMode('providers-grid'));
 }
 
 document.body.addEventListener('htmx:afterSwap', function (evt) {

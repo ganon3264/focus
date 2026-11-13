@@ -67,6 +67,25 @@ class TestChatRedirect:
         resp = await client.get(f"/chat?character_id={char['id']}")
         assert resp.status_code == 200
 
+    async def test_greeter_inherits_the_last_used_preset(self, client):
+        older = await create_preset(client, "Older")
+        newer = await create_preset(client, "Newer")
+        await create_chat(client, preset_id=older["id"], title="Writes with Older")
+        lonely = await create_character(client, "Lonely")
+
+        resp = await client.get(f"/chat?character_id={lonely['id']}")
+
+        assert f"preset_id: '{older['id']}'" in resp.text
+        assert f"preset_id: '{newer['id']}'" not in resp.text
+
+    async def test_greeter_falls_back_to_the_newest_preset_without_history(self, client):
+        await create_preset(client, "Older")
+        newest = await create_preset(client, "Newest")
+
+        resp = await client.get("/chat")
+
+        assert f"preset_id: '{newest['id']}'" in resp.text
+
 
 class TestChatPage:
     async def test_full_chat_page_renders(self, client, tmp_test_dir):
@@ -220,6 +239,34 @@ class TestChatPagination:
         assert resp.status_code == 200
         assert 'id="chat-list" hx-swap-oob="innerHTML"' in resp.text
         assert 'data-chat-page="2"' in resp.text
+
+
+class TestListSortPrefs:
+    """A list modal's sort mode is a settings row, rendered into the grid —
+    the client keeps no second copy in browser storage."""
+
+    async def test_defaults_when_nothing_is_stored(self, client):
+        await create_character(client, "Sorter")
+        resp = await client.get("/partials/characters-modal")
+        assert resp.status_code == 200
+        assert 'data-sort-mode="newest"' in resp.text
+
+    async def test_stored_mode_is_rendered(self, client):
+        await create_character(client, "Sorter")
+        await client.patch("/api/settings/", json={"key": "focus_char_sort", "value": "az"})
+        resp = await client.get("/partials/characters-modal")
+        assert 'data-sort-mode="az"' in resp.text
+
+    async def test_unknown_mode_falls_back_to_the_default(self, client):
+        await create_character(client, "Sorter")
+        await client.patch("/api/settings/", json={"key": "focus_char_sort", "value": "nonsense"})
+        resp = await client.get("/partials/characters-modal")
+        assert 'data-sort-mode="newest"' in resp.text
+
+    async def test_tools_default_is_az(self, client):
+        chat, _, _, _ = await _seed_chat(client)
+        resp = await client.get(f"/chat/{chat['id']}")
+        assert "sortMode: 'az'" in resp.text
 
 
 class TestStandalonePagesGone:

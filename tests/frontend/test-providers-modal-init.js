@@ -45,6 +45,8 @@ global.StateManager = {
 global.api = {
   providerBalance: function (id) { return '/api/providers/' + id + '/balance'; },
 };
+// list-manager.js owns the sort-mode read; the grid carries it as an attribute.
+global.listSortMode = function () { return 'az'; };
 
 eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'core', 'hx-queue.js'), 'utf8'));
 // Load module

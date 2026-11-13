@@ -23,7 +23,6 @@ createEditModalHandlers({
   modalId: 'modal-edit-character',
   cardEndpoint: '/partials/character-card/',
   gridId: 'char-modal-grid',
-  sortStorageKey: 'focus_char_sort',
   sortFn: 'sortCharacters',
   openFn: 'openEditCharacterModal',
   uploadFn: 'uploadCharModalMedia',

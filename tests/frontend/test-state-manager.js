@@ -42,18 +42,18 @@ function reset() {
   assertEqual(StateManager.get('character_id'), 'c1', 'init sets character_id');
   assertEqual(StateManager.get('persona_id'), 'p1', 'init sets persona_id');
   assertEqual(StateManager.get('preset_id'), 'pr1', 'init sets preset_id');
-  assertEqual(StateManager.get('provider_id'), null, 'init provider_id null when localStorage empty');
-  assertEqual(StateManager.get('provider_type'), null, 'init provider_type null when localStorage empty');
+  assertEqual(StateManager.get('provider_id'), null, 'init provider_id null when the page has none');
+  assertEqual(StateManager.get('provider_type'), null, 'init provider_type null when the page has none');
 })();
 
-// ── init() reads provider from localStorage ──
+// ── init() trusts the server-rendered state, not browser storage ──
 (function () {
   reset();
-  localStorage.setItem('focus-provider-id', 'prov1');
+  localStorage.setItem('focus-provider-id', 'stale');
   localStorage.setItem('focus-provider-type', 'openai_compat');
-  StateManager.init({ character_id: null, persona_id: null, preset_id: null }, 'chat1');
-  assertEqual(StateManager.get('provider_id'), 'prov1', 'init reads provider_id from localStorage');
-  assertEqual(StateManager.get('provider_type'), 'openai_compat', 'init reads provider_type from localStorage');
+  StateManager.init({ character_id: null, persona_id: null, preset_id: null, provider_id: 'prov1' }, 'chat1');
+  assertEqual(StateManager.get('provider_id'), 'prov1', 'init uses the provider the page rendered');
+  assertEqual(localStorage.getItem('focus-provider-id'), 'stale', 'init reads no provider from localStorage');
 })();
 
 // ── setPreset() + callback ──
@@ -122,7 +122,7 @@ function reset() {
   assertEqual(events[0].value, 'p2', 'value is new id');
 })();
 
-// ── setProvider() + localStorage + window event ──
+// ── setProvider() + the settings PUT + window event ──
 (function () {
   reset();
   StateManager.init({ character_id: null, persona_id: null, preset_id: null }, null);
@@ -132,8 +132,9 @@ function reset() {
   StateManager.setProvider('prov1', 'openai_compat');
   assertEqual(StateManager.get('provider_id'), 'prov1', 'setProvider updates provider_id');
   assertEqual(StateManager.get('provider_type'), 'openai_compat', 'setProvider updates provider_type');
-  assertEqual(localStorage.getItem('focus-provider-id'), 'prov1', 'persists id to localStorage');
-  assertEqual(localStorage.getItem('focus-provider-type'), 'openai_compat', 'persists type to localStorage');
+  assertEqual(global._lastFetch.url, '/api/settings/active-provider', 'persists through the settings endpoint');
+  assertEqual(JSON.parse(global._lastFetch.opts.body).provider_id, 'prov1', 'PUT carries the id');
+  assertEqual(localStorage.getItem('focus-provider-id'), null, 'keeps no copy in localStorage');
   assertEqual(cb.length, 1, 'fires callback');
   assertEqual(cb[0].prevId, null, 'prevId is null');
   assertEqual(cb[0].id, 'prov1', 'id is set');
@@ -150,8 +151,7 @@ function reset() {
 
   StateManager.setProvider(null, null);
   assertEqual(StateManager.get('provider_id'), null, 'setProvider(null, null) clears id');
-  assertEqual(localStorage.getItem('focus-provider-id'), null, 'removes localStorage id');
-  assertEqual(localStorage.getItem('focus-provider-type'), null, 'removes localStorage type');
+  assertEqual(JSON.parse(global._lastFetch.opts.body).provider_id, null, 'PUT clears the stored id');
 })();
 
 // ── setProvider without type still emits provider-changed ──
@@ -161,8 +161,7 @@ function reset() {
   StateManager.setProvider('provX', null);
   assertEqual(StateManager.get('provider_id'), 'provX', 'provider_id set even without type');
   assertEqual(StateManager.get('provider_type'), null, 'provider_type cleared');
-  assertEqual(localStorage.getItem('focus-provider-id'), 'provX', 'id persisted');
-  assertEqual(localStorage.getItem('focus-provider-type'), null, 'type not in localStorage');
+  assertEqual(JSON.parse(global._lastFetch.opts.body).provider_type, null, 'PUT carries the empty type');
   assertEqual(global._dispatchedEvents.length, 1, 'emits provider-changed even when type is null');
   assertEqual(global._dispatchedEvents[0].type, 'provider-changed', 'CustomEvent type');
   assertEqual(global._dispatchedEvents[0].detail.id, 'provX', 'detail.id set');
@@ -289,16 +288,14 @@ function reset() {
 // ── Provider: setProvider with previous values ──
 (function () {
   reset();
-  localStorage.setItem('focus-provider-id', 'oldId');
-  localStorage.setItem('focus-provider-type', 'oldType');
-  StateManager.init({}, null);
+  StateManager.init({ provider_id: 'oldId', provider_type: 'oldType' }, null);
   var events = [];
   StateManager.on('provider-changed', function (e) { events.push(e); });
   StateManager.setProvider('newId', 'newType');
-  assertEqual(events[0].prevId, 'oldId', 'provider prevId from localStorage');
-  assertEqual(events[0].prevType, 'oldType', 'provider prevType from localStorage');
-  assertEqual(localStorage.getItem('focus-provider-id'), 'newId', 'provider persists new id');
-  assertEqual(localStorage.getItem('focus-provider-type'), 'newType', 'provider persists new type');
+  assertEqual(events[0].prevId, 'oldId', 'prevId is the previous selection');
+  assertEqual(events[0].prevType, 'oldType', 'prevType is the previous selection');
+  assertEqual(JSON.parse(global._lastFetch.opts.body).provider_id, 'newId', 'provider persists new id');
+  assertEqual(JSON.parse(global._lastFetch.opts.body).provider_type, 'newType', 'provider persists new type');
 })();
 
 // ── off() on non-registered listener — no crash ──

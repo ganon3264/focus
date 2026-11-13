@@ -77,7 +77,6 @@ var cfg = {
   newItemFn: 'newItemTest',
   newItemLabel: 'New Item',
   newItemInputId: 'new-item-input',
-  sortStorageKey: 'sort_test',
   sortSelectId: 'sort-select',
   apiEndpoint: '/api/test-items',
 };
@@ -133,6 +132,15 @@ window.ListManager.setup(cfg);
   var names = [];
   for (var i = 0; i < cards.length; i++) names.push(cards[i].getAttribute('data-name'));
   assertEqual(names[0], 'Beta', 'sort oldest: first is Beta');
+})();
+
+// ── the mode lives on the grid, never in browser storage ──
+(function () {
+  window.sortTest('az');
+  assertEqual(grid.getAttribute('data-sort-mode'), 'az', 'sort fn records the mode on the grid');
+  assertEqual(window.listSortMode('test-grid'), 'az', 'listSortMode reads it back');
+  assertEqual(window.listSortMode('missing-grid', 'oldest'), 'oldest', 'listSortMode falls back');
+  assertEqual(Object.keys(storage).length, 0, 'sorting writes nothing to localStorage');
 })();
 
 // ── Result ──

@@ -367,9 +367,8 @@
               target: '#' + (cfg.stateKey === 'character_id' ? 'char' : 'persona') + '-card-' + id,
               swap: 'outerHTML',
             }).then(function () {
-              if (cfg.sortStorageKey && cfg.sortFn && window[cfg.sortFn]) {
-                var val = localStorage.getItem(cfg.sortStorageKey);
-                if (val) window[cfg.sortFn](val);
+              if (cfg.sortFn && window[cfg.sortFn]) {
+                window[cfg.sortFn](listSortMode(cfg.gridId));
               }
             });
           }

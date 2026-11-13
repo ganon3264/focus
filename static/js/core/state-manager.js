@@ -34,12 +34,6 @@
         state,
       );
       if (chatId) STATE.chat_id = chatId;
-      if (!STATE.provider_id) {
-        STATE.provider_id = localStorage.getItem('focus-provider-id') || null;
-      }
-      if (!STATE.provider_type) {
-        STATE.provider_type = localStorage.getItem('focus-provider-type') || null;
-      }
     },
 
     on: function (event, fn) {
@@ -76,10 +70,6 @@
 
     _persistProvider: function (id, type) {
       hxJson(api.settingsActiveProvider, 'PUT', { provider_id: id, provider_type: type });
-      if (id) localStorage.setItem('focus-provider-id', id);
-      else localStorage.removeItem('focus-provider-id');
-      if (type) localStorage.setItem('focus-provider-type', type);
-      else localStorage.removeItem('focus-provider-type');
     },
 
     setCharacter: function (id) {

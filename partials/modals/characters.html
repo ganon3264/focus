@@ -36,7 +36,7 @@
   <div class="modal-band-toolbar">
     {% call search_toolbar('Search characters…', input_attrs='oninput="filterCharacters(this.value)"', wrapper_classes='') %}
       {{ filter_dropdown('setCharFilter', 'getCharFilterGroups') }}
-      {{ sort_dropdown('focus_char_sort', 'sortCharacters') }}
+      {{ sort_dropdown(characters_sort, 'sortCharacters', 'focus_char_sort') }}
     {% endcall %}
   </div>
 
@@ -45,7 +45,7 @@
     {{ empty_state('No characters found. Create or import one to get started!') }}
     {% endif %}
 
-    <div class="entity-list reveal-verbs" id="char-modal-grid">
+    <div class="entity-list reveal-verbs" id="char-modal-grid" data-sort-mode="{{ characters_sort }}">
       {% for char in characters %}
       {% include "modals/character-card.html" %}
       {% endfor %}
@@ -75,7 +75,6 @@
     nameAttr: 'charName',
     imageField: 'image_path',
     modalId: 'modal-characters',
-    sortStorageKey: 'focus_char_sort',
     sortFn: 'sortCharacters',
     emptyText: 'No characters found. Create or import one to get started!',
     openTrashFn: 'openTrashModal',
@@ -94,7 +93,6 @@
     gridId: 'char-modal-grid',
     dataNameAttr: 'data-char-name',
     dataCreatedAttr: 'data-char-created',
-    sortStorageKey: 'focus_char_sort',
     newItemLabel: 'Character Name',
     newItemInputId: 'new-char-name-input',
     apiEndpoint: '/api/characters',

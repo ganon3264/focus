@@ -86,6 +86,32 @@ def _chat_page_size(request: Request) -> int:
     return crud.CHAT_PAGE_SIZE
 
 
+# Every list modal's sort preference: settings key -> default mode. The dropdown
+# macro renders the mode the server resolved, so the order survives a reload
+# without a second copy in browser storage.
+LIST_SORTS = {
+    "characters_sort": ("focus_char_sort", "newest"),
+    "personas_sort": ("focus_persona_sort", "newest"),
+    "providers_sort": ("focus_providers_sort", "newest"),
+    "tools_sort": ("focus_tools_sort", "az"),
+}
+SORT_MODES = ("newest", "oldest", "az", "za")
+
+
+async def _sort_modes(db: aiosqlite.Connection) -> dict[str, str]:
+    """One query for every list's stored sort mode, clamped to the dropdown's modes."""
+    keys = {name: key for name, (key, _) in LIST_SORTS.items()}
+    placeholders = ",".join("?" * len(keys))
+    async with db.execute(
+        f"SELECT key, value FROM settings WHERE key IN ({placeholders})", tuple(keys.values())
+    ) as cur:
+        stored = {row["key"]: row["value"] for row in await cur.fetchall()}
+    return {
+        name: stored[key] if stored.get(key) in SORT_MODES else default
+        for name, (key, default) in LIST_SORTS.items()
+    }
+
+
 def _render_set(messages: list[dict], ids: str | None = None) -> tuple[list[dict], str]:
     """The message nodes to render, plus the full position order.
 
@@ -148,8 +174,17 @@ async def chat_redirect(request: Request, character_id: str = Query(None), db: a
     providers = await crud.get_providers(db)
     persona = await crud.get_persona(db)
 
-    # Pick default preset
-    preset = presets[0] if presets else None
+    # The greeter has no chat to read a preset from, so it inherits the one the
+    # user was last writing with instead of resetting to the newest preset.
+    async with db.execute(
+        "SELECT preset_id FROM chats WHERE is_deleted = 0 AND preset_id IS NOT NULL "
+        "ORDER BY updated_at DESC LIMIT 1"
+    ) as cur:
+        row = await cur.fetchone()
+    last_preset_id = row["preset_id"] if row else None
+    preset = next((p for p in presets if p["id"] == last_preset_id), None)
+    if not preset:
+        preset = presets[0] if presets else None
     preset_blocks = preset["blocks"] if preset else []
 
     _, regular_blocks, var_groups = partition_blocks(preset_blocks)
@@ -184,6 +219,7 @@ async def chat_redirect(request: Request, character_id: str = Query(None), db: a
             "active_provider_id": active_provider["provider_id"],
             "active_provider_type": active_provider["provider_type"],
             **_summary_ctx(preset),
+            **(await _sort_modes(db)),
             **theme_ctx,
         },
     )
@@ -258,6 +294,7 @@ async def chat_page(request: Request, chat_id: str, db: aiosqlite.Connection = D
             "active_provider_type": active_provider["provider_type"],
             "enabled_extensions": enabled_extensions,
             **_summary_ctx(preset),
+            **(await _sort_modes(db)),
             **theme_ctx,
         },
     )
@@ -654,6 +691,7 @@ async def providers_modal_partial(request: Request, db: aiosqlite.Connection = D
             "secrets": secrets_present,
             "balance_types": tuple(BALANCE_CONFIG),
             "active_provider_id": active_provider["provider_id"],
+            **(await _sort_modes(db)),
         },
     )
 
@@ -681,6 +719,7 @@ async def characters_modal_partial(
             "request": request,
             "characters": characters,
             "current_character_id": current_character_id,
+            **(await _sort_modes(db)),
         },
     )
 
@@ -697,6 +736,7 @@ async def personas_modal_partial(
             "request": request,
             "personas": personas,
             "current_persona_id": current_persona_id,
+            **(await _sort_modes(db)),
         },
     )
 

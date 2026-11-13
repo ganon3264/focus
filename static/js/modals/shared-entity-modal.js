@@ -156,16 +156,14 @@
               '?current_' + cfg.stateKey + '=' + encodeURIComponent(cid),
               { target: '#' + cfg.gridId, swap: 'beforeend' })
               .then(function () {
-                var val = localStorage.getItem(cfg.sortStorageKey);
-                if (val && window[cfg.sortFn]) window[cfg.sortFn](val);
+                if (window[cfg.sortFn]) window[cfg.sortFn](listSortMode(cfg.gridId));
               });
           } else {
             hxGet(cfg.modalEndpoint, {
               target: '#' + cfg.modalBodyInnerId,
               swap: 'innerHTML',
             }).then(function () {
-              var val = localStorage.getItem(cfg.sortStorageKey);
-              if (val && window[cfg.sortFn]) window[cfg.sortFn](val);
+              if (window[cfg.sortFn]) window[cfg.sortFn](listSortMode(cfg.gridId));
             });
           }
         });
@@ -245,16 +243,14 @@
                   { target: '#' + cfg.gridId, swap: 'beforeend' }));
               });
               Promise.all(fetches).then(function () {
-                var val = localStorage.getItem(cfg.sortStorageKey);
-                if (val && window[cfg.sortFn]) window[cfg.sortFn](val);
+                if (window[cfg.sortFn]) window[cfg.sortFn](listSortMode(cfg.gridId));
               });
             } else {
               hxGet(cfg.modalEndpoint, {
                 target: '#' + cfg.modalBodyInnerId,
                 swap: 'innerHTML',
               }).then(function () {
-                var val = localStorage.getItem(cfg.sortStorageKey);
-                if (val && window[cfg.sortFn]) window[cfg.sortFn](val);
+                if (window[cfg.sortFn]) window[cfg.sortFn](listSortMode(cfg.gridId));
               });
             }
           } else {

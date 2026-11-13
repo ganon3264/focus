@@ -90,17 +90,18 @@
 </div>
 {% endmacro %}
 
-{% macro sort_dropdown(storage_key, sort_fn) %}
+{% macro sort_dropdown(mode, sort_fn, sort_key) %}
 <div class="relative flex shrink-0"
      x-data="{
        open: false,
-       active: localStorage.getItem('{{ storage_key }}') || 'newest',
+       active: '{{ mode }}',
        get label() {
          return { newest: 'Newest', oldest: 'Oldest', az: 'A → Z', za: 'Z → A' }[this.active] || 'Newest';
        },
        select(val) {
          this.active = val;
          this.open = false;
+         saveListSort('{{ sort_key }}', val);
          {{ sort_fn }}(val);
        }
      }">

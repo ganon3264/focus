@@ -5,7 +5,7 @@
     <div class="rail">
       <span>{{ providers|length }} {{ 'provider' if providers|length == 1 else 'providers' }}</span>
       <div class="rail-actions flush">
-        {{ sort_dropdown('focus_providers_sort', 'sortProviders') }}
+        {{ sort_dropdown(providers_sort, 'sortProviders', 'focus_providers_sort') }}
         <button type="button" class="btn sm" onclick="openSecretsManager()">{{ icon_key(14) }} Keys</button>
         <button type="button" class="btn sm create" data-action="actionOpenProviderCreateModal">{{ icon_plus(14) }} Add Provider</button>
       </div>
@@ -17,7 +17,7 @@
     {{ empty_state('No providers configured. Add one to get started.') }}
     {% endif %}
 
-    <div class="provider-list" id="providers-grid">
+    <div class="provider-list" id="providers-grid" data-sort-mode="{{ providers_sort }}">
       {% for prov in providers %}
       <div class="row entity-row provider-row{% if active_provider_id == prov.id %} active{% endif %}" id="prov-card-{{ prov.id }}" role="button" tabindex="0" data-action="actionSetActiveProvider" data-prov-id="{{ prov.id }}" data-prov-name="{{ prov.name }}" data-prov-type="{{ prov.type }}" data-prov-created="{{ prov.created_at }}" data-ui="entity-row">
         <span class="entity-identity">

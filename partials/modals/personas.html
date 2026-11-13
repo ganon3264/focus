@@ -21,7 +21,7 @@
   <div class="modal-band-toolbar">
     {% call search_toolbar('Search personas…', input_attrs='oninput="filterPersonas(this.value)"', wrapper_classes='') %}
       {{ filter_dropdown('setPersonaFilter', 'getPersonaFilterGroups') }}
-      {{ sort_dropdown('focus_persona_sort', 'sortPersonas') }}
+      {{ sort_dropdown(personas_sort, 'sortPersonas', 'focus_persona_sort') }}
     {% endcall %}
   </div>
 
@@ -30,7 +30,7 @@
     {{ empty_state('No personas found. Create one to get started!') }}
     {% endif %}
 
-    <div class="entity-list reveal-verbs" id="persona-modal-grid">
+    <div class="entity-list reveal-verbs" id="persona-modal-grid" data-sort-mode="{{ personas_sort }}">
       {% for p in personas %}
       {% include "modals/persona-card.html" %}
       {% endfor %}
@@ -59,7 +59,6 @@
     nameAttr: 'personaName',
     imageField: 'avatar_path',
     modalId: 'modal-personas',
-    sortStorageKey: 'focus_persona_sort',
     sortFn: 'sortPersonas',
     emptyText: 'No personas found. Create one to get started!',
     deleteWithChats: false,
@@ -75,7 +74,6 @@
     gridId: 'persona-modal-grid',
     dataNameAttr: 'data-persona-name',
     dataCreatedAttr: 'data-persona-created',
-    sortStorageKey: 'focus_persona_sort',
     newItemLabel: 'Persona Name',
     newItemInputId: 'new-persona-name-input',
     apiEndpoint: '/api/personas',

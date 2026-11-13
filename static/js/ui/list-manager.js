@@ -1,14 +1,17 @@
-function _saveListPref(key, value) {
-  localStorage.setItem(key, value);
+// The sort mode lives in the settings table (the server renders it into
+// data-sort-mode on the grid, so a reload restores the order with no browser
+// copy to drift from it).
+function saveListSort(key, value) {
   hxJson(api.settings, 'PATCH', { key: key, value: value });
 }
 
-function _loadListPref(key, fallback) {
-  var val = localStorage.getItem(key);
-  if (val) return val;
-  // Could load from API, but for UI prefs localStorage fallback is fine
-  return fallback;
+function listSortMode(gridId, fallback) {
+  var grid = document.getElementById(gridId);
+  return (grid && grid.getAttribute('data-sort-mode')) || fallback || 'newest';
 }
+
+window.saveListSort = saveListSort;
+window.listSortMode = listSortMode;
 
 var _afterSwapHandlers = {};
 
@@ -76,9 +79,9 @@ window.ListManager = {
     };
 
     window[cfg.sortFn] = function (mode) {
-      _saveListPref(cfg.sortStorageKey, mode);
       var grid = document.getElementById(cfg.gridId);
       if (!grid) return;
+      grid.setAttribute('data-sort-mode', mode);
       var cards = Array.from(grid.querySelectorAll('[data-ui="entity-row"]'));
       cards.sort(function (a, b) {
         var aName = a.getAttribute(cfg.dataNameAttr) || '';
@@ -120,8 +123,7 @@ window.ListManager = {
                 + '?current_' + cfg.stateKey + '=' + encodeURIComponent(currentId);
               hxGet(url, { target: '#' + cfg.gridId, swap: 'beforeend' })
                 .then(function () {
-                  var val = localStorage.getItem(cfg.sortStorageKey);
-                  if (val && window[cfg.sortFn]) window[cfg.sortFn](val);
+                  if (window[cfg.sortFn]) window[cfg.sortFn](listSortMode(cfg.gridId));
                 });
             });
           } else {
@@ -156,10 +158,7 @@ window.ListManager = {
     document.addEventListener('htmx:afterSwap', afterSwapHandler);
 
     (function () {
-      var sortVal = _loadListPref(cfg.sortStorageKey);
-      if (sortVal) {
-        window[cfg.sortFn](sortVal);
-      }
+      window[cfg.sortFn](listSortMode(cfg.gridId));
       applyFilters();
     })();
   },

@@ -15,7 +15,7 @@
 
   <div class="modal-band-toolbar" x-show="enabled && providerSupportsTools">
     {% call search_toolbar('Search tools...', input_attrs='x-model="searchQuery"', wrapper_classes='') %}
-      {{ sort_dropdown('focus_tools_sort', 'sortTools') }}
+      {{ sort_dropdown(tools_sort, 'sortTools', 'focus_tools_sort') }}
     {% endcall %}
   </div>
 
@@ -84,7 +84,7 @@ document.addEventListener('alpine:init', function () {
       tools: [],
       toolStates: {},
       searchQuery: '',
-      sortMode: localStorage.getItem('focus_tools_sort') || 'az',
+      sortMode: '{{ tools_sort }}',
       openCategories: {},
 
       get providerSupportsTools() {
@@ -239,7 +239,6 @@ document.addEventListener('alpine:init', function () {
 });
 
 window.sortTools = function (mode) {
-  _saveListPref('focus_tools_sort', mode);
   var root = document.getElementById('tools-modal-data');
   if (root) Alpine.$data(root).sortMode = mode;
 };
