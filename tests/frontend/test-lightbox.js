@@ -67,19 +67,53 @@ global.document = doc;
 global.CustomEvent = CustomEventCtor;
 global.dispatchEvent = function () {};
 global.fetch = function () { return Promise.resolve({ ok: true }); };
-global.URL = { createObjectURL: function () { return 'blob:url'; } };
+global.URL = {
+  createObjectURL: function () { return 'blob:url'; },
+  revokeObjectURL: function () {},
+};
 global.Image = function () { this.src = ''; this.alt = ''; };
 global.Blob = function () {};
 global.setTimeout = function (fn) { fn(); };
+global.requestAnimationFrame = function (fn) { fn(); };
+global.showErrorToast = function () {};
+
+// A promise-like that runs its callbacks synchronously, so the tests stay flat.
+function syncChain(value) {
+  return {
+    then: function (cb) { return syncChain(cb(value)); },
+    catch: function () { return syncChain(value); },
+  };
+}
 
 // Cropper.js v2 mock with default export
 var cropperInstance = null;
-var $toCanvasCallback;
+var cropperCanvas = { getBoundingClientRect: function () { return { left: 0, top: 0, width: 600, height: 400 }; } };
+var cropperImage = {
+  offsetWidth: 2400,
+  offsetHeight: 960,
+  getBoundingClientRect: function () { return { left: 0, top: 80, width: 600, height: 240 }; },
+  // 2400px source rendered 600px wide, its top 80px down the 400px canvas
+  $getTransform: function () { return [0.25, 0, 0, 0.25, 0, -280]; },
+  $ready: function (cb) { cb(); },
+};
+var lastChange = null;
+var lastCanvasOpts = null;
 var cropperSelection = {
+  x: 0,
+  y: 0,
+  width: 0,
+  height: 0,
   $toCanvas: function (opts) {
+    lastCanvasOpts = opts;
     var canvas = { toBlob: function (cb) { cb(new Blob()); } };
-    // Run .then(cb) synchronously via a custom thenable
-    return { then: function (cb) { cb(canvas); } };
+    return syncChain(canvas);
+  },
+  $change: function (x, y, width, height) {
+    lastChange = { x: x, y: y, width: width, height: height };
+    this.x = x;
+    this.y = y;
+    this.width = width;
+    this.height = height;
   },
 };
 function MockCropper(image, opts) {
@@ -91,6 +125,8 @@ function MockCropper(image, opts) {
 }
 MockCropper.prototype = {
   destroy: function () { this.destroyed = true; cropperInstance = null; },
+  getCropperCanvas: function () { return cropperCanvas; },
+  getCropperImage: function () { return cropperImage; },
   getCropperSelection: function () { return cropperSelection; },
 };
 MockCropper.default = MockCropper;
@@ -148,6 +184,46 @@ eval(src + '\nwindow.openLightbox=openLightbox;window.openCropModal=openCropModa
   assert(!!cropperInstance, 'cropper instance for save test');
   cropSaveBtn.click();
   assert(callbackInvoked, 'crop save callback invoked via button');
+})();
+
+// ── the crop is taken at the source resolution, not the on-screen one ──
+(function () {
+  lastCanvasOpts = null;
+  window.openCropModal(new Blob(), function () {}, { aspectRatio: 1 });
+  cropSaveBtn.click();
+  assertEqual(lastCanvasOpts.width, 864, 'crop canvas is 4x the 216px selection (2400px source rendered in 600px)');
+  assertEqual(lastCanvasOpts.height, 864, 'crop canvas keeps the selection aspect');
+})();
+
+// ── a crop larger than the pipeline's 2048 ceiling is scaled down, not drawn huge ──
+(function () {
+  lastCanvasOpts = null;
+  cropperSelection.$change(0, 80, 600, 400);
+  window.openCropModal(new Blob(), function () {}, { aspectRatio: NaN });
+  cropperSelection.$change(0, 80, 600, 400);
+  cropSaveBtn.click();
+  assertEqual(lastCanvasOpts.width, 2048, 'oversized crop is capped at 2048 on its long edge');
+  assertEqual(lastCanvasOpts.height, 1365, 'capped crop keeps its aspect');
+})();
+
+// ── the initial selection sits inside the image, not the whole canvas ──
+(function () {
+  lastChange = null;
+  window.openCropModal(new Blob(), function () {}, { aspectRatio: 1 });
+  assertEqual(lastChange.width, 216, 'square selection is 90% of the image height');
+  assertEqual(lastChange.height, 216, 'square selection stays square');
+  assertEqual(lastChange.x, 192, 'square selection is centred on the image');
+  assertEqual(lastChange.y, 92, 'square selection is inset inside the image');
+  window.closeCropModal();
+})();
+
+(function () {
+  lastChange = null;
+  window.openCropModal(new Blob(), function () {}, { aspectRatio: NaN });
+  assertEqual(lastChange.width, 540, 'free selection spans 90% of a wide image');
+  assertEqual(lastChange.height, 216, 'free selection spans 90% of the image height');
+  assertEqual(Math.round(lastChange.x), 30, 'free selection is centred horizontally');
+  window.closeCropModal();
 })();
 
 // ── Result ──

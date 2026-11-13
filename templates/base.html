@@ -260,11 +260,7 @@
       z_index='var(--z-overlay)', role='dialog', overlay_close=false,
       overlay_attrs='aria-label="Image crop tool"',
       close_aria='Close crop tool') %}
-      <div
-        id="crop-container"
-        class="well p-2"
-        style="height: 60vh"
-      ></div>
+      <div id="crop-container" class="well p-2 crop-stage"></div>
       {% call modal_footer(hint='') %}
       <button class="btn" onclick="closeCropModal()">Cancel</button>
       <button class="btn primary" id="crop-save-btn">Save Crop</button>
