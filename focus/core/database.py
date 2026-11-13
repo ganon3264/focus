@@ -1,4 +1,5 @@
 import json
+from contextlib import asynccontextmanager
 from datetime import UTC
 
 import aiosqlite
@@ -275,10 +276,25 @@ CREATE INDEX IF NOT EXISTS idx_gen_usage_chat    ON generation_usage(chat_id);
 """
 
 
+@asynccontextmanager
+async def open_db(path=None):
+    """Open a connection with the pragmas every call site needs.
+
+    ``journal_mode`` is a property of the file; ``synchronous`` is
+    per-connection and defaults to FULL. In WAL mode NORMAL is the sane
+    pairing — a commit skips the WAL fsync, which risks only the last few
+    transactions on an OS crash, never the database — and it costs ~0.08 ms
+    per commit instead of ~1 ms.
+    """
+    async with aiosqlite.connect(path or DB_PATH) as conn:
+        await conn.execute("PRAGMA foreign_keys=ON")
+        await conn.execute("PRAGMA synchronous=NORMAL")
+        yield conn
+
+
 async def get_db():
-    async with aiosqlite.connect(DB_PATH) as db:
+    async with open_db() as db:
         db.row_factory = aiosqlite.Row
-        await db.execute("PRAGMA foreign_keys=ON")
         yield db
 
 
@@ -297,7 +313,7 @@ def init_directories():
 async def init_db():
     """Create database tables, seed defaults, and apply migrations on startup."""
     init_directories()
-    async with aiosqlite.connect(DB_PATH) as db:
+    async with open_db() as db:
         db.row_factory = aiosqlite.Row
         await db.executescript(SCHEMA)
 

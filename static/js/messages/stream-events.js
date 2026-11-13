@@ -75,13 +75,23 @@
   // ── Render coalescing: at most one markdown pass per frame ──
   var _rafId = null;
 
+  // Every pass re-parses the whole accumulated segment, so a long reply costs
+  // O(n²). Past a few KB, render on a cadence instead of every frame; the
+  // forced pass in finalizeStreamRender leaves the last frame complete.
+  function renderInterval(length) {
+    return length < 4000 ? 0 : Math.min(120, Math.floor(length / 400));
+  }
+
   function flushRenders(state) {
     _rafId = null;
     var firstRendered = null;
+    var now = Date.now();
     for (var i = 0; i < state.segments.length; i++) {
       var seg = state.segments[i];
       if (seg.type === 'text' && seg.dirty) {
+        if (now - (seg.renderedAt || 0) < renderInterval(seg.content.length)) continue;
         window.preserveOpenStates(seg.el, function () { return window.renderMessage(seg.content); });
+        seg.renderedAt = now;
         seg.dirty = false;
         if (!firstRendered) firstRendered = seg.el;
       }

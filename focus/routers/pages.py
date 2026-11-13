@@ -86,6 +86,24 @@ def _chat_page_size(request: Request) -> int:
     return crud.CHAT_PAGE_SIZE
 
 
+def _render_set(messages: list[dict], ids: str | None = None) -> tuple[list[dict], str]:
+    """The message nodes to render, plus the full position order.
+
+    Indices come from the whole list, so a filtered render produces exactly the
+    nodes a full one would. *ids* narrows that render to the nodes a client
+    already knows are stale; its own list stays authoritative for the order.
+    """
+    order = ",".join(str(m.get("id")) for m in messages)
+    wanted = {i.strip() for i in ids.split(",") if i.strip()} if ids else None
+    total = len(messages)
+    rendered = [
+        {"message": m, "index": index, "is_latest": index == total}
+        for index, m in enumerate(messages, start=1)
+        if wanted is None or str(m.get("id")) in wanted
+    ]
+    return rendered, order
+
+
 async def _theme_context(db: aiosqlite.Connection, character: dict | None) -> dict:
     """Theme state for the chat page: dark/light slots + per-character override."""
     state = await db_themes.get_theme_state(db)
@@ -210,6 +228,7 @@ async def chat_page(request: Request, chat_id: str, db: aiosqlite.Connection = D
     enabled_extensions = await db_extensions.get_enabled_extensions(db, chat_id)
 
     theme_ctx = await _theme_context(db, char)
+    rendered_messages, message_order = _render_set(messages)
 
     return templates.TemplateResponse(
         request,
@@ -219,6 +238,8 @@ async def chat_page(request: Request, chat_id: str, db: aiosqlite.Connection = D
             "chat_id": chat_id,
             "current_chat_id": chat_id,
             "messages": messages,
+            "rendered_messages": rendered_messages,
+            "message_order": message_order,
             "character": char,
             "persona": persona,
             "preset": preset,
@@ -243,7 +264,12 @@ async def chat_page(request: Request, chat_id: str, db: aiosqlite.Connection = D
 
 
 @router.get("/partials/message-list/{chat_id}", response_class=HTMLResponse)
-async def message_list_partial(request: Request, chat_id: str, db: aiosqlite.Connection = Depends(get_db)):
+async def message_list_partial(
+    request: Request,
+    chat_id: str,
+    ids: str | None = Query(None),
+    db: aiosqlite.Connection = Depends(get_db),
+):
     messages = await crud.get_lineage_messages(db, chat_id)
 
     char = None
@@ -261,12 +287,15 @@ async def message_list_partial(request: Request, chat_id: str, db: aiosqlite.Con
     _resolve_macros_for_display(messages, char, persona, preset_blocks)
     await _apply_display_regex(db, chat_id, messages)
     enabled_extensions = await db_extensions.get_enabled_extensions(db, chat_id)
+    rendered_messages, message_order = _render_set(messages, ids)
 
     return templates.TemplateResponse(
         request,
         "chat/message-list.html",
         {
             "messages": messages,
+            "rendered_messages": rendered_messages,
+            "message_order": message_order,
             "chat_id": chat_id,
             "character": char,
             "persona": persona,

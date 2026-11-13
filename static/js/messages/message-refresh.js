@@ -65,30 +65,38 @@
   // The one full-list renderer. Fetches the server-rendered partial and
   // rearranges the DOM to match it in place, so scroll position, open reasoning
   // toggles, and pruned stubs survive. *changedIds* are re-rendered from the
-  // server; pass null to re-render every message.
+  // server — and only those nodes are asked for; the response still carries the
+  // full position order, so the reconcile below is the same either way. Pass
+  // null to re-render every message.
   async function refreshMessageList(chatId, changedIds) {
     var container = document.getElementById('message-list');
     if (!container) return;
 
-    var resp = await window.hxFetch(window.api.partials.messageList(chatId));
+    var resp = await window.hxFetch(window.api.partials.messageList(chatId, changedIds));
     if (!resp.ok) return;
     var doc = new DOMParser().parseFromString(await resp.text(), 'text/html');
 
-    var orderedIds = Array.prototype.map.call(doc.querySelectorAll('[data-ui="message"]'), function (n) {
-      return n.id;
-    });
-
     var newData = doc.getElementById('message-list-data');
+    var order = newData && newData.dataset.order
+      ? newData.dataset.order.split(',').filter(Boolean)
+      : Array.prototype.map.call(doc.querySelectorAll('[data-ui="message"]'), function (n) { return n.id; });
+    var orderedIds = order.map(MessageIdentity.domId);
+
+    // A node the client never saw has no rendered HTML in a narrowed response;
+    // only the full partial carries it. Check before touching the DOM.
+    var missing = orderedIds.some(function (id) { return !_findLiveNode(container, id); });
+    if (changedIds != null && missing) {
+      await refreshMessageList(chatId, null);
+      return;
+    }
+
     var oldData = container.querySelector('#message-list-data');
     if (newData && oldData) oldData.replaceWith(newData);
 
-    // When the live node set diverges from the server's (a message the client
-    // never saw, or one it thinks still exists), re-render every message so
-    // per-message state like `data-msg-index` stays correct.
-    var liveCount = container.querySelectorAll('[data-ui="message"]').length
-      + container.querySelectorAll('[data-ui="message-placeholder"]').length;
-    var missing = orderedIds.some(function (id) { return !_findLiveNode(container, id); });
-    var toReplace = (changedIds == null || missing || liveCount !== orderedIds.length)
+    // Nodes the server no longer has are dropped by the reconcile below, and
+    // every node's index comes from the server's own enumeration, so only the
+    // changed nodes need replacing.
+    var toReplace = changedIds == null
       ? orderedIds.map(function (id) { return MessageIdentity.bare(id); })
       : changedIds;
     for (var i = 0; i < toReplace.length; i++) {
@@ -117,9 +125,27 @@
   window.refreshMessageList = refreshMessageList;
 
   async function refreshMessagesAfterStream(chatId, userMsgId, asstMsgId) {
-    await refreshMessageList(chatId, [userMsgId, asstMsgId].filter(Boolean));
+    var ids = [userMsgId, asstMsgId].filter(Boolean);
+    if (!ids.length) return refreshMessageList(chatId, null);
+    // Appending a turn takes `is_latest` off the message above it, and that flag
+    // owns the regenerate/continue keys — so the previous node is stale too.
+    var previous = _previousMessageId(ids);
+    await refreshMessageList(chatId, previous ? ids.concat(previous) : ids);
   }
   window.refreshMessagesAfterStream = refreshMessagesAfterStream;
+
+  function _previousMessageId(changedIds) {
+    var container = document.getElementById('message-list');
+    if (!container) return null;
+    var nodes = container.querySelectorAll(
+      '[data-ui="message"], [data-ui="message-placeholder"]',
+    );
+    for (var i = nodes.length - 1; i >= 0; i--) {
+      var id = MessageIdentity.bare(nodes[i]);
+      if (id && changedIds.indexOf(id) === -1) return id;
+    }
+    return null;
+  }
 
   // ── Chat list pagination sizing ────────────────────────────────────────
   // Page size is however many rows actually fit the sidebar, so a page never

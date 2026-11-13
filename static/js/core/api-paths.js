@@ -196,8 +196,10 @@ window.api = {
   import_: '/api/import',
 
   partials: {
-    messageList: function (chatId) {
-      return '/partials/message-list/' + chatId;
+    messageList: function (chatId, ids) {
+      var url = '/partials/message-list/' + chatId;
+      if (ids && ids.length) url += '?ids=' + encodeURIComponent(ids.join(','));
+      return url;
     },
     messageToolbars: function (chatId) {
       return '/partials/message-toolbars/' + chatId;

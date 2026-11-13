@@ -14,7 +14,7 @@ import tiktoken
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse, StreamingResponse
 
-from focus.core.database import DB_PATH, get_db
+from focus.core.database import DB_PATH, get_db, open_db
 from focus.core.logger import get_logger
 from focus.core.media import set_image_format
 from focus.core.models import ItemizerRequest, StreamRequest
@@ -150,9 +150,8 @@ async def _detached_conn(db: aiosqlite.Connection | None) -> AsyncIterator[aiosq
         except Exception:
             logger.debug("Could not resolve database file from request connection; "
                          "falling back to DB_PATH")
-    async with aiosqlite.connect(path) as conn:
+    async with open_db(path) as conn:
         conn.row_factory = aiosqlite.Row
-        await conn.execute("PRAGMA foreign_keys=ON")
         yield conn
 
 

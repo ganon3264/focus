@@ -6,7 +6,33 @@ cover the crud helpers only reachable through pages (get_chat_messages,
 get_chats_sidebar, get_counts, get_preset).
 """
 
+import os
+import re
+import uuid
+from datetime import UTC, datetime
+
+import aiosqlite
+
 from tests.helpers import create_character, create_chat, create_persona, create_preset
+
+
+async def _seed_message(db_path: str, chat_id: str, role: str, position: int, content: str) -> str:
+    msg_id = str(uuid.uuid4())
+    now = datetime.now(UTC).isoformat()
+    async with aiosqlite.connect(db_path) as db:
+        await db.execute(
+            "INSERT INTO messages (id, chat_id, role, position, active_index, created_at)"
+            " VALUES (?, ?, ?, ?, 0, ?)",
+            (msg_id, chat_id, role, position, now),
+        )
+        await db.execute(
+            "INSERT INTO message_variants"
+            " (id, message_id, variant_index, content, created_at, model_name)"
+            " VALUES (?, ?, 0, ?, ?, 'fake-model')",
+            (str(uuid.uuid4()), msg_id, content, now),
+        )
+        await db.commit()
+    return msg_id
 
 
 async def _seed_chat(client):
@@ -361,3 +387,49 @@ class TestHealth:
         resp = await client.get("/api/health")
         assert resp.status_code == 200
         assert resp.json() == {"ok": True}
+
+
+class TestMessageListPartial:
+    """`?ids=` narrows the render without changing what a node looks like."""
+
+    async def _seed(self, client, tmp_test_dir, roles=("user", "assistant", "user", "assistant")):
+        chat = await create_chat(client, title="Narrowed")
+        db_path = os.path.join(tmp_test_dir, "test.db")
+        ids = [
+            await _seed_message(db_path, chat["id"], role, i, f"line {i}")
+            for i, role in enumerate(roles)
+        ]
+        return chat, ids
+
+    async def test_full_render_has_every_node(self, client, tmp_test_dir):
+        chat, ids = await self._seed(client, tmp_test_dir)
+        resp = await client.get(f"/partials/message-list/{chat['id']}")
+        assert resp.status_code == 200
+        for msg_id in ids:
+            assert f'id="message-{msg_id}"' in resp.text
+        assert f'data-order="{",".join(ids)}"' in resp.text
+
+    async def test_narrowed_render_keeps_the_global_index(self, client, tmp_test_dir):
+        chat, ids = await self._seed(client, tmp_test_dir)
+        resp = await client.get(f"/partials/message-list/{chat['id']}?ids={ids[1]}")
+        assert resp.status_code == 200
+
+        assert f'id="message-{ids[1]}"' in resp.text
+        assert f'id="message-{ids[0]}"' not in resp.text
+        assert f'id="message-{ids[3]}"' not in resp.text
+        assert re.search(
+            rf'data-message-id="{ids[1]}"[^>]*data-msg-index="2"', resp.text
+        ), "a narrowed node must keep its position in the whole list"
+
+        assert f'data-order="{",".join(ids)}"' in resp.text, "the order stays complete"
+
+    async def test_narrowed_render_keeps_the_latest_flag(self, client, tmp_test_dir):
+        chat, ids = await self._seed(client, tmp_test_dir)
+
+        mid = await client.get(f"/partials/message-list/{chat['id']}?ids={ids[1]}")
+        latest = await client.get(f"/partials/message-list/{chat['id']}?ids={ids[3]}")
+
+        assert "actionTriggerRegeneration" not in mid.text, (
+            "a message that is not last must not look like the latest one"
+        )
+        assert "actionTriggerRegeneration" in latest.text

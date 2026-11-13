@@ -1,5 +1,6 @@
 <div
   id="message-list-data"
+  data-order="{{ message_order }}"
   data-last-role="{{ messages[-1].role if messages else '' }}"
   data-char-name="{{ character.name if character else 'Assistant' }}"
   data-char-image="{{ character.image_path if character and character.image_path else '' }}"
@@ -7,6 +8,12 @@
   data-persona-avatar="{{ persona.avatar_path if persona and persona.avatar_path else '' }}"
   style="display: none"
 ></div>
-{% for message in messages %} {% set is_latest = loop.last %} {% set msg_index = loop.index %} {% include "chat/message.html" %} {%
-endfor %}
+{# Each entry carries the global index and latest flag, so a render narrowed to
+   the nodes a client marked stale produces exactly the nodes a full one would. #}
+{% for item in rendered_messages %}
+{% set message = item.message %}
+{% set is_latest = item.is_latest %}
+{% set msg_index = item.index %}
+{% include "chat/message.html" %}
+{% endfor %}
 <div id="scroll-sentinel" style="height: 1px"></div>

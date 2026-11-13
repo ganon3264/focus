@@ -5,6 +5,7 @@ import logging
 
 import aiosqlite
 
+from focus.core.database import open_db
 from focus.core.paths import DB_PATH
 from focus.db.extensions import get_chat_states
 from focus.extensions.loader import get_all_extensions
@@ -38,9 +39,8 @@ async def _run_trigger(path: str, chat_id: str, event: str, message_id: str) -> 
     ignores per-extension failures so one bad script can't break the others.
     """
     try:
-        async with aiosqlite.connect(path) as conn:
+        async with open_db(path) as conn:
             conn.row_factory = aiosqlite.Row
-            await conn.execute("PRAGMA foreign_keys=ON")
             specs = await _trigger_specs_for(conn, chat_id, event)
             for spec in specs:
                 try:
