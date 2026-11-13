@@ -24,7 +24,12 @@ if command -v uv &>/dev/null; then
   exec uv run python main.py --host "${FOCUS_HOST:-127.0.0.1}" --port "${FOCUS_PORT:-8000}"
 else
   echo "UV not found, using regular python venv."
-  [ -d ".venv" ] || python -m venv .venv
+  if ! python -c 'import sys; sys.exit(0 if sys.version_info[:2] >= (3, 11) else 1)' 2>/dev/null; then
+    echo >&2 "Error: Focus needs Python 3.11 or newer. Install uv (https://docs.astral.sh/uv/) or a newer Python."
+    exit 1
+  fi
+  # A venv uv created has no pip, so it cannot be installed into.
+  [ -x ".venv/bin/pip" ] || python -m venv --clear .venv
   .venv/bin/pip install --require-hashes -r requirements.lock.txt
   .venv/bin/pip install -e . --no-deps
   exec .venv/bin/python main.py --host "${FOCUS_HOST:-127.0.0.1}" --port "${FOCUS_PORT:-8000}"
