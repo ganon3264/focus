@@ -287,6 +287,10 @@ async def get_lineage_messages(db: aiosqlite.Connection, chat_id: str) -> list[d
 CHAT_PAGE_SIZE = 15
 CHAT_PAGE_SIZE_MAX = 50
 
+# A row shows one clipped line, so the sidebar only ships the head of the
+# message; the client renders that through the markdown pipeline.
+CHAT_PREVIEW_CHARS = 400
+
 
 def _page_window(page: int, total_pages: int, width: int = 5) -> list[int]:
     """The contiguous run of page numbers to show, centred on *page*."""
@@ -338,7 +342,9 @@ async def get_chats_sidebar(
 
     for chat in chats:
         if chat.get("last_message"):
-            chat["last_message"] = chat["last_message"].strip() or "New Chat"
+            chat["last_message"] = (
+                chat["last_message"].strip()[:CHAT_PREVIEW_CHARS] or "New Chat"
+            )
 
     return {
         "chats": chats,

@@ -253,15 +253,36 @@
     return refreshMessageList(chatId, null);
   };
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initChatPageSize);
-  } else {
-    initChatPageSize();
+  // Rows ship the raw last message; render each into the same markup the
+  // message list shows, flattened to the row's one line.
+  function renderChatPreviews() {
+    if (!window.renderChatPreview) return;
+    var titles = document.querySelectorAll('#chat-list [data-ui="sidebar-item"] .row-title');
+    for (var i = 0; i < titles.length; i++) {
+      var el = titles[i];
+      if (el.hasAttribute('data-preview-ready')) continue;
+      el.innerHTML = window.renderChatPreview(el.textContent || '');
+      el.setAttribute('data-preview-ready', '');
+    }
   }
-  window.addEventListener('load', initChatPageSize);
+  window.renderChatPreviews = renderChatPreviews;
+
+  function initChatList() {
+    renderChatPreviews();
+    syncChatPageSize();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initChatList);
+  } else {
+    initChatList();
+  }
+  window.addEventListener('load', initChatList);
 
   document.body.addEventListener('htmx:afterSwap', function (evt) {
-    if (evt.detail.target && evt.detail.target.id === 'chat-list') syncChatPageSize();
+    if (!evt.detail.target || evt.detail.target.id !== 'chat-list') return;
+    renderChatPreviews();
+    syncChatPageSize();
   });
 
   var _chatResizeTimer = null;

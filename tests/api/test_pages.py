@@ -178,6 +178,15 @@ class TestChatPagination:
         assert 'data-chat-page="2"' in resp.text
         assert 'class="row group active"' in resp.text
 
+    async def test_preview_is_clipped_to_one_row(self, client):
+        long_text = "word " * 200
+        char = await create_character(client, "PreviewChar", first_mes=long_text)
+        chat = await create_chat(client, char["id"], title="Preview Chat")
+        resp = await client.get(f"/partials/chat-list?current_chat_id={chat['id']}")
+        assert resp.status_code == 200
+        assert long_text[:400] in resp.text
+        assert long_text[:401] not in resp.text
+
     async def test_selection_state_preserves_page(self, client):
         char = await create_character(client, "Paged5")
         await self._seed(client, 16, char["id"])

@@ -133,6 +133,36 @@ window.renderMessage = function (text) {
   return html;
 };
 
+// A chat row's preview: the message render, flattened onto the single line the
+// row has room for. Images and code blocks go; block boxes unwrap to their
+// words so inline marks (bold, colour spans) survive the collapse.
+var CHAT_PREVIEW_CHARS = 400;
+var PREVIEW_DROP = 'img, input, pre, svg, video, audio, iframe, object, embed, figure, hr, [data-ui="external-media-placeholder"]';
+var PREVIEW_UNWRAP =
+  'a, p, div, li, ul, ol, blockquote, h1, h2, h3, h4, h5, h6, table, thead, tbody, tr, td, th, dl, dt, dd, figcaption, section';
+
+window.renderChatPreview = function (text) {
+  if (!text) return '';
+
+  var tpl = document.createElement('template');
+  tpl.innerHTML = window.renderMessage(text.slice(0, CHAT_PREVIEW_CHARS));
+  var root = tpl.content;
+
+  function unwrap(el) {
+    el.replaceWith.apply(el, Array.prototype.slice.call(el.childNodes));
+  }
+
+  root.querySelectorAll(PREVIEW_DROP).forEach(function (el) {
+    el.remove();
+  });
+  root.querySelectorAll('br').forEach(function (el) {
+    el.replaceWith(' ');
+  });
+  root.querySelectorAll(PREVIEW_UNWRAP).forEach(unwrap);
+
+  return tpl.innerHTML;
+};
+
 window.loadExternalMedia = function (el) {
   var placeholder = el.closest('[data-ui="external-media-placeholder"]');
   if (!placeholder) return;
