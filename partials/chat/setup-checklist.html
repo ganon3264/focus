@@ -1,9 +1,10 @@
-{% from "macros.html" import icon_check, icon_chat %}
+{% from "macros.html" import icon_check, icon_chat, icon_upload %}
 {% set active_provider = (providers | selectattr('id', 'equalto', active_provider_id) | list | first) if active_provider_id else none %}
 {% set provider_ready = active_provider is not none %}
 {% set preset_ready = presets | length > 0 %}
-{% set setup_ready = provider_ready and preset_ready and has_characters %}
-{% set done_count = (1 if provider_ready else 0) + (1 if preset_ready else 0) + (1 if has_characters else 0) %}
+{% set persona_ready = user_persona is not none %}
+{% set setup_ready = provider_ready and preset_ready and has_characters and persona_ready %}
+{% set done_count = (1 if provider_ready else 0) + (1 if preset_ready else 0) + (1 if has_characters else 0) + (1 if persona_ready else 0) %}
 {% if setup_ready %}
   {% if character %}
   <div class="avatar xl greeter-avatar">
@@ -20,7 +21,6 @@
   <button class="btn lg create" onclick="newChat()">
     Start Chat
   </button>
-  <button type="button" class="link mt-3" onclick="openModal('modal-sampler')">Tune samplers</button>
   {% else %}
   <div class="avatar xl greeter-avatar">{{ icon_chat(40) }}</div>
   <h1 class="text-2xl font-bold mb-2">Welcome to Focus</h1>
@@ -30,21 +30,20 @@
   <button class="btn lg primary" onclick="openModal('modal-characters')">
     View Characters
   </button>
-  <button type="button" class="link mt-3" onclick="openModal('modal-sampler')">Tune samplers</button>
   {% endif %}
 {% else %}
   <h1 class="text-2xl font-bold mb-2">Welcome to Focus</h1>
   <p class="text-muted max-w-md mb-6 leading-relaxed">
     Set these up in order. You can change anything later.
   </p>
-  <div class="frame w-full max-w-md text-left">
-    <div class="px-4 pt-2">
+  <div class="frame w-full max-w-lg text-left">
+    <div class="px-6 pt-2">
       <div class="rail">
         <span>Setup</span>
-        <div class="rail-actions flush"><span class="row-meta">{{ done_count }}/3</span></div>
+        <div class="rail-actions flush"><span class="row-meta">{{ done_count }}/4</span></div>
       </div>
     </div>
-    <div class="flex flex-col">
+    <div class="flex flex-col px-4">
       <div class="row entity-row provider-row setup-step">
         <span class="entity-identity">
           <span class="row-title">Provider</span>
@@ -77,6 +76,12 @@
           {% if preset_ready %}
           <span class="tag active">Done</span>
           {% else %}
+          <form onsubmit="importPreset(event)">
+            <label class="key sm" title="Import a preset" aria-label="Import preset">
+              {{ icon_upload(14) }}
+              <input type="file" name="file" accept=".json" class="hidden" onchange="this.closest('form').requestSubmit()" />
+            </label>
+          </form>
           <button type="button" class="btn sm create" onclick="actionOpenNewPreset()">Create</button>
           {% endif %}
         </span>
@@ -100,6 +105,35 @@
         </span>
       </div>
 
+      <div class="row entity-row provider-row setup-step">
+        <span class="entity-identity">
+          <span class="row-title">Persona</span>
+          <span class="row-meta">
+            {% if persona_ready %}{{ user_persona.name }}
+            {% else %}Describe yourself so the character knows who it's talking to{% endif %}
+          </span>
+        </span>
+        <span class="row-actions">
+          {% if persona_ready %}
+          <span class="tag active">Done</span>
+          {% elif persona %}
+          <button
+            type="button"
+            class="btn sm primary"
+            data-persona-id="{{ persona.id }}"
+            data-persona-name="{{ persona.name }}"
+            data-persona-desc="{{ persona.description or '' }}"
+            data-persona-image="{{ persona.avatar_path or '' }}"
+            data-persona-group="{{ persona.get('group_name') or '' }}"
+            data-persona-media="{{ (persona.get('images') or []) | tojson | forceescape }}"
+            onclick="openEditPersonaModal(this)"
+          >Edit</button>
+          {% else %}
+          <button type="button" class="btn sm create" onclick="openModal('modal-personas')">Add</button>
+          {% endif %}
+        </span>
+      </div>
+
       {% if provider_ready %}
       <div class="row entity-row provider-row setup-step">
         <span class="entity-identity">
@@ -113,7 +147,7 @@
       {% endif %}
     </div>
     <div class="divider"></div>
-    <div class="p-4 flex flex-col gap-2">
+    <div class="px-6 py-4 flex flex-col gap-2">
       <button type="button" class="btn lg create" disabled>Start chat</button>
       <p class="note">Finish the steps above to start.</p>
     </div>

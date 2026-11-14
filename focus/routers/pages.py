@@ -173,6 +173,9 @@ async def chat_redirect(request: Request, character_id: str = Query(None), db: a
     presets = await crud.get_presets(db)
     providers = await crud.get_providers(db)
     persona = await crud.get_persona(db)
+    if persona:
+        await crud.attach_images([persona], db)
+    user_persona = await crud.get_described_persona(db)
 
     # The greeter has no chat to read a preset from, so it inherits the one the
     # user was last writing with instead of resetting to the newest preset.
@@ -205,6 +208,7 @@ async def chat_redirect(request: Request, character_id: str = Query(None), db: a
             "messages": [],
             "character": character,
             "persona": persona,
+            "user_persona": user_persona,
             "preset": preset,
             "preset_blocks": regular_blocks,
             "var_groups": var_groups,
@@ -516,7 +520,17 @@ async def selection_state_partial(
     blocks = preset["blocks"] if preset else []
     _, regular_blocks, var_groups = partition_blocks(blocks)
 
-    character = await crud.get_character(db, character_id) if character_id else None
+    character = None
+    persona = None
+    user_persona = None
+    if setup:
+        character = await crud.get_character(db, character_id) if character_id else None
+        persona = await crud.get_persona(db, persona_id) if persona_id else None
+        if persona is None:
+            persona = await crud.get_persona(db)
+        if persona:
+            await crud.attach_images([persona], db)
+        user_persona = await crud.get_described_persona(db)
     counts = await crud.get_counts(db, character_id or None, persona_id or None)
     chat_list = await crud.get_chats_sidebar(db, character_id or None, page=page, page_size=_chat_page_size(request))
     providers = await crud.get_providers(db)
@@ -530,6 +544,8 @@ async def selection_state_partial(
             "chat_id": chat_id,
             "current_chat_id": chat_id,
             "character": character,
+            "persona": persona,
+            "user_persona": user_persona,
             "presets": presets,
             "current_preset_id": preset_id,
             "preset": preset,

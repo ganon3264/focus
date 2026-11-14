@@ -8,16 +8,25 @@ from focus.core.media import tool_image_url
 
 logger = logging.getLogger("focus.crud")
 
+async def _fetch_by_ids(db: aiosqlite.Connection, sql: str, ids: list, chunk_size: int = 900) -> list:
+    rows = []
+    for start in range(0, len(ids), chunk_size):
+        chunk = ids[start:start + chunk_size]
+        placeholders = ",".join("?" * len(chunk))
+        async with db.execute(sql.format(placeholders), chunk) as cur:
+            rows.extend(await cur.fetchall())
+    return rows
+
+
 async def attach_images(blocks: list[dict], db: aiosqlite.Connection) -> list[dict]:
     if not blocks:
         return blocks
     ids = [b["id"] for b in blocks]
-    placeholders = ",".join("?" * len(ids))
-    async with db.execute(
-        f"SELECT id, block_id, image_path, mime_type, position FROM block_images WHERE block_id IN ({placeholders}) ORDER BY position",
+    rows = await _fetch_by_ids(
+        db,
+        "SELECT id, block_id, image_path, mime_type, position FROM block_images WHERE block_id IN ({}) ORDER BY position",
         ids,
-    ) as cur:
-        rows = await cur.fetchall()
+    )
     images_by_block: dict[str, list] = {}
     for r in rows:
         images_by_block.setdefault(r["block_id"], []).append(dict(r))
@@ -50,6 +59,14 @@ async def verify_entity_exists(
 async def has_characters(db: aiosqlite.Connection) -> bool:
     async with db.execute("SELECT 1 FROM characters WHERE is_deleted = 0 LIMIT 1") as cur:
         return await cur.fetchone() is not None
+
+
+async def get_described_persona(db: aiosqlite.Connection) -> dict | None:
+    async with db.execute(
+        "SELECT id, name FROM personas WHERE is_deleted = 0 AND TRIM(COALESCE(description, '')) <> '' LIMIT 1"
+    ) as cur:
+        row = await cur.fetchone()
+    return dict(row) if row else None
 
 
 async def load_entity_blocks(
@@ -101,11 +118,11 @@ async def _attach_blocks(db: aiosqlite.Connection, rows: list[dict], table: str,
     if not rows:
         return
     ids = [r["id"] for r in rows]
-    placeholders = ",".join("?" * len(ids))
-    async with db.execute(
-        f"SELECT * FROM {table} WHERE {fk_col} IN ({placeholders}) ORDER BY position, rowid", ids
-    ) as cur:
-        block_rows = await cur.fetchall()
+    block_rows = await _fetch_by_ids(
+        db,
+        f"SELECT * FROM {table} WHERE {fk_col} IN ({{}}) ORDER BY position, rowid",
+        ids,
+    )
     by_parent: dict[str, list[dict]] = {}
     for br in block_rows:
         by_parent.setdefault(br[fk_col], []).append(dict(br))

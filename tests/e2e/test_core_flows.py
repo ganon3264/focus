@@ -67,6 +67,16 @@ async def describe_character(page, app, name, description):
     await close_modal(page, "modal-characters")
 
 
+async def describe_persona(page, app, description):
+    """Fill in the seeded User persona from the setup checklist."""
+    await page.goto(app.url + "/")
+    await page.locator("#setup-checklist [data-persona-id]").click()
+    await expect(page.locator("#edit-persona-name")).to_have_value("User")
+    await page.locator("#edit-persona-desc").fill(description)
+    await page.locator("#edit-persona-form button[type='submit']").click()
+    await expect(page.locator("#modal-edit-persona")).to_be_hidden()
+
+
 async def create_provider(page, app, llm, name):
     await page.goto(app.url + "/")
     await page.locator(".sidebar-section .nav", has_text="Providers").click()
@@ -158,6 +168,7 @@ async def test_chat_round_trip(page, app, llm, db):
     await create_preset(page, app, preset)
     await create_provider(page, app, llm, provider)
     await close_modal(page, "modal-providers")
+    await describe_persona(page, app, "A traveller with a full water skin.")
 
     await start_chat_with(page, app, character, provider)
     await expect(page.locator("#status-provider")).to_have_text(provider)
