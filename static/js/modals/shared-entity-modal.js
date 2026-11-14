@@ -233,6 +233,13 @@
           if (r.ok) {
             var data = await r.json();
             window.showImportToast(data, cfg.entityLower + 's');
+            // An import creates rows under every surface that counts them, so
+            // it declares the resource like a delete does instead of patching
+            // the grid by hand.
+            if (window.Refresh) {
+              Refresh.changed(resource);
+              return;
+            }
             var g = document.getElementById(cfg.gridId);
             var cid = StateManager.get(cfg.stateKey) || '';
             if (g) {

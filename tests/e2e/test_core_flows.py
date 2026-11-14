@@ -68,13 +68,16 @@ async def describe_character(page, app, name, description):
 
 
 async def describe_persona(page, app, description):
-    """Fill in the seeded User persona from the setup checklist."""
+    """Fill in the seeded User persona from the roster."""
     await page.goto(app.url + "/")
-    await page.locator("#setup-checklist [data-persona-id]").click()
+    await page.locator(".sidebar-section .nav", has_text="Personas").click()
+    row = page.locator("#persona-modal-grid [data-ui='entity-row']", has_text="User")
+    await row.get_by_role("button", name="Edit persona").click()
     await expect(page.locator("#edit-persona-name")).to_have_value("User")
     await page.locator("#edit-persona-desc").fill(description)
     await page.locator("#edit-persona-form button[type='submit']").click()
     await expect(page.locator("#modal-edit-persona")).to_be_hidden()
+    await close_modal(page, "modal-personas")
 
 
 async def create_provider(page, app, llm, name):

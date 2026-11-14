@@ -196,7 +196,7 @@
       var prev = eid('-image-preview');
       var ph = eid('-image-placeholder');
       if (imgPath) {
-        prev.src = '/' + imgPath + '?t=' + new Date().getTime();
+        prev.src = window.assetUrl(imgPath) + '?t=' + new Date().getTime();
         prev.style.display = 'block';
         ph.style.display = 'none';
       } else {

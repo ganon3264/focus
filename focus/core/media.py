@@ -5,6 +5,7 @@ import base64
 import contextvars
 import hashlib
 import logging
+import re
 import uuid
 from io import BytesIO
 from pathlib import Path
@@ -137,6 +138,32 @@ def persist_tool_image(data_url: str) -> str | None:
     TOOL_ASSETS_DIR.mkdir(parents=True, exist_ok=True)
     (TOOL_ASSETS_DIR / file_name).write_bytes(raw)
     return rel_path
+
+
+def asset_url(stored: str) -> str:
+    """Public URL for a stored asset path — the only place that mapping lives.
+
+    DB rows hold filesystem paths (``assets/...`` relative to the cwd for
+    legacy rows, or wherever ``FOCUS_ASSETS_DIR`` points), while everything
+    under ASSETS_DIR is served at ``/assets``. Templates, API payloads and the
+    client helper (``assetUrl`` in ``ui/media-utils.js``) all go through this.
+    """
+    if not stored:
+        return ""
+    if re.match(r"^(?:[a-z][a-z0-9+.-]*:|//)", stored):
+        return stored  # already a URL (http, data, blob, protocol-relative)
+    path = Path(stored)
+    try:
+        rel = path.absolute().relative_to(ASSETS_DIR.absolute())
+        return f"/assets/{rel.as_posix()}"
+    except ValueError:
+        pass
+    # Rows written before ASSETS_DIR was configurable (or restored on another
+    # machine): the path still names its place inside the tree. Same rule as
+    # `assetUrl` in static/js/ui/media-utils.js.
+    posix = path.as_posix()
+    match = re.search(r"(?:^|/)assets/(.*)$", posix)
+    return "/assets/" + (match.group(1) if match else posix.lstrip("/"))
 
 
 def _resolve_orig(rel_path: str) -> Path:

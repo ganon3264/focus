@@ -3,6 +3,18 @@
     return typeof src === 'string' && /^(blob:|data:|https?:)/.test(src);
   }
 
+  // The client twin of `asset_url` in focus/core/media.py: stored asset paths
+  // are filesystem paths, everything under ASSETS_DIR is served at /assets.
+  // Server-rendered attributes and API payloads carry the URL already; this
+  // only rescues raw paths (staged blobs pass straight through).
+  window.assetUrl = function (stored) {
+    if (!stored) return '';
+    var s = String(stored).replace(/\\/g, '/');
+    if (isExternalSrc(s) || s.indexOf('/assets/') === 0) return s;
+    var m = s.match(/(?:^|\/)assets\/(.*)$/);
+    return '/assets/' + (m ? m[1] : s.replace(/^\/+/, ''));
+  };
+
   window.createMediaThumbnail = function (opts) {
     var div = document.createElement('div');
     div.className = 'media-thumb well relative';
@@ -18,7 +30,7 @@
         window.getSvgSprite('music', opts.iconSize || 24) +
         '</div>';
     } else {
-      var imgSrc = opts.src ? (isExternalSrc(opts.src) ? opts.src : '/' + opts.src) : '';
+      var imgSrc = opts.src ? (opts.url || window.assetUrl(opts.src)) : '';
       div.innerHTML =
         '<img src="' +
         imgSrc +
@@ -62,7 +74,8 @@
       mimeType: img.mime_type,
       size: 48,
       id: idPrefix ? idPrefix + '-' + img.id : undefined,
-      onClick: function () { openLightbox(isExternalSrc(img.image_path) ? img.image_path : '/' + (img.image_path || '')); },
+      url: img.url,
+      onClick: function () { openLightbox(img.url || window.assetUrl(img.image_path)); },
       onDelete: function (e) {
         e.preventDefault();
         e.stopPropagation();

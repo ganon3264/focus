@@ -6,6 +6,7 @@ only stand-in is the LLM's HTTP endpoint, which is the one thing a test cannot
 own for real.
 """
 
+import contextlib
 import json
 import os
 import socket
@@ -164,12 +165,22 @@ def llm():
     server.shutdown()
 
 
-@pytest.fixture(scope="session")
-def app(tmp_path_factory):
+class App:
+    """A running app instance rooted at one data directory."""
+
+    def __init__(self, url, data_dir):
+        self.url = url
+        self.db_path = data_dir / "focus.db"
+
+
+@contextlib.contextmanager
+def spawn_app(data_dir):
+    """Start main.py against a fresh data directory (first launch included)."""
     port = _free_port()
-    data_dir = tmp_path_factory.mktemp("e2e-data")
+    # The app is a child process, not part of this coverage session: pytest-cov's
+    # process-start hooks would instrument it and fight over the data file.
     env = {
-        **os.environ,
+        **{k: v for k, v in os.environ.items() if not k.startswith(("COV_CORE_", "COVERAGE_"))},
         "FOCUS_DATA_DIR": str(data_dir),
         "FOCUS_ASSETS_DIR": str(data_dir / "assets"),
         "FOCUS_BACKUPS_DIR": str(data_dir / "backups"),
@@ -204,17 +215,21 @@ def app(tmp_path_factory):
     else:
         raise RuntimeError("app did not start:\n" + (data_dir / "app.log").read_text())
 
-    class App:
-        url = base_url
-        db_path = data_dir / "focus.db"
-
-    yield App
-    proc.terminate()
     try:
-        proc.wait(timeout=10)
-    except subprocess.TimeoutExpired:
-        proc.kill()
-    log.close()
+        yield App(base_url, data_dir)
+    finally:
+        proc.terminate()
+        try:
+            proc.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+        log.close()
+
+
+@pytest.fixture(scope="session")
+def app(tmp_path_factory):
+    with spawn_app(tmp_path_factory.mktemp("e2e-data")) as instance:
+        yield instance
 
 
 @pytest_asyncio.fixture(scope="session", loop_scope="session")

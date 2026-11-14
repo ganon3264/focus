@@ -14,6 +14,7 @@ import focus.db.themes as db_themes
 from focus.core.database import get_db
 from focus.core.logger import DEBUG_MODE
 from focus.core.macros import MACRO_DEFINITIONS, SPECIAL_TOKENS, apply_macros, build_base_macros
+from focus.core.media import asset_url as media_asset_url
 from focus.core.message_render import render_message_segments
 from focus.core.regex_scripts import apply_to_display_messages
 from focus.core.summary import (
@@ -65,6 +66,7 @@ templates = Jinja2Templates(directory="templates")
 if isinstance(templates.env.loader, FileSystemLoader):
     templates.env.loader.searchpath.append(str(Path("partials").resolve()))
 templates.env.globals["debug"] = DEBUG_MODE
+templates.env.globals["asset_url"] = media_asset_url
 templates.env.globals["macro_definitions"] = MACRO_DEFINITIONS
 templates.env.globals["special_tokens"] = SPECIAL_TOKENS
 templates.env.globals["provider_schema"] = provider_schema
@@ -175,7 +177,6 @@ async def chat_redirect(request: Request, character_id: str = Query(None), db: a
     persona = await crud.get_persona(db)
     if persona:
         await crud.attach_images([persona], db)
-    user_persona = await crud.get_described_persona(db)
 
     # The greeter has no chat to read a preset from, so it inherits the one the
     # user was last writing with instead of resetting to the newest preset.
@@ -208,7 +209,6 @@ async def chat_redirect(request: Request, character_id: str = Query(None), db: a
             "messages": [],
             "character": character,
             "persona": persona,
-            "user_persona": user_persona,
             "preset": preset,
             "preset_blocks": regular_blocks,
             "var_groups": var_groups,
@@ -522,7 +522,6 @@ async def selection_state_partial(
 
     character = None
     persona = None
-    user_persona = None
     if setup:
         character = await crud.get_character(db, character_id) if character_id else None
         persona = await crud.get_persona(db, persona_id) if persona_id else None
@@ -530,7 +529,6 @@ async def selection_state_partial(
             persona = await crud.get_persona(db)
         if persona:
             await crud.attach_images([persona], db)
-        user_persona = await crud.get_described_persona(db)
     counts = await crud.get_counts(db, character_id or None, persona_id or None)
     chat_list = await crud.get_chats_sidebar(db, character_id or None, page=page, page_size=_chat_page_size(request))
     providers = await crud.get_providers(db)
@@ -545,7 +543,6 @@ async def selection_state_partial(
             "current_chat_id": chat_id,
             "character": character,
             "persona": persona,
-            "user_persona": user_persona,
             "presets": presets,
             "current_preset_id": preset_id,
             "preset": preset,

@@ -25,7 +25,7 @@
       data-char-scenario="{{ char.card.get('scenario','') }}"
       data-char-mes-example="{{ char.card.get('mes_example','') }}"
       data-char-blocks="{{ (char.get('blocks') or []) | length }}"
-      data-char-image="{{ char.image_path or '' }}"
+      data-char-image="{{ asset_url(char.image_path) or '' }}"
       data-char-theme="{{ char.theme_id or '' }}"
       data-char-group="{{ char.get('group_name') or '' }}"
       data-char-media="{{ char.images | tojson | forceescape }}"

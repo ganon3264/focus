@@ -14,7 +14,7 @@ from starlette.datastructures import Headers
 
 from focus.core.database import get_db, init_db, init_directories
 from focus.core.logger import get_logger
-from focus.core.paths import CACHE_STATIC
+from focus.core.paths import ASSETS_DIR, CACHE_STATIC
 from focus.core.progress_stream import progress_stream
 from focus.db.cleanup import clean_database as db_cleanup
 from focus.routers import (
@@ -196,7 +196,13 @@ app.include_router(extensions.router, prefix="/api", tags=["extensions"])
 app.include_router(regex_scripts.router, prefix="/api", tags=["regex-scripts"])
 app.include_router(structured_responses.router, prefix="/api", tags=["structured-responses"])
 
-app.mount("/assets", RevalidatedStaticFiles(directory="assets", cache_assets=CACHE_STATIC), name="assets")
+# check_dir stays off: init_directories() creates this tree during the
+# lifespan, after the mount is built (FOCUS_ASSETS_DIR may not exist yet).
+app.mount(
+    "/assets",
+    RevalidatedStaticFiles(directory=str(ASSETS_DIR), check_dir=False, cache_assets=CACHE_STATIC),
+    name="assets",
+)
 app.mount("/static", RevalidatedStaticFiles(directory="static", cache_assets=CACHE_STATIC), name="static")
 
 

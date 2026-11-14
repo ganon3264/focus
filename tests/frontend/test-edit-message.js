@@ -93,6 +93,12 @@ global.extractThoughtsSafely = function (text) {
   return { processed: text || '', thoughts: [] };
 };
 global.openLightbox = function (src) { global._lightboxSrc = src; };
+// Production loads ui/media-utils.js first; take assetUrl from it rather than
+// restating its rules here (the thumbnail builder below stays a stub).
+global.window = global;
+global.document = doc;
+eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'ui', 'media-utils.js'), 'utf8'));
+
 global.createMediaThumbnail = function (opts) {
   var div = doc.createElement('div');
   div._opts = opts;

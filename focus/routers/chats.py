@@ -10,7 +10,7 @@ from starlette.background import BackgroundTask
 import focus.crud as crud
 import focus.db as db
 from focus.core.database import get_db
-from focus.core.media import tool_image_url
+from focus.core.media import asset_url, tool_image_url
 from focus.core.models import ChatCreate, MessageEdit
 from focus.core.paths import ATTACHMENTS_DIR
 from focus.core.retry import RetryConfig
@@ -163,7 +163,7 @@ async def get_message(chat_id: str, message_id: str, _db=Depends(get_db)):
         "SELECT * FROM message_attachments WHERE variant_id = ? ORDER BY created_at",
         (row["variant_id"],),
     ) as cur:
-        attachments = [dict(r) for r in await cur.fetchall()]
+        attachments = [{**dict(r), "url": asset_url(r["file_path"])} for r in await cur.fetchall()]
 
     async with _db.execute(
         "SELECT * FROM tool_calls WHERE variant_id = ? ORDER BY created_at",

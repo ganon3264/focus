@@ -16,7 +16,7 @@
       var img = avatar.querySelector('img');
       if (img && imagePath) {
         img.removeAttribute('data-slot');
-        img.src = '/' + imagePath;
+        img.src = window.assetUrl(imagePath);
         img.alt = name + ' avatar';
       } else if (img) {
         avatar.insertBefore(document.createTextNode(initial), img);

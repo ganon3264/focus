@@ -214,13 +214,11 @@
 
     window.currentEditAttachments.forEach(function (att, idx) {
       var thumbnail = window.createMediaThumbnail({
-        src: att.file_path || '',
+        src: att.url || att.file_path || '',
         mimeType: att.mime_type,
         size: 48,
         onClick: function () {
-          var src = att.file_path || '';
-          var external = /^(blob:|data:|https?:)/.test(src);
-          window.openLightbox(external ? src : '/' + src);
+          window.openLightbox(att.url || window.assetUrl(att.file_path));
         },
         onDelete: function () {
           window.deleteModalAttachment(idx);

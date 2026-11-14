@@ -182,8 +182,11 @@ def _scoped_value(body: str) -> str:
     return "\n".join(lines).strip()
 
 
+# SillyTavern spells the scoped form `{{setvar::key}}...{{/setvar}}`; the space
+# form is ours. The key refuses `:` so a colon separator can never swallow an
+# inline `{{setvar::key::value}}` that happens to share the text.
 _SCOPED_SETVAR = re.compile(
-    r"\{\{\s*(?P<flag>#)?\s*(?:setvar|var)\s+(?P<key>[^{}]+?)\s*\}\}"
+    r"\{\{\s*(?P<flag>#)?\s*(?:setvar|var)(?:\s+|::)(?P<key>[^{}:]+?)\s*\}\}"
     r"(?P<body>.*?)"
     r"\{\{\s*/\s*(?:setvar|var)\s*\}\}",
     re.DOTALL | re.IGNORECASE,
@@ -253,6 +256,199 @@ def extract_setvars(text: str, macros: dict[str, str]) -> str:
     return _extract_inline_setvars(text, macros)
 
 
+# `{{#if}}` is ST's whitespace-preserving flag (and coincidentally what
+# Handlebars authors write); it parses as the same block.
+_IF_OPEN = re.compile(r"\{\{\s*(?P<flag>#)?\s*if\s+", re.IGNORECASE)
+_IF_CLOSE = re.compile(r"\{\{\s*/\s*if\s*\}\}", re.IGNORECASE)
+_IF_ELSE = re.compile(r"\{\{\s*else\s*\}\}", re.IGNORECASE)
+# ST's falsy list, verbatim: a flag stored as "0"/"off"/"no" must not
+# read as true the way a non-empty string would.
+_FALSY = {"", "false", "0", "off", "no"}
+
+
+def _token_end(text: str, start: int) -> int | None:
+    """Index just past the ``}}`` closing the token opened at *start*.
+
+    A condition carries macros (``{{if {{getvar::x}}}}``), so the braces nest;
+    a non-greedy ``{{(.*?)}}`` would stop at the inner token and leave ``}}``
+    behind in the prompt.
+    """
+    depth = 1
+    j = start + 2
+    while j < len(text):
+        if text.startswith("{{", j):
+            depth += 1
+            j += 2
+        elif text.startswith("}}", j):
+            depth -= 1
+            j += 2
+            if depth == 0:
+                return j
+        else:
+            j += 1
+    return None
+
+
+def _scan_if_block(text: str, start: int) -> tuple | None:
+    """Span of the ``{{/if}}`` matching an opener whose token ends at *start*.
+
+    Returns ``(else_span, close_start, close_end)`` where *else_span* is the
+    top-level ``{{else}}`` (or ``None``), or ``None`` without a closing tag.
+    """
+    depth = 0
+    else_span = None
+    i = start
+    while True:
+        found = [m for m in (_IF_OPEN.search(text, i), _IF_CLOSE.search(text, i), _IF_ELSE.search(text, i)) if m]
+        if not found:
+            return None
+        m = min(found, key=lambda x: x.start())
+        if m.re is _IF_OPEN:
+            depth += 1
+        elif m.re is _IF_CLOSE:
+            if depth:
+                depth -= 1
+            else:
+                return else_span, m.start(), m.end()
+        elif depth == 0 and else_span is None:
+            else_span = (m.start(), m.end())
+        i = m.end()
+
+
+def _eval_condition(cond: str, macros: dict, chat_id: str | None) -> bool:
+    """Truthiness of an ``{{if}}`` condition.
+
+    Accepts a nested macro (``{{if {{getvar::x}}}}``) or a bare zero-arg macro
+    name (``{{if description}}`` — ST resolves those automatically), preceded by
+    an optional ``!``. Anything else is literal text. The falsy set is ST's
+    five strings, not Python truthiness: a flag stored as ``"0"``/"off"/"no"
+    must not read as true.
+    """
+    cond = cond.strip()
+    negate = cond.startswith("!")
+    if negate:
+        cond = cond[1:].strip()
+    token = re.fullmatch(r"\{\{\s*(.*?)\s*\}\}", cond, re.DOTALL)
+    key = token.group(1).strip() if token else cond
+    resolved = _resolve_cbs(key, macros, chat_id)
+    if resolved is not None:
+        value = resolved
+    elif key in macros:
+        value = str(macros[key])
+    else:
+        value = "" if token else cond
+    truthy = value.strip().lower() not in _FALSY
+    return not truthy if negate else truthy
+
+
+def _walk(
+    text: str,
+    macros: dict,
+    chat_id: str | None,
+    warned: set[str],
+    substitute: bool = True,
+) -> str:
+    """One document-order pass over a prompt.
+
+    Setvars apply where they appear, an ``{{if}}`` is decided with the values in
+    force at that point, and **only the winning branch is walked** — a dropped
+    branch must not contribute its ``setvar``/``random`` side effects. With
+    *substitute* off, plain ``{{…}}`` tokens are left verbatim (conditions only).
+    """
+    out: list[str] = []
+    i = 0
+    while i < len(text):
+        j = text.find("{{", i)
+        if j < 0:
+            out.append(text[i:])
+            break
+        out.append(text[i:j])
+
+        m_if = _IF_OPEN.match(text, j)
+        if m_if:
+            token_end = _token_end(text, j)
+            if token_end is None:
+                out.append(text[j:])
+                break
+            found = _scan_if_block(text, token_end)
+            if found is None:
+                if "unclosed" not in warned:
+                    warned.add("unclosed")
+                    logger.warning("Unclosed '{{if}}' stripped from prompt")
+                i = token_end
+                continue
+            else_span, close_start, close_end = found
+            body_end = else_span[0] if else_span else close_start
+            alt_start = else_span[1] if else_span else close_start
+            cond = text[m_if.end() : token_end - 2]
+            if _eval_condition(cond, macros, chat_id):
+                branch = text[token_end:body_end]
+            else:
+                branch = text[alt_start:close_start]
+            if not m_if.group("flag"):
+                branch = _scoped_value(branch)
+            out.append(_walk(branch, macros, chat_id, warned, substitute))
+            i = close_end
+            continue
+
+        m_scoped = _SCOPED_SETVAR.match(text, j)
+        if m_scoped:
+            key = m_scoped.group("key").strip()
+            if key:
+                body = m_scoped.group("body")
+                macros[key] = body if m_scoped.group("flag") else _scoped_value(body)
+            i = m_scoped.end()
+            continue
+
+        m_inline = _INLINE_SETVAR_OPEN.match(text, j)
+        if m_inline:
+            token_end = _token_end(text, j)
+            if token_end is None:
+                out.append(text[j:])
+                break
+            inner = text[m_inline.end() : token_end - 2]
+            if "::" in inner:
+                key, value = inner.split("::", 1)
+                macros[key.strip()] = value.strip()
+                i = token_end
+                continue
+            i = token_end
+            out.append(_walk_unknown(text[j:token_end], warned, substitute))
+            continue
+
+        token_end = _token_end(text, j)
+        if token_end is None:
+            out.append(text[j:])
+            break
+        if substitute:
+            out.append(_resolve_token(text[j:token_end], macros, chat_id, warned))
+        else:
+            out.append(text[j:token_end])
+        i = token_end
+    return "".join(out)
+
+
+def _walk_unknown(token: str, warned: set[str], substitute: bool) -> str:
+    """A `{{setvar::key}}` opener with no value: not an assignment, not a
+    scoped block — leave it to the unknown-macro path."""
+    return "" if substitute else token
+
+
+def _resolve_token(token: str, macros: dict, chat_id: str | None, warned: set[str]) -> str:
+    key = token[2:-2].strip()
+    resolved = _resolve_cbs(key, macros, chat_id)
+    if resolved is not None:
+        return resolved
+    if key in macros:
+        return str(macros[key])
+    # An imported ST preset repeats the same foreign macro dozens of times; one
+    # line per key is the whole story.
+    if key not in warned:
+        warned.add(key)
+        logger.warning("Unknown macro '{{%s}}' stripped from prompt", key)
+    return ""
+
+
 _COMMENT_START = re.compile(r"\{\{\s*//")
 
 
@@ -305,22 +501,11 @@ def apply_macros(text: str, macros: dict[str, str], max_passes: int = MACRO_MAX_
         flags=re.IGNORECASE,
     )
 
-    pattern_get = r"\{\{(.*?)\}\}"
-
-    def get_repl_func(match):
-        full_key = match.group(1).strip()
-        resolved = _resolve_cbs(full_key, macros, chat_id)
-        if resolved is not None:
-            return resolved
-        if full_key in macros:
-            return str(macros[full_key])
-        logger.warning("Unknown macro '{{%s}}' stripped from prompt", full_key)
-        return ""
+    warned: set[str] = set()
 
     prev = None
     for _ in range(max_passes):
-        text = extract_setvars(text, macros)
-        text = re.sub(pattern_get, get_repl_func, text)
+        text = _walk(text, macros, chat_id, warned)
         if text == prev:
             break
         prev = text

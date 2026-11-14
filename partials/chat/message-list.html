@@ -3,9 +3,9 @@
   data-order="{{ message_order }}"
   data-last-role="{{ messages[-1].role if messages else '' }}"
   data-char-name="{{ character.name if character else 'Assistant' }}"
-  data-char-image="{{ character.image_path if character and character.image_path else '' }}"
+  data-char-image="{{ asset_url(character.image_path) if character and character.image_path else '' }}"
   data-persona-name="{{ persona.name if persona else 'You' }}"
-  data-persona-avatar="{{ persona.avatar_path if persona and persona.avatar_path else '' }}"
+  data-persona-avatar="{{ asset_url(persona.avatar_path) if persona and persona.avatar_path else '' }}"
   style="display: none"
 ></div>
 {# Each entry carries the global index and latest flag, so a render narrowed to

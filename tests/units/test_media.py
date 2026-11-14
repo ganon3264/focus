@@ -6,8 +6,10 @@ from io import BytesIO
 from PIL import Image
 
 from focus.core import paths
+from focus.core import media as media_mod
 from focus.core.media import (
     MAX_IMAGE_B64,
+    asset_url,
     MAX_IMAGE_DIMENSION,
     compress_image,
     get_compressed_image,
@@ -152,3 +154,36 @@ class TestToolImageDataUrl:
         assert out.startswith("data:image/jpeg;base64,")
         img = _open(base64.b64decode(out.split(",", 1)[1]))
         assert img.mode == "RGB"
+
+
+class TestAssetUrl:
+    """`asset_url` is the only place a stored asset path becomes a URL.
+
+    Every surface (templates, data-* attributes, API payloads) goes through it,
+    so a FOCUS_ASSETS_DIR outside the cwd renders identically to the default.
+    """
+
+    def test_default_cwd_relative_row(self):
+        assert asset_url("assets/characters/x/avatar.png") == "/assets/characters/x/avatar.png"
+
+    def test_absolute_row_under_the_assets_dir(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(media_mod, "ASSETS_DIR", tmp_path / "images")
+        stored = str(tmp_path / "images" / "characters" / "x" / "avatar.png")
+        assert asset_url(stored) == "/assets/characters/x/avatar.png"
+
+    def test_assets_dir_relative_row(self):
+        assert asset_url("characters/x/avatar.png") == "/assets/characters/x/avatar.png"
+        assert asset_url("tool/abc.png") == "/assets/tool/abc.png"
+
+    def test_moved_tree_still_maps(self, tmp_path):
+        # A backup restored elsewhere: the row still names its place in the tree.
+        assert asset_url("/old/machine/assets/characters/x/avatar.png") == (
+            "/assets/characters/x/avatar.png"
+        )
+
+    def test_urls_and_blobs_pass_through(self):
+        for value in ("https://x/y.png", "data:image/png;base64,AA", "blob:http://x/1", "/assets/tool/a.png"):
+            assert asset_url(value) == value
+
+    def test_empty(self):
+        assert asset_url("") == ""

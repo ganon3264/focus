@@ -4,7 +4,7 @@ import logging
 import aiosqlite
 
 from focus.core.card_parser import safe_load_card
-from focus.core.media import tool_image_url
+from focus.core.media import asset_url, tool_image_url
 
 logger = logging.getLogger("focus.crud")
 
@@ -29,7 +29,9 @@ async def attach_images(blocks: list[dict], db: aiosqlite.Connection) -> list[di
     )
     images_by_block: dict[str, list] = {}
     for r in rows:
-        images_by_block.setdefault(r["block_id"], []).append(dict(r))
+        image = dict(r)
+        image["url"] = asset_url(image["image_path"])
+        images_by_block.setdefault(r["block_id"], []).append(image)
     for b in blocks:
         b["images"] = images_by_block.get(b["id"], [])
     return blocks
@@ -59,14 +61,6 @@ async def verify_entity_exists(
 async def has_characters(db: aiosqlite.Connection) -> bool:
     async with db.execute("SELECT 1 FROM characters WHERE is_deleted = 0 LIMIT 1") as cur:
         return await cur.fetchone() is not None
-
-
-async def get_described_persona(db: aiosqlite.Connection) -> dict | None:
-    async with db.execute(
-        "SELECT id, name FROM personas WHERE is_deleted = 0 AND TRIM(COALESCE(description, '')) <> '' LIMIT 1"
-    ) as cur:
-        row = await cur.fetchone()
-    return dict(row) if row else None
 
 
 async def load_entity_blocks(

@@ -1,15 +1,15 @@
-{% from "macros.html" import icon_check, icon_chat, icon_upload %}
+{% from "macros.html" import icon_chat, icon_upload %}
 {% set active_provider = (providers | selectattr('id', 'equalto', active_provider_id) | list | first) if active_provider_id else none %}
 {% set provider_ready = active_provider is not none %}
 {% set preset_ready = presets | length > 0 %}
-{% set persona_ready = user_persona is not none %}
-{% set setup_ready = provider_ready and preset_ready and has_characters and persona_ready %}
-{% set done_count = (1 if provider_ready else 0) + (1 if preset_ready else 0) + (1 if has_characters else 0) + (1 if persona_ready else 0) %}
+{% set persona_ready = persona is not none and (persona.description or '') | trim != '' %}
+{% set setup_ready = provider_ready and preset_ready and has_characters %}
+{% set done_count = (1 if provider_ready else 0) + (1 if preset_ready else 0) + (1 if has_characters else 0) %}
 {% if setup_ready %}
   {% if character %}
   <div class="avatar xl greeter-avatar">
     {% if character.image_path %}
-      <img src="/{{ character.image_path }}" alt="{{ character.name }}" onclick="openLightbox(this.src)">
+      <img src="{{ asset_url(character.image_path) }}" alt="{{ character.name }}" onclick="openLightbox(this.src)">
     {% else %}
       {{ character.name[:1] }}
     {% endif %}
@@ -21,6 +21,7 @@
   <button class="btn lg create" onclick="newChat()">
     Start Chat
   </button>
+  {% include "chat/persona-note.html" %}
   {% else %}
   <div class="avatar xl greeter-avatar">{{ icon_chat(40) }}</div>
   <h1 class="text-2xl font-bold mb-2">Welcome to Focus</h1>
@@ -30,6 +31,7 @@
   <button class="btn lg primary" onclick="openModal('modal-characters')">
     View Characters
   </button>
+  {% include "chat/persona-note.html" %}
   {% endif %}
 {% else %}
   <h1 class="text-2xl font-bold mb-2">Welcome to Focus</h1>
@@ -40,11 +42,11 @@
     <div class="px-6 pt-2">
       <div class="rail">
         <span>Setup</span>
-        <div class="rail-actions flush"><span class="row-meta">{{ done_count }}/4</span></div>
+        <div class="rail-actions flush"><span class="row-meta">{{ done_count }}/3</span></div>
       </div>
     </div>
     <div class="flex flex-col px-4">
-      <div class="row entity-row provider-row setup-step">
+      <div class="row entity-row provider-row setup-step" data-setup-step="provider">
         <span class="entity-identity">
           <span class="row-title">Provider</span>
           <span class="row-meta">
@@ -64,7 +66,7 @@
         </span>
       </div>
 
-      <div class="row entity-row provider-row setup-step">
+      <div class="row entity-row provider-row setup-step" data-setup-step="preset">
         <span class="entity-identity">
           <span class="row-title">Preset</span>
           <span class="row-meta">
@@ -87,7 +89,7 @@
         </span>
       </div>
 
-      <div class="row entity-row provider-row setup-step">
+      <div class="row entity-row provider-row setup-step" data-setup-step="character">
         <span class="entity-identity">
           <span class="row-title">Character</span>
           <span class="row-meta">
@@ -97,54 +99,17 @@
           </span>
         </span>
         <span class="row-actions">
-          {% if has_characters %}
+          {% if character %}
           <span class="tag active">Done</span>
+          {% elif has_characters %}
+          <button type="button" class="btn sm primary" onclick="openModal('modal-characters')">Select</button>
           {% else %}
           <button type="button" class="btn sm create" onclick="openModal('modal-characters')">Add</button>
           {% endif %}
         </span>
       </div>
 
-      <div class="row entity-row provider-row setup-step">
-        <span class="entity-identity">
-          <span class="row-title">Persona</span>
-          <span class="row-meta">
-            {% if persona_ready %}{{ user_persona.name }}
-            {% else %}Describe yourself so the character knows who it's talking to{% endif %}
-          </span>
-        </span>
-        <span class="row-actions">
-          {% if persona_ready %}
-          <span class="tag active">Done</span>
-          {% elif persona %}
-          <button
-            type="button"
-            class="btn sm primary"
-            data-persona-id="{{ persona.id }}"
-            data-persona-name="{{ persona.name }}"
-            data-persona-desc="{{ persona.description or '' }}"
-            data-persona-image="{{ persona.avatar_path or '' }}"
-            data-persona-group="{{ persona.get('group_name') or '' }}"
-            data-persona-media="{{ (persona.get('images') or []) | tojson | forceescape }}"
-            onclick="openEditPersonaModal(this)"
-          >Edit</button>
-          {% else %}
-          <button type="button" class="btn sm create" onclick="openModal('modal-personas')">Add</button>
-          {% endif %}
-        </span>
-      </div>
 
-      {% if provider_ready %}
-      <div class="row entity-row provider-row setup-step">
-        <span class="entity-identity">
-          <span class="row-title">Samplers</span>
-          <span class="row-meta">Optional — the defaults are fine</span>
-        </span>
-        <span class="row-actions">
-          <button type="button" class="btn sm" onclick="openModal('modal-sampler')">Tune</button>
-        </span>
-      </div>
-      {% endif %}
     </div>
     <div class="divider"></div>
     <div class="px-6 py-4 flex flex-col gap-2">

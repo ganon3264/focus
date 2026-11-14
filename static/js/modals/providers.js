@@ -460,7 +460,13 @@ function submitProviderForm(el, e) {
   const method = isEdit ? 'PATCH' : 'POST';
   hxJson(url, method, data).then(async function (r) {
     if (r.ok) {
+      var created = isEdit ? null : await r.json();
       closeModal('modal-provider-create', { discard: true });
+      // The first provider you add is the one you mean to use; leaving it
+      // unselected strands the user one modal away from a working setup.
+      if (created && created.id && !StateManager.get('provider_id')) {
+        window.applyProvider(created.id, data.type, data.name);
+      }
       // Refresh the store before the new card is clickable, so selecting it can
       // never read a stale/absent record.
       var storeReady = window.ProviderStore ? ProviderStore.refresh() : Promise.resolve();

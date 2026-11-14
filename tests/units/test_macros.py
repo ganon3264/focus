@@ -1,3 +1,5 @@
+import logging
+
 from focus.core.macros import (
     MACRO_DEFINITIONS,
     _strip_comment_macros,
@@ -138,6 +140,29 @@ class TestExtractSetvars:
         extract_setvars("{{ setvar  spaced  }}v{{ /setvar }}", macros)
         assert macros["spaced"] == "v"
 
+    def test_scoped_sillytavern_colon_form(self):
+        """ST spells the scoped form `{{setvar::key}}...{{/setvar}}`."""
+        macros = {}
+        result = extract_setvars(
+            "a {{setvar::backstory}}\n    one\n    two\n{{/setvar}} b", macros
+        )
+        assert result == "a  b"
+        assert macros["backstory"] == "one\ntwo"
+
+    def test_scoped_colon_form_does_not_eat_inline_value(self):
+        macros = {}
+        result = extract_setvars("{{setvar::k::v}}", macros)
+        assert result == ""
+        assert macros["k"] == "v"
+
+    def test_colon_in_key_never_opens_a_scope(self):
+        # `{{setvar::a::b}}` stays an inline assignment; the stray closer is
+        # left for the unknown-macro pass rather than swallowing the body.
+        macros = {}
+        text = "{{setvar::a::b}}x{{/setvar}}"
+        assert extract_setvars(text, macros) == "x{{/setvar}}"
+        assert macros["a"] == "b"
+
     def test_scoped_malformed_without_closing_tag_left_alone(self):
         macros = {}
         text = "{{ setvar x }}no close"
@@ -152,6 +177,122 @@ class TestExtractSetvars:
         assert apply_macros(text, {"user": "Shou"}) == (
             "only for Shou's body. Never Shou's thoughts."
         )
+
+
+class TestConditionals:
+    """SillyTavern presets gate their module payloads on variable truthiness."""
+
+    def test_truthy_branch(self):
+        assert apply_macros("{{setvar::on::1}}{{if {{getvar::on}}}}YES{{/if}}", {}) == "YES"
+
+    def test_unset_variable_is_false(self):
+        assert apply_macros("{{if {{getvar::on}}}}YES{{/if}}", {}) == ""
+
+    def test_emptied_variable_is_false(self):
+        text = "{{setvar::on::x}}{{setvar::on::}}{{if {{getvar::on}}}}YES{{/if}}"
+        assert apply_macros(text, {}) == ""
+
+    def test_negation(self):
+        assert apply_macros("{{if !{{getvar::hud}}}}no hud{{/if}}", {}) == "no hud"
+        assert apply_macros("{{setvar::hud::1}}{{if !{{getvar::hud}}}}no hud{{/if}}", {}) == ""
+
+    def test_else(self):
+        assert apply_macros("{{if {{getvar::x}}}}A{{else}}B{{/if}}", {}) == "B"
+        assert apply_macros("{{setvar::x::1}}{{if {{getvar::x}}}}A{{else}}B{{/if}}", {}) == "A"
+
+    def test_nested_conditions(self):
+        text = (
+            "{{setvar::a::1}}out[{{if {{getvar::a}}}}"
+            "{{if {{getvar::b}}}}in{{else}}not in{{/if}}]{{/if}}"
+        )
+        assert apply_macros(text, {}) == "out[not in]"
+
+    def test_nested_condition_leaves_no_bracket_residue(self):
+        text = "{{if {{getvar::a}}}}A{{/if}}"
+        assert "}}" not in apply_macros(text, {})
+
+    def test_unclosed_condition_drops_the_opener_only(self):
+        assert apply_macros("{{if {{getvar::a}}}}dangling", {}) == "dangling"
+
+    def test_body_is_trimmed_and_dedented(self):
+        text = "{{setvar::a::1}}{{if {{getvar::a}}}}\n    one\n      two\n{{/if}}"
+        assert apply_macros(text, {}) == "one\n  two"
+
+    def test_hash_flag_preserves_the_body_verbatim(self):
+        text = "{{setvar::a::1}}{{#if {{getvar::a}}}}\n   one\n     two\n{{/if}}"
+        assert apply_macros(text, {}) == "\n   one\n     two\n"
+
+    def test_st_falsy_list_verbatim(self):
+        """ST's five falsy strings; anything else (even "none") is true."""
+        for value in ("", "false", "0", "off", "no"):
+            text = f"{{{{setvar::f::{value}}}}}{{{{if {{{{getvar::f}}}}}}}}T{{{{/if}}}}"
+            assert apply_macros(text, {}) == "", value
+        for value in ("1", "on", "yes", "none", "null"):
+            text = f"{{{{setvar::t::{value}}}}}{{{{if {{{{getvar::t}}}}}}}}T{{{{/if}}}}"
+            assert apply_macros(text, {}) == "T", value
+        # Case-insensitive, like the rest of macro land.
+        for value in ("False", "OFF", "No"):
+            text = f"{{{{setvar::f::{value}}}}}{{{{if {{{{getvar::f}}}}}}}}T{{{{/if}}}}"
+            assert apply_macros(text, {}) == "", value
+
+    def test_bare_word_condition_resolves_a_macro(self):
+        card = {"name": "Aria", "description": "A cartographer.", "scenario": ""}
+        macros = build_base_macros(card, None)
+        assert apply_macros("{{if description}}# Desc{{/if}}", macros) == "# Desc"
+        assert apply_macros("{{if scenario}}# Scenario{{/if}}", macros) == ""
+        assert apply_macros("{{if !scenario}}none{{/if}}", macros) == "none"
+
+    def test_dropped_branch_runs_no_setvars(self):
+        """Only the taken branch is evaluated — a gated payload must not leak."""
+        text = (
+            "{{setvar::on::}}{{if {{getvar::on}}}}"
+            "{{setvar::payload::leaked}}{{/if}}[{{getvar::payload}}]"
+        )
+        macros = {}
+        assert apply_macros(text, macros) == "[]"
+        assert "payload" not in macros
+
+    def test_condition_sees_setvars_earlier_in_the_same_text(self):
+        text = "{{setvar::a::1}}{{if {{getvar::a}}}}seen{{/if}}"
+        assert apply_macros(text, {}) == "seen"
+
+    def test_multiline_body(self):
+        text = "{{setvar::a::1}}{{if {{getvar::a}}}}\none\ntwo\n{{/if}}"
+        assert apply_macros(text, {}) == "one\ntwo"
+
+    def test_st_module_zeroing_shape(self):
+        """The Sola preamble: zero every toggle, then gate payloads on them."""
+        text = (
+            "{{// zeroing}}{{trim}}\n"
+            "{{setvar::opt_hud::}}{{setvar::no_hud::}}{{trim}}\n"
+            "{{if {{getvar::opt_hud}}}}\nHUD PAYLOAD\n{{/if}}\n"
+            "{{if !{{getvar::no_hud}}}}\ndefault hud\n{{/if}}\n"
+        )
+        resolved = apply_macros(text, {})
+        assert "HUD PAYLOAD" not in resolved
+        assert "default hud" in resolved
+
+    def test_resolution_is_idempotent(self):
+        text = "{{setvar::a::1}}{{if {{getvar::a}}}}A{{/if}}B"
+        once = apply_macros(text, {})
+        assert apply_macros(once, {}) == once
+
+
+class TestUnknownMacros:
+    def test_warns_once_per_key(self, caplog):
+        """A bloated imported preset repeats its foreign macros; one line each."""
+        text = "{{bogus}}{{bogus}}{{other}}{{other}}{{bogus}}"
+        with caplog.at_level(logging.WARNING, logger="focus.macros"):
+            apply_macros(text, {})
+        messages = [r.getMessage() for r in caplog.records if "Unknown macro" in r.getMessage()]
+        assert len(messages) == 2
+
+    def test_unclosed_condition_warns_once(self, caplog):
+        text = "{{if {{getvar::a}}}}{{if {{getvar::b}}}}x"
+        with caplog.at_level(logging.WARNING, logger="focus.macros"):
+            apply_macros(text, {})
+        messages = [r.getMessage() for r in caplog.records if "Unclosed" in r.getMessage()]
+        assert len(messages) == 1
 
 
 class TestApplyMacros:

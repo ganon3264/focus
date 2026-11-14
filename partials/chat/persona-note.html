@@ -1,0 +1,23 @@
+{# One muted line, not a second verb row beside the CTA: the greeter's only
+   optional act is telling the character who it is talking to. Samplers stay
+   where they live (the sidebar) — default sampling is what almost everyone
+   runs, so it earns no real estate here. #}
+{% if not persona_ready %}
+<p class="note mt-4">
+  Optional: {% if persona %}
+  <button
+    type="button"
+    class="link"
+    data-persona-id="{{ persona.id }}"
+    data-persona-name="{{ persona.name }}"
+    data-persona-desc="{{ persona.description or '' }}"
+    data-persona-image="{{ asset_url(persona.avatar_path) or '' }}"
+    data-persona-group="{{ persona.get('group_name') or '' }}"
+    data-persona-media="{{ (persona.get('images') or []) | tojson | forceescape }}"
+    onclick="openEditPersonaModal(this)"
+  >describe yourself</button>
+  {% else %}
+  <button type="button" class="link" onclick="openModal('modal-personas')">describe yourself</button>
+  {% endif %}
+</p>
+{% endif %}

@@ -12,6 +12,7 @@ from pathlib import Path
 import cssutils
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
+from focus.core.media import asset_url
 from focus.providers.schema import provider_schema, provider_type_options
 
 TEMPLATES_DIR = Path("templates").resolve()
@@ -23,6 +24,7 @@ env = Environment(loader=loader, undefined=StrictUndefined)
 
 # Mirror the globals registered by focus/routers/pages.py so templates that
 # call them can render in tests.
+env.globals["asset_url"] = asset_url
 env.globals["provider_schema"] = provider_schema
 env.globals["provider_type_options"] = provider_type_options
 

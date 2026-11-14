@@ -21,7 +21,7 @@
       data-persona-id="{{ p.id }}"
       data-persona-name="{{ p.name }}"
       data-persona-desc="{{ p.description or '' }}"
-      data-persona-image="{{ p.avatar_path or '' }}"
+      data-persona-image="{{ asset_url(p.avatar_path) or '' }}"
       data-persona-group="{{ p.get('group_name') or '' }}"
       data-persona-media="{{ p.images | tojson | forceescape }}"
       onclick="event.stopPropagation(); openEditPersonaModal(this);"

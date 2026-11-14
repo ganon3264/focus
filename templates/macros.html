@@ -256,7 +256,7 @@
 {% endmacro %}
 
 {% macro avatar(classes, image_path='', alt='', initial='', tag='div', attrs='', img_class='', img_attrs='', initial_tag='span', initial_class='') %}
-<{{ tag }} class="{{ classes }}"{% if attrs %} {{ attrs | safe }}{% endif %}>{% if image_path %}<img src="/{{ image_path }}" alt="{{ alt }}"{% if img_class %} class="{{ img_class }}"{% endif %}{% if img_attrs %} {{ img_attrs | safe }}{% endif %} />{% elif initial_tag %}<{{ initial_tag }}{% if initial_class %} class="{{ initial_class }}"{% endif %}>{{ initial }}</{{ initial_tag }}>{% else %}{{ initial }}{% endif %}{% if caller is defined %}{{ caller() }}{% endif %}</{{ tag }}>
+<{{ tag }} class="{{ classes }}"{% if attrs %} {{ attrs | safe }}{% endif %}>{% if image_path %}<img src="{{ asset_url(image_path) }}" alt="{{ alt }}"{% if img_class %} class="{{ img_class }}"{% endif %}{% if img_attrs %} {{ img_attrs | safe }}{% endif %} />{% elif initial_tag %}<{{ initial_tag }}{% if initial_class %} class="{{ initial_class }}"{% endif %}>{{ initial }}</{{ initial_tag }}>{% else %}{{ initial }}{% endif %}{% if caller is defined %}{{ caller() }}{% endif %}</{{ tag }}>
 {% endmacro %}
 
 {% macro search_toolbar(placeholder, input_attrs='', wrapper_classes='flex items-center gap-2 mb-2 shrink-0', field_classes='search-field', input_classes='field sm w-full') %}
@@ -485,7 +485,7 @@
   {% if img.mime_type and img.mime_type.startswith('audio/') %}
   <div class="media-thumb-audio" title="Audio Attachment">{{ icon_music(20) }}</div>
   {% else %}
-  <img src="/{{ img.image_path }}" alt="" class="media-thumb-img cursor-pointer" onclick="openLightbox(this.src)">
+  <img src="{{ asset_url(img.image_path) }}" alt="" class="media-thumb-img cursor-pointer" onclick="openLightbox(this.src)">
   {% endif %}
   <button type="button" aria-label="Delete media" class="key sm danger media-thumb-close" data-action="{{ action_name }}">{{ icon_close(14) }}</button>
 </div>

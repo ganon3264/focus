@@ -49,7 +49,7 @@
 
   <div class="well message-body" data-ui="message-body">
     {% if message.attachments %}
-    {% call attachment_row() %}{% for att in message.attachments %}{{ attachment_preview('/' ~ att.file_path, att.mime_type) }}{% endfor %}{% endcall %}
+    {% call attachment_row() %}{% for att in message.attachments %}{{ attachment_preview(asset_url(att.file_path), att.mime_type) }}{% endfor %}{% endcall %}
     {% endif %}
     {% if message.get('segments') is not none %}
     {% set ns = namespace(tool_rendered=false) %}

@@ -18,6 +18,7 @@ var _afterSwapHandlers = {};
 window.ListManager = {
   setup: function (cfg) {
     var filterState = { query: '', filter: 'all', group: '' };
+    var resource = cfg.stateKey === 'character_id' ? 'characters' : 'personas';
 
     function eachCard(fn) {
       var grid = document.getElementById(cfg.gridId);
@@ -114,23 +115,29 @@ window.ListManager = {
         var name = document.getElementById(cfg.newItemInputId).value.trim();
         if (!name) return;
         hxJson(cfg.apiEndpoint, 'POST', { name: name }).then(function (r) {
-          if (r.ok) {
-            r.json().then(function (data) {
-              var id = data.id;
-              if (!id) return;
-              var currentId = StateManager.get(cfg.stateKey) || '';
-              var url = cfg.cardEndpoint + id
-                + '?current_' + cfg.stateKey + '=' + encodeURIComponent(currentId);
-              hxGet(url, { target: '#' + cfg.gridId, swap: 'beforeend' })
-                .then(function () {
-                  if (window[cfg.sortFn]) window[cfg.sortFn](listSortMode(cfg.gridId));
-                });
-            });
-          } else {
+          if (!r.ok) {
             r.text().then(function (t) {
               window.showErrorToast('Create failed: ' + t);
             });
+            return;
           }
+          // A create adds a row every surface counts (the card grid, the setup
+          // checklist, the right pane's verb): declare it, don't append a card.
+          if (window.Refresh) {
+            Refresh.changed(resource);
+            return;
+          }
+          r.json().then(function (data) {
+            var id = data.id;
+            if (!id) return;
+            var currentId = StateManager.get(cfg.stateKey) || '';
+            var url = cfg.cardEndpoint + id
+              + '?current_' + cfg.stateKey + '=' + encodeURIComponent(currentId);
+            hxGet(url, { target: '#' + cfg.gridId, swap: 'beforeend' })
+              .then(function () {
+                if (window[cfg.sortFn]) window[cfg.sortFn](listSortMode(cfg.gridId));
+              });
+          });
         });
       });
       setTimeout(function () {

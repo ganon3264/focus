@@ -9,12 +9,14 @@ if command -v uv &>/dev/null; then
   RUNNER="uv run pytest"
 else
   echo "UV not found, using regular python venv."
-  if ! python -c 'import sys; sys.exit(0 if sys.version_info[:2] >= (3, 11) else 1)' 2>/dev/null; then
+  PY="$(command -v python3 || command -v python || true)"
+  [ -n "$PY" ] || { echo >&2 "Error: Python 3 is not installed or not on PATH."; exit 1; }
+  if ! "$PY" -c 'import sys; sys.exit(0 if sys.version_info[:2] >= (3, 11) else 1)' 2>/dev/null; then
     echo >&2 "Error: Focus needs Python 3.11 or newer. Install uv (https://docs.astral.sh/uv/) or a newer Python."
     exit 1
   fi
   # A venv uv created has no pip, so it cannot be installed into.
-  [ -x ".venv/bin/pip" ] || python -m venv --clear .venv
+  [ -x ".venv/bin/pip" ] || "$PY" -m venv --clear .venv
   .venv/bin/pip install --require-hashes -r requirements.lock.txt
   .venv/bin/pip install -e . --no-deps
   RUNNER=".venv/bin/pytest"
