@@ -86,6 +86,7 @@
     if (personaId) parts.push('persona_id=' + encodeURIComponent(personaId));
     var pager = document.querySelector('#chat-list [data-chat-page]');
     if (pager) parts.push('page=' + encodeURIComponent(pager.getAttribute('data-chat-page')));
+    if (byId('setup-checklist')) parts.push('setup=1');
     return '/partials/selection-state?' + parts.join('&');
   }
 
@@ -139,8 +140,13 @@
   };
 
   window.applyProvider = function (id, type, name) {
-    StateManager.setProvider(id, type);
+    var persist = StateManager.setProvider(id, type);
     syncProviderHighlight(id);
+    if (window.Refresh) {
+      (persist || Promise.resolve())
+        .then(function () { Refresh.changed('providers'); })
+        .catch(function () {});
+    }
     if (name && window.showInfoToast) window.showInfoToast('Provider: ' + name);
   };
 

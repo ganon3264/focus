@@ -101,13 +101,14 @@
       var prevType = STATE.provider_type;
       STATE.provider_id = id || null;
       STATE.provider_type = type || null;
-      this._persistProvider(STATE.provider_id, STATE.provider_type);
+      var p = this._persistProvider(STATE.provider_id, STATE.provider_type);
       emit('provider-changed', {
         prevId: prevId,
         prevType: prevType,
         id: STATE.provider_id,
         type: STATE.provider_type,
       });
+      return p;
     },
 
     setMultimodal: function (enabled) {

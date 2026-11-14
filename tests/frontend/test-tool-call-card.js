@@ -69,9 +69,21 @@ function build(call) {
   var body = card.querySelector('[data-ui="tool-result-body"]');
   assertEqual(body.style.display, 'none', 'the result body is closed while executing');
 
-  var img = body.querySelector('img');
-  assert(!img.getAttribute('src'), 'the fixture image placeholder is cleared');
-  assertEqual(img.style.display, 'none', 'the empty image stays hidden');
+  assert(body.querySelector('img') === null, 'no image node until there is an image');
+})();
+
+// An image result grows the node on demand, both at build time and when it
+// arrives after the card is already on screen.
+(function () {
+  var built = window.buildToolCallCard({ name: 'read_image', arguments: '{}', image: '/img/a.png' });
+  var body = built.querySelector('[data-ui="tool-result-body"]');
+  assertEqual(body.querySelector('img').src, '/img/a.png', 'build-time image lands');
+
+  var late = build({ id: 'call-6', name: 'read_image', arguments: '{}' });
+  var lateBody = late.card.querySelector('[data-ui="tool-result-body"]');
+  assertEqual(lateBody.querySelector('img'), null, 'no image node yet');
+  window.updateToolCallCard(late.section, 'call-6', 'ok', false, '/img/b.png');
+  assertEqual(lateBody.querySelector('img').src, '/img/b.png', 'late image lands');
 })();
 
 // A tool_result opens the body and fills the pre.

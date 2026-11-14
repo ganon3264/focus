@@ -1,0 +1,121 @@
+{% from "macros.html" import icon_check, icon_chat %}
+{% set active_provider = (providers | selectattr('id', 'equalto', active_provider_id) | list | first) if active_provider_id else none %}
+{% set provider_ready = active_provider is not none %}
+{% set preset_ready = presets | length > 0 %}
+{% set setup_ready = provider_ready and preset_ready and has_characters %}
+{% set done_count = (1 if provider_ready else 0) + (1 if preset_ready else 0) + (1 if has_characters else 0) %}
+{% if setup_ready %}
+  {% if character %}
+  <div class="avatar xl greeter-avatar">
+    {% if character.image_path %}
+      <img src="/{{ character.image_path }}" alt="{{ character.name }}" onclick="openLightbox(this.src)">
+    {% else %}
+      {{ character.name[:1] }}
+    {% endif %}
+  </div>
+  <h1 class="text-2xl font-bold mb-2">{{ character.name }}</h1>
+  <p class="text-muted max-w-md mb-6 leading-relaxed">
+    You don't have any active chats with {{ character.name }}. Start a new conversation!
+  </p>
+  <button class="btn lg create" onclick="newChat()">
+    Start Chat
+  </button>
+  <button type="button" class="link mt-3" onclick="openModal('modal-sampler')">Tune samplers</button>
+  {% else %}
+  <div class="avatar xl greeter-avatar">{{ icon_chat(40) }}</div>
+  <h1 class="text-2xl font-bold mb-2">Welcome to Focus</h1>
+  <p class="text-muted max-w-md mb-6 leading-relaxed">
+    You don't have any active chats open. Select a character from your roster to resume a previous conversation, or start a new one.
+  </p>
+  <button class="btn lg primary" onclick="openModal('modal-characters')">
+    View Characters
+  </button>
+  <button type="button" class="link mt-3" onclick="openModal('modal-sampler')">Tune samplers</button>
+  {% endif %}
+{% else %}
+  <h1 class="text-2xl font-bold mb-2">Welcome to Focus</h1>
+  <p class="text-muted max-w-md mb-6 leading-relaxed">
+    Set these up in order. You can change anything later.
+  </p>
+  <div class="frame w-full max-w-md text-left">
+    <div class="px-4 pt-2">
+      <div class="rail">
+        <span>Setup</span>
+        <div class="rail-actions flush"><span class="row-meta">{{ done_count }}/3</span></div>
+      </div>
+    </div>
+    <div class="flex flex-col">
+      <div class="row entity-row provider-row setup-step">
+        <span class="entity-identity">
+          <span class="row-title">Provider</span>
+          <span class="row-meta">
+            {% if provider_ready %}{{ active_provider.name }}
+            {% elif providers %}Choose which provider to use
+            {% else %}Connect an API provider to send messages{% endif %}
+          </span>
+        </span>
+        <span class="row-actions">
+          {% if provider_ready %}
+          <span class="tag active">Done</span>
+          {% elif providers %}
+          <button type="button" class="btn sm primary" onclick="openModal('modal-providers')">Select</button>
+          {% else %}
+          <button type="button" class="btn sm create" onclick="openModal('modal-providers')">Add</button>
+          {% endif %}
+        </span>
+      </div>
+
+      <div class="row entity-row provider-row setup-step">
+        <span class="entity-identity">
+          <span class="row-title">Preset</span>
+          <span class="row-meta">
+            {% if preset_ready %}{{ preset.name if preset else presets[0].name }}
+            {% else %}Pick the prompt recipe your chats write with{% endif %}
+          </span>
+        </span>
+        <span class="row-actions">
+          {% if preset_ready %}
+          <span class="tag active">Done</span>
+          {% else %}
+          <button type="button" class="btn sm create" onclick="actionOpenNewPreset()">Create</button>
+          {% endif %}
+        </span>
+      </div>
+
+      <div class="row entity-row provider-row setup-step">
+        <span class="entity-identity">
+          <span class="row-title">Character</span>
+          <span class="row-meta">
+            {% if character %}{{ character.name }}
+            {% elif has_characters %}Choose a character from your roster
+            {% else %}Create or import a character card{% endif %}
+          </span>
+        </span>
+        <span class="row-actions">
+          {% if has_characters %}
+          <span class="tag active">Done</span>
+          {% else %}
+          <button type="button" class="btn sm create" onclick="openModal('modal-characters')">Add</button>
+          {% endif %}
+        </span>
+      </div>
+
+      {% if provider_ready %}
+      <div class="row entity-row provider-row setup-step">
+        <span class="entity-identity">
+          <span class="row-title">Samplers</span>
+          <span class="row-meta">Optional — the defaults are fine</span>
+        </span>
+        <span class="row-actions">
+          <button type="button" class="btn sm" onclick="openModal('modal-sampler')">Tune</button>
+        </span>
+      </div>
+      {% endif %}
+    </div>
+    <div class="divider"></div>
+    <div class="p-4 flex flex-col gap-2">
+      <button type="button" class="btn lg create" disabled>Start chat</button>
+      <p class="note">Finish the steps above to start.</p>
+    </div>
+  </div>
+{% endif %}

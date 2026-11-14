@@ -13,6 +13,12 @@
   {% endif %}
 </div>
 
+{% if include_setup %}
+<div id="setup-checklist" hx-swap-oob="innerHTML">
+  {% include "chat/setup-checklist.html" %}
+</div>
+{% endif %}
+
 <div id="arranger-modal-body" hx-swap-oob="innerHTML">
   <div class="note flex items-center gap-1 mb-2">
     Arrange and configure prompt blocks that make up your preset.
@@ -27,6 +33,10 @@
       {{ empty_state('Select a preset first.', extra_classes='mt-4') }}
     {% endif %}
   </div>
+</div>
+
+<div id="right-chat-action" class="rail-actions flush" hx-swap-oob="innerHTML">
+  {% include "chat/right-chat-action.html" %}
 </div>
 
 <div id="chat-list" hx-swap-oob="innerHTML">

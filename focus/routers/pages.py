@@ -479,6 +479,7 @@ async def chat_list_partial(
     db: aiosqlite.Connection = Depends(get_db),
 ):
     chat_list = await crud.get_chats_sidebar(db, character_id, page=page, page_size=_chat_page_size(request))
+    has_chars = await crud.has_characters(db)
 
     return templates.TemplateResponse(
         request,
@@ -487,6 +488,7 @@ async def chat_list_partial(
             "chats": chat_list["chats"],
             "pagination": chat_list,
             "current_chat_id": current_chat_id,
+            "has_characters": has_chars,
             "oob_pager": True,
         },
     )
@@ -500,6 +502,7 @@ async def selection_state_partial(
     character_id: str = Query(None),
     persona_id: str = Query(None),
     page: int = Query(1),
+    setup: int = Query(0),
     db: aiosqlite.Connection = Depends(get_db),
 ):
     """Render every selection-dependent pane as one OOB-swap response.
@@ -513,9 +516,12 @@ async def selection_state_partial(
     blocks = preset["blocks"] if preset else []
     _, regular_blocks, var_groups = partition_blocks(blocks)
 
+    character = await crud.get_character(db, character_id) if character_id else None
     counts = await crud.get_counts(db, character_id or None, persona_id or None)
     chat_list = await crud.get_chats_sidebar(db, character_id or None, page=page, page_size=_chat_page_size(request))
     providers = await crud.get_providers(db)
+    has_chars = await crud.has_characters(db)
+    active_provider = await crud.get_active_provider(db)
 
     return templates.TemplateResponse(
         request,
@@ -523,6 +529,7 @@ async def selection_state_partial(
         {
             "chat_id": chat_id,
             "current_chat_id": chat_id,
+            "character": character,
             "presets": presets,
             "current_preset_id": preset_id,
             "preset": preset,
@@ -532,6 +539,10 @@ async def selection_state_partial(
             "providers": providers,
             "chats": chat_list["chats"],
             "pagination": chat_list,
+            "has_characters": has_chars,
+            "active_provider_id": active_provider["provider_id"],
+            "active_provider_type": active_provider["provider_type"],
+            "include_setup": bool(setup),
             **_summary_ctx(preset),
         },
     )

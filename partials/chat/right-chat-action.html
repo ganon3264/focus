@@ -1,0 +1,6 @@
+{% from "macros.html" import icon_plus %}
+{% if has_characters %}
+<button class="key sm create" onclick="newChat()" title="New Chat" aria-label="New Chat">{{ icon_plus(14) }}</button>
+{% else %}
+<button class="key sm primary" onclick="openModal('modal-characters')" title="Add Character" aria-label="Add Character">{{ icon_plus(14) }}</button>
+{% endif %}

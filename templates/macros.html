@@ -580,13 +580,13 @@
 {% macro attachment_preview(src='', mime_type='') %}
 {% if mime_type and mime_type.startswith('image/') %}
 <div class="well message-attachment">
-  <img src="{{ src }}" alt="attachment" onclick="openLightbox(this.src)" />
+  <img{% if src %} src="{{ src }}"{% endif %} alt="attachment" onclick="openLightbox(this.src)" />
 </div>
 {% else %}
 <div class="well message-attachment message-attachment-audio">
   {{ icon_music(16) }}
   <audio controls>
-    <source src="{{ src }}" type="{{ mime_type }}" />
+    <source{% if src %} src="{{ src }}"{% endif %} type="{{ mime_type }}" />
   </audio>
 </div>
 {% endif %}

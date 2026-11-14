@@ -2,11 +2,9 @@
 <div class="sidebar-section" style="flex: 1;">
   <div class="rail">
     <span>Preset Variables</span>
-    {% if preset %}
     <div class="rail-actions">
-      <button type="button" id="preset-add-var-btn" class="key sm create" onclick="openVarEditModal(this)" title="Add Variable" data-preset-id="{{ preset.id }}">{{ icon_plus(14) }}</button>
+      <button type="button" id="preset-add-var-btn" class="key sm create{% if not preset %} hidden{% endif %}" onclick="openVarEditModal(this)" title="Add Variable" data-preset-id="{{ preset.id if preset else '' }}">{{ icon_plus(14) }}</button>
     </div>
-    {% endif %}
   </div>
   <div id="preset-variables" style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
     {% if preset %}

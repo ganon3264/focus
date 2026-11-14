@@ -79,6 +79,7 @@
           if (Array.isArray(list)) {
             _providers = list;
             _emit({ action: 'refresh' });
+            if (window.Refresh) Refresh.changed('providers');
           }
           return _providers;
         });

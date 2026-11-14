@@ -203,15 +203,15 @@
 
     var body = card.querySelector('[data-ui="tool-result-body"]');
     var img = body.querySelector('img');
-    if (img) {
-      if (call.image) {
-        img.src = call.image;
-      } else {
-        // An <img> with no src renders nothing and requests nothing; it stays
-        // in the card so a late image_url has a node to land on.
-        img.removeAttribute('src');
-        img.style.display = 'none';
+    if (call.image) {
+      if (!img) {
+        img = document.createElement('img');
+        img.alt = '';
+        body.appendChild(img);
       }
+      img.src = call.image;
+    } else if (img) {
+      img.remove();
     }
 
     if (call.result == null) {
@@ -299,10 +299,13 @@
       }
       if (imageUrl) {
         var img = body.querySelector('img');
-        if (img) {
-          img.src = imageUrl;
-          img.style.display = '';
+        if (!img) {
+          img = document.createElement('img');
+          img.alt = '';
+          body.appendChild(img);
         }
+        img.src = imageUrl;
+        img.style.display = '';
       }
     }
   };

@@ -695,6 +695,15 @@
   margin-bottom: calc(var(--u) * 6);
 }
 
+/* A setup step states progress; only the verb on the right is clickable. */
+.setup-step {
+  cursor: default;
+}
+
+.setup-step:hover {
+  background-color: transparent;
+}
+
 /* ── Composer ─────────────────────────────────────────────────────────────
    A recessed console well with one raised action. */
 /* The composer floats clear of the pane's bottom edge: its centre lands on the

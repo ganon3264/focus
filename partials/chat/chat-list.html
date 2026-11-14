@@ -34,6 +34,9 @@
 {% endfor %}
 </div>
 {% if oob_pager %}
+<div id="right-chat-action" class="rail-actions flush" hx-swap-oob="innerHTML">
+  {% include "chat/right-chat-action.html" %}
+</div>
 <div id="chat-pager" hx-swap-oob="innerHTML">
   {% include "chat/chat-pager.html" %}
 </div>
