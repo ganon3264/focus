@@ -193,7 +193,7 @@ window.actionOpenMessageUsage = function (el) {
   var msg = el.closest('[data-ui="message"]');
   var body = document.getElementById('message-usage-body');
   if (!msg || !body) return;
-  body.innerHTML = '';
+  body.innerHTML = '<div class="empty">Loading…</div>';
   window.openModal('modal-message-usage');
   window.hxGet(window.api.partials.messageUsage(msg.dataset.chatId, msg.dataset.messageId), {
     target: '#message-usage-body',

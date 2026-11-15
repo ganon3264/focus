@@ -1114,15 +1114,6 @@
     inset 0 0 0 var(--hair-w) var(--hair-dark);
 }
 
-.usage-value {
-  font-size: 12px;
-}
-
-.usage-cost {
-  color: var(--accent);
-  font-size: 14px;
-}
-
 .usage-models {
   display: flex;
   flex-direction: column;

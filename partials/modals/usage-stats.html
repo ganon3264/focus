@@ -6,12 +6,12 @@
   <div class="usage-screen">
     <div class="row readout">
       {{ row_label('Cost', 'Only providers that report cost are counted; the rest contribute tokens but no money.') }}
-      <span class="row-actions"><span class="row-value usage-value usage-cost">{{ stats.cost }}</span></span>
+      <span class="row-actions"><span class="row-value">{{ stats.cost }}</span></span>
     </div>
     {% for stat in stats.stat_rows %}
     <div class="row readout">
       {{ row_label(stat.label) }}
-      <span class="row-actions"><span class="row-value usage-value">{{ stat.value }}</span></span>
+      <span class="row-actions"><span class="row-value">{{ stat.value }}</span></span>
     </div>
     {% endfor %}
   </div>

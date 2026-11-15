@@ -71,6 +71,30 @@ def test_malformed_cost_details_are_ignored():
     assert stats["details"] == []
 
 
+def test_null_cost_detail_is_not_the_string_none():
+    stats = summarize_usage([_row(cost_details='{"upstream": null}')])
+    assert stats["details"] == [{"label": "Upstream", "value": "—"}]
+
+
+def test_total_falls_back_to_the_halves():
+    stats = summarize_usage([_row(prompt_tokens=400, completion_tokens=100)])
+    values = {row["label"]: row["value"] for row in stats["stat_rows"]}
+    assert values["Total"] == "500"
+
+
+def test_lifetime_total_falls_back_to_the_halves():
+    rows = [{"provider_type": "local", "model_name": "m", "calls": 1,
+             "prompt_tokens": 400, "completion_tokens": 100, "total_tokens": 0,
+             "cached_tokens": 0, "reasoning_tokens": 0, "cost": None}]
+
+    stats = summarize_lifetime(rows)
+
+    values = {row["label"]: row["value"] for row in stats["stat_rows"]}
+    assert values["Total"] == "500"
+    assert stats["models"][0]["tokens"] == 500
+    assert stats["models"][0]["share_label"] == "100.0%"
+
+
 def test_lifetime_totals_share_and_cost():
     rows = [
         {"provider_type": "openrouter", "model_name": "a/one", "calls": 3,

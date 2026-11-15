@@ -44,6 +44,8 @@ def _parse_details(raw) -> dict:
 
 
 def _detail_value(value) -> str:
+    if value is None:
+        return "—"
     if isinstance(value, bool):
         return "yes" if value else "no"
     if isinstance(value, (int, float)):
@@ -63,11 +65,14 @@ def _detail_rows(details: dict) -> list[dict]:
 def _stat_rows(totals: dict) -> list[dict]:
     prompt = totals["prompt_tokens"]
     cached = totals["cached_tokens"]
+    # A provider that reports no total still reports its halves; the total row
+    # must not read zero above two non-zero ones.
+    total = totals["total_tokens"] or prompt + totals["completion_tokens"]
     rows = []
     for key, label in _TOKEN_ROWS:
         if key in ("cached_tokens", "reasoning_tokens") and not totals[key]:
             continue
-        value = f"{totals[key]:,}"
+        value = f"{(total if key == 'total_tokens' else totals[key]):,}"
         if key == "cached_tokens" and prompt:
             value += f" ({cached / prompt * 100:.0f}%)"
         rows.append({"label": label, "value": value})
