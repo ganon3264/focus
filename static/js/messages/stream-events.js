@@ -82,6 +82,15 @@
     return length < 4000 ? 0 : Math.min(120, Math.floor(length / 400));
   }
 
+  // One place decides whether a render pass pins the view: the flush and the
+  // final forced pass both ask it, so a buffered reply (one token, then done)
+  // still lands on screen.
+  function followStreamScroll(rendered) {
+    if (window.scrollSentinel && window.streamFollows && window.streamFollows(rendered)) {
+      window.scrollSentinel.scrollIntoView({ block: 'end', behavior: 'instant' });
+    }
+  }
+
   function flushRenders(state) {
     _rafId = null;
     var firstRendered = null;
@@ -98,9 +107,7 @@
     }
     if (firstRendered && window._updateReasoningButton) window._updateReasoningButton(firstRendered);
     window.syncStreamingView(state.asstDiv);
-    if (window.scrollSentinel && window.streamFollows && window.streamFollows(firstRendered)) {
-      window.scrollSentinel.scrollIntoView({ block: 'end', behavior: 'instant' });
-    }
+    followStreamScroll(firstRendered);
   }
 
   function scheduleFlush(state) {
@@ -305,11 +312,13 @@
       cancelAnimationFrame(_rafId);
       _rafId = null;
     }
+    var firstRendered = null;
     for (var si = 0; si < state.segments.length; si++) {
       var seg = state.segments[si];
       if (seg.type === 'text' && seg.dirty) {
         window.preserveOpenStates(seg.el, function () { return window.renderMessage(seg.content); });
         seg.dirty = false;
+        if (!firstRendered) firstRendered = seg.el;
       }
     }
     if (window._updateReasoningButton) {
@@ -323,5 +332,6 @@
     // refresh finding this node (it does not, if the row has nothing stored).
     window.hideMessagePending(state.asstDiv);
     window.bindAssistantIdentity(state);
+    followStreamScroll(firstRendered);
   };
 })();

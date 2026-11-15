@@ -201,6 +201,9 @@ types log a warning, never vanish silently.
   (`state.done`, `state.errorMsg`) — they never throw.
 - Token renders are rAF-coalesced (one markdown pass per frame, trailing
   edge); `finalizeStreamRender()` force-flushes before the post-stream refresh.
+  Both passes pin the view through `followStreamScroll()` — the forced pass is
+  what scrolls a **buffered** reply, because its single `token` and `done` land
+  in the same tick and the pending frame is cancelled before it can scroll.
 - `message-builder.js`: segment builders for text/reasoning/tool_calls. Message
   chrome has exactly one markup source — the macros in `templates/macros.html`,
   rendered once into inert `<template>`s by `partials/chat/message-templates.html`.
