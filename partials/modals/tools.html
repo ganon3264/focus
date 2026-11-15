@@ -4,7 +4,7 @@
   <div class="modal-band-head">
     <div class="rail">
       <span>Tools</span>
-      {{ hint_tooltip('Tools the assistant may call mid-generation. They run locally without sandboxing. <span class="note danger">Only enable what you trust.</span>') }}
+      {{ hint_tooltip('Tools the assistant may call mid-generation. Enabled per chat. They run locally without sandboxing. <span class="note danger">Only enable what you trust.</span>') }}
       <div class="rail-actions flush">
         <span class="row-label">enabled</span>
         <span class="row-value" x-text="enabledCount + ' / ' + tools.length"></span>
