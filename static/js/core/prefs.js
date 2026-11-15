@@ -126,7 +126,9 @@
 
   window.actionResetPrefs = function () {
     var body = document.getElementById('prefs-body');
-    window.Prefs.reset().then(function () { syncForm(body); });
+    window.openConfirmModal('Restore every display preference to its default?', function () {
+      window.Prefs.reset().then(function () { syncForm(body); });
+    });
   };
 
   apply();
