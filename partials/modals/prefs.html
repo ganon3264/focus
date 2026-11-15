@@ -52,12 +52,14 @@
             data-action="actionSetPref" data-pref="text_size" data-value="large">Large</button>
         </span>
       </div>
-      <div class="row setting labeled fit">
-        {{ row_label('Reading width', 'How wide the message column gets on a wide window.') }}
-        <input type="range" min="480" max="1600" step="20" value="{{ prefs.chat_width }}"
+      <div class="field-row setting labeled slider">
+        {{ row_label('Reading width', 'How wide the message column gets on a wide window, in pixels.') }}
+        <input type="range" min="480" max="1600" step="1" value="{{ prefs.chat_width }}"
           class="field slider-range" aria-label="Reading width"
           data-action="actionSetPref" data-pref="chat_width" />
-        <span class="row-meta" data-pref-readout="chat_width" data-pref-unit="px">{{ prefs.chat_width }}px</span>
+        <input type="text" inputmode="numeric" value="{{ prefs.chat_width }}"
+          class="field sm num" aria-label="Reading width in pixels"
+          data-action="actionSetPref" data-pref="chat_width" />
       </div>
     </div>
     <div class="prefs-group">

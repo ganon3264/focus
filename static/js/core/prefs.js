@@ -6,10 +6,14 @@
 
   var lastLayout = '';
 
-  function apply() {
-    if (typeof prefs.chat_width === 'number') {
-      root.style.setProperty('--chat-content-width', 'min(100%, ' + prefs.chat_width + 'px)');
+  function applyWidth(width) {
+    if (typeof width === 'number' && isFinite(width)) {
+      root.style.setProperty('--chat-content-width', 'min(100%, ' + width + 'px)');
     }
+  }
+
+  function apply() {
+    applyWidth(prefs.chat_width);
     if (prefs.clock) root.dataset.clock = prefs.clock;
     if (prefs.text_size) root.dataset.textSize = prefs.text_size;
 
@@ -81,13 +85,16 @@
 
   // Every `[data-pref]` control in `root` takes its state from `prefs`, so a
   // new preference needs a row, not a branch here.
-  function syncForm(root) {
+  function syncForm(root, overrides) {
     if (!root || !root.querySelectorAll) return;
 
     var controls = root.querySelectorAll('[data-pref]');
     for (var i = 0; i < controls.length; i++) {
       var el = controls[i];
-      var value = prefs[el.dataset.pref];
+      var key = el.dataset.pref;
+      var value = overrides && Object.prototype.hasOwnProperty.call(overrides, key)
+        ? overrides[key]
+        : prefs[key];
       if (el.classList.contains('chip')) {
         el.classList.toggle('active', el.dataset.value === String(value));
       } else if (el.classList.contains('switch')) {
@@ -95,13 +102,6 @@
       } else if (el.value !== undefined) {
         el.value = value;
       }
-    }
-
-    var readouts = root.querySelectorAll('[data-pref-readout]');
-    for (var j = 0; j < readouts.length; j++) {
-      var readout = readouts[j];
-      var current = prefs[readout.dataset.prefReadout];
-      readout.textContent = current === undefined ? '' : current + (readout.dataset.prefUnit || '');
     }
   }
 
@@ -112,12 +112,28 @@
     reset: reset,
   };
 
-  // Chips, switches and the width slider all write through one verb.
+  // Chips, switches, the width slider and its pixel field write through one verb.
   window.actionSetPref = function (el, e) {
-    // A range fires input on every drag tick; only its change commits.
-    if (e && e.type === 'input') return;
     var key = el.dataset.pref;
     if (!key) return;
+    var body = document.getElementById('prefs-body');
+
+    // A drag previews live but only a release commits; the pixel field commits
+    // when it changes, so a half-typed number is never sent.
+    if (e) {
+      if (e.type === 'input') {
+        if (el.type === 'range') {
+          var preview = {};
+          preview[key] = Number(el.value);
+          applyWidth(preview[key]);
+          syncForm(body, preview);
+        }
+        return;
+      }
+      var isField = el.tagName === 'INPUT';
+      if (isField !== (e.type === 'change')) return;
+    }
+
     var current = prefs[key];
     var value = el.dataset.value !== undefined ? el.dataset.value : el.value;
 
@@ -125,12 +141,16 @@
     else if (typeof current === 'boolean') value = value === 'true';
     else if (typeof current === 'number') value = Number(value);
 
-    var row = el.closest('.row');
+    if (typeof value === 'number' && !isFinite(value)) {
+      syncForm(body);
+      return;
+    }
+
     var patch = {};
     patch[key] = value;
     var pending = set(patch);
-    syncForm(row);
-    pending.then(function () { syncForm(row); });
+    syncForm(body);
+    pending.then(function () { syncForm(body); });
   };
 
   window.actionResetPrefs = function () {
