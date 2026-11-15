@@ -143,3 +143,78 @@ class TestCrossEntity:
         resp = await client.get(f"/api/chats/{ch['id']}")
         assert resp.status_code == 200
         assert resp.json()["character_id"] is None
+
+
+class TestChatSearch:
+    async def _seed(self, db_path, chat_id, content, role="assistant", active=0, variant_index=0):
+        import uuid
+        from datetime import UTC, datetime
+
+        now = datetime.now(UTC).isoformat()
+        msg_id = str(uuid.uuid4())
+        async with aiosqlite.connect(db_path) as db:
+            await db.execute(
+                "INSERT INTO messages (id, chat_id, role, position, active_index, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+                (msg_id, chat_id, role, 1, active, now),
+            )
+            await db.execute(
+                "INSERT INTO message_variants (id, message_id, variant_index, content, created_at) VALUES (?, ?, ?, ?, ?)",
+                (str(uuid.uuid4()), msg_id, variant_index, content, now),
+            )
+            await db.commit()
+        return msg_id
+
+    async def test_finds_the_active_variant_of_a_live_chat(self, client, tmp_test_dir):
+        from tests.api.test_message_ops import _db_path
+
+        chat = await create_chat(client, title="Searchable")
+        msg_id = await self._seed(_db_path(tmp_test_dir), chat["id"], "the rain smells of rust")
+
+        resp = await client.get("/partials/chat-search?q=rust")
+
+        assert resp.status_code == 200
+        assert f"/chat/{chat['id']}?at={msg_id}" in resp.text
+        assert "rain smells" in resp.text
+
+    async def test_ignores_an_inactive_variant(self, client, tmp_test_dir):
+        import uuid
+        from datetime import UTC, datetime
+
+        from tests.api.test_message_ops import _db_path
+
+        chat = await create_chat(client)
+        db_path = _db_path(tmp_test_dir)
+        msg_id = await self._seed(db_path, chat["id"], "the old take")
+        async with aiosqlite.connect(db_path) as db:
+            await db.execute(
+                "INSERT INTO message_variants (id, message_id, variant_index, content, created_at) VALUES (?, ?, ?, ?, ?)",
+                (str(uuid.uuid4()), msg_id, 1, "the new take", datetime.now(UTC).isoformat()),
+            )
+            await db.execute("UPDATE messages SET active_index = 1 WHERE id = ?", (msg_id,))
+            await db.commit()
+
+        resp = await client.get("/partials/chat-search?q=take")
+
+        assert "the new take" in resp.text
+        assert "the old take" not in resp.text
+
+    async def test_ignores_deleted_chats(self, client, tmp_test_dir):
+        from tests.api.test_message_ops import _db_path
+
+        chat = await create_chat(client)
+        await self._seed(_db_path(tmp_test_dir), chat["id"], "buried treasure")
+        await client.delete(f"/api/chats/{chat['id']}")
+
+        resp = await client.get("/partials/chat-search?q=treasure")
+
+        assert "No matches" in resp.text
+
+    async def test_wildcards_are_literal(self, client, tmp_test_dir):
+        from tests.api.test_message_ops import _db_path
+
+        chat = await create_chat(client)
+        await self._seed(_db_path(tmp_test_dir), chat["id"], "axb needs no percent sign")
+
+        resp = await client.get("/partials/chat-search?q=a%25b")
+
+        assert "No matches" in resp.text

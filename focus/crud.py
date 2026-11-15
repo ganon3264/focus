@@ -311,6 +311,32 @@ def _page_window(page: int, total_pages: int, width: int = 5) -> list[int]:
     return list(range(start, start + width))
 
 
+async def search_messages(db: aiosqlite.Connection, query: str, limit: int = 40) -> list[dict]:
+    """Message hits across every live chat, newest first.
+
+    Only the active variant of each message is searched: a regenerated reply
+    that is no longer in the chat must not produce a hit that opens to nothing.
+    """
+    term = query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    async with db.execute(
+        """
+        SELECT m.id, m.chat_id, m.created_at, mv.content,
+               c.name AS character_name,
+               COALESCE(ch.title, '') AS chat_title
+          FROM messages m
+          JOIN message_variants mv
+            ON mv.message_id = m.id AND mv.variant_index = m.active_index
+          JOIN chats ch ON ch.id = m.chat_id AND ch.is_deleted = 0
+          LEFT JOIN characters c ON c.id = ch.character_id
+         WHERE mv.content LIKE ? ESCAPE '\\'
+         ORDER BY m.created_at DESC
+         LIMIT ?
+        """,
+        (f"%{term}%", limit),
+    ) as cur:
+        return [dict(r) for r in await cur.fetchall()]
+
+
 async def get_chats_sidebar(
     db: aiosqlite.Connection,
     character_id: str = None,

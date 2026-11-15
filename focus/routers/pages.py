@@ -27,6 +27,7 @@ from focus.core.utils import (
     greetings_from_card,
     merge_greeting_into_list,
     parse_greetings_json,
+    search_snippet,
     secret_preview,
     variable_group_name,
 )
@@ -506,6 +507,23 @@ async def structured_responses_partial(
             "preset_id": preset_id,
             "preset_name": preset_name,
         },
+    )
+
+
+@router.get("/partials/chat-search", response_class=HTMLResponse)
+async def chat_search_partial(
+    request: Request,
+    q: str = Query(""),
+    db: aiosqlite.Connection = Depends(get_db),
+):
+    query = q.strip()[:120]
+    rows = await crud.search_messages(db, query) if query else []
+    for row in rows:
+        row["snippet"] = search_snippet(row["content"], query)
+    return templates.TemplateResponse(
+        request,
+        "chat/chat-search.html",
+        {"query": query, "results": rows},
     )
 
 

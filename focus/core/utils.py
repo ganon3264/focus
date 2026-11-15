@@ -173,6 +173,17 @@ def estimate_image_tokens(width: int, height: int) -> int:
 MACRO_MAX_PASSES = 10
 
 
+def search_snippet(text: str, term: str, radius: int = 48) -> str:
+    """One line of the match and its surroundings, for a search result row."""
+    flat = " ".join((text or "").split())
+    index = flat.lower().find(term.lower())
+    if index < 0:
+        return flat[: radius * 2] + ("…" if len(flat) > radius * 2 else "")
+    start = max(0, index - radius)
+    end = min(len(flat), index + len(term) + radius)
+    return ("…" if start else "") + flat[start:end] + ("…" if end < len(flat) else "")
+
+
 def now_iso() -> str:
     return datetime.now(UTC).isoformat()
 

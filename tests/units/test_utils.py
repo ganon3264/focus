@@ -222,3 +222,21 @@ class TestResolveSecretKey:
                 raise RuntimeError("boom")
 
         assert await resolve_secret_key(_BrokenDB(), "SECRET:x") == ""
+
+
+class TestSearchSnippet:
+    def test_windows_around_the_match(self):
+        from focus.core.utils import search_snippet
+
+        text = "x" * 100 + "needle" + "y" * 100
+        out = search_snippet(text, "needle", radius=10)
+
+        assert out.startswith("…") and out.endswith("…")
+        assert "needle" in out
+        assert len(out) < 40
+
+    def test_flattens_newlines_and_falls_back(self):
+        from focus.core.utils import search_snippet
+
+        assert search_snippet("a\n\nb  c", "b") == "a b c"
+        assert search_snippet("no match here", "zzz", radius=4) == "no match…"

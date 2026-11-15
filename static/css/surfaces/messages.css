@@ -635,6 +635,12 @@ html[data-clock='hidden'] [data-ui='ts-time'] {
    Nothing has arrived yet, so the screen stays out of the layout entirely and
    the rail carries the only running thing: the spinner primitive plus its
    readout, in the slot the model name later occupies. */
+/* A search hit marks the message it landed on, once. */
+.message.is-found {
+  outline: var(--hair-w) solid var(--accent);
+  outline-offset: var(--u);
+}
+
 .message-body:empty,
 .message-body.is-empty {
   display: none;

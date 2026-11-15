@@ -1,4 +1,4 @@
-{% from "macros.html" import icon_chevron_right, icon_plus, icon_trash %}
+{% from "macros.html" import icon_chevron_right, icon_plus, icon_trash, icon_search %}
 <!-- Right Sidebar -->
 <aside class="right-sidebar" id="right-sidebar">
   <div class="sidebar-inner">
@@ -18,6 +18,17 @@
     </div>
   </div>
   <div class="sidebar-footer">
+    <div class="search-field">
+      <span class="search-mark">{{ icon_search(14) }}</span>
+      <input
+        type="text"
+        id="chat-search-field"
+        class="field sm w-full"
+        placeholder="Search messages"
+        aria-label="Search messages"
+        autocomplete="off"
+      />
+    </div>
     <div id="chat-pager">{% include "chat/chat-pager.html" %}</div>
     <button class="btn" onclick="openChatTrashModal()">{{ icon_trash(14) }} Trash Bin</button>
   </div>

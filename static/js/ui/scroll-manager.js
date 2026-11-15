@@ -37,6 +37,8 @@
   };
 
   function scrollToBottom() {
+    // A search hit owns the landing position.
+    if (new URLSearchParams(window.location.search).get('at')) return;
     var navEntries = performance.getEntriesByType('navigation');
     if (navEntries.length > 0) {
       requestAnimationFrame(function () {

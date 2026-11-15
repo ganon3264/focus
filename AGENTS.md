@@ -34,7 +34,8 @@ static/
     modals/              # Config forms, editors, char blocks
     ui/                  # modal, confirm, notifications, theme, scroll, lightbox,
                          # chat-controls, option-picker, input-bar, status-panel
-    features/            # backups, extensions, presets, preset-variables, regex, structured
+    features/            # backups, extensions, presets, preset-variables, regex, structured,
+                         # chat-search
     utils/               # set-tracker, prompt-cache, timestamp-formatter
   vendor/                # HTMX, Alpine, marked, purify, sortable, cropper (synced by vendor-sync.py)
 assets/                  # User uploads (attachments, characters, personas, tool configs)
@@ -128,6 +129,12 @@ The pruner's `_pruned` map is keyed by bare id (`MessageIdentity.bare`); `_forge
 - `focus/core/usage_stats.py` is the one readout for `generation_usage`, and it has two shapes: `summarize_usage(rows)` for one bubble and `summarize_lifetime(rows)` for the all-time tab. A message is one bubble but several provider calls (one per tool round), so the bubble's figures are sums and the per-call rows are a disclosure; the lifetime total is the same table grouped per provider/model, each row two lines (name + readouts over a recessed track) with the share as a grip-material pill (`--share` custom property, styled in `surfaces/modals.css`).
 - Per-message: `modal-message-usage` (shell in `partials/chat/modals.html`, body `modals/message-usage.html`, `GET /partials/message-usage/{chat}/{message}`, DB read `get_message_usage`). The toolbar key renders on assistant messages only; `actionOpenMessageUsage` fetches into `#message-usage-body`. Read-only, so no Refresh surface.
 - Lifetime: the System modal's **Usage** tab (`modals/usage.html` shell + `modals/usage-stats.html` lane, `GET /partials/usage-stats`, `get_usage_totals` grouped per provider/model), loaded on modal open through the `usageStats` surface. It tallies what the database still holds — deleting a chat or its messages cascades their rows away — and `cost` only covers providers that report it (OpenRouter, NanoGPT). The header hint says the first, the Cost row's hint says the second; don't repeat either in both.
+
+### Chat search
+
+- The field sits at the foot of the right pane (`.sidebar-footer` in `partials/chat/right-pane.html`), under the list and above the pager, so a short chat list no longer leaves a hole there. Typing swaps `#chat-list` for `chat/chat-search.html` and hides `#chat-pager`; emptying the field restores the list at the page it was on via `_refreshChatList`.
+- `GET /partials/chat-search?q=` → `crud.search_messages`: only the **active** variant of each message, only live chats, `%`/`_` escaped, 40 rows newest-first. `search_snippet` (`core/utils.py`) flattens the match into one line with ellipses.
+- A hit links to `/chat/{id}?at={message_id}`. `features/chat-search.js` centres that node and flashes `.message.is-found`; `ui/scroll-manager.js::scrollToBottom` stands down when `at` is in the URL, so the landing position is the message, not the bottom (a hit that no longer exists falls back to the bottom).
 
 ### Banded modals — every list modal
 

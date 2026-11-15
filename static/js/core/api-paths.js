@@ -224,5 +224,6 @@ window.api = {
     structuredResponses: '/partials/structured-responses',
     exportEntities: '/partials/export-entities',
     chatList: '/partials/chat-list',
+    chatSearch: '/partials/chat-search',
   },
 };
