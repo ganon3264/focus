@@ -311,15 +311,26 @@ def _page_window(page: int, total_pages: int, width: int = 5) -> list[int]:
     return list(range(start, start + width))
 
 
-async def search_messages(db: aiosqlite.Connection, query: str, limit: int = 40) -> list[dict]:
-    """Message hits across every live chat, newest first.
+async def search_messages(
+    db: aiosqlite.Connection,
+    query: str,
+    character_id: str | None = None,
+    limit: int = 40,
+) -> list[dict]:
+    """Message hits across live chats, newest first, optionally one character's.
 
     Only the active variant of each message is searched: a regenerated reply
     that is no longer in the chat must not produce a hit that opens to nothing.
     """
     term = query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    where = "mv.content LIKE ? ESCAPE '\\'"
+    params: list = [f"%{term}%"]
+    if character_id:
+        where += " AND ch.character_id = ?"
+        params.append(character_id)
+    params.append(limit)
     async with db.execute(
-        """
+        f"""
         SELECT m.id, m.chat_id, m.created_at, mv.content,
                c.name AS character_name,
                COALESCE(ch.title, '') AS chat_title
@@ -328,11 +339,11 @@ async def search_messages(db: aiosqlite.Connection, query: str, limit: int = 40)
             ON mv.message_id = m.id AND mv.variant_index = m.active_index
           JOIN chats ch ON ch.id = m.chat_id AND ch.is_deleted = 0
           LEFT JOIN characters c ON c.id = ch.character_id
-         WHERE mv.content LIKE ? ESCAPE '\\'
+         WHERE {where}
          ORDER BY m.created_at DESC
          LIMIT ?
         """,
-        (f"%{term}%", limit),
+        params,
     ) as cur:
         return [dict(r) for r in await cur.fetchall()]
 

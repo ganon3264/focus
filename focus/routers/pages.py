@@ -514,10 +514,11 @@ async def structured_responses_partial(
 async def chat_search_partial(
     request: Request,
     q: str = Query(""),
+    character_id: str | None = Query(None),
     db: aiosqlite.Connection = Depends(get_db),
 ):
     query = q.strip()[:120]
-    rows = await crud.search_messages(db, query) if query else []
+    rows = await crud.search_messages(db, query, character_id) if query else []
     for row in rows:
         row["snippet"] = search_snippet(row["content"], query)
     return templates.TemplateResponse(

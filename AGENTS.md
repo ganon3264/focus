@@ -132,8 +132,9 @@ The pruner's `_pruned` map is keyed by bare id (`MessageIdentity.bare`); `_forge
 
 ### Chat search
 
-- The field sits at the foot of the right pane (`.sidebar-footer` in `partials/chat/right-pane.html`), under the list and above the pager, so a short chat list no longer leaves a hole there. Typing swaps `#chat-list` for `chat/chat-search.html` and hides `#chat-pager`; emptying the field restores the list at the page it was on via `_refreshChatList`.
-- `GET /partials/chat-search?q=` → `crud.search_messages`: only the **active** variant of each message, only live chats, `%`/`_` escaped, 40 rows newest-first. `search_snippet` (`core/utils.py`) flattens the match into one line with ellipses.
+- The field sits at the foot of the right pane (`.sidebar-footer` in `partials/chat/right-pane.html`), **under the pager** and above Trash Bin: the pager comes and goes with the page count, and a field above it would jump. Typing swaps `#chat-list` for `chat/chat-search.html` and hides `#chat-pager`; emptying the field restores the list at the page it was on via `_refreshChatList`.
+- Scope is the active character (`?character_id=`), because the pane is that character's chats. The **All** chip beside the field widens it to every chat; it is session state in `features/chat-search.js`, not a preference — a reload goes back to the character.
+- `GET /partials/chat-search?q=&character_id=` → `crud.search_messages`: only the **active** variant of each message, only live chats, `%`/`_` escaped, 40 rows newest-first. `search_snippet` (`core/utils.py`) flattens the match into one line with ellipses.
 - A hit links to `/chat/{id}?at={message_id}`. `features/chat-search.js` centres that node and flashes `.message.is-found`; `ui/scroll-manager.js::scrollToBottom` stands down when `at` is in the URL, so the landing position is the message, not the bottom (a hit that no longer exists falls back to the bottom).
 
 ### Banded modals — every list modal

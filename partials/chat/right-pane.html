@@ -18,18 +18,29 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    <div class="search-field">
-      <span class="search-mark">{{ icon_search(14) }}</span>
-      <input
-        type="text"
-        id="chat-search-field"
-        class="field sm w-full"
-        placeholder="Search messages"
-        aria-label="Search messages"
-        autocomplete="off"
-      />
-    </div>
     <div id="chat-pager">{% include "chat/chat-pager.html" %}</div>
+    {# Under the pager: the pager comes and goes, the field must not move. #}
+    <div class="flex items-center gap-2">
+      <div class="search-field flex-1 min-w-0">
+        <span class="search-mark">{{ icon_search(14) }}</span>
+        <input
+          type="text"
+          id="chat-search-field"
+          class="field sm w-full"
+          placeholder="Search messages"
+          aria-label="Search messages"
+          autocomplete="off"
+        />
+      </div>
+      <button
+        type="button"
+        id="chat-search-scope"
+        class="chip"
+        data-action="actionToggleChatSearchScope"
+        aria-pressed="false"
+        title="Search every chat instead of this character's"
+      >All</button>
+    </div>
     <button class="btn" onclick="openChatTrashModal()">{{ icon_trash(14) }} Trash Bin</button>
   </div>
   </div>

@@ -218,3 +218,22 @@ class TestChatSearch:
         resp = await client.get("/partials/chat-search?q=a%25b")
 
         assert "No matches" in resp.text
+
+
+async def test_search_scope_can_be_one_character(client, tmp_test_dir):
+    from tests.api.test_message_ops import _db_path
+
+    db_path = _db_path(tmp_test_dir)
+    one = await create_character(client, "One")
+    two = await create_character(client, "Two")
+    chat_one = await create_chat(client, character_id=one["id"])
+    chat_two = await create_chat(client, character_id=two["id"])
+    seeder = TestChatSearch()
+    await seeder._seed(db_path, chat_one["id"], "the keeper of keys")
+    await seeder._seed(db_path, chat_two["id"], "the keeper of doors")
+
+    scoped = await client.get(f"/partials/chat-search?q=keeper&character_id={one['id']}")
+    wide = await client.get("/partials/chat-search?q=keeper")
+
+    assert "keys" in scoped.text and "doors" not in scoped.text
+    assert "keys" in wide.text and "doors" in wide.text
