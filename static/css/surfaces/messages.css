@@ -264,8 +264,8 @@ html[data-clock='hidden'] [data-ui='ts-time'] {
    Not a primitive: this is what text looks like inside a screen. */
 .message-content {
   margin: 0;
-  font-size: 14px;
-  line-height: 24px;
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
   color: var(--text);
 }
 
@@ -305,19 +305,19 @@ html[data-clock='hidden'] [data-ui='ts-time'] {
 }
 
 .markdown-content h1 {
-  font-size: 22px;
+  font-size: calc(var(--text-body) * 11 / 7);
 }
 
 .markdown-content h2 {
-  font-size: 18px;
+  font-size: calc(var(--text-body) * 9 / 7);
 }
 
 .markdown-content h3 {
-  font-size: 16px;
+  font-size: calc(var(--text-body) * 8 / 7);
 }
 
 .markdown-content :is(h4, h5, h6) {
-  font-size: 14px;
+  font-size: var(--text-body);
   color: var(--text-muted);
 }
 
@@ -366,8 +366,8 @@ html[data-clock='hidden'] [data-ui='ts-time'] {
   background: var(--ink-1);
   box-shadow: inset 0 0 0 var(--hair-w) var(--hair);
   font-family: var(--font-mono-ui);
-  font-size: 11px;
-  line-height: 16px;
+  font-size: var(--text-code);
+  line-height: var(--leading-code);
   white-space: pre-wrap;
   word-break: break-word;
   overflow-wrap: break-word;
@@ -407,7 +407,7 @@ html[data-clock='hidden'] [data-ui='ts-time'] {
 .markdown-content table {
   margin: var(--inset) 0;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: var(--text-meta);
 }
 
 .markdown-content :is(th, td) {
@@ -522,8 +522,8 @@ html[data-clock='hidden'] [data-ui='ts-time'] {
 }
 
 .reasoning-content {
-  font-size: 12px;
-  line-height: 20px;
+  font-size: var(--text-meta);
+  line-height: var(--leading-meta);
 }
 
 .reasoning-content p {
@@ -541,8 +541,8 @@ html[data-clock='hidden'] [data-ui='ts-time'] {
   border: none;
   background: transparent;
   font-family: var(--font-mono-ui);
-  font-size: 11px;
-  line-height: 16px;
+  font-size: var(--text-code);
+  line-height: var(--leading-code);
   white-space: pre-wrap;
   word-break: break-word;
 }

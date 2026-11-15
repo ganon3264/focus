@@ -135,11 +135,22 @@
      same line. */
   --bottom-clearance: calc(var(--u) * 8);
 
-  /* Distance between a prose line box's edge and its ink, at the 14px/24px body
-     rhythm. Font metrics, not design values: gaps next to prose subtract them so
-     prose reads at the same rhythm as a plate beside it. */
-  --prose-ink-lead: 7px;
-  --prose-ink-trail: 4px;
+  /* Prose type: the message body and its two satellites, each a size/leading
+     pair so the whole prose scope moves together. Headings ride the body size as
+     ratios (11/7, 9/7, 8/7 -> 22/18/16 at the 14px body). Chrome is not here:
+     authors, ordinals and readouts keep their own sizes. */
+  --text-body: 14px;
+  --leading-body: 24px;
+  --text-meta: 12px;
+  --leading-meta: 20px;
+  --text-code: 11px;
+  --leading-code: 16px;
+
+  /* Distance between a prose line box's edge and its ink. Font metrics, not
+     design values: gaps next to prose subtract them so prose reads at the same
+     rhythm as a plate beside it. Derived, so it follows the body rhythm. */
+  --prose-ink-lead: calc((var(--leading-body) - var(--text-body)) / 2 + 2px);
+  --prose-ink-trail: calc((var(--leading-body) - var(--text-body)) / 2 - 1px);
 
   /* Role colors for arranger items (user/assistant) */
   --role-user: #10b981;
