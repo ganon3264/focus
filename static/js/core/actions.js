@@ -189,6 +189,18 @@ window.actionToggleMessagePin = function (el) {
     .catch(function (e) { window.showErrorToast(e.message); });
 };
 
+window.actionOpenMessageUsage = function (el) {
+  var msg = el.closest('[data-ui="message"]');
+  var body = document.getElementById('message-usage-body');
+  if (!msg || !body) return;
+  body.innerHTML = '';
+  window.openModal('modal-message-usage');
+  window.hxGet(window.api.partials.messageUsage(msg.dataset.chatId, msg.dataset.messageId), {
+    target: '#message-usage-body',
+    swap: 'innerHTML',
+  }).catch(function (e) { window.showErrorToast(e.message || 'Could not load usage'); });
+};
+
 window.actionBranchMessage = function (el) {
   var msg = el.closest('[data-ui="message"]');
   var messageId = msg.dataset.messageId;

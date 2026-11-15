@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import aiosqlite
-from fastapi import APIRouter, Depends, Form, Query, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from jinja2 import FileSystemLoader
@@ -22,6 +22,7 @@ from focus.core.summary import (
     DEFAULT_SUMMARY_TEMPLATE,
     summary_config,
 )
+from focus.core.usage_stats import summarize_lifetime, summarize_usage
 from focus.core.utils import (
     greetings_from_card,
     merge_greeting_into_list,
@@ -29,6 +30,7 @@ from focus.core.utils import (
     secret_preview,
     variable_group_name,
 )
+from focus.db.chats import get_message_usage, get_usage_totals
 from focus.prompt_chain import partition_blocks, resolve_variable_blocks
 from focus.providers.schema import provider_schema, provider_type_options
 
@@ -404,6 +406,36 @@ async def single_message_partial(
             "is_latest": is_latest,
             "enabled_extensions": enabled_extensions,
         },
+    )
+
+
+@router.get("/partials/message-usage/{chat_id}/{message_id}", response_class=HTMLResponse)
+async def message_usage_partial(
+    request: Request,
+    chat_id: str,
+    message_id: str,
+    db: aiosqlite.Connection = Depends(get_db),
+):
+    async with db.execute(
+        "SELECT 1 FROM messages WHERE id = ? AND chat_id = ?", (message_id, chat_id)
+    ) as cur:
+        if not await cur.fetchone():
+            raise HTTPException(404, "Message not found")
+    rows = await get_message_usage(chat_id, message_id, db=db)
+    return templates.TemplateResponse(
+        request,
+        "modals/message-usage.html",
+        {"usage": summarize_usage(rows) if rows else None},
+    )
+
+
+@router.get("/partials/usage-stats", response_class=HTMLResponse)
+async def usage_stats_partial(request: Request, db: aiosqlite.Connection = Depends(get_db)):
+    rows = await get_usage_totals(db=db)
+    return templates.TemplateResponse(
+        request,
+        "modals/usage-stats.html",
+        {"stats": summarize_lifetime(rows)},
     )
 
 

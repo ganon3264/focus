@@ -204,6 +204,10 @@ window.api = {
     messageToolbars: function (chatId) {
       return '/partials/message-toolbars/' + chatId;
     },
+    messageUsage: function (chatId, msgId) {
+      return '/partials/message-usage/' + chatId + '/' + msgId;
+    },
+    usageStats: '/partials/usage-stats',
     charactersModal: '/partials/characters-modal',
     personasModal: '/partials/personas-modal',
     providersModal: '/partials/providers-modal',

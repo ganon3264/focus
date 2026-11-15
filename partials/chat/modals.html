@@ -10,13 +10,14 @@
 {# One banded chassis per tab: a readout rail (the collection's verbs), the
    optional search row, the one lane. Only the visible tab is in flow. #}
 <div x-data="{ tab: 'tools' }" class="modal-tabs">
-  {{ tab_bar([('tools', 'Tools'), ('extensions', 'Extensions'), ('regex', 'Regex'), ('structured', 'Structured'), ('backups', 'Backups')],
+  {{ tab_bar([('tools', 'Tools'), ('extensions', 'Extensions'), ('regex', 'Regex'), ('structured', 'Structured'), ('backups', 'Backups'), ('usage', 'Usage')],
     wrapper_classes='shrink-0', button_attrs='type="button"') }}
   <div x-show="tab === 'tools'" class="modal-tab">{% include "modals/tools.html" %}</div>
   <div x-show="tab === 'extensions'" x-cloak class="modal-tab">{% include "modals/extensions.html" %}</div>
   <div x-show="tab === 'regex'" x-cloak class="modal-tab">{% include "modals/regex.html" %}</div>
   <div x-show="tab === 'structured'" x-cloak class="modal-tab">{% include "modals/structured.html" %}</div>
   <div x-show="tab === 'backups'" x-cloak class="modal-tab">{% include "modals/backup-body.html" %}</div>
+  <div x-show="tab === 'usage'" x-cloak class="modal-tab">{% include "modals/usage.html" %}</div>
 </div>
 {% endcall %}
 
@@ -65,6 +66,10 @@
 {% include "modals/edit-message.html" %}
 
 {% include "modals/text-expander.html" %}
+
+{% call modal_shell('modal-message-usage', 'Usage', max_width='440px') %}
+<div id="message-usage-body" class="flex flex-col gap-3">{{ empty_state('Loading…') }}</div>
+{% endcall %}
 
 <!-- PRESET NAME MODAL — one dialog, three verbs: create, rename, duplicate.
      The mode lives on the form; the title and the verb follow it. -->

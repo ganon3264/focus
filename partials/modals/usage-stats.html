@@ -1,0 +1,42 @@
+{% from "macros.html" import empty_state, row_label %}
+{% if not stats.models %}
+{{ empty_state('No usage recorded yet.') }}
+{% else %}
+<div class="flex flex-col gap-4">
+  <div class="usage-screen">
+    <div class="row readout">
+      {{ row_label('Cost', 'Only providers that report cost are counted; the rest contribute tokens but no money.') }}
+      <span class="row-actions"><span class="row-value usage-value usage-cost">{{ stats.cost }}</span></span>
+    </div>
+    {% for stat in stats.stat_rows %}
+    <div class="row readout">
+      {{ row_label(stat.label) }}
+      <span class="row-actions"><span class="row-value usage-value">{{ stat.value }}</span></span>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div>
+    <div class="rail">
+      <span>By model</span>
+      <span class="rail-actions flush row-meta">{{ stats.calls }} calls</span>
+    </div>
+    <div class="usage-models">
+      {% for model in stats.models %}
+      <div class="row readout usage-row" style="--share: {{ model.share }}%">
+        <span class="usage-line">
+          <span class="row-title">{{ model.model or '—' }}</span>
+          <span class="row-actions">
+            {% if model.provider %}<span class="row-meta">{{ model.provider }}</span>{% endif %}
+            <span class="row-meta">{{ model.tokens_label }}</span>
+            <span class="row-meta">{{ model.share_label }}</span>
+            <span class="row-value">{{ model.cost }}</span>
+          </span>
+        </span>
+        <span class="usage-meter" aria-hidden="true"></span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}

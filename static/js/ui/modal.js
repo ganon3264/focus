@@ -299,6 +299,7 @@
       Refresh.load('tools');
       Refresh.load('extensions');
       Refresh.load('backups');
+      Refresh.load('usageStats');
       return;
     }
     if (window.reloadRegexScripts) window.reloadRegexScripts();

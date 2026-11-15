@@ -16,4 +16,5 @@ __pycache__/
 /tests/tmp/
 /tests/coverage_html/
 /.coverage
+/.cache
 *.coverage.*

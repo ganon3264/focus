@@ -15,7 +15,8 @@ FastAPI (async) + aiosqlite | Jinja2 | HTMX 2 + Alpine 3 | Tailwind v4 | uv + ha
 main.py                  # FastAPI app entry
 focus/                   # Backend package
   core/                  # DB init, models, utils, macros, segments, media, tracked_fields,
-                         # regex/structured, summary, retry, progress_stream, request_transforms
+                         # regex/structured, summary, usage_stats, retry, progress_stream,
+                         # request_transforms
   db/                    # CRUD per domain (characters, chats, personas, presets, providers, etc.)
   providers/             # LLM providers (openai_compat, openrouter, nanogpt, deepseek, moonshot, xiaomi_mimo, google_*)
   routers/               # Route handlers (pages, chats, stream, stream_utils, presets, providers, tools, backup, …)
@@ -93,7 +94,7 @@ The pruner's `_pruned` map is keyed by bare id (`MessageIdentity.bare`); `_forge
 - Closing a dirty modal prompts via confirm; **save handlers must call `closeModal(id, {discard: true})`** (never `captureDirty`-style resets). Use `ModalController.setDirty(id, true)` for non-field changes (e.g. attachment add/delete).
 - ESC closes: confirm modal (as Cancel) → topmost modal → lightbox. `option-selected` / `custom-select:set` trigger recompute of open modals.
 - Overlays inside htmx-swapped bodies (providers modal) re-register automatically on open.
-- **Advanced modal** (`modal-advanced` in `partials/chat/modals.html`) is a tab container (`.modal-tabs` + the `tab_bar()` macro) holding Tools, Extensions, Regex, Structured and Backups; each tab body is its own banded chassis. The three old per-feature modals no longer exist; body partials are `modals/tools.html`, `modals/extensions.html`, `modals/regex.html`, `modals/structured.html`, `modals/backup-body.html`. Tabs are pure Alpine `x-show` over statically-included bodies, so the Tools/Extensions components still initialise once at page load; the list tabs (regex, structured, backups) reload once per modal open via `ModalController.onOpen('modal-advanced')` — not on tab click.
+- **Advanced modal** (`modal-advanced` in `partials/chat/modals.html`) is a tab container (`.modal-tabs` + the `tab_bar()` macro) holding Tools, Extensions, Regex, Structured, Backups and Usage; each tab body is its own banded chassis. The three old per-feature modals no longer exist; body partials are `modals/tools.html`, `modals/extensions.html`, `modals/regex.html`, `modals/structured.html`, `modals/backup-body.html`, `modals/usage.html`. Tabs are pure Alpine `x-show` over statically-included bodies, so the Tools/Extensions components still initialise once at page load; the list tabs (regex, structured, backups, usage) reload once per modal open via `ModalController.onOpen('modal-advanced')` — not on tab click.
 
 ### Character editor + custom blocks
 
@@ -112,6 +113,12 @@ The pruner's `_pruned` map is keyed by bare id (`MessageIdentity.bare`); `_forge
 - Attachments are a rail + a `.well` tray; `#edit-msg-media` is the drop zone **and** the media gallery (`.well.media-row.msg-attachments-tray`), `#edit-msg-attachments` is `display: contents` so its thumbs are the tray's grid items, and `#edit-msg-att-empty` is the static empty note that spans the tray (JS only toggles `.hidden`). A thumb opens the lightbox, like the entity editor's media grid. Unlike the entity editor's fixed three-row gallery, this one hugs its rows (one row minimum, 176 cap).
 - `modal-text-expander` is the generic expanded editor: one pane-filling `.field.sized.edit-text`, a foot with the live length readout and an indigo **Done**. It writes into the host field on every keystroke (dispatching `input`), so its own host's dirty tracking still fires.
 
+### Usage stats
+
+- `focus/core/usage_stats.py` is the one readout for `generation_usage`, and it has two shapes: `summarize_usage(rows)` for one bubble and `summarize_lifetime(rows)` for the all-time tab. A message is one bubble but several provider calls (one per tool round), so the bubble's figures are sums and the per-call rows are a disclosure; the lifetime total is the same table grouped per provider/model, each row two lines (name + readouts over a recessed track) with the share as a grip-material pill (`--share` custom property, styled in `surfaces/modals.css`).
+- Per-message: `modal-message-usage` (shell in `partials/chat/modals.html`, body `modals/message-usage.html`, `GET /partials/message-usage/{chat}/{message}`, DB read `get_message_usage`). The toolbar key renders on assistant messages only; `actionOpenMessageUsage` fetches into `#message-usage-body`. Read-only, so no Refresh surface.
+- Lifetime: the Advanced modal's **Usage** tab (`modals/usage.html` shell + `modals/usage-stats.html` lane, `GET /partials/usage-stats`, `get_usage_totals` grouped per provider/model), loaded on modal open through the `usageStats` surface. It tallies what the database still holds — deleting a chat or its messages cascades their rows away — and `cost` only covers providers that report it (OpenRouter, NanoGPT). The header hint says the first, the Cost row's hint says the second; don't repeat either in both.
+
 ### Banded modals — every list modal
 
 - A modal whose body is a list is a chassis of bands, not one scroll island:
@@ -129,7 +136,7 @@ The pruner's `_pruned` map is keyed by bare id (`MessageIdentity.bare`); `_forge
 - **Vertical rhythm is one rule: `--band-pad` (16) above and below every band, no gaps between bands.** Nothing else authors vertical spacing. `grid-audit.js` enforces the number.
 - Chrome (title bar + head/toolbar/foot bands) is one tint (`--ink-1`); the lane is the only thing painting a different value. A lane that is the last child closes on the panel floor (`:last-child` rule).
 - No scroll fade on the lane: the plane boundary is the edge. `scrollbar-gutter: auto` so the bar rides the lane's padding instead of pushing the rows off the inset.
-- Users of the vocabulary: characters, personas, providers, presets, saved keys, trash bin, custom character blocks, prompt itemizer, prompt arranger, sampler, theme customizer, and each Advanced tab (Tools · Extensions · Regex · Structured · Backups). The stacked forms (provider create/edit, edit entity, edit message, summary, export, regex/structured items, text expander) are deliberately not banded — a form is not a collection.
+- Users of the vocabulary: characters, personas, providers, presets, saved keys, trash bin, custom character blocks, prompt itemizer, prompt arranger, sampler, theme customizer, and each Advanced tab (Tools · Extensions · Regex · Structured · Backups · Usage). The stacked forms (provider create/edit, edit entity, edit message, summary, export, regex/structured items, text expander) are deliberately not banded — a form is not a collection.
 - `grid-audit.js` measures the rhythm on characters, personas, providers, saved keys, model picker, presets, itemizer, arranger, samplers, Advanced and themes: rail on the modal inset, rail one band pad under the title groove, one band pad before the next band, first row one band pad into the lane, last band on the panel floor, foot verb on the inset.
 - A rail's last action must be `flush` (`.rail-actions.flush`) when it is a labelled `.btn` — the default optical pull would push it past the modal inset.
 - **Counts live in the rail, outside the swap target.** Update them from `htmx:afterSwap` keyed on the lane/target id, never from the `hxGet` promise (it resolves before the swap) — `arranger-count` and the block door's count work this way.

@@ -1094,3 +1094,88 @@
   width: 100%;
   height: 100%;
 }
+
+/* ── Usage ────────────────────────────────────────────────────────────────
+   The totals sit in a sunk screen; the model breakdown is a channel rack. Each
+   model is two lines: its name and readouts, then a recessed track carrying the
+   model's share of the all-time token total as a pill. The pill is the arranger
+   grip's material — one solid accent fill, a lit hairline on the top edge and a
+   shade under the bottom, which is the app's whole idea of depth. It sits under
+   the text rather than behind it, so the label keeps the theme's own ink on
+   both palettes. */
+.usage-screen {
+  display: flex;
+  flex-direction: column;
+  padding-block: var(--u);
+  border-radius: var(--radius-control);
+  background-color: var(--ink-1);
+  box-shadow:
+    var(--mat-inset),
+    inset 0 0 0 var(--hair-w) var(--hair-dark);
+}
+
+.usage-value {
+  font-size: 12px;
+}
+
+.usage-cost {
+  color: var(--accent);
+  font-size: 14px;
+}
+
+.usage-models {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.usage-models > .usage-row {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: var(--u);
+  min-height: calc(var(--u) * 11);
+  padding-block: var(--u);
+}
+
+.usage-line {
+  display: flex;
+  align-items: center;
+  gap: var(--gutter);
+  min-width: 0;
+}
+
+.usage-line > .row-actions {
+  gap: var(--gutter);
+}
+
+.usage-meter {
+  position: relative;
+  display: block;
+  flex: none;
+  height: calc(var(--u) * 2);
+  border-radius: var(--radius-control);
+  background-color: var(--ink-2);
+  box-shadow:
+    inset 0 var(--u) calc(var(--u) * 0.75) color-mix(in srgb, black 40%, transparent),
+    inset 0 calc(-1 * var(--hair-w)) 0 var(--hair-lit),
+    inset 0 0 0 var(--hair-w) var(--hair-strong);
+}
+
+.usage-meter::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  min-width: 3px;
+  width: var(--share, 0%);
+  border-radius: var(--radius-control);
+  background-color: var(--accent);
+  background-image: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--accent), white 10%),
+    color-mix(in srgb, var(--accent), black 8%)
+  );
+  box-shadow:
+    inset 0 var(--hair-w) 0 color-mix(in srgb, white 18%, transparent),
+    inset 0 calc(-1 * var(--hair-w)) 0 color-mix(in srgb, black 35%, transparent);
+}

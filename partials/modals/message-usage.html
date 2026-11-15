@@ -1,0 +1,62 @@
+{% from "macros.html" import empty_state, row_label %}
+{% if not usage %}
+{{ empty_state('No usage was recorded for this message.') }}
+{% else %}
+<div class="flex flex-col gap-3">
+  <div>
+    <div class="rail">
+      <span>This message</span>
+      {% if usage.origin %}<span class="rail-actions flush row-meta">{{ usage.origin }}</span>{% endif %}
+    </div>
+    <div class="flex flex-col">
+      <div class="row readout">
+        {{ row_label('Cost') }}
+        <span class="row-actions"><span class="row-value">{{ usage.cost }}</span></span>
+      </div>
+      {% for stat in usage.stat_rows %}
+      <div class="row readout">
+        {{ row_label(stat.label) }}
+        <span class="row-actions"><span class="row-value">{{ stat.value }}</span></span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  {% if usage.calls | length > 1 %}
+  <details class="disclosure">
+    <summary>
+      <span class="caret-mark" aria-hidden="true"></span>
+      <span class="disclosure-title">{{ usage.calls | length }} calls</span>
+    </summary>
+    <div class="disclosure-body flex flex-col">
+      {% for call in usage.calls %}
+      <div class="row readout">
+        <span class="row-title">{{ call.label }}{% if call.model %} <span class="row-meta">{{ call.model }}</span>{% endif %}</span>
+        <span class="row-actions">
+          <span class="row-meta">{{ call.tokens }}</span>
+          <span class="row-value">{{ call.cost }}</span>
+        </span>
+      </div>
+      {% endfor %}
+    </div>
+  </details>
+  {% endif %}
+
+  {% if usage.details %}
+  <details class="disclosure">
+    <summary>
+      <span class="caret-mark" aria-hidden="true"></span>
+      <span class="disclosure-title">Cost details</span>
+    </summary>
+    <div class="disclosure-body flex flex-col">
+      {% for detail in usage.details %}
+      <div class="row readout">
+        {{ row_label(detail.label) }}
+        <span class="row-actions"><span class="row-value">{{ detail.value }}</span></span>
+      </div>
+      {% endfor %}
+    </div>
+  </details>
+  {% endif %}
+</div>
+{% endif %}

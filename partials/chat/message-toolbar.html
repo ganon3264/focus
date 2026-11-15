@@ -82,6 +82,16 @@
         >
           {{ icon_branch() }}
         </button>
+        {% if message.role == 'assistant' %}
+        <button
+          class="key"
+          title="Usage"
+          aria-label="Message usage"
+          data-action="actionOpenMessageUsage"
+        >
+          {{ icon_info() }}
+        </button>
+        {% endif %}
         <button
           class="key"
           title="Edit"

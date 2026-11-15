@@ -730,3 +730,144 @@ class TestMessagePin:
             f"/api/chats/other-chat/messages/{user_id}/pin", json={"pinned": True},
         )
         assert resp.status_code == 404
+
+
+class TestMessageUsage:
+    async def _seed_usage(self, db_path: str, chat_id: str, rows: list[dict]):
+        msg_id, variant_id = await _insert_message(db_path, chat_id, "assistant", 1, "Answer")
+        async with aiosqlite.connect(db_path) as db:
+            for iteration, row in enumerate(rows):
+                await db.execute(
+                    """INSERT INTO generation_usage
+                       (id, chat_id, message_id, variant_id, provider_type, model_name,
+                        prompt_tokens, completion_tokens, total_tokens, cached_tokens,
+                        reasoning_tokens, cost, cost_details, tool_iteration, created_at)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (
+                        str(uuid.uuid4()), chat_id, msg_id, row.get("variant_id", variant_id),
+                        "openrouter", "vendor/model",
+                        row["prompt"], row["completion"], row["prompt"] + row["completion"],
+                        row["cached"], 0, row["cost"], None, iteration, _now_iso(),
+                    ),
+                )
+            await db.commit()
+        return msg_id
+
+    async def test_partial_sums_the_calls_of_one_bubble(self, client, tmp_test_dir):
+        db_path = _db_path(tmp_test_dir)
+        chat = await create_chat(client, title="Usage")
+        msg_id = await self._seed_usage(db_path, chat["id"], [
+            {"prompt": 1000, "completion": 100, "cached": 500, "cost": 0.001},
+            {"prompt": 1500, "completion": 50, "cached": 1000, "cost": 0.002},
+        ])
+
+        resp = await client.get(f"/partials/message-usage/{chat['id']}/{msg_id}")
+
+        assert resp.status_code == 200
+        assert "2,500" in resp.text
+        assert "1,500 (60%)" in resp.text
+        assert "&lt;$0.01" in resp.text
+        assert "2 calls" in resp.text
+        assert "Call 1" in resp.text and "Call 2" in resp.text
+
+    async def test_partial_without_rows_reports_absence(self, client, tmp_test_dir):
+        db_path = _db_path(tmp_test_dir)
+        chat = await create_chat(client, title="Usage")
+        msg_id, _ = await _insert_message(db_path, chat["id"], "assistant", 1, "Answer")
+
+        resp = await client.get(f"/partials/message-usage/{chat['id']}/{msg_id}")
+
+        assert resp.status_code == 200
+        assert "No usage was recorded" in resp.text
+
+    async def test_partial_ignores_other_variants(self, client, tmp_test_dir):
+        db_path = _db_path(tmp_test_dir)
+        chat = await create_chat(client, title="Usage")
+        msg_id = await self._seed_usage(db_path, chat["id"], [
+            {"prompt": 11, "completion": 1, "cached": 0, "cost": None},
+        ])
+        async with aiosqlite.connect(db_path) as db:
+            cur = await db.execute(
+                "SELECT id FROM message_variants WHERE message_id = ? AND variant_index = 0",
+                (msg_id,),
+            )
+            active_variant = (await cur.fetchone())[0]
+            await db.execute(
+                "INSERT INTO message_variants (id, message_id, variant_index, content, created_at)"
+                " VALUES (?, ?, 1, 'Other', ?)",
+                (str(uuid.uuid4()), msg_id, _now_iso()),
+            )
+            cur = await db.execute(
+                "SELECT id FROM message_variants WHERE message_id = ? AND variant_index = 1",
+                (msg_id,),
+            )
+            other_variant = (await cur.fetchone())[0]
+            await db.execute(
+                """INSERT INTO generation_usage
+                   (id, chat_id, message_id, variant_id, model_name, prompt_tokens,
+                    completion_tokens, total_tokens, created_at)
+                   VALUES (?, ?, ?, ?, 'vendor/model', 9999, 1, 10000, ?)""",
+                (str(uuid.uuid4()), chat["id"], msg_id, other_variant, _now_iso()),
+            )
+            await db.commit()
+        assert active_variant != other_variant
+
+        resp = await client.get(f"/partials/message-usage/{chat['id']}/{msg_id}")
+
+        assert "12" in resp.text
+        assert "9,999" not in resp.text
+
+    async def test_partial_rejects_a_foreign_message(self, client, tmp_test_dir):
+        db_path = _db_path(tmp_test_dir)
+        chat = await create_chat(client, title="Usage")
+        msg_id, _ = await _insert_message(db_path, chat["id"], "assistant", 1, "Answer")
+
+        resp = await client.get(f"/partials/message-usage/other-chat/{msg_id}")
+
+        assert resp.status_code == 404
+
+
+class TestUsageStats:
+    async def _seed(self, db_path: str, chat_id: str, rows: list[dict]):
+        msg_id, variant_id = await _insert_message(db_path, chat_id, "assistant", 1, "Answer")
+        async with aiosqlite.connect(db_path) as db:
+            for row in rows:
+                await db.execute(
+                    """INSERT INTO generation_usage
+                       (id, chat_id, message_id, variant_id, provider_type, model_name,
+                        prompt_tokens, completion_tokens, total_tokens, cached_tokens,
+                        reasoning_tokens, cost, cost_details, tool_iteration, created_at)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, NULL, 0, ?)""",
+                    (
+                        str(uuid.uuid4()), chat_id, msg_id, variant_id,
+                        row["provider"], row["model"],
+                        row["prompt"], row["completion"], row["prompt"] + row["completion"],
+                        row["cached"], row["cost"], _now_iso(),
+                    ),
+                )
+            await db.commit()
+
+    async def test_totals_are_summed_per_model(self, client, tmp_test_dir):
+        db_path = _db_path(tmp_test_dir)
+        chat = await create_chat(client, title="Usage")
+        await self._seed(db_path, chat["id"], [
+            {"provider": "openrouter", "model": "a/one", "prompt": 3000,
+             "completion": 500, "cached": 1000, "cost": 0.01},
+            {"provider": "openrouter", "model": "a/one", "prompt": 1000,
+             "completion": 500, "cached": 0, "cost": 0.005},
+        ])
+
+        resp = await client.get("/partials/usage-stats")
+
+        assert resp.status_code == 200
+        assert "5,000" in resp.text
+        assert "1,000 (25%)" in resp.text
+        assert "$0.01" in resp.text
+        assert "a/one" in resp.text
+        assert "2 calls" in resp.text
+        assert 'style="--share: 100.0%"' in resp.text
+
+    async def test_no_usage_renders_empty_state(self, client):
+        resp = await client.get("/partials/usage-stats")
+        assert resp.status_code == 200
+        assert "No usage recorded yet." in resp.text

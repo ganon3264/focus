@@ -708,6 +708,34 @@ async def save_usage(
         logger.exception("Failed to persist generation_usage for message_id=%s", message_id)
 
 
+async def get_message_usage(
+    chat_id: str,
+    message_id: str,
+    db: aiosqlite.Connection | None = None,
+) -> list[dict]:
+    """Usage rows behind one bubble, ordered by the call that produced them.
+
+    A message is regenerated into a new variant, so only the active variant's
+    calls count; rows whose variant link was lost to a foreign-key failure are
+    unclaimed and belong to the message too.
+    """
+    async with _db_conn(db) as conn:
+        async with conn.execute(
+            """SELECT provider_type, model_name, prompt_tokens, completion_tokens,
+                      total_tokens, cached_tokens, reasoning_tokens, cost,
+                      cost_details, tool_iteration, created_at
+                 FROM generation_usage
+                WHERE message_id = ? AND chat_id = ?
+                  AND (variant_id IS NULL OR variant_id = (
+                        SELECT mv.id FROM message_variants mv
+                          JOIN messages m ON m.id = mv.message_id AND m.active_index = mv.variant_index
+                         WHERE m.id = ?))
+                ORDER BY tool_iteration, created_at""",
+            (message_id, chat_id, message_id),
+        ) as cur:
+            return [dict(r) for r in await cur.fetchall()]
+
+
 async def persist_tool_calls(
     chat_id: str,
     asst_msg_id: str,
@@ -735,3 +763,25 @@ async def persist_tool_calls(
                  json.dumps(call.arguments), result.content, int(result.is_error), extra_msg, result_image_path, save_now),
             )
         await conn.commit()
+
+
+async def get_usage_totals(db: aiosqlite.Connection | None = None) -> list[dict]:
+    """All-time usage summed per provider/model.
+
+    The rows live in ``generation_usage``, so deleting a chat takes its history
+    with it — this is a tally of what the database still holds, not a ledger.
+    """
+    async with _db_conn(db) as conn:
+        async with conn.execute(
+            """SELECT provider_type, model_name, COUNT(*) AS calls,
+                      COALESCE(SUM(prompt_tokens), 0)     AS prompt_tokens,
+                      COALESCE(SUM(cached_tokens), 0)     AS cached_tokens,
+                      COALESCE(SUM(completion_tokens), 0) AS completion_tokens,
+                      COALESCE(SUM(reasoning_tokens), 0)  AS reasoning_tokens,
+                      COALESCE(SUM(total_tokens), 0)      AS total_tokens,
+                      SUM(cost)                           AS cost
+                 FROM generation_usage
+                GROUP BY provider_type, model_name
+                ORDER BY total_tokens DESC, model_name"""
+        ) as cur:
+            return [dict(r) for r in await cur.fetchall()]

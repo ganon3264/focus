@@ -178,6 +178,19 @@
         return window.BackupManager ? BackupManager.loadList() : undefined;
       },
     },
+    usageStats: {
+      // Nothing declares a resource for "a generation finished" — the message
+      // list is refreshed directly — so this is loaded on modal open only.
+      deps: [],
+      when: advancedOpen,
+      load: function () {
+        if (!document.getElementById('usage-stats-body') || !window.hxGet) return;
+        return window.hxGet(window.api.partials.usageStats, {
+          target: '#usage-stats-body',
+          swap: 'innerHTML',
+        });
+      },
+    },
     secretsList: {
       deps: ['secrets'],
       when: function () { return modalOpen('modal-secrets'); },
