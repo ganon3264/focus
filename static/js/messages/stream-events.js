@@ -253,6 +253,11 @@
   HANDLERS.done = function (state, data) {
     state.done = true;
     state.messageId = data.message_id;
+    if (data.finish_reason === 'length') {
+      window.showInfoToast('Reply cut off at the token limit — raise Max Tokens in the sampler.', {
+        duration: 8000,
+      });
+    }
     if (state.retryCount) {
       window.resetRetryFeedback();
       // A stopped run can land here via the server's stop terminal event; it is

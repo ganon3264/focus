@@ -449,3 +449,14 @@ class TestAppendHistoryWithToolCalls:
         assert [m["role"] for m in history] == ["assistant", "tool", "assistant"]
         assert history[1]["content"] == "r1"
         assert history[2]["content"] == "post"
+
+
+class TestFinishReason:
+    def test_token_limit_is_one_word(self):
+        from focus.routers.stream import _finish_reason
+
+        assert _finish_reason("length") == "length"
+        assert _finish_reason("MAX_TOKENS") == "length"
+        assert _finish_reason("stop") == "stop"
+        assert _finish_reason(None) is None
+        assert _finish_reason("") is None

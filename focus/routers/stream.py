@@ -395,6 +395,16 @@ _SAFETY_FINISH_HINTS = (
 )
 
 
+def _finish_reason(raw: str | None) -> str | None:
+    """One word for the client: providers spell the token limit differently."""
+    reason = (raw or "").strip().lower()
+    if not reason:
+        return None
+    if "length" in reason or "max_tokens" in reason:
+        return "length"
+    return reason
+
+
 def _empty_response_error(finish_reason: str | None) -> str:
     """Explain a generation that produced no text, reasoning, or tool calls."""
     reason = (finish_reason or "").lower()
@@ -920,11 +930,15 @@ async def _handle_event(
                 raise _StructuredError(e) from e
             acc.replace_text(rendered)
         await _finalize_gen(ctx, acc, success=True)
-        return {
+        out = {
             "type": "done",
             "message_id": ctx.prompt.asst_msg_id,
             "variant_index": ctx.prompt.next_variant_index,
         }
+        reason = _finish_reason(event.get("finish_reason"))
+        if reason:
+            out["finish_reason"] = reason
+        return out
 
     if t == "error":
         await _finalize_gen(ctx, acc)

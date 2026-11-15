@@ -175,7 +175,11 @@ The pruner's `_pruned` map is keyed by bare id (`MessageIdentity.bare`); `_forge
 
 SSE payloads are uniform envelopes — always `{"type": "<event>", ...}`. The wire carries
 `start | token | meta | retry | tool_calls | tool_result | extension | debug | done | error`
-(reasoning rides `meta` with `field: "reasoning"`). `usage` and `superseded` stay
+(reasoning rides `meta` with `field: "reasoning"`). `done` also carries
+`finish_reason` when the provider gave one, canonicalised by `_finish_reason()`
+(OpenAI's `length` and Gemini's `MAX_TOKENS` both arrive as `length`); the client
+turns a `length` into one info toast, since a cut-off reply is otherwise
+indistinguishable from a finished one. `usage` and `superseded` stay
 internal to `_run_generation`/`_handle_event` — usage becomes a DB row, a superseded
 run closes silently. Dispatch is a table lookup (`HANDLERS[json.type]`); unknown
 types log a warning, never vanish silently.
@@ -195,7 +199,11 @@ types log a warning, never vanish silently.
   the SSE generator on disconnect, which persists partials server-side.
   Feedback via toasts ("Stopping…" → "Generation stopped").
 - `ui/chat-controls.js`: send-button glue (builds user message div, calls
-  `Generation.begin`).
+  `Generation.begin`, clears the composer draft).
+- `ui/input-bar.js`: composer geometry, the send-key preference, and the
+  per-chat draft — `focus-draft-<chat_id>` in localStorage, written on a 250 ms
+  debounce, dropped when the field empties, restored on `DOMContentLoaded`
+  (after the page script has run `StateManager.init`).
 - `stream-events.js`: `StreamState` per generation, `HANDLERS` dispatch via
   `dispatchStreamEvent()`. Handlers record outcomes on the state object
   (`state.done`, `state.errorMsg`) — they never throw.
