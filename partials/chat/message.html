@@ -37,8 +37,8 @@
         </span>
         {% endif %}
         <div class="row-meta message-ts" data-utc="{{ message.created_at or '' }}">
-          <span>{{ message.created_at[:10] if message.created_at else '' }}</span>
-          <span>{{ message.created_at[11:16] if message.created_at else '' }}</span>
+          <span data-ui="ts-date">{{ message.created_at[:10] if message.created_at else '' }}</span>
+          <span data-ui="ts-time">{{ message.created_at[11:16] if message.created_at else '' }}</span>
         </div>
         <div class="message-index">#{{ msg_index }}</div>
       </div>

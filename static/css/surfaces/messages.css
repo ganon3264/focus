@@ -173,6 +173,11 @@
   pointer-events: none;
 }
 
+/* The clock preference can retire the time; the date stays. */
+html[data-clock='hidden'] [data-ui='ts-time'] {
+  display: none;
+}
+
 /* A streaming turn has no hover toolbar, so there is nothing to make room for. */
 .message:is(.is-waiting, .is-reasoning, .is-content):hover .meta-right {
   opacity: 1;

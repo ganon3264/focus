@@ -45,11 +45,14 @@
       updateSendButtonState();
     });
     input.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        if (sendBtn && !sendBtn.classList.contains('hidden')) {
-          e.preventDefault();
-          sendBtn.click();
-        }
+      if (e.key !== 'Enter') return;
+      var mode = window.Prefs ? window.Prefs.get('send_key') : 'enter';
+      var withMod = e.ctrlKey || e.metaKey;
+      var sends = mode === 'ctrl_enter' ? withMod : !e.shiftKey && !withMod;
+      if (!sends) return;
+      if (sendBtn && !sendBtn.classList.contains('hidden')) {
+        e.preventDefault();
+        sendBtn.click();
       }
     });
   }

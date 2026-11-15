@@ -599,7 +599,8 @@
 .backup-pane,
 .tool-category,
 .regex-group,
-.structured-group {
+.structured-group,
+.prefs-group {
   display: flex;
   flex-direction: column;
   gap: var(--inset);
@@ -610,7 +611,8 @@
 .backup-pane > .rail,
 .tool-category > .rail,
 .regex-group > .rail,
-.structured-group > .rail {
+.structured-group > .rail,
+.prefs-group > .rail {
   margin-block: 0;
 }
 
@@ -932,7 +934,8 @@
 /* ── Regex scripts / structured responses ─────────────────────────────────
    Two scopes (global, preset), each a rail over a sortable list. */
 .regex-group + .regex-group,
-.structured-group + .structured-group {
+.structured-group + .structured-group,
+.prefs-group + .prefs-group {
   margin-top: var(--inset);
 }
 

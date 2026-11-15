@@ -1,0 +1,49 @@
+{% from "macros.html" import row_label, toggle_row, hint_tooltip %}
+{# Body of the Preferences tab in the System modal. Every row is server-rendered
+   from the stored prefs and writes immediately through actionSetPref — there is
+   no Save verb, and no second source of truth on the client. #}
+<div class="modal-bands">
+  <div class="modal-band-head">
+    <div class="rail">
+      <span>Preferences</span>
+      {{ hint_tooltip('Display and input preferences. They are stored with the app and apply to every chat, unlike the sampler which is per chat.') }}
+    </div>
+  </div>
+  <div id="prefs-body" class="modal-band-lane">
+    <div class="prefs-group">
+      <div class="rail"><span>Chat</span></div>
+      <div class="row setting labeled">
+        {{ row_label('Send with', 'The key that posts the message; the other one inserts a newline.') }}
+        <span class="row-actions">
+          <button type="button" class="chip{{ ' active' if prefs.send_key == 'enter' }}"
+            data-action="actionSetPref" data-pref="send_key" data-value="enter">Enter</button>
+          <button type="button" class="chip{{ ' active' if prefs.send_key == 'ctrl_enter' }}"
+            data-action="actionSetPref" data-pref="send_key" data-value="ctrl_enter">Ctrl+Enter</button>
+        </span>
+      </div>
+      <div class="row setting labeled">
+        {{ row_label('Clock', 'Message timestamps, in your local time.') }}
+        <span class="row-actions">
+          <button type="button" class="chip{{ ' active' if prefs.clock == '24h' }}"
+            data-action="actionSetPref" data-pref="clock" data-value="24h">24h</button>
+          <button type="button" class="chip{{ ' active' if prefs.clock == '12h' }}"
+            data-action="actionSetPref" data-pref="clock" data-value="12h">12h</button>
+          <button type="button" class="chip{{ ' active' if prefs.clock == 'hidden' }}"
+            data-action="actionSetPref" data-pref="clock" data-value="hidden">Hidden</button>
+        </span>
+      </div>
+      <div class="row setting labeled fit">
+        {{ row_label('Reading width', 'How wide the message column gets on a wide window.') }}
+        <input type="range" min="480" max="1600" step="20" value="{{ prefs.chat_width }}"
+          class="field slider-range" aria-label="Reading width"
+          data-action="actionSetPref" data-pref="chat_width" />
+        <span class="row-meta" data-pref-readout>{{ prefs.chat_width }}px</span>
+      </div>
+    </div>
+    <div class="prefs-group">
+      <div class="rail"><span>History</span></div>
+      {{ toggle_row('Prune off-screen messages', 'data-action="actionSetPref" data-pref="prune_messages" data-toggle="true"',
+        hint='Keeps long chats fast by swapping far-away messages for placeholders. Turn it off to keep the whole transcript in the page.', active=prefs.prune_messages) }}
+    </div>
+  </div>
+</div>

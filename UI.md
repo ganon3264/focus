@@ -221,7 +221,7 @@ group.
 | shape | modals |
 |---|---|
 | banded list | characters, personas, providers, presets, trash, char-blocks, itemizer, prompt arranger, saved keys |
-| tab container, one banded chassis per tab | System (Tools · Extensions · Regex · Structured · Backups · Usage) |
+| tab container, one banded chassis per tab | System (Preferences · Tools · Extensions · Regex · Structured · Backups · Usage) |
 | tab container, shared bands + strip inside | Samplers |
 | master-detail inside one lane (two independently scrolling columns) | Theme customizer |
 | stacked form + foot | provider create/edit, auto-retry, new key, edit entity, edit message, summary, export, regex/structured items, the preset naming dialog, the text expander |

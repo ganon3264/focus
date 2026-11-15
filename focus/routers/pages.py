@@ -31,6 +31,7 @@ from focus.core.utils import (
     variable_group_name,
 )
 from focus.db.chats import get_message_usage, get_usage_totals
+from focus.db.prefs import load_prefs
 from focus.prompt_chain import partition_blocks, resolve_variable_blocks
 from focus.providers.schema import provider_schema, provider_type_options
 
@@ -227,6 +228,7 @@ async def chat_redirect(request: Request, character_id: str = Query(None), db: a
             **_summary_ctx(preset),
             **(await _sort_modes(db)),
             **theme_ctx,
+            "prefs": await load_prefs(db),
         },
     )
 
@@ -299,6 +301,7 @@ async def chat_page(request: Request, chat_id: str, db: aiosqlite.Connection = D
             "active_provider_id": active_provider["provider_id"],
             "active_provider_type": active_provider["provider_type"],
             "enabled_extensions": enabled_extensions,
+            "prefs": await load_prefs(db),
             **_summary_ctx(preset),
             **(await _sort_modes(db)),
             **theme_ctx,

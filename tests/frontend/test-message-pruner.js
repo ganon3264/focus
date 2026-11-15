@@ -73,6 +73,7 @@ doc.body.addEventListener = function () {};
 doc.addEventListener = function () {};
 
 global.window = global;
+global.window.addEventListener = function () {};
 global.document = doc;
 global.requestAnimationFrame = function (fn) { fn(); };
 global.htmx = { process: function () {} };

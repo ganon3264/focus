@@ -4,6 +4,7 @@
 <script>
 window.THEMES = {{ themes | tojson | safe }};
 window.THEME_STATE = {{ theme_state | tojson | safe }};
+window.PREFS = {{ prefs | tojson | safe }};
 </script>
 {% endblock %}
 {% block content %}

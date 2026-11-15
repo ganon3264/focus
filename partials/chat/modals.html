@@ -9,10 +9,11 @@
 {% call modal_shell('modal-system', 'System', max_width='720px', width='92vw', content_style='height:80vh;', overlay_class='modal-bands-shell') %}
 {# One banded chassis per tab: a readout rail (the collection's verbs), the
    optional search row, the one lane. Only the visible tab is in flow. #}
-<div x-data="{ tab: 'tools' }" class="modal-tabs">
-  {{ tab_bar([('tools', 'Tools'), ('extensions', 'Extensions'), ('regex', 'Regex'), ('structured', 'Structured'), ('backups', 'Backups'), ('usage', 'Usage')],
+<div x-data="{ tab: 'prefs' }" class="modal-tabs">
+  {{ tab_bar([('prefs', 'Preferences'), ('tools', 'Tools'), ('extensions', 'Extensions'), ('regex', 'Regex'), ('structured', 'Structured'), ('backups', 'Backups'), ('usage', 'Usage')],
     wrapper_classes='shrink-0', button_attrs='type="button"') }}
-  <div x-show="tab === 'tools'" class="modal-tab">{% include "modals/tools.html" %}</div>
+  <div x-show="tab === 'prefs'" class="modal-tab">{% include "modals/prefs.html" %}</div>
+  <div x-show="tab === 'tools'" x-cloak class="modal-tab">{% include "modals/tools.html" %}</div>
   <div x-show="tab === 'extensions'" x-cloak class="modal-tab">{% include "modals/extensions.html" %}</div>
   <div x-show="tab === 'regex'" x-cloak class="modal-tab">{% include "modals/regex.html" %}</div>
   <div x-show="tab === 'structured'" x-cloak class="modal-tab">{% include "modals/structured.html" %}</div>

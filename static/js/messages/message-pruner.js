@@ -8,6 +8,7 @@
   }
 
   function pruneMessages() {
+    if (window.Prefs && !window.Prefs.get('prune_messages')) return;
     var cc = _getCC();
     var ml = document.getElementById('message-list');
     if (!cc || !ml) return;
@@ -82,6 +83,14 @@
     _pruned.delete(MessageIdentity.bare(msgId));
   };
 
+  window._unpruneAllMessages = function () {
+    var ids = Array.from(_pruned.keys());
+    for (var i = 0; i < ids.length; i++) {
+      if (window._unpruneMessage) window._unpruneMessage(ids[i]);
+    }
+    if (window.formatTimestamps) window.formatTimestamps();
+  };
+
   window._unpruneMessage = function (msgId) {
     var id = MessageIdentity.bare(msgId);
     var stored = _pruned.get(id);
@@ -109,6 +118,10 @@
       _pruned.delete(id);
       return null;
   };
+
+  window.addEventListener('prefs-changed', function (e) {
+    if (e.detail.key === 'prune_messages' && !e.detail.value) window._unpruneAllMessages();
+  });
 
   document.addEventListener('DOMContentLoaded', function () {
     var cc = _getCC();

@@ -15,7 +15,7 @@ FastAPI (async) + aiosqlite | Jinja2 | HTMX 2 + Alpine 3 | Tailwind v4 | uv + ha
 main.py                  # FastAPI app entry
 focus/                   # Backend package
   core/                  # DB init, models, utils, macros, segments, media, tracked_fields,
-                         # regex/structured, summary, usage_stats, retry, progress_stream,
+                         # regex/structured, summary, usage_stats, prefs, retry, progress_stream,
                          # request_transforms
   db/                    # CRUD per domain (characters, chats, personas, presets, providers, etc.)
   providers/             # LLM providers (openai_compat, openrouter, nanogpt, deepseek, moonshot, xiaomi_mimo, google_*)
@@ -94,7 +94,16 @@ The pruner's `_pruned` map is keyed by bare id (`MessageIdentity.bare`); `_forge
 - Closing a dirty modal prompts via confirm; **save handlers must call `closeModal(id, {discard: true})`** (never `captureDirty`-style resets). Use `ModalController.setDirty(id, true)` for non-field changes (e.g. attachment add/delete).
 - ESC closes: confirm modal (as Cancel) → topmost modal → lightbox. `option-selected` / `custom-select:set` trigger recompute of open modals.
 - Overlays inside htmx-swapped bodies (providers modal) re-register automatically on open.
-- **System modal** (`modal-system` in `partials/chat/modals.html`) is a tab container (`.modal-tabs` + the `tab_bar()` macro) holding Tools, Extensions, Regex, Structured, Backups and Usage; each tab body is its own banded chassis. The three old per-feature modals no longer exist; body partials are `modals/tools.html`, `modals/extensions.html`, `modals/regex.html`, `modals/structured.html`, `modals/backup-body.html`, `modals/usage.html`. Tabs are pure Alpine `x-show` over statically-included bodies, so the Tools/Extensions components still initialise once at page load; the list tabs (regex, structured, backups, usage) reload once per modal open via `ModalController.onOpen('modal-system')` — not on tab click.
+- **System modal** (`modal-system` in `partials/chat/modals.html`) is a tab container (`.modal-tabs` + the `tab_bar()` macro) holding Preferences, Tools, Extensions, Regex, Structured, Backups and Usage; each tab body is its own banded chassis. The three old per-feature modals no longer exist; body partials are `modals/prefs.html`, `modals/tools.html`, `modals/extensions.html`, `modals/regex.html`, `modals/structured.html`, `modals/backup-body.html`, `modals/usage.html`. Tabs are pure Alpine `x-show` over statically-included bodies, so the Tools/Extensions components still initialise once at page load; the list tabs (regex, structured, backups, usage) reload once per modal open via `ModalController.onOpen('modal-system')` — not on tab click.
+
+### Preferences
+
+- `focus/core/prefs.py` is the closed set (`DEFAULTS` + `CHOICES` + `normalize`); `focus/db/prefs.py` stores it as **one JSON blob** under the `prefs` key of `settings`. Nothing goes to localStorage: the same blob drives the first paint and the rows.
+- `GET`/`PUT /api/settings/prefs` (partial merge, unknown keys and out-of-range values dropped by `normalize`). The chat page embeds the resolved blob as `window.PREFS` (`chat.html` head), and `static/js/core/prefs.js` is loaded from `base.html`'s `<head>` — *before* first paint — so the reading width is not a layout shift on reload.
+- `Prefs.get(key)` / `Prefs.set(patch)` is the only client API. `set` applies optimistically, PUTs the patch, adopts the server's normalized answer, rolls back and toasts on failure. Every applied change dispatches `prefs-changed` on `window` (`{key, value, all}`); consumers listen rather than polling `Prefs`.
+- The Preferences tab (`partials/modals/prefs.html`) is server-rendered from the stored values, so there is no Save verb: chips, the width slider and the prune switch all carry `data-action="actionSetPref"` + `data-pref` (and `data-value`, or `data-toggle` for a switch). `actionSetPref` lives in `prefs.js` and updates only its own row's classes/readout.
+- Where each one lands: `send_key` in `ui/input-bar.js`'s Enter handler, `clock` in `utils/timestamp-formatter.js` (+ `html[data-clock='hidden'] [data-ui='ts-time']` in `surfaces/messages.css`; `prefs.js` sets the root attribute), `chat_width` as a `--chat-content-width` override on `:root`, `prune_messages` as a bail-out in `messages/message-pruner.js` — turning it off calls `_unpruneAllMessages()` so skeletons on screen are restored immediately.
+- Display/input only on purpose: anything that changes what reaches a provider belongs to the chat (sampler) or the preset, never here.
 
 ### Character editor + custom blocks
 
@@ -136,7 +145,7 @@ The pruner's `_pruned` map is keyed by bare id (`MessageIdentity.bare`); `_forge
 - **Vertical rhythm is one rule: `--band-pad` (16) above and below every band, no gaps between bands.** Nothing else authors vertical spacing. `grid-audit.js` enforces the number.
 - Chrome (title bar + head/toolbar/foot bands) is one tint (`--ink-1`); the lane is the only thing painting a different value. A lane that is the last child closes on the panel floor (`:last-child` rule).
 - No scroll fade on the lane: the plane boundary is the edge. `scrollbar-gutter: auto` so the bar rides the lane's padding instead of pushing the rows off the inset.
-- Users of the vocabulary: characters, personas, providers, presets, saved keys, trash bin, custom character blocks, prompt itemizer, prompt arranger, sampler, theme customizer, and each System tab (Tools · Extensions · Regex · Structured · Backups · Usage). The stacked forms (provider create/edit, edit entity, edit message, summary, export, regex/structured items, text expander) are deliberately not banded — a form is not a collection.
+- Users of the vocabulary: characters, personas, providers, presets, saved keys, trash bin, custom character blocks, prompt itemizer, prompt arranger, sampler, theme customizer, and each System tab (Preferences · Tools · Extensions · Regex · Structured · Backups · Usage). The stacked forms (provider create/edit, edit entity, edit message, summary, export, regex/structured items, text expander) are deliberately not banded — a form is not a collection.
 - `grid-audit.js` measures the rhythm on characters, personas, providers, saved keys, model picker, presets, itemizer, arranger, samplers, System and themes: rail on the modal inset, rail one band pad under the title groove, one band pad before the next band, first row one band pad into the lane, last band on the panel floor, foot verb on the inset.
 - A rail's last action must be `flush` (`.rail-actions.flush`) when it is a labelled `.btn` — the default optical pull would push it past the modal inset.
 - **Counts live in the rail, outside the swap target.** Update them from `htmx:afterSwap` keyed on the lane/target id, never from the `hxGet` promise (it resolves before the swap) — `arranger-count` and the block door's count work this way.

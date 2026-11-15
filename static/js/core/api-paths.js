@@ -138,6 +138,7 @@ window.api = {
   },
 
   settings: '/api/settings',
+  settingsPrefs: '/api/settings/prefs',
   settingsTheme: '/api/settings/theme',
   settingsActiveProvider: '/api/settings/active-provider',
 
