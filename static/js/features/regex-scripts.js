@@ -1,5 +1,5 @@
 (function () {
-  // Regex scripts tab (Advanced modal). The list is server-rendered into
+  // Regex scripts tab (System modal). The list is server-rendered into
   // #regex-scripts-container and rewritten through hxGet so CRUD and ordering
   // have one source of truth; field edits PATCH in place to avoid collapsing
   // the row the user is editing.

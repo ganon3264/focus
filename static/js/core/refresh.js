@@ -42,8 +42,8 @@
     return !!(window.ModalController && window.ModalController.isOpen(id));
   }
 
-  function advancedOpen() {
-    return modalOpen('modal-advanced');
+  function systemOpen() {
+    return modalOpen('modal-system');
   }
 
   function streaming() {
@@ -116,7 +116,7 @@
       // context-scoped here; explicit Refresh.load()/reloadRegexScripts() own
       // structural rebuilds. Avoids a full-list flash on every field blur.
       deps: ['presets'],
-      when: advancedOpen,
+      when: systemOpen,
       load: function () {
         var reload = fn('reloadRegexScripts');
         if (reload) return reload();
@@ -124,7 +124,7 @@
     },
     structuredList: {
       deps: ['presets'],
-      when: advancedOpen,
+      when: systemOpen,
       load: function () {
         var reload = fn('reloadStructuredResponses');
         if (reload) return reload();
@@ -133,7 +133,7 @@
     tools: {
       // In-modal state edited in place; reload only on open / chat change.
       deps: ['chats'],
-      when: advancedOpen,
+      when: systemOpen,
       load: function () {
         var reload = fn('reloadToolsState');
         if (reload) return reload();
@@ -141,7 +141,7 @@
     },
     extensions: {
       deps: ['chats'],
-      when: advancedOpen,
+      when: systemOpen,
       load: function () {
         var reload = fn('reloadExtensionsState');
         if (reload) return reload();
@@ -173,7 +173,7 @@
     },
     backups: {
       deps: ['backups'],
-      when: advancedOpen,
+      when: systemOpen,
       load: function () {
         return window.BackupManager ? BackupManager.loadList() : undefined;
       },
@@ -182,7 +182,7 @@
       // Nothing declares a resource for "a generation finished" — the message
       // list is refreshed directly — so this is loaded on modal open only.
       deps: [],
-      when: advancedOpen,
+      when: systemOpen,
       load: function () {
         if (!document.getElementById('usage-stats-body') || !window.hxGet) return;
         return window.hxGet(window.api.partials.usageStats, {

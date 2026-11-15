@@ -42,7 +42,7 @@ async function main() {
   assertEqual(counters.messages, 1, 'presets -> messages');
   assertEqual(lastChatId, 'chat-1', 'messages load reads chat_id from StateManager');
   assertEqual(counters.chatList, 0, 'chat list covered by selection');
-  assertEqual(counters.regex, 0, 'regexList skipped while advanced modal closed');
+  assertEqual(counters.regex, 0, 'regexList skipped while system modal closed');
 
   // ── coalescing: two resources in one tick flush once.
   resetCounters();

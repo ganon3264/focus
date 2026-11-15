@@ -531,10 +531,10 @@ async function measureOffbeat(page) {
   const mmSampler = await measureBands(page);
   await page.keyboard.press('Escape');
   await page.waitForTimeout(300);
-  await page.locator('.left-sidebar .nav', { hasText: 'Advanced' }).first().click();
+  await page.locator('.left-sidebar .nav', { hasText: 'System' }).first().click();
   await page.waitForTimeout(1200);
-  await sweep('advanced');
-  const mmAdvanced = await measureBands(page);
+  await sweep('system');
+  const mmSystem = await measureBands(page);
   await page.keyboard.press('Escape');
   await page.waitForTimeout(300);
   await page.locator('.left-sidebar .nav', { hasText: 'Themes' }).first().click();
@@ -943,7 +943,7 @@ async function measureOffbeat(page) {
     ['itemizer', mmItemizer],
     ['arranger', mmArranger],
     ['samplers', mmSampler],
-    ['advanced', mmAdvanced],
+    ['system', mmSystem],
     ['themes', mmTheme],
   ].forEach(([name, b]) => {
     if (!b) return;

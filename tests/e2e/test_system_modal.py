@@ -1,4 +1,4 @@
-"""The Advanced modal: five tabs, each loading its own collection, and a real
+"""The System modal: five tabs, each loading its own collection, and a real
 backup written to disk."""
 
 import time
@@ -10,18 +10,18 @@ from playwright.async_api import expect
 pytestmark = [pytest.mark.e2e, pytest.mark.asyncio(loop_scope="session")]
 
 
-async def open_advanced(page, app):
+async def open_system(page, app):
     await page.goto(app.url + "/")
-    await page.locator(".sidebar-section .nav", has_text="Advanced").click()
-    await expect(page.locator("#modal-advanced")).to_be_visible()
+    await page.locator(".sidebar-section .nav", has_text="System").click()
+    await expect(page.locator("#modal-system")).to_be_visible()
 
 
 async def open_tab(page, label):
-    await page.locator("#modal-advanced .tab-bar").get_by_role("button", name=label, exact=True).click()
+    await page.locator("#modal-system .tab-bar").get_by_role("button", name=label, exact=True).click()
 
 
 async def test_every_tab_loads_its_collection(page, app, world):
-    await open_advanced(page, app)
+    await open_system(page, app)
 
     # Tools: the builtin adapters are listed with their enable switches.
     await open_tab(page, "Tools")
@@ -47,7 +47,7 @@ async def test_every_tab_loads_its_collection(page, app, world):
 
 
 async def test_create_backup_writes_an_archive(page, app, world):
-    await open_advanced(page, app)
+    await open_system(page, app)
     await open_tab(page, "Backups")
     await expect(page.locator("#backups-list")).to_contain_text("No backups yet")
 

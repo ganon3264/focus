@@ -102,7 +102,7 @@ class TestChatPage:
         # Chat page must render with the greeting message present
         assert "Greetings" in resp.text
 
-    async def test_advanced_modal_has_stale_chat_purge(self, client):
+    async def test_system_modal_has_stale_chat_purge(self, client):
         chat, _, _, _ = await _seed_chat(client)
         resp = await client.get(f"/chat/{chat['id']}")
         assert 'id="purge-days"' in resp.text

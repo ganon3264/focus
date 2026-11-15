@@ -6,7 +6,7 @@
 {% include "modals/sampler.html" %}
 {% endcall %}
 
-{% call modal_shell('modal-advanced', 'Advanced', max_width='720px', width='92vw', content_style='height:80vh;', overlay_class='modal-bands-shell') %}
+{% call modal_shell('modal-system', 'System', max_width='720px', width='92vw', content_style='height:80vh;', overlay_class='modal-bands-shell') %}
 {# One banded chassis per tab: a readout rail (the collection's verbs), the
    optional search row, the one lane. Only the visible tab is in flow. #}
 <div x-data="{ tab: 'tools' }" class="modal-tabs">

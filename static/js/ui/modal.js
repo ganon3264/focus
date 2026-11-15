@@ -292,7 +292,7 @@
       });
   });
 
-  ModalController.onOpen('modal-advanced', function () {
+  ModalController.onOpen('modal-system', function () {
     if (window.Refresh) {
       Refresh.load('regexList');
       Refresh.load('structuredList');

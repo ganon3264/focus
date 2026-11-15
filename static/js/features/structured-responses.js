@@ -1,5 +1,5 @@
 (function () {
-  // Structured Response tab (Advanced modal). The list is server-rendered into
+  // Structured Response tab (System modal). The list is server-rendered into
   // #structured-responses-container and rewritten through hxGet so CRUD and
   // ordering have one source of truth; field edits PATCH in place to avoid
   // collapsing the row the user is editing.
