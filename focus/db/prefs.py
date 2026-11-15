@@ -5,7 +5,7 @@ import json
 import aiosqlite
 
 from focus.core.prefs import normalize
-from focus.db.settings import upsert_setting
+from focus.db.settings import delete_setting, upsert_setting
 
 PREFS_KEY = "prefs"
 
@@ -29,3 +29,9 @@ async def save_prefs(db: aiosqlite.Connection, patch: dict) -> dict:
     await upsert_setting(db, PREFS_KEY, json.dumps(prefs))
     await db.commit()
     return prefs
+
+
+async def reset_prefs(db: aiosqlite.Connection) -> dict:
+    await delete_setting(db, PREFS_KEY)
+    await db.commit()
+    return normalize(None)

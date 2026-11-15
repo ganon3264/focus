@@ -1,19 +1,14 @@
 (function () {
   // Display/input preferences. Loaded synchronously in <head> so the reading
   // width and the clock mode are in force before the first paint.
-  var DEFAULTS = {
-    send_key: 'enter',
-    clock: '24h',
-    chat_width: 800,
-    prune_messages: true,
-  };
-
-  var prefs = Object.assign({}, DEFAULTS, window.PREFS || {});
+  var prefs = Object.assign({}, window.PREFS || {});
   var root = document.documentElement;
 
   function apply() {
-    root.style.setProperty('--chat-content-width', 'min(100%, ' + prefs.chat_width + 'px)');
-    root.dataset.clock = prefs.clock;
+    if (typeof prefs.chat_width === 'number') {
+      root.style.setProperty('--chat-content-width', 'min(100%, ' + prefs.chat_width + 'px)');
+    }
+    if (prefs.clock) root.dataset.clock = prefs.clock;
   }
 
   function announce(keys) {
@@ -24,42 +19,88 @@
     }
   }
 
-  function set(patch) {
-    var previous = Object.assign({}, prefs);
-    var keys = [];
-    for (var key in patch) {
-      if (!(key in DEFAULTS)) continue;
-      prefs[key] = patch[key];
-      keys.push(key);
-    }
+  function adopt(saved, keys) {
+    if (saved && typeof saved === 'object') prefs = saved;
     apply();
     announce(keys);
+  }
 
-    if (!window.hxJson || !window.api) return Promise.resolve(prefs);
+  function failed(previous, keys) {
+    prefs = previous;
+    apply();
+    announce(keys);
+    if (window.showErrorToast) window.showErrorToast('Could not save preferences');
+  }
+
+  function set(patch) {
+    var previous = prefs;
+    var keys = Object.keys(patch);
+    prefs = Object.assign({}, prefs, patch);
+    apply();
     return window.hxJson(window.api.settingsPrefs, 'PUT', patch)
       .then(function (resp) {
-        if (!resp.ok) throw new Error('Could not save preferences');
+        if (!resp.ok) throw new Error('save failed');
         return resp.json();
       })
       .then(function (saved) {
-        if (saved && typeof saved === 'object') {
-          prefs = Object.assign({}, DEFAULTS, saved);
-          apply();
-        }
+        adopt(saved, keys);
         return prefs;
       })
       .catch(function () {
-        prefs = previous;
-        apply();
-        announce(keys);
-        if (window.showErrorToast) window.showErrorToast('Could not save preferences');
+        failed(previous, keys);
       });
+  }
+
+  // Drops the stored blob, so the server answers with its own defaults — the
+  // one definition of "default" and the reason this needs no key list.
+  function reset() {
+    var previous = prefs;
+    var keys = Object.keys(prefs);
+    return window.hxJson(window.api.settingsPrefs, 'DELETE')
+      .then(function (resp) {
+        if (!resp.ok) throw new Error('reset failed');
+        return resp.json();
+      })
+      .then(function (saved) {
+        adopt(saved, keys);
+        return prefs;
+      })
+      .catch(function () {
+        failed(previous, keys);
+      });
+  }
+
+  // Every `[data-pref]` control in `root` takes its state from `prefs`, so a
+  // new preference needs a row, not a branch here.
+  function syncForm(root) {
+    if (!root || !root.querySelectorAll) return;
+
+    var controls = root.querySelectorAll('[data-pref]');
+    for (var i = 0; i < controls.length; i++) {
+      var el = controls[i];
+      var value = prefs[el.dataset.pref];
+      if (el.classList.contains('chip')) {
+        el.classList.toggle('active', el.dataset.value === String(value));
+      } else if (el.classList.contains('switch')) {
+        el.classList.toggle('active', value === true);
+      } else if (el.value !== undefined) {
+        el.value = value;
+      }
+    }
+
+    var readouts = root.querySelectorAll('[data-pref-readout]');
+    for (var j = 0; j < readouts.length; j++) {
+      var readout = readouts[j];
+      var current = prefs[readout.dataset.prefReadout];
+      readout.textContent = current === undefined ? '' : current + (readout.dataset.prefUnit || '');
+    }
   }
 
   window.Prefs = {
     get: function (key) { return prefs[key]; },
     all: function () { return Object.assign({}, prefs); },
     set: set,
+    reset: reset,
   };
 
   // Chips, switches and the width slider all write through one verb.
@@ -75,19 +116,17 @@
     else if (typeof current === 'boolean') value = value === 'true';
     else if (typeof current === 'number') value = Number(value);
 
+    var row = el.closest('.row');
     var patch = {};
     patch[key] = value;
-    set(patch);
+    var pending = set(patch);
+    syncForm(row);
+    pending.then(function () { syncForm(row); });
+  };
 
-    var row = el.closest('.row');
-    if (el.classList.contains('chip')) {
-      var chips = row ? row.querySelectorAll('.chip') : [];
-      for (var i = 0; i < chips.length; i++) chips[i].classList.toggle('active', chips[i] === el);
-    } else if (el.classList.contains('switch')) {
-      el.classList.toggle('active', value === true);
-    }
-    var readout = row ? row.querySelector('[data-pref-readout]') : null;
-    if (readout) readout.textContent = value + 'px';
+  window.actionResetPrefs = function () {
+    var body = document.getElementById('prefs-body');
+    window.Prefs.reset().then(function () { syncForm(body); });
   };
 
   apply();

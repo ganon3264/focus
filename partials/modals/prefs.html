@@ -37,7 +37,7 @@
         <input type="range" min="480" max="1600" step="20" value="{{ prefs.chat_width }}"
           class="field slider-range" aria-label="Reading width"
           data-action="actionSetPref" data-pref="chat_width" />
-        <span class="row-meta" data-pref-readout>{{ prefs.chat_width }}px</span>
+        <span class="row-meta" data-pref-readout="chat_width" data-pref-unit="px">{{ prefs.chat_width }}px</span>
       </div>
     </div>
     <div class="prefs-group">
@@ -45,5 +45,8 @@
       {{ toggle_row('Prune off-screen messages', 'data-action="actionSetPref" data-pref="prune_messages" data-toggle="true"',
         hint='Keeps long chats fast by swapping far-away messages for placeholders. Turn it off to keep the whole transcript in the page.', active=prefs.prune_messages) }}
     </div>
+  </div>
+  <div class="modal-band-foot">
+    <button type="button" class="btn danger" data-action="actionResetPrefs">Restore Defaults</button>
   </div>
 </div>

@@ -4,7 +4,7 @@ var assert = h.assert, assertEqual = h.assertEqual, assertDeepEqual = h.assertDe
 
 var props = {};
 var events = [];
-var puts = [];
+var calls = [];
 var nextResponse = { ok: true, body: null };
 
 global.window = global;
@@ -20,7 +20,7 @@ global.document = {
   },
 };
 global.hxJson = function (url, method, body) {
-  puts.push({ url: url, method: method, body: body });
+  calls.push({ url: url, method: method, body: body });
   return Promise.resolve({
     ok: nextResponse.ok,
     json: function () { return Promise.resolve(nextResponse.body); },
@@ -28,28 +28,33 @@ global.hxJson = function (url, method, body) {
 };
 
 var fs = require('fs'), path = require('path');
-window.PREFS = { clock: '12h', chat_width: 900, prune_messages: false };
+window.PREFS = {
+  send_key: 'enter',
+  clock: '12h',
+  chat_width: 900,
+  prune_messages: false,
+};
 window.api = { settingsPrefs: '/api/settings/prefs' };
 eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'core', 'prefs.js'), 'utf8'));
+
+function lastCall() { return calls[calls.length - 1]; }
 
 async function main() {
   // ── the server-rendered blob is in force before the first paint.
   assertEqual(props['--chat-content-width'], 'min(100%, 900px)', 'width applied at load');
   assertEqual(document.documentElement.dataset.clock, '12h', 'clock applied at load');
-  assertEqual(Prefs.get('send_key'), 'enter', 'missing key falls back to its default');
-  assertEqual(Prefs.get('prune_messages'), false, 'server value wins over the default');
+  assertEqual(Prefs.get('prune_messages'), false, 'server value wins over nothing');
 
-  // ── a set applies immediately, announces, and persists the whole patch.
+  // ── a set applies immediately, announces, and PUTs the patch.
   events.length = 0;
-  await Prefs.set({ clock: '24h', bogus: 1 });
-  assertEqual(props['--chat-content-width'], 'min(100%, 900px)', 'unrelated change keeps the width');
+  await Prefs.set({ clock: '24h' });
   assertEqual(document.documentElement.dataset.clock, '24h', 'clock change applied');
-  assertEqual(events.length, 1, 'one event for one known key, unknown key ignored');
+  assertEqual(props['--chat-content-width'], 'min(100%, 900px)', 'unrelated change keeps the width');
+  assertEqual(events.length, 1, 'one event for one key');
   assertEqual(events[0].type, 'prefs-changed', 'event name');
   assertEqual(events[0].detail.key, 'clock', 'event names the key');
-  assertEqual(puts.length, 1, 'one PUT for the patch');
-  assertEqual(puts[0].url, '/api/settings/prefs', 'PUTs the prefs endpoint');
-  assertEqual(puts[0].method, 'PUT', 'uses PUT');
+  assertEqual(lastCall().url, '/api/settings/prefs', 'PUTs the prefs endpoint');
+  assertEqual(lastCall().method, 'PUT', 'uses PUT');
 
   // ── the server's normalized answer replaces the optimistic state.
   nextResponse = { ok: true, body: { send_key: 'ctrl_enter', clock: '24h', chat_width: 640, prune_messages: true } };
@@ -58,13 +63,29 @@ async function main() {
   assertEqual(Prefs.get('chat_width'), 640, 'server answer wins');
   assertEqual(props['--chat-content-width'], 'min(100%, 640px)', 'width re-applied from the answer');
 
+  // ── reset drops the blob and takes the server's defaults, with no key list.
+  nextResponse = { ok: true, body: { send_key: 'enter', clock: '24h', chat_width: 800, prune_messages: true } };
+  events.length = 0;
+  await Prefs.reset();
+  assertEqual(lastCall().method, 'DELETE', 'reset DELETEs the blob');
+  assertEqual(lastCall().url, '/api/settings/prefs', 'reset targets the prefs endpoint');
+  assertDeepEqual(Prefs.all(), nextResponse.body, 'reset adopts the server defaults');
+  assertEqual(props['--chat-content-width'], 'min(100%, 800px)', 'reset restores the width');
+  assertEqual(document.documentElement.dataset.clock, '24h', 'reset restores the clock');
+  assertEqual(events.length, 4, 'reset announces every key it replaced');
+
   // ── a failed save rolls the optimistic state back and re-announces it.
   nextResponse = { ok: false, body: null };
   events.length = 0;
   await Prefs.set({ chat_width: 1600 });
-  assertEqual(Prefs.get('chat_width'), 640, 'failed save restores the previous value');
-  assertEqual(props['--chat-content-width'], 'min(100%, 640px)', 'failed save restores the width');
-  assertEqual(events[events.length - 1].detail.value, 640, 'rollback is announced');
+  assertEqual(Prefs.get('chat_width'), 800, 'failed save restores the previous value');
+  assertEqual(props['--chat-content-width'], 'min(100%, 800px)', 'failed save restores the width');
+  assertEqual(events[events.length - 1].detail.value, 800, 'rollback is announced');
+
+  // ── a failed reset keeps the current state.
+  nextResponse = { ok: false, body: null };
+  await Prefs.reset();
+  assertEqual(Prefs.get('chat_width'), 800, 'failed reset keeps the state');
 
   h.printSummary();
 }

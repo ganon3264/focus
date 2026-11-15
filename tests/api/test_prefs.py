@@ -49,3 +49,13 @@ def test_normalize_keeps_known_keys_only():
 def test_normalize_survives_garbage():
     assert normalize("nope") == DEFAULTS
     assert normalize(None) == DEFAULTS
+
+
+async def test_reset_drops_the_stored_blob(client):
+    await client.put("/api/settings/prefs", json={"send_key": "ctrl_enter", "chat_width": 1200})
+
+    resp = await client.delete("/api/settings/prefs")
+
+    assert resp.status_code == 200
+    assert resp.json() == DEFAULTS
+    assert (await client.get("/api/settings/prefs")).json() == DEFAULTS

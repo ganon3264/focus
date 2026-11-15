@@ -4,7 +4,7 @@ import focus.db as db
 import focus.db.themes as db_themes
 from focus.core.database import get_db
 from focus.core.models import ActiveProviderUpdate, SettingsUpdate, ThemeApply
-from focus.db.prefs import load_prefs, save_prefs
+from focus.db.prefs import load_prefs, reset_prefs, save_prefs
 
 router = APIRouter()
 
@@ -33,6 +33,11 @@ async def get_prefs(_db=Depends(get_db)):
 @router.put("/prefs")
 async def update_prefs(body: dict, _db=Depends(get_db)):
     return await save_prefs(_db, body)
+
+
+@router.delete("/prefs")
+async def delete_prefs(_db=Depends(get_db)):
+    return await reset_prefs(_db)
 
 
 @router.put("/theme")
