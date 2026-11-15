@@ -52,6 +52,7 @@
 
     input.value = '';
     if (window.resizeTextarea) window.resizeTextarea(input);
+    if (window.clearComposerDraft) window.clearComposerDraft();
 
     window.Generation.begin(chatId, asstDiv, { isRegen: false, userMessage: text });
   });

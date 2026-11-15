@@ -39,10 +39,68 @@
   window.resizeTextarea = resizeTextarea;
   window.updateSendButtonState = updateSendButtonState;
 
+  // One draft per chat, kept out of the DB: a half-written reply must survive a
+  // reload or a hop to another chat. The composer is the only thing that owns
+  // it, the same way the input bar is the only thing that owns the field.
+  var DRAFT_PREFIX = 'focus-draft-';
+  var draftTimer = null;
+
+  function draftKey() {
+    var chatId = window.StateManager ? window.StateManager.get('chat_id') : null;
+    return chatId ? DRAFT_PREFIX + chatId : null;
+  }
+
+  function writeDraft() {
+    draftTimer = null;
+    var key = draftKey();
+    if (!key) return;
+    try {
+      if (input.value.trim()) window.localStorage.setItem(key, input.value);
+      else window.localStorage.removeItem(key);
+    } catch (e) {
+      // storage disabled or full: the composer still works, it just forgets.
+    }
+  }
+
+  function saveDraft() {
+    if (draftTimer) clearTimeout(draftTimer);
+    draftTimer = setTimeout(writeDraft, 250);
+  }
+
+  window.clearComposerDraft = function () {
+    if (draftTimer) {
+      clearTimeout(draftTimer);
+      draftTimer = null;
+    }
+    var key = draftKey();
+    if (!key) return;
+    try {
+      window.localStorage.removeItem(key);
+    } catch (e) {
+      // nothing to clear if storage is unavailable
+    }
+  };
+
+  function restoreDraft() {
+    var key = draftKey();
+    if (!key || input.value) return;
+    var saved = null;
+    try {
+      saved = window.localStorage.getItem(key);
+    } catch (e) {
+      return;
+    }
+    if (!saved) return;
+    input.value = saved;
+    resizeTextarea(input);
+    updateSendButtonState();
+  }
+
   if (input) {
     input.addEventListener('input', function () {
       resizeTextarea(this);
       updateSendButtonState();
+      saveDraft();
     });
     input.addEventListener('keydown', function (e) {
       if (e.key !== 'Enter') return;
@@ -60,4 +118,8 @@
   if (sendBtn) {
     updateSendButtonState();
   }
+
+  // StateManager is initialised by the page script, which runs during parsing
+  // but after this module.
+  document.addEventListener('DOMContentLoaded', restoreDraft);
 })();
