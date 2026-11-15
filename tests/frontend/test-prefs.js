@@ -30,6 +30,7 @@ global.hxJson = function (url, method, body) {
 var fs = require('fs'), path = require('path');
 window.PREFS = {
   send_key: 'enter',
+  follow_stream: 'pinned',
   clock: '12h',
   chat_width: 900,
   prune_messages: false,
@@ -57,14 +58,14 @@ async function main() {
   assertEqual(lastCall().method, 'PUT', 'uses PUT');
 
   // ── the server's normalized answer replaces the optimistic state.
-  nextResponse = { ok: true, body: { send_key: 'ctrl_enter', clock: '24h', chat_width: 640, prune_messages: true } };
+  nextResponse = { ok: true, body: { send_key: 'ctrl_enter', follow_stream: 'pinned', clock: '24h', chat_width: 640, prune_messages: true } };
   await Prefs.set({ send_key: 'ctrl_enter' });
   assertEqual(Prefs.get('send_key'), 'ctrl_enter', 'saved send_key kept');
   assertEqual(Prefs.get('chat_width'), 640, 'server answer wins');
   assertEqual(props['--chat-content-width'], 'min(100%, 640px)', 'width re-applied from the answer');
 
   // ── reset drops the blob and takes the server's defaults, with no key list.
-  nextResponse = { ok: true, body: { send_key: 'enter', clock: '24h', chat_width: 800, prune_messages: true } };
+  nextResponse = { ok: true, body: { send_key: 'enter', follow_stream: 'pinned', clock: '24h', chat_width: 800, prune_messages: true } };
   events.length = 0;
   await Prefs.reset();
   assertEqual(lastCall().method, 'DELETE', 'reset DELETEs the blob');
@@ -72,7 +73,7 @@ async function main() {
   assertDeepEqual(Prefs.all(), nextResponse.body, 'reset adopts the server defaults');
   assertEqual(props['--chat-content-width'], 'min(100%, 800px)', 'reset restores the width');
   assertEqual(document.documentElement.dataset.clock, '24h', 'reset restores the clock');
-  assertEqual(events.length, 4, 'reset announces every key it replaced');
+  assertEqual(events.length, 5, 'reset announces every key it replaced');
 
   // ── a failed save rolls the optimistic state back and re-announces it.
   nextResponse = { ok: false, body: null };

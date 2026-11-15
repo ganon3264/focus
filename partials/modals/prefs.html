@@ -22,6 +22,15 @@
         </span>
       </div>
       <div class="row setting labeled">
+        {{ row_label('Follow the stream', 'Where the view sits while a reply arrives. At the bottom follows only while you are already there; Always keeps the newest line on screen even after you scroll away.') }}
+        <span class="row-actions">
+          <button type="button" class="chip{{ ' active' if prefs.follow_stream == 'pinned' }}"
+            data-action="actionSetPref" data-pref="follow_stream" data-value="pinned">At the bottom</button>
+          <button type="button" class="chip{{ ' active' if prefs.follow_stream == 'always' }}"
+            data-action="actionSetPref" data-pref="follow_stream" data-value="always">Always</button>
+        </span>
+      </div>
+      <div class="row setting labeled">
         {{ row_label('Clock', 'Message timestamps, in your local time.') }}
         <span class="row-actions">
           <button type="button" class="chip{{ ' active' if prefs.clock == '24h' }}"

@@ -2,6 +2,14 @@
   window.autoScroll = true;
   window.scrollSentinel = null;
 
+  // Whether this frame should chase the newest token: `always` ignores where the
+  // reader is, `pinned` (the default) only follows a sentinel that is on screen.
+  window.streamFollows = function (rendered) {
+    var mode = window.Prefs ? window.Prefs.get('follow_stream') : 'pinned';
+    if (mode === 'always') return true;
+    return !!(rendered && window.autoScroll);
+  };
+
   window.ensureSentinelAndObserver = function () {
     const ml = document.getElementById('message-list');
     const cc = document.querySelector('[data-ui="chat-center"]');

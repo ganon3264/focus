@@ -98,7 +98,7 @@
     }
     if (firstRendered && window._updateReasoningButton) window._updateReasoningButton(firstRendered);
     window.syncStreamingView(state.asstDiv);
-    if (firstRendered && window.autoScroll && window.scrollSentinel) {
+    if (window.scrollSentinel && window.streamFollows && window.streamFollows(firstRendered)) {
       window.scrollSentinel.scrollIntoView({ block: 'end', behavior: 'instant' });
     }
   }

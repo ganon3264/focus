@@ -91,6 +91,22 @@ eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'ui', 'scr
   assertEqual(window.autoScroll, false, 'autoScroll set to false when sentinel leaves viewport');
 })();
 
+// ── follow-the-stream predicate ──
+(function () {
+  window.autoScroll = false;
+  assertEqual(window.streamFollows(false), false, 'pinned: nothing rendered, nothing to follow');
+  window.autoScroll = true;
+  assertEqual(window.streamFollows(true), true, 'pinned: follows a rendered segment at the bottom');
+  window.autoScroll = false;
+  assertEqual(window.streamFollows(true), false, 'pinned: holds still when the reader scrolled away');
+
+  global.Prefs = { get: function () { return 'always'; } };
+  assertEqual(window.streamFollows(false), true, 'always: follows even with no text segment');
+  assertEqual(window.streamFollows(true), true, 'always: follows from anywhere');
+  delete global.Prefs;
+  window.autoScroll = true;
+})();
+
 // ── ensureSentinelAndObserver is safe when message-list missing ──
 (function () {
   var ml = document.getElementById('message-list');
