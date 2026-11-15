@@ -4,11 +4,20 @@
   var prefs = Object.assign({}, window.PREFS || {});
   var root = document.documentElement;
 
+  var lastLayout = '';
+
   function apply() {
     if (typeof prefs.chat_width === 'number') {
       root.style.setProperty('--chat-content-width', 'min(100%, ' + prefs.chat_width + 'px)');
     }
     if (prefs.clock) root.dataset.clock = prefs.clock;
+    if (prefs.text_size) root.dataset.textSize = prefs.text_size;
+
+    // A pruned row carries the pixel height it had when it was skeletonised, so
+    // new geometry has to re-measure them all.
+    var layout = prefs.chat_width + 'x' + prefs.text_size;
+    if (lastLayout && lastLayout !== layout && window._unpruneAllMessages) window._unpruneAllMessages();
+    lastLayout = layout;
   }
 
   function announce(keys) {

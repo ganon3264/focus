@@ -156,3 +156,23 @@
   --role-user: #10b981;
   --role-assistant: #f59e0b;
 }
+
+/* Message text size, chosen in the System modal's Preferences tab. One tier per
+   rhythm: the body, its satellites and the derived ink gaps all move together. */
+html[data-text-size='small'] {
+  --text-body: 13px;
+  --leading-body: 22px;
+  --text-meta: 11px;
+  --leading-meta: 18px;
+  --text-code: 10px;
+  --leading-code: 15px;
+}
+
+html[data-text-size='large'] {
+  --text-body: 16px;
+  --leading-body: 26px;
+  --text-meta: 14px;
+  --leading-meta: 22px;
+  --text-code: 12px;
+  --leading-code: 18px;
+}

@@ -13,6 +13,7 @@ DEFAULTS = {
     "follow_stream": "pinned",
     "clock": "24h",
     "chat_width": 800,
+    "text_size": "medium",
     "prune_messages": True,
 }
 
@@ -20,6 +21,7 @@ CHOICES = {
     "send_key": ("enter", "ctrl_enter"),
     "follow_stream": ("pinned", "always"),
     "clock": ("24h", "12h", "hidden"),
+    "text_size": ("small", "medium", "large"),
 }
 
 WIDTH_MIN = 480

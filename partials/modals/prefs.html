@@ -41,6 +41,17 @@
             data-action="actionSetPref" data-pref="clock" data-value="hidden">Hidden</button>
         </span>
       </div>
+      <div class="row setting labeled">
+        {{ row_label('Text size', 'The message body, its code blocks and reasoning, in three steps. The rest of the interface keeps its size.') }}
+        <span class="row-actions">
+          <button type="button" class="chip{{ ' active' if prefs.text_size == 'small' }}"
+            data-action="actionSetPref" data-pref="text_size" data-value="small">Small</button>
+          <button type="button" class="chip{{ ' active' if prefs.text_size == 'medium' }}"
+            data-action="actionSetPref" data-pref="text_size" data-value="medium">Medium</button>
+          <button type="button" class="chip{{ ' active' if prefs.text_size == 'large' }}"
+            data-action="actionSetPref" data-pref="text_size" data-value="large">Large</button>
+        </span>
+      </div>
       <div class="row setting labeled fit">
         {{ row_label('Reading width', 'How wide the message column gets on a wide window.') }}
         <input type="range" min="480" max="1600" step="20" value="{{ prefs.chat_width }}"

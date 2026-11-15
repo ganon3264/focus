@@ -23,12 +23,13 @@ async def test_partial_update_merges(client):
 async def test_invalid_values_fall_back_to_the_default(client):
     resp = await client.put(
         "/api/settings/prefs",
-        json={"send_key": "space", "clock": "sun", "prune_messages": "no"},
+        json={"send_key": "space", "clock": "sun", "text_size": "huge", "prune_messages": "no"},
     )
     assert resp.status_code == 200
     body = resp.json()
     assert body["send_key"] == DEFAULTS["send_key"]
     assert body["clock"] == DEFAULTS["clock"]
+    assert body["text_size"] == DEFAULTS["text_size"]
     assert body["prune_messages"] == DEFAULTS["prune_messages"]
 
 
