@@ -64,8 +64,8 @@ async def _add_variant(db_path: str, message_id: str, content: str) -> None:
         await db.commit()
 
 
-async def _chat_with_messages(client, db_path: str, *, variants=0, title="Chat"):
-    chat = await create_chat(client, title=title)
+async def _chat_with_messages(client, db_path: str, *, variants=0):
+    chat = await create_chat(client)
     user_id, _ = await _insert_message(db_path, chat["id"], "user", 0, "Hi")
     asst_id, _ = await _insert_message(db_path, chat["id"], "assistant", 1, "Old", model_name="gpt-4")
     for i in range(variants):
@@ -354,7 +354,6 @@ class TestBranchChat:
 
         new_detail = await client.get(f"/api/chats/{new_chat_id}")
         assert new_detail.status_code == 200
-        assert new_detail.json()["title"] == "Copy of Chat"
 
         async with aiosqlite.connect(db_path) as db:
             db.row_factory = aiosqlite.Row
@@ -755,7 +754,7 @@ class TestMessageUsage:
 
     async def test_partial_sums_the_calls_of_one_bubble(self, client, tmp_test_dir):
         db_path = _db_path(tmp_test_dir)
-        chat = await create_chat(client, title="Usage")
+        chat = await create_chat(client)
         msg_id = await self._seed_usage(db_path, chat["id"], [
             {"prompt": 1000, "completion": 100, "cached": 500, "cost": 0.001},
             {"prompt": 1500, "completion": 50, "cached": 1000, "cost": 0.002},
@@ -772,7 +771,7 @@ class TestMessageUsage:
 
     async def test_partial_without_rows_reports_absence(self, client, tmp_test_dir):
         db_path = _db_path(tmp_test_dir)
-        chat = await create_chat(client, title="Usage")
+        chat = await create_chat(client)
         msg_id, _ = await _insert_message(db_path, chat["id"], "assistant", 1, "Answer")
 
         resp = await client.get(f"/partials/message-usage/{chat['id']}/{msg_id}")
@@ -782,7 +781,7 @@ class TestMessageUsage:
 
     async def test_partial_ignores_other_variants(self, client, tmp_test_dir):
         db_path = _db_path(tmp_test_dir)
-        chat = await create_chat(client, title="Usage")
+        chat = await create_chat(client)
         msg_id = await self._seed_usage(db_path, chat["id"], [
             {"prompt": 11, "completion": 1, "cached": 0, "cost": None},
         ])
@@ -819,7 +818,7 @@ class TestMessageUsage:
 
     async def test_partial_rejects_a_foreign_message(self, client, tmp_test_dir):
         db_path = _db_path(tmp_test_dir)
-        chat = await create_chat(client, title="Usage")
+        chat = await create_chat(client)
         msg_id, _ = await _insert_message(db_path, chat["id"], "assistant", 1, "Answer")
 
         resp = await client.get(f"/partials/message-usage/other-chat/{msg_id}")
@@ -849,7 +848,7 @@ class TestUsageStats:
 
     async def test_totals_are_summed_per_model(self, client, tmp_test_dir):
         db_path = _db_path(tmp_test_dir)
-        chat = await create_chat(client, title="Usage")
+        chat = await create_chat(client)
         await self._seed(db_path, chat["id"], [
             {"provider": "openrouter", "model": "a/one", "prompt": 3000,
              "completion": 500, "cached": 1000, "cost": 0.01},

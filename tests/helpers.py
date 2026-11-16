@@ -43,8 +43,8 @@ async def create_preset(client, name="Test Preset"):
     return resp.json()
 
 
-async def create_chat(client, character_id=None, persona_id=None, preset_id=None, title="Test Chat"):
-    body = {"title": title}
+async def create_chat(client, character_id=None, persona_id=None, preset_id=None):
+    body = {}
     if character_id:
         body["character_id"] = character_id
     if persona_id:

@@ -30,7 +30,7 @@ async def create_chat(body: ChatCreate, _db=Depends(get_db)):
     pers_id = body.persona_id if body.persona_id else None
     pres_id = body.preset_id if body.preset_id else None
 
-    chat_id = await db.create_chat(_db, char_id, pers_id, pres_id, body.title or "New Chat")
+    chat_id = await db.create_chat(_db, char_id, pers_id, pres_id)
 
     if body.character_id:
         await db.create_greeting_messages(_db, chat_id, body.character_id)
@@ -402,7 +402,6 @@ async def summarize_chat(chat_id: str, body: SummarizeRequest, _db=Depends(get_d
                     character_id=chat.get("character_id"),
                     persona_id=chat.get("persona_id"),
                     preset_id=chat.get("preset_id"),
-                    title=chat.get("title") or "New Chat",
                     parent_chat_id=chat_id,
                     summary_id=summary_id,
                 )

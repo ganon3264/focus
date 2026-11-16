@@ -4,6 +4,7 @@ import logging
 import aiosqlite
 
 from focus.core.card_parser import safe_load_card
+from focus.core import search
 from focus.core.media import asset_url, tool_image_url
 
 logger = logging.getLogger("focus.crud")
@@ -315,37 +316,46 @@ async def search_messages(
     db: aiosqlite.Connection,
     query: str,
     character_id: str | None = None,
-    limit: int = 40,
+    limit: int = search.MAX_RESULTS,
 ) -> list[dict]:
-    """Message hits across live chats, newest first, optionally one character's.
+    """Message hits across live chats, best match first, optionally one character's.
 
-    Only the active variant of each message is searched: a regenerated reply
-    that is no longer in the chat must not produce a hit that opens to nothing.
+    Matching, stemming and ranking are FTS5's (`message_fts`): the box speaks
+    tokens, not substrings, and bm25 orders the hits. Only the active variant of
+    each message is searched — a regenerated reply that is no longer in the chat
+    must not produce a hit that opens to nothing.
     """
-    term = query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-    where = "mv.content LIKE ? ESCAPE '\\'"
-    params: list = [f"%{term}%"]
+    match = search.match_query(query)
+    if not match:
+        return []
+    where = ""
+    params: list = [match]
     if character_id:
-        where += " AND ch.character_id = ?"
+        where = " AND ch.character_id = ?"
         params.append(character_id)
     params.append(limit)
     async with db.execute(
         f"""
-        SELECT m.id, m.chat_id, m.created_at, mv.content,
-               c.name AS character_name,
-               COALESCE(ch.title, '') AS chat_title
-          FROM messages m
-          JOIN message_variants mv
-            ON mv.message_id = m.id AND mv.variant_index = m.active_index
+        SELECT m.id, m.chat_id, m.created_at,
+               snippet(message_fts, 1, ?, ?, '…', {search.SNIPPET_TOKENS}) AS raw_snippet,
+               p.name AS persona_name,
+               c.name AS character_name
+          FROM message_fts
+          JOIN message_variants mv ON mv.id = message_fts.variant_id
+          JOIN messages m ON m.id = mv.message_id AND m.active_index = mv.variant_index
           JOIN chats ch ON ch.id = m.chat_id AND ch.is_deleted = 0
+          LEFT JOIN personas p ON p.id = ch.persona_id
           LEFT JOIN characters c ON c.id = ch.character_id
-         WHERE {where}
-         ORDER BY m.created_at DESC
+         WHERE message_fts MATCH ?{where}
+         ORDER BY bm25(message_fts), m.created_at DESC
          LIMIT ?
         """,
-        params,
+        [search.MARK_OPEN, search.MARK_CLOSE, *params],
     ) as cur:
-        return [dict(r) for r in await cur.fetchall()]
+        rows = [dict(r) for r in await cur.fetchall()]
+    for row in rows:
+        row["snippet"] = search.render_snippet(row.pop("raw_snippet"))
+    return rows
 
 
 async def get_chats_sidebar(

@@ -39,7 +39,7 @@ async def test_setup_checklist_tracks_what_the_user_just_did(page, fresh_app):
     await expect(step(page, "character")).to_contain_text("Create or import")
     await expect(checklist.locator("[data-setup-step]")).to_have_count(3)
     await expect(persona_link(page)).to_have_count(0)
-    await expect(page.locator("#right-chat-action button")).to_have_attribute("title", "Add Character")
+    await expect(page.locator('#right-chat-action button[data-ui="chat-action"]')).to_have_attribute("title", "Add Character")
 
     # A created character reaches the checklist and the right pane without a
     # reload, and the row offers a way to pick it.
@@ -48,7 +48,7 @@ async def test_setup_checklist_tracks_what_the_user_just_did(page, fresh_app):
     await page.locator("#new-char-name-input").fill("First Character")
     await page.locator("#global-confirm-btn").click()
     await expect(step(page, "character")).to_contain_text("Choose a character")
-    await expect(page.locator("#right-chat-action button")).to_have_attribute("title", "New Chat")
+    await expect(page.locator('#right-chat-action button[data-ui="chat-action"]')).to_have_attribute("title", "New Chat")
     await expect(checklist).to_contain_text("1/3")
     await page.keyboard.press("Escape")
 

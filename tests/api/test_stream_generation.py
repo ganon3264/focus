@@ -162,12 +162,12 @@ def patch_provider(monkeypatch):
     return _patch
 
 
-async def _setup(client, *, title="Chat"):
+async def _setup(client):
     """Create character/persona/preset/chat + a provider row; return (chat, provider_id)."""
     char = await create_character(client, "Char")
     persona = await create_persona(client, "P")
     preset = await create_preset(client, "Pr")
-    chat = await create_chat(client, char["id"], persona["id"], preset["id"], title=title)
+    chat = await create_chat(client, char["id"], persona["id"], preset["id"])
     resp = await client.post(
         "/api/providers/",
         json={"name": "TestProvider", "type": "openai_compat", "model": "gpt-4"},

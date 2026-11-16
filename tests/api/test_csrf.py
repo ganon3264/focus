@@ -7,7 +7,7 @@ class TestOriginCheck:
     async def test_mismatched_origin_rejected(self, client):
         resp = await client.post(
             "/api/chats/",
-            json={"title": "x"},
+            json={},
             headers={"Origin": "http://evil.example"},
         )
         assert resp.status_code == 403
@@ -24,7 +24,7 @@ class TestOriginCheck:
     async def test_mismatched_origin_with_port_rejected(self, client):
         resp = await client.post(
             "/api/chats/",
-            json={"title": "x"},
+            json={},
             headers={"Origin": "http://test:9999"},
         )
         assert resp.status_code == 403
@@ -32,13 +32,13 @@ class TestOriginCheck:
     async def test_same_origin_allowed(self, client):
         resp = await client.post(
             "/api/chats/",
-            json={"title": "x"},
+            json={},
             headers={"Origin": "http://test"},
         )
         assert resp.status_code == 201
 
     async def test_missing_origin_allowed(self, client):
-        resp = await client.post("/api/chats/", json={"title": "x"})
+        resp = await client.post("/api/chats/", json={})
         assert resp.status_code == 201
 
     async def test_get_with_foreign_origin_allowed(self, client):

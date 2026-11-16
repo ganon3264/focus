@@ -282,7 +282,7 @@ class TestDisplayIntegration:
     async def test_cosmetic_script_changes_render_not_storage(self, client, tmp_test_dir):
         from tests.helpers import create_chat
 
-        chat = await create_chat(client, title="Regex Chat")
+        chat = await create_chat(client)
         await _insert_message(
             os.path.join(tmp_test_dir, "test.db"), chat["id"], "assistant", 0, "A beat. Hello"
         )
@@ -311,7 +311,7 @@ class TestDisplayIntegration:
     async def test_depth_window_limits_display_scope(self, client, tmp_test_dir):
         from tests.helpers import create_chat
 
-        chat = await create_chat(client, title="Depth Chat")
+        chat = await create_chat(client)
         db_path = os.path.join(tmp_test_dir, "test.db")
         await _insert_message(db_path, chat["id"], "assistant", 0, "A beat. old")
         await _insert_message(db_path, chat["id"], "user", 1, "hi")
@@ -329,7 +329,7 @@ class TestDisplayIntegration:
     async def test_block_script_renders_collapsible_block(self, client, tmp_test_dir):
         from tests.helpers import create_chat
 
-        chat = await create_chat(client, title="Block Chat")
+        chat = await create_chat(client)
         await _insert_message(
             os.path.join(tmp_test_dir, "test.db"),
             chat["id"],

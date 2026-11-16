@@ -14,7 +14,7 @@ FastAPI (async) + aiosqlite | Jinja2 | HTMX 2 + Alpine 3 | Tailwind v4 | uv + ha
 ```
 main.py                  # FastAPI app entry
 focus/                   # Backend package
-  core/                  # DB init, models, utils, macros, segments, media, tracked_fields,
+  core/                  # DB init, models, utils, macros, segments, media, tracked_fields, search,
                          # regex/structured, summary, usage_stats, prefs, retry, progress_stream,
                          # request_transforms
   db/                    # CRUD per domain (characters, chats, personas, presets, providers, etc.)
@@ -132,9 +132,13 @@ The pruner's `_pruned` map is keyed by bare id (`MessageIdentity.bare`); `_forge
 
 ### Chat search
 
-- The field sits at the foot of the right pane (`.sidebar-footer` in `partials/chat/right-pane.html`), **under the pager** and above Trash Bin: the pager comes and goes with the page count, and a field above it would jump. Typing swaps `#chat-list` for `chat/chat-search.html` and hides `#chat-pager`; emptying the field restores the list at the page it was on via `_refreshChatList`.
-- Scope is the active character (`?character_id=`), because the pane is that character's chats. The **All** chip beside the field widens it to every chat; it is session state in `features/chat-search.js`, not a preference — a reload goes back to the character.
-- `GET /partials/chat-search?q=&character_id=` → `crud.search_messages`: only the **active** variant of each message, only live chats, `%`/`_` escaped, 40 rows newest-first. `search_snippet` (`core/utils.py`) flattens the match into one line with ellipses.
+- A **modal**, not a field in the right pane: it is query-and-jump, not browse, and the pane's foot stays one rule + the pager + Trash Bin. Opened by the magnifier key in the rail's action cluster beside New chat (`actionOpenChatSearch`) or **Ctrl/⌘+K**, so it is a banded chassis like every other list: head rail carries the count, the toolbar the field + the scope chip, the lane the hits (`partials/modals/chat-search.html` + `chat-search-lane.html`).
+- A hit is two lines, 48px: the matched line as `.row-title`, then the **persona** the chat is with muted under it, date in the row's readout column. Chats carry no title (the column was set once at creation and read by nothing the user could see), so the snippet and the persona are what identify a hit.
+- The readout and the chip sit **outside** `#chat-search-lane`, so a re-render never steals focus. The hit count rides on the lane payload as `data-search-count` and the readout is updated from `htmx:afterSwap` keyed on the lane — never from the `hxGet` promise, which resolves before the swap. Escape in the field empties it (`stopPropagation`), a second Escape closes the modal.
+- Scope is the active character (`?character_id=`), because the pane is that character's chats. The **All chats** chip in the toolbar widens it to every chat; it is session state in `features/chat-search.js`, not a preference — a reload goes back to the character.
+- Matching is **FTS5**, not substring: `message_fts` (porter + unicode61, `variant_id UNINDEXED`) is kept in sync by three triggers on `message_variants`, so every writer — streaming checkpoints, edits, backup import — feeds it without knowing it exists. `focus/core/search.py` owns the rest: `match_query()` turns the box into quoted prefix tokens ANDed together (`rain rust` wants both, `rusty` still hits `rust`, a stray `"`/`*` is text), and `crud.search_messages` ranks with `bm25` — best match first, 40 max, only the **active** variant, only live chats.
+- The snippet comes from FTS5's own `snippet()`, which is why the highlight survives stemming (`run` marks `running`). It arrives as Markdown plus `\x02`/`\x03` match markers; `render_snippet()` strips tags, flattens, caps at `SNIPPET_CHARS` and escapes the text, then turns the markers into `<mark>` — so the lane renders `row.snippet` with `| safe` and it is the only markup the browser sees. Highlight styling (`.search-hit mark`) is the accent wash, no plate.
+- The index holds stored content verbatim, so markup is searchable (`span` finds `<span`); the preview strips it, so such a hit shows a line that does not visibly contain the term. Acceptable: stripping at index time is impossible in a pure-SQL trigger, and the display side is the one users read. A `SELECT ... WHERE id NOT IN (SELECT variant_id FROM message_fts)` in `init_db` backfills a pre-trigger database and re-heals an index something emptied.
 - A hit links to `/chat/{id}?at={message_id}`. `features/chat-search.js` centres that node and flashes `.message.is-found`; `ui/scroll-manager.js::scrollToBottom` stands down when `at` is in the URL, so the landing position is the message, not the bottom (a hit that no longer exists falls back to the bottom).
 
 ### Banded modals — every list modal

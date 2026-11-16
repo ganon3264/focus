@@ -97,7 +97,7 @@ async function measure(page) {
       rightTitles: all('.right-sidebar .rail'),
       leftSections: all('.left-sidebar .sidebar-section'),
       preset: one('#preset-selector .preset-trigger'),
-      newChat: one('.right-sidebar .rail-actions > .key'),
+      newChat: one('#right-chat-action [data-ui="chat-action"]'),
       tiles: all('.left-sidebar .nav'),
       status: one('.left-sidebar .well'),
       statusRows: all('.left-sidebar .well > .row'),

@@ -1,0 +1,25 @@
+{% from "macros.html" import empty_state %}
+{# Lane payload for modal-chat-search. The count rides in an attribute so the
+   readout rail outside the swap target can follow it from htmx:afterSwap.
+   A hit is two lines: the matched line, then where it lives. `snippet` is
+   escaped server-side with only the `<mark>`s left as markup. #}
+<div data-ui="search-results" data-search-count="{{ results | length }}">
+  {% if not results %}
+  {{ empty_state('No matches for “' ~ query ~ '”.') }}
+  {% else %}
+  {% for row in results %}
+  <div class="row search-hit" data-ui="search-hit">
+    <a href="/chat/{{ row.chat_id }}?at={{ row.id }}" class="row-link">
+      <span class="search-hit-text">
+        <span class="row-title">{{ row.snippet | safe }}</span>
+        <span class="search-hit-context">{{ row.persona_name or row.character_name or 'Chat' }}</span>
+      </span>
+      <span class="row-meta" data-utc="{{ row.created_at }}">
+        <span class="row-meta-date">{{ row.created_at[5:10] }}</span>
+        <span class="row-meta-date" data-ui="ts-time">{{ row.created_at[11:16] }}</span>
+      </span>
+    </a>
+  </div>
+  {% endfor %}
+  {% endif %}
+</div>

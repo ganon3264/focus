@@ -1,21 +1,15 @@
-// Chat search: the field at the foot of the right pane swaps the chat list for
-// message hits, and a hit lands on its message via `?at=`. The scope starts on
-// the current character; the All chip widens it to every chat.
+// Chat search: a banded modal over every message hit, opened from the right
+// pane's rail or Ctrl/⌘+K. The scope starts on the active character; the All
+// chats chip widens it to every chat. A hit lands on its message via `?at=`.
 (function () {
   var field = document.getElementById('chat-search-field');
-  var scope = document.getElementById('chat-search-scope');
-  var lane = document.getElementById('chat-list');
-  var pager = document.getElementById('chat-pager');
+  var lane = document.getElementById('chat-search-lane');
   if (!field || !lane) return;
 
+  var readout = document.querySelector('[data-ui="search-readout"]');
+  var idle = lane.innerHTML;
   var timer = null;
-  var restorePage = null;
   var global = false;
-
-  function listPage() {
-    var scroll = lane.querySelector('[data-chat-page]');
-    return scroll ? parseInt(scroll.getAttribute('data-chat-page'), 10) : 1;
-  }
 
   function searchUrl(query) {
     var url = window.api.partials.chatSearch + '?q=' + encodeURIComponent(query);
@@ -24,52 +18,87 @@
     return url;
   }
 
-  function showResults(query) {
-    if (restorePage === null) restorePage = listPage() || 1;
-    if (pager) pager.classList.add('hidden');
-    return window.hxGet(searchUrl(query), {
-      target: '#chat-list',
-      swap: 'innerHTML',
-    }).catch(function (e) {
-      window.showErrorToast(e.message || 'Search failed');
-    });
+  function syncReadout() {
+    if (!readout) return;
+    var node = lane.querySelector('[data-search-count]');
+    var n = node ? parseInt(node.getAttribute('data-search-count'), 10) || 0 : 0;
+    if (!n) {
+      readout.textContent = 'Messages';
+      return;
+    }
+    readout.textContent = n + (n >= 40 ? '+' : '') + (n === 1 ? ' result' : ' results');
   }
 
-  function showList() {
-    if (pager) pager.classList.remove('hidden');
-    if (restorePage === null) return;
-    var page = restorePage;
-    restorePage = null;
-    window._refreshChatList(window.StateManager.get('chat_id'), page);
+  function reset() {
+    lane.innerHTML = idle;
+    syncReadout();
   }
 
-  function refresh() {
+  function run() {
     var query = field.value.trim();
-    if (query) showResults(query);
-    else showList();
+    if (!query) {
+      reset();
+      return;
+    }
+    // The readout follows the swap, never the promise: hxGet resolves first.
+    window.hxGet(searchUrl(query), { target: '#chat-search-lane', swap: 'innerHTML' })
+      .catch(function (e) {
+        window.showErrorToast(e.message || 'Search failed');
+      });
   }
+
+  document.addEventListener('htmx:afterSwap', function (e) {
+    var target = e.detail && e.detail.target;
+    if (!target || target.id !== 'chat-search-lane') return;
+    syncReadout();
+    // The lane is born after DOMContentLoaded, so its clocks have never been
+    // localised; the formatter is the one owner of that conversion.
+    if (window.formatTimestamps) window.formatTimestamps();
+  });
 
   field.addEventListener('input', function () {
     if (timer) clearTimeout(timer);
     timer = setTimeout(function () {
       timer = null;
-      refresh();
+      run();
     }, 180);
   });
 
+  // Escape empties the query; a second one closes the modal through the shared
+  // document handler, which this stopPropagation keeps out of the way.
   field.addEventListener('keydown', function (e) {
     if (e.key !== 'Escape' || !field.value) return;
     e.stopPropagation();
     field.value = '';
-    refresh();
+    run();
   });
 
   window.actionToggleChatSearchScope = function (el) {
     global = !global;
     el.classList.toggle('active', global);
     el.setAttribute('aria-pressed', global ? 'true' : 'false');
-    if (field.value.trim()) showResults(field.value.trim());
+    run();
   };
+
+  function open() {
+    window.openModal('modal-chat-search');
+    field.focus();
+    field.select();
+  }
+
+  window.actionOpenChatSearch = open;
+
+  if (window.ModalController) {
+    ModalController.onOpen('modal-chat-search', function () {
+      if (!field.value.trim()) reset();
+    });
+  }
+
+  document.addEventListener('keydown', function (e) {
+    if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 'k') return;
+    e.preventDefault();
+    open();
+  });
 
   // Arriving from a hit: the initial scroll is ours, not the bottom of the chat.
   function land() {

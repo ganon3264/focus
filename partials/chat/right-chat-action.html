@@ -1,6 +1,7 @@
-{% from "macros.html" import icon_plus %}
+{% from "macros.html" import icon_plus, icon_search %}
+<button class="key sm" data-action="actionOpenChatSearch" title="Search messages (Ctrl+K)" aria-label="Search messages">{{ icon_search(14) }}</button>
 {% if has_characters %}
-<button class="key sm create" onclick="newChat()" title="New Chat" aria-label="New Chat">{{ icon_plus(14) }}</button>
+<button class="key sm create" data-ui="chat-action" onclick="newChat()" title="New Chat" aria-label="New Chat">{{ icon_plus(14) }}</button>
 {% else %}
-<button class="key sm primary" onclick="openModal('modal-characters')" title="Add Character" aria-label="Add Character">{{ icon_plus(14) }}</button>
+<button class="key sm primary" data-ui="chat-action" onclick="openModal('modal-characters')" title="Add Character" aria-label="Add Character">{{ icon_plus(14) }}</button>
 {% endif %}

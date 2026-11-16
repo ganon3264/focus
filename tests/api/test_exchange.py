@@ -559,7 +559,10 @@ class TestImportSecurity:
         var_id = str(uuid.uuid4())
         database = {
             "characters": [{"id": char_id, "name": "X", "image_path": None, "card_json": "{}", "created_at": now, "is_deleted": 0}],
-            "chats": [{"id": chat_id, "title": "C", "character_id": char_id, "persona_id": None, "preset_id": None, "created_at": now, "updated_at": now, "is_deleted": 0, "tool_calls_enabled": 0, "tool_read_only": 1}],
+            # `title` is a column this app no longer has: an archive written
+            # before it was dropped must still import (unknown columns are
+            # filtered against the live schema).
+            "chats": [{"id": chat_id, "title": "Legacy", "character_id": char_id, "persona_id": None, "preset_id": None, "created_at": now, "updated_at": now, "is_deleted": 0, "tool_calls_enabled": 0, "tool_read_only": 1}],
             "messages": [{"id": msg_id, "chat_id": chat_id, "role": "assistant", "position": 1, "active_index": 0, "created_at": now}],
             "message_variants": [{
                 "id": var_id, "message_id": msg_id, "variant_index": 0, "content": "hi",
@@ -587,7 +590,7 @@ class TestImportSecurity:
         msg_id = str(uuid.uuid4())
         database = {
             "characters": [{"id": char_id, "name": "X", "image_path": None, "card_json": "{}", "created_at": now, "is_deleted": 0}],
-            "chats": [{"id": chat_id, "title": "C", "character_id": char_id, "persona_id": None, "preset_id": None, "created_at": now, "updated_at": now, "is_deleted": 0, "tool_calls_enabled": 0, "tool_read_only": 1}],
+            "chats": [{"id": chat_id, "character_id": char_id, "persona_id": None, "preset_id": None, "created_at": now, "updated_at": now, "is_deleted": 0, "tool_calls_enabled": 0, "tool_read_only": 1}],
             "messages": [{"id": msg_id, "chat_id": chat_id, "role": "assistant", "position": 1, "active_index": 0, "created_at": now}],
             "message_variants": [{
                 "id": str(uuid.uuid4()), "message_id": msg_id, "variant_index": 0,
@@ -891,7 +894,7 @@ class TestProvidersAndSecrets:
 class TestSummaryLineageRoundtrip:
     async def test_export_fork_carries_summary_chain_and_ancestors(self, client, tmp_test_dir):
         char = await create_character(client, "LineageChar")
-        parent = await create_chat(client, char["id"], title="Parent")
+        parent = await create_chat(client, char["id"])
         parent_id, child_id, summary_id = parent["id"], str(uuid.uuid4()), str(uuid.uuid4())
         now = now_iso()
         async with aiosqlite.connect(os.path.join(tmp_test_dir, "test.db")) as conn:
@@ -902,8 +905,8 @@ class TestSummaryLineageRoundtrip:
                 (summary_id, parent_id, "Chunk one", 0, "test-model", now),
             )
             await conn.execute(
-                "INSERT INTO chats (id, title, character_id, persona_id, preset_id, parent_chat_id, summary_id, created_at, updated_at)"
-                " VALUES (?, 'Fork', ?, NULL, NULL, ?, ?, ?, ?)",
+                "INSERT INTO chats (id, character_id, persona_id, preset_id, parent_chat_id, summary_id, created_at, updated_at)"
+                " VALUES (?, ?, NULL, NULL, ?, ?, ?, ?)",
                 (child_id, char["id"], parent_id, summary_id, now, now),
             )
             await conn.commit()
@@ -912,12 +915,12 @@ class TestSummaryLineageRoundtrip:
         resp = await client.post("/api/export", json={"chats": [child_id]})
         assert resp.status_code == 200
         dump = _extract_database_from_zip(resp.content)
-        assert {r["title"] for r in dump["chats"]} == {"Parent", "Fork"}
+        assert len(dump["chats"]) == 2
         assert [r["content"] for r in dump["chat_summaries"]] == ["Chunk one"]
 
         # Ids are rewritten at export, so every link must point at rewritten rows.
-        fork = next(r for r in dump["chats"] if r["title"] == "Fork")
-        parent_row = next(r for r in dump["chats"] if r["title"] == "Parent")
+        fork = next(r for r in dump["chats"] if r["parent_chat_id"])
+        parent_row = next(r for r in dump["chats"] if not r["parent_chat_id"])
         assert fork["id"] not in (child_id, parent_id)
         assert fork["parent_chat_id"] == parent_row["id"]
         assert fork["summary_id"] == dump["chat_summaries"][0]["id"]
@@ -928,7 +931,7 @@ class TestSummaryLineageRoundtrip:
 
         rows = await _read_db(
             tmp_test_dir,
-            "SELECT id, parent_chat_id, summary_id FROM chats WHERE title = 'Fork' AND id != ?",
+            "SELECT id, parent_chat_id, summary_id FROM chats WHERE parent_chat_id IS NOT NULL AND id != ?",
             (child_id,),
         )
         assert len(rows) == 1

@@ -22,7 +22,6 @@ async def create_chat(
     character_id: str | None = None,
     persona_id: str | None = None,
     preset_id: str | None = None,
-    title: str = "New Chat",
     parent_chat_id: str | None = None,
     summary_id: str | None = None,
 ) -> str:
@@ -30,8 +29,8 @@ async def create_chat(
     now = now_iso()
     try:
         await db.execute(
-            "INSERT INTO chats (id, title, character_id, persona_id, preset_id, parent_chat_id, summary_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (chat_id, title, character_id, persona_id, preset_id, parent_chat_id, summary_id, now, now),
+            "INSERT INTO chats (id, character_id, persona_id, preset_id, parent_chat_id, summary_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (chat_id, character_id, persona_id, preset_id, parent_chat_id, summary_id, now, now),
         )
     except aiosqlite.IntegrityError as e:
         from fastapi import HTTPException
@@ -121,7 +120,7 @@ async def create_greeting_messages(
 
 async def update_chat(db: aiosqlite.Connection, chat_id: str, updates: dict) -> None:
     allowed = {
-        "title", "preset_id", "character_id", "persona_id",
+        "preset_id", "character_id", "persona_id",
         "tool_calls_enabled", "tool_read_only", "max_tool_iterations",
     }
     updates = {k: v for k, v in updates.items() if k in allowed}
@@ -447,7 +446,7 @@ async def swipe_message(
 
 async def branch_chat(db: aiosqlite.Connection, chat_id: str, message_id: str) -> str:
     async with db.execute(
-        "SELECT character_id, persona_id, preset_id, title FROM chats WHERE id = ?", (chat_id,)
+        "SELECT character_id, persona_id, preset_id FROM chats WHERE id = ?", (chat_id,)
     ) as cur:
         chat = await cur.fetchone()
     if not chat:
@@ -463,9 +462,8 @@ async def branch_chat(db: aiosqlite.Connection, chat_id: str, message_id: str) -
     new_chat_id = str(uuid.uuid4())
     now = now_iso()
     await db.execute(
-        "INSERT INTO chats (id, title, character_id, persona_id, preset_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (new_chat_id, f"Copy of {chat['title']}", chat["character_id"], chat["persona_id"],
-         chat["preset_id"], now, now),
+        "INSERT INTO chats (id, character_id, persona_id, preset_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+        (new_chat_id, chat["character_id"], chat["persona_id"], chat["preset_id"], now, now),
     )
 
     async with db.execute(

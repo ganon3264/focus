@@ -58,8 +58,8 @@ async def _insert_tool_call(db, image_rel: str | None) -> tuple[str, str]:
     chat_id = uuid.uuid4().hex
     message_id = uuid.uuid4().hex
     await db.execute(
-        "INSERT INTO chats (id, title, created_at, updated_at) VALUES (?, ?, ?, ?)",
-        (chat_id, "Chat", "now", "now"),
+        "INSERT INTO chats (id, created_at, updated_at) VALUES (?, ?, ?)",
+        (chat_id, "now", "now"),
     )
     await db.execute(
         "INSERT INTO messages (id, chat_id, role, position, created_at) VALUES (?, ?, ?, ?, ?)",
@@ -129,8 +129,8 @@ class TestCleanOrphanedAssets:
         Path(path).write_bytes(b"doc")
         chat_id = uuid.uuid4().hex
         await db.execute(
-            "INSERT INTO chats (id, title, created_at, updated_at) VALUES (?, ?, ?, ?)",
-            (chat_id, "Chat", "now", "now"),
+            "INSERT INTO chats (id, created_at, updated_at) VALUES (?, ?, ?)",
+            (chat_id, "now", "now"),
         )
         await db.execute(
             "INSERT INTO message_attachments (id, chat_id, file_path, mime_type, created_at) VALUES (?, ?, ?, ?, ?)",
@@ -151,8 +151,8 @@ class TestCleanOrphanedAssets:
         orphan.write_text("delete")
         chat_id = uuid.uuid4().hex
         await db.execute(
-            "INSERT INTO chats (id, title, created_at, updated_at) VALUES (?, ?, ?, ?)",
-            (chat_id, "Chat", "now", "now"),
+            "INSERT INTO chats (id, created_at, updated_at) VALUES (?, ?, ?)",
+            (chat_id, "now", "now"),
         )
         await db.execute(
             "INSERT INTO message_attachments (id, chat_id, file_path, mime_type, created_at) VALUES (?, ?, ?, ?, ?)",
@@ -353,8 +353,8 @@ class TestCleanOrphanedAssets:
         orphan_att.write_text("delete")
         chat_id = uuid.uuid4().hex
         await db.execute(
-            "INSERT INTO chats (id, title, created_at, updated_at) VALUES (?, ?, ?, ?)",
-            (chat_id, "Chat", "now", "now"),
+            "INSERT INTO chats (id, created_at, updated_at) VALUES (?, ?, ?)",
+            (chat_id, "now", "now"),
         )
         await db.execute(
             "INSERT INTO message_attachments (id, chat_id, file_path, mime_type, created_at) VALUES (?, ?, ?, ?, ?)",
@@ -427,8 +427,8 @@ class TestCleanDatabase:
         )
         chat_id = uuid.uuid4().hex
         await db.execute(
-            "INSERT INTO chats (id, title, character_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
-            (chat_id, "Chat", cid, "now", "now"),
+            "INSERT INTO chats (id, character_id, created_at, updated_at) VALUES (?, ?, ?, ?)",
+            (chat_id, cid, "now", "now"),
         )
         await db.commit()
         result = await clean_database(db)
@@ -450,8 +450,8 @@ class TestCleanDatabase:
         )
         chat_id = uuid.uuid4().hex
         await db.execute(
-            "INSERT INTO chats (id, title, character_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
-            (chat_id, "Chat", cid, "now", "now"),
+            "INSERT INTO chats (id, character_id, created_at, updated_at) VALUES (?, ?, ?, ?)",
+            (chat_id, cid, "now", "now"),
         )
         await db.commit()
         result = await clean_database(db)
@@ -590,8 +590,8 @@ class TestCleanDatabase:
         Path(path).write_bytes(b"doc")
         chat_id = uuid.uuid4().hex
         await db.execute(
-            "INSERT INTO chats (id, title, created_at, updated_at) VALUES (?, ?, ?, ?)",
-            (chat_id, "Chat", "now", "now"),
+            "INSERT INTO chats (id, created_at, updated_at) VALUES (?, ?, ?)",
+            (chat_id, "now", "now"),
         )
         await db.execute(
             "INSERT INTO message_attachments (id, chat_id, file_path, mime_type, created_at) VALUES (?, ?, ?, ?, ?)",
@@ -607,8 +607,8 @@ class TestCleanDatabase:
         Path(path).write_bytes(b"doc")
         chat_id = uuid.uuid4().hex
         await db.execute(
-            "INSERT INTO chats (id, title, created_at, updated_at) VALUES (?, ?, ?, ?)",
-            (chat_id, "Chat", "now", "now"),
+            "INSERT INTO chats (id, created_at, updated_at) VALUES (?, ?, ?)",
+            (chat_id, "now", "now"),
         )
         msg_id = uuid.uuid4().hex
         await db.execute(

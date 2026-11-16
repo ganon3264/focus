@@ -189,11 +189,11 @@ async def _create_provider(client, name="TestProvider", model="gpt-4", config=No
     return resp.json()["id"]
 
 
-async def _setup(client, *, title="Chat"):
+async def _setup(client):
     char = await create_character(client, "Char")
     persona = await create_persona(client, "P")
     preset = await create_preset(client, "Pr")
-    chat = await create_chat(client, char["id"], persona["id"], preset["id"], title=title)
+    chat = await create_chat(client, char["id"], persona["id"], preset["id"])
     return chat, await _create_provider(client)
 
 

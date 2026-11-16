@@ -1003,6 +1003,56 @@
   flex: none;
 }
 
+/* ── Chat search hits ─────────────────────────────────────────────────────
+   Two lines per hit: the matched line, then the chat it lives in. The context
+   line is prose-sized and muted, not a mono readout — the date keeps the row's
+   readout column. */
+/* `.row` is 32 and arrives last, so the pair carries the height. */
+.row.search-hit {
+  min-height: calc(var(--u) * 12);
+}
+
+/* The readout is one narrow column on the right, date over time like the chat
+   rows above it: two values on one baseline would eat the snippet's width, and
+   a long snippet must ellipsise there rather than squeeze the column. */
+.search-hit .row-meta {
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0;
+  line-height: calc(var(--u) * 3);
+  text-align: right;
+}
+
+.search-hit-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.search-hit-text > .row-title {
+  flex: 0 0 auto;
+}
+
+/* The match itself: the accent wash, no plate, no underline — it sits inside a
+   line of prose, so only the ink behind the word changes. */
+.search-hit mark {
+  border-radius: 2px;
+  background-color: var(--tint-3);
+  color: var(--text);
+}
+
+.search-hit-context {
+  overflow: hidden;
+  font-size: 11px;
+  line-height: calc(var(--u) * 4);
+  color: var(--text-muted);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
 /* ── Providers ────────────────────────────────────────────────────────────
    One provider is one row in one column, on two lines: the name over
    type · model, then the balance readout and the verbs. Four things on one

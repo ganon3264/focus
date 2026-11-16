@@ -131,7 +131,6 @@ class ChatCreate(BaseModel):
     character_id: str | None = None
     persona_id: str | None = None
     preset_id: str | None = None
-    title: str | None = None
 
 
 class MessageEdit(BaseModel):

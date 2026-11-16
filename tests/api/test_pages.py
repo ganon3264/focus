@@ -39,7 +39,7 @@ async def _seed_chat(client):
     char = await create_character(client, "PageChar", first_mes="Greetings {{char}}")
     persona = await create_persona(client, "PagePersona")
     preset = await create_preset(client, "PagePreset")
-    chat = await create_chat(client, char["id"], persona["id"], preset["id"], title="Page Chat")
+    chat = await create_chat(client, char["id"], persona["id"], preset["id"])
     return chat, char, persona, preset
 
 
@@ -52,8 +52,8 @@ class TestChatRedirect:
 
     async def test_redirects_to_character_chat(self, client):
         char = await create_character(client, "Target")
-        chat1 = await create_chat(client, character_id=char["id"], title="One")
-        await create_chat(client, title="Other")
+        chat1 = await create_chat(client, character_id=char["id"])
+        await create_chat(client)
         resp = await client.get(f"/chat?character_id={char['id']}", follow_redirects=False)
         assert resp.headers["location"] == f"/chat/{chat1['id']}"
 
@@ -70,7 +70,7 @@ class TestChatRedirect:
     async def test_greeter_inherits_the_last_used_preset(self, client):
         older = await create_preset(client, "Older")
         newer = await create_preset(client, "Newer")
-        await create_chat(client, preset_id=older["id"], title="Writes with Older")
+        await create_chat(client, preset_id=older["id"])
         lonely = await create_character(client, "Lonely")
 
         resp = await client.get(f"/chat?character_id={lonely['id']}")
@@ -160,7 +160,7 @@ class TestChatPage:
 
     async def test_chat_list_partial_filtered_by_character(self, client):
         char = await create_character(client, "FilterChar")
-        chat = await create_chat(client, character_id=char["id"], title="F")
+        chat = await create_chat(client, character_id=char["id"])
         resp = await client.get(f"/partials/chat-list?character_id={char['id']}")
         assert resp.status_code == 200
         assert chat["id"] in resp.text
@@ -177,7 +177,7 @@ class TestChatPagination:
         assert _page_window(2, 3) == [1, 2, 3]
 
     async def _seed(self, client, count, character_id):
-        return [await create_chat(client, character_id=character_id, title=f"Chat {i}") for i in range(count)]
+        return [await create_chat(client, character_id=character_id) for i in range(count)]
 
     async def test_pager_renders_for_multiple_pages(self, client):
         char = await create_character(client, "Paged")
@@ -191,7 +191,7 @@ class TestChatPagination:
 
     async def test_pager_hidden_for_single_page(self, client):
         char = await create_character(client, "Single")
-        await create_chat(client, character_id=char["id"], title="Only")
+        await create_chat(client, character_id=char["id"])
         resp = await client.get(f"/partials/chat-list?character_id={char['id']}")
         assert resp.status_code == 200
         assert 'class="pager"' not in resp.text
@@ -226,7 +226,7 @@ class TestChatPagination:
     async def test_preview_is_clipped_to_one_row(self, client):
         long_text = "word " * 200
         char = await create_character(client, "PreviewChar", first_mes=long_text)
-        chat = await create_chat(client, char["id"], title="Preview Chat")
+        chat = await create_chat(client, char["id"])
         resp = await client.get(f"/partials/chat-list?current_chat_id={chat['id']}")
         assert resp.status_code == 200
         assert long_text[:400] in resp.text
@@ -440,7 +440,7 @@ class TestMessageListPartial:
     """`?ids=` narrows the render without changing what a node looks like."""
 
     async def _seed(self, client, tmp_test_dir, roles=("user", "assistant", "user", "assistant")):
-        chat = await create_chat(client, title="Narrowed")
+        chat = await create_chat(client)
         db_path = os.path.join(tmp_test_dir, "test.db")
         ids = [
             await _seed_message(db_path, chat["id"], role, i, f"line {i}")

@@ -27,7 +27,6 @@ from focus.core.utils import (
     greetings_from_card,
     merge_greeting_into_list,
     parse_greetings_json,
-    search_snippet,
     secret_preview,
     variable_group_name,
 )
@@ -519,11 +518,9 @@ async def chat_search_partial(
 ):
     query = q.strip()[:120]
     rows = await crud.search_messages(db, query, character_id) if query else []
-    for row in rows:
-        row["snippet"] = search_snippet(row["content"], query)
     return templates.TemplateResponse(
         request,
-        "chat/chat-search.html",
+        "modals/chat-search-lane.html",
         {"query": query, "results": rows},
     )
 

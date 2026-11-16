@@ -45,7 +45,7 @@ def _rendered_nodes(html: str) -> int:
 
 
 async def test_post_stream_refresh_asks_for_the_changed_messages_only(page, app, llm, world):
-    chat = world.new_chat("Long chat")
+    chat = world.new_chat()
     _seed(app, chat["id"])
 
     await page.goto(f"{app.url}/chat/{chat['id']}")

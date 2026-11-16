@@ -15,8 +15,8 @@ import pytest
     [
         ("/api/providers", "POST", {"name": "P", "type": "openai_compat", "model": "m"}),
         ("/api/providers/", "POST", {"name": "P", "type": "openai_compat", "model": "m"}),
-        ("/api/chats", "POST", {"title": "Chat"}),
-        ("/api/chats/", "POST", {"title": "Chat"}),
+        ("/api/chats", "POST", {}),
+        ("/api/chats/", "POST", {}),
         ("/api/characters", "POST", {"name": "Char"}),
         ("/api/personas", "POST", {"name": "Persona"}),
         ("/api/presets", "POST", {"name": "Preset"}),
@@ -74,7 +74,7 @@ async def test_proxy_scenario_no_redirect(client):
     headers = {"X-Forwarded-Proto": "https", "Origin": "http://test"}
     for path, payload in [
         ("/api/providers", {"name": "P", "type": "openai_compat", "model": "m"}),
-        ("/api/chats", {"title": "Chat"}),
+        ("/api/chats", {}),
     ]:
         resp = await client.post(path, json=payload, headers=headers, follow_redirects=False)
         assert resp.status_code == 201, (path, resp.status_code, resp.headers.get("location"))

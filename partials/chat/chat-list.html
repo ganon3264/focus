@@ -16,7 +16,7 @@
   data-chat-id="{{ chat.id }}"
 >
   <a href="/chat/{{ chat.id }}" class="row-link">
-    <span class="row-title">{{ chat.last_message or chat.title }}</span>
+    <span class="row-title">{{ chat.last_message or "New chat" }}</span>
     <span class="row-meta">
       <span class="row-meta-date">{{ chat.updated_at[5:10] }}</span>
       {% if chat.persona_name %}<span class="row-meta-persona">{{ chat.persona_name }}</span>{% endif %}
@@ -82,7 +82,7 @@
             const esc = window.escapeHtml || ((v) => (v == null ? '' : v));
             const initial = esc((c.character_name || '?')[0]);
             const img = c.character_image ? esc(c.character_image) : '';
-            const preview = esc(c.last_message || c.title || 'New Chat');
+            const preview = esc(c.last_message || 'New chat');
             const name = esc(c.character_name || 'General');
             const date = c.updated_at ? c.updated_at.slice(0, 10) : '';
             const persona = c.persona_name ? ' · ' + esc(c.persona_name) : '';

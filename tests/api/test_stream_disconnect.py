@@ -49,7 +49,7 @@ async def _insert_chat_and_slot(db_path: str, *, content: str | None = None,
         await db.execute("PRAGMA foreign_keys=ON")
         now = "2026-01-01T00:00:00+00:00"
         await db.execute(
-            "INSERT INTO chats (id, title, created_at, updated_at) VALUES (?, 'Chat', ?, ?)",
+            "INSERT INTO chats (id, created_at, updated_at) VALUES (?, ?, ?)",
             (chat_id, now, now),
         )
         positions = [("assistant", 0, "Hi there")]
@@ -231,7 +231,7 @@ class TestStrandedMessageCleanup:
             await db.execute("PRAGMA foreign_keys=ON")
             now = "2026-01-01T00:00:00+00:00"
             await db.execute(
-                "INSERT INTO chats (id, title, created_at, updated_at) VALUES (?, 'Other', ?, ?)",
+                "INSERT INTO chats (id, created_at, updated_at) VALUES (?, ?, ?)",
                 (extra_chat, now, now),
             )
             orphan = str(uuid.uuid4())

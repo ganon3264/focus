@@ -1,0 +1,32 @@
+{% from "modal-shell.html" import modal_shell %}
+{% from "macros.html" import search_toolbar, empty_state %}
+{# Chat search: query → jump. The lane re-renders on a debounce; the readout and
+   the scope chip sit outside the swap target, so the field never loses focus. #}
+{% call modal_shell('modal-chat-search', 'Search Chats', max_width='760px', width='92vw',
+content_style='height:min(70vh, 640px);', overlay_class='modal-bands-shell',
+overlay_attrs='aria-label="Search messages"') %}
+<div class="modal-bands">
+  <div class="modal-band-head">
+    <div class="rail">
+      <span data-ui="search-readout">Messages</span>
+    </div>
+  </div>
+
+  <div class="modal-band-toolbar">
+    {% call search_toolbar('Search messages…', input_attrs='id="chat-search-field" autocomplete="off" spellcheck="false"', wrapper_classes='') %}
+      <button
+        type="button"
+        id="chat-search-scope"
+        class="chip"
+        data-action="actionToggleChatSearchScope"
+        aria-pressed="false"
+        title="Widen the search from this character's chats to every chat"
+      >All chats</button>
+    {% endcall %}
+  </div>
+
+  <div class="modal-band-lane" id="chat-search-lane">
+    {{ empty_state('Type to search message history.') }}
+  </div>
+</div>
+{% endcall %}

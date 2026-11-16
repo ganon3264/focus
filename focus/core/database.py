@@ -98,7 +98,6 @@ CREATE TABLE IF NOT EXISTS preset_blocks (
 
 CREATE TABLE IF NOT EXISTS chats (
     id                 TEXT PRIMARY KEY,
-    title              TEXT NOT NULL DEFAULT 'New Chat',
     character_id       TEXT REFERENCES characters(id) ON DELETE SET NULL,
     persona_id         TEXT REFERENCES personas(id) ON DELETE SET NULL,
     preset_id          TEXT REFERENCES presets(id) ON DELETE SET NULL,
@@ -141,6 +140,30 @@ CREATE TABLE IF NOT EXISTS message_variants (
     segments_json TEXT,
     variant_meta  TEXT
 );
+
+-- Message search. The index holds the stored content verbatim and is kept in
+-- sync by the triggers below, so every writer (streaming checkpoints, edits,
+-- imports) feeds it without knowing it exists. The delete-and-insert in the
+-- insert trigger is what makes `INSERT OR REPLACE` self-healing.
+CREATE VIRTUAL TABLE IF NOT EXISTS message_fts USING fts5(
+    variant_id UNINDEXED,
+    content,
+    tokenize='porter unicode61'
+);
+
+CREATE TRIGGER IF NOT EXISTS message_variants_ai AFTER INSERT ON message_variants BEGIN
+    DELETE FROM message_fts WHERE variant_id = new.id;
+    INSERT INTO message_fts (variant_id, content) VALUES (new.id, new.content);
+END;
+
+CREATE TRIGGER IF NOT EXISTS message_variants_au AFTER UPDATE OF content ON message_variants BEGIN
+    DELETE FROM message_fts WHERE variant_id = old.id;
+    INSERT INTO message_fts (variant_id, content) VALUES (new.id, new.content);
+END;
+
+CREATE TRIGGER IF NOT EXISTS message_variants_ad AFTER DELETE ON message_variants BEGIN
+    DELETE FROM message_fts WHERE variant_id = old.id;
+END;
 
 CREATE TABLE IF NOT EXISTS block_images (
     id           TEXT PRIMARY KEY,
@@ -415,6 +438,11 @@ async def init_db():
             await db.execute("ALTER TABLE chats ADD COLUMN parent_chat_id TEXT")
         if "summary_id" not in col_names:
             await db.execute("ALTER TABLE chats ADD COLUMN summary_id TEXT")
+        if "title" in col_names:
+            # A chat is identified by the persona it is with, its date and its
+            # own messages; a stored title was set once at creation and never
+            # read back by anything the user could see.
+            await db.execute("ALTER TABLE chats DROP COLUMN title")
 
         cols = await db.execute("PRAGMA table_info(chat_summaries)")
         col_names = {row[1] for row in await cols.fetchall()}
@@ -540,5 +568,14 @@ async def init_db():
             get_logger("core.database").info(
                 "Dropped %d assistant message(s) left without content", stranded
             )
+
+        # The search index is written by triggers from here on; this only fills
+        # in the rows a pre-trigger database already had. It is a no-op once the
+        # two counts agree, and it re-heals an index something emptied.
+        await db.execute(
+            "INSERT INTO message_fts (variant_id, content) "
+            "SELECT id, content FROM message_variants "
+            "WHERE id NOT IN (SELECT variant_id FROM message_fts)"
+        )
 
         await db.commit()

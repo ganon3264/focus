@@ -5,7 +5,7 @@ from tests.helpers import create_character, create_chat, create_persona, create_
 
 class TestChats:
     async def test_create_empty(self, client):
-        resp = await client.post("/api/chats/", json={"title": "Empty"})
+        resp = await client.post("/api/chats/", json={})
         assert resp.status_code == 201
         assert "id" in resp.json()
 
@@ -36,12 +36,6 @@ class TestChats:
         data = resp.json()
         assert data["character_id"] == c["id"]
         assert "messages" in data
-
-    async def test_update_title(self, client):
-        ch = await create_chat(client)
-        await client.patch(f"/api/chats/{ch['id']}", json={"title": "New Title"})
-        resp = await client.get(f"/api/chats/{ch['id']}")
-        assert resp.json()["title"] == "New Title"
 
     async def test_delete(self, client):
         ch = await create_chat(client)
@@ -77,8 +71,8 @@ class TestStaleChats:
             await db.commit()
 
     async def test_count_and_trash(self, client, tmp_test_dir):
-        old = await create_chat(client, title="Old")
-        fresh = await create_chat(client, title="Fresh")
+        old = await create_chat(client)
+        fresh = await create_chat(client)
         await self._age(tmp_test_dir, old["id"], 40)
 
         count = await client.get("/api/chats/stale?days=30")
@@ -167,14 +161,14 @@ class TestChatSearch:
     async def test_finds_the_active_variant_of_a_live_chat(self, client, tmp_test_dir):
         from tests.api.test_message_ops import _db_path
 
-        chat = await create_chat(client, title="Searchable")
+        chat = await create_chat(client)
         msg_id = await self._seed(_db_path(tmp_test_dir), chat["id"], "the rain smells of rust")
 
         resp = await client.get("/partials/chat-search?q=rust")
 
         assert resp.status_code == 200
         assert f"/chat/{chat['id']}?at={msg_id}" in resp.text
-        assert "rain smells" in resp.text
+        assert "smells of <mark>rust</mark>" in resp.text
 
     async def test_ignores_an_inactive_variant(self, client, tmp_test_dir):
         import uuid
@@ -195,8 +189,8 @@ class TestChatSearch:
 
         resp = await client.get("/partials/chat-search?q=take")
 
-        assert "the new take" in resp.text
-        assert "the old take" not in resp.text
+        assert "the new <mark>take</mark>" in resp.text
+        assert "old" not in resp.text
 
     async def test_ignores_deleted_chats(self, client, tmp_test_dir):
         from tests.api.test_message_ops import _db_path
@@ -209,15 +203,29 @@ class TestChatSearch:
 
         assert "No matches" in resp.text
 
-    async def test_wildcards_are_literal(self, client, tmp_test_dir):
+    async def test_hit_is_contexted_by_its_persona(self, client, tmp_test_dir):
+        from tests.api.test_message_ops import _db_path
+
+        persona = await create_persona(client, "Kuon")
+        chat = await create_chat(client, persona_id=persona["id"])
+        await self._seed(_db_path(tmp_test_dir), chat["id"], "the keeper of keys")
+
+        resp = await client.get("/partials/chat-search?q=keeper")
+
+        assert 'class="search-hit-context">Kuon<' in resp.text
+
+    async def test_operators_are_neutralised(self, client, tmp_test_dir):
         from tests.api.test_message_ops import _db_path
 
         chat = await create_chat(client)
         await self._seed(_db_path(tmp_test_dir), chat["id"], "axb needs no percent sign")
 
-        resp = await client.get("/partials/chat-search?q=a%25b")
+        # FTS5 syntax in the box is text, not an operator: the quoting happens
+        # server-side, so a stray quote or star is just a character.
+        resp = await client.get('/partials/chat-search?q=percent%22*')
 
-        assert "No matches" in resp.text
+        assert resp.status_code == 200
+        assert "no <mark>percent</mark> sign" in resp.text
 
 
 async def test_search_scope_can_be_one_character(client, tmp_test_dir):

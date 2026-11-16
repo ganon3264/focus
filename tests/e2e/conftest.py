@@ -266,11 +266,10 @@ class World:
         self.preset = preset
         self.provider = provider
 
-    def new_chat(self, title="E2E chat"):
+    def new_chat(self):
         res = self.client.post(
             "/api/chats/",
             json={
-                "title": title,
                 "character_id": self.character["id"],
                 "preset_id": self.preset["id"],
                 "provider_id": self.provider["id"],
