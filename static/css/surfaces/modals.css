@@ -129,13 +129,12 @@
    collection's verbs), an optional toolbar (search/filter/sort), the list lane,
    an optional foot. Only the lane scrolls.
 
-   ONE vertical rhythm: every band insets its content by --band-pad above and
-   below, and there are no gaps between bands. So a band's content always has the
-   same air above it as below it, whatever it is next to — and the same number
-   separates it from the panel edges. Nothing else authors a vertical spacing.
-
-   Bands pull out to the panel's inner edges and pad back in, so a groove or a
-   plane change runs the full width while the content keeps the modal's one
+   ONE vertical rhythm: --band-pad is the air on each side of a groove or a
+   plane edge, and nothing else authors a vertical spacing. Two chrome bands
+   (head → toolbar) have no edge between them, so they share one pad instead of
+   stacking two: the air above the toolbar's field matches the air below it.
+   Every band pulls out to the panel's inner edges and pads back in, so a groove
+   or a plane change runs the full width while the content keeps the modal's one
    inset.
 
    Chrome is one field: the shell tints the head and the body once, and every
@@ -183,6 +182,13 @@
 .modal-band-lane,
 .modal-band-foot {
   padding-block: var(--band-pad);
+}
+
+/* The head band already owns the air under itself, and there is no groove
+   between the two: a toolbar that padded its top too would put 32 above its
+   field and 16 below it, against the lane's edge. */
+.modal-band-toolbar {
+  padding-block: 0 var(--band-pad);
 }
 
 /* A non-band child of the stack (the tab strip) carries the panel edge. */

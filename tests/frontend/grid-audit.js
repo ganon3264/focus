@@ -358,6 +358,12 @@ async function measureBands(page) {
       return n;
     };
     const next = nextOf(headBand);
+    const toolbar = [...body.querySelectorAll('.modal-band-toolbar')].find(laidOut);
+    // The band's box starts where the head band ends; the control inside it is
+    // what the eye reads the gap from, so that is what gets measured.
+    const toolbarCtrl = toolbar
+      ? [...toolbar.querySelectorAll('.search-field, .field')].find(laidOut)
+      : null;
     const firstKid = lane ? [...lane.children].find(laidOut) : null;
     const row = lane && lane.querySelector('[data-ui="entity-row"], [data-ui="arranger-item"], [data-ui="char-block"], .itemizer-item, .row');
     const last = bands[bands.length - 1];
@@ -377,6 +383,7 @@ async function measureBands(page) {
       lane: lane ? rect(lane) : null,
       row: row ? rect(row) : null,
       next: next ? rect(next) : null,
+      toolbarCtrl: toolbarCtrl ? rect(toolbarCtrl) : null,
       firstKid: firstKid ? rect(firstKid) : null,
       tabs: panel.querySelector('.tab-bar') ? rect(panel.querySelector('.tab-bar')) : null,
       foot: foot ? rect(foot) : null,
@@ -970,6 +977,20 @@ async function measureOffbeat(page) {
       b.next && Math.abs(b.next.y - b.rail.bottom - bandPad) < 1,
       b.next ? `gap=${(b.next.y - b.rail.bottom).toFixed(1)}` : 'no band after the head',
     );
+    // Two chrome bands share one pad, and the boundary between them is
+    // invisible: how the toolbar's control sits between the rail and the lane is
+    // the gap the eye actually reads. Measuring the band box would hide a
+    // doubled pad, which is what it did before the toolbar lost its top
+    // padding.
+    if (b.toolbarCtrl && b.lane) {
+      const above = b.toolbarCtrl.y - b.rail.bottom;
+      const below = b.lane.y - b.toolbarCtrl.bottom;
+      check(
+        name + ': toolbar control has the same air above as below',
+        Math.abs(above - bandPad) < 1 && Math.abs(below - bandPad) < 1,
+        `above=${above.toFixed(1)} below=${below.toFixed(1)}`,
+      );
+    }
     if (b.lane && b.firstKid) {
       check(
         name + ': lane insets its first child by the same rhythm',

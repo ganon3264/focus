@@ -169,6 +169,8 @@ class TestChatSearch:
         assert resp.status_code == 200
         assert f"/chat/{chat['id']}?at={msg_id}" in resp.text
         assert "smells of <mark>rust</mark>" in resp.text
+        assert 'data-search-count="1"' in resp.text
+        assert 'data-search-max="40"' in resp.text
 
     async def test_ignores_an_inactive_variant(self, client, tmp_test_dir):
         import uuid
@@ -203,7 +205,21 @@ class TestChatSearch:
 
         assert "No matches" in resp.text
 
-    async def test_hit_is_contexted_by_its_persona(self, client, tmp_test_dir):
+    async def test_hit_names_its_character_and_persona(self, client, tmp_test_dir):
+        from tests.api.test_message_ops import _db_path
+
+        character = await create_character(client, "Alice")
+        persona = await create_persona(client, "Kuon")
+        chat = await create_chat(
+            client, character_id=character["id"], persona_id=persona["id"]
+        )
+        await self._seed(_db_path(tmp_test_dir), chat["id"], "the keeper of keys")
+
+        resp = await client.get("/partials/chat-search?q=keeper")
+
+        assert 'class="search-hit-context">Alice · Kuon<' in resp.text
+
+    async def test_hit_names_a_persona_without_a_character(self, client, tmp_test_dir):
         from tests.api.test_message_ops import _db_path
 
         persona = await create_persona(client, "Kuon")

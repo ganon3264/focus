@@ -1,6 +1,6 @@
 // Chat search: a banded modal over every message hit, opened from the right
-// pane's rail or Ctrl/⌘+K. The scope starts on the active character; the All
-// chats chip widens it to every chat. A hit lands on its message via `?at=`.
+// pane's rail. The scope starts on the active character; the All chats chip
+// widens it to every chat. A hit lands on its message via `?at=`.
 (function () {
   var field = document.getElementById('chat-search-field');
   var lane = document.getElementById('chat-search-lane');
@@ -26,7 +26,8 @@
       readout.textContent = 'Messages';
       return;
     }
-    readout.textContent = n + (n >= 40 ? '+' : '') + (n === 1 ? ' result' : ' results');
+    var max = parseInt(node.getAttribute('data-search-max'), 10) || 0;
+    readout.textContent = n + (max && n >= max ? '+' : '') + (n === 1 ? ' result' : ' results');
   }
 
   function reset() {
@@ -80,25 +81,17 @@
     run();
   };
 
-  function open() {
+  window.actionOpenChatSearch = function () {
     window.openModal('modal-chat-search');
     field.focus();
     field.select();
-  }
-
-  window.actionOpenChatSearch = open;
+  };
 
   if (window.ModalController) {
     ModalController.onOpen('modal-chat-search', function () {
       if (!field.value.trim()) reset();
     });
   }
-
-  document.addEventListener('keydown', function (e) {
-    if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 'k') return;
-    e.preventDefault();
-    open();
-  });
 
   // Arriving from a hit: the initial scroll is ours, not the bottom of the chat.
   function land() {

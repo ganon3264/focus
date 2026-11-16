@@ -2,7 +2,7 @@
 {% from "macros.html" import search_toolbar, empty_state %}
 {# Chat search: query → jump. The lane re-renders on a debounce; the readout and
    the scope chip sit outside the swap target, so the field never loses focus. #}
-{% call modal_shell('modal-chat-search', 'Search Chats', max_width='760px', width='92vw',
+{% call modal_shell('modal-chat-search', 'Search Messages', max_width='760px', width='92vw',
 content_style='height:min(70vh, 640px);', overlay_class='modal-bands-shell',
 overlay_attrs='aria-label="Search messages"') %}
 <div class="modal-bands">

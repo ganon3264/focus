@@ -20,6 +20,10 @@ class TestMatchQuery:
 
         assert match_query("") == ""
         assert match_query("   ...  ") == ""
+        # Punctuation that survives the split is a phrase of no terms: FTS5
+        # finds nothing in it, so it is not a query at all.
+        assert match_query("_") == ""
+        assert match_query("’") == ""
 
 
 class TestRenderSnippet:

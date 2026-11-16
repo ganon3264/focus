@@ -143,8 +143,10 @@ CREATE TABLE IF NOT EXISTS message_variants (
 
 -- Message search. The index holds the stored content verbatim and is kept in
 -- sync by the triggers below, so every writer (streaming checkpoints, edits,
--- imports) feeds it without knowing it exists. The delete-and-insert in the
--- insert trigger is what makes `INSERT OR REPLACE` self-healing.
+-- imports) feeds it without knowing it exists. `variant_id` is UNINDEXED, so
+-- every delete scans the whole index: the insert trigger must not delete
+-- anything (variant ids are fresh UUIDs, never re-inserted) or a bulk import
+-- turns quadratic.
 CREATE VIRTUAL TABLE IF NOT EXISTS message_fts USING fts5(
     variant_id UNINDEXED,
     content,
@@ -152,7 +154,6 @@ CREATE VIRTUAL TABLE IF NOT EXISTS message_fts USING fts5(
 );
 
 CREATE TRIGGER IF NOT EXISTS message_variants_ai AFTER INSERT ON message_variants BEGIN
-    DELETE FROM message_fts WHERE variant_id = new.id;
     INSERT INTO message_fts (variant_id, content) VALUES (new.id, new.content);
 END;
 

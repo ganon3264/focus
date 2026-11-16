@@ -22,6 +22,7 @@ SNIPPET_CHARS = 240
 
 _TAG_RE = re.compile(r"<[^>]*>")
 _SEPARATORS = re.compile(r"[^0-9A-Za-z_'’]+")
+_WORD_CHAR_RE = re.compile(r"[0-9A-Za-z]+")
 
 
 def match_query(term: str) -> str:
@@ -31,7 +32,9 @@ def match_query(term: str) -> str:
     half-typed `rusty` still hits `rust`, and FTS5 operators in the input are
     neutered by the quoting rather than reaching the parser.
     """
-    tokens = [t for t in _SEPARATORS.split(term or "") if t]
+    # Only tokens the tokenizer will find something in: a lone `_` or `'` is a
+    # phrase of no terms, which matches nothing and is not worth a query.
+    tokens = [t for t in _SEPARATORS.split(term or "") if t and _WORD_CHAR_RE.search(t)]
     return " ".join(f'"{t}"*' for t in tokens)
 
 
@@ -45,7 +48,7 @@ def render_snippet(raw: str) -> str:
     """
     text = " ".join(_TAG_RE.sub("", raw or "").split())
     if len(text) > SNIPPET_CHARS:
-        text = text[:SNIPPET_CHARS].rstrip().replace(MARK_OPEN + MARK_CLOSE, "")
+        text = text[:SNIPPET_CHARS].rstrip()
         if text.count(MARK_OPEN) > text.count(MARK_CLOSE):
             text += MARK_CLOSE
         text += "…"

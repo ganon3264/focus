@@ -17,6 +17,7 @@ from focus.core.macros import MACRO_DEFINITIONS, SPECIAL_TOKENS, apply_macros, b
 from focus.core.media import asset_url as media_asset_url
 from focus.core.message_render import render_message_segments
 from focus.core.regex_scripts import apply_to_display_messages
+from focus.core.search import MAX_RESULTS
 from focus.core.summary import (
     DEFAULT_SUMMARY_INSTRUCTION,
     DEFAULT_SUMMARY_TEMPLATE,
@@ -521,7 +522,7 @@ async def chat_search_partial(
     return templates.TemplateResponse(
         request,
         "modals/chat-search-lane.html",
-        {"query": query, "results": rows},
+        {"query": query, "results": rows, "max_results": MAX_RESULTS},
     )
 
 

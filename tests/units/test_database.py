@@ -178,6 +178,59 @@ async def test_init_db_folds_legacy_reasoning_into_variant_meta(legacy_variants_
         assert meta["reasoning_details"] == [{"id": "d1"}]
 
 
+@pytest.fixture
+async def legacy_chats_db(tmp_path, monkeypatch):
+    """A database from before chats.title was retired, with one message in it."""
+    db_path = tmp_path / "focus.db"
+    async with aiosqlite.connect(db_path) as db:
+        await db.executescript(database.SCHEMA)
+        await db.execute("ALTER TABLE chats ADD COLUMN title TEXT NOT NULL DEFAULT 'New Chat'")
+        await db.execute("PRAGMA foreign_keys=OFF")
+        await db.execute(
+            "INSERT INTO chats (id, title, created_at, updated_at) VALUES ('c1', 'Legacy', 'x', 'x')"
+        )
+        await db.execute(
+            "INSERT INTO messages (id, chat_id, role, position, created_at)"
+            " VALUES ('m1', 'c1', 'user', 1, 'x')"
+        )
+        await db.execute(
+            "INSERT INTO message_variants (id, message_id, variant_index, content, created_at)"
+            " VALUES ('v1', 'm1', 0, 'the keeper of keys', 'x')"
+        )
+        # Pre-trigger shape: the index and its writers did not exist yet.
+        await db.executescript(
+            "DROP TRIGGER message_variants_ai;"
+            " DROP TRIGGER message_variants_au;"
+            " DROP TRIGGER message_variants_ad;"
+            " DELETE FROM message_fts;"
+        )
+        await db.commit()
+
+    monkeypatch.setattr(database, "DB_PATH", db_path)
+    yield db_path
+
+
+async def test_init_db_drops_chat_title_and_backfills_search(legacy_chats_db):
+    import focus.crud as crud
+
+    await database.init_db()
+
+    async with aiosqlite.connect(str(legacy_chats_db)) as db:
+        db.row_factory = aiosqlite.Row
+        cols = await db.execute("PRAGMA table_info(chats)")
+        assert "title" not in {row[1] for row in await cols.fetchall()}
+
+        # A variant written before the index existed is found by the backfill.
+        hits = await crud.search_messages(db, "keeper")
+        assert [h["id"] for h in hits] == ["m1"]
+
+        # ...and the recreated trigger keeps it in sync from then on.
+        await db.execute("UPDATE message_variants SET content = 'the keeper of coins' WHERE id = 'v1'")
+        await db.commit()
+        assert [h["id"] for h in await crud.search_messages(db, "coins")] == ["m1"]
+        assert await crud.search_messages(db, "keys") == []
+
+
 async def test_second_boot_rewrites_no_table(tmp_path, monkeypatch):
     """A current database must boot without DDL — retiring a column rewrites
     the whole table, and that must not happen on every start."""
