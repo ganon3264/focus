@@ -30,7 +30,7 @@ BASE_SAMPLER_DEFAULTS: dict[str, Any] = {
     "repetition_penalty": 1.0,
     "include_reasoning": True,
     "send_reasoning_history": True,
-    "reasoning_effort": "max",
+    "reasoning_effort": "high",
     "thinking_budget": 0,
     "stream_enabled": True,
     "enable_multimodal": True,
