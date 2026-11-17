@@ -8,7 +8,7 @@ var assert = h.assert, assertEqual = h.assertEqual;
 var doc = h.createMockDocument();
 doc.body.addEventListener = function () {};
 
-var calls = { htmx: 0, sync: 0, format: 0, send: 0, sentinel: 0 };
+var calls = { htmx: 0, sync: 0, format: 0, send: 0, scroll: 0 };
 var deleteActive = false;
 var applied = [];
 
@@ -21,7 +21,7 @@ var sandbox = {
   syncReasoningButtons: function () { calls.sync++; },
   formatTimestamps: function () { calls.format++; },
   updateSendButtonState: function () { calls.send++; },
-  ensureSentinelAndObserver: function () { calls.sentinel++; },
+  ChatScroll: { init: function () { calls.scroll++; } },
   isDeleteModeActive: function () { return deleteActive; },
   applyDeleteModeToNode: function (msg) { applied.push(msg); },
 };
@@ -71,7 +71,7 @@ function makeContainer() {
   assert(t.cb.classList.contains('hidden'), 'checkboxes stay hidden outside delete mode');
   assert(applied.length === 0, 'no delete chrome outside delete mode');
   assert(calls.send === 1, 'send button state is updated');
-  assert(calls.sentinel === 1, 'sentinel observer is ensured');
+  assert(calls.scroll === 1, 'the scroll observer is re-armed');
 })();
 
 // ── inside delete mode: delegates chrome to applyDeleteModeToNode ──

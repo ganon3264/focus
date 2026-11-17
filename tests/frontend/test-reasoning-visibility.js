@@ -1,6 +1,6 @@
 // Unit tests for reasoning-utils.js — loaded from source with DOM mocks
 var h = require('./helpers.js');
-var assert = h.assert, assertNotIncludes = h.assertNotIncludes;
+var assert = h.assert, assertEqual = h.assertEqual, assertNotIncludes = h.assertNotIncludes;
 var makeElement = h.makeElement, querySelectorAll = h.querySelectorAll;
 
 var path = require('path');
@@ -19,6 +19,9 @@ root.tagName = 'BODY';
 
 global.window = global;
 global.navigator = { clipboard: { writeText: function () {} } };
+global.marked = { parse: function (t) { return 'MD(' + t + ')'; } };
+global.DOMPurify = { sanitize: function (t) { return t; } };
+global.Prefs = { get: function () { return 'off'; } };
 
 // Load the actual module — it registers _updateReasoningButton, syncReasoningButtons, preserveOpenStates on window
 eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'messages', 'reasoning-utils.js'), 'utf8'));
@@ -137,6 +140,100 @@ function makeMessage(opts) {
     assert(created !== null, '_updateReasoningButton creates a button when reasoning exists');
     assert(created && !created.classList.contains('hidden'),
       '_updateReasoningButton reveals the created button');
+  })();
+  // 8. setReasoningOpen is the one writer of the block's open state.
+  (function () {
+    window.syncStreamingView = function () {};
+    window.refreshStickyReasoning = function () {};
+    window.ChatScroll = { unpin: function () {}, pin: function () {} };
+
+    function message(text) {
+      var msg = makeElement('div');
+      msg.dataset.ui = 'message';
+      var block = makeElement('div');
+      block.dataset.ui = 'reasoning-block';
+      var content = makeElement('div');
+      content.dataset.ui = 'reasoning-content';
+      content.classList.add('hidden');
+      content.textContent = text;
+      block.appendChild(content);
+      msg.appendChild(block);
+      return { msg: msg, content: content };
+    }
+
+    var pins = 0;
+    window.ChatScroll = { unpin: function () {}, pin: function () { pins++; }, pinned: function () { return true; } };
+
+    var m = message('thought so far');
+    window.setReasoningOpen(m.msg, true);
+    assert(m.msg.classList.contains('reasoning-open'), 'opening marks the message open');
+    assert(!m.content.classList.contains('hidden'), 'opening unhides the body');
+    assertEqual(m.content.innerHTML, 'MD(thought so far)', 'opening renders the reasoning as markdown');
+
+    window.setReasoningOpen(m.msg, false);
+    assert(!m.msg.classList.contains('reasoning-open'), 'closing clears the message flag');
+    assert(m.content.classList.contains('hidden'), 'closing hides the body');
+
+    window.setReasoningOpen(m.msg, true);
+    assertEqual(m.content.innerHTML, 'MD(thought so far)', 'a block already rendered is not re-parsed');
+    assertEqual(pins, 2, 'opening a block pins a reader parked at the bottom');
+
+    window.ChatScroll.pinned = function () { return false; };
+    window.setReasoningOpen(m.msg, true);
+    assertEqual(pins, 2, 'a reader who scrolled away is left alone');
+    window.ChatScroll.pinned = function () { return true; };
+
+    assertEqual(window.reasoningOpensOnStream(), false, 'folded: the block is not opened on its own');
+    Prefs.get = function (key) { return key === 'reasoning_open' ? 'stream' : 'off'; };
+    assertEqual(window.reasoningOpensOnStream(), true, 'open live: the streamed block opens');
+    assertEqual(window.reasoningStaysOpen(), false, 'open live: it folds once the reply ends');
+    Prefs.get = function (key) { return key === 'reasoning_open' ? 'keep' : 'off'; };
+    assertEqual(window.reasoningStaysOpen(), true, 'stay open: the refreshed node is re-opened');
+    Prefs.get = function () { return 'off'; };
+    delete window.ChatScroll;
+  })();
+
+  // 9. Unfolding the live reply is left to the scroll observer; unfolding an
+  //    older turn tells the reader's scroll position to stop following.
+  (function () {
+    window.syncStreamingView = function () {};
+    window.refreshStickyReasoning = function () {};
+
+    var unpins = 0;
+    window.ChatScroll = { unpin: function () { unpins++; }, pin: function () {}, pinned: function () { return true; } };
+
+    function liveMessage() {
+      var msg = makeElement('div');
+      msg.dataset.ui = 'message';
+      var block = makeElement('div');
+      block.dataset.ui = 'reasoning-block';
+      var content = makeElement('div');
+      content.dataset.ui = 'reasoning-content';
+      content.classList.add('processed', 'hidden');
+      block.appendChild(content);
+      msg.appendChild(block);
+      var btn = makeElement('button');
+      btn.dataset.ui = 'reasoning-toggle-btn';
+      msg.appendChild(btn);
+      return { msg: msg, btn: btn };
+    }
+
+    var list = makeElement('div');
+    var older = liveMessage();
+    var live = liveMessage();
+    list.appendChild(older.msg);
+    list.appendChild(live.msg);
+
+    window.toggleReasoning(live.btn);
+    assertEqual(unpins, 0, 'unfolding the live turn leaves following to the observable growth');
+
+    window.toggleReasoning(older.btn);
+    assertEqual(unpins, 1, 'unfolding an older turn stops the view from following');
+
+    window.toggleReasoning(live.btn);       // closing it again is not a reader move
+    assertEqual(unpins, 1, 'closing a block never moves the view');
+
+    delete window.ChatScroll;
   })();
 })();
 

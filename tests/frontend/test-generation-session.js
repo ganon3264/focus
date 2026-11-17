@@ -17,6 +17,9 @@ function assert(cond, msg) {
   if (cond) { console.log('  ok   ' + msg); }
   else { failed++; console.error('  FAIL ' + msg); }
 }
+function assertEqual(actual, expected, msg) {
+  assert(actual === expected, msg + ' (expected ' + JSON.stringify(expected) + ', got ' + JSON.stringify(actual) + ')');
+}
 
 var ROOT = path.join(__dirname, '..', '..');
 var MODULES = [
@@ -45,9 +48,6 @@ function makeEnv() {
   var doc = h.createMockDocument();
   var messageList = h.makeElement('div');
   messageList.id = 'message-list';
-  var sentinel = h.makeElement('div');
-  sentinel.id = 'scroll-sentinel';
-  messageList.appendChild(sentinel);
   doc.body.appendChild(messageList);
 
   var env = {
@@ -57,6 +57,7 @@ function makeEnv() {
     listFetches: [],
     infoHides: 0,
     retryHides: 0,
+    events: [],
   };
 
   var sandbox = {
@@ -106,8 +107,9 @@ function makeEnv() {
     setGeneratingUI: function (on) { env.generatingUI.push(on); },
     clearStaleContent: function () {},
     uploadStagedAttachments: function () { return Promise.resolve([]); },
-    syncStreamingView: function () {},
+    syncStreamingView: function () { env.events.push('sync'); },
     hideMessagePending: function (div) {
+      env.events.push('hide');
       var nodes = div.querySelectorAll('[data-ui="message-pending"]');
       for (var i = 0; i < nodes.length; i++) nodes[i].remove();
     },
@@ -137,7 +139,6 @@ function makeEnv() {
       tool_calls: function () { return h.makeElement('div'); },
     },
     updateToolCallCard: function () {},
-    scrollSentinel: sentinel,
   };
   sandbox.window = sandbox;
   var _listeners = {};
@@ -346,6 +347,43 @@ test('buffered stream shows retry feedback and renders the replayed full text', 
     }), 'buffered mode renders the replayed full text');
     assert(!env.Generation.isActive(), 'buffered session is idle afterwards');
   });
+});
+
+test('buffered reply brings its body on screen before the run ends', function () {
+  var env = makeEnv();
+  return drive(env, [
+    { data: { type: 'start', message_id: 'm1', user_message_id: 'u1' } },
+    // Buffered mode: the whole reply arrives as one token in the same tick as done.
+    { data: { type: 'token', text: 'Complete reply' } },
+    { data: { type: 'done', message_id: 'm1' } },
+  ]).then(function () {
+    var hide = env.events.lastIndexOf('hide');
+    var sync = env.events.lastIndexOf('sync');
+    assert(sync >= 0 && hide > sync,
+      'the body is unhidden before the pending rail is torn down');
+  });
+});
+
+test('the reasoning preference opens the live block once, not on every token', function () {
+  var env = makeEnv();
+  var asst = newAssistant('streaming-message');
+  env.messageList.appendChild(asst);
+  var opened = [];
+  env.sandbox.reasoningOpensOnStream = function () { return true; };
+  env.sandbox.setReasoningOpen = function (node, open) { opened.push(open); };
+
+  var state = new env.sandbox.StreamState('chat-1', asst, false, null, null);
+  env.sandbox.dispatchStreamEvent(state, { type: 'reasoning', text: 'a' });
+  env.sandbox.dispatchStreamEvent(state, { type: 'reasoning', text: 'b' });
+  assertEqual(opened.length, 1, 'the block is opened when it appears, not per token');
+  assertEqual(opened[0], true, 'it is opened, not folded');
+
+  env.sandbox.reasoningOpensOnStream = function () { return false; };
+  var other = newAssistant('streaming-message-2');
+  env.messageList.appendChild(other);
+  var second = new env.sandbox.StreamState('chat-1', other, false, null, null);
+  env.sandbox.dispatchStreamEvent(second, { type: 'reasoning', text: 'a' });
+  assertEqual(opened.length, 1, 'a folded preference never opens it');
 });
 
 test('switching provider cancels the running generation', function () {

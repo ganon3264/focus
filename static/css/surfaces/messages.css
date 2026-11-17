@@ -12,8 +12,8 @@
   align-items: center;
   overflow-y: auto;
   scroll-behavior: smooth;
-  -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 6rem), transparent 100%);
-  mask-image: linear-gradient(to bottom, black calc(100% - 6rem), transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black calc(100% - var(--chat-headroom)), transparent 100%);
+  mask-image: linear-gradient(to bottom, black calc(100% - var(--chat-headroom)), transparent 100%);
 }
 
 .message-list {
@@ -23,7 +23,7 @@
   width: 100%;
   max-width: var(--chat-content-width);
   padding-top: var(--inset);
-  padding-bottom: calc(var(--u) * 24);
+  padding-bottom: var(--chat-headroom);
 }
 
 #message-list {

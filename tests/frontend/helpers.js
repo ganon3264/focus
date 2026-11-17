@@ -545,6 +545,21 @@ function createMockIntersectionObserver() {
   return Ctor;
 }
 
+function createMockResizeObserver() {
+  var instances = [];
+  var Ctor = function (callback) {
+    this._callback = callback;
+    this._elements = [];
+    instances.push(this);
+  };
+  Ctor.prototype.observe = function (el) { this._elements.push(el); };
+  Ctor.prototype.unobserve = function () {};
+  Ctor.prototype.disconnect = function () {};
+  Ctor.prototype._trigger = function () { this._callback([], this); };
+  Ctor._instances = instances;
+  return Ctor;
+}
+
 // ── Mock AbortController ──
 
 function createMockAbortController() {
@@ -653,6 +668,7 @@ module.exports = {
   createMockFormData: createMockFormData,
   createMockForm: createMockForm,
   createMockIntersectionObserver: createMockIntersectionObserver,
+  createMockResizeObserver: createMockResizeObserver,
   createMockAbortController: createMockAbortController,
   parseHtmlTree: parseHtmlTree,
   installTemplates: installTemplates,

@@ -135,6 +135,11 @@
      same line. */
   --bottom-clearance: calc(var(--u) * 8);
 
+  /* Air the chat keeps under its last turn: the list's own bottom padding, and
+     the depth of the fade that hands the content to the composer. One number for
+     both — the pinned scroll position shows exactly this much below the reply. */
+  --chat-headroom: calc(var(--u) * 24);
+
   /* Prose type: the message body and its two satellites, each a size/leading
      pair so the whole prose scope moves together. Headings ride the body size as
      ratios (11/7, 9/7, 8/7 -> 22/18/16 at the 14px body). Chrome is not here:

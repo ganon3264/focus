@@ -61,21 +61,53 @@
   }
   window.preserveOpenStates = preserveOpenStates;
 
+  // The one writer of the first (headless) block's open state: the class on the
+  // message drives the rail toggle and the sticky pill, the `hidden` class on the
+  // body drives the layout (a folded headless block is display:none).
+  window.setReasoningOpen = function (msg, open) {
+    const block = msg.querySelector('[data-ui="reasoning-block"]:not(details)');
+    if (!block) return;
+    const content = block.querySelector('[data-ui~="reasoning-content"]');
+    if (open && content && !content.classList.contains('processed')) {
+      content.innerHTML = DOMPurify.sanitize(marked.parse(content.textContent || '', { breaks: true }));
+      content.classList.add('processed');
+    }
+    if (content) content.classList.toggle('hidden', !open);
+    msg.classList.toggle('reasoning-open', open);
+    if (window.syncStreamingView) window.syncStreamingView(msg);
+    if (window.refreshStickyReasoning) window.refreshStickyReasoning();
+    // Opening grows the turn, so a reader parked at the bottom stays there. The
+    // resize observer usually does this, but the post-stream swap folds the
+    // server node and reopens it inside one task: the list's height nets out to
+    // nothing, no resize is reported — while the folded layout it passed through
+    // already clamped the scroll. Pin here for that case.
+    if (open && window.ChatScroll && window.ChatScroll.pinned()) window.ChatScroll.pin();
+  };
+
+  // The `reasoning_open` preference, read where the state is decided: `off`
+  // leaves the block folded, `stream` unfolds it as it arrives, `keep` also
+  // leaves it unfolded once the reply is a real message.
+  window.reasoningOpensOnStream = function () {
+    return !!(window.Prefs && window.Prefs.get('reasoning_open') !== 'off');
+  };
+  window.reasoningStaysOpen = function () {
+    return !!(window.Prefs && window.Prefs.get('reasoning_open') === 'keep');
+  };
+
   window.toggleReasoning = function (btn) {
     const msg = btn.closest('[data-ui="message"]');
     if (!msg) return;
     const block = msg.querySelector('[data-ui="reasoning-block"]:not(details)');
     if (!block) return;
-    const content = block.querySelector('[data-ui~="reasoning-content"]');
     const isOpen = !msg.classList.contains('reasoning-open');
-    if (isOpen && content && !content.classList.contains('processed')) {
-      content.innerHTML = DOMPurify.sanitize(marked.parse(content.textContent || '', { breaks: true }));
-      content.classList.add('processed');
-    }
-    if (content) content.classList.toggle('hidden', !isOpen);
-    msg.classList.toggle('reasoning-open', isOpen);
-    if (window.syncStreamingView) window.syncStreamingView(msg);
-    if (window.refreshStickyReasoning) window.refreshStickyReasoning();
+    const live = msg.parentNode ? msg.parentNode.querySelectorAll('[data-ui="message"]') : [];
+    const isLast = live.length > 0 && live[live.length - 1] === msg;
+    // Unfolding the live turn is growth like any other, so the pin follows it on
+    // its own. Unfolding an older turn is the reader settling in to read it: that
+    // growth is above the viewport, and following it would drag them off the
+    // block they just opened.
+    if (isOpen && !isLast && window.ChatScroll) window.ChatScroll.unpin();
+    window.setReasoningOpen(msg, isOpen);
   };
 
   // Floating twin for the first reasoning block: the meta-row toggle keeps its

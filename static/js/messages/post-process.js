@@ -29,6 +29,6 @@
     }
     if (typeof updateSendButtonState === 'function') updateSendButtonState();
     if (typeof updateContinueButtons === 'function') updateContinueButtons();
-    window.ensureSentinelAndObserver();
+    if (window.ChatScroll) window.ChatScroll.init();
   };
 })();

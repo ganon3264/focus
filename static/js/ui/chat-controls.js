@@ -14,7 +14,7 @@
       dataList ? dataList.getAttribute('data-char-name') : 'Assistant',
       dataList ? dataList.getAttribute('data-char-image') : '',
     );
-    messageList.insertBefore(asstDiv, window.scrollSentinel);
+    messageList.appendChild(asstDiv);
     return asstDiv;
   }
 
@@ -44,7 +44,7 @@
       var personaAvatar = dataList ? dataList.getAttribute('data-persona-avatar') : '';
 
       var userDiv = window.buildUserMessageDiv(text, personaName, personaAvatar, window.stagedFiles);
-      messageList.insertBefore(userDiv, window.scrollSentinel);
+      messageList.appendChild(userDiv);
     }
 
     var asstDiv = buildSkeleton();

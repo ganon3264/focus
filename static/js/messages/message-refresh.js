@@ -19,10 +19,10 @@
   }
 
   // Reorder the container's message nodes to match *orderedIds* (the server's
-  // position order): reuse live nodes, insert missing ones via *createNode*,
-  // drop nodes the server no longer has, and keep the sentinel last. Returns
-  // the freshly inserted nodes so the caller can post-process them.
-  function _reconcileOrder(container, orderedIds, dataDiv, sentinel, getNode, createNode) {
+  // position order): reuse live nodes, insert missing ones via *createNode*, and
+  // drop nodes the server no longer has. Returns the freshly inserted nodes so
+  // the caller can post-process them.
+  function _reconcileOrder(container, orderedIds, dataDiv, getNode, createNode) {
     var inserted = [];
     var cursor = dataDiv ? dataDiv.nextElementSibling : container.firstElementChild;
 
@@ -55,9 +55,6 @@
       }
     }
 
-    if (sentinel && container.children[container.children.length - 1] !== sentinel) {
-      container.appendChild(sentinel);
-    }
     return inserted;
   }
   window._reconcileOrder = _reconcileOrder;
@@ -107,7 +104,6 @@
       container,
       orderedIds,
       container.querySelector('#message-list-data'),
-      container.querySelector('#scroll-sentinel'),
       function (id) { return _findLiveNode(container, id); },
       function (id) { return doc.getElementById(id); },
     );
@@ -124,13 +120,26 @@
   }
   window.refreshMessageList = refreshMessageList;
 
+  function _isReasoningOpen(id) {
+    var node = MessageIdentity.node(id);
+    return !!(node && node.classList.contains('reasoning-open'));
+  }
+
   async function refreshMessagesAfterStream(chatId, userMsgId, asstMsgId) {
     var ids = [userMsgId, asstMsgId].filter(Boolean);
     if (!ids.length) return refreshMessageList(chatId, null);
+    // The replacement is server-rendered folded (a fresh node starts collapsed by
+    // design). A reply leaving the wire is the one case where the open state is
+    // the reader's live view rather than history, so `reasoning_open: keep`
+    // carries it across the swap.
+    var reopen = asstMsgId && window.reasoningStaysOpen && window.reasoningStaysOpen()
+      && _isReasoningOpen(asstMsgId);
     // Appending a turn takes `is_latest` off the message above it, and that flag
     // owns the regenerate/continue keys — so the previous node is stale too.
     var previous = _previousMessageId(ids);
     await refreshMessageList(chatId, previous ? ids.concat(previous) : ids);
+    var fresh = reopen ? MessageIdentity.node(asstMsgId) : null;
+    if (fresh && window.setReasoningOpen) window.setReasoningOpen(fresh, true);
   }
   window.refreshMessagesAfterStream = refreshMessagesAfterStream;
 

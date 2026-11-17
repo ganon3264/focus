@@ -1,123 +1,192 @@
-// Unit tests for scroll-manager.js — auto-scroll via IntersectionObserver
+// Unit tests for scroll-manager.js — the chat's pinned-bottom state machine.
+// The module owns one measurement (distance from the bottom) and one action
+// (pin), so a scenario is just: set the scroller's geometry, fire the trigger
+// that the browser would fire (resize observer / scroll), read the result.
 var h = require('./helpers.js');
 var assert = h.assert, assertEqual = h.assertEqual;
 
 var path = require('path');
 var fs = require('fs');
 
-// Build a minimal DOM for scroll-manager
-var sentinel = h.makeElement('div');
-sentinel.id = 'scroll-sentinel';
+var SRC = fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'ui', 'scroll-manager.js'), 'utf8');
 
-var messageList = h.makeElement('div');
-messageList.id = 'message-list';
-messageList.appendChild(sentinel);
+// ── DOM: a scroller with a list inside it ──
+var list = h.makeElement('div');
+list.id = 'message-list';
 
-var chatCenter = h.makeElement('div');
-chatCenter.className = 'chat-center';
-chatCenter.dataset.ui = 'chat-center';
-chatCenter.id = 'chat-center';
-chatCenter.appendChild(messageList);
+var scroller = h.makeElement('div');
+scroller.className = 'chat-center';
+scroller.dataset.ui = 'chat-center';
+scroller.appendChild(list);
 
 var doc = h.createMockDocument();
-doc._body.appendChild(chatCenter);
+doc._body.appendChild(scroller);
 doc.getElementById = function (id) {
-  if (id === 'scroll-sentinel') return sentinel;
-  if (id === 'message-list') return messageList;
-  return null;
+  return id === 'message-list' ? list : null;
 };
 doc.querySelector = function (sel) {
-  if (sel === '[data-ui="chat-center"]') return chatCenter;
-  if (sel === '#message-list') return messageList;
-  return null;
+  return sel === '[data-ui="chat-center"]' ? scroller : null;
+};
+
+// ── Scroller geometry ──
+scroller.scrollTop = 0;
+scroller.clientHeight = 800;
+scroller.scrollHeight = 800;
+var pins = [];
+scroller.scrollTo = function (opts) {
+  pins.push(opts.top);
+  // Like a browser: the offset clamps to the scrollable range.
+  scroller.scrollTop = Math.max(0, Math.min(opts.top, scroller.scrollHeight - scroller.clientHeight));
+};
+var scrollHandler = null;
+scroller.addEventListener = function (name, fn) {
+  if (name === 'scroll') scrollHandler = fn;
 };
 
 global.document = doc;
 global.window = global;
-global.performance = { getEntriesByType: function () { return [{ type: 'navigate' }]; } };
-global.requestAnimationFrame = function (fn) { fn(); };
+global.location = { search: '' };
+global.URLSearchParams = URLSearchParams;
+global.Prefs = { get: function () { return 'pinned'; } };
 
-// IntersectionObserver mock
-var MockIO = h.createMockIntersectionObserver();
-global.IntersectionObserver = MockIO;
+var MockRO = h.createMockResizeObserver();
+global.ResizeObserver = MockRO;
 
-// Load module (sets window.autoScroll=true, window.scrollSentinel=null initially)
-eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'ui', 'scroll-manager.js'), 'utf8'));
+function load() {
+  // A fresh module instance: the one-shot landing flag must start over.
+  eval(SRC);
+  window.ChatScroll.init();
+  var instances = MockRO._instances;
+  return instances[instances.length - 1];
+}
 
-// ── autoScroll initial value ──
+// Grows the content by `delta` px, exactly as a rendered token would.
+function grow(observer, delta) {
+  scroller.scrollHeight += delta;
+  observer._trigger();
+}
+
+// ── the first layout pass lands at the bottom ──
 (function () {
-  assertEqual(window.autoScroll, true, 'autoScroll initial true');
+  var obs = load();
+  assert(!!obs, 'init observes the message list');
+  pins.length = 0;
+  scroller.scrollHeight = 2000;
+  obs._trigger();
+  assertEqual(pins.length, 1, 'the first layout pass pins');
+  assertEqual(scroller.scrollTop, 1200, 'the landing scroll goes to the true bottom');
+  assertEqual(window.ChatScroll.pinned(), true, 'the reader is pinned after landing');
+  assertEqual(window.ChatScroll.distance(), 0, 'distance reads zero at the pin');
 })();
 
-// ── ensureSentinelAndObserver creates sentinel if missing ──
+// ── growth while pinned keeps the bottom on screen ──
 (function () {
-  document.getElementById('scroll-sentinel').remove();
-  window.ensureSentinelAndObserver();
-  var newSentinel = document.getElementById('scroll-sentinel');
-  assert(!!newSentinel, 'ensureSentinelAndObserver creates sentinel if missing');
-  // Re-add for other tests
-  var s = h.makeElement('div');
-  s.id = 'scroll-sentinel';
-  messageList.appendChild(s);
+  var obs = MockRO._instances[MockRO._instances.length - 1];
+  pins.length = 0;
+  grow(obs, 120);
+  assertEqual(pins.length, 1, 'a grown reply is followed');
+  assertEqual(scroller.scrollTop, 1320, 'the follow scroll lands on the new bottom');
 })();
 
-// ── ensureSentinelAndObserver repositions sentinel as last child ──
+// ── the reader scrolls away: growth must not chase them ──
 (function () {
-  // Add a child after sentinel to force reposition
-  var extra = h.makeElement('div');
-  messageList.appendChild(extra);
-  window.ensureSentinelAndObserver();
-  var listChildren = messageList.children;
-  var last = listChildren[listChildren.length - 1];
-  assertEqual(last && last.id, 'scroll-sentinel', 'sentinel repositioned as last child');
-  extra.remove();
+  var obs = MockRO._instances[MockRO._instances.length - 1];
+  scroller.scrollTop = 800;      // wheeled up 520px
+  scrollHandler();
+  assertEqual(window.ChatScroll.pinned(), false, 'scrolling off the bottom unpins');
+
+  pins.length = 0;
+  grow(obs, 120);
+  assertEqual(pins.length, 0, 'growth does not chase a reader who scrolled away');
+  assertEqual(scroller.scrollTop, 800, 'their scroll position is untouched');
 })();
 
-// ── IntersectionObserver is created ──
+// ── coming back to the bottom re-pins ──
 (function () {
-  var prevLen = MockIO._instances.length;
-  window.ensureSentinelAndObserver();
-  assert(MockIO._instances.length >= 1, 'IntersectionObserver created');
+  var obs = MockRO._instances[MockRO._instances.length - 1];
+  scroller.scrollTop = scroller.scrollHeight - scroller.clientHeight;
+  scrollHandler();
+  assertEqual(window.ChatScroll.pinned(), true, 'scrolling back to the bottom pins again');
+
+  pins.length = 0;
+  grow(obs, 60);
+  assertEqual(pins.length, 1, 'following resumes once the reader is back at the bottom');
 })();
 
-// ── autoScroll toggled by IntersectionObserver callback ──
+// ── `always` follows from anywhere ──
 (function () {
-  window.ensureSentinelAndObserver();
-  var obs = MockIO._instances[MockIO._instances.length - 1];
-  obs && obs._trigger([{ isIntersecting: true, target: sentinel }]);
-  assertEqual(window.autoScroll, true, 'autoScroll set to true when sentinel visible');
+  var obs = MockRO._instances[MockRO._instances.length - 1];
+  window.ChatScroll.unpin();
+  Prefs.get = function () { return 'always'; };
+  pins.length = 0;
+  grow(obs, 60);
+  assertEqual(pins.length, 1, 'always: growth pins even after the reader scrolled away');
 
-  obs._trigger([{ isIntersecting: false, target: sentinel }]);
-  assertEqual(window.autoScroll, false, 'autoScroll set to false when sentinel leaves viewport');
+  Prefs.get = function () { return 'pinned'; };
+  scroller.scrollTop = scroller.scrollHeight - scroller.clientHeight;
+  scrollHandler();
 })();
 
-// ── follow-the-stream predicate ──
+// ── `disabled` never moves the view ──
 (function () {
-  window.autoScroll = false;
-  assertEqual(window.streamFollows(false), false, 'pinned: nothing rendered, nothing to follow');
-  window.autoScroll = true;
-  assertEqual(window.streamFollows(true), true, 'pinned: follows a rendered segment at the bottom');
-  window.autoScroll = false;
-  assertEqual(window.streamFollows(true), false, 'pinned: holds still when the reader scrolled away');
+  var obs = MockRO._instances[MockRO._instances.length - 1];
+  scroller.scrollTop = scroller.scrollHeight - scroller.clientHeight;
+  scrollHandler();                      // at the bottom, but the reader opted out
+  Prefs.get = function () { return 'disabled'; };
+  pins.length = 0;
+  grow(obs, 60);
+  assertEqual(pins.length, 0, 'disabled: growth is never followed, even at the bottom');
 
-  global.Prefs = { get: function () { return 'always'; } };
-  assertEqual(window.streamFollows(false), true, 'always: follows even with no text segment');
-  assertEqual(window.streamFollows(true), true, 'always: follows from anywhere');
-  delete global.Prefs;
-  window.autoScroll = true;
+  Prefs.get = function () { return 'pinned'; };
 })();
 
-// ── ensureSentinelAndObserver is safe when message-list missing ──
+// ── unpin() is the reader declaring they are done following ──
 (function () {
-  var ml = document.getElementById('message-list');
-  ml.remove();
+  var obs = MockRO._instances[MockRO._instances.length - 1];
+  window.ChatScroll.unpin();
+  pins.length = 0;
+  grow(obs, 60);
+  assertEqual(pins.length, 0, 'unpin() stops following even while the reader is at the bottom');
+})();
+
+// ── a search hit owns the landing position ──
+(function () {
+  location.search = '?at=msg-1';
+  pins.length = 0;
+  scroller.scrollHeight = 3000;
+  scroller.scrollTop = 0;
+  scroller.clientHeight = 800;
+  var obs = load();
+  obs._trigger();
+  assertEqual(pins.length, 0, 'the landing pass stands down when a hit is in the URL');
+  assertEqual(window.ChatScroll.pinned(), false, 'the hit position is not a bottom');
+  location.search = '';
+  window.ChatScroll.pin();
+})();
+
+// ── a scroller without scrollTo still pins ──
+(function () {
+  var saved = scroller.scrollTo;
+  delete scroller.scrollTo;
+  scroller.scrollTop = 0;
+  window.ChatScroll.pin();
+  assertEqual(scroller.scrollTop, scroller.scrollHeight, 'pin falls back to scrollTop (the browser clamps it)');
+  scroller.scrollTo = saved;
+})();
+
+// ── the module is safe before init / without a chat ──
+(function () {
+  var noDom = h.createMockDocument();
+  global.document = noDom;
   try {
-    window.ensureSentinelAndObserver();
-    assert(true, 'ensureSentinelAndObserver with no message-list does not throw');
+    window.ChatScroll.init();
+    window.ChatScroll.pin();
+    window.ChatScroll.unpin();
+    assert(Number.isFinite(window.ChatScroll.distance()), 'distance stays a number with no chat');
+    assert(true, 'init/pin are no-ops on a page with no chat');
   } catch (e) {
     assert(false, 'unexpected throw: ' + e.message);
   }
-  messageList.remove = function () { messageList.parent = null; };
 })();
 
 // ── Result ──

@@ -101,7 +101,7 @@
     if (!node) {
       // The scroll manager stood down for this URL, so a hit that is gone must
       // still put the view somewhere sensible.
-      if (window.scrollSentinel) window.scrollSentinel.scrollIntoView({ block: 'end' });
+      if (window.ChatScroll) window.ChatScroll.pin();
       return;
     }
     node.scrollIntoView({ block: 'center', behavior: 'instant' });

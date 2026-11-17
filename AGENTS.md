@@ -104,7 +104,7 @@ The pruner's `_pruned` map is keyed by bare id (`MessageIdentity.bare`); `_forge
 - `Prefs.get` / `set(patch)` / `reset()` is the only client API. `set` applies optimistically (the width follows the drag), PUTs the patch, adopts the server's normalized answer, rolls back and toasts on failure. `prefs-changed` fires once per settled key — after the answer, not on the optimistic apply — with `{key, value, all}`; consumers listen rather than polling `Prefs`.
 - The Preferences tab (`partials/modals/prefs.html`) is a banded chassis (`modal-band-head` · lane · `modal-band-foot`) server-rendered from the stored values, so there is no Save verb: chips, the prune switch and the width row all carry `data-action="actionSetPref"` + `data-pref` (and `data-value`, or `data-toggle` for a switch). Width is the `slider_row` pattern from the sampler — a range plus a `.field.sm.num` pixel field bound to the same key: `input` previews the CSS var and mirrors the twin, `change` commits, and `syncForm` re-renders every `[data-pref]` control in the tab from state.
 - The only foot verb is **Restore Defaults**: `actionResetPrefs` asks the shared confirm modal first, then calls `Prefs.reset()`. Defaults are defined once, server-side: `DELETE /api/settings/prefs` drops the blob and answers with `normalize(None)`, the client adopts that answer, and `syncForm` walks every `[data-pref]` control in the tab to re-render it. A new preference therefore needs a default and a row — never a reset branch or a per-row sync.
-- Where each one lands: `send_key` in `ui/input-bar.js`'s Enter handler, `follow_stream` in `ui/scroll-manager.js`'s `streamFollows()` (read by `messages/stream-events.js`'s flush — `pinned` follows only a sentinel that is on screen, `always` chases the newest token from anywhere), `clock` in `utils/timestamp-formatter.js` (+ `html[data-clock='hidden'] [data-ui='ts-time']` in `surfaces/messages.css`; `prefs.js` sets the root attribute), `chat_width` as a `--chat-content-width` override on `:root`, `text_size` as `html[data-text-size]` selecting one of the three `--text-*`/`--leading-*` tier blocks in `variables.css` (the prose scope uses only those tokens; chrome keeps its own sizes), `prune_messages` as a bail-out in `messages/message-pruner.js` — turning it off calls `_unpruneAllMessages()` so skeletons on screen are restored immediately. `apply()` also re-measures on any geometry change (`chat_width` / `text_size`), because a pruned row stores the pixel height it had when it was skeletonised.
+- Where each one lands: `send_key` in `ui/input-bar.js`'s Enter handler, `follow_stream` read by `ui/scroll-manager.js`'s `ChatScroll` — `pinned` follows the bottom only while the reader is still there, `always` chases the newest line from anywhere, `disabled` never moves the view, `reasoning_open` in `messages/reasoning-utils.js` — `setReasoningOpen` is the one writer of the first block's open state (message class + body `hidden`, and it pins a reader who is at the bottom: the post-stream swap folds the server node and reopens it inside one task, so the list's height nets out to no resize and the observer never fires), `reasoningOpensOnStream()` opens the live block **once**, when it appears (`stream-events.js`), so a mid-stream fold by the reader stays folded, and `reasoningStaysOpen()` makes `refreshMessagesAfterStream` re-open it on the server node that replaces the streaming one (`keep`; a fresh node is server-rendered folded by design), `clock` in `utils/timestamp-formatter.js` (+ `html[data-clock='hidden'] [data-ui='ts-time']` in `surfaces/messages.css`; `prefs.js` sets the root attribute), `chat_width` as a `--chat-content-width` override on `:root`, `text_size` as `html[data-text-size]` selecting one of the three `--text-*`/`--leading-*` tier blocks in `variables.css` (the prose scope uses only those tokens; chrome keeps its own sizes), `prune_messages` as a bail-out in `messages/message-pruner.js` — turning it off calls `_unpruneAllMessages()` so skeletons on screen are restored immediately. `apply()` also re-measures on any geometry change (`chat_width` / `text_size`), because a pruned row stores the pixel height it had when it was skeletonised.
 - Display/input only on purpose: anything that changes what reaches a provider belongs to the chat (sampler) or the preset, never here.
 
 ### Character editor + custom blocks
@@ -220,10 +220,30 @@ types log a warning, never vanish silently.
   `dispatchStreamEvent()`. Handlers record outcomes on the state object
   (`state.done`, `state.errorMsg`) — they never throw.
 - Token renders are rAF-coalesced (one markdown pass per frame, trailing
-  edge); `finalizeStreamRender()` force-flushes before the post-stream refresh.
-  Both passes pin the view through `followStreamScroll()` — the forced pass is
-  what scrolls a **buffered** reply, because its single `token` and `done` land
-  in the same tick and the pending frame is cancelled before it can scroll.
+  edge); `finalizeStreamRender()` force-flushes before the post-stream refresh,
+  and it unhides the body (`syncStreamingView`) on the way out: a **buffered**
+  reply's single `token` and `done` land in the same tick, so the frame that
+  would have shown the body is cancelled, and without that pass the reply stays
+  `display:none` until the server node replaces it.
+- **Scrolling is not the stream's business.** `ui/scroll-manager.js` is the only
+  owner of the chat's scroll position, as `window.ChatScroll`: one measurement
+  (`distance()` from the scroller's bottom), one action (`pin()`), and hence no
+  tolerance band — a pin and the predicate are inverses, so the steady state is
+  always pinned. `pinned()`/`unpin()` are the reader's side: a `scroll` listener
+  measures synchronously (observer delivery can lag a frame behind the wheel,
+  and a per-frame pin would otherwise put the bottom back before the reader's
+  own scroll was ever seen), and unfolding an *older* reasoning block calls
+  `unpin()` because that growth is above the viewport.
+- Following is driven by **layout, not by protocol events**: a `ResizeObserver`
+  on `#message-list` calls `onGrowth()` — every token render, unfolded reasoning
+  block, tool card, decoded image and re-inflated pruned row resizes the list, so
+  no SSE handler has to remember to scroll (`stream-events.js` contains no
+  scrolling at all). The first callback is the landing scroll; it stands down
+  when `?at=` names a search hit, which owns its own position. There is no
+  sentinel node and no `scrollIntoView` on the list: the pin sets the scroller to
+  its true bottom, which is what puts the `--chat-headroom` padding (the air
+  above the composer, and the depth of the bottom fade) on screen instead of
+  below the fold.
 - `message-builder.js`: segment builders for text/reasoning/tool_calls. Message
   chrome has exactly one markup source — the macros in `templates/macros.html`,
   rendered once into inert `<template>`s by `partials/chat/message-templates.html`.
@@ -232,7 +252,7 @@ types log a warning, never vanish silently.
   `test_message_template.py::test_message_templates_fixture_is_current`.
 - `generation-ui.js`: toggles send/stop buttons and `clearStaleContent()`. The pre-first-token pending state is markup-side (`message-builder.js`: `showMessagePending`/`hideMessagePending`) — the rail carries a spinner + readout while the empty body stays out of the layout. The ticker's phase (`is-waiting` → `is-reasoning` → `is-content`) changes both its hue (`--tick-color`) and its tempo (`--tick-rate`, applied as `playbackRate` by `applyTickRate` — a CSS duration change would restart the track instead of continuing it).
 - `message-refresh.js` owns the message-list DOM: `refreshMessageList(chatId, changedIds)` fetches the server partial and reconciles it in place (reorder / reuse / insert / drop), preserving scroll, open reasoning, and pruned stubs. `refreshMessagesAfterStream` and `refreshChatMessages` delegate to it; `refreshSingleMessage` is the cheap one-node path (swipe/edit) with a full-reconcile fallback. All partial fetches go through `hxFetch` so they share one serializer with `hxGet`/`hxPost`.
-- `post-process.js`: `processMessageList(container)` is the single post-render pass (markdown, reasoning, timestamps, delete-mode visibility, toolbar state, sentinel). The list reconciler calls it — `refreshMessageList` after every server swap and `refreshSingleMessage`'s node path — and the streaming path reaches it the same way, through the post-stream refresh. It is not an htmx event handler.
+- `post-process.js`: `processMessageList(container)` is the single post-render pass (markdown, reasoning, timestamps, delete-mode visibility, toolbar state, and re-arming `ChatScroll`). The list reconciler calls it — `refreshMessageList` after every server swap and `refreshSingleMessage`'s node path — and the streaming path reaches it the same way, through the post-stream refresh. It is not an htmx event handler.
 - Messages split into `text | reasoning | tool_boundary` segments (`segments_json` column). Use `preserveOpenStates()` not `innerHTML` for **in-place re-renders** (e.g. streaming segment updates) to keep reasoning toggles open; fresh nodes swapped in from the server start collapsed by design — do not preserve state across server swaps.
 - **Continue invariant:** the stream always delivers the complete text —
   providers with `echoes_prefill=True` resend the partial themselves, others
@@ -357,5 +377,5 @@ Colour follows the **verb on the label**, not the feature. One green create per 
 - **Scripts in htmx-swapped partials**: a `<script>` inside a partial executes on every swap. Moving it to the host page (e.g. `chat.html`) makes its top-level init run **once at page load** — before the swapped content exists. Replace swap-time init (`setTimeout`, querying freshly-rendered nodes) with an `htmx:afterSwap` hook keyed on the target id (`providers.js` → `#providers-modal-body-inner` is the reference case; `test-providers-modal-init.js` guards it).
 
 - **`x-show` needs `x-cloak`** — Alpine loads `defer`, so overlays using `x-show` without `x-cloak` flash visible during HTML parsing.
-- **`:last-of-type` isn't "last with this class"** — the scroll sentinel shares the same tag. Use `querySelectorAll('.message')` and take the last NodeList element.
+- **`:last-of-type` isn't "last with this class"** — `#message-list` carries sibling elements that share the message tag. Use `querySelectorAll('[data-ui="message"]')` and take the last NodeList element.
 - **Never htmx-swap `#message-list`** — the list is rendered by `refreshMessageList()`, which reconciles in place and calls `pruneMessages()` itself. `message-pruner.js` replaces off-screen messages with placeholders; check `window._isMessagePruned(id)` (or resolve through `MessageIdentity.placeholder`) before DOM ops. The streaming message is excluded. Culling stays on in delete mode: selection is an id set (`delete-mode.js` `selectedIds`), and `applyDeleteModeToNode(msg)` re-applies checkbox visibility/checked state when a row scrolls back in.

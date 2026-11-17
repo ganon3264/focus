@@ -22,12 +22,25 @@
         </span>
       </div>
       <div class="row setting labeled">
-        {{ row_label('Follow the stream', 'Where the view sits while a reply arrives. At the bottom follows only while you are already there; Always keeps the newest line on screen even after you scroll away.') }}
+        {{ row_label('Follow the stream', 'Where the view sits while a reply arrives. At the bottom follows only while you are already there; Always keeps the newest line on screen even after you scroll away; Never leaves the view exactly where you put it.') }}
         <span class="row-actions">
           <button type="button" class="chip{{ ' active' if prefs.follow_stream == 'pinned' }}"
             data-action="actionSetPref" data-pref="follow_stream" data-value="pinned">At the bottom</button>
           <button type="button" class="chip{{ ' active' if prefs.follow_stream == 'always' }}"
             data-action="actionSetPref" data-pref="follow_stream" data-value="always">Always</button>
+          <button type="button" class="chip{{ ' active' if prefs.follow_stream == 'disabled' }}"
+            data-action="actionSetPref" data-pref="follow_stream" data-value="disabled">Never</button>
+        </span>
+      </div>
+      <div class="row setting labeled">
+        {{ row_label('Reasoning blocks', 'What a reply\'s reasoning does while it streams. Folded keeps it behind the header toggle; Open live unfolds it as it arrives and folds it when the reply ends; Stay open leaves it unfolded afterwards too.') }}
+        <span class="row-actions">
+          <button type="button" class="chip{{ ' active' if prefs.reasoning_open == 'off' }}"
+            data-action="actionSetPref" data-pref="reasoning_open" data-value="off">Folded</button>
+          <button type="button" class="chip{{ ' active' if prefs.reasoning_open == 'stream' }}"
+            data-action="actionSetPref" data-pref="reasoning_open" data-value="stream">Open live</button>
+          <button type="button" class="chip{{ ' active' if prefs.reasoning_open == 'keep' }}"
+            data-action="actionSetPref" data-pref="reasoning_open" data-value="keep">Stay open</button>
         </span>
       </div>
       <div class="row setting labeled">

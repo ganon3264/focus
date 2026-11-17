@@ -82,15 +82,6 @@
     return length < 4000 ? 0 : Math.min(120, Math.floor(length / 400));
   }
 
-  // One place decides whether a render pass pins the view: the flush and the
-  // final forced pass both ask it, so a buffered reply (one token, then done)
-  // still lands on screen.
-  function followStreamScroll(rendered) {
-    if (window.scrollSentinel && window.streamFollows && window.streamFollows(rendered)) {
-      window.scrollSentinel.scrollIntoView({ block: 'end', behavior: 'instant' });
-    }
-  }
-
   function flushRenders(state) {
     _rafId = null;
     var firstRendered = null;
@@ -107,7 +98,6 @@
     }
     if (firstRendered && window._updateReasoningButton) window._updateReasoningButton(firstRendered);
     window.syncStreamingView(state.asstDiv);
-    followStreamScroll(firstRendered);
   }
 
   function scheduleFlush(state) {
@@ -211,6 +201,8 @@
   };
 
   HANDLERS.reasoning = function (state, data) {
+    var last = _lastSegment(state);
+    var fresh = !(last && last.type === 'reasoning');
     var seg = _findOrCreateSegment(state, 'reasoning', function () {
       var rcCount = 0;
       for (var i = 0; i < state.segments.length; i++) {
@@ -227,6 +219,13 @@
     var rc = seg.el.querySelector('[data-ui~="reasoning-content"]');
     if (rc) rc.textContent = seg.text;
     if (window._updateReasoningButton) window._updateReasoningButton(state.asstDiv);
+    // The preference decides the opening state once, when the block appears;
+    // from then on the reader's own fold is theirs (it is not re-opened on the
+    // next token). Only the headless first block has a header toggle to fold it
+    // with, so a later block is left alone.
+    if (fresh && seg.el.tagName !== 'DETAILS' && window.reasoningOpensOnStream && window.reasoningOpensOnStream()) {
+      window.setReasoningOpen(state.asstDiv, true);
+    }
   };
 
   // Only fields with stream_to_sse reach the wire; currently that's reasoning.
@@ -333,10 +332,14 @@
       }
       window._updateReasoningButton(firstText || state.asstDiv);
     }
+    // A buffered reply's single token lands in the same tick as `done`, so the
+    // frame that would have unhidden the body is cancelled above: the body is
+    // display:none while it has nothing to show, and only this pass can bring the
+    // reply on screen before the post-stream refresh replaces the node.
+    window.syncStreamingView(state.asstDiv);
     // Generation is over: the pending rail state must not depend on the post-stream
     // refresh finding this node (it does not, if the row has nothing stored).
     window.hideMessagePending(state.asstDiv);
     window.bindAssistantIdentity(state);
-    followStreamScroll(firstRendered);
   };
 })();

@@ -56,11 +56,7 @@ function makeContainer(ids) {
     map[id] = msg;
   });
 
-  var sentinel = h.makeElement('div');
-  sentinel.id = 'scroll-sentinel';
-  container.appendChild(sentinel);
-
-  return { container: container, data: data, sentinel: sentinel, map: map };
+  return { container: container, data: data, map: map };
 }
 
 function ids(container) {
@@ -77,13 +73,12 @@ var reconcile = sandbox.window._reconcileOrder;
     t.container,
     ['message-c', 'message-a', 'message-b'],
     t.data,
-    t.sentinel,
     function (id) { return t.map[id]; },
     function () { return null; },
   );
   assertEqual(
     ids(t.container),
-    'message-list-data,message-c,message-a,message-b,scroll-sentinel',
+    'message-list-data,message-c,message-a,message-b',
     'nodes are reordered to the server order',
   );
 })();
@@ -99,11 +94,10 @@ var reconcile = sandbox.window._reconcileOrder;
     t.container,
     ['message-a', 'message-b', 'message-c'],
     t.data,
-    t.sentinel,
     function (id) { return t.map[id]; },
     function (id) { return id === 'message-b' ? newB : null; },
   );
-  assertEqual(ids(t.container), 'message-list-data,message-a,message-b,message-c,scroll-sentinel',
+  assertEqual(ids(t.container), 'message-list-data,message-a,message-b,message-c',
     'missing node is inserted in position');
   assertEqual(inserted.length, 1, 'inserted nodes are returned for post-processing');
   check(inserted[0] === newB, 'returned node is the one that was inserted');
@@ -116,11 +110,10 @@ var reconcile = sandbox.window._reconcileOrder;
     t.container,
     ['message-a', 'message-c'],
     t.data,
-    t.sentinel,
     function (id) { return t.map[id]; },
     function () { return null; },
   );
-  assertEqual(ids(t.container), 'message-list-data,message-a,message-c,scroll-sentinel',
+  assertEqual(ids(t.container), 'message-list-data,message-a,message-c',
     'extra node is removed');
 })();
 
@@ -137,7 +130,6 @@ var reconcile = sandbox.window._reconcileOrder;
     t.container,
     ['message-a', 'message-b'],
     t.data,
-    t.sentinel,
     function (id) {
       if (id === 'message-b') {
         return t.container.querySelector('.message-placeholder[data-msg-id="b"]');
@@ -146,7 +138,7 @@ var reconcile = sandbox.window._reconcileOrder;
     },
     function () { return null; },
   );
-  assertEqual(ids(t.container), 'message-list-data,message-a,,scroll-sentinel',
+  assertEqual(ids(t.container), 'message-list-data,message-a,',
     'placeholder is kept in the right slot');
   check(t.container.children[2].getAttribute('data-ui') === 'message-placeholder',
     'kept node is still the placeholder');
@@ -164,28 +156,11 @@ var reconcile = sandbox.window._reconcileOrder;
     t.container,
     ['message-a'],
     t.data,
-    t.sentinel,
     function (id) { return t.map[id]; },
     function () { return null; },
   );
   assertEqual(t.container.querySelectorAll('[data-ui="message-placeholder"]').length, 0,
     'placeholder for a deleted message is removed');
-})();
-
-// 6. Sentinel is forced last
-(function () {
-  var t = makeContainer(['message-a', 'message-b']);
-  t.container.insertBefore(t.sentinel, t.map['message-b']);
-  reconcile(
-    t.container,
-    ['message-a', 'message-b'],
-    t.data,
-    t.sentinel,
-    function (id) { return t.map[id]; },
-    function () { return null; },
-  );
-  assertEqual(ids(t.container), 'message-list-data,message-a,message-b,scroll-sentinel',
-    'sentinel is moved back to the end');
 })();
 
 // 7. Full reconcile replaces live nodes (incl. the streaming skeleton) even
@@ -228,9 +203,6 @@ var reconcile = sandbox.window._reconcileOrder;
   container.appendChild(phFor('2'));
   var skeleton = msg('message-3');            // live streaming skeleton
   container.appendChild(skeleton);
-  var sentinel = styled('div');
-  sentinel.id = 'scroll-sentinel';
-  container.appendChild(sentinel);
   doc._body.appendChild(container);
 
   var server = { 1: msg('message-1'), 2: msg('message-2'), 3: msg('message-3'), 4: msg('message-4') };
@@ -243,6 +215,7 @@ var reconcile = sandbox.window._reconcileOrder;
 
   var processCalls = 0;
   var reapplyCalls = 0;
+  var reopened = [];
   var sandbox = {
     console: console,
     document: doc,
@@ -279,7 +252,6 @@ var reconcile = sandbox.window._reconcileOrder;
     check(doc.getElementById('message-3') !== skeleton, 'skeleton node is no longer attached');
     check(container.querySelectorAll('[data-ui="message-placeholder"]').length === 0, 'pruned placeholders replaced');
     check(doc.getElementById('message-4') === server[4], 'genuinely missing message is inserted');
-    check(container.children[container.children.length - 1] === sentinel, 'sentinel stays last');
     check(processCalls === 1, 'the single processing pass runs exactly once');
     check(reapplyCalls === 1, 'delete mode is re-applied by the renderer');
 
@@ -293,6 +265,26 @@ var reconcile = sandbox.window._reconcileOrder;
     check(doc.getElementById('message-3') === server[3], 'refreshChatMessages uses the reconcile renderer');
     check(processCalls === 1, 'full reload also runs exactly one processing pass');
     check(reapplyCalls === 1, 'full reload re-applies delete mode');
+
+    // `reasoning_open: keep` carries the live block's open state across the swap;
+    // a fresh node is server-rendered folded, so the reopen is the only thing
+    // that keeps it on screen.
+    sandbox.reasoningStaysOpen = function () { return false; };
+    sandbox.setReasoningOpen = function (node, open) { reopened.push(node.id + ':' + open); };
+
+    var liveNode = doc.getElementById('message-3');
+    liveNode.classList.add('reasoning-open');
+    return sandbox.window.refreshMessagesAfterStream('chat-1', null, '3').then(function () {
+      check(reopened.length === 0, 'a folded preference leaves the server node folded');
+
+      sandbox.reasoningStaysOpen = function () { return true; };
+      doc.getElementById('message-3').classList.add('reasoning-open');
+      return sandbox.window.refreshMessagesAfterStream('chat-1', null, '3');
+    });
+  }).then(function () {
+    check(reopened.length === 1 && reopened[0] === 'message-3:true',
+      'the open block is reopened on the node that replaced it');
+
     console.log('\n' + (failures === 0 ? 'all passed' : failures + ' failures'));
     process.exit(failures > 0 ? 1 : 0);
   }).catch(function (e) {

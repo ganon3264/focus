@@ -11,6 +11,7 @@ from __future__ import annotations
 DEFAULTS = {
     "send_key": "enter",
     "follow_stream": "pinned",
+    "reasoning_open": "off",
     "clock": "24h",
     "chat_width": 800,
     "text_size": "medium",
@@ -19,7 +20,8 @@ DEFAULTS = {
 
 CHOICES = {
     "send_key": ("enter", "ctrl_enter"),
-    "follow_stream": ("pinned", "always"),
+    "follow_stream": ("pinned", "always", "disabled"),
+    "reasoning_open": ("off", "stream", "keep"),
     "clock": ("24h", "12h", "hidden"),
     "text_size": ("small", "medium", "large"),
 }
