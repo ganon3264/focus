@@ -76,12 +76,12 @@
     msg.classList.toggle('reasoning-open', open);
     if (window.syncStreamingView) window.syncStreamingView(msg);
     if (window.refreshStickyReasoning) window.refreshStickyReasoning();
-    // Opening grows the turn, so a reader parked at the bottom stays there. The
-    // resize observer usually does this, but the post-stream swap folds the
-    // server node and reopens it inside one task: the list's height nets out to
-    // nothing, no resize is reported — while the folded layout it passed through
-    // already clamped the scroll. Pin here for that case.
-    if (open && window.ChatScroll && window.ChatScroll.pinned()) window.ChatScroll.pin();
+    // Opening grows the turn, so a reader following the stream stays at the
+    // bottom. The resize observer usually does this, but the post-stream swap
+    // folds the server node and reopens it inside one task: the list's height
+    // nets out to nothing, no resize is reported — while the folded layout it
+    // passed through already clamped the scroll. Pin here for that case.
+    if (open && window.ChatScroll && window.ChatScroll.follows()) window.ChatScroll.pin();
   };
 
   // The `reasoning_open` preference, read where the state is decided: `off`

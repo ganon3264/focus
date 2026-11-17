@@ -174,6 +174,66 @@ function grow(observer, delta) {
   scroller.scrollTo = saved;
 })();
 
+// ── follows() is the one predicate growth and block-opening both ask ──
+(function () {
+  load();
+  window.ChatScroll.pin();
+  Prefs.get = function () { return 'disabled'; };
+  assertEqual(window.ChatScroll.follows(), false, 'disabled: nothing is followed, even at the bottom');
+  Prefs.get = function () { return 'always'; };
+  window.ChatScroll.unpin();
+  assertEqual(window.ChatScroll.follows(), true, 'always: growth is followed from anywhere');
+  Prefs.get = function () { return 'pinned'; };
+  assertEqual(window.ChatScroll.follows(), false, 'pinned: false once the reader scrolled away');
+  window.ChatScroll.pin();
+  assertEqual(window.ChatScroll.follows(), true, 'pinned: true at the bottom');
+})();
+
+// ── init is idempotent, and re-arms on a replaced list node ──
+(function () {
+  var before = MockRO._instances.length;
+  window.ChatScroll.init();
+  assertEqual(MockRO._instances.length, before, 'init is a no-op while the nodes are unchanged');
+
+  var replacement = h.makeElement('div');
+  replacement.id = 'message-list';
+  var baseGetElement = doc.getElementById;
+  doc.getElementById = function (id) { return id === 'message-list' ? replacement : baseGetElement(id); };
+  window.ChatScroll.init();
+  var fresh = MockRO._instances[MockRO._instances.length - 1];
+  assertEqual(MockRO._instances.length, before + 1, 'a replaced list is observed by a fresh observer');
+  assert(fresh._elements[0] === replacement, 'the fresh observer watches the new list');
+
+  // The fresh list lands like a fresh page (the old geometry was someone else's).
+  pins.length = 0;
+  scroller.scrollHeight = 2000;
+  scroller.scrollTop = 0;
+  fresh._trigger();
+  assertEqual(pins.length, 1, 'the replacement list lands at the bottom');
+
+  doc.getElementById = baseGetElement;
+})();
+
+// ── no ResizeObserver, no throw (and no follow, but a usable pin) ──
+(function () {
+  var saved = global.ResizeObserver;
+  delete global.ResizeObserver;
+  var other = h.makeElement('div');
+  other.id = 'message-list';
+  var baseGetElement = doc.getElementById;
+  doc.getElementById = function (id) { return id === 'message-list' ? other : baseGetElement(id); };
+  try {
+    window.ChatScroll.init();
+    pins.length = 0;
+    window.ChatScroll.pin();
+    assertEqual(pins.length, 1, 'pin still works without a ResizeObserver');
+  } catch (e) {
+    assert(false, 'init must not throw without a ResizeObserver: ' + e.message);
+  }
+  doc.getElementById = baseGetElement;
+  global.ResizeObserver = saved;
+})();
+
 // ── the module is safe before init / without a chat ──
 (function () {
   var noDom = h.createMockDocument();

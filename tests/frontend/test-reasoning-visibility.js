@@ -162,7 +162,12 @@ function makeMessage(opts) {
     }
 
     var pins = 0;
-    window.ChatScroll = { unpin: function () {}, pin: function () { pins++; }, pinned: function () { return true; } };
+    window.ChatScroll = {
+      unpin: function () {},
+      pin: function () { pins++; },
+      pinned: function () { return true; },
+      follows: function () { return true; },
+    };
 
     var m = message('thought so far');
     window.setReasoningOpen(m.msg, true);
@@ -178,10 +183,14 @@ function makeMessage(opts) {
     assertEqual(m.content.innerHTML, 'MD(thought so far)', 'a block already rendered is not re-parsed');
     assertEqual(pins, 2, 'opening a block pins a reader parked at the bottom');
 
-    window.ChatScroll.pinned = function () { return false; };
+    // Not following is one gate: the reader scrolled away, or opted out of
+    // following entirely (`follow_stream: disabled`). Opening a block moves
+    // neither.
+    window.ChatScroll.follows = function () { return false; };
+    window.setReasoningOpen(m.msg, false);
     window.setReasoningOpen(m.msg, true);
-    assertEqual(pins, 2, 'a reader who scrolled away is left alone');
-    window.ChatScroll.pinned = function () { return true; };
+    assertEqual(pins, 2, 'opening a block leaves a reader who is not following alone');
+    window.ChatScroll.follows = function () { return true; };
 
     assertEqual(window.reasoningOpensOnStream(), false, 'folded: the block is not opened on its own');
     Prefs.get = function (key) { return key === 'reasoning_open' ? 'stream' : 'off'; };
@@ -200,7 +209,12 @@ function makeMessage(opts) {
     window.refreshStickyReasoning = function () {};
 
     var unpins = 0;
-    window.ChatScroll = { unpin: function () { unpins++; }, pin: function () {}, pinned: function () { return true; } };
+    window.ChatScroll = {
+      unpin: function () { unpins++; },
+      pin: function () {},
+      pinned: function () { return true; },
+      follows: function () { return true; },
+    };
 
     function liveMessage() {
       var msg = makeElement('div');
