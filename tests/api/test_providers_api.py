@@ -15,10 +15,17 @@ import pytest
 
 @pytest.fixture(autouse=True)
 def _clear_provider_caches():
+    import focus.providers.nanogpt as ng_mod
     import focus.providers.openrouter as or_mod
     import focus.routers.providers as p
 
-    for cache in (p._model_cache, or_mod._models_cache, p._balance_cache):
+    for cache in (
+        p._model_cache,
+        or_mod._models_cache,
+        ng_mod._models_cache,
+        ng_mod._providers_cache,
+        p._balance_cache,
+    ):
         cache._data.clear()
         cache._times.clear()
 
@@ -58,6 +65,7 @@ class TestFetchModels:
         assert [m["id"] for m in data] == ["a-model", "z-model"]
         assert data[0]["context_length"] == 8192
         assert data[0]["pricing"] == {"prompt": "0.1"}
+        assert data[0]["supported_service_tiers"] == [], "absent tiers mean default tier only"
 
     async def test_per_million_pricing_is_normalized_to_per_token(self, client, monkeypatch):
         def handler(request):
@@ -392,3 +400,35 @@ class TestModelModalities:
         provider = OpenRouterProvider(api_key="k", model="nope", params={})
         assert await provider.supported_modalities("nope") is None
         assert await provider.supported_parameters("nope") is None
+
+
+class TestNanoGPTServiceTiers:
+    async def test_tiers_from_the_detailed_catalogue(self, client, monkeypatch):
+        calls = {"n": 0}
+
+        def handler(request):
+            calls["n"] += 1
+            assert "detailed=true" in str(request.url)
+            return httpx.Response(200, json={"data": [
+                {"id": "google/gemini-4-carbon", "supported_service_tiers": ["flex"]},
+                {"id": "openai/gpt-5.5", "supported_service_tiers": ["flex", "fast", "priority"]},
+            ]})
+
+        _patch_httpx(monkeypatch, handler)
+
+        resp = await client.get(
+            "/api/providers/nanogpt/capabilities", params={"model": "openai/gpt-5.5"},
+        )
+        assert resp.status_code == 200
+        assert resp.json() == {"service_tiers": ["flex", "fast", "priority"]}
+
+        resp = await client.get(
+            "/api/providers/nanogpt/capabilities", params={"model": "google/gemini-4-carbon"},
+        )
+        assert resp.json() == {"service_tiers": ["flex"]}
+        assert calls["n"] == 1, "both lookups share the cached catalogue"
+
+    async def test_unknown_model_reports_none(self, client, monkeypatch):
+        _patch_httpx(monkeypatch, lambda r: httpx.Response(200, json={"data": []}))
+        resp = await client.get("/api/providers/nanogpt/capabilities", params={"model": "nope"})
+        assert resp.json() == {"service_tiers": None}

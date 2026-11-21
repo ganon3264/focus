@@ -110,8 +110,10 @@ function selectFetchedModel(id, name) {
 function onProviderModelChanged(prefix) {
   const type = document.getElementById(prefix + '-type')?.value;
   const model = (document.getElementById('model-text-' + prefix)?.value || '').trim();
-  if (type === 'nanogpt') fetchNGRouteOptions(model);
-  else if (type === 'openrouter') fetchOROptions(model);
+  if (type === 'nanogpt') {
+    fetchNGRouteOptions(model);
+    fetchNGTierOptions(model);
+  } else if (type === 'openrouter') fetchOROptions(model);
 }
 
 var _orRouteOptions = [{ value: '', label: 'Auto (Any)' }];
@@ -280,6 +282,112 @@ function openNgRouteSelectModal(prefix) {
   );
 }
 
+// Capacity tiers are model-specific — the detailed catalogue's
+// supported_service_tiers is the only source (empty means default only) — so
+// the row is driven off the model in the field, not off a fixed list. Same
+// abort discipline as routing: a new pick wins over the answer in flight.
+var _ngTiers = { model: '', options: [], loaded: false, loading: false, note: '', error: false, ctrl: null };
+
+var _NG_TIER_LABELS = {
+  flex: 'Flex (cheaper, slower)',
+  fast: 'Fast (low latency)',
+  priority: 'Priority (legacy name for fast)',
+  ultrafast: 'Ultrafast (highest cost)',
+};
+
+function _ngTierLabel(value) {
+  if (!value) return 'Default (standard)';
+  return _NG_TIER_LABELS[value] || value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function ngTierOptions(tiers) {
+  var out = [];
+  (tiers || []).forEach(function (tier) {
+    if (typeof tier === 'string' && tier) out.push({ value: tier, label: _ngTierLabel(tier) });
+  });
+  return out;
+}
+
+function fetchNGTierOptions(modelId) {
+  modelId = modelId || '';
+  if (_ngTiers.ctrl) _ngTiers.ctrl.abort();
+  if (modelId && _ngTiers.model === modelId && _ngTiers.loaded) {
+    dropUnknownNgTier('prov-form');
+    renderNgTier('prov-form');
+    return;
+  }
+
+  var state = { model: modelId, options: [], loaded: false, loading: !!modelId, note: '', error: false, ctrl: null };
+  _ngTiers = state;
+
+  if (modelId) {
+    state.ctrl = new AbortController();
+    fetch(api.providerNanoGPTServiceTiers(modelId), { signal: state.ctrl.signal }) // raw: leaf read the next pick aborts
+      .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function (data) {
+        if (_ngTiers !== state) return;
+        state.options = ngTierOptions(data.service_tiers);
+        state.note = state.options.length ? '' : 'This model offers only the default tier.';
+        state.loaded = true;
+        state.error = false;
+        state.loading = false;
+        dropUnknownNgTier('prov-form');
+        renderNgTier('prov-form');
+      })
+      .catch(function (err) {
+        if (_ngTiers !== state || err.name === 'AbortError') return;
+        state.loading = false;
+        state.note = 'Could not load service tiers: ' + err.message;
+        state.error = true;
+        renderNgTier('prov-form');
+      });
+  }
+  renderNgTier('prov-form');
+}
+
+// A tier the current model doesn't sell would be silently ignored upstream (or
+// worse, priced differently), so it goes the moment we know the offered set.
+function dropUnknownNgTier(prefix) {
+  var hidden = document.getElementById(prefix + '-ng-service-tier');
+  var display = document.getElementById('ng-service-tier-display-' + prefix);
+  if (!hidden || !display || !hidden.value) return;
+  var known = _ngTiers.options.some(function (o) { return o.value === hidden.value; });
+  if (known) return;
+  hidden.value = '';
+  display.textContent = _ngTierLabel('');
+  display.classList.add('text-muted');
+}
+
+function renderNgTier(prefix) {
+  var note = document.getElementById(prefix + '-ng-tier-note');
+  var btn = document.getElementById(prefix + '-ng-tier-btn');
+  var text = _ngTiers.loading ? 'Loading tiers…' : _ngTiers.note;
+  if (note) {
+    note.textContent = text;
+    note.classList.toggle('hidden', !text);
+    note.classList.toggle('danger', _ngTiers.error);
+  }
+  if (btn) btn.classList.toggle('hidden', _ngTiers.loading || _ngTiers.options.length === 0);
+}
+
+function openNgServiceTierSelectModal(prefix) {
+  if (_ngTiers.loading || !_ngTiers.options.length) return;
+  window.openOptionPicker(
+    [{ value: '', label: _ngTierLabel('') }].concat(_ngTiers.options),
+    'Select Service Tier',
+    function (value, label) {
+      document.getElementById(prefix + '-ng-service-tier').value = value;
+      var display = document.getElementById('ng-service-tier-display-' + prefix);
+      display.textContent = label;
+      display.classList.toggle('text-muted', !value);
+      document.getElementById(prefix + '-ng-service-tier').dispatchEvent(new Event('change', { bubbles: true }));
+    },
+  );
+}
+
 function refreshNoFallbacksVisibility(prefix) {
   const routeInput = document.getElementById(prefix + '-or-route');
   const row = document.getElementById(prefix + '-or-no-fallbacks-row');
@@ -395,6 +503,9 @@ function extractData(form) {
 
     if (data.ng_route) config.ng_route = data.ng_route;
     else delete config.ng_route;
+
+    if (data.ng_service_tier) config.ng_service_tier = data.ng_service_tier;
+    else delete config.ng_service_tier;
   } else if (type === 'google_vertex') {
     if (data.vertex_region) config.vertex_region = data.vertex_region;
     if (data.vertex_project_id) config.vertex_project_id = data.vertex_project_id;
@@ -430,6 +541,7 @@ function extractData(form) {
   delete data.or_service_tier;
   delete data.or_no_fallbacks;
   delete data.ng_route;
+  delete data.ng_service_tier;
   delete data.vertex_region;
   delete data.vertex_project_id;
   delete data.retry_enabled;
@@ -633,7 +745,11 @@ function resetProviderForm() {
   var ngRouteDisplay = document.getElementById('ng-route-display-prov-form');
   if (ngRouteDisplay) { ngRouteDisplay.textContent = 'Auto (Any)'; ngRouteDisplay.classList.add('text-muted'); }
   setInputValue('prov-form-ng-route', '');
+  var ngTierDisplay = document.getElementById('ng-service-tier-display-prov-form');
+  if (ngTierDisplay) { ngTierDisplay.textContent = _ngTierLabel(''); ngTierDisplay.classList.add('text-muted'); }
+  setInputValue('prov-form-ng-service-tier', '');
   fetchNGRouteOptions('');
+  fetchNGTierOptions('');
   setRetryForm({});
   toggleProviderFields('prov-form');
 }
@@ -689,7 +805,15 @@ function populateProviderForm(data) {
       ngRouteDisplay.textContent = savedNgRoute || 'Auto (Any)';
       ngRouteDisplay.classList.toggle('text-muted', !savedNgRoute);
     }
+    var savedNgTier = config.ng_service_tier || '';
+    document.getElementById('prov-form-ng-service-tier').value = savedNgTier;
+    var ngTierDisplay = document.getElementById('ng-service-tier-display-prov-form');
+    if (ngTierDisplay) {
+      ngTierDisplay.textContent = _ngTierLabel(savedNgTier);
+      ngTierDisplay.classList.toggle('text-muted', !savedNgTier);
+    }
     fetchNGRouteOptions(data.model);
+    fetchNGTierOptions(data.model);
   }
   if (data.type === 'google_vertex') {
     document.getElementById('prov-form-vertex-project-id').value = config.vertex_project_id || '';

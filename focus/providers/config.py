@@ -23,6 +23,7 @@ class ProviderConfig:
     or_service_tier: str | None = None
     or_no_fallbacks: bool = True
     ng_route: str | None = None
+    ng_service_tier: str | None = None
     vertex_region: str = ""
     vertex_project_id: str = ""
 

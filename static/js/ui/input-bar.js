@@ -44,15 +44,14 @@
   // it, the same way the input bar is the only thing that owns the field.
   var DRAFT_PREFIX = 'focus-draft-';
   var draftTimer = null;
+  var draftKeyPending = null;
 
   function draftKey() {
     var chatId = window.StateManager ? window.StateManager.get('chat_id') : null;
     return chatId ? DRAFT_PREFIX + chatId : null;
   }
 
-  function writeDraft() {
-    draftTimer = null;
-    var key = draftKey();
+  function writeDraft(key) {
     if (!key) return;
     try {
       if (input.value.trim()) window.localStorage.setItem(key, input.value);
@@ -62,9 +61,27 @@
     }
   }
 
+  // The key is captured when the save is scheduled, not when the timer fires:
+  // a chat switch landing inside the debounce window must not file this chat's
+  // text under the next chat's id.
   function saveDraft() {
     if (draftTimer) clearTimeout(draftTimer);
-    draftTimer = setTimeout(writeDraft, 250);
+    draftKeyPending = draftKey();
+    draftTimer = setTimeout(function () {
+      draftTimer = null;
+      writeDraft(draftKeyPending);
+      draftKeyPending = null;
+    }, 250);
+  }
+
+  // A pending debounce dies with the page, so leaving it flushes now. Same
+  // value, no truncation: the write is one snapshot of the whole composer.
+  function flushDraft() {
+    if (!draftTimer) return;
+    clearTimeout(draftTimer);
+    draftTimer = null;
+    writeDraft(draftKeyPending);
+    draftKeyPending = null;
   }
 
   window.clearComposerDraft = function () {
@@ -72,6 +89,7 @@
       clearTimeout(draftTimer);
       draftTimer = null;
     }
+    draftKeyPending = null;
     var key = draftKey();
     if (!key) return;
     try {
@@ -81,19 +99,29 @@
     }
   };
 
-  function restoreDraft() {
-    var key = draftKey();
-    if (!key || input.value) return;
-    var saved = null;
-    try {
-      saved = window.localStorage.getItem(key);
-    } catch (e) {
-      return;
-    }
-    if (!saved) return;
-    input.value = saved;
+  // Whoever wrote the text — us, or the browser restoring form state on reload
+  // after this hook has already run — the box has to be measured against it.
+  function syncComposer() {
+    if (!input) return;
     resizeTextarea(input);
     updateSendButtonState();
+  }
+
+  // A saved draft is the newest thing the user typed, so it wins over whatever
+  // the browser kept from the last session. No draft means the field is left
+  // alone and only measured.
+  function restoreDraft() {
+    var key = draftKey();
+    var saved = null;
+    if (key) {
+      try {
+        saved = window.localStorage.getItem(key);
+      } catch (e) {
+        saved = null;
+      }
+    }
+    if (saved) input.value = saved;
+    syncComposer();
   }
 
   if (input) {
@@ -122,4 +150,14 @@
   // StateManager is initialised by the page script, which runs during parsing
   // but after this module.
   document.addEventListener('DOMContentLoaded', restoreDraft);
+  // Firefox applies its own form-state restoration after DOMContentLoaded and
+  // does not fire an input event, so the composer is measured again once the
+  // page has settled and again when a bfcache navigation brings it back.
+  window.addEventListener('load', syncComposer);
+  window.addEventListener('pageshow', syncComposer);
+
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'hidden') flushDraft();
+  });
+  window.addEventListener('pagehide', flushDraft);
 })();

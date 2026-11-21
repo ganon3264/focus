@@ -428,6 +428,27 @@ class TestNanoGPTProvider:
         await _collect(provider)
         assert "provider" not in client.request.get("extra_body", {})
 
+    async def test_service_tier_goes_into_the_body(self):
+        provider, client = self._make(config=ProviderConfig(ng_service_tier="flex"))
+        await _collect(provider)
+        # NanoGPT's tier is a top-level request field, not a provider preference.
+        assert client.request["extra_body"]["service_tier"] == "flex"
+
+    async def test_no_tier_requests_nothing(self):
+        provider, client = self._make()
+        await _collect(provider)
+        assert "service_tier" not in client.request.get("extra_body", {})
+
+    async def test_tier_and_route_share_the_body(self):
+        provider, client = self._make(
+            config=ProviderConfig(ng_route="chutes", ng_service_tier="fast"),
+        )
+        await _collect(provider)
+        assert client.request["extra_body"] == {
+            "provider": {"only": ["chutes"]},
+            "service_tier": "fast",
+        }
+
     async def test_reasoning_toggle_and_effort(self):
         provider, client = self._make()
         await _collect(provider, include_reasoning=False)
@@ -442,6 +463,7 @@ class TestNanoGPTProvider:
         provider, client = self._make(
             config=ProviderConfig(
                 ng_route="chutes",
+                ng_service_tier="flex",
                 api_keys=["SECRET:nanogpt"],
                 active_key="SECRET:nanogpt",
                 retry={"enabled": True},
@@ -449,7 +471,7 @@ class TestNanoGPTProvider:
         )
         await _collect(provider)
         extra_body = client.request["extra_body"]
-        for leaked in ("ng_route", "api_keys", "active_key", "retry"):
+        for leaked in ("ng_route", "ng_service_tier", "api_keys", "active_key", "retry"):
             assert leaked not in extra_body
 
     async def test_fetch_models_requests_detailed_catalogue(self, monkeypatch):
@@ -548,10 +570,31 @@ class TestNanoGPTProvider:
         assert routes["options"] == []
         assert routes["message"] == "This model does not support provider selection"
 
+    async def test_service_tiers_come_from_the_catalogue(self, monkeypatch):
+        payload = {
+            "data": [
+                {"id": "google/gemini-4-carbon", "supported_service_tiers": ["flex"]},
+                {"id": "openai/gpt-5.5", "supported_service_tiers": ["flex", "fast", "priority"]},
+                {"id": "plain/model", "supported_service_tiers": []},
+            ],
+        }
+        calls = []
+
+        def handler(request):
+            calls.append(str(request.url))
+            return httpx.Response(200, json=payload)
+
+        _patch_httpx(monkeypatch, handler)
+        provider = NanoGPTProvider(api_key="k", model="google/gemini-4-carbon", params={})
+        assert await provider.supported_service_tiers(provider.model) == ["flex"]
+        assert await provider.supported_service_tiers("plain/model") == []
+        assert len(calls) == 1, "the catalogue is cached, not refetched per lookup"
+
     async def test_unknown_model_reports_nothing(self, monkeypatch):
         _patch_httpx(monkeypatch, lambda r: httpx.Response(200, json={"data": [{"id": "other"}]}))
         provider = NanoGPTProvider(api_key="k", model="missing/model", params={})
         assert await provider.supported_modalities(provider.model) is None
+        assert await provider.supported_service_tiers(provider.model) is None
 
         _patch_httpx(
             monkeypatch,

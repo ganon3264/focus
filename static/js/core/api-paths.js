@@ -103,6 +103,9 @@ window.api = {
   providerNanoGPTProviders: function (model) {
     return '/api/providers/nanogpt/providers?model=' + encodeURIComponent(model);
   },
+  providerNanoGPTServiceTiers: function (model) {
+    return '/api/providers/nanogpt/capabilities?model=' + encodeURIComponent(model);
+  },
   presets: '/api/presets',
   preset: function (id) {
     return '/api/presets/' + id;

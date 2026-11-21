@@ -126,6 +126,7 @@ async def fetch_models(body: FetchModelsRequest, _db=Depends(get_db)):
                         "context_length": m.get("context_length", None),
                         "pricing": _pricing_per_token(m.get("pricing")),
                         "architecture": m.get("architecture", None),
+                        "supported_service_tiers": m.get("supported_service_tiers") or [],
                     }
                 )
 
@@ -194,6 +195,19 @@ async def get_nanogpt_providers(model: str):
         "supports_selection": routes["supports_selection"],
         "message": routes["message"],
     }
+
+
+@router.get("/nanogpt/capabilities")
+async def get_nanogpt_capabilities(model: str):
+    """Capacity tiers *model* is sold at, straight from the detailed catalogue.
+
+    Tier support is model-specific, so the picker can only offer what the
+    selected model actually serves; an empty list means default tier only.
+    """
+    from focus.providers import NanoGPTProvider
+
+    provider = NanoGPTProvider(api_key="", model=model, params={})
+    return {"service_tiers": await provider.supported_service_tiers(model)}
 
 
 @router.post("/secrets")

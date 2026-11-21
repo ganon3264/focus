@@ -1,14 +1,16 @@
 """NanoGPT aggregator (OpenAI Chat Completions compatible).
 
 NanoGPT fronts a large set of upstream hosts behind one OpenAI-shaped API, so
-most of the wire format is the inherited one. Three things need mapping:
+most of the wire format is the inherited one. Four things need mapping:
 
 * upstream pinning goes in the request body (``provider.only``), merged into
   ``extra_body`` next to the samplers; NanoGPT's pin is hard by nature;
 * prompt caching rides the standard Anthropic ``cache_control`` breakpoints,
   applied by the ``ephemeral_cache`` quirk like every other transport;
+* capacity tiers (``service_tier``) are a top-level request field, and which
+  ones a model offers comes from the same detailed catalogue;
 * the model catalogue is rich (context window, modalities, pricing, upstream
-  list) and is fetched with ``detailed=true``.
+  list, service tiers) and is fetched with ``detailed=true``.
 """
 
 from dataclasses import replace
@@ -99,6 +101,17 @@ class NanoGPTProvider(OpenAICompatProvider):
         modalities = arch.get("input_modalities") if isinstance(arch, dict) else None
         return modalities if isinstance(modalities, list) else None
 
+    async def supported_service_tiers(self, model: str) -> list[str] | None:
+        """Capacity tiers *model* is sold at.
+
+        Only the ``detailed=true`` catalogue carries this; an empty list means
+        the model offers the default tier alone. Tier support is per model and
+        per upstream route, so nothing about it is hard-coded here.
+        """
+        entry = await self.model_entry(model)
+        tiers = entry.get("supported_service_tiers") if entry else None
+        return tiers if isinstance(tiers, list) else None
+
     async def provider_discovery(self, model: str) -> dict:
         """Routing metadata for *model*, cached per model id.
 
@@ -150,16 +163,22 @@ class NanoGPTProvider(OpenAICompatProvider):
         }
 
     def _routing(self) -> dict:
-        """Hard-pin the chosen host.
+        """Hard-pin the chosen host and ask for the chosen capacity tier.
 
         ``only`` is already a hard constraint on NanoGPT ("fails instead of
         routing outside the list"), unlike OpenRouter's soft ``order``, so a
-        toggle would have nothing to switch.
+        toggle would have nothing to switch. ``service_tier`` is a top-level
+        request field here, not a routing preference, and the upstream ignores
+        a tier its route does not serve.
         """
+        body = {}
         route = self.config.ng_route
-        if not route:
-            return {}
-        return {"provider": {"only": [route]}}
+        if route:
+            body["provider"] = {"only": [route]}
+        tier = self.config.ng_service_tier
+        if tier:
+            body["service_tier"] = tier
+        return body
 
     async def stream_complete(self, messages: list[dict], **kwargs):
         include_reasoning = kwargs.pop("include_reasoning", True)

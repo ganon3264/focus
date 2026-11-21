@@ -74,6 +74,9 @@
           <span class="tag" x-show="model.architecture && model.architecture.input_modalities && model.architecture.input_modalities.includes('image')">Img</span>
           <span class="tag" x-show="model.architecture && model.architecture.input_modalities && model.architecture.input_modalities.includes('audio')">Aud</span>
           <span class="tag" x-show="model.architecture && model.architecture.input_modalities && model.architecture.input_modalities.includes('file')">File</span>
+          <template x-for="tier in (model.supported_service_tiers || []).filter(t => t !== 'priority')" :key="tier">
+            <span class="tag" x-text="tier"></span>
+          </template>
           <span class="row-value" x-show="model.context_length" x-text="Math.round(model.context_length/1024) + 'k ctx'"></span>
           <span class="row-value" x-show="model.pricing" x-text="model.pricing ? '$' + (parseFloat(model.pricing.prompt) * 1000000).toFixed(2) + ' / $' + (parseFloat(model.pricing.completion) * 1000000).toFixed(2) : ''"></span>
           <span class="row-value" x-show="model.pricing && parseFloat(model.pricing.prompt) < 0">Dynamic</span>

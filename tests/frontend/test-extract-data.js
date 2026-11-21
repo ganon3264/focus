@@ -135,19 +135,23 @@ eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'modals', 
     type: 'nanogpt',
     model: 'anthropic/claude-opus-4.6',
     ng_route: 'chutes',
+    ng_service_tier: 'flex',
     params: '{}',
   });
   var data = extractData(form);
   assertEqual(data.base_url, 'https://api.nano-gpt.com/api/v1', 'nanogpt: base_url set');
   assertEqual(data.config.ng_route, 'chutes', 'nanogpt: ng_route in config');
+  assertEqual(data.config.ng_service_tier, 'flex', 'nanogpt: ng_service_tier in config');
   assert(!data.ng_route, 'nanogpt: ng_route deleted');
+  assert(!data.ng_service_tier, 'nanogpt: ng_service_tier deleted');
 })();
 
-// ── nanogpt — no route ──
+// ── nanogpt — no route/tier ──
 (function () {
-  var form = createMockForm({ name: 'Nano', type: 'nanogpt', model: 'openai/gpt-6', ng_route: '', params: '{}' });
+  var form = createMockForm({ name: 'Nano', type: 'nanogpt', model: 'openai/gpt-6', ng_route: '', ng_service_tier: '', params: '{}' });
   var data = extractData(form);
   assert(!data.config.ng_route, 'nanogpt simple: no ng_route in config');
+  assert(!data.config.ng_service_tier, 'nanogpt simple: no ng_service_tier in config');
 })();
 
 // ── nanogpt — no model shows error toast ──

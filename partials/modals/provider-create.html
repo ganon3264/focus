@@ -82,6 +82,15 @@ dirty_label='#prov-form-name') %}
         </button>
       </div>
       <div id="prov-form-ng-route-note" class="note hidden"></div>
+      <div class="row setting labeled fit">
+        <span class="row-title">Service Tier {{ hint_tooltip('NanoGPT sells some models at several grades of capacity. <b>Flex</b> is cheaper with variable availability; <b>Fast</b> (legacy name <b>Priority</b>) is lower latency at a higher price; <b>Ultrafast</b> is the lowest-latency tier, billed several times the standard rate. The list is what the selected model actually serves; leave on Default to never request a non-standard tier.') }}</span>
+        <input type="hidden" name="ng_service_tier" id="prov-form-ng-service-tier" value="" />
+        <button type="button" class="field select" id="prov-form-ng-tier-btn" onclick="openNgServiceTierSelectModal('prov-form')">
+          <span id="ng-service-tier-display-prov-form" class="truncate">Default (standard)</span>
+          <span class="opacity-50">{{ icon_search() }}</span>
+        </button>
+      </div>
+      <div id="prov-form-ng-tier-note" class="note hidden"></div>
     </div>
 
     <div id="prov-form-vertex-fields" class="well provider-plate hidden">

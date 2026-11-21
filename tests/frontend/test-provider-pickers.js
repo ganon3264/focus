@@ -1,6 +1,6 @@
-// Regression: the OpenRouter route/quant/service-tier pickers must dispatch a
-// `change` event on their hidden input. modal.js recomputes dirty state on
-// `option-selected`, which fires *before* the picker callback updates the
+// Regression: the OpenRouter route/quant/service-tier and NanoGPT tier pickers
+// must dispatch a `change` event on their hidden input. modal.js recomputes dirty
+// state on `option-selected`, which fires *before* the picker callback updates the
 // value, so the explicit change dispatch is what actually marks the modal dirty.
 var h = require('./helpers.js');
 var assert = h.assert, assertEqual = h.assertEqual;
@@ -34,6 +34,7 @@ var ids = [
   'prov-form-or-route', 'or-route-display-prov-form',
   'prov-form-or-quant', 'or-quant-display-prov-form',
   'prov-form-or-service-tier', 'or-service-tier-display-prov-form',
+  'prov-form-ng-service-tier', 'ng-service-tier-display-prov-form',
 ];
 var els = {};
 ids.forEach(function (id) { els[id] = makeEl(id); });
@@ -80,6 +81,23 @@ eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'modals', 
   assertEqual(els['prov-form-or-service-tier'].value, 'flex', 'service tier: hidden input set');
   assertEqual(els['or-service-tier-display-prov-form'].textContent, 'Flex (cheaper, slower)', 'service tier: label set');
   assert(els['prov-form-or-service-tier']._events.indexOf('change') >= 0, 'service tier: change dispatched for dirty tracking');
+})();
+
+// NanoGPT tiers are not a fixed list: the options come from the selected
+// model's catalogue entry, so they are seeded here instead of being constants.
+(function () {
+  _ngTiers.options = [
+    { value: 'flex', label: 'Flex (cheaper, slower)' },
+    { value: 'fast', label: 'Fast (low latency)' },
+  ];
+  openNgServiceTierSelectModal('prov-form');
+  assertEqual(captured.options.length, 3, 'ng service tier: model tiers plus the default');
+  assertEqual(captured.options[0].value, '', 'ng service tier: default listed first');
+  assertEqual(captured.options[1].label, 'Flex (cheaper, slower)', 'ng service tier: labels carried from the catalogue');
+  captured.cb('fast', 'Fast (low latency)');
+  assertEqual(els['prov-form-ng-service-tier'].value, 'fast', 'ng service tier: hidden input set');
+  assertEqual(els['ng-service-tier-display-prov-form'].textContent, 'Fast (low latency)', 'ng service tier: label set');
+  assert(els['prov-form-ng-service-tier']._events.indexOf('change') >= 0, 'ng service tier: change dispatched for dirty tracking');
 })();
 
 h.printSummary();
