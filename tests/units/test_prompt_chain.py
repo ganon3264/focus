@@ -166,6 +166,14 @@ class TestMergeConsecutive:
         assert len(result) == 1
         assert len(result[0]["content"]) == 2
 
+    def test_author_newlines_survive_the_join(self):
+        msgs = [{"role": "user", "content": "a\n\n"}, {"role": "user", "content": "b"}]
+        assert _merge_consecutive(msgs)[0]["content"] == "a\n\nb"
+        msgs = [{"role": "user", "content": "a\n"}, {"role": "user", "content": "b"}]
+        assert _merge_consecutive(msgs)[0]["content"] == "a\nb"
+        msgs = [{"role": "user", "content": "a"}, {"role": "user", "content": "\nb"}]
+        assert _merge_consecutive(msgs)[0]["content"] == "a\nb"
+
     def test_alternating_roles(self):
         msgs = [
             {"role": "user", "content": "a"},
@@ -344,3 +352,29 @@ class TestSectionTokens:
         )
         assert messages[0]["reasoning"].strip() == "think"
         assert "\x00" not in messages[0]["reasoning"]
+
+
+class TestBlockWhitespace:
+    """Block text is authored verbatim; newlines are how blocks are spaced."""
+
+    @staticmethod
+    def _block(block_id, content, position, role="system"):
+        return {
+            "id": block_id, "block_type": "text", "name": block_id, "content": content,
+            "role": role, "enabled": 1, "position": position,
+            "injection_depth": None, "injection_order": 0,
+        }
+
+    async def test_trailing_blank_line_survives_merge(self):
+        blocks = [self._block("a", "one\n\n", 0), self._block("b", "two", 1)]
+        messages = await assemble_prompt(blocks, [], {"name": "C"}, [], {})
+        assert messages[0]["content"] == "one\n\ntwo"
+
+    async def test_single_block_keeps_its_edges(self):
+        blocks = [self._block("a", "\nlead and trail\n\n", 0)]
+        messages = await assemble_prompt(blocks, [], {"name": "C"}, [], {})
+        assert messages[0]["content"] == "\nlead and trail\n\n"
+
+    async def test_whitespace_only_block_makes_no_message(self):
+        blocks = [self._block("a", " \n\n ", 0)]
+        assert await assemble_prompt(blocks, [], {"name": "C"}, [], {}) == []

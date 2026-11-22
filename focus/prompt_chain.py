@@ -65,10 +65,22 @@ async def build_content(text: str, images: list[dict]) -> str | list:
     return parts
 
 
+def _has_body(content) -> bool:
+    """True when a resolved block actually carries text or media.
+
+    Whitespace is significant inside a block, so an all-whitespace block is
+    only empty for the purpose of creating a message.
+    """
+    if isinstance(content, str):
+        return bool(content.strip())
+    return bool(content)
+
+
 def _merge_consecutive(messages: list[dict]) -> list[dict]:
     """
     Merge adjacent messages that share the same role into one.
-    Text parts are joined with \\n\\n.
+    Text parts are joined with a single newline, unless one side already ends
+    or starts with one — an author's blank line between blocks is theirs.
     If either part has images the result is normalized to a content array.
     Extra metadata keys (non-role, non-content) are preserved from both sides.
     """
@@ -83,8 +95,9 @@ def _merge_consecutive(messages: list[dict]) -> list[dict]:
     def merge_content(a, b):
         all_text = isinstance(a, str) and isinstance(b, str)
         if all_text:
-            sep = "\n" if a and b else ""
-            return a + sep + b
+            if not a or not b or a.endswith("\n") or b.startswith("\n"):
+                return a + b
+            return a + "\n" + b
         return to_parts(a) + to_parts(b)
 
     result = [dict(messages[0])]
@@ -330,9 +343,9 @@ async def assemble_prompt(
             continue
 
         if btype in ("text", "summary"):
-            text = apply_macros(block["content"], macros).strip()
+            text = apply_macros(block["content"], macros)
             content = await build_block_content(text, images, sections)
-            if content or any(
+            if _has_body(content) or any(
                 block.get(cfg["history_key"]) for cfg in TRACKED_FIELDS.values() if cfg.get("preserve_thinking")
             ):
                 msg = {"role": block["role"], "content": content}
@@ -345,9 +358,9 @@ async def assemble_prompt(
                 block_images.get(char_data.get("id"), [])
                 if block["id"] == char_media_block_id else []
             )
-            text = apply_macros(char_data.get("description", ""), macros).strip()
+            text = apply_macros(char_data.get("description", ""), macros)
             content = await build_block_content(text, char_images, sections)
-            if content:
+            if _has_body(content):
                 target.append({"role": block["role"], "content": content})
 
         elif btype == "char_personality":
@@ -355,27 +368,27 @@ async def assemble_prompt(
                 block_images.get(char_data.get("id"), [])
                 if block["id"] == char_media_block_id else []
             )
-            text = apply_macros(char_data.get("personality", ""), macros).strip()
+            text = apply_macros(char_data.get("personality", ""), macros)
             content = await build_block_content(text, char_images, sections)
-            if content:
+            if _has_body(content):
                 target.append({"role": block["role"], "content": content})
 
         elif btype == "user_persona":
             persona_id = macros.get("persona_id", "")
             persona_images = block_images.get(persona_id, []) if persona_id else []
-            text = apply_macros(macros.get("persona", ""), macros).strip()
+            text = apply_macros(macros.get("persona", ""), macros)
             content = await build_block_content(text, persona_images, sections)
-            if content:
+            if _has_body(content):
                 target.append({"role": block["role"], "content": content})
 
         elif btype == "char_blocks":
             enabled = [b for b in char_own_blocks if b["enabled"]]
             enabled.sort(key=lambda b: b["position"])
             for cb in enabled:
-                text = apply_macros(cb["content"], macros).strip()
+                text = apply_macros(cb["content"], macros)
                 cb_images = block_images.get(cb["id"], [])
                 content = await build_block_content(text, cb_images, sections)
-                if content:
+                if _has_body(content):
                     target.append({"role": cb["role"], "content": content})
 
     # Extract reasoning from assistant messages
@@ -425,10 +438,10 @@ async def assemble_prompt(
             blocks = sorted(by_depth[depth], key=lambda b: b.get("injection_order", 0))
             injected: list[dict] = []
             for block in blocks:
-                text = apply_macros(block["content"], macros).strip()
+                text = apply_macros(block["content"], macros)
                 images = block_images.get(block["id"], [])
                 content = await build_block_content(text, images, sections)
-                if content or any(
+                if _has_body(content) or any(
                     block.get(cfg["history_key"]) for cfg in TRACKED_FIELDS.values() if cfg.get("preserve_thinking")
                 ):
                     msg = {"role": block["role"], "content": content}
