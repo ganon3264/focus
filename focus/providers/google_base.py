@@ -6,7 +6,7 @@ from google.genai import types
 
 from ..core.logger import get_logger
 from ..tools import ToolCall
-from .base import BaseProvider
+from .base import BaseProvider, sdk_dump
 from .config import ProviderConfig
 from .google_safety import AI_STUDIO_HARM_CATEGORIES, VERTEX_HARM_CATEGORIES
 from .profile import Capabilities, ProviderProfile
@@ -251,6 +251,11 @@ class GoogleProviderBase(BaseProvider):
             ]
             events.append({"type": "tool_calls", "calls": calls})
         if last_usage is not None:
+            if logger.isEnabledFor(logging.DEBUG):
+                logger.debug(
+                    "GOOGLE RAW USAGE:\n%s",
+                    json.dumps(sdk_dump(last_usage), indent=2, ensure_ascii=False),
+                )
             events.append({"type": "usage", "usage": {
                 "prompt_tokens": getattr(last_usage, "prompt_token_count", 0) or 0,
                 "completion_tokens": getattr(last_usage, "candidates_token_count", 0) or 0,
@@ -274,7 +279,10 @@ class GoogleProviderBase(BaseProvider):
         function_calls_acc: dict[str, dict] = {}
         last_usage = None
         finish_reason = None
+        raw_chunks: list | None = [] if logger.isEnabledFor(logging.DEBUG) else None
         async for chunk in stream:
+            if raw_chunks is not None:
+                raw_chunks.append(sdk_dump(chunk))
             events, chunk_finish, chunk_usage = self._consume_response(chunk, function_calls_acc)
             if chunk_finish:
                 finish_reason = str(chunk_finish)
@@ -283,6 +291,11 @@ class GoogleProviderBase(BaseProvider):
             for e in events:
                 yield e
 
+        if raw_chunks:
+            logger.debug(
+                "GOOGLE RAW RESPONSE CHUNKS:\n%s",
+                json.dumps(raw_chunks, indent=2, ensure_ascii=False),
+            )
         for e in self._final_events(function_calls_acc, last_usage, finish_reason):
             yield e
 
@@ -296,6 +309,8 @@ class GoogleProviderBase(BaseProvider):
         )
 
         function_calls_acc: dict[str, dict] = {}
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug("GOOGLE RAW RESPONSE:\n%s", json.dumps(sdk_dump(response), indent=2, ensure_ascii=False))
         events, finish_reason, usage = self._consume_response(response, function_calls_acc)
         for e in events:
             yield e

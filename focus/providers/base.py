@@ -9,6 +9,26 @@ from .profile import Capabilities, ProviderProfile
 from .registry import register
 
 
+def sdk_dump(obj) -> object:
+    """Best-effort plain-data view of an upstream SDK object for debug logs."""
+    dump = getattr(obj, "model_dump", None)
+    if dump is not None:
+        try:
+            return dump(mode="json", exclude_none=True)
+        except Exception:
+            pass
+    if isinstance(obj, dict):
+        return {k: sdk_dump(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [sdk_dump(v) for v in obj]
+    if obj is None or isinstance(obj, (str, int, float, bool)):
+        return obj
+    try:
+        return {k: sdk_dump(v) for k, v in vars(obj).items() if not k.startswith("_")}
+    except TypeError:
+        return repr(obj)
+
+
 def _apply_caps(cls: type) -> None:
     """Copy a profile's capability flags onto the class.
 

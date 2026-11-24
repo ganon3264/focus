@@ -14,11 +14,72 @@ from ..core.utils import (
     OPENAI_HTTP_TIMEOUT,
 )
 from ..tools import ToolCall
-from .base import BaseProvider
+from .base import BaseProvider, sdk_dump
 from .config import ProviderConfig
 from .profile import Capabilities, ProviderProfile
 
 logger = get_logger("providers.openai_compat")
+
+# Where each usage figure lives across the transports we speak. Every vendor
+# picks a different spot — OpenAI nests the cache count in
+# ``prompt_tokens_details``, Anthropic reports ``cache_read_input_tokens``,
+# DeepSeek ``prompt_cache_hit_tokens``, and aggregators park their envelope
+# beside ``usage`` instead of inside it (NanoGPT's ``x_nanogpt_cache``). Paths
+# are tried in order, usage object first, so a standard field always wins and
+# a new upstream shape is one line here, never an adapter override.
+USAGE_FIELDS: dict[str, tuple[str, ...]] = {
+    "prompt_tokens": ("prompt_tokens", "input_tokens"),
+    "completion_tokens": ("completion_tokens", "output_tokens"),
+    "total_tokens": ("total_tokens",),
+    "cached_tokens": (
+        "prompt_tokens_details.cached_tokens",
+        "cache_read_input_tokens",
+        "prompt_cache_hit_tokens",
+        "cached_tokens",
+        "x_nanogpt_cache.readTokens",
+        "x_nanogpt_pricing.cacheReadInputTokens",
+    ),
+    "reasoning_tokens": (
+        "reasoning_tokens",
+        "completion_tokens_details.reasoning_tokens",
+    ),
+}
+
+# Reported only when the transport sends them; absent means unknown, not zero.
+OPTIONAL_USAGE_FIELDS: tuple[str, ...] = ("cost", "cost_details")
+
+
+def _usage_member(obj, key: str):
+    """One key off an SDK object, its ``model_extra``, or a plain dict."""
+    if obj is None:
+        return None
+    if isinstance(obj, dict):
+        return obj.get(key)
+    value = getattr(obj, key, None)
+    if value is None:
+        extra = getattr(obj, "model_extra", None)
+        if isinstance(extra, dict):
+            value = extra.get(key)
+    return value
+
+
+def _usage_resolve(sources, path: str):
+    for source in sources:
+        value = source
+        for key in path.split("."):
+            value = _usage_member(value, key)
+            if value is None:
+                break
+        if value is not None:
+            return value
+    return None
+
+
+def _usage_int(value) -> int:
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
 
 
 class OpenAICompatProvider(BaseProvider):
@@ -150,15 +211,20 @@ class OpenAICompatProvider(BaseProvider):
         tool_calls_acc: dict[int, dict] = {}
         nonstream_tool_calls: list[ToolCall] = []
         last_usage = None
+        usage_envelope: dict = {}
         finish_reason: str | None = None
+        raw_chunks: list | None = [] if logger.isEnabledFor(logging.DEBUG) else None
 
         async with self._get_client() as client:
             response = await client.chat.completions.create(**request_params)
             if stream_requested:
                 async for chunk in response:
+                    extra = getattr(chunk, "model_extra", None) or {}
                     if chunk.usage:
                         last_usage = chunk.usage
-                    extra = getattr(chunk, "model_extra", None) or {}
+                        usage_envelope = extra
+                    if raw_chunks is not None:
+                        raw_chunks.append(sdk_dump(chunk))
                     if extra.get("debug"):
                         if logger.isEnabledFor(logging.DEBUG):
                             logger.debug(
@@ -188,6 +254,9 @@ class OpenAICompatProvider(BaseProvider):
                         yield {"type": "token", "text": delta}
             else:
                 last_usage = getattr(response, "usage", None)
+                usage_envelope = getattr(response, "model_extra", None) or {}
+                if logger.isEnabledFor(logging.DEBUG):
+                    logger.debug("RAW RESPONSE:\n%s", _json.dumps(sdk_dump(response), indent=2, ensure_ascii=False))
                 choices = getattr(response, "choices", None) or []
                 if choices:
                     message = choices[0].message
@@ -204,8 +273,12 @@ class OpenAICompatProvider(BaseProvider):
                         nonstream_tool_calls = self._convert_tool_calls(raw_tool_calls)
 
         # Emit usage data if captured
+        if raw_chunks:
+            logger.debug("RAW RESPONSE CHUNKS:\n%s", _json.dumps(raw_chunks, indent=2, ensure_ascii=False))
         if last_usage is not None:
-            yield {"type": "usage", "usage": self._usage_dict(last_usage)}
+            if logger.isEnabledFor(logging.DEBUG):
+                logger.debug("RAW USAGE:\n%s", _json.dumps(sdk_dump(last_usage), indent=2, ensure_ascii=False))
+            yield {"type": "usage", "usage": self._usage_dict(last_usage, usage_envelope)}
 
         if tool_calls_acc or nonstream_tool_calls:
             calls = (
@@ -286,30 +359,24 @@ class OpenAICompatProvider(BaseProvider):
         return calls
 
     @staticmethod
-    def _usage_dict(last_usage) -> dict:
-        usage_dict: dict = {
-            "prompt_tokens": getattr(last_usage, "prompt_tokens", 0) or 0,
-            "completion_tokens": getattr(last_usage, "completion_tokens", 0) or 0,
-            "total_tokens": getattr(last_usage, "total_tokens", 0) or 0,
-            "cached_tokens": 0,
-            "reasoning_tokens": 0,
-        }
-        ptd = getattr(last_usage, "prompt_tokens_details", None)
-        if ptd is not None:
-            usage_dict["cached_tokens"] = getattr(ptd, "cached_tokens", 0) or 0
-        # reasoning_tokens: check top-level field, then model_extra (OpenRouter),
-        # then completion_tokens_details (OpenAI native)
-        rt = getattr(last_usage, "reasoning_tokens", None)
-        if rt is None and hasattr(last_usage, "model_extra") and last_usage.model_extra:
-            rt = last_usage.model_extra.get("reasoning_tokens")
-        if rt is None:
-            ctd = getattr(last_usage, "completion_tokens_details", None)
-            if ctd is not None:
-                rt = getattr(ctd, "reasoning_tokens", 0) or 0
-        usage_dict["reasoning_tokens"] = rt or 0
-        extra = getattr(last_usage, "model_extra", None) or {}
-        if "cost" in extra:
-            usage_dict["cost"] = extra["cost"]
-        if "cost_details" in extra:
-            usage_dict["cost_details"] = extra["cost_details"]
-        return usage_dict
+    def _usage_dict(last_usage, envelope: dict | None = None) -> dict:
+        """Map upstream usage onto our keys; paths live in ``USAGE_FIELDS``.
+
+        *envelope* is the chunk/response ``model_extra``, for aggregators that
+        report usage figures beside ``usage`` rather than inside it.
+        """
+        sources = (last_usage, envelope)
+        usage: dict = {}
+        for field, paths in USAGE_FIELDS.items():
+            value = 0
+            for path in paths:
+                found = _usage_resolve(sources, path)
+                if found:
+                    value = _usage_int(found)
+                    break
+            usage[field] = value
+        for field in OPTIONAL_USAGE_FIELDS:
+            found = _usage_resolve(sources, field)
+            if found is not None:
+                usage[field] = found
+        return usage
