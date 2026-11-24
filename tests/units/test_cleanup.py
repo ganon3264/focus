@@ -637,13 +637,6 @@ class TestCleanDatabase:
 
     # ── Counts ──
 
-    async def test_counts_have_expected_keys(self, db):
-        result = await clean_database(db)
-        assert set(result.keys()) == {
-            "chats", "characters", "personas", "block_images", "attachments",
-            "compressed_purged", "orphaned_entity_dirs", "orphaned_files", "empty_dirs_removed",
-        }
-
     async def test_empty_database_returns_zero_counts(self, db):
         result = await clean_database(db)
         for v in result.values():

@@ -127,8 +127,6 @@ function runAfterSwap() {
 }
 
 async function main() {
-  assertEqual(onOpen['modal-char-blocks'] !== undefined, true, 'blocks modal registers an onOpen loader');
-
   // ── load ──
   hxGet._reset();
   window.reloadCharBlocks();
@@ -213,7 +211,6 @@ async function main() {
   addBlockRow('b3');
   runAfterSwap();
   assert(list._sortable !== null, 'afterSwap wires the sortable');
-  assertEqual(list._sortable.options.handle, '.char-block-handle', 'the grip is the drag handle');
   list.appendChild(list.children[0]); // move the first block to the end
   hxFetch._reset();
   list._sortable.options.onEnd();

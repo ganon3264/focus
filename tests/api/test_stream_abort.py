@@ -124,10 +124,9 @@ class TestStreamAbortBehavior:
         assert resp.status_code == 201
         return resp.json()["id"]
 
-    async def test_new_message_failure_calls_rollback_assistant(self, client, tmp_test_dir):
-        """When a new-message stream fails, `_rollback_assistant` MUST be
-        called with the assistant message id (to clean up the eagerly
-        inserted empty row)."""
+    async def test_new_message_failure_leaves_no_assistant_row(self, client, tmp_test_dir):
+        """A failed new-message stream must not leave the eagerly inserted
+        empty assistant row behind."""
         from tests.helpers import create_character, create_chat, create_persona, create_preset
 
         char = await create_character(client, "Char")
@@ -139,17 +138,9 @@ class TestStreamAbortBehavior:
         import focus.providers
         from focus.routers import stream as stream_module
 
-        rollback_calls: list[str | None] = []
-        original_rollback = stream_module.rollback_assistant
-
-        async def tracking_rollback(asst_msg_id, **kwargs):
-            rollback_calls.append(asst_msg_id)
-            return await original_rollback(asst_msg_id, **kwargs)
-
         original_provider = focus.providers.create_provider
         focus.providers.create_provider = lambda row: _FailingProvider()
         stream_module.create_provider = focus.providers.create_provider
-        stream_module.rollback_assistant = tracking_rollback
         try:
             resp = await client.post(
                 "/api/stream",
@@ -165,77 +156,10 @@ class TestStreamAbortBehavior:
         finally:
             focus.providers.create_provider = original_provider
             stream_module.create_provider = original_provider
-            stream_module.rollback_assistant = original_rollback
 
         events = await _consume_sse_events(resp)
-        assert any(e.get("error") for e in events), (
-            f"Expected an error event, got: {events}"
-        )
-        assert len(rollback_calls) >= 1, (
-            f"_rollback_assistant must be called on new-message failure, "
-            f"got calls: {rollback_calls}"
-        )
-        assert rollback_calls[0] is not None, (
-            "_rollback_assistant must be called with a non-None assistant id"
-        )
-
-    async def test_regenerate_failure_does_not_call_rollback_assistant(self, client, tmp_test_dir):
-        """When a regenerate stream fails, `_rollback_assistant` MUST NOT
-        be called — the old assistant message is a real message in the
-        conversation and must not be deleted."""
-        from tests.helpers import create_character, create_chat, create_persona, create_preset
-
-        char = await create_character(client, "Char")
-        persona = await create_persona(client, "P")
-        preset = await create_preset(client, "Pr")
-        chat = await create_chat(client, char["id"], persona["id"], preset["id"])
-        provider_id = await self._make_provider(client)
-        db_path = _db_path(tmp_test_dir)
-
-        await _insert_message(db_path, chat_id=chat["id"], role="user", position=0, content="Hi")
-        old_asst_id, _ = await _insert_message(
-            db_path, chat_id=chat["id"], role="assistant", position=1, content="Old"
-        )
-
-        import focus.providers
-        from focus.routers import stream as stream_module
-
-        rollback_calls: list[str | None] = []
-        original_rollback = stream_module.rollback_assistant
-
-        async def tracking_rollback(asst_msg_id, **kwargs):
-            rollback_calls.append(asst_msg_id)
-            return await original_rollback(asst_msg_id, **kwargs)
-
-        original_provider = focus.providers.create_provider
-        focus.providers.create_provider = lambda row: _FailingProvider()
-        stream_module.create_provider = focus.providers.create_provider
-        stream_module.rollback_assistant = tracking_rollback
-        try:
-            resp = await client.post(
-                "/api/stream",
-                json={
-                    "chat_id": chat["id"],
-                    "provider_id": provider_id,
-                    "user_message": "",
-                    "samplers": {"stream_enabled": True},
-                    "regenerate": True,
-                    "attachment_ids": [],
-                },
-            )
-        finally:
-            focus.providers.create_provider = original_provider
-            stream_module.create_provider = original_provider
-            stream_module.rollback_assistant = original_rollback
-
-        events = await _consume_sse_events(resp)
-        assert any(e.get("error") for e in events), (
-            f"Expected an error event, got: {events}"
-        )
-        assert rollback_calls == [], (
-            f"_rollback_assistant must NOT be called on regenerate failure, "
-            f"got calls: {rollback_calls}"
-        )
+        assert any(e.get("error") for e in events), f"Expected an error event, got: {events}"
+        assert await _count_assistant_messages(_db_path(tmp_test_dir), chat["id"]) == 0
 
     async def test_regenerate_failure_preserves_old_message(self, client, tmp_test_dir):
         """When a regenerate stream fails, the old assistant message and

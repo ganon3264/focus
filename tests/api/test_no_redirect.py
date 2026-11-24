@@ -28,7 +28,6 @@ async def test_collection_posts_do_not_redirect(client, path, method, payload):
     else:
         resp = await client.request(method, path, json=payload, follow_redirects=False)
     assert resp.status_code == 201, (path, resp.status_code, resp.headers.get("location"))
-    assert resp.status_code not in range(300, 400)
 
 
 @pytest.mark.parametrize(
@@ -60,7 +59,6 @@ async def test_collection_reads_do_not_redirect(client, path, method, payload):
         kwargs["json"] = payload
     resp = await client.request(method, path, **kwargs)
     assert resp.status_code == 200, (path, resp.status_code, resp.headers.get("location"))
-    assert resp.status_code not in range(300, 400)
 
 
 async def test_page_routes_still_serve(client):
@@ -78,7 +76,6 @@ async def test_proxy_scenario_no_redirect(client):
     ]:
         resp = await client.post(path, json=payload, headers=headers, follow_redirects=False)
         assert resp.status_code == 201, (path, resp.status_code, resp.headers.get("location"))
-        assert resp.status_code not in range(300, 400)
 
 
 def test_relativize_location():

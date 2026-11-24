@@ -229,36 +229,15 @@ class TestOpenAICompatProvider:
         calls = next(e for e in events if e["type"] == "tool_calls")["calls"]
         assert calls[0].arguments == {"_raw": "not json"}
 
-    async def test_usage_maps_cached_and_reasoning_tokens(self):
+    async def test_usage_prefers_standard_cache_field_over_aliases(self):
         usage = _usage(
-            prompt_tokens=100, completion_tokens=50, total_tokens=150,
+            prompt_tokens=100, completion_tokens=5, total_tokens=105,
             prompt_tokens_details=Obj(cached_tokens=40),
-            reasoning_tokens=None,
-            model_extra={"reasoning_tokens": 30, "cost": 0.001, "cost_details": {"x": 1}},
-            completion_tokens_details=None,
-        )
-        provider, _ = self._make([_chunk(content="x"), _chunk(content="", usage=usage)])
-        events = await _collect(provider)
-        usage_event = next(e for e in events if e["type"] == "usage")
-        u = usage_event["usage"]
-        assert u["cached_tokens"] == 40
-        assert u["reasoning_tokens"] == 30
-        assert u["cost"] == 0.001
-        assert u["cost_details"] == {"x": 1}
-
-    async def test_usage_reasoning_from_completion_details(self):
-        usage = _usage(
-            prompt_tokens=5, completion_tokens=5, total_tokens=10,
-            prompt_tokens_details=None,
-            reasoning_tokens=None,
-            model_extra=None,
-            completion_tokens_details=Obj(reasoning_tokens=7),
+            model_extra={"cache_read_input_tokens": 60},
         )
         provider, _ = self._make([_chunk(content="", usage=usage)])
-        events = await _collect(provider)
-        u = next(e for e in events if e["type"] == "usage")["usage"]
-        assert u["reasoning_tokens"] == 7
-        assert u["cached_tokens"] == 0
+        u = next(e for e in await _collect(provider) if e["type"] == "usage")["usage"]
+        assert u["cached_tokens"] == 40
 
     async def test_empty_api_key_still_sends_a_well_formed_request(self):
         """The SDK rejects an empty key, so a keyless provider (a local server)

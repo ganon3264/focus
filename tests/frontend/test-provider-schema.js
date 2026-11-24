@@ -97,8 +97,6 @@ assertDeepEqual(
 );
 
 // ── capabilities / fieldVisible ──
-assertEqual(ProviderSchema.capabilities('openrouter').supports_ephemeral_cache, true, 'capabilities passthrough');
-assertEqual(ProviderSchema.capabilities('openrouter').supports_prefill, true, 'capabilities passthrough 2');
 assertEqual(ProviderSchema.fieldVisible('openrouter', 'top_k'), true, 'fieldVisible true when listed');
 assertEqual(ProviderSchema.fieldVisible('openrouter', 'frequency_penalty'), false, 'fieldVisible false when absent');
 assertEqual(ProviderSchema.fieldVisible('openrouter', 'anything'), false, 'fieldVisible defaults false');

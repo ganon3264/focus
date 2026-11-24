@@ -131,7 +131,6 @@ function flush() {
   gsec.appendChild(gidx);
 
   window.createEditModalHandlers(ccfg);
-  assert(typeof window.actionGreetingInput === 'function', 'greeting input handler registered');
 
   // ── open stages existing media, does not fetch anything yet ──
   var btn = makeElement('button');

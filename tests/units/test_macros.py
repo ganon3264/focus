@@ -284,15 +284,15 @@ class TestUnknownMacros:
         text = "{{bogus}}{{bogus}}{{other}}{{other}}{{bogus}}"
         with caplog.at_level(logging.WARNING, logger="focus.macros"):
             apply_macros(text, {})
-        messages = [r.getMessage() for r in caplog.records if "Unknown macro" in r.getMessage()]
-        assert len(messages) == 2
+        warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
+        assert len(warnings) == 2
 
     def test_unclosed_condition_warns_once(self, caplog):
         text = "{{if {{getvar::a}}}}{{if {{getvar::b}}}}x"
         with caplog.at_level(logging.WARNING, logger="focus.macros"):
             apply_macros(text, {})
-        messages = [r.getMessage() for r in caplog.records if "Unclosed" in r.getMessage()]
-        assert len(messages) == 1
+        warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
+        assert len(warnings) == 1
 
 
 class TestApplyMacros:
@@ -428,12 +428,6 @@ class TestMacroDefinitions:
     def test_keys_match_build_base_macros(self):
         macros = build_base_macros({}, {"name": "x", "description": "", "id": ""})
         assert set(macros.keys()) == set(MACRO_DEFINITIONS.keys())
-
-    def test_special_tokens_have_required_keys(self):
-        from focus.core.macros import SPECIAL_TOKENS
-        for tok in SPECIAL_TOKENS:
-            assert "syntax" in tok
-            assert "description" in tok
 
 
 class TestNicknameMacro:

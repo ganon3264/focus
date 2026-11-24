@@ -13,7 +13,32 @@ from datetime import UTC, datetime
 
 import aiosqlite
 
-from tests.helpers import create_character, create_chat, create_persona, create_preset
+from tests.helpers import create_character, create_chat, create_persona, create_preset, parse_html
+
+
+def _chat_rows(html):
+    """Sidebar rows keyed by chat id."""
+    return {
+        el.get("data-chat-id"): el
+        for el in parse_html(html).find_all(**{"data-ui": "sidebar-item"})
+    }
+
+
+def _page_buttons(html):
+    """The pager's numbered buttons (its prev/next keys have no text)."""
+    return {
+        el.content.strip()
+        for el in parse_html(html).walk()
+        if (el.get("onclick") or "").startswith("goToChatPage(") and el.content.strip()
+    }
+
+
+def _oob_targets(html):
+    return {
+        el.get("id")
+        for el in parse_html(html).walk()
+        if el.get("hx-swap-oob") == "innerHTML"
+    }
 
 
 async def _seed_message(db_path: str, chat_id: str, role: str, position: int, content: str) -> str:
@@ -57,11 +82,6 @@ class TestChatRedirect:
         resp = await client.get(f"/chat?character_id={char['id']}", follow_redirects=False)
         assert resp.headers["location"] == f"/chat/{chat1['id']}"
 
-    async def test_greeter_state_without_chats(self, client):
-        resp = await client.get("/chat")
-        assert resp.status_code == 200
-        assert "chat.html" in resp.text or "Focus" in resp.text
-
     async def test_greeter_state_with_character_filter(self, client):
         char = await create_character(client, "Lonely")
         resp = await client.get(f"/chat?character_id={char['id']}")
@@ -75,8 +95,8 @@ class TestChatRedirect:
 
         resp = await client.get(f"/chat?character_id={lonely['id']}")
 
-        assert f"preset_id: '{older['id']}'" in resp.text
-        assert f"preset_id: '{newer['id']}'" not in resp.text
+        assert re.search(rf"preset_id:\s*'{older['id']}'", resp.text)
+        assert not re.search(rf"preset_id:\s*'{newer['id']}'", resp.text)
 
     async def test_greeter_falls_back_to_the_newest_preset_without_history(self, client):
         await create_preset(client, "Older")
@@ -84,7 +104,7 @@ class TestChatRedirect:
 
         resp = await client.get("/chat")
 
-        assert f"preset_id: '{newest['id']}'" in resp.text
+        assert re.search(rf"preset_id:\s*'{newest['id']}'", resp.text)
 
 
 class TestChatPage:
@@ -184,17 +204,15 @@ class TestChatPagination:
         await self._seed(client, 17, char["id"])
         resp = await client.get(f"/partials/chat-list?character_id={char['id']}")
         assert resp.status_code == 200
-        assert 'class="pager"' in resp.text
         assert 'data-chat-page="1"' in resp.text
-        assert "goToChatPage(1)" in resp.text
-        assert "goToChatPage(2)" in resp.text
+        assert _page_buttons(resp.text) == {"1", "2"}
 
     async def test_pager_hidden_for_single_page(self, client):
         char = await create_character(client, "Single")
         await create_chat(client, character_id=char["id"])
         resp = await client.get(f"/partials/chat-list?character_id={char['id']}")
         assert resp.status_code == 200
-        assert 'class="pager"' not in resp.text
+        assert _page_buttons(resp.text) == set()
 
     async def test_second_page_has_older_chats(self, client):
         char = await create_character(client, "Paged2")
@@ -221,7 +239,7 @@ class TestChatPagination:
         resp = await client.get(f"/chat/{oldest['id']}")
         assert resp.status_code == 200
         assert 'data-chat-page="2"' in resp.text
-        assert 'class="row group active"' in resp.text
+        assert "active" in _chat_rows(resp.text)[oldest["id"]].classes
 
     async def test_preview_is_clipped_to_one_row(self, client):
         long_text = "word " * 200
@@ -237,7 +255,7 @@ class TestChatPagination:
         await self._seed(client, 16, char["id"])
         resp = await client.get(f"/partials/selection-state?character_id={char['id']}&page=2")
         assert resp.status_code == 200
-        assert 'id="chat-list" hx-swap-oob="innerHTML"' in resp.text
+        assert "chat-list" in _oob_targets(resp.text)
         assert 'data-chat-page="2"' in resp.text
 
 
@@ -266,7 +284,7 @@ class TestListSortPrefs:
     async def test_tools_default_is_az(self, client):
         chat, _, _, _ = await _seed_chat(client)
         resp = await client.get(f"/chat/{chat['id']}")
-        assert "sortMode: 'az'" in resp.text
+        assert re.search(r"sortMode:\s*'az'", resp.text)
 
 
 class TestStandalonePagesGone:
@@ -303,8 +321,9 @@ class TestPresetPartials:
         )
         assert resp.status_code == 200
         # every selection-dependent pane is an out-of-band swap
-        for target in ("preset-selector", "preset-variables", "arranger-modal-body", "chat-list", "chat-pager"):
-            assert f'id="{target}" hx-swap-oob="innerHTML"' in resp.text, target
+        assert _oob_targets(resp.text) >= {
+            "preset-selector", "preset-variables", "arranger-modal-body", "chat-list", "chat-pager",
+        }
         assert preset["id"] in resp.text
         assert chat["id"] in resp.text
 
@@ -313,7 +332,7 @@ class TestPresetPartials:
         # render the empty-state panes.
         resp = await client.get("/partials/selection-state")
         assert resp.status_code == 200
-        assert 'id="preset-selector" hx-swap-oob="innerHTML"' in resp.text
+        assert "preset-selector" in _oob_targets(resp.text)
         assert "Select a preset to edit variables." in resp.text
         assert "Select a preset first." in resp.text
 

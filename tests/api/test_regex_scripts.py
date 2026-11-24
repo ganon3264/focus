@@ -9,7 +9,15 @@ from zipfile import ZipFile
 
 import aiosqlite
 
-from tests.helpers import create_character, create_preset
+from tests.helpers import create_character, create_preset, parse_html
+
+
+def _message_texts(html: str) -> list[str]:
+    """Displayed text of every message body in a rendered message list."""
+    return [
+        el.content.strip()
+        for el in parse_html(html).find_all(**{"data-ui": "message-content"})
+    ]
 
 
 def _now_iso() -> str:
@@ -259,13 +267,17 @@ class TestPartial:
 
         resp = await client.get(f"/partials/regex-scripts/item/{script['id']}")
         assert resp.status_code == 200
-        assert "arranger-item regex-item disabled" in resp.text
-        assert 'style="display: none"' in resp.text
+        item = parse_html(resp.text).find(**{"data-ui": "regex-item"})
+        assert item, "the item partial rendered no row"
+        assert "disabled" in item.classes
+        assert "expanded" not in item.classes
+        assert item.find(**{"data-ui": "arranger-title-group"}).get("aria-expanded") == "false"
 
         opened = await client.get(f"/partials/regex-scripts/item/{script['id']}?open=1")
         assert opened.status_code == 200
-        assert "expanded" in opened.text
-        assert 'style="display: flex"' in opened.text
+        item = parse_html(opened.text).find(**{"data-ui": "regex-item"})
+        assert "expanded" in item.classes
+        assert item.find(**{"data-ui": "arranger-title-group"}).get("aria-expanded") == "true"
 
         assert (
             await client.get("/partials/regex-scripts/item/missing")
@@ -288,7 +300,7 @@ class TestDisplayIntegration:
         )
 
         before = await client.get(f"/partials/message-list/{chat['id']}")
-        assert ">A beat. Hello</div>" in before.text
+        assert _message_texts(before.text) == ["A beat. Hello"]
 
         await client.post(
             "/api/regex-scripts",
@@ -298,11 +310,10 @@ class TestDisplayIntegration:
         )
 
         after = await client.get(f"/partials/message-list/{chat['id']}")
-        # The rendered content changes; the raw text stays in data-raw-content
-        # for the edit modal.
-        assert ">A beat. Hello</div>" not in after.text
-        assert ">Hello</div>" in after.text
-        assert 'data-raw-content="A beat. Hello"' in after.text
+        # The rendered content changes; the raw text stays on the node for the
+        # edit modal.
+        assert _message_texts(after.text) == ["Hello"]
+        assert parse_html(after.text).find(**{"data-ui": "message"}).get("data-raw-content") == "A beat. Hello"
 
         # Storage is untouched.
         rows = await _read_db(tmp_test_dir, "SELECT content FROM message_variants")
@@ -322,9 +333,10 @@ class TestDisplayIntegration:
             json=_new_script(pattern=r"A beat\.\s*", replacement="", apply_prompt=False, max_depth=0),
         )
         html = (await client.get(f"/partials/message-list/{chat['id']}")).text
-        assert ">A beat. old</div>" in html
-        assert ">A beat. new</div>" not in html
-        assert ">new</div>" in html
+        texts = _message_texts(html)
+        assert "A beat. old" in texts
+        assert "new" in texts
+        assert "A beat. new" not in texts
 
     async def test_block_script_renders_collapsible_block(self, client, tmp_test_dir):
         from tests.helpers import create_chat
@@ -349,12 +361,18 @@ class TestDisplayIntegration:
             ),
         )
         html = (await client.get(f"/partials/message-list/{chat['id']}")).text
-        assert "<summary>" in html
-        assert "Think" in html
-        assert "secret" in html
-        assert "after" in html
-        # Raw content is retained (escaped) for the edit modal.
-        assert "&lt;think&gt;" in html
+        tree = parse_html(html)
+        texts = _message_texts(html)
+        assert "before" in texts
+        assert "after" in texts
+
+        block = tree.find(**{"data-ui": "reasoning-block"})
+        assert block, "the match must render as a collapsible block"
+        assert block.find(**{"class": "disclosure-title"}).content.strip() == "Think"
+        assert "secret" in block.find(**{"data-ui": "reasoning-content"}).content
+
+        # Raw content is retained (unescaped for the edit modal) on the node.
+        assert "<think>" in tree.find(**{"data-ui": "message"}).get("data-raw-content")
 
 
 class TestExportRoundtrip:

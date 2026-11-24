@@ -160,8 +160,3 @@ class TestTemplateSafety:
             validate_template('{{upper "}}" [x\') or open(\'/tmp/x\',\'w\') or (\'y]}}')
             is not None
         )
-
-    def test_compile_is_cached_per_template_text(self):
-        from focus.core.structured import _compile
-
-        assert _compile("{{{text}}}") is _compile("{{{text}}}")

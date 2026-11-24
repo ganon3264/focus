@@ -342,7 +342,7 @@
         if (s.characters !== 'some') {
           body.chats = allChats.map((c) => c.id);
         } else {
-          charIds = Object.keys(s.selChars || {});
+          charIds = Object.keys(s.selCharacters || {});
           body.chats = allChats
             .filter((c) => charIds.indexOf(c.character_id) >= 0)
             .map((c) => c.id);

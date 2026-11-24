@@ -170,13 +170,18 @@ eval(src + '\nwindow.hexToRgb=hexToRgb;window.lightenHex=lightenHex;window.compu
 })();
 
 // ── resolvePalette includes accent derivatives ──
+function luminance(hex) {
+  var n = parseInt(hex.slice(1), 16);
+  return 0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255);
+}
+
 (function () {
   var palette = resolvePalette(window.getTheme('builtin-slate'));
   assertEqual(palette['--bg'], SLATE['--bg'], 'resolvePalette: colors copied');
   assert(palette['--accent-hover'], 'resolvePalette: accent-hover derived');
-  assertEqual(palette['--text-on-accent'], '#ffffff', 'resolvePalette: dark accent gets white text');
+  assert(luminance(palette['--text-on-accent']) > luminance(palette['--accent']), 'resolvePalette: dark accent gets lighter text');
   var bright = resolvePalette({ colors: { '--accent': '#a3e635' } });
-  assertEqual(bright['--text-on-accent'], '#16181c', 'resolvePalette: light accent gets dark text');
+  assert(luminance(bright['--text-on-accent']) < luminance('#a3e635'), 'resolvePalette: light accent gets darker text');
 })();
 
 // ── resetTheme ──

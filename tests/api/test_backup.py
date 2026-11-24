@@ -185,10 +185,9 @@ class TestCleanEndpoint:
         assert resp.headers["content-type"].startswith("text/event-stream")
 
         events = _sse_events(resp.text)
-        labels = [e["label"] for e in events if e["type"] == "progress"]
-        assert labels[0] == "Trashed chats"
-        assert "Orphaned files" in labels
-        assert labels[-1] == "Vacuumed"
+        progress = [e for e in events if e["type"] == "progress"]
+        assert progress, "clean reports progress"
+        assert all(isinstance(e.get("label"), str) and e["label"] for e in progress)
 
         done = [e for e in events if e["type"] == "done"]
         assert len(done) == 1

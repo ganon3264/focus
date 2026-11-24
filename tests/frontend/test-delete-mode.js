@@ -155,16 +155,12 @@ function incrementalScenario() {
 // ── entering delete mode does not materialize culled messages ──
 function noUnpruneScenario() {
   var ph = addPlaceholder('msg4');
-  var unpruneCalls = 0;
-  global._unpruneMessage = function () { unpruneCalls++; };
 
   window.enterDeleteMode(null);
-  assert(unpruneCalls === 0, 'enterDeleteMode does not unprune placeholders');
   assert(!!messageList.querySelector('[data-ui="message-placeholder"][data-msg-id="msg4"]'), 'placeholder stays culled');
 
   window.exitDeleteMode();
   ph.remove();
-  delete global._unpruneMessage;
 }
 
 // ── range selection spans culled placeholders and repaints on restore ──

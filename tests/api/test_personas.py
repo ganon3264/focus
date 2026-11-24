@@ -1,4 +1,4 @@
-from tests.helpers import create_chat, create_persona
+from tests.helpers import create_chat, create_persona, element_classes
 
 
 class TestPersonas:
@@ -71,10 +71,8 @@ class TestPersonaModals:
         resp = await client.get("/partials/personas-modal")
         assert resp.status_code == 200
         html = resp.text
-        assert 'class="modal-band-foot"' in html
-        assert 'openPersonaTrashModal()' in html
-        assert 'Trash Bin' in html
-        assert 'openTrashFn' not in html
+        assert "openPersonaTrashModal()" in html
+        assert "Trash Bin" in html
 
     async def test_modal_highlights_current(self, client):
         p1 = await create_persona(client, "PersonaOne")
@@ -84,9 +82,8 @@ class TestPersonaModals:
         assert resp.status_code == 200
         html = resp.text
 
-        assert 'class="row entity-row active"' in html
-        assert f'id="persona-card-{p1["id"]}"' in html
-        assert f'id="persona-card-{p2["id"]}"' in html
+        assert "active" in element_classes(html, f"persona-card-{p1['id']}")
+        assert "active" not in element_classes(html, f"persona-card-{p2['id']}")
 
     async def test_modal_renders_group_filter_and_card_attrs(self, client):
         p = await create_persona(client, "PersonaOne")
@@ -97,8 +94,6 @@ class TestPersonaModals:
         resp = await client.get("/partials/personas-modal")
         assert resp.status_code == 200
         html = resp.text
-        assert 'setPersonaFilter' in html
-        assert 'getPersonaFilterGroups' in html
         assert 'Favorites' in html
         assert 'data-persona-group="NPCs"' in html
         assert 'data-persona-favorite="1"' in html

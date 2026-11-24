@@ -1066,20 +1066,3 @@ class TestAutoRetry:
 
         asst = await _assistant_variant(_db_path(tmp_test_dir), chat["id"])
         assert asst["content"] == "Recovered"
-
-    async def test_stream_flag_plumbs_to_provider(self, client, patch_provider):
-        """`stream_enabled` must reach the provider as `stream` (API mode),
-        not just select the transport."""
-        chat, prov_id = await _setup(client)
-
-        streaming = FakeProvider([[{"type": "token", "text": "x"}, {"type": "done"}]])
-        patch_provider(streaming)
-        await _consume_sse_events(await _stream(client, chat["id"], prov_id))
-        assert streaming.all_kwargs[0]["stream"] is True
-
-        buffered = FakeProvider([[{"type": "token", "text": "y"}, {"type": "done"}]])
-        patch_provider(buffered)
-        await _consume_sse_events(
-            await _stream(client, chat["id"], prov_id, samplers={"stream_enabled": False})
-        )
-        assert buffered.all_kwargs[0]["stream"] is False

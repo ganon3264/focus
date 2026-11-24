@@ -16,15 +16,16 @@ var ml = makeElement('div');
 ml.id = 'message-list';
 
 // Add messages with getBoundingClientRect that reports positions
-function addMsg(id, top) {
+function addMsg(id, top, height) {
+  height = height || 60;
   var msg = makeElement('div');
   msg.style = {};
   msg.id = id;
   msg.dataset.ui = 'message';
   msg.getBoundingClientRect = function () {
-    return { top: top, bottom: top + 60, left: 0, right: 0, width: 400, height: 60 };
+    return { top: top, bottom: top + height, left: 0, right: 0, width: 400, height: height };
   };
-  msg.offsetHeight = 60;
+  msg.offsetHeight = height;
   msg.outerHTML = '<div id="' + id + '" class="message" data-ui="message">content</div>';
   msg.replaceWith = function (newEl) {
     var parent = msg.parent;
@@ -46,6 +47,12 @@ var doc = h.createMockDocument();
 doc.createElement = function (tag) {
   var el = h.makeElement(tag);
   el.style = {};
+  // A browser reports the box height of a fixed-height stub; the mock has to
+  // derive it from the inline style.
+  Object.defineProperty(el, 'offsetHeight', {
+    configurable: true,
+    get: function () { return parseInt(this.style.height, 10) || 0; },
+  });
   el.replaceWith = function (newEl) {
     var parent = el.parent;
     if (parent) {
@@ -103,31 +110,33 @@ assert(typeof window.pruneMessages === 'function', 'pruneMessages loaded');
 
 // ── message far below viewport gets pruned ──
 (function () {
-  // Add a message very far down
-  var msgFar = addMsg('msg-far', 5000);
+  var msgFar = addMsg('msg-far', 5000, 137);
   window.pruneMessages();
   var ph = ml.querySelector('[data-ui="message-placeholder"][data-msg-id="msg-far"]');
   assert(!!ph, 'far message pruned to placeholder');
-  assert(ph.style.height === '60px', 'placeholder height matches');
+  assertEqual(ph.offsetHeight, msgFar.offsetHeight, 'placeholder keeps the replaced height');
 })();
 
 // ── _unpruneMessage restores a pruned message ──
 (function () {
-  var ph = document.querySelector('[data-ui="message-placeholder"][data-msg-id="msg-far"]');
+  var ph = ml.querySelector('[data-ui="message-placeholder"][data-msg-id="msg-far"]');
   assert(!!ph, 'placeholder exists before unprune');
   var restored = window._unpruneMessage('msg-far');
   assert(!!restored, '_unpruneMessage returns restored element');
   assertEqual(restored.id, 'msg-far', 'restored element has correct id');
+  assert(!ml.querySelector('[data-ui="message-placeholder"][data-msg-id="msg-far"]'),
+    'the placeholder is gone once the message is back');
 })();
 
 // ── streaming message excluded from pruning ──
 (function () {
-  var msgStream = addMsg('msg-stream', 10000);
+  var msgStream = addMsg('msg-stream', 10000, 44);
   global._streamingMessageId = 'msg-stream';
   window.pruneMessages();
-  assert(!window._isMessagePruned('msg-stream'), 'streaming message not pruned');
+  assertEqual(ml.querySelectorAll('[data-ui="message-placeholder"][data-msg-id="msg-stream"]').length, 0,
+    'the streaming message is not replaced by a placeholder');
+  assert(msgStream.parent === ml, 'the streaming message stays in the list');
   global._streamingMessageId = null;
-  // Clean up
   msgStream.remove();
 })();
 
@@ -151,24 +160,16 @@ assert(typeof window.pruneMessages === 'function', 'pruneMessages loaded');
   doc.getElementById = origGetById;
 })();
 
-// ── schedule calls pruneMessages via RAF ──
+// ── restore clears the pruned state ──
 (function () {
-  var called = false;
-  var orig = window.pruneMessages;
-  window.pruneMessages = function () { called = true; };
-  // schedule() — it's the same as window.pruneMessages
+  addMsg('msg-prune-test', 9999, 80);
   window.pruneMessages();
-  assert(called, 'pruneMessages is callable');
-  window.pruneMessages = orig;
-})();
-
-// ── _isMessagePruned returns true for pruned message ──
-(function () {
-  var msgP = addMsg('msg-prune-test', 9999);
-  window.pruneMessages();
-  assert(window._isMessagePruned('msg-prune-test'), '_isMessagePruned true after prune');
-  window._unpruneMessage('msg-prune-test');
-  assert(!window._isMessagePruned('msg-prune-test'), '_isMessagePruned false after restore');
+  assert(!!ml.querySelector('[data-ui="message-placeholder"][data-msg-id="msg-prune-test"]'),
+    'the pruned message is a placeholder');
+  assert(window._isMessagePruned('msg-prune-test'), 'the pruned state is recorded');
+  var restored = window._unpruneMessage('msg-prune-test');
+  assertEqual(restored && restored.id, 'msg-prune-test', 'restore brings the message back');
+  assert(!window._isMessagePruned('msg-prune-test'), 'restore clears the pruned state');
 })();
 
 // ── placeholders use bare ids (the DOM `message-` prefix is stripped) ──
@@ -177,11 +178,8 @@ assert(typeof window.pruneMessages === 'function', 'pruneMessages loaded');
   window.pruneMessages();
   var ph = ml.querySelector('[data-ui="message-placeholder"][data-msg-id="bare-test"]');
   assert(!!ph, 'placeholder data-msg-id is the bare message id');
-  assert(window._isMessagePruned('bare-test'), '_isMessagePruned true for bare id');
-  assert(window._isMessagePruned('message-bare-test'), '_isMessagePruned normalizes a prefixed DOM id');
   var restored = window._unpruneMessage('bare-test');
   assert(!!restored && restored.id === 'message-bare-test', 'unprune restores the prefixed DOM node');
-  assert(!window._isMessagePruned('bare-test'), 'unprune cleared the pruned entry');
 })();
 
 // ── _forgetPruned drops a stale entry without touching the DOM ──
@@ -202,7 +200,8 @@ assert(typeof window.pruneMessages === 'function', 'pruneMessages loaded');
 
   addMsg('message-hook-test', 66666);
   window.pruneMessages();
-  assert(window._isMessagePruned('hook-test'), 'hook-test is pruned');
+  assert(!!ml.querySelector('[data-ui="message-placeholder"][data-msg-id="hook-test"]'),
+    'hook-test is pruned');
 
   var restored = window._unpruneMessage('hook-test');
   assert(!!hookedMsg && hookedMsg === restored, 'restore calls applyDeleteModeToNode on the node');

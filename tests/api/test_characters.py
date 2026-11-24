@@ -3,7 +3,7 @@ import json
 import struct
 import zlib
 
-from tests.helpers import create_character, create_chat
+from tests.helpers import create_character, create_chat, element_classes, parse_html
 
 
 def _minimal_png(text_keyword: bytes, text_value: bytes) -> bytes:
@@ -287,15 +287,16 @@ class TestCharacterModals:
         assert resp.status_code == 200
         html = resp.text
 
-        assert 'class="row entity-row active"' in html
-        assert f'id="char-card-{c1["id"]}"' in html
-        assert f'id="char-card-{c2["id"]}"' in html
+        assert "active" in element_classes(html, f"char-card-{c1['id']}")
+        assert "active" not in element_classes(html, f"char-card-{c2['id']}")
 
     async def test_modal_no_current_no_highlight(self, client):
         await create_character(client, "Alice")
         resp = await client.get("/partials/characters-modal")
         assert resp.status_code == 200
-        assert 'class="row entity-row active"' not in resp.text
+        rows = parse_html(resp.text).find_all(**{"data-ui": "entity-row"})
+        assert rows, "the modal rendered no character rows"
+        assert not [r for r in rows if "active" in r.classes]
 
     async def test_modal_renders_group_filter_and_card_attrs(self, client):
         c = await create_character(client, "Alice")
@@ -306,8 +307,6 @@ class TestCharacterModals:
         resp = await client.get("/partials/characters-modal")
         assert resp.status_code == 200
         html = resp.text
-        assert 'setCharFilter' in html
-        assert 'getCharFilterGroups' in html
         assert 'Favorites' in html
         assert 'data-char-group="Fantasy"' in html
         assert 'data-char-favorite="1"' in html
@@ -499,19 +498,21 @@ class TestCharacterBlocks:
 
     async def test_blocks_partial_renders_rows(self, client):
         c = await create_character(client, "Renderer")
-        await client.post(
-            f"/api/characters/{c['id']}/blocks",
-            json={"name": "Mood", "content": "Tired.", "role": "assistant"},
-        )
+        block = (
+            await client.post(
+                f"/api/characters/{c['id']}/blocks",
+                json={"name": "Mood", "content": "Tired.", "role": "assistant"},
+            )
+        ).json()
         resp = await client.get(f"/partials/char-blocks/{c['id']}")
         assert resp.status_code == 200
-        html = resp.text
-        assert 'data-ui="char-block"' in html
-        assert 'class="row arranger-header"' in html
-        # The role is the grip's fill, not the row's left edge.
-        assert 'class="grip char-block-handle role-assistant"' in html
-        assert 'value="Mood"' in html
-        assert "Tired." in html
+        row = parse_html(resp.text).find(**{"data-ui": "char-block"})
+        assert row and row.get("data-block-id") == block["id"]
+        assert row.find(**{"data-ui": "char-block-name"}).get("value") == "Mood"
+        assert row.find(**{"data-ui": "char-block-content"}).content.strip() == "Tired."
+        # The role reaches the DOM as the row's role field, which is what saves it.
+        role = row.find("input", name="role")
+        assert role and role.get("id") == f"char-block-role-{block['id']}"
 
     async def test_blocks_partial_empty(self, client):
         c = await create_character(client, "Empty Renderer")

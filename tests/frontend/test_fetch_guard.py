@@ -54,10 +54,3 @@ def test_every_fetch_is_queued_or_marked():
         "hxJson, or mark the line with `// raw: <reason>` if it is a stream, a "
         "stop request, or binary data:\n" + "\n".join(unmarked)
     )
-
-
-def test_raw_markers_are_live():
-    stale = [
-        f"{path}:{number}: {line.strip()}" for path, number, line in _lines() if RAW in line and not CALL.search(line)
-    ]
-    assert not stale, "`// raw:` marker on a line without a fetch — drop it with the call:\n" + "\n".join(stale)

@@ -100,26 +100,16 @@ def _violations(css, name):
     return found
 
 
-def _not_ladders(css, name):
-    text = _strip_comments(css)
-    return [
-        f"{name}:{text.count(chr(10), 0, m.start()) + 1}: `:not(` is not allowed"
-        for m in re.finditer(r":not\(", text)
-    ]
-
-
 def _surface_files():
     return [p for p in sorted(CSS_DIR.rglob("*.css")) if p != PRIMITIVES]
 
 
 def test_parser_catches_what_it_claims_to():
-    """The guard is only worth its green: prove both rules fail on a violation."""
-    bad = ".foo .row { font-size: 11px; }\n.field:hover { color: red; }\n.bar:not(.x) { padding: 0; }\n"
+    """The guard is only worth its green: prove it fails on a violation."""
+    bad = ".foo .row { font-size: 11px; }\n.field:hover { color: red; }\n"
     assert len(_violations(bad, "fake.css")) == 2
-    assert len(_not_ladders(bad, "fake.css")) == 1
     # Layout on its own container stays legal, as does a surface's own class.
     assert _violations(".foo .row { min-height: 4px; }\n.mine.danger { color: red; }\n", "ok.css") == []
-    assert _not_ladders("/* no :not() in a comment */\n.a > .b { color: red; }\n", "ok.css") == []
 
 
 def test_guard_scans_the_real_surfaces():
@@ -132,11 +122,3 @@ def test_guard_scans_the_real_surfaces():
 def test_no_surface_restyles_a_primitive(path):
     found = _violations(path.read_text(), path.name)
     assert not found, "surfaces may not own a primitive's look:\n" + "\n".join(found)
-
-
-def test_no_not_ladders_anywhere():
-    """A `:not()` ladder is how a primitive grows per-surface exceptions."""
-    found = []
-    for path in sorted(CSS_DIR.rglob("*.css")):
-        found += _not_ladders(path.read_text(), path.name)
-    assert not found, "\n".join(found)

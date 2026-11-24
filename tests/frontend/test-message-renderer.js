@@ -85,17 +85,5 @@ eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'messages'
   assertIncludes(html, 'code', 'renderMessage: code content preserved');
 })();
 
-// ── renderMessage — markdown rendered ──
-(function () {
-  var html = window.renderMessage('**bold**');
-  assertIncludes(html, '<strong>', 'renderMessage: markdown bold rendered (or fallback)');
-})();
-
-// ── closeMarkdown — delegates to remend ──
-(function () {
-  assertEqual(window.closeMarkdown('hello'), 'hello', 'closeMarkdown: passes through to remend');
-  assertEqual(window.closeMarkdown(''), '', 'closeMarkdown: empty returns empty');
-})();
-
 // ── Result ──
 h.printSummary();

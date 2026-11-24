@@ -114,47 +114,6 @@ assert(typeof window.createEditModalHandlers === 'function', 'createEditModalHan
 
   window.createEditModalHandlers(cfg);
 
-  assert(typeof window.openEditChar === 'function', 'openFn created');
-  assert(typeof window.uploadCharMedia === 'function', 'uploadFn created');
-  assert(typeof window.uploadCharFile === 'function', 'uploadFileFn created');
-  assert(typeof window.deleteCharImage === 'function', 'deleteFn created');
-  assert(typeof window.uploadCharAvatar === 'function', 'avatarFn created');
-  assert(typeof window.submitEditChar === 'function', 'submitFn created');
-})();
-
-// ── uploadFn delegates to uploadFileFn ──
-(function () {
-  var delegated = false;
-  window.uploadCharFile = function () { delegated = true; };
-
-  window.uploadCharMedia({ files: [new (global.Blob || function () {})()] });
-  assert(delegated, 'uploadFn delegates to uploadFileFn');
-
-  // With empty files — no delegate
-  delegated = false;
-  window.uploadCharMedia({ files: [] });
-  assert(!delegated, 'uploadFn with no files does nothing');
-
-  window.uploadCharFile = function () {};
-})();
-
-// ── deleteFn fetch URL construction (checked synchronously) ──
-(function () {
-  var idInput = makeElement('input');
-  idInput.id = 'edit-char-id';
-  idInput.value = 'char-1';
-  doc._body.appendChild(idInput);
-
-  var origGetElementById = doc.getElementById;
-  doc.getElementById = function (id) {
-    if (id === 'edit-char-id') return idInput;
-    return origGetElementById ? origGetElementById(id) : null;
-  };
-
-  // The fetch call is async, but we can check that the function signature works
-  assert(typeof window.deleteCharImage === 'function', 'deleteFn exists');
-  // Clean up: deleteFn will call fetch asynchronously (fire-and-forget)
-  doc.getElementById = origGetElementById;
 })();
 
 // ── Greeting editor: open fetches server-rendered section; submit passes through ──
@@ -271,7 +230,6 @@ assert(typeof window.createEditModalHandlers === 'function', 'createEditModalHan
     dropZoneSelector: '#p1-dropzone',
   };
   window.createEditModalHandlers(pcfg);
-  assert(typeof window.p1GreetingPrev === 'undefined', 'persona registers no greeting fns');
 
   // ── persona open does not fetch a greeting section ──
   var ajaxCalls = 0;

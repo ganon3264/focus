@@ -7,10 +7,11 @@ name (it must be hidden while a new stream is in progress and shown only
 once `details.reasoning` is in the content).
 """
 
-import re
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
+
+from tests.helpers import parse_html
 
 TEMPLATES_DIR = Path("templates").resolve()
 PARTIALS_DIR = Path("partials").resolve()
@@ -50,10 +51,13 @@ def _render_message(message=None, **overrides):
     )
 
 
-def _extract_reasoning_button(html: str) -> str:
-    """Return the <button> tag for the reasoning toggle, or '' if missing."""
-    match = re.search(r'<button[^>]*aria-label="Toggle reasoning"[^>]*>', html)
-    return match.group(0) if match else ""
+def _reasoning_button(html: str):
+    """The reasoning toggle element, or None when the message has none."""
+    return parse_html(html).find(**{"data-ui": "reasoning-toggle-btn"})
+
+
+def _message_content(html: str):
+    return parse_html(html).find(**{"data-ui": "message-content"})
 
 
 REASONING_SEGMENTS = [
@@ -65,68 +69,59 @@ REASONING_SEGMENTS = [
 def test_reasoning_button_present_when_message_has_reasoning():
     """Server should render the button when a reasoning block is on the page."""
     html = _render_message({"reasoning": "hidden reasoning", "segments": REASONING_SEGMENTS})
-    btn = _extract_reasoning_button(html)
-    assert btn, "Expected reasoning button to be rendered"
-    assert 'data-ui="reasoning-toggle-btn"' in btn, (
-        f"Reasoning button must carry data-ui=\"reasoning-toggle-btn\" so "
-        f"syncReasoningButtons() can manage it. Got: {btn}"
-    )
+    assert _reasoning_button(html), "Expected reasoning button to be rendered"
 
 
 def test_reasoning_button_absent_when_no_reasoning():
     """No button when content has no <think> tags."""
     html = _render_message({"content": "plain text response"})
-    assert _extract_reasoning_button(html) == ""
+    assert _reasoning_button(html) is None
 
 
 def test_reasoning_button_lives_on_the_rail():
     """The pre-answer reasoning block has no head of its own — the rail's toggle
     controls it, so the block leaves nothing behind while it is collapsed."""
-    html = _render_message({"reasoning": "hidden", "segments": REASONING_SEGMENTS})
-    meta = re.search(r'<div class="row-meta message-meta".*?</div>', html, re.S).group(0)
-    assert "reasoning-toggle-btn" in meta, meta
+    tree = parse_html(_render_message({"reasoning": "hidden", "segments": REASONING_SEGMENTS}))
+    rail = tree.find(**{"data-ui": "message-rail"})
+    meta = rail.find(**{"data-ui": "message-meta"})
+    assert meta.find(**{"data-ui": "reasoning-toggle-btn"}), "the toggle belongs to the rail's meta line"
 
 
 def test_reasoning_button_absent_for_user_messages():
     """User messages never show the reasoning button."""
     html = _render_message({"role": "user", "reasoning": "hidden"})
-    assert _extract_reasoning_button(html) == ""
+    assert _reasoning_button(html) is None
 
 
 def test_reasoning_button_uses_the_link_primitive():
     """The toggle's look comes from the primitive layer, not from utilities."""
-    html = _render_message({"reasoning": "hidden", "segments": REASONING_SEGMENTS})
-    btn = _extract_reasoning_button(html)
-    assert 'class="reasoning-toggle-btn link' in btn, btn
-    assert 'data-ui="reasoning-toggle-btn"' in btn, btn
+    btn = _reasoning_button(_render_message({"reasoning": "hidden", "segments": REASONING_SEGMENTS}))
+    assert "link" in btn.classes, btn
 
 
 def test_empty_segments_do_not_resurrect_raw_content():
     """A display regex can strip every segment; an empty segment list must not
     fall back to the unfiltered raw content."""
-    html = _render_message({"content": "<think>secret</think>", "segments": []})
-    assert 'class="message-content' not in html
+    tree = parse_html(_render_message({"content": "<think>secret</think>", "segments": []}))
+    assert tree.find(**{"data-ui": "message-content"}) is None
+    assert tree.find(**{"data-ui": "message-body"}).content.strip() == ""
 
 
 def test_missing_segments_still_fall_back_to_raw_content():
     """Legacy messages with no computed segments keep the raw-content path."""
-    html = _render_message({"content": "legacy text"})
-    html = html.replace('data-raw-content="legacy text"', "")
-    assert "legacy text" in html
+    content = _message_content(_render_message({"content": "legacy text"}))
+    assert content and content.content.strip() == "legacy text"
 
 
 def test_first_reasoning_block_has_no_head():
     """Index-0 reasoning is a headless panel: only its body, hidden until the
     rail's toggle opens it — no strip, no toggle of its own."""
-    html = _render_message({"reasoning": "hidden", "segments": REASONING_SEGMENTS})
-    block = re.search(
-        r'<div class="disclosure reasoning-block headless pl-stream".*?data-think-id="0"(.*?)</div>\s*\n',
-        html,
-        re.S,
-    ).group(1)
-    assert "<summary" not in block, block
-    assert "reasoning-toggle-btn" not in block, block
-    assert "reasoning-content markdown-content hidden" in block, block
+    tree = parse_html(_render_message({"reasoning": "hidden", "segments": REASONING_SEGMENTS}))
+    block = tree.find(**{"data-ui": "reasoning-block", "data-think-id": "0"})
+    assert block, "the first reasoning block must be rendered"
+    assert block.find("summary") is None, block
+    assert block.find(**{"data-ui": "reasoning-toggle-btn"}) is None, block
+    assert "hidden" in block.find(**{"data-ui": "reasoning-content"}).classes, block
 
 
 class _Ext:
@@ -152,37 +147,42 @@ def _render_with_extensions(enabled_extensions, role="assistant"):
     )
 
 
+def _extension_button(html: str):
+    return parse_html(html).find(**{"data-action": "actionRunExtension"})
+
+
 def test_extension_button_rendered_for_matching_role():
     html = _render_with_extensions([_Ext("caps_rewrite", "Rewrite it", ["assistant"])])
-    assert "data-action=\"actionRunExtension\"" in html
-    assert "data-ext-name=\"caps_rewrite\"" in html
-    assert "Rewrite it" in html
+    button = _extension_button(html)
+    assert button, "an enabled manual extension must get a toolbar button"
+    assert button.get("data-ext-name") == "caps_rewrite"
+    assert button.get("aria-label") == "Rewrite it"
 
 
 def test_extension_button_absent_for_nonmatching_role():
     html = _render_with_extensions([_Ext("tts", "Read aloud", ["user"])], role="assistant")
-    assert "actionRunExtension" not in html
+    assert _extension_button(html) is None
 
 
 def test_extension_button_absent_when_none_enabled():
     html = _render_with_extensions([])
-    assert "actionRunExtension" not in html
+    assert _extension_button(html) is None
 
 
 def test_extension_button_absent_for_non_manual_trigger():
     # An extension that only auto-runs (e.g. on generation_end) has no toolbar button.
     html = _render_with_extensions([_Ext("auto_rewrite", "Rewrite", ["assistant"], triggers=["generation_end"])])
-    assert "actionRunExtension" not in html
+    assert _extension_button(html) is None
 
 
 def test_extension_uses_custom_icon():
     icon = "<svg viewBox='0 0 24 24'><path d='M0 0'/></svg>"
     html = _render_with_extensions([_Ext("tts", "Read aloud", ["assistant"], icon=icon)])
-    assert icon in html
-    # The raw SVG must be wrapped in a sized `.ext-icon` span so an
-    # un-specified `viewBox` doesn't blow out the toolbar button.
-    assert 'class="ext-icon w-4 h-4 shrink-0"' in html
-    assert f'class="ext-icon w-4 h-4 shrink-0">{icon}' in html
+    button = _extension_button(html)
+    assert len(button.children) == 1, f"the glyph must be the button's only child: {button}"
+    glyph = button.children[0]
+    assert glyph.tag == "span" and "ext-icon" in glyph.classes, glyph
+    assert glyph.find("svg") is not None, "the custom SVG must sit inside the sized span"
 
 
 MESSAGE_TEMPLATES_FIXTURE = Path("tests/frontend/fixtures/message-templates.html")

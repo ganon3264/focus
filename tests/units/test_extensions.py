@@ -91,18 +91,6 @@ class TestExtensionSpec:
 
 
 class TestRealExtension:
-    def test_prose_rewriter_spec(self):
-        spec = find_extension("prose_rewriter")
-        assert spec is not None
-        assert "generation_end" in spec.triggers
-        assert "manual" in spec.triggers
-        assert "assistant" in spec.roles
-
-    def test_prose_rewriter_script_compiles(self):
-        import py_compile
-
-        py_compile.compile("extensions/samples/prose_rewriter.py", doraise=True)
-
     def test_prose_rewriter_prompt_floors(self):
         # The model pads/invents on very short input — the script must pass it
         # through unchanged rather than call the server and fabricate.
@@ -329,24 +317,6 @@ class TestAudioCppTTS:
         proc = subprocess.run(spec.command, input=_json.dumps(env), capture_output=True, text=True, timeout=30)
         assert proc.returncode == 0, proc.stderr
         return _json.loads(proc.stdout)
-
-    def test_spec(self):
-        spec = find_extension("audiocpp_tts")
-        assert spec is not None
-        assert spec.category == "Voice"
-        assert spec.roles == ["assistant"]
-        assert spec.needs == ["message"]
-        assert spec.triggers == ["manual"]
-        assert spec.timeout == 300
-        assert any(p.name == "model" and p.enum for p in spec.params)
-        assert any(p.name == "voice" and p.enum for p in spec.params)
-        assert any(p.name == "text_pattern" and p.type == "string" for p in spec.params)
-        assert any(p.name == "unload_others" and p.type == "boolean" and p.default is True for p in spec.params)
-
-    def test_script_compiles(self):
-        import py_compile
-
-        py_compile.compile("extensions/samples/audiocpp_tts.py", doraise=True)
 
     def test_requires_model(self):
         spec = find_extension("audiocpp_tts")

@@ -89,17 +89,6 @@ assert(Array.isArray(window.stagedFiles), 'stagedFiles is array');
   assertEqual(window.stagedFiles.length, 0, 'stagedFiles starts empty');
 })();
 
-// ── add a file to stagedFiles and render ──
-(function () {
-  var file = { name: 'test.png', type: 'image/png', size: 1024 };
-  window.stagedFiles.push(file);
-  // render is called internally by the IIFE, but we push directly so call render
-  // render is private, so we simulate by calling removeStagedFile indirectly
-  assertEqual(window.stagedFiles.length, 1, 'staged file added');
-  // Clean up
-  window.stagedFiles = [];
-})();
-
 // ── removeStagedFile removes by index ──
 (function () {
   window.stagedFiles.push({ name: 'a.png', type: 'image/png' });
@@ -138,20 +127,6 @@ assert(Array.isArray(window.stagedFiles), 'stagedFiles is array');
   window.clearUploadedFiles([f2]);
   assertEqual(window.stagedFiles.length, 1, 'one file after clearUploaded');
   assertEqual(window.stagedFiles[0].name, 'keep.png', 'correct file kept');
-  window.stagedFiles = [];
-})();
-
-// ── render is called after modifications ──
-(function () {
-  // We can't test render directly (it's private), but we can verify that
-  // operations that call render don't throw
-  window.stagedFiles.push({ name: 'test.png', type: 'image/png' });
-  try {
-    window.removeStagedFile(0);
-    assert(true, 'removeStagedFile + render does not throw');
-  } catch (e) {
-    assert(false, 'removeStagedFile threw: ' + e.message);
-  }
   window.stagedFiles = [];
 })();
 

@@ -76,7 +76,11 @@ async function main() {
   assertDeepEqual(Prefs.all(), nextResponse.body, 'reset adopts the server defaults');
   assertEqual(props['--chat-content-width'], 'min(100%, 800px)', 'reset restores the width');
   assertEqual(document.documentElement.dataset.clock, '24h', 'reset restores the clock');
-  assertEqual(events.length, 7, 'reset announces every key it replaced');
+  assertDeepEqual(
+    events.map(function (e) { return e.detail.key; }).sort(),
+    Object.keys(nextResponse.body).sort(),
+    'reset announces every key it replaced',
+  );
 
   // ── a failed save rolls the optimistic state back and re-announces it.
   nextResponse = { ok: false, body: null };

@@ -5,8 +5,6 @@ import pytest
 from starlette.datastructures import UploadFile
 
 from focus.core.utils import (
-    SUFFIX_MIME_MAP,
-    SUFFIX_MIME_MAP_IMAGES_ONLY,
     TTLCache,
     _image_dims_from_data_url,
     clean_greetings_list,
@@ -64,17 +62,6 @@ class TestEstimateImageTokens:
         result = estimate_image_tokens(400, 5000)
         # longest=5000, scale=2000/5000=0.4 → 160×2000 → 320000//900=355
         assert result == 355
-
-
-class TestSuffixMimeMap:
-    def test_standard_extensions(self):
-        assert SUFFIX_MIME_MAP[".jpg"] == "image/jpeg"
-        assert SUFFIX_MIME_MAP[".png"] == "image/png"
-        assert SUFFIX_MIME_MAP[".mp3"] == "audio/mpeg"
-
-    def test_images_only_filters_audio(self):
-        assert ".mp3" not in SUFFIX_MIME_MAP_IMAGES_ONLY
-        assert ".jpg" in SUFFIX_MIME_MAP_IMAGES_ONLY
 
 
 class TestImageDimsFromDataUrl:
@@ -195,9 +182,10 @@ class TestReadUpload:
 
         monkeypatch.setattr(utils, "MAX_UPLOAD_SIZE", 4)
         file = UploadFile(file=BytesIO(b"12345"))
-        with pytest.raises(Exception) as exc:
+        from starlette.exceptions import HTTPException
+
+        with pytest.raises(HTTPException) as exc:
             await read_upload(file)
-        assert exc.type.__name__ == "HTTPException"
         assert exc.value.status_code == 413
 
 

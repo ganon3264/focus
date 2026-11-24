@@ -22,6 +22,27 @@ Companions — read the one that owns the area instead of re-deriving it here:
 change. `tests/frontend/grid-audit.js` is Playwright against a running server, so it
 is not part of `./test.sh`.
 
+## Tests
+
+Assert the outcome, never the implementation. A test that fails when a helper is
+renamed, a file moves, a class is reordered or a data table is edited — while the
+behaviour is identical — is worse than no test: it taxes every refactor and catches
+no regression. Split by subject: `tests/api/` drives the app over HTTP and reads DB
+state, `tests/units/` calls the public entry point, `tests/frontend/` evals the
+module and reads the DOM or requests it produces.
+
+Banned shapes, all of which had to be removed once: mirror tests (a hand-copied
+production table/constant/path list asserted back against production),
+`_private_helper(...)` as the subject when a public path reaches the same outcome,
+`typeof fn === 'function'` smoke, spies on stubs, `class="a b c"` and
+`style="display: …"` substring asserts (parse the node — `tests/helpers.py::parse_html`
+in Python, the mock DOM in JS — or address `data-ui` hooks), source-file position
+and `py_compile` checks, and
+log/toast/error copy — assert the record, the event or the toast fired, not its
+wording. A test-local copy of an upstream API payload pins what we do not control
+and proves nothing; map the incoming shape and assert our output. The one allowed
+copy is a fixture-sync test where one side is generated.
+
 ## Layout
 
     main.py             app entry; serves /assets (check_dir=False) and /static

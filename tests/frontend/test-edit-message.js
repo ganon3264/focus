@@ -1,6 +1,6 @@
-// Unit tests for edit-message.js — message editing (synchronous API)
+// Tests for edit-message.js — the edit modal and the payload it saves.
 var h = require('./helpers.js');
-var assert = h.assert, assertEqual = h.assertEqual;
+var assert = h.assert, assertEqual = h.assertEqual, assertDeepEqual = h.assertDeepEqual;
 var makeElement = h.makeElement;
 
 var path = require('path');
@@ -36,19 +36,19 @@ var attachmentsEmpty = makeElement('span');
 attachmentsEmpty.id = 'edit-msg-att-empty';
 attachmentsEmpty.classList.add('hidden');
 
+// The block editor's lane: renderEditBlocks fills it, saveMessageEdit reads it.
+var blocksContainer = makeElement('div');
+blocksContainer.id = 'edit-msg-blocks';
+
 var modal = makeElement('div');
 modal.id = 'modal-edit-message';
 modal.classList.add('hidden');
 
 var doc = h.createMockDocument();
-doc._body.appendChild(chatIdInput);
-doc._body.appendChild(msgIdInput);
-doc._body.appendChild(contentTextarea);
-doc._body.appendChild(thoughtContainer);
-doc._body.appendChild(thoughtInput);
-doc._body.appendChild(attachmentsContainer);
-doc._body.appendChild(attachmentsEmpty);
-doc._body.appendChild(modal);
+[chatIdInput, msgIdInput, contentTextarea, thoughtContainer, thoughtInput,
+  attachmentsContainer, attachmentsEmpty, blocksContainer, modal].forEach(function (el) {
+  doc._body.appendChild(el);
+});
 doc.getElementById = function (id) {
   if (id === 'edit-msg-id') return msgIdInput;
   if (id === 'edit-msg-chat-id') return chatIdInput;
@@ -57,6 +57,7 @@ doc.getElementById = function (id) {
   if (id === 'edit-msg-thought') return thoughtInput;
   if (id === 'edit-msg-attachments') return attachmentsContainer;
   if (id === 'edit-msg-att-empty') return attachmentsEmpty;
+  if (id === 'edit-msg-blocks') return blocksContainer;
   if (id === 'modal-edit-message') return modal;
   return null;
 };
@@ -74,6 +75,11 @@ doc.body = doc._body;
 doc.body.addEventListener = function () {};
 doc.addEventListener = function () {};
 
+var openedModals = [];
+var closedModals = [];
+var refreshed = [];
+var toasts = [];
+
 global.window = global;
 global.document = doc;
 global.alert = function () {};
@@ -85,19 +91,17 @@ global.api = {
 };
 global.htmx = { ajax: function () {} };
 global._refreshChatList = function () {};
-global.refreshSingleMessage = null;
-global.openModal = function () {};
-global.closeModal = function () {};
+global.refreshSingleMessage = function (cid, mid) { refreshed.push([cid, mid]); };
+global.openModal = function (id) { openedModals.push(id); };
+global.closeModal = function (id, opts) { closedModals.push({ id: id, opts: opts }); };
+global.showErrorToast = function (msg) { toasts.push(msg); };
 global.ModalController = { setDirty: function () {} };
 global.extractThoughtsSafely = function (text) {
   return { processed: text || '', thoughts: [] };
 };
 global.openLightbox = function (src) { global._lightboxSrc = src; };
-// Production loads ui/media-utils.js first; take assetUrl from it rather than
-// restating its rules here (the thumbnail builder below stays a stub).
-global.window = global;
-global.document = doc;
 eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'ui', 'media-utils.js'), 'utf8'));
+eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'utils', 'word-count.js'), 'utf8'));
 
 global.createMediaThumbnail = function (opts) {
   var div = doc.createElement('div');
@@ -110,13 +114,174 @@ global.createMediaThumbnail = function (opts) {
   }
   return div;
 };
+
+// The tool blocks are rendered by the shared card builder; record what the
+// editor asks it for, and what it produces, instead of re-deriving the markup.
+var cardCalls = [];
+global.buildToolCallsSection = function () {
+  var el = doc.createElement('div');
+  el.className = 'tool-calls';
+  return el;
+};
+global.buildToolCallCard = function (call) {
+  cardCalls.push(call);
+  var el = doc.createElement('div');
+  el.className = 'tool-call-card';
+  el.textContent = call.name;
+  return el;
+};
 global.getSvgSprite = function () { return ''; };
 global.setupDropZone = null;
 global.FormData = function () { this.append = function () {}; };
 
+h.installRequestPrimitives(global);
+
 eval(fs.readFileSync(path.join(__dirname, '..', '..', 'static', 'js', 'messages', 'edit-message.js'), 'utf8'));
 
 assert(typeof window.editMessage === 'function', 'editMessage loaded');
+
+var fetchCalls = [];
+var messagePayload = {};
+global.fetch = function (url, opts) {
+  fetchCalls.push({ url: url, opts: opts });
+  return Promise.resolve({
+    ok: true,
+    json: function () { return messagePayload; },
+  });
+};
+
+// Drives the real open path: fetch the message, build its blocks, render them.
+function openEditor(payload) {
+  messagePayload = payload;
+  fetchCalls.length = 0;
+  cardCalls.length = 0;
+  return window.editMessage('msg1', 'chat1');
+}
+
+function blocks() { return blocksContainer.children; }
+
+function railLabel(section) {
+  var rail = section.querySelector('.rail');
+  if (!rail) return null;
+  for (var i = 0; i < rail.children.length; i++) {
+    var c = rail.children[i];
+    if (c.tagName === 'SPAN' && !c.dataset.ui) return c.textContent;
+  }
+  return null;
+}
+
+function blockTextarea(section) {
+  var ta = section.querySelector('[data-ui="edit-block-ta"]');
+  return ta || null;
+}
+
+var SEGMENTS = [
+  { type: 'text', content: 'before' },
+  {
+    type: 'tool_boundary',
+    tool_calls: [{ id: 'c1', function: { name: 'read_file', arguments: '{}' }, result: 'ok' }],
+  },
+  { type: 'reasoning', html: 'think &amp; stuff', index: 1 },
+  { type: 'text', content: 'after' },
+];
+
+// ── the modal renders one editable block per segment, in order ──
+async function rendersBlocks() {
+  await openEditor({ content: 'ignored', segments: SEGMENTS, reasoning: 'ignored' });
+
+  assertEqual(openedModals[openedModals.length - 1], 'modal-edit-message', 'the editor opens');
+  assertEqual(blocks().length, 4, 'one rendered block per segment');
+  assertEqual(railLabel(blocks()[0]), 'Text', 'first block is a text block');
+  assertEqual(blockTextarea(blocks()[0]).value, 'before', 'text block holds the segment text');
+  assertEqual(blocks()[0].querySelector('[data-ui="block-count"]').textContent, '1 word',
+    'the block rail reads out its length');
+
+  assert(blocks()[1].classList.contains('msg-block-tool'), 'tool boundary renders a tool block');
+  assertEqual(blocks()[1].querySelectorAll('.tool-call-card').length, 1, 'one card per tool call');
+  assertEqual(cardCalls.length, 1, 'the shared card builder is used once');
+  assertEqual(cardCalls[0].name, 'read_file', 'the card receives the tool name');
+  assertEqual(cardCalls[0].result, 'ok', 'the card receives the recorded result');
+
+  assertEqual(railLabel(blocks()[2]), 'Reasoning', 'third block is the reasoning block');
+  assertEqual(blockTextarea(blocks()[2]).value, 'think & stuff',
+    'reasoning html is decoded for editing');
+  assert(blocks()[2].classList.contains('collapsed'), 'reasoning block starts folded');
+
+  assertEqual(railLabel(blocks()[3]), 'Text', 'fourth block is the trailing text');
+  assertEqual(blockTextarea(blocks()[3]).value, 'after', 'trailing text is editable');
+}
+
+// ── every message gets an editable text block, even without one ──
+async function alwaysOffersTextBlock() {
+  await openEditor({ content: '', segments: [{ type: 'reasoning', html: 'thought', index: 0 }] });
+  assertEqual(blocks().length, 2, 'a reasoning-only message still gets a text block');
+  assertEqual(railLabel(blocks()[0]), 'Reasoning', 'reasoning stays first');
+  assertEqual(railLabel(blocks()[1]), 'Text', 'text block is appended');
+  assertEqual(blockTextarea(blocks()[1]).value, '', 'the text block starts empty');
+
+  await openEditor({ content: 'plain text', segments: null, reasoning: 'thoughts' });
+  assertEqual(blocks().length, 2, 'a message without segments builds reasoning plus text');
+  assertEqual(railLabel(blocks()[0]), 'Reasoning', 'legacy reasoning first');
+  assertEqual(blockTextarea(blocks()[0]).value, 'thoughts', 'legacy reasoning is editable');
+  assertEqual(blockTextarea(blocks()[1]).value, 'plain text', 'legacy content is editable');
+
+  await openEditor({ content: '', segments: null, reasoning: null });
+  assertEqual(blocks().length, 1, 'an empty message still gets one text block');
+  assertEqual(railLabel(blocks()[0]), 'Text', 'the sole block is text');
+}
+
+// ── saving posts the edited blocks back as segments ──
+async function savesEditedBlocks() {
+  await openEditor({ content: 'x', segments: SEGMENTS });
+  var tas = blocksContainer.querySelectorAll('[data-ui="edit-block-ta"]');
+  assertEqual(tas.length, 3, 'only text and reasoning blocks carry an editor');
+  tas[0].value = 'before edited';
+  tas[1].value = 'think <new> & "quoted"';
+  tas[2].value = 'after edited';
+
+  window.currentEditAttachments = [{ id: 'att1' }];
+  closedModals.length = 0;
+  refreshed.length = 0;
+  fetchCalls.length = 0;
+  await window.saveMessageEdit();
+
+  assertEqual(fetchCalls.length, 1, 'saving makes exactly one request');
+  assertEqual(fetchCalls[0].url, '/api/chats/chat1/messages/msg1', 'it patches the edited message');
+  assertEqual(fetchCalls[0].opts.method, 'PATCH', 'the request is a PATCH');
+  var body = JSON.parse(fetchCalls[0].opts.body);
+  assertEqual(body.content, 'before edited\nafter edited', 'text blocks are joined into content');
+  assertEqual(body.reasoning, 'think <new> & "quoted"', 'the edited reasoning is saved as text');
+  assertDeepEqual(body.segments, [
+    { type: 'text', content: 'before edited' },
+    { type: 'tool_boundary', tool_calls: SEGMENTS[1].tool_calls },
+    { type: 'reasoning', html: 'think &lt;new&gt; &amp; &quot;quoted&quot;', index: 1 },
+    { type: 'text', content: 'after edited' },
+  ], 'edited blocks are saved back as segments in order');
+  assertDeepEqual(body.attachment_ids, ['att1'], 'the kept attachments travel with the edit');
+
+  assertEqual(closedModals.length, 1, 'the editor closes on save');
+  assertEqual(closedModals[0].id, 'modal-edit-message', 'the edit modal is the one that closes');
+  assertEqual(closedModals[0].opts.discard, true, 'closing after a save discards dirty state');
+  assertDeepEqual(refreshed, [['chat1', 'msg1']], 'the edited message is re-rendered');
+}
+
+// ── clearing a block deletes that segment ──
+async function clearingABlockDropsIt() {
+  await openEditor({ content: 'x', segments: SEGMENTS });
+  var tas = blocksContainer.querySelectorAll('[data-ui="edit-block-ta"]');
+  tas[0].value = '';
+  tas[1].value = '   ';
+  tas[2].value = '';
+  window.currentEditAttachments = [];
+  fetchCalls.length = 0;
+  await window.saveMessageEdit();
+
+  var body = JSON.parse(fetchCalls[0].opts.body);
+  assertEqual(body.content, '', 'clearing every text block empties the content');
+  assertEqual(body.reasoning, null, 'clearing the reasoning block saves null');
+  assertDeepEqual(body.segments, [{ type: 'tool_boundary', tool_calls: SEGMENTS[1].tool_calls }],
+    'only the untouched tool boundary survives');
+}
 
 // ── deleteModalAttachment removes by index ──
 (function () {
@@ -193,7 +358,6 @@ assert(typeof window.editMessage === 'function', 'editMessage loaded');
 
 // ── uploadMessageAttachment is safe with empty input ──
 (function () {
-  // When inputEl.files.length is 0, it should return immediately
   var called = false;
   var oldUpload = window.uploadMessageAttachmentFiles;
   window.uploadMessageAttachmentFiles = function () { called = true; };
@@ -212,46 +376,15 @@ assert(typeof window.editMessage === 'function', 'editMessage loaded');
   global.fetch = oldFetch;
 })();
 
-// ── buildEditBlocks prefers segments and preserves tool boundaries ──
-(function () {
-  var segments = [
-    { type: 'text', content: 'before' },
-    { type: 'tool_boundary', tool_calls: [{ id: 'c1', function: { name: 'read_file', arguments: '{}' } }] },
-    { type: 'reasoning', html: 'think &amp; stuff', index: 1 },
-    { type: 'text', content: 'after' },
-  ];
-  var blocks = window._buildEditBlocks('ignored', segments, 'ignored');
-  assertEqual(blocks.length, 4, 'segments path builds all blocks');
-  assert(!blocks.some(function (b) { return b.type === 'text' && b.content === ''; }), 'no extra empty text block when text exists');
-  assertEqual(blocks[0].type, 'text', 'first text block');
-  assertEqual(blocks[1].type, 'tool_boundary', 'tool boundary preserved');
-  assert(blocks[1].calls && blocks[1].calls.length === 1, 'tool calls preserved');
-  assertEqual(blocks[2].type, 'reasoning', 'reasoning block preserved');
-  assertEqual(blocks[2].content, 'think & stuff', 'reasoning html unescaped');
-  assertEqual(blocks[2].index, 1, 'reasoning index preserved');
-})();
-
-// ── buildEditBlocks always offers an editable text block ──
-(function () {
-  var reasoningOnly = window._buildEditBlocks('', [{ type: 'reasoning', html: 'thought', index: 0 }], 'thought');
-  assertEqual(reasoningOnly.length, 2, 'reasoning-only gets an empty text block too');
-  assertEqual(reasoningOnly[0].type, 'reasoning', 'reasoning stays first');
-  assertEqual(reasoningOnly[1].type, 'text', 'text block appended');
-  assertEqual(reasoningOnly[1].content, '', 'text block starts empty');
-
-  var none = window._buildEditBlocks('', null, null);
-  assertEqual(none.length, 1, 'empty message still gets a text block');
-  assertEqual(none[0].type, 'text', 'sole block is text');
-})();
-
-// ── buildEditBlocks legacy fallback has no marker logic ──
-(function () {
-  var blocks = window._buildEditBlocks('plain text', null, 'thoughts');
-  assertEqual(blocks.length, 2, 'fallback builds reasoning + text');
-  assertEqual(blocks[0].type, 'reasoning', 'fallback reasoning first');
-  assertEqual(blocks[0].index, 0, 'fallback reasoning is header-controlled');
-  assertEqual(blocks[1].content, 'plain text', 'fallback text content');
-})();
-
 // ── Result ──
-h.printSummary();
+(async function () {
+  var steps = [rendersBlocks, alwaysOffersTextBlock, savesEditedBlocks, clearingABlockDropsIt];
+  for (var i = 0; i < steps.length; i++) {
+    try {
+      await steps[i]();
+    } catch (e) {
+      assert(false, steps[i].name + ' threw: ' + e.message);
+    }
+  }
+  h.printSummary();
+})();

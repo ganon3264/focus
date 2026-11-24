@@ -1,178 +1,24 @@
-// Unit tests for the server-authoritative ordering helper in message-refresh.js.
-//
-// _reconcileOrder is the piece that rearranges the DOM to match the order the
-// server rendered (messages ordered by `position`). It is tested directly so
-// the suite does not need a DOMParser mock.
+// Tests for message-refresh.js — the in-place list reconcile, driven only
+// through the public entry points (refreshMessagesAfterStream /
+// refreshChatMessages). Every assertion reads the rendered list.
 var fs = require('fs');
 var path = require('path');
 var vm = require('vm');
 var h = require('./helpers.js');
 var assert = h.assert, assertEqual = h.assertEqual;
 
-var failures = 0;
-function check(cond, msg) {
-  if (cond) console.log('OK:   ' + msg);
-  else { failures++; console.error('FAIL: ' + msg); }
-}
+var ROOT = path.join(__dirname, '..', '..');
 
-function makeSandbox() {
-  var sandbox = {
-    console: console,
-    document: h.createMockDocument(),
-    fetch: function () { return Promise.resolve({ ok: false }); },
-    hxGet: function () { return Promise.resolve(); },
-    StateManager: { get: function () { return null; } },
-  };
-  sandbox.window = sandbox;
-  sandbox.addEventListener = function () {};
-  sandbox.removeEventListener = function () {};
-  sandbox.window.api = { partials: { messageList: function (id) { return '/partials/message-list/' + id; } } };
-  vm.createContext(sandbox);
-  vm.runInContext(
-    fs.readFileSync(path.join(__dirname, '..', '..', 'static/js/messages/message-identity.js'), 'utf8'),
-    sandbox,
-  );
-  vm.runInContext(
-    fs.readFileSync(path.join(__dirname, '..', '..', 'static/js/messages/message-refresh.js'), 'utf8'),
-    sandbox,
-  );
-  return sandbox;
-}
-
-function makeContainer(ids) {
-  var container = h.makeElement('div');
-  container.id = 'message-list';
-
-  var data = h.makeElement('div');
-  data.id = 'message-list-data';
-  container.appendChild(data);
-
-  var map = {};
-  ids.forEach(function (id) {
-    var msg = h.makeElement('div');
-    msg.id = id;
-    msg.dataset.ui = 'message';
-    container.appendChild(msg);
-    map[id] = msg;
-  });
-
-  return { container: container, data: data, map: map };
-}
-
-function ids(container) {
-  return Array.prototype.map.call(container.children, function (el) { return el.id; }).join(',');
-}
-
-var sandbox = makeSandbox();
-var reconcile = sandbox.window._reconcileOrder;
-
-// 1. Reorder to match the server
-(function () {
-  var t = makeContainer(['message-a', 'message-b', 'message-c']);
-  reconcile(
-    t.container,
-    ['message-c', 'message-a', 'message-b'],
-    t.data,
-    function (id) { return t.map[id]; },
-    function () { return null; },
-  );
-  assertEqual(
-    ids(t.container),
-    'message-list-data,message-c,message-a,message-b',
-    'nodes are reordered to the server order',
-  );
-})();
-
-// 2. Insert a node the DOM is missing
-(function () {
-  var t = makeContainer(['message-a', 'message-c']);
-  var newB = h.makeElement('div');
-  newB.id = 'message-b';
-  newB.dataset.ui = 'message';
-
-  var inserted = reconcile(
-    t.container,
-    ['message-a', 'message-b', 'message-c'],
-    t.data,
-    function (id) { return t.map[id]; },
-    function (id) { return id === 'message-b' ? newB : null; },
-  );
-  assertEqual(ids(t.container), 'message-list-data,message-a,message-b,message-c',
-    'missing node is inserted in position');
-  assertEqual(inserted.length, 1, 'inserted nodes are returned for post-processing');
-  check(inserted[0] === newB, 'returned node is the one that was inserted');
-})();
-
-// 3. Drop a node the server no longer has
-(function () {
-  var t = makeContainer(['message-a', 'message-b', 'message-c']);
-  reconcile(
-    t.container,
-    ['message-a', 'message-c'],
-    t.data,
-    function (id) { return t.map[id]; },
-    function () { return null; },
-  );
-  assertEqual(ids(t.container), 'message-list-data,message-a,message-c',
-    'extra node is removed');
-})();
-
-// 4. Keep a pruned placeholder in place while it is still wanted
-(function () {
-  var t = makeContainer(['message-a', 'message-b']);
-  var ph = h.makeElement('div');
-  ph.dataset.ui = 'message-placeholder';
-  ph.dataset.msgId = 'b';
-  t.container.insertBefore(ph, t.map['message-b']);
-  t.map['message-b'].remove();
-
-  reconcile(
-    t.container,
-    ['message-a', 'message-b'],
-    t.data,
-    function (id) {
-      if (id === 'message-b') {
-        return t.container.querySelector('.message-placeholder[data-msg-id="b"]');
-      }
-      return t.map[id];
-    },
-    function () { return null; },
-  );
-  assertEqual(ids(t.container), 'message-list-data,message-a,',
-    'placeholder is kept in the right slot');
-  check(t.container.children[2].getAttribute('data-ui') === 'message-placeholder',
-    'kept node is still the placeholder');
-})();
-
-// 5. Remove a placeholder for a message the server dropped
-(function () {
-  var t = makeContainer(['message-a']);
-  var ph = h.makeElement('div');
-  ph.dataset.ui = 'message-placeholder';
-  ph.dataset.msgId = 'gone';
-  t.container.appendChild(ph);
-
-  reconcile(
-    t.container,
-    ['message-a'],
-    t.data,
-    function (id) { return t.map[id]; },
-    function () { return null; },
-  );
-  assertEqual(t.container.querySelectorAll('[data-ui="message-placeholder"]').length, 0,
-    'placeholder for a deleted message is removed');
-})();
-
-// 7. Full reconcile replaces live nodes (incl. the streaming skeleton) even
-//    when pruned placeholders exist. Regression: placeholders are keyed by bare
-//    id, orderedIds are DOM ids, and the full-replace path must convert back to
-//    bare ids before calling _replaceMessageNode.
-(function () {
+function makeEnv(clientItems) {
   var doc = h.createMockDocument();
 
   function styled(tag) {
     var el = h.makeElement(tag);
-    el.style = { setProperty: function () {}, removeProperty: function () {}, getPropertyValue: function () { return ''; } };
+    el.style = {
+      setProperty: function () {},
+      removeProperty: function () {},
+      getPropertyValue: function () { return ''; },
+    };
     el.replaceWith = function (n) {
       if (!this.parent) return;
       var i = this.parent.children.indexOf(this);
@@ -181,114 +27,238 @@ var reconcile = sandbox.window._reconcileOrder;
     };
     return el;
   }
-  function phFor(id) {
-    var p = styled('div');
-    p.dataset.ui = 'message-placeholder';
-    p.dataset.msgId = id;
-    return p;
-  }
-  function msg(id) {
-    var m = styled('div');
-    m.dataset.ui = 'message';
-    m.id = id;
-    return m;
-  }
+  doc.createElement = function (tag) { return styled(tag); };
 
   var container = styled('div');
   container.id = 'message-list';
-  var data = styled('div');
-  data.id = 'message-list-data';
-  container.appendChild(data);
-  container.appendChild(phFor('1'));          // pruned, bare key
-  container.appendChild(phFor('2'));
-  var skeleton = msg('message-3');            // live streaming skeleton
-  container.appendChild(skeleton);
+  var dataDiv = styled('div');
+  dataDiv.id = 'message-list-data';
+  container.appendChild(dataDiv);
   doc._body.appendChild(container);
 
-  var server = { 1: msg('message-1'), 2: msg('message-2'), 3: msg('message-3'), 4: msg('message-4') };
-  var parsedDoc = {
-    getElementById: function (id) { return server[id.replace('message-', '')] || null; },
-    querySelectorAll: function (sel) {
-      return sel === '[data-ui="message"]' ? [server[1], server[2], server[3], server[4]] : [];
-    },
+  var clientNodes = {};
+  var clientPlaceholders = {};
+  clientItems.forEach(function (item) {
+    var el = styled('div');
+    if (typeof item === 'string') {
+      el.id = 'message-' + item;
+      el.dataset.ui = 'message';
+      clientNodes[item] = el;
+    } else {
+      el.dataset.ui = 'message-placeholder';
+      el.dataset.msgId = item.placeholder;
+      clientPlaceholders[item.placeholder] = el;
+    }
+    container.appendChild(el);
+  });
+
+  var env = {
+    doc: doc,
+    container: container,
+    clientNodes: clientNodes,
+    clientPlaceholders: clientPlaceholders,
+    processCalls: 0,
+    reapplyCalls: 0,
+    reopened: [],
+    fetchUrls: [],
+    server: null,
   };
 
-  var processCalls = 0;
-  var reapplyCalls = 0;
-  var reopened = [];
+  // *rendered* is what a narrowed response actually carries (default: every
+  // listed message), the order is always the full position order.
+  env.serve = function (order, rendered) {
+    var carried = rendered || order;
+    var nodes = {};
+    carried.forEach(function (id) {
+      var n = styled('div');
+      n.id = 'message-' + id;
+      n.dataset.ui = 'message';
+      nodes[id] = n;
+    });
+    var serverData = styled('div');
+    serverData.id = 'message-list-data';
+    serverData.dataset.order = order.map(function (id) { return 'message-' + id; }).join(',');
+    env.server = { order: order, carried: carried, nodes: nodes, data: serverData };
+    return env.server;
+  };
+
+  env.serverDoc = function () {
+    return {
+      getElementById: function (id) {
+        if (id === 'message-list-data') return env.server.data;
+        var bare = id.indexOf('message-') === 0 ? id.slice('message-'.length) : id;
+        return env.server.nodes[bare] || null;
+      },
+      querySelectorAll: function (sel) {
+        if (sel !== '[data-ui="message"]') return [];
+        return env.server.carried.map(function (id) { return env.server.nodes[id]; });
+      },
+    };
+  };
+
+  env.sequence = function () {
+    return container.children.map(function (el) {
+      if (el.id) return el.id;
+      if (el.dataset.ui === 'message-placeholder') return 'placeholder:' + el.dataset.msgId;
+      return el.tagName.toLowerCase();
+    }).join(',');
+  };
+
+  env.node = function (id) { return doc.getElementById('message-' + id); };
+  env.placeholders = function () {
+    return container.querySelectorAll('[data-ui="message-placeholder"]');
+  };
+
   var sandbox = {
     console: console,
     document: doc,
-    DOMParser: function () { this.parseFromString = function () { return parsedDoc; }; },
-    fetch: function () { return Promise.resolve({ ok: true, text: function () { return Promise.resolve('<html/>'); } }); },
-    hxFetch: function () { return sandbox.fetch(); },
+    DOMParser: function () {
+      this.parseFromString = function () { return env.serverDoc(); };
+    },
+    fetch: function (url) {
+      return Promise.resolve({
+        ok: true,
+        text: function () { return Promise.resolve('<html/>'); },
+        json: function () { return Promise.resolve({}); },
+      });
+    },
     hxGet: function () { return Promise.resolve(); },
     StateManager: { get: function () { return null; } },
     htmx: { process: function () {} },
     renderMessage: function (t) { return t; },
     formatTimestamps: function () {},
     syncReasoningButtons: function () {},
-    processMessageList: function () { processCalls++; },
-    reapplyDeleteMode: function () { reapplyCalls++; },
     pruneMessages: function () {},
-    _refreshChatList: function () {},
+    processMessageList: function () { env.processCalls++; },
+    reapplyDeleteMode: function () { env.reapplyCalls++; },
+    reasoningStaysOpen: function () { return false; },
+    setReasoningOpen: function (node, open) { env.reopened.push(node.id + ':' + open); },
   };
   sandbox.window = sandbox;
   sandbox.addEventListener = function () {};
   sandbox.removeEventListener = function () {};
-  sandbox.window.api = { partials: { messageList: function (id) { return '/partials/message-list/' + id; } } };
+  sandbox.hxFetch = function (url) {
+    env.fetchUrls.push(url);
+    return sandbox.fetch(url);
+  };
+  sandbox.window.api = {
+    partials: {
+      messageList: function (id, changed) {
+        return '/partials/message-list/' + id + (changed ? '?ids=' + changed.join(',') : '');
+      },
+    },
+  };
+
   vm.createContext(sandbox);
   vm.runInContext(
-    fs.readFileSync(path.join(__dirname, '..', '..', 'static/js/messages/message-identity.js'), 'utf8'),
+    fs.readFileSync(path.join(ROOT, 'static/js/messages/message-identity.js'), 'utf8'),
     sandbox,
   );
   vm.runInContext(
-    fs.readFileSync(path.join(__dirname, '..', '..', 'static/js/messages/message-refresh.js'), 'utf8'),
+    fs.readFileSync(path.join(ROOT, 'static/js/messages/message-refresh.js'), 'utf8'),
     sandbox,
   );
+  env.window = sandbox.window;
+  return env;
+}
 
-  sandbox.window.refreshMessagesAfterStream('chat-1', '1', '3').then(function () {
-    check(doc.getElementById('message-3') === server[3], 'skeleton replaced by the server node');
-    check(doc.getElementById('message-3') !== skeleton, 'skeleton node is no longer attached');
-    check(container.querySelectorAll('[data-ui="message-placeholder"]').length === 0, 'pruned placeholders replaced');
-    check(doc.getElementById('message-4') === server[4], 'genuinely missing message is inserted');
-    check(processCalls === 1, 'the single processing pass runs exactly once');
-    check(reapplyCalls === 1, 'delete mode is re-applied by the renderer');
+async function reordersLiveNodes() {
+  var env = makeEnv(['1', '2', '3']);
+  env.serve(['3', '1', '2']);
+  await env.window.refreshMessagesAfterStream('chat-1', '3', '2');
+  assertEqual(env.sequence(), 'message-list-data,message-3,message-1,message-2',
+    'live nodes end up in the server position order');
+  assertEqual(env.placeholders().length, 0, 'reordering prunes nothing');
+}
 
-    // refreshChatMessages must delegate to the same in-place renderer.
-    var server3b = msg('message-3');
-    server[3] = server3b;
-    processCalls = 0;
-    reapplyCalls = 0;
-    return sandbox.window.refreshChatMessages('chat-1');
-  }).then(function () {
-    check(doc.getElementById('message-3') === server[3], 'refreshChatMessages uses the reconcile renderer');
-    check(processCalls === 1, 'full reload also runs exactly one processing pass');
-    check(reapplyCalls === 1, 'full reload re-applies delete mode');
+async function insertsMissingMessage() {
+  var env = makeEnv(['1', '2']);
+  var server = env.serve(['1', '2', '3']);
+  await env.window.refreshMessagesAfterStream('chat-1', null, '3');
+  assertEqual(env.sequence(), 'message-list-data,message-1,message-2,message-3',
+    'a message the client never had is inserted in position');
+  assert(env.node('3') === server.nodes['3'], 'inserted node is the server node');
+  assertEqual(env.processCalls, 1, 'inserted list is post-processed once');
+}
 
-    // `reasoning_open: keep` carries the live block's open state across the swap;
-    // a fresh node is server-rendered folded, so the reopen is the only thing
-    // that keeps it on screen.
-    sandbox.reasoningStaysOpen = function () { return false; };
-    sandbox.setReasoningOpen = function (node, open) { reopened.push(node.id + ':' + open); };
+async function dropsVanishedMessage() {
+  var env = makeEnv(['1', '2', '3']);
+  var kept3 = env.clientNodes['3'];
+  env.serve(['1', '3']);
+  await env.window.refreshMessagesAfterStream('chat-1', '1', null);
+  assertEqual(env.sequence(), 'message-list-data,message-1,message-3',
+    'a message the server no longer lists is dropped from the list');
+  assert(env.node('3') === kept3, 'unchanged neighbour keeps its live node');
+}
 
-    var liveNode = doc.getElementById('message-3');
-    liveNode.classList.add('reasoning-open');
-    return sandbox.window.refreshMessagesAfterStream('chat-1', null, '3').then(function () {
-      check(reopened.length === 0, 'a folded preference leaves the server node folded');
+async function keepsWantedPlaceholders() {
+  var env = makeEnv(['1', { placeholder: '2' }, '3', { placeholder: 'gone' }]);
+  env.serve(['1', '2', '3'], ['1', '3']);
+  await env.window.refreshMessagesAfterStream('chat-1', '1', '3');
+  assertEqual(env.sequence(), 'message-list-data,message-1,placeholder:2,message-3',
+    'a still-listed pruned message keeps its placeholder in its slot');
+  assertEqual(env.placeholders().length, 1, 'a placeholder for a deleted message is removed');
+  assert(env.placeholders()[0] === env.clientPlaceholders['2'], 'kept stub is the original placeholder');
+}
 
-      sandbox.reasoningStaysOpen = function () { return true; };
-      doc.getElementById('message-3').classList.add('reasoning-open');
-      return sandbox.window.refreshMessagesAfterStream('chat-1', null, '3');
-    });
-  }).then(function () {
-    check(reopened.length === 1 && reopened[0] === 'message-3:true',
-      'the open block is reopened on the node that replaced it');
+async function replacesNodesThroughFullRefresh() {
+  var env = makeEnv([{ placeholder: '1' }, { placeholder: '2' }, '3']);
+  var skeleton = env.clientNodes['3'];
+  var server = env.serve(['1', '2', '3', '4']);
 
-    console.log('\n' + (failures === 0 ? 'all passed' : failures + ' failures'));
-    process.exit(failures > 0 ? 1 : 0);
-  }).catch(function (e) {
-    console.error('FAIL: reconcile threw: ' + e.message);
-    process.exit(1);
-  });
+  await env.window.refreshMessagesAfterStream('chat-1', '1', '3');
+  assert(env.node('3') === server.nodes['3'], 'streaming skeleton replaced by the server node');
+  assert(env.node('3') !== skeleton, 'skeleton node is no longer attached');
+  assertEqual(env.placeholders().length, 0, 'pruned placeholders replaced by live nodes');
+  assertEqual(env.sequence(), 'message-list-data,message-1,message-2,message-3,message-4',
+    'genuinely missing message is inserted at the end');
+  assertEqual(env.processCalls, 1, 'the single processing pass runs once');
+  assertEqual(env.reapplyCalls, 1, 'delete mode is re-applied by the renderer');
+
+  var server3b = env.serve(['1', '2', '3', '4']);
+  env.processCalls = 0;
+  env.reapplyCalls = 0;
+  await env.window.refreshChatMessages('chat-1');
+  assert(env.node('3') === server3b.nodes['3'], 'refreshChatMessages uses the reconcile renderer');
+  assertEqual(env.processCalls, 1, 'full reload also runs exactly one processing pass');
+  assertEqual(env.reapplyCalls, 1, 'full reload re-applies delete mode');
+}
+
+async function carriesReasoningOpenState() {
+  var env = makeEnv(['1']);
+  env.serve(['1', '2']);
+  await env.window.refreshChatMessages('chat-1');
+  env.node('2').classList.add('reasoning-open');
+  env.reopened.length = 0;
+
+  await env.window.refreshMessagesAfterStream('chat-1', null, '2');
+  assertEqual(env.reopened.length, 0, 'a folded preference leaves the server node folded');
+
+  env.serve(['1', '2']);
+  await env.window.refreshChatMessages('chat-1');
+  env.node('2').classList.add('reasoning-open');
+  env.window.reasoningStaysOpen = function () { return true; };
+  env.reopened.length = 0;
+  await env.window.refreshMessagesAfterStream('chat-1', null, '2');
+  assertEqual(env.reopened.length, 1, 'the open block is reopened once');
+  assertEqual(env.reopened[0], 'message-2:true', 'the reopened node is the replacement');
+}
+
+(async function () {
+  var steps = [
+    reordersLiveNodes,
+    insertsMissingMessage,
+    dropsVanishedMessage,
+    keepsWantedPlaceholders,
+    replacesNodesThroughFullRefresh,
+    carriesReasoningOpenState,
+  ];
+  for (var i = 0; i < steps.length; i++) {
+    try {
+      await steps[i]();
+    } catch (e) {
+      assert(false, steps[i].name + ' threw: ' + e.message);
+    }
+  }
+  h.printSummary();
 })();
