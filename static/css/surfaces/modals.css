@@ -661,34 +661,42 @@
 }
 
 /* ── Theme customizer ─────────────────────────────────────────────────────
-   Master-detail inside the banded chassis: the lane holds two columns, the
-   collection on the left and the palette on the right. Both scroll on their
-   own — the editor has to stay reachable while the list is scrolled — but they
-   share the lane's one plane, so there is no second background between them. */
-.theme-split {
-  display: grid;
-  grid-template-columns: calc(var(--u) * 96) minmax(0, 1fr);
-  gap: var(--inset);
-  overflow: hidden;
-}
-
+   One column, not master-detail. The themes are the collection; the row of the
+   theme being edited opens into its palette. A ten-swatch editor beside a
+   three-row list is two columns of different heights for one object, and the
+   swatches ended up an arm's length from their names. */
 .theme-list {
-  min-height: 0;
-  overflow-y: auto;
-  padding-right: var(--inset);
-  box-shadow: inset calc(-1 * var(--hair-w)) 0 0 var(--hair-dark);
+  display: flex;
+  flex-direction: column;
 }
 
+.theme-item {
+  display: flex;
+  flex-direction: column;
+}
+
+/* The row is the theme's identity: its own palette as a thumbnail, its name,
+   what it is, and the slots it holds. The name keeps its tag beside it, and the
+   row's right edge carries the slots and the copy/delete verbs. */
+.theme-row > .row-title {
+  flex: 0 1 auto;
+}
+
+.theme-row > .row-actions {
+  gap: var(--gutter);
+}
+
+.theme-row > .row-actions > .caret-mark {
+  margin-inline: var(--u);
+}
+
+/* The editor is a plate under its own row: the row opens, the plate is its
+   body, and the groove between them is the row's own closing line. */
 .theme-editor {
   display: flex;
   flex-direction: column;
   gap: var(--inset);
-  min-width: 0;
-  min-height: 0;
-  /* Block padding keeps the focus ring's 1px outer edge inside the scrollport:
-     the first row is flush with the top and its ring was sheared off. */
-  padding-block: var(--u);
-  overflow-y: auto;
+  padding: var(--inset);
 }
 
 /* The row's readout before its title: the theme's own background, surface,
@@ -709,24 +717,41 @@
   min-height: 0;
 }
 
-/* The theme editor's one row with a caption: the name field takes the middle,
-   the create verb lands where the colour swatches land on every row below. */
-.theme-name-row > .row-title {
-  flex: 0 0 auto;
+/* The palette is a board: two columns of settings lines, each group named by a
+   rail, each colour leading its line. Ten tokens fit at once, and the eye can
+   compare a column of values without scrolling. */
+.theme-board {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: calc(var(--u) * 4) calc(var(--u) * 8);
 }
 
-.theme-name-row > .field,
-.theme-name-row > .btn {
+.theme-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gutter);
+}
+
+.theme-group > .rail {
+  margin: 0;
+  padding-inline: var(--gutter);
+}
+
+/* A palette line leads with its colour: the swatch is the value, the name is
+   its caption and the hex closes the line on the column's edge. */
+.theme-group > .row > .field.color {
+  width: calc(var(--u) * 12);
   height: var(--control-h);
 }
 
-/* The palette is a list of settings rows, like every other column of settings:
-   caption on the column inset, the well on its right edge. */
-.theme-colors,
-.retry-rows {
-  display: flex;
-  flex-direction: column;
-  gap: var(--inset);
+.theme-group > .row > .row-actions {
+  flex: 0 0 calc(var(--u) * 16);
+  margin-left: 0;
+}
+
+.theme-group > .row > .row-actions > .row-value {
+  width: 100%;
+  text-align: right;
 }
 
 /* ── Stacked form ─────────────────────────────────────────────────────────

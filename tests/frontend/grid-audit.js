@@ -305,6 +305,44 @@ async function measureSecrets(page) {
   });
 }
 
+// The theme customizer: one column of theme rows, the open one becoming a
+// palette board. The rows keep the lane's inset; the plate under the open row
+// keeps the rows' edges; inside it the two colour columns each hold one chip
+// line and one hex edge.
+async function measureTheme(page) {
+  return page.evaluate(() => {
+    const rect = (el) => {
+      const b = el.getBoundingClientRect();
+      return { x: Math.round(b.x), y: Math.round(b.y), width: Math.round(b.width), height: Math.round(b.height), right: Math.round(b.right), bottom: Math.round(b.bottom) };
+    };
+    const panel = document.querySelector('#modal-themes > .modal-panel');
+    if (!panel) return null;
+    const rows = [...panel.querySelectorAll('.theme-row')];
+    const items = [...panel.querySelectorAll('.theme-item')];
+    // Two closed rows with no open editor between them: the pitch the collection
+    // keeps whatever is expanded above or below it.
+    const neighbours = [];
+    items.forEach((item, i) => {
+      const nextItem = items[i + 1];
+      if (!nextItem || item.classList.contains('open') || nextItem.classList.contains('open')) return;
+      neighbours.push([rect(item.querySelector('.theme-row')), rect(nextItem.querySelector('.theme-row'))]);
+    });
+    const editor = panel.querySelector('.theme-editor');
+    const columns = [...panel.querySelectorAll('.theme-board > .theme-group')];
+    return {
+      panel: rect(panel),
+      lane: rect(panel.querySelector('.modal-band-lane')),
+      rows: rows.map(rect),
+      neighbours: neighbours,
+      editor: editor ? rect(editor) : null,
+      board: editor ? rect(editor.querySelector('.theme-board')) : null,
+      groups: columns.map((c) => [...c.querySelectorAll('.row')].map(rect)),
+      chips: columns.map((c) => [...c.querySelectorAll('.field.color')].map(rect)),
+      hexes: columns.map((c) => [...c.querySelectorAll('.row-value')].map(rect)),
+    };
+  });
+}
+
 // The presets collection: one column of two-line rows. The identity stack and
 // the verb cluster must both keep the lane's inset per row, or the list stops
 // reading as one column.
@@ -373,8 +411,6 @@ async function measureBands(page) {
       ? [...foot.querySelectorAll('.btn, .key')].filter((e) => e.getBoundingClientRect().width > 0)
       : [];
     const modalFoot = panel.querySelector(':scope > .modal-foot');
-    const split = body.querySelector('.theme-split');
-    const cols = split ? [...split.children] : [];
     return {
       panel: rect(panel),
       head: rect(head),
@@ -391,7 +427,6 @@ async function measureBands(page) {
       footButtons: footButtons.map(rect),
       modalFoot: modalFoot ? rect(modalFoot) : null,
       modalFootButtons: modalFoot ? [...modalFoot.querySelectorAll('.btn, .key')].map(rect) : [],
-      columns: cols.map(rect),
       bandCount: bands.length,
     };
   });
@@ -548,6 +583,7 @@ async function measureOffbeat(page) {
   await page.waitForTimeout(900);
   await sweep('themes');
   const mmTheme = await measureBands(page);
+  const mmThemeBoard = await measureTheme(page);
   await browser.close();
 
   const inset = 12;
@@ -1065,25 +1101,44 @@ async function measureOffbeat(page) {
     }
   }
 
-  // ── Theme customizer: master-detail inside one lane ──
-  if (mmTheme && mmTheme.columns.length === 2) {
-    const p = mmTheme.panel;
-    const [list, editor] = mmTheme.columns;
+  // ── Theme customizer: one column, the open row becoming its palette ──
+  if (mmThemeBoard && mmThemeBoard.rows.length) {
+    const t = mmThemeBoard;
+    const p = t.panel;
     check(
-      'theme: list column rides the modal inset',
-      Math.abs(list.x - p.x - modalPad) < 1,
-      `left=${(list.x - p.x).toFixed(1)}`,
+      'theme: rows ride the modal inset',
+      t.rows.every((r) => Math.abs(r.x - p.x - modalPad) < 1 && Math.abs(p.right - r.right - modalPad) < 1),
+      `lefts {${[...new Set(t.rows.map((r) => r.x - p.x))]}} rights {${[...new Set(t.rows.map((r) => p.right - r.right))]}}`,
     );
+    if (t.neighbours.length) {
+      const pitches = new Set(t.neighbours.map(([a, b]) => b.y - a.y));
+      check('theme: closed rows sit on a constant pitch', pitches.size <= 1, `pitches {${[...pitches]}}`);
+    }
+    if (t.editor) {
+      check(
+        'theme: the editor plate keeps the row edges',
+        Math.abs(t.editor.x - t.rows[0].x) < 1 && Math.abs(t.editor.right - t.rows[0].right) < 1,
+        `plate=${t.editor.x}..${t.editor.right} row=${t.rows[0].x}..${t.rows[0].right}`,
+      );
+    }
+    const pitches = t.groups.map((rows) => [...new Set(rows.slice(1).map((r, i) => r.y - rows[i].y))]);
     check(
-      'theme: editor column rides the modal inset',
-      Math.abs(p.right - editor.right - modalPad) < 1,
-      `right=${(p.right - editor.right).toFixed(1)}`,
+      'theme: colour lines in a group sit on one pitch',
+      pitches.every((p) => p.length <= 1),
+      `pitches ${JSON.stringify(pitches)}`,
     );
-    check(
-      'theme: both columns share the lane top',
-      Math.abs(list.y - editor.y) < 1,
-      `list=${list.y} editor=${editor.y}`,
-    );
+    if (t.chips.length === 2) {
+      check(
+        'theme: swatches share one column per column',
+        new Set(t.chips[0].map((c) => c.x)).size === 1 && new Set(t.chips[1].map((c) => c.x)).size === 1,
+        `left {${[...new Set(t.chips[0].map((c) => c.x))]}} right {${[...new Set(t.chips[1].map((c) => c.x))]}}`,
+      );
+      check(
+        'theme: hex readouts close on one edge',
+        new Set(t.hexes[0].map((h) => h.right)).size === 1 && new Set(t.hexes[1].map((h) => h.right)).size === 1,
+        `left {${[...new Set(t.hexes[0].map((h) => h.right))]}} right {${[...new Set(t.hexes[1].map((h) => h.right))]}}`,
+      );
+    }
   }
 
   if (mmFoot) {

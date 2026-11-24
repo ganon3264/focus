@@ -574,12 +574,15 @@ function createMockAbortController() {
 // ── Test harness ──
 
 function printSummary() {
-  // Defer past the pending microtasks so assertions inside promise chains are
-  // counted, and let already-scheduled timers run before the exit.
-  setTimeout(function () {
-    console.log('\n' + tests + ' tests, ' + failures + ' failures');
-    process.exit(failures > 0 ? 1 : 0);
-  }, 0);
+  // Defer past the pending microtasks AND the check phase: a test that flushes
+  // its promise chain from a setImmediate would otherwise lose its assertions to
+  // the exit timer.
+  setImmediate(function () {
+    setTimeout(function () {
+      console.log('\n' + tests + ' tests, ' + failures + ' failures');
+      process.exit(failures > 0 ? 1 : 0);
+    }, 0);
+  });
 }
 
 // Module tests assert the request a call site builds (URL, method, body)

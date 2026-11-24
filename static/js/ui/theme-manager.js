@@ -29,7 +29,6 @@ function computeAccentDerivatives(hex) {
 // window.THEMES / window.THEME_STATE are embedded server-side by the chat page.
 // THEME_STATE: { dark_theme_id, light_theme_id, char_theme_id, char_name }
 
-var THEMES = window.THEMES || [];
 var THEME_STATE = window.THEME_STATE || {
   dark_theme_id: 'builtin-slate',
   light_theme_id: 'builtin-light',
@@ -38,8 +37,9 @@ var THEME_STATE = window.THEME_STATE || {
 };
 
 window.getTheme = function (id) {
-  for (var i = 0; i < THEMES.length; i++) {
-    if (THEMES[i].id === id) return THEMES[i];
+  var themes = window.THEMES || [];
+  for (var i = 0; i < themes.length; i++) {
+    if (themes[i].id === id) return themes[i];
   }
   return null;
 };
@@ -152,7 +152,7 @@ window.refreshThemes = function (cb) {
       return r.json();
     })
     .then(function (list) {
-      THEMES = list || [];
+      window.THEMES = list || [];
       window.dispatchEvent(new CustomEvent('theme-state-changed'));
       if (cb) cb();
     })
@@ -163,11 +163,10 @@ window.refreshThemes = function (cb) {
 
 // ── Picker preview (color inputs) ────────────────────────────────────────────
 
-function previewThemeColor(input) {
-  const varName = input.getAttribute('data-var');
-  document.documentElement.style.setProperty(varName, input.value);
+function previewThemeColor(varName, value) {
+  document.documentElement.style.setProperty(varName, value);
   if (varName === '--accent') {
-    const derivatives = computeAccentDerivatives(input.value);
+    const derivatives = computeAccentDerivatives(value);
     for (const [key, val] of Object.entries(derivatives)) {
       document.documentElement.style.setProperty(key, val);
     }
@@ -176,6 +175,88 @@ function previewThemeColor(input) {
 
 function resetThemePreview() {
   window.reapplyTheme();
+}
+
+// ── Creating a theme ─────────────────────────────────────────────────────────
+// A copy has to carry a name no other theme holds; a typed name is the user's
+// call. The create POST, the toast and the "select it" follow-up live in one
+// place because the copy verb and the New dialog both start a theme.
+function uniqueThemeName(base) {
+  var taken = (window.THEMES || []).map(function (t) {
+    return (t.name || '').toLowerCase();
+  });
+  if (taken.indexOf(base.toLowerCase()) === -1) return base;
+  var n = 2;
+  while (taken.indexOf((base + ' ' + n).toLowerCase()) !== -1) n += 1;
+  return base + ' ' + n;
+}
+
+// "Paper Copy" copied again is "Paper Copy 2", not "Paper Copy Copy": a copy
+// of a copy keeps numbering the same stem.
+function copyThemeName(name) {
+  var stem = name.replace(/ copy( \d+)?$/i, '');
+  return uniqueThemeName(stem + ' Copy');
+}
+
+window.createTheme = function (name, colors, done) {
+  window.saveTheme(name, colors, null, function (ok, id) {
+    if (!ok) {
+      window.showToast('Could not create the theme', { type: 'error' });
+      return;
+    }
+    window.showToast('Theme "' + name + '" created', { type: 'success' });
+    window.refreshThemes(function () {
+      if (id) window.dispatchEvent(new CustomEvent('theme-created', { detail: id }));
+      if (done) done(true, id);
+    });
+  });
+};
+
+window.openThemeNewModal = function () {
+  var input = document.getElementById('theme-new-name');
+  var form = document.getElementById('theme-new-form');
+  if (!input || !form) return;
+  form.querySelectorAll('[data-theme-base-name]').forEach(function (el) {
+    var slot = el.getAttribute('data-theme-base-name');
+    var theme = window.getTheme(
+      slot === 'light' ? window.THEME_STATE.light_theme_id : window.THEME_STATE.dark_theme_id,
+    );
+    el.textContent = theme ? theme.name : '—';
+  });
+  input.value = '';
+  openModal('modal-theme-new');
+  setTimeout(function () {
+    input.focus();
+    input.select();
+  }, 0);
+};
+
+window.actionSubmitThemeNew = function (form, e) {
+  e.preventDefault();
+  var input = document.getElementById('theme-new-name');
+  var name = (input && input.value ? input.value : '').trim();
+  if (!name) {
+    window.showToast('Enter a theme name first', { type: 'error', duration: 4000 });
+    if (input) input.focus();
+    return;
+  }
+  var picked = form.querySelector('input[name="theme-base"]:checked');
+  var baseId =
+    picked && picked.value === 'light' ? window.THEME_STATE.light_theme_id : window.THEME_STATE.dark_theme_id;
+  var base = window.getTheme(baseId);
+  window.createTheme(name, base ? Object.assign({}, base.colors) : {}, function (ok) {
+    if (ok) window.closeModal('modal-theme-new');
+  });
+};
+
+// The editor opens under its own row, so a row near the bottom of a long list
+// would otherwise open its palette out of view.
+function revealSelectedTheme() {
+  var next = window.Alpine ? window.Alpine.nextTick : function (fn) { setTimeout(fn, 0); };
+  next(function () {
+    var item = document.querySelector('#modal-themes .theme-item.open');
+    if (item && item.scrollIntoView) item.scrollIntoView({ block: 'start' });
+  });
 }
 
 // ── Theme modal (Alpine) ─────────────────────────────────────────────────────
@@ -190,6 +271,7 @@ window.themeModalState = function () {
     charThemeId: null,
     charName: null,
     selectedId: null,
+    openId: null,
     selectedIsSystem: false,
     editName: '',
     editColors: {},
@@ -208,14 +290,31 @@ window.themeModalState = function () {
       this.charName = window.THEME_STATE.char_name || null;
     },
 
+    // A created theme only takes the editor when there is nothing to lose: a
+    // dirty draft would otherwise be thrown away by an action that never asked
+    // to switch themes.
+    onThemeCreated: function (id) {
+      if (this.dirty) {
+        this.refresh();
+        return;
+      }
+      this.select(id);
+    },
+
     setSlot: function (slot, id) {
       window.setSlot(slot, id);
       this.refresh();
     },
 
-    // Unsaved-changes detection: dirty = name or any picker color differs
-    // from the selected theme's stored values. Live preview is NOT saved —
-    // this is what tells the user otherwise.
+    // The draft is the editor's single source: the pickers bind to editColors
+    // and paint :root through the same call, so what is previewed, what is
+    // saved and what Save thinks is dirty can never drift apart.
+    setColor: function (varName, value) {
+      this.editColors[varName] = value;
+      previewThemeColor(varName, value);
+      this.markDirty();
+    },
+
     markDirty: function () {
       var t = this.selectedId ? window.getTheme(this.selectedId) : null;
       if (!t) {
@@ -227,17 +326,19 @@ window.themeModalState = function () {
         return;
       }
       var stored = t.colors || {};
-      var inputs = this._readPickers();
-      var self = this;
-      this.dirty = Object.keys(inputs).some(function (k) {
-        var v = (inputs[k] || '').toLowerCase();
-        var s = (stored[k] || '').toLowerCase();
-        return v !== s;
+      var colors = this.editColors;
+      this.dirty = Object.keys(colors).some(function (k) {
+        return (colors[k] || '').toLowerCase() !== (stored[k] || '').toLowerCase();
       });
     },
 
     switchTo: function (id) {
-      if (id === this.selectedId) return;
+      // The selected row folds and unfolds on its own; its draft survives.
+      if (id === this.selectedId) {
+        this.openId = this.openId === id ? null : id;
+        if (this.openId) revealSelectedTheme();
+        return;
+      }
       if (this.dirty) {
         var self = this;
         window.openConfirmModal(
@@ -255,49 +356,21 @@ window.themeModalState = function () {
       var t = window.getTheme(id);
       if (!t) return false;
       this.selectedId = t.id;
+      this.openId = t.id;
       this.selectedIsSystem = !!t.is_system;
       this.editName = t.name;
       this.editColors = Object.assign({}, t.colors);
       this.dirty = false;
-      this.loadPickers();
+      window.reapplyTheme();
+      revealSelectedTheme();
       return true;
     },
 
-    create: function () {
-      var name = this.editName.trim();
-      if (!name) {
-        window.showToast('Enter a theme name first', { type: 'error', duration: 4000 });
-        return;
-      }
-      var colors = this._readPickers();
-      var self = this;
-      window.saveTheme(name, colors, null, function (ok, id) {
-        if (!ok) return;
-        window.showToast('Theme "' + name + '" created', { type: 'success' });
-        window.refreshThemes(function () {
-          if (id) {
-            self.select(id);
-            if (id === window.effectiveThemeId()) window.reapplyTheme();
-          }
-        });
-      });
-    },
-
-    loadPickers: function () {
-      document.querySelectorAll('#theme-color-pickers input[type="color"]').forEach(function (input) {
-        var varName = input.getAttribute('data-var');
-        input.value = this.editColors[varName] || '#000000';
-      }, this);
-    },
-
-    _readPickers: function () {
-      // Keep keys the customizer does not expose (e.g. --text-faint) so editing
-      // a built-in does not strip it back to the derived fallback.
-      var out = Object.assign({}, this.editColors);
-      document.querySelectorAll('#theme-color-pickers input[type="color"]').forEach(function (input) {
-        out[input.getAttribute('data-var')] = input.value;
-      });
-      return out;
+    duplicate: function (id) {
+      var t = window.getTheme(id);
+      if (!t) return;
+      var name = copyThemeName(t.name);
+      window.createTheme(name, Object.assign({}, t.colors));
     },
 
     save: function () {
@@ -306,7 +379,10 @@ window.themeModalState = function () {
         window.showToast('Enter a theme name first', { type: 'error', duration: 4000 });
         return;
       }
-      var colors = this._readPickers();
+      // The draft keeps the tokens the board does not expose (e.g. --text-faint)
+      // as they were copied on select, so editing a built-in does not strip it
+      // back to the derived fallback.
+      var colors = Object.assign({}, this.editColors);
       var self = this;
       window.saveTheme(name, colors, this.selectedId, function (ok) {
         if (!ok) return;
@@ -325,9 +401,14 @@ window.themeModalState = function () {
         window.deleteTheme(id, function (ok) {
           if (!ok) return;
           window.showToast('Theme deleted', { type: 'success' });
-          window.refreshThemes();
           window.reapplyTheme();
-          self.refresh();
+          window.refreshThemes(function () {
+            if (self.selectedId === id) {
+              var next = window.effectiveThemeId();
+              if (!self.select(next)) self.select((window.THEMES[0] || {}).id);
+            }
+            self.refresh();
+          });
         });
       });
     },
@@ -366,6 +447,8 @@ window.openCharThemePicker = function () {
     labelEl.classList.toggle('text-muted', !value);
   });
 };
+
+if (window.ModalController) window.ModalController.onOpen('modal-themes', revealSelectedTheme);
 
 // ── Follow system scheme live ────────────────────────────────────────────────
 

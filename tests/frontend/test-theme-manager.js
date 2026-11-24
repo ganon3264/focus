@@ -1,7 +1,6 @@
 // Unit tests for theme-manager.js — dark/light slots, palette resolution, CRUD
 var h = require('./helpers.js');
 var assert = h.assert, assertEqual = h.assertEqual, assertDeepEqual = h.assertDeepEqual;
-var makeElement = h.makeElement;
 
 var path = require('path');
 var fs = require('fs');
@@ -58,21 +57,7 @@ global.document.documentElement = {
   },
 };
 
-// Color picker mock for editor tests
-var colorInput = makeElement('input');
-colorInput.setAttribute('type', 'color');
-colorInput.setAttribute('data-var', '--accent');
-colorInput.value = '#6366f1';
-global.document._body.appendChild(colorInput);
 global.document.getElementById = function () { return null; };
-global.document.querySelector = function (sel) {
-  if (sel === 'input[data-var="--accent"]') return colorInput;
-  return null;
-};
-global.document.querySelectorAll = function (sel) {
-  if (sel === '#theme-color-pickers input[type="color"]') return [colorInput];
-  return [];
-};
 
 // Confirm modal mock
 global.openConfirmModal = function () {};
@@ -194,30 +179,6 @@ eval(src + '\nwindow.hexToRgb=hexToRgb;window.lightenHex=lightenHex;window.compu
   assertEqual(bright['--text-on-accent'], '#16181c', 'resolvePalette: light accent gets dark text');
 })();
 
-// ── saveTheme: create (POST) vs update (PATCH), no light field ──
-(function () {
-  var calls = [];
-  global.fetch = function (url, opts) {
-    calls.push({ url: url, opts: opts });
-    return Promise.resolve({ ok: true, json: function () { return Promise.resolve({ id: 'new-id' }); } });
-  };
-  var done1 = null, done2 = null;
-  window.saveTheme('New', SLATE, null, function (ok, id) { done1 = [ok, id]; });
-  return Promise.resolve().then(function () {
-    window.saveTheme('New', SLATE, 'custom-1', function (ok, id) { done2 = [ok, id]; });
-  }).then(function () {
-    return Promise.resolve();
-  }).then(function () {
-    assertEqual(calls[0].url, '/api/themes', 'saveTheme create: POST /api/themes');
-    assertEqual(calls[0].opts.method, 'POST', 'saveTheme create: method POST');
-    assertDeepEqual(JSON.parse(calls[0].opts.body), { name: 'New', colors: SLATE }, 'saveTheme create: no light in body');
-    assertEqual(calls[1].url, '/api/themes/custom-1', 'saveTheme update: PATCH /api/themes/custom-1');
-    assertEqual(calls[1].opts.method, 'PATCH', 'saveTheme update: method PATCH');
-    assertEqual(done1[0], true, 'saveTheme create callback ok');
-    assertEqual(done1[1], 'new-id', 'saveTheme create callback id');
-  });
-})();
-
 // ── resetTheme ──
 (function () {
   var called = null;
@@ -240,16 +201,6 @@ eval(src + '\nwindow.hexToRgb=hexToRgb;window.lightenHex=lightenHex;window.compu
   window.deleteTheme('custom-1', function (ok) { assert(ok, 'deleteTheme callback ok'); });
   assertEqual(called.url, '/api/themes/custom-1', 'deleteTheme: url');
   assertEqual(called.method, 'DELETE', 'deleteTheme: method');
-})();
-
-// ── refreshThemes refetches list ──
-(function () {
-  global.fetch = function (url) {
-    return Promise.resolve({ ok: true, json: function () { return Promise.resolve([{ id: 'only' }]); } });
-  };
-  window.refreshThemes(function () {
-    assertEqual(window.THEMES.length, 1, 'refreshThemes: THEMES replaced');
-  });
 })();
 
 // ── themeModalState: init selects effective theme ──
@@ -279,24 +230,7 @@ eval(src + '\nwindow.hexToRgb=hexToRgb;window.lightenHex=lightenHex;window.compu
   assertEqual(state.selectedId, 'custom-1', 'modal: custom selected');
   assertEqual(state.selectedIsSystem, false, 'modal: custom not system');
   assertEqual(state.editName, 'My Theme', 'modal: name loaded');
-  assertEqual(colorInput.value, '#6366f1', 'modal: picker loaded from theme colors');
-})();
-
-// ── themeModalState: create without a name notifies, no request ──
-(function () {
-  var fetches = [];
-  global.fetch = function (url, opts) {
-    fetches.push({ url: url, opts: opts });
-    return Promise.resolve({ ok: true, json: function () { return Promise.resolve({ id: 'x' }); } });
-  };
-  _toasts.length = 0;
-  var state = window.themeModalState();
-  state.init();
-  state.editName = '';
-  state.create();
-  assertEqual(fetches.length, 0, 'modal create: no request without name');
-  assertEqual(_toasts.length, 1, 'modal create: toast shown');
-  assertEqual(_toasts[0], 'Enter a theme name first', 'modal create: toast text');
+  assertEqual(state.editColors['--accent'], '#6366f1', 'modal: draft loaded from theme colors');
 })();
 
 // ── Confirm modal capture ──
@@ -311,11 +245,10 @@ global.openConfirmModal = function (message, cb) {
   state.init();
   state.select('custom-1');
   assertEqual(state.dirty, false, 'dirty: clean after select');
-  colorInput.value = '#111111';
-  state.markDirty();
+  state.setColor('--accent', '#111111');
   assertEqual(state.dirty, true, 'dirty: color change marks dirty');
-  colorInput.value = '#6366f1';
-  state.markDirty();
+  assertEqual(styleSet['--accent'], '#111111', 'dirty: color change previews live');
+  state.setColor('--accent', '#6366f1');
   assertEqual(state.dirty, false, 'dirty: revert to stored color clears');
   state.editName = 'Renamed';
   state.markDirty();
@@ -330,8 +263,7 @@ global.openConfirmModal = function (message, cb) {
   var state = window.themeModalState();
   state.init();
   state.select('custom-1');
-  colorInput.value = '#111111';
-  state.markDirty();
+  state.setColor('--accent', '#111111');
   _confirmCalls.length = 0;
   state.switchTo('builtin-midnight');
   assertEqual(state.selectedId, 'custom-1', 'switchTo dirty: stays on current theme');
@@ -351,57 +283,6 @@ global.openConfirmModal = function (message, cb) {
   state.switchTo('builtin-midnight');
   assertEqual(_confirmCalls.length, 0, 'switchTo clean: no confirm');
   assertEqual(state.selectedId, 'builtin-midnight', 'switchTo clean: switched');
-})();
-
-// ── themeModalState: save resets dirty ──
-(function () {
-  global.fetch = function (url, opts) {
-    return Promise.resolve({ ok: true, json: function () { return Promise.resolve({ id: 'custom-1' }); } });
-  };
-  var state = window.themeModalState();
-  state.init();
-  state.select('custom-1');
-  colorInput.value = '#111111';
-  state.markDirty();
-  state.save();
-  return new Promise(function (res) { setImmediate(res); }).then(function () {
-    assertEqual(state.dirty, false, 'save: dirty cleared after save');
-  });
-})();
-
-// ── themeModalState: create makes the theme immediately ──
-(function () {
-  var created = null;
-  global.fetch = function (url, opts) {
-    if (opts && opts.method === 'POST') {
-      created = JSON.parse(opts.body);
-      return Promise.resolve({ ok: true, json: function () { return Promise.resolve({ id: 'new-id' }); } });
-    }
-    return Promise.resolve({ ok: true, json: function () {
-      return Promise.resolve([
-        { id: 'builtin-slate', name: 'Slate (Default)', colors: SLATE, is_system: true },
-        { id: 'builtin-midnight', name: 'Midnight (OLED)', colors: MIDNIGHT, is_system: true },
-        { id: 'builtin-light', name: 'Light', colors: LIGHT, is_system: true },
-        { id: 'custom-1', name: 'My Theme', colors: SLATE, is_system: false },
-        { id: 'new-id', name: 'Mint', colors: { '--accent': '#abcdef' }, is_system: false },
-      ]);
-    } });
-  };
-  _toasts.length = 0;
-  var state = window.themeModalState();
-  state.init();
-  state.editName = 'Mint';
-  colorInput.value = '#abcdef';
-  state.create();
-  assertDeepEqual(created, {
-    name: 'Mint',
-    colors: { '--bg': '#0b0d10', '--surface': '#13151a', '--accent': '#abcdef', '--text': '#f1f3f5' },
-  }, 'modal create: POST payload keeps unexposed keys');
-  return new Promise(function (res) { setImmediate(res); }).then(function () {
-    assertEqual(_toasts[0], 'Theme "Mint" created', 'modal create: toast text');
-    assertEqual(state.selectedId, 'new-id', 'modal create: new theme selected for editing');
-    assertEqual(state.editName, 'Mint', 'modal create: name loaded');
-  });
 })();
 
 // ── themeModalState: save without a name notifies instead of saving ──
@@ -432,7 +313,7 @@ global.openConfirmModal = function (message, cb) {
   state.init();
   state.select('custom-1');
   state.editName = 'Renamed';
-  colorInput.value = '#111111';
+  state.setColor('--accent', '#111111');
   state.save();
   assertDeepEqual(saved, {
     name: 'Renamed',
@@ -440,5 +321,136 @@ global.openConfirmModal = function (message, cb) {
   }, 'modal save update: payload keeps unexposed keys');
 })();
 
+// ── themeModalState: a created theme does not evict a dirty draft ──
+(function () {
+  var state = window.themeModalState();
+  state.init();
+  state.select('custom-1');
+  state.setColor('--accent', '#111111');
+  state.onThemeCreated('builtin-midnight');
+  assertEqual(state.selectedId, 'custom-1', 'created: a dirty draft keeps the editor');
+  assertEqual(state.dirty, true, 'created: the draft is still dirty');
+  state.setColor('--accent', '#6366f1');
+  state.onThemeCreated('builtin-midnight');
+  assertEqual(state.selectedId, 'builtin-midnight', 'created: a clean editor opens the new theme');
+})();
+
+// ── themeModalState: the open row folds itself, keeping the draft ──
+(function () {
+  var state = window.themeModalState();
+  state.init();
+  state.select('custom-1');
+  assertEqual(state.openId, 'custom-1', 'fold: selecting opens the editor');
+  state.setColor('--accent', '#111111');
+  state.switchTo('custom-1');
+  assertEqual(state.openId, null, 'fold: clicking the open row folds it');
+  assertEqual(state.selectedId, 'custom-1', 'fold: the theme stays selected');
+  assertEqual(state.dirty, true, 'fold: the draft survives');
+  state.switchTo('custom-1');
+  assertEqual(state.openId, 'custom-1', 'fold: clicking again reopens it');
+  state.setColor('--accent', '#6366f1');
+})();
+
+// ── Requests and the create/copy flows ──────────────────────────────────────
+// These need a real promise turn, so they run in order after the synchronous
+// assertions: each one owns the fetch mock it asserts against.
+function tick() {
+  return new Promise(function (resolve) {
+    setImmediate(resolve);
+  });
+}
+
+var BASE_THEMES = [
+  { id: 'builtin-slate', name: 'Slate (Default)', colors: SLATE, is_system: true },
+  { id: 'builtin-midnight', name: 'Midnight (OLED)', colors: MIDNIGHT, is_system: true },
+  { id: 'builtin-light', name: 'Light', colors: LIGHT, is_system: true },
+  { id: 'custom-1', name: 'My Theme', colors: SLATE, is_system: false },
+];
+
+async function asyncTests() {
+  // ── saveTheme: create (POST) vs update (PATCH), no light field ──
+  var calls = [];
+  global.fetch = function (url, opts) {
+    calls.push({ url: url, opts: opts });
+    return Promise.resolve({ ok: true, json: function () { return Promise.resolve({ id: 'new-id' }); } });
+  };
+  var done = null;
+  window.saveTheme('New', SLATE, null, function (ok, id) { done = [ok, id]; });
+  window.saveTheme('New', SLATE, 'custom-1');
+  await tick();
+  assertEqual(calls[0].url, '/api/themes', 'saveTheme create: POST /api/themes');
+  assertEqual(calls[0].opts.method, 'POST', 'saveTheme create: method POST');
+  assertDeepEqual(JSON.parse(calls[0].opts.body), { name: 'New', colors: SLATE }, 'saveTheme create: no light in body');
+  assertEqual(calls[1].url, '/api/themes/custom-1', 'saveTheme update: PATCH /api/themes/custom-1');
+  assertEqual(calls[1].opts.method, 'PATCH', 'saveTheme update: method PATCH');
+  assertEqual(done[0], true, 'saveTheme create callback ok');
+  assertEqual(done[1], 'new-id', 'saveTheme create callback id');
+
+  // ── refreshThemes refetches list ──
+  global.fetch = function () {
+    return Promise.resolve({ ok: true, json: function () { return Promise.resolve([{ id: 'only' }]); } });
+  };
+  await new Promise(function (resolve) { window.refreshThemes(resolve); });
+  assertEqual(window.THEMES.length, 1, 'refreshThemes: THEMES replaced');
+
+  // ── save resets dirty ──
+  global.fetch = function (url, opts) {
+    var body = opts && opts.method === 'PATCH' ? { id: 'custom-1' } : BASE_THEMES;
+    return Promise.resolve({ ok: true, json: function () { return Promise.resolve(body); } });
+  };
+  window.THEMES = BASE_THEMES;
+  var state = window.themeModalState();
+  state.init();
+  state.select('custom-1');
+  state.setColor('--accent', '#111111');
+  state.save();
+  await tick();
+  assertEqual(state.dirty, false, 'save: dirty cleared after save');
+
+  // ── duplicate names the copy and posts its colors ──
+  var posted = null;
+  global.fetch = function (url, opts) {
+    if (opts && opts.method === 'POST') {
+      posted = JSON.parse(opts.body);
+      return Promise.resolve({ ok: true, json: function () { return Promise.resolve({ id: 'copy-1' }); } });
+    }
+    var list = BASE_THEMES.concat([{ id: 'copy-1', name: 'My Theme Copy', colors: SLATE, is_system: false }]);
+    return Promise.resolve({ ok: true, json: function () { return Promise.resolve(list); } });
+  };
+  window.THEMES = BASE_THEMES;
+  state = window.themeModalState();
+  state.init();
+  var toastIndex = _toasts.length;
+  state.duplicate('custom-1');
+  await tick();
+  assertDeepEqual(posted, { name: 'My Theme Copy', colors: SLATE }, 'duplicate: POST payload copies the palette');
+  assertEqual(_toasts[toastIndex], 'Theme "My Theme Copy" created', 'duplicate: toast names the copy');
+  state.onThemeCreated('copy-1');
+  assertEqual(state.selectedId, 'copy-1', 'duplicate: the copy opens in the editor');
+
+  // ── a copy of a copy numbers the same stem ──
+  var posted2 = null;
+  global.fetch = function (url, opts) {
+    if (opts && opts.method === 'POST') {
+      posted2 = JSON.parse(opts.body);
+      return Promise.resolve({ ok: true, json: function () { return Promise.resolve({ id: 'copy-2' }); } });
+    }
+    return Promise.resolve({ ok: true, json: function () { return Promise.resolve(BASE_THEMES); } });
+  };
+  window.THEMES = BASE_THEMES.concat([{ id: 'copy-1', name: 'My Theme Copy', colors: SLATE, is_system: false }]);
+  state = window.themeModalState();
+  state.init();
+  state.duplicate('copy-1');
+  await tick();
+  assertEqual(posted2.name, 'My Theme Copy 2', 'duplicate: a copy of a copy keeps numbering');
+}
+
 // ── Result ──
-h.printSummary();
+asyncTests()
+  .then(function () {
+    h.printSummary();
+  })
+  .catch(function (e) {
+    console.error(e);
+    process.exit(1);
+  });

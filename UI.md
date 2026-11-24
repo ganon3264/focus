@@ -179,6 +179,13 @@ the same shape reduced to one field and one foot — the note is the footer's
 `hint='note'` variant, the length is a `.row-value` readout, and `Done` (indigo)
 is the closing verb.
 
+**The theme customizer is one column.** A theme is a name and a palette, so the
+row is the theme and the row opens into its editor: the plate under it holds the
+name, the two slot assignments and a two-column board of colour lines, all ten
+tokens visible at once. A separate palette pane beside a short list is two
+columns of different heights for one object, and it put every swatch an arm's
+length from its caption.
+
 **The entity editor is two panes.** Identity (Portrait, Name / Group / Theme and
 Media as `row.setting.labeled.tight` rows on one caption/control column) beside the
 content (Description, Greeting), each pane naming its groups with a `.rail` that also
@@ -223,8 +230,8 @@ group.
 | banded list | characters, personas, providers, presets, trash, char-blocks, itemizer, prompt arranger, saved keys |
 | tab container, one banded chassis per tab | System (Preferences · Tools · Extensions · Regex · Structured · Backups · Usage) |
 | tab container, shared bands + strip inside | Samplers |
-| master-detail inside one lane (two independently scrolling columns) | Theme customizer |
-| stacked form + foot | provider create/edit, auto-retry, new key, edit entity, edit message, summary, export, regex/structured items, the preset naming dialog, the text expander |
+| one column: the selected row opens into its palette board | Themes |
+| stacked form + foot | provider create/edit, auto-retry, new key, new theme, edit entity, edit message, summary, export, regex/structured items, the preset naming dialog, the text expander |
 
 Deliberately not banded: the stacked forms above (a form is not a collection).
 
