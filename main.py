@@ -17,6 +17,7 @@ from focus.core.logger import get_logger
 from focus.core.paths import ASSETS_DIR, CACHE_STATIC
 from focus.core.progress_stream import progress_stream
 from focus.db.cleanup import clean_database as db_cleanup
+from focus.providers.base import close_shared_client
 from focus.routers import (
     backup,
     characters,
@@ -89,6 +90,7 @@ async def lifespan(app: FastAPI):
         (time.perf_counter() - started) * 1000,
     )
     yield
+    await close_shared_client()
     logger.info("Focus shutting down.")
 
 

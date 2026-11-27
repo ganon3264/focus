@@ -17,10 +17,9 @@ import time
 from dataclasses import replace
 from urllib.parse import quote
 
-import httpx
-
 from ..core.logger import get_logger
 from ..core.utils import MODEL_FETCH_HTTP_TIMEOUT, TTLCache
+from .base import shared_client
 from .config import ProviderConfig
 from .openai_compat import OpenAICompatProvider
 from .profile import CACHE_BREAKPOINT_MODELS, ProviderProfile
@@ -71,15 +70,14 @@ class NanoGPTProvider(OpenAICompatProvider):
     async def fetch_models(self) -> list[dict]:
         headers = self._build_headers()
         started = time.monotonic()
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(
-                f"{self.base_url}/models",
-                params={"detailed": "true"},
-                timeout=MODEL_FETCH_HTTP_TIMEOUT,
-                headers=headers,
-            )
-            resp.raise_for_status()
-            data = resp.json()
+        resp = await shared_client().get(
+            f"{self.base_url}/models",
+            params={"detailed": "true"},
+            timeout=MODEL_FETCH_HTTP_TIMEOUT,
+            headers=headers,
+        )
+        resp.raise_for_status()
+        data = resp.json()
         elapsed = time.monotonic() - started
         if elapsed > 1.0:
             logger.warning("NanoGPT catalogue fetch took %.1fs", elapsed)
@@ -127,12 +125,11 @@ class NanoGPTProvider(OpenAICompatProvider):
         """
         async def _fetch():
             url = f"{NANOGPT_API_ORIGIN}/api/models/{quote(model, safe='')}/providers"
-            async with httpx.AsyncClient() as client:
-                resp = await client.get(
-                    url, timeout=MODEL_FETCH_HTTP_TIMEOUT, headers=self._build_headers()
-                )
-                resp.raise_for_status()
-                return resp.json()
+            resp = await shared_client().get(
+                url, timeout=MODEL_FETCH_HTTP_TIMEOUT, headers=self._build_headers()
+            )
+            resp.raise_for_status()
+            return resp.json()
 
         return await _providers_cache.get_or_refresh(model, _fetch)
 

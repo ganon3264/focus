@@ -1,8 +1,7 @@
 from dataclasses import replace
 
-import httpx
-
 from ..core.utils import MODEL_FETCH_HTTP_TIMEOUT
+from .base import shared_client
 from .config import ProviderConfig
 from .openai_compat import OpenAICompatProvider
 from .profile import ProviderProfile
@@ -55,12 +54,11 @@ class XiaomiMiMoProvider(OpenAICompatProvider):
 
     async def fetch_models(self) -> list[dict]:
         headers = self._build_headers()
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(
-                f"{self.base_url}/models", timeout=MODEL_FETCH_HTTP_TIMEOUT, headers=headers
-            )
-            resp.raise_for_status()
-            data = resp.json()
+        resp = await shared_client().get(
+            f"{self.base_url}/models", timeout=MODEL_FETCH_HTTP_TIMEOUT, headers=headers
+        )
+        resp.raise_for_status()
+        data = resp.json()
         if isinstance(data, dict) and isinstance(data.get("data"), list):
             return data["data"]
         if isinstance(data, list):

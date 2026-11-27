@@ -10,6 +10,7 @@ from focus.core.logger import get_logger
 from focus.core.models import ProviderCreate
 from focus.core.utils import TTLCache, resolve_secret_key, secret_preview
 from focus.providers import create_provider as provider_factory
+from focus.providers.base import shared_client
 
 router = APIRouter()
 logger = get_logger("routers.providers")
@@ -142,15 +143,14 @@ async def fetch_models(body: FetchModelsRequest, _db=Depends(get_db)):
 
 async def _fetch_or_endpoints(model: str) -> list:
     """Fetch OpenRouter endpoints for a model. Returns list of endpoint dicts."""
-    async with httpx.AsyncClient() as client:
-        resp = await client.get(
-            f"https://openrouter.ai/api/v1/models/{model}/endpoints",
-            timeout=10,
-        )
-        if resp.status_code == 404:
-            return []
-        resp.raise_for_status()
-        return resp.json().get("data", {}).get("endpoints", [])
+    resp = await shared_client().get(
+        f"https://openrouter.ai/api/v1/models/{model}/endpoints",
+        timeout=10,
+    )
+    if resp.status_code == 404:
+        return []
+    resp.raise_for_status()
+    return resp.json().get("data", {}).get("endpoints", [])
 
 
 @router.get("/openrouter/endpoints/{model:path}")
@@ -369,17 +369,16 @@ async def get_provider_balance(provider_id: str, _db=Depends(get_db)):
         headers = cfg.get("headers")
         headers = headers(api_key) if headers else {"Authorization": f"Bearer {api_key}"}
         try:
-            async with httpx.AsyncClient() as client:
-                resp = await client.request(
-                    cfg.get("method", "GET"),
-                    cfg["url"],
-                    headers=headers,
-                    timeout=httpx.Timeout(6.0, connect=4.0),
-                )
-                if resp.status_code == 401:
-                    return {"balances": []}
-                resp.raise_for_status()
-                return cfg["parse"](resp.json())
+            resp = await shared_client().request(
+                cfg.get("method", "GET"),
+                cfg["url"],
+                headers=headers,
+                timeout=httpx.Timeout(6.0, connect=4.0),
+            )
+            if resp.status_code == 401:
+                return {"balances": []}
+            resp.raise_for_status()
+            return cfg["parse"](resp.json())
         except (httpx.HTTPError, KeyError, TypeError, ValueError) as e:
             # A balance readout is decoration: an unreachable or reshaped
             # upstream must render as "unavailable", never as a 500.

@@ -14,7 +14,7 @@ from ..core.utils import (
     OPENAI_HTTP_TIMEOUT,
 )
 from ..tools import ToolCall
-from .base import BaseProvider, sdk_dump
+from .base import BaseProvider, sdk_dump, shared_client
 from .config import ProviderConfig
 from .profile import Capabilities, ProviderProfile
 
@@ -105,6 +105,7 @@ class OpenAICompatProvider(BaseProvider):
             api_key=self.api_key or "no-key",
             timeout=OPENAI_HTTP_TIMEOUT,
             default_headers=self._extra_headers(),
+            http_client=shared_client(),
         )
 
     def _extra_headers(self) -> dict:
@@ -215,62 +216,64 @@ class OpenAICompatProvider(BaseProvider):
         finish_reason: str | None = None
         raw_chunks: list | None = [] if logger.isEnabledFor(logging.DEBUG) else None
 
-        async with self._get_client() as client:
-            response = await client.chat.completions.create(**request_params)
-            if stream_requested:
-                async for chunk in response:
-                    extra = getattr(chunk, "model_extra", None) or {}
-                    if chunk.usage:
-                        last_usage = chunk.usage
-                        usage_envelope = extra
-                    if raw_chunks is not None:
-                        raw_chunks.append(sdk_dump(chunk))
-                    if extra.get("debug"):
-                        if logger.isEnabledFor(logging.DEBUG):
-                            logger.debug(
-                                "Upstream debug chunk:\n%s",
-                                _json.dumps(extra["debug"], indent=2, ensure_ascii=False),
-                            )
-                        yield {"type": "debug", "debug": extra["debug"]}
-                    if not chunk.choices:
-                        continue
-                    if getattr(chunk.choices[0], "finish_reason", None):
-                        finish_reason = chunk.choices[0].finish_reason
+        # Not a context manager: closing the wrapper would close the shared
+        # transport every provider rides on.
+        client = self._get_client()
+        response = await client.chat.completions.create(**request_params)
+        if stream_requested:
+            async for chunk in response:
+                extra = getattr(chunk, "model_extra", None) or {}
+                if chunk.usage:
+                    last_usage = chunk.usage
+                    usage_envelope = extra
+                if raw_chunks is not None:
+                    raw_chunks.append(sdk_dump(chunk))
+                if extra.get("debug"):
+                    if logger.isEnabledFor(logging.DEBUG):
+                        logger.debug(
+                            "Upstream debug chunk:\n%s",
+                            _json.dumps(extra["debug"], indent=2, ensure_ascii=False),
+                        )
+                    yield {"type": "debug", "debug": extra["debug"]}
+                if not chunk.choices:
+                    continue
+                if getattr(chunk.choices[0], "finish_reason", None):
+                    finish_reason = chunk.choices[0].finish_reason
 
-                    delta_obj = chunk.choices[0].delta
-                    delta = getattr(delta_obj, "content", None)
+                delta_obj = chunk.choices[0].delta
+                delta = getattr(delta_obj, "content", None)
 
-                    # Generic extraction for all tracked fields
-                    for field_name, cfg in TRACKED_FIELDS.items():
-                        value = self._extract_tracked(delta_obj, cfg)
-                        if value:
-                            yield {"type": "meta", "field": field_name, "value": value}
+                # Generic extraction for all tracked fields
+                for field_name, cfg in TRACKED_FIELDS.items():
+                    value = self._extract_tracked(delta_obj, cfg)
+                    if value:
+                        yield {"type": "meta", "field": field_name, "value": value}
 
-                    raw_tool_calls = getattr(delta_obj, "tool_calls", None)
-                    if raw_tool_calls:
-                        self._accumulate_streamed_tool_calls(tool_calls_acc, raw_tool_calls)
+                raw_tool_calls = getattr(delta_obj, "tool_calls", None)
+                if raw_tool_calls:
+                    self._accumulate_streamed_tool_calls(tool_calls_acc, raw_tool_calls)
 
-                    if delta:
-                        yield {"type": "token", "text": delta}
-            else:
-                last_usage = getattr(response, "usage", None)
-                usage_envelope = getattr(response, "model_extra", None) or {}
-                if logger.isEnabledFor(logging.DEBUG):
-                    logger.debug("RAW RESPONSE:\n%s", _json.dumps(sdk_dump(response), indent=2, ensure_ascii=False))
-                choices = getattr(response, "choices", None) or []
-                if choices:
-                    message = choices[0].message
-                    finish_reason = getattr(choices[0], "finish_reason", None)
-                    for field_name, cfg in TRACKED_FIELDS.items():
-                        value = self._extract_tracked(message, cfg)
-                        if value:
-                            yield {"type": "meta", "field": field_name, "value": value}
-                    content = getattr(message, "content", None)
-                    if content:
-                        yield {"type": "token", "text": content}
-                    raw_tool_calls = getattr(message, "tool_calls", None)
-                    if raw_tool_calls:
-                        nonstream_tool_calls = self._convert_tool_calls(raw_tool_calls)
+                if delta:
+                    yield {"type": "token", "text": delta}
+        else:
+            last_usage = getattr(response, "usage", None)
+            usage_envelope = getattr(response, "model_extra", None) or {}
+            if logger.isEnabledFor(logging.DEBUG):
+                logger.debug("RAW RESPONSE:\n%s", _json.dumps(sdk_dump(response), indent=2, ensure_ascii=False))
+            choices = getattr(response, "choices", None) or []
+            if choices:
+                message = choices[0].message
+                finish_reason = getattr(choices[0], "finish_reason", None)
+                for field_name, cfg in TRACKED_FIELDS.items():
+                    value = self._extract_tracked(message, cfg)
+                    if value:
+                        yield {"type": "meta", "field": field_name, "value": value}
+                content = getattr(message, "content", None)
+                if content:
+                    yield {"type": "token", "text": content}
+                raw_tool_calls = getattr(message, "tool_calls", None)
+                if raw_tool_calls:
+                    nonstream_tool_calls = self._convert_tool_calls(raw_tool_calls)
 
         # Emit usage data if captured
         if raw_chunks:

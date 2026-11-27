@@ -3,10 +3,26 @@ from collections.abc import AsyncIterator
 
 import httpx
 
-from ..core.utils import MODEL_FETCH_HTTP_TIMEOUT
+from ..core.utils import MODEL_FETCH_HTTP_TIMEOUT, OPENAI_HTTP_TIMEOUT
 from .config import ProviderConfig
 from .profile import Capabilities, ProviderProfile
 from .registry import register
+
+# One transport for every outbound provider call. An SDK client is a thin
+# wrapper carrying base_url, key and headers — all of which are rebuilt per
+# call anyway — so sharing the transport costs nothing and stops each send and
+# each tool round from paying its own DNS + TLS handshake. Never closed per
+# request; the app closes it on shutdown.
+HTTP_CLIENT = httpx.AsyncClient(timeout=OPENAI_HTTP_TIMEOUT, follow_redirects=True)
+
+
+def shared_client() -> httpx.AsyncClient:
+    """Resolved per call so the module attribute stays the one seam."""
+    return HTTP_CLIENT
+
+
+async def close_shared_client() -> None:
+    await HTTP_CLIENT.aclose()
 
 
 def sdk_dump(obj) -> object:
@@ -93,10 +109,9 @@ class BaseProvider(ABC):
         extra = getattr(self, "_extra_headers", None)
         if extra:
             headers.update(extra())
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(url, timeout=MODEL_FETCH_HTTP_TIMEOUT, headers=headers)
-            resp.raise_for_status()
-            data = resp.json()
+        resp = await shared_client().get(url, timeout=MODEL_FETCH_HTTP_TIMEOUT, headers=headers)
+        resp.raise_for_status()
+        data = resp.json()
         if isinstance(data, dict) and "data" in data and isinstance(data["data"], list):
             return data["data"]
         if isinstance(data, list):

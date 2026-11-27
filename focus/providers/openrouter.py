@@ -1,9 +1,8 @@
 from dataclasses import replace
 
-import httpx
-
 from ..core.logger import get_logger
 from ..core.utils import MODEL_FETCH_HTTP_TIMEOUT, TTLCache
+from .base import shared_client
 from .config import ProviderConfig
 from .openai_compat import OpenAICompatProvider
 from .profile import CACHE_BREAKPOINT_MODELS, ProviderProfile
@@ -48,13 +47,12 @@ class OpenRouterProvider(OpenAICompatProvider):
         return cls(api_key=row["api_key"] or "", model=row["model"], params=params, config=config)
 
     async def fetch_models(self) -> list[dict]:
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(
-                "https://openrouter.ai/api/v1/models",
-                timeout=MODEL_FETCH_HTTP_TIMEOUT,
-            )
-            resp.raise_for_status()
-            data = resp.json()
+        resp = await shared_client().get(
+            "https://openrouter.ai/api/v1/models",
+            timeout=MODEL_FETCH_HTTP_TIMEOUT,
+        )
+        resp.raise_for_status()
+        data = resp.json()
         if isinstance(data, dict) and "data" in data and isinstance(data["data"], list):
             return data["data"]
         if isinstance(data, list):

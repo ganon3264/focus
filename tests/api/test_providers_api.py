@@ -1,7 +1,7 @@
 """API tests for the provider router (focus/routers/providers.py).
 
 fetch_models / endpoints / balance / modalities hit HTTP endpoints, which
-are mocked with httpx.MockTransport (patching httpx.AsyncClient globally).
+are mocked with httpx.MockTransport (one patched shared transport).
 Module-level TTL caches are cleared per test to keep tests independent.
 """
 
@@ -31,10 +31,9 @@ def _clear_provider_caches():
 
 
 def _patch_httpx(monkeypatch, handler):
-    real = httpx.AsyncClient
     monkeypatch.setattr(
-        httpx, "AsyncClient",
-        lambda *a, **k: real(transport=httpx.MockTransport(handler)),
+        "focus.providers.base.HTTP_CLIENT",
+        httpx.AsyncClient(transport=httpx.MockTransport(handler)),
     )
 
 

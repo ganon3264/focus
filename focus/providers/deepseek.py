@@ -1,9 +1,8 @@
 from dataclasses import replace
 
-import httpx
-
 from ..core.logger import get_logger
 from ..core.utils import MODEL_FETCH_HTTP_TIMEOUT
+from .base import shared_client
 from .config import ProviderConfig
 from .openai_compat import OpenAICompatProvider
 from .profile import ProviderProfile
@@ -34,10 +33,9 @@ class DeepseekProvider(OpenAICompatProvider):
 
     async def fetch_models(self) -> list[dict]:
         headers = self._build_headers()
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(MODELS_URL, timeout=MODEL_FETCH_HTTP_TIMEOUT, headers=headers)
-            resp.raise_for_status()
-            data = resp.json()
+        resp = await shared_client().get(MODELS_URL, timeout=MODEL_FETCH_HTTP_TIMEOUT, headers=headers)
+        resp.raise_for_status()
+        data = resp.json()
         if isinstance(data, dict) and "data" in data and isinstance(data["data"], list):
             return data["data"]
         if isinstance(data, list):

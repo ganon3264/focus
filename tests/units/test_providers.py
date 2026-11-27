@@ -77,8 +77,8 @@ def _completion(*, content=None, tool_calls=None, reasoning=None,
 
 
 class FakeOpenAIClient:
-    """Async-context-manager stand-in for AsyncOpenAI that captures the
-    request kwargs and yields scripted chunks from ``create``.
+    """Stand-in for AsyncOpenAI that captures the request kwargs and yields
+    scripted chunks from ``create``.
 
     With ``stream=False`` it returns ``completion`` directly (a single object),
     mirroring the real SDK."""
@@ -87,12 +87,6 @@ class FakeOpenAIClient:
         self.chunks = chunks or []
         self.completion = completion
         self.request = None
-
-    async def __aenter__(self):
-        return self
-
-    async def __aexit__(self, *a):
-        return False
 
     @property
     def chat(self):
@@ -722,12 +716,10 @@ class _ConcreteProvider(BaseProvider):
 
 
 def _patch_httpx(monkeypatch, handler):
-    """Replace httpx.AsyncClient with a MockTransport-backed one (capturing
-    the real class first to avoid recursion inside the lambda)."""
-    real = httpx.AsyncClient
+    """Point the shared provider transport at a MockTransport for this test."""
     monkeypatch.setattr(
-        httpx, "AsyncClient",
-        lambda *a, **k: real(transport=httpx.MockTransport(handler)),
+        "focus.providers.base.HTTP_CLIENT",
+        httpx.AsyncClient(transport=httpx.MockTransport(handler)),
     )
 
 
