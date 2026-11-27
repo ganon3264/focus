@@ -275,27 +275,27 @@
 }
 
 /* ── Entity lists ─────────────────────────────────────────────────────────
-   Characters, personas and providers share one row: a .row card in two
-   column-major lanes, its groove from the row primitive, its avatar, title,
-   readout and keys all primitives. */
+   Characters and personas share one row: a .row card in a row-major
+   two-column grid, its groove from the row primitive, its avatar, title,
+   readout and keys all primitives. Row-major, not CSS columns: DOM order is
+   then reading order, so tab order walks left to right and a re-sort never
+   moves a card to the other lane. */
 .entity-list {
-  column-count: 2;
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   column-gap: var(--inset);
-  /* Two lanes of identical rows read as one field without a seam between
-     them; the rule is that seam. */
-  column-rule: var(--hair-w) solid var(--hair-dark);
 }
 
-.entity-list {
-  column-count: 2;
-  column-gap: var(--inset);
-  /* Two lanes of identical rows read as one field without a seam between
-     them; the rule is that seam. */
-  column-rule: var(--hair-w) solid var(--hair-dark);
-}
-
-.entity-list > .entity-row {
-  break-inside: avoid;
+/* A grid has no column-rule and rows carry only their own groove, so the seam
+   between the lanes is drawn — centred in the gap, where the rule sat. */
+.entity-list::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  left: 50%;
+  width: var(--hair-w);
+  background-color: var(--hair-dark);
 }
 
 /* The name owns the line; the readout column and the verbs never squeeze it.

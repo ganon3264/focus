@@ -730,7 +730,7 @@ async function measureOffbeat(page) {
     if (rows.length) {
       const heights = new Set(rows.map((r) => r.height));
       check('entity rows share one height of 32', heights.size === 1 && [...heights][0] === 32, `heights {${[...heights]}}`);
-      // Rows flow column-major, so a column is compared with itself.
+      // Rows flow row-major; a column is compared with itself either way.
       const columns = [...new Set(rows.map((r) => r.x))];
       columns.forEach((x) => {
         const col = rows.filter((r) => r.x === x);
