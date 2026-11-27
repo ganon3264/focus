@@ -765,7 +765,8 @@ class TestMessageUsage:
         assert resp.status_code == 200
         assert "2,500" in resp.text
         assert "1,500 (60%)" in resp.text
-        assert "&lt;$0.01" in resp.text
+        assert "$0.003" in resp.text
+        assert "$0.001" in resp.text and "$0.002" in resp.text
         assert "2 calls" in resp.text
         assert "Call 1" in resp.text and "Call 2" in resp.text
 

@@ -49,10 +49,10 @@ def test_cost_totals_and_details_sum():
 
     stats = summarize_usage(rows)
 
-    assert stats["cost"] == "<$0.01"
-    assert stats["calls"][0]["cost"] == "<$0.01"
+    assert stats["cost"] == "$0.003"
+    assert [call["cost"] for call in stats["calls"]] == ["$0.001", "$0.002"]
     details = {row["label"]: row["value"] for row in stats["details"]}
-    assert details == {"Upstream inference cost": "<$0.01", "Upstream": "openai"}
+    assert details == {"Upstream inference cost": "$0.003", "Upstream": "openai"}
 
 
 def test_unreported_fields_stay_absent():
@@ -117,6 +117,17 @@ def test_lifetime_totals_share_and_cost():
         ("a/one", "70.0", "70.0%"),
         ("b/two", "30.0", "30.0%"),
     ]
+
+
+def test_lifetime_collapses_sub_cent_cost_while_a_message_spells_it_out():
+    lifetime = summarize_lifetime([{"provider_type": "openrouter", "model_name": "m", "calls": 1,
+                                    "prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2,
+                                    "cached_tokens": 0, "reasoning_tokens": 0, "cost": 0.0004}])
+
+    assert lifetime["cost"] == "<$0.01"
+    assert summarize_usage([_row(cost=0.0004)])["cost"] == "$0.0004"
+    assert summarize_usage([_row(cost=0.0001234)])["cost"] == "$0.00012"
+    assert summarize_usage([_row(cost=0.0000004)])["cost"] == "<$0.00001"
 
 
 def test_lifetime_without_usage():

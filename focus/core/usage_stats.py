@@ -20,8 +20,20 @@ _TOKEN_ROWS = (
 )
 
 
-def _money(value) -> str | None:
-    """Cents only. Anything below a cent is stated, not rounded to zero."""
+def _sub_cent(amount: float) -> str:
+    text = f"{amount:.5f}".rstrip("0")
+    whole, _, frac = text.partition(".")
+    if not frac:
+        return "<$0.00001"
+    return f"${whole}.{frac.ljust(2, '0')}"
+
+
+def _money(value, precise: bool = False) -> str | None:
+    """Cents only; anything below a cent is stated, not rounded to zero.
+
+    `precise` is the message popup, which spells a sub-cent amount out rather
+    than collapsing it to "<$0.01" the way lifetime totals do.
+    """
     if isinstance(value, bool) or value is None:
         return None
     try:
@@ -30,6 +42,8 @@ def _money(value) -> str | None:
         return None
     if amount == 0:
         return "$0"
+    if precise and amount < 0.01:
+        return _sub_cent(amount)
     if amount < 0.005:
         return "<$0.01"
     return f"${amount:.2f}"
@@ -49,7 +63,7 @@ def _detail_value(value) -> str:
     if isinstance(value, bool):
         return "yes" if value else "no"
     if isinstance(value, (int, float)):
-        return _money(value)
+        return _money(value, precise=True)
     if isinstance(value, (dict, list)):
         return json.dumps(value, separators=(",", ":"))
     return str(value)
@@ -106,14 +120,14 @@ def summarize_usage(rows: list[dict]) -> dict:
             "label": f"Call {index + 1}",
             "model": row.get("model_name") or "",
             "tokens": f"{int(row.get('prompt_tokens') or 0):,} → {int(row.get('completion_tokens') or 0):,}",
-            "cost": _money(row.get("cost")) or "—",
+            "cost": _money(row.get("cost"), precise=True) or "—",
         })
 
     return {
         "calls": calls,
         "stat_rows": _stat_rows(totals),
         "details": _detail_rows(details),
-        "cost": _money(cost) or "—",
+        "cost": _money(cost, precise=True) or "—",
         "origin": " · ".join(part for part in (provider_type, model) if part),
     }
 
