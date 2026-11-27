@@ -1,3 +1,4 @@
+import asyncio
 from io import BytesIO
 
 import aiosqlite
@@ -170,6 +171,24 @@ class TestTTLCache:
 
         assert await cache.get_or_refresh("k", factory) is None
         assert await cache.get("k") is None
+
+    async def test_stale_value_is_served_while_the_refresh_runs(self, monkeypatch):
+        import time as time_mod
+
+        real_monotonic = time_mod.monotonic
+        cache = TTLCache(ttl=10)
+        await cache.set("k", "old")
+        monkeypatch.setattr(time_mod, "monotonic", lambda: real_monotonic() + 11)
+        release = asyncio.Event()
+
+        async def factory():
+            await release.wait()
+            return "new"
+
+        assert await cache.get_stale_while_refresh("k", factory) == "old"
+        release.set()
+        await asyncio.sleep(0)
+        assert await cache.get_stale_while_refresh("k", factory) == "new"
 
 
 class TestReadUpload:

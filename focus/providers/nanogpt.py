@@ -13,6 +13,7 @@ most of the wire format is the inherited one. Four things need mapping:
   list, service tiers) and is fetched with ``detailed=true``.
 """
 
+import time
 from dataclasses import replace
 from urllib.parse import quote
 
@@ -69,6 +70,7 @@ class NanoGPTProvider(OpenAICompatProvider):
 
     async def fetch_models(self) -> list[dict]:
         headers = self._build_headers()
+        started = time.monotonic()
         async with httpx.AsyncClient() as client:
             resp = await client.get(
                 f"{self.base_url}/models",
@@ -78,6 +80,9 @@ class NanoGPTProvider(OpenAICompatProvider):
             )
             resp.raise_for_status()
             data = resp.json()
+        elapsed = time.monotonic() - started
+        if elapsed > 1.0:
+            logger.warning("NanoGPT catalogue fetch took %.1fs", elapsed)
         if isinstance(data, dict) and isinstance(data.get("data"), list):
             return data["data"]
         if isinstance(data, list):
@@ -89,7 +94,7 @@ class NanoGPTProvider(OpenAICompatProvider):
         async def _fetch():
             return await self.fetch_models()
 
-        models = await _models_cache.get_or_refresh("models", _fetch)
+        models = await _models_cache.get_stale_while_refresh("models", _fetch)
         for m in models or []:
             if isinstance(m, dict) and m.get("id") == model:
                 return m

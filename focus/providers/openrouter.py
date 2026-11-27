@@ -65,7 +65,7 @@ class OpenRouterProvider(OpenAICompatProvider):
         async def _fetch():
             return await self.fetch_models()
 
-        models = await _models_cache.get_or_refresh("models", _fetch)
+        models = await _models_cache.get_stale_while_refresh("models", _fetch)
         if not models:
             return None
         for m in models:

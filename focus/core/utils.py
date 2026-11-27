@@ -95,16 +95,20 @@ def greetings_from_card(card: dict | None) -> list[str]:
 class TTLCache:
     """Async-safe TTL cache with dict semantics.
 
-    Two access patterns:
+    Access patterns:
       get(key) / set(key, value)  — standard read-through (returns None on miss/expiry)
       get_or_refresh(key, factory) — atomic check-and-fetch (factory is async, called
                                      outside the lock to avoid blocking concurrent reads)
+      get_stale_while_refresh(key, factory) — the previous value once it has gone
+                                     stale, with the fetch running behind it
     """
 
     def __init__(self, ttl: int = MODEL_CACHE_TTL):
         self._data: dict[str, object] = {}
         self._times: dict[str, float] = {}
         self._lock = asyncio.Lock()
+        self._refreshing: set[str] = set()
+        self._tasks: set[asyncio.Task] = set()
         self._ttl = ttl
 
     async def get(self, key: str):
@@ -135,6 +139,43 @@ class TTLCache:
         if new_value is not None:
             await self.set(key, new_value)
         return new_value
+
+    async def get_stale_while_refresh(self, key: str, factory):
+        """Fresh value, else the stale one with the fetch running behind it.
+
+        For callers that cannot wait on network IO — a model catalogue lookup
+        inside a generation, where an expired entry used to cost seconds. The
+        only call that waits is one for a key that was never filled.
+        """
+        cached = await self.get(key)
+        if cached is not None:
+            return cached
+        async with self._lock:
+            stale = self._data.get(key)
+            start = stale is not None and key not in self._refreshing
+            if start:
+                self._refreshing.add(key)
+        if stale is None:
+            return await self._fill(key, factory, swallow_errors=False)
+        if start:
+            task = asyncio.create_task(self._fill(key, factory, swallow_errors=True))
+            self._tasks.add(task)
+            task.add_done_callback(self._tasks.discard)
+        return stale
+
+    async def _fill(self, key: str, factory, *, swallow_errors: bool):
+        try:
+            value = await factory()
+        except Exception as e:
+            if not swallow_errors:
+                raise
+            logger.warning("Background refresh of %r failed: %s", key, e)
+            return None
+        finally:
+            self._refreshing.discard(key)
+        if value is not None:
+            await self.set(key, value)
+        return value
 
 
 AUDIO_TOKEN_ESTIMATE = 100
