@@ -261,6 +261,11 @@ async function measureEntityEditor(page) {
     const panel = document.querySelector('#modal-edit-character > .modal-panel');
     if (!panel) return null;
     const q = (sel) => panel.querySelector(sel);
+    // The card-fields form is a nested overlay inside this editor's panel, so
+    // its foot is not this editor's foot: the first `.modal-foot .btn.primary`
+    // in DOM order is its hidden "Done", not the editor's Save.
+    const ownFootBtn = [...panel.querySelectorAll('.modal-foot .btn.primary')]
+      .find((b) => !panel.contains(b.closest('.modal-overlay')));
     const rows = [...panel.querySelectorAll('.edit-fields > .row')].filter((r) => r.getBoundingClientRect().height > 0);
     return {
       panel: rect(panel),
@@ -278,7 +283,7 @@ async function measureEntityEditor(page) {
       door: rect(q('[data-action="actionOpenCharBlocks"]')),
       cardFields: rect(q('[onclick*="modal-char-card-fields"]')),
       greetKeys: [...panel.querySelectorAll('.edit-greeting .rail-actions > .key')].map(rect),
-      footBtn: rect(q('.modal-foot .btn.primary')),
+      footBtn: rect(ownFootBtn),
     };
   });
 }
